@@ -497,8 +497,11 @@ const RiskCenter = () => {
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [savingRule, setSavingRule] = useState(false);
+  const [detectingIP, setDetectingIP] = useState(false);
+  const [diagnosisVisible, setDiagnosisVisible] = useState(false);
   const [overview, setOverview] = useState({});
   const [config, setConfig] = useState({});
+  const [ipDiagnosis, setIPDiagnosis] = useState(null);
   const [rules, setRules] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [incidents, setIncidents] = useState([]);
@@ -638,6 +641,46 @@ const RiskCenter = () => {
     } finally {
       setSavingConfig(false);
     }
+  };
+
+  const handleDetectIP = async () => {
+    try {
+      setDetectingIP(true);
+      setDiagnosisVisible(true);
+      const res = await API.get('/api/risk/detect-ip');
+      if (!res.data.success) {
+        setDiagnosisVisible(false);
+        return showError(res.data.message);
+      }
+      setIPDiagnosis(res.data.data || null);
+    } catch (error) {
+      setDiagnosisVisible(false);
+      showError(t('IP 诊断失败'));
+    } finally {
+      setDetectingIP(false);
+    }
+  };
+
+  const handleApplyIPRecommendation = () => {
+    if (!ipDiagnosis) {
+      return;
+    }
+    if (
+      ipDiagnosis.recommended_mode === 'trusted_header' &&
+      ipDiagnosis.recommended_header
+    ) {
+      setConfig((prev) => ({
+        ...prev,
+        trusted_ip_header_enabled: true,
+        trusted_ip_header: ipDiagnosis.recommended_header,
+      }));
+    } else {
+      setConfig((prev) => ({
+        ...prev,
+        trusted_ip_header_enabled: false,
+      }));
+    }
+    showSuccess(t('已应用诊断推荐，请保存全局策略'));
   };
 
   const handleSaveRule = async (form) => {
@@ -1230,7 +1273,9 @@ const RiskCenter = () => {
                     size='small'
                     style={{ display: 'block', marginTop: 2 }}
                   >
-                    {t('开启后全局生效：限流、令牌 IP 白名单、日志、风控等所有依赖 IP 的功能均受影响')}
+                    {t(
+                      '开启后会统一影响限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
+                    )}
                   </Text>
                 </div>
               </div>
@@ -1245,8 +1290,23 @@ const RiskCenter = () => {
               />
             </div>
 
-            {config.trusted_ip_header_enabled && (
-              <div style={{ marginTop: 12 }}>
+            <Banner
+              type='info'
+              closeIcon={null}
+              style={{ marginTop: 12 }}
+              description={
+                config.trusted_ip_header_enabled
+                  ? t(
+                      '当前已开启“信任上游 IP 头”。系统会优先读取你填写的请求头作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
+                    )
+                  : t(
+                      '当前未开启“信任上游 IP 头”。系统会统一使用 TCP RemoteAddr 作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
+                    )
+              }
+            />
+
+            <div style={{ marginTop: 12 }}>
+              {config.trusted_ip_header_enabled && (
                 <Banner
                   type='warning'
                   closeIcon={null}
@@ -1255,27 +1315,259 @@ const RiskCenter = () => {
                     '请确保反向代理已正确配置该请求头（如 Nginx 的 proxy_set_header），否则所有依赖 IP 的功能将受影响。',
                   )}
                 />
-                <Text strong>{t('请求头名称')}</Text>
-                <Input
-                  value={config.trusted_ip_header}
-                  onChange={(value) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      trusted_ip_header: value,
-                    }))
-                  }
-                  placeholder='X-Real-IP'
-                  style={{ marginTop: 4 }}
-                />
-                <Text
-                  type='tertiary'
-                  size='small'
-                  style={{ display: 'block', marginTop: 6 }}
-                >
-                  {t('Nginx / Ingress 填 X-Real-IP，Cloudflare 填 CF-Connecting-IP，直连公网请关闭此项')}
-                </Text>
-              </div>
-            )}
+              )}
+
+              <Text strong>{t('请求头名称')}</Text>
+              <Input
+                value={config.trusted_ip_header}
+                onChange={(value) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    trusted_ip_header: value,
+                  }))
+                }
+                disabled={!config.trusted_ip_header_enabled}
+                placeholder={t('例如 X-Real-IP 或 CF-Connecting-IP')}
+                style={{ marginTop: 4 }}
+              />
+              <Text
+                type='tertiary'
+                size='small'
+                style={{ display: 'block', marginTop: 6 }}
+              >
+                {t(
+                  '只有在你的服务前面有你完全信任的反向代理、Ingress 或 CDN，并且它会覆盖写入真实客户端 IP 请求头时，才应开启。直连公网通常保持关闭；Nginx / Ingress 常用 X-Real-IP；Cloudflare 常用 CF-Connecting-IP。',
+                )}
+              </Text>
+            </div>
+
+            <div style={{ marginTop: 8 }}>
+              <Button
+                loading={detectingIP}
+                onClick={handleDetectIP}
+              >
+                {t('检测当前环境')}
+              </Button>
+              <Text
+                type='tertiary'
+                size='small'
+                style={{ marginLeft: 8 }}
+              >
+                {t('不确定填什么？点击检测，系统会自动分析并推荐')}
+              </Text>
+            </div>
+
+            <Modal
+              title={t('IP 环境诊断')}
+              visible={diagnosisVisible}
+              onCancel={() => setDiagnosisVisible(false)}
+              footer={
+                <div className='flex justify-between'>
+                  <Button
+                    onClick={() => setDiagnosisVisible(false)}
+                  >
+                    {t('关闭')}
+                  </Button>
+                  <Button
+                    type='primary'
+                    onClick={() => {
+                      handleApplyIPRecommendation();
+                      setDiagnosisVisible(false);
+                    }}
+                  >
+                    {t('应用推荐配置')}
+                  </Button>
+                </div>
+              }
+              width={720}
+              bodyStyle={{ maxHeight: '65vh', overflowY: 'auto' }}
+            >
+              {detectingIP ? (
+                <div style={{ textAlign: 'center', padding: 40 }}>
+                  <Spin size='large' />
+                </div>
+              ) : ipDiagnosis ? (
+                <div className='flex flex-col gap-4'>
+                  <Banner
+                    type={
+                      ipDiagnosis.recommended_mode === 'trusted_header'
+                        ? 'info'
+                        : 'success'
+                    }
+                    closeIcon={null}
+                    description={
+                      ipDiagnosis.recommendation_message || '-'
+                    }
+                  />
+
+                  <Row gutter={[12, 12]}>
+                    <Col span={8}>
+                      <Text type='secondary' size='small'>
+                        {t('当前配置')}
+                      </Text>
+                      <div style={{ marginTop: 4 }}>
+                        <Tag
+                          color={
+                            ipDiagnosis.current_mode === 'trusted_header'
+                              ? 'orange'
+                              : 'blue'
+                          }
+                          size='large'
+                        >
+                          {ipDiagnosis.current_mode === 'trusted_header'
+                            ? t('信任请求头')
+                            : 'RemoteAddr'}
+                        </Tag>
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type='secondary' size='small'>
+                        {t('推荐配置')}
+                      </Text>
+                      <div style={{ marginTop: 4 }}>
+                        <Tag
+                          color={
+                            ipDiagnosis.recommended_mode === 'trusted_header'
+                              ? 'green'
+                              : 'blue'
+                          }
+                          size='large'
+                        >
+                          {ipDiagnosis.recommended_mode === 'trusted_header'
+                            ? ipDiagnosis.recommended_header
+                            : 'RemoteAddr'}
+                        </Tag>
+                      </div>
+                    </Col>
+                    <Col span={8}>
+                      <Text type='secondary' size='small'>
+                        {t('当前生效 IP')}
+                      </Text>
+                      <div style={{ marginTop: 4 }}>
+                        <Text
+                          strong
+                          style={{
+                            fontFamily:
+                              'ui-monospace, SFMono-Regular, Menlo, monospace',
+                          }}
+                        >
+                          {ipDiagnosis.effective_client_ip || '-'}
+                        </Text>
+                      </div>
+                    </Col>
+                  </Row>
+
+                  <Divider margin='4px' />
+
+                  <div>
+                    <Text strong style={{ marginBottom: 8, display: 'block' }}>
+                      {t('请求头明细')}
+                    </Text>
+                    <Table
+                      dataSource={ipDiagnosis.items || []}
+                      rowKey={(record, index) =>
+                        `${record.name}-${index}`
+                      }
+                      pagination={false}
+                      size='small'
+                      columns={[
+                        {
+                          title: t('来源'),
+                          dataIndex: 'name',
+                          width: 180,
+                          render: (_, record) => (
+                            <Space wrap>
+                              <Text strong>{record.name}</Text>
+                              {record.is_current ? (
+                                <Tag color='cyan' size='small'>
+                                  {t('生效')}
+                                </Tag>
+                              ) : null}
+                              {ipDiagnosis.recommended_mode ===
+                                'trusted_header' &&
+                              ipDiagnosis.recommended_header ===
+                                record.name ? (
+                                <Tag color='green' size='small'>
+                                  {t('推荐')}
+                                </Tag>
+                              ) : null}
+                            </Space>
+                          ),
+                        },
+                        {
+                          title: t('原始值'),
+                          dataIndex: 'raw_value',
+                          render: (value) => (
+                            <Text
+                              style={{
+                                fontFamily:
+                                  'ui-monospace, SFMono-Regular, Menlo, monospace',
+                                wordBreak: 'break-all',
+                                fontSize: 13,
+                              }}
+                            >
+                              {value || '-'}
+                            </Text>
+                          ),
+                        },
+                        {
+                          title: t('解析 IP'),
+                          dataIndex: 'parsed_ip',
+                          width: 140,
+                          render: (value) => (
+                            <Text
+                              style={{
+                                fontFamily:
+                                  'ui-monospace, SFMono-Regular, Menlo, monospace',
+                                fontSize: 13,
+                              }}
+                            >
+                              {value || '-'}
+                            </Text>
+                          ),
+                        },
+                        {
+                          title: t('类型'),
+                          dataIndex: 'classification',
+                          width: 90,
+                          render: (value) => {
+                            const map = {
+                              public: {
+                                color: 'green',
+                                label: t('公网'),
+                              },
+                              private: {
+                                color: 'orange',
+                                label: t('内网'),
+                              },
+                              invalid: {
+                                color: 'red',
+                                label: t('无效'),
+                              },
+                            };
+                            const info = map[value] || {
+                              color: 'grey',
+                              label: t('无值'),
+                            };
+                            return (
+                              <Tag color={info.color}>
+                                {info.label}
+                              </Tag>
+                            );
+                          },
+                        },
+                      ]}
+                    />
+                  </div>
+
+                  <Text type='tertiary' size='small'>
+                    {t(
+                      '点击”应用推荐配置”会自动填充表单，还需要点击”保存全局策略”才会真正生效。',
+                    )}
+                  </Text>
+                </div>
+              ) : null}
+            </Modal>
           </Card>
 
           <Card

@@ -7,6 +7,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -68,6 +69,10 @@ func UpdateRiskCenterConfig(c *gin.Context) {
 		}
 	}
 	common.ApiSuccess(c, service.GetRiskControlConfig())
+}
+
+func DetectRiskIP(c *gin.Context) {
+	common.ApiSuccess(c, requestip.DiagnoseRequest(c))
 }
 
 func GetRiskRules(c *gin.Context) {
