@@ -46,16 +46,54 @@ import { useTranslation } from 'react-i18next';
 
 const { Text, Title } = Typography;
 
-const METRIC_OPTIONS = [
-  { label: '10分钟不同 IP', value: 'distinct_ip_10m' },
-  { label: '1小时不同 IP', value: 'distinct_ip_1h' },
-  { label: '10分钟不同 UA', value: 'distinct_ua_10m' },
-  { label: '1分钟请求数', value: 'request_count_1m' },
-  { label: '10分钟请求数', value: 'request_count_10m' },
-  { label: '当前并发', value: 'inflight_now' },
-  { label: '24小时命中次数', value: 'rule_hit_count_24h' },
-  { label: '可疑度', value: 'risk_score' },
+const METRIC_DEFINITIONS = [
+  {
+    label: '10分钟不同 IP',
+    value: 'distinct_ip_10m',
+    allowedScopes: ['token', 'user'],
+  },
+  {
+    label: '1小时不同 IP',
+    value: 'distinct_ip_1h',
+    allowedScopes: ['token', 'user'],
+  },
+  {
+    label: '10分钟不同 UA',
+    value: 'distinct_ua_10m',
+    allowedScopes: ['token'],
+  },
+  {
+    label: '同 IP 令牌数 (10 分钟)',
+    value: 'tokens_per_ip_10m',
+    allowedScopes: ['token'],
+  },
+  {
+    label: '1分钟请求数',
+    value: 'request_count_1m',
+    allowedScopes: ['token', 'user'],
+  },
+  {
+    label: '10分钟请求数',
+    value: 'request_count_10m',
+    allowedScopes: ['token', 'user'],
+  },
+  {
+    label: '当前并发',
+    value: 'inflight_now',
+    allowedScopes: ['token', 'user'],
+  },
+  {
+    label: '24小时命中次数',
+    value: 'rule_hit_count_24h',
+    allowedScopes: ['token', 'user'],
+  },
+  { label: '可疑度', value: 'risk_score', allowedScopes: ['token', 'user'] },
 ];
+
+const METRIC_OPTIONS = METRIC_DEFINITIONS.map(({ label, value }) => ({
+  label,
+  value,
+}));
 
 const OP_OPTIONS = [
   { label: '>=', value: '>=' },
@@ -70,6 +108,41 @@ const METRIC_LABEL_MAP = METRIC_OPTIONS.reduce((map, item) => {
   map[item.value] = item.label;
   return map;
 }, {});
+
+const METRIC_SCOPE_MAP = METRIC_DEFINITIONS.reduce((map, item) => {
+  map[item.value] = item.allowedScopes || [];
+  return map;
+}, {});
+
+function getMetricOptionsForScope(scope) {
+  return METRIC_DEFINITIONS.filter((item) =>
+    (item.allowedScopes || []).includes(scope),
+  ).map(({ label, value }) => ({ label, value }));
+}
+
+function getDefaultMetricForScope(scope) {
+  return getMetricOptionsForScope(scope)[0]?.value || 'distinct_ip_10m';
+}
+
+function isMetricAllowedForScope(metric, scope) {
+  return (METRIC_SCOPE_MAP[metric] || []).includes(scope);
+}
+
+function sanitizeConditionsForScope(conditions, scope) {
+  const fallbackMetric = getDefaultMetricForScope(scope);
+  let changed = false;
+  const nextConditions = (conditions || []).map((condition) => {
+    if (isMetricAllowedForScope(condition?.metric, scope)) {
+      return condition;
+    }
+    changed = true;
+    return {
+      ...condition,
+      metric: fallbackMetric,
+    };
+  });
+  return { changed, conditions: nextConditions };
+}
 
 const emptyRuleForm = () => ({
   id: 0,
@@ -173,23 +246,61 @@ function RuleEditorModal({
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(emptyRuleForm());
+  const [scopeMetricNotice, setScopeMetricNotice] = useState('');
 
   useEffect(() => {
     if (!visible) return;
     if (initialValue) {
-      setForm({
+      const nextForm = {
         ...emptyRuleForm(),
         ...initialValue,
         conditions: safeParseJSON(initialValue.conditions, [
           { metric: 'distinct_ip_10m', op: '>=', value: 3 },
         ]),
+      };
+      const sanitized = sanitizeConditionsForScope(
+        nextForm.conditions,
+        nextForm.scope,
+      );
+      setForm({
+        ...nextForm,
+        conditions: sanitized.conditions,
       });
+      setScopeMetricNotice(
+        sanitized.changed
+          ? t('部分指标不适用于当前作用域，系统已自动替换为 {{metric}}。', {
+              metric:
+                METRIC_LABEL_MAP[getDefaultMetricForScope(nextForm.scope)],
+            })
+          : '',
+      );
       return;
     }
     setForm(emptyRuleForm());
+    setScopeMetricNotice('');
   }, [visible, initialValue]);
 
   const updateField = (field, value) => {
+    if (field === 'scope') {
+      const sanitized = sanitizeConditionsForScope(form.conditions, value);
+      setForm((prev) => ({
+        ...prev,
+        scope: value,
+        conditions: sanitized.conditions,
+      }));
+      setScopeMetricNotice(
+        sanitized.changed
+          ? t(
+              '已切换为 {{scope}} 作用域，不兼容的指标已自动替换为 {{metric}}。',
+              {
+                scope: value === 'token' ? 'API Key' : t('用户'),
+                metric: METRIC_LABEL_MAP[getDefaultMetricForScope(value)],
+              },
+            )
+          : '',
+      );
+      return;
+    }
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -207,10 +318,12 @@ function RuleEditorModal({
       ...prev,
       conditions: [
         ...prev.conditions,
-        { metric: 'distinct_ip_10m', op: '>=', value: 1 },
+        { metric: getDefaultMetricForScope(prev.scope), op: '>=', value: 1 },
       ],
     }));
   };
+
+  const availableMetricOptions = getMetricOptionsForScope(form.scope);
 
   const removeCondition = (index) => {
     setForm((prev) => ({
@@ -229,6 +342,13 @@ function RuleEditorModal({
     onSubmit(form);
   };
 
+  const sectionStyle = {
+    background: 'var(--semi-color-fill-0)',
+    borderRadius: 10,
+    padding: '14px 16px',
+    width: '100%',
+  };
+
   return (
     <Modal
       title={form.id ? t('编辑风控规则') : t('新建风控规则')}
@@ -238,183 +358,82 @@ function RuleEditorModal({
       okText={t('保存')}
       cancelText={t('取消')}
       confirmLoading={loading}
-      width={980}
-      bodyStyle={{ maxHeight: '72vh', overflowY: 'auto' }}
+      width={860}
+      centered
+      style={{ maxWidth: '92vw' }}
+      bodyStyle={{
+        maxHeight: 'calc(80vh - 120px)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+      }}
     >
-      <Space vertical align='start' style={{ width: '100%' }} spacing='tight'>
-        <Banner
-          type='info'
-          closeIcon={null}
-          description={t(
-            '规则采用结构化条件配置。稳定优先，不支持自由脚本；命中后可选择观察或封禁，并自定义返回状态码与恢复策略。',
-          )}
-        />
-        <Row gutter={12} style={{ width: '100%' }}>
-          <Col span={8}>
-            <Text strong>{t('规则名称')}</Text>
-            <Input
-              value={form.name}
-              onChange={(value) => updateField('name', value)}
-              placeholder={t('例如 token_multi_ip_block')}
-            />
-          </Col>
-          <Col span={8}>
-            <Text strong>{t('作用域')}</Text>
-            <Select
-              value={form.scope}
-              onChange={(value) => updateField('scope', value)}
-              optionList={[
-                { label: t('API Key'), value: 'token' },
-                { label: t('用户'), value: 'user' },
-              ]}
-            />
-          </Col>
-          <Col span={8}>
-            <Text strong>{t('检测器')}</Text>
-            <Select
-              value={form.detector}
-              onChange={(value) => updateField('detector', value)}
-              optionList={[{ label: t('分发检测'), value: 'distribution' }]}
-            />
-          </Col>
-        </Row>
-
-        <div style={{ width: '100%' }}>
-          <Text strong>{t('规则描述')}</Text>
-          <TextArea
-            value={form.description}
-            rows={2}
-            maxCount={200}
-            onChange={(value) => updateField('description', value)}
-            placeholder={t('简要说明此规则的风险目标和作用')}
+      <Space vertical align='start' style={{ width: '100%' }} spacing='medium'>
+        {scopeMetricNotice ? (
+          <Banner
+            type='warning'
+            closeIcon={null}
+            description={scopeMetricNotice}
           />
+        ) : null}
+
+        {/* 基础信息 */}
+        <div style={sectionStyle}>
+          <Text strong style={{ display: 'block', marginBottom: 12 }}>
+            {t('基础信息')}
+          </Text>
+          <Row gutter={[16, 16]}>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('规则名称')}
+              </Text>
+              <Input
+                value={form.name}
+                onChange={(value) => updateField('name', value)}
+                placeholder={t('例如 token_multi_ip_block')}
+              />
+            </Col>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('作用域')}
+              </Text>
+              <Select
+                value={form.scope}
+                style={{ width: '100%' }}
+                onChange={(value) => updateField('scope', value)}
+                optionList={[
+                  { label: t('API Key'), value: 'token' },
+                  { label: t('用户'), value: 'user' },
+                ]}
+              />
+            </Col>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('检测器')}
+              </Text>
+              <Select
+                value={form.detector}
+                style={{ width: '100%' }}
+                onChange={(value) => updateField('detector', value)}
+                optionList={[{ label: t('分发检测'), value: 'distribution' }]}
+              />
+            </Col>
+            <Col span={24}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('规则描述')}
+              </Text>
+              <TextArea
+                value={form.description}
+                rows={2}
+                maxCount={200}
+                onChange={(value) => updateField('description', value)}
+                placeholder={t('简要说明此规则的风险目标和作用')}
+              />
+            </Col>
+          </Row>
         </div>
 
-        <Row gutter={12} style={{ width: '100%' }}>
-          <Col span={6}>
-            <Text strong>{t('匹配方式')}</Text>
-            <Select
-              value={form.match_mode}
-              onChange={(value) => updateField('match_mode', value)}
-              optionList={[
-                { label: t('全部满足'), value: 'all' },
-                { label: t('任一满足'), value: 'any' },
-              ]}
-            />
-          </Col>
-          <Col span={6}>
-            <Text strong>{t('动作')}</Text>
-            <Select
-              value={form.action}
-              onChange={(value) => updateField('action', value)}
-              optionList={[
-                { label: t('观察'), value: 'observe' },
-                { label: t('封禁'), value: 'block' },
-              ]}
-            />
-          </Col>
-          <Col span={6}>
-            <Text strong>{t('优先级')}</Text>
-            <InputNumber
-              value={form.priority}
-              min={0}
-              max={999}
-              style={{ width: '100%' }}
-              onChange={(value) => updateField('priority', value || 0)}
-            />
-          </Col>
-          <Col span={6}>
-            <Text strong>{t('可疑度权重')}</Text>
-            <InputNumber
-              value={form.score_weight}
-              min={0}
-              max={100}
-              style={{ width: '100%' }}
-              onChange={(value) => updateField('score_weight', value || 0)}
-            />
-          </Col>
-        </Row>
-
-        <Row gutter={12} style={{ width: '100%' }}>
-          <Col span={6}>
-            <Text strong>{t('规则启用')}</Text>
-            <div style={{ paddingTop: 8 }}>
-              <Switch
-                checked={form.enabled}
-                onChange={(value) => updateField('enabled', value)}
-              />
-            </div>
-          </Col>
-          <Col span={6}>
-            <Text strong>{t('自动封禁')}</Text>
-            <div style={{ paddingTop: 8 }}>
-              <Switch
-                checked={form.auto_block}
-                onChange={(value) => updateField('auto_block', value)}
-                disabled={form.action !== 'block'}
-              />
-            </div>
-          </Col>
-          <Col span={6}>
-            <Text strong>{t('自动恢复')}</Text>
-            <div style={{ paddingTop: 8 }}>
-              <Switch
-                checked={form.auto_recover}
-                onChange={(value) => updateField('auto_recover', value)}
-              />
-            </div>
-          </Col>
-          <Col span={6}>
-            <Text strong>{t('恢复方式')}</Text>
-            <Select
-              value={form.recover_mode}
-              onChange={(value) => updateField('recover_mode', value)}
-              optionList={[
-                { label: t('TTL 自动恢复'), value: 'ttl' },
-                { label: t('人工恢复'), value: 'manual' },
-              ]}
-            />
-          </Col>
-        </Row>
-
-        <Row gutter={12} style={{ width: '100%' }}>
-          <Col span={8}>
-            <Text strong>{t('恢复时间（秒）')}</Text>
-            <InputNumber
-              value={form.recover_after_seconds}
-              min={60}
-              max={86400 * 7}
-              style={{ width: '100%' }}
-              onChange={(value) =>
-                updateField('recover_after_seconds', value || 900)
-              }
-            />
-          </Col>
-          <Col span={8}>
-            <Text strong>{t('返回状态码')}</Text>
-            <InputNumber
-              value={form.response_status_code}
-              min={200}
-              max={599}
-              style={{ width: '100%' }}
-              onChange={(value) =>
-                updateField('response_status_code', value || 429)
-              }
-            />
-          </Col>
-          <Col span={8}>
-            <Text strong>{t('返回消息')}</Text>
-            <Input
-              value={form.response_message}
-              onChange={(value) => updateField('response_message', value)}
-              placeholder={t('当前请求触发风控，请稍后再试')}
-            />
-          </Col>
-        </Row>
-
-        <Divider margin='12px' />
-
-        <div style={{ width: '100%' }}>
+        {/* 规则条件 */}
+        <div style={sectionStyle}>
           <div
             style={{
               display: 'flex',
@@ -428,38 +447,57 @@ function RuleEditorModal({
               {t('添加条件')}
             </Button>
           </div>
-          <Space vertical style={{ width: '100%' }}>
+          <Row gutter={[16, 16]}>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('匹配方式')}
+              </Text>
+              <Select
+                value={form.match_mode}
+                style={{ width: '100%' }}
+                onChange={(value) => updateField('match_mode', value)}
+                optionList={[
+                  { label: t('全部满足 (AND)'), value: 'all' },
+                  { label: t('任一满足 (OR)'), value: 'any' },
+                ]}
+              />
+            </Col>
+          </Row>
+          <Space
+            vertical
+            style={{ width: '100%', marginTop: 12 }}
+            spacing='tight'
+          >
             {form.conditions.map((condition, index) => (
-              <Card
+              <div
                 key={`condition-${index}`}
-                bodyStyle={{ padding: 14 }}
                 style={{
-                  width: '100%',
-                  borderRadius: 12,
+                  borderRadius: 8,
+                  padding: '10px 12px',
                   border: '1px solid var(--semi-color-border)',
+                  background: 'var(--semi-color-bg-1)',
                 }}
               >
-                <Row gutter={12}>
+                <Row gutter={12} type='flex' align='middle'>
                   <Col span={9}>
-                    <Text strong>{t('指标')}</Text>
                     <Select
                       value={condition.metric}
-                      optionList={METRIC_OPTIONS}
+                      optionList={availableMetricOptions}
+                      style={{ width: '100%' }}
                       onChange={(value) =>
                         updateCondition(index, 'metric', value)
                       }
                     />
                   </Col>
                   <Col span={5}>
-                    <Text strong>{t('运算')}</Text>
                     <Select
                       value={condition.op}
                       optionList={OP_OPTIONS}
+                      style={{ width: '100%' }}
                       onChange={(value) => updateCondition(index, 'op', value)}
                     />
                   </Col>
                   <Col span={6}>
-                    <Text strong>{t('阈值')}</Text>
                     <InputNumber
                       value={condition.value}
                       style={{ width: '100%' }}
@@ -468,23 +506,157 @@ function RuleEditorModal({
                       }
                     />
                   </Col>
-                  <Col span={4}>
-                    <Text strong>{t('操作')}</Text>
-                    <div style={{ paddingTop: 8 }}>
-                      <Button
-                        type='danger'
-                        theme='borderless'
-                        onClick={() => removeCondition(index)}
-                        disabled={form.conditions.length === 1}
-                      >
-                        {t('删除')}
-                      </Button>
-                    </div>
+                  <Col span={4} style={{ textAlign: 'right' }}>
+                    <Button
+                      type='danger'
+                      theme='borderless'
+                      size='small'
+                      onClick={() => removeCondition(index)}
+                      disabled={form.conditions.length === 1}
+                    >
+                      {t('删除')}
+                    </Button>
                   </Col>
                 </Row>
-              </Card>
+              </div>
             ))}
           </Space>
+        </div>
+
+        {/* 触发行为 */}
+        <div style={sectionStyle}>
+          <Text strong style={{ display: 'block', marginBottom: 12 }}>
+            {t('触发行为')}
+          </Text>
+          <Row gutter={[16, 16]}>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('动作')}
+              </Text>
+              <Select
+                value={form.action}
+                style={{ width: '100%' }}
+                onChange={(value) => updateField('action', value)}
+                optionList={[
+                  { label: t('观察'), value: 'observe' },
+                  { label: t('封禁'), value: 'block' },
+                ]}
+              />
+            </Col>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('优先级')}
+              </Text>
+              <InputNumber
+                value={form.priority}
+                min={0}
+                max={999}
+                style={{ width: '100%' }}
+                onChange={(value) => updateField('priority', value || 0)}
+              />
+            </Col>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('可疑度权重')}
+              </Text>
+              <InputNumber
+                value={form.score_weight}
+                min={0}
+                max={100}
+                style={{ width: '100%' }}
+                onChange={(value) => updateField('score_weight', value || 0)}
+              />
+            </Col>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('返回状态码')}
+              </Text>
+              <InputNumber
+                value={form.response_status_code}
+                min={200}
+                max={599}
+                style={{ width: '100%' }}
+                onChange={(value) =>
+                  updateField('response_status_code', value || 429)
+                }
+              />
+            </Col>
+            <Col span={24}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('返回消息')}
+              </Text>
+              <Input
+                value={form.response_message}
+                onChange={(value) => updateField('response_message', value)}
+                placeholder={t('当前请求触发风控，请稍后再试')}
+              />
+            </Col>
+          </Row>
+        </div>
+
+        {/* 恢复策略 */}
+        <div style={sectionStyle}>
+          <Text strong style={{ display: 'block', marginBottom: 12 }}>
+            {t('恢复策略')}
+          </Text>
+          <Row gutter={[16, 16]}>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('规则启用')}
+              </Text>
+              <Switch
+                checked={form.enabled}
+                onChange={(value) => updateField('enabled', value)}
+              />
+            </Col>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('自动封禁')}
+              </Text>
+              <Switch
+                checked={form.auto_block}
+                onChange={(value) => updateField('auto_block', value)}
+                disabled={form.action !== 'block'}
+              />
+            </Col>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('自动恢复')}
+              </Text>
+              <Switch
+                checked={form.auto_recover}
+                onChange={(value) => updateField('auto_recover', value)}
+              />
+            </Col>
+            <Col span={6}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('恢复方式')}
+              </Text>
+              <Select
+                value={form.recover_mode}
+                style={{ width: '100%' }}
+                onChange={(value) => updateField('recover_mode', value)}
+                optionList={[
+                  { label: t('TTL 自动恢复'), value: 'ttl' },
+                  { label: t('人工恢复'), value: 'manual' },
+                ]}
+              />
+            </Col>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('恢复时间（秒）')}
+              </Text>
+              <InputNumber
+                value={form.recover_after_seconds}
+                min={60}
+                max={86400 * 7}
+                style={{ width: '100%' }}
+                onChange={(value) =>
+                  updateField('recover_after_seconds', value || 900)
+                }
+              />
+            </Col>
+          </Row>
         </div>
       </Space>
     </Modal>
@@ -1342,17 +1514,10 @@ const RiskCenter = () => {
             </div>
 
             <div style={{ marginTop: 8 }}>
-              <Button
-                loading={detectingIP}
-                onClick={handleDetectIP}
-              >
+              <Button loading={detectingIP} onClick={handleDetectIP}>
                 {t('检测当前环境')}
               </Button>
-              <Text
-                type='tertiary'
-                size='small'
-                style={{ marginLeft: 8 }}
-              >
+              <Text type='tertiary' size='small' style={{ marginLeft: 8 }}>
                 {t('不确定填什么？点击检测，系统会自动分析并推荐')}
               </Text>
             </div>
@@ -1363,9 +1528,7 @@ const RiskCenter = () => {
               onCancel={() => setDiagnosisVisible(false)}
               footer={
                 <div className='flex justify-between'>
-                  <Button
-                    onClick={() => setDiagnosisVisible(false)}
-                  >
+                  <Button onClick={() => setDiagnosisVisible(false)}>
                     {t('关闭')}
                   </Button>
                   <Button
@@ -1395,9 +1558,7 @@ const RiskCenter = () => {
                         : 'success'
                     }
                     closeIcon={null}
-                    description={
-                      ipDiagnosis.recommendation_message || '-'
-                    }
+                    description={ipDiagnosis.recommendation_message || '-'}
                   />
 
                   <Row gutter={[12, 12]}>
@@ -1465,9 +1626,7 @@ const RiskCenter = () => {
                     </Text>
                     <Table
                       dataSource={ipDiagnosis.items || []}
-                      rowKey={(record, index) =>
-                        `${record.name}-${index}`
-                      }
+                      rowKey={(record, index) => `${record.name}-${index}`}
                       pagination={false}
                       size='small'
                       columns={[
@@ -1485,8 +1644,7 @@ const RiskCenter = () => {
                               ) : null}
                               {ipDiagnosis.recommended_mode ===
                                 'trusted_header' &&
-                              ipDiagnosis.recommended_header ===
-                                record.name ? (
+                              ipDiagnosis.recommended_header === record.name ? (
                                 <Tag color='green' size='small'>
                                   {t('推荐')}
                                 </Tag>
@@ -1549,11 +1707,7 @@ const RiskCenter = () => {
                               color: 'grey',
                               label: t('无值'),
                             };
-                            return (
-                              <Tag color={info.color}>
-                                {info.label}
-                              </Tag>
-                            );
+                            return <Tag color={info.color}>{info.label}</Tag>;
                           },
                         },
                       ]}

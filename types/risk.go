@@ -10,6 +10,7 @@ type RiskMetrics struct {
 	DistinctIP10M   int `json:"distinct_ip_10m"`
 	DistinctIP1H    int `json:"distinct_ip_1h"`
 	DistinctUA10M   int `json:"distinct_ua_10m"`
+	TokensPerIP10M  int `json:"tokens_per_ip_10m"`
 	RequestCount1M  int `json:"request_count_1m"`
 	RequestCount10M int `json:"request_count_10m"`
 	InflightNow     int `json:"inflight_now"`

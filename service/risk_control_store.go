@@ -69,6 +69,10 @@ func riskUAMinuteBucketKey(scope string, subjectID int, bucket int64) string {
 	return fmt.Sprintf("rc:ua:min:%s:%d:%d", scope, subjectID, bucket)
 }
 
+func riskIPTokenBucketKey(ipHash string, bucket int64) string {
+	return fmt.Sprintf("rc:ip-tkn:%s:%d", ipHash, bucket)
+}
+
 func riskRuleHitKey(scope string, subjectID int) string {
 	return fmt.Sprintf("rc:rule-hit:%s:%d", scope, subjectID)
 }
@@ -136,6 +140,10 @@ func (s *redisRiskMetricStore) RecordStart(scope string, subjectID int, ipHash s
 	ipMinuteKey := riskIPMinuteBucketKey(scope, subjectID, minuteBucket)
 	ipHourKey := riskIPHourBucketKey(scope, subjectID, hourBucket)
 	uaMinuteKey := riskUAMinuteBucketKey(scope, subjectID, minuteBucket)
+	ipTokenKey := ""
+	if ipHash != "" && scope == RiskSubjectTypeToken {
+		ipTokenKey = riskIPTokenBucketKey(ipHash, minuteBucket)
+	}
 
 	pipe := s.rdb.TxPipeline()
 	inflightCmd := pipe.Incr(ctx, inflightKey)
@@ -151,6 +159,10 @@ func (s *redisRiskMetricStore) RecordStart(scope string, subjectID int, ipHash s
 	if scope == RiskSubjectTypeToken && uaHash != "" {
 		pipe.PFAdd(ctx, uaMinuteKey, uaHash)
 		pipe.Expire(ctx, uaMinuteKey, 20*time.Minute)
+	}
+	if ipTokenKey != "" {
+		pipe.PFAdd(ctx, ipTokenKey, strconv.Itoa(subjectID))
+		pipe.Expire(ctx, ipTokenKey, 20*time.Minute)
 	}
 	if _, err := pipe.Exec(ctx); err != nil {
 		return types.RiskMetrics{}, err
@@ -175,10 +187,18 @@ func (s *redisRiskMetricStore) RecordStart(scope string, subjectID int, ipHash s
 			return types.RiskMetrics{}, err
 		}
 	}
+	tokensPerIP10M := 0
+	if ipTokenKey != "" {
+		tokensPerIP10M, err = s.countUnion(ctx, buildHashBucketKeys(riskIPTokenBucketKey, ipHash, minuteBucket, 10))
+		if err != nil {
+			return types.RiskMetrics{}, err
+		}
+	}
 	return types.RiskMetrics{
 		DistinctIP10M:   distinctIP10M,
 		DistinctIP1H:    distinctIP1H,
 		DistinctUA10M:   distinctUA10M,
+		TokensPerIP10M:  tokensPerIP10M,
 		RequestCount1M:  int(reqCmd.Val()),
 		RequestCount10M: req10M,
 		InflightNow:     int(inflightCmd.Val()),
@@ -298,9 +318,18 @@ func buildTenMinuteKeys(builder func(string, int, int64) string, scope string, s
 	return keys
 }
 
+func buildHashBucketKeys(builder func(string, int64) string, hash string, currentBucket int64, size int) []string {
+	keys := make([]string, 0, size)
+	for i := 0; i < size; i++ {
+		keys = append(keys, builder(hash, currentBucket-int64(i)))
+	}
+	return keys
+}
+
 type memoryRiskMetricStore struct {
 	mu          sync.Mutex
 	subject     map[string]*memoryRiskSubjectState
+	ipTokens    map[string]map[int64]map[string]struct{}
 	lastSweepAt int64
 }
 
@@ -316,7 +345,8 @@ type memoryRiskSubjectState struct {
 
 func newMemoryRiskMetricStore() *memoryRiskMetricStore {
 	return &memoryRiskMetricStore{
-		subject: make(map[string]*memoryRiskSubjectState),
+		subject:  make(map[string]*memoryRiskSubjectState),
+		ipTokens: make(map[string]map[int64]map[string]struct{}),
 	}
 }
 
@@ -381,6 +411,24 @@ func (s *memoryRiskMetricStore) cleanState(state *memoryRiskSubjectState, now ti
 	}
 }
 
+func (s *memoryRiskMetricStore) cleanIPTokenState(ipHash string, now time.Time) map[int64]map[string]struct{} {
+	buckets := s.ipTokens[ipHash]
+	if buckets == nil {
+		return nil
+	}
+	currentMinute := now.Unix() / 60
+	for bucket := range buckets {
+		if bucket < currentMinute-10 {
+			delete(buckets, bucket)
+		}
+	}
+	if len(buckets) == 0 {
+		delete(s.ipTokens, ipHash)
+		return nil
+	}
+	return buckets
+}
+
 func (s *memoryRiskMetricStore) maybeSweep(now time.Time) {
 	const sweepInterval = 5 * time.Minute
 	if s.lastSweepAt > 0 && now.Unix()-s.lastSweepAt < int64(sweepInterval.Seconds()) {
@@ -391,6 +439,9 @@ func (s *memoryRiskMetricStore) maybeSweep(now time.Time) {
 		if isMemoryRiskStateIdle(state) {
 			delete(s.subject, key)
 		}
+	}
+	for ipHash := range s.ipTokens {
+		s.cleanIPTokenState(ipHash, now)
 	}
 	s.lastSweepAt = now.Unix()
 }
@@ -481,6 +532,7 @@ func (s *memoryRiskMetricStore) RecordStart(scope string, subjectID int, ipHash 
 	hourBucket := now.Unix() / 600
 	state.Inflight++
 	state.ReqBuckets[minuteBucket]++
+	tokensPerIP10M := 0
 	if ipHash != "" {
 		if state.IP10Buckets[minuteBucket] == nil {
 			state.IP10Buckets[minuteBucket] = make(map[string]struct{})
@@ -490,6 +542,18 @@ func (s *memoryRiskMetricStore) RecordStart(scope string, subjectID int, ipHash 
 			state.IP1HBuckets[hourBucket] = make(map[string]struct{})
 		}
 		state.IP1HBuckets[hourBucket][ipHash] = struct{}{}
+	}
+	if scope == RiskSubjectTypeToken && ipHash != "" {
+		ipBuckets := s.cleanIPTokenState(ipHash, now)
+		if ipBuckets == nil {
+			ipBuckets = make(map[int64]map[string]struct{})
+			s.ipTokens[ipHash] = ipBuckets
+		}
+		if ipBuckets[minuteBucket] == nil {
+			ipBuckets[minuteBucket] = make(map[string]struct{})
+		}
+		ipBuckets[minuteBucket][strconv.Itoa(subjectID)] = struct{}{}
+		tokensPerIP10M = countUniqueFromBuckets(ipBuckets)
 	}
 	if scope == RiskSubjectTypeToken && uaHash != "" {
 		if state.UA10Buckets[minuteBucket] == nil {
@@ -501,6 +565,7 @@ func (s *memoryRiskMetricStore) RecordStart(scope string, subjectID int, ipHash 
 		DistinctIP10M:   countUniqueFromBuckets(state.IP10Buckets),
 		DistinctIP1H:    countUniqueFromBuckets(state.IP1HBuckets),
 		DistinctUA10M:   countUniqueFromBuckets(state.UA10Buckets),
+		TokensPerIP10M:  tokensPerIP10M,
 		RequestCount1M:  state.ReqBuckets[minuteBucket],
 		RequestCount10M: countSumFromBuckets(state.ReqBuckets),
 		InflightNow:     state.Inflight,

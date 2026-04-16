@@ -36,6 +36,27 @@ type riskControlCenter struct {
 
 var globalRiskCenter = &riskControlCenter{}
 
+type riskMetricDefinition struct {
+	AllowedScopes map[string]struct{}
+}
+
+var riskMetricDefinitions = map[string]riskMetricDefinition{
+	"distinct_ip_10m":   {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken, RiskSubjectTypeUser)},
+	"distinct_ip_1h":    {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken, RiskSubjectTypeUser)},
+	"distinct_ua_10m":   {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken)},
+	"tokens_per_ip_10m": {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken)},
+	"request_count_1m":  {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken, RiskSubjectTypeUser)},
+	"req_1m":            {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken, RiskSubjectTypeUser)},
+	"request_count_10m": {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken, RiskSubjectTypeUser)},
+	"req_10m":           {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken, RiskSubjectTypeUser)},
+	"inflight_now":      {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken, RiskSubjectTypeUser)},
+	"rule_hit_count_24h": {AllowedScopes: newRiskMetricScopeSet(
+		RiskSubjectTypeToken,
+		RiskSubjectTypeUser,
+	)},
+	"risk_score": {AllowedScopes: newRiskMetricScopeSet(RiskSubjectTypeToken, RiskSubjectTypeUser)},
+}
+
 func StartRiskControlCenter() {
 	globalRiskCenter.start()
 }
@@ -50,6 +71,46 @@ func GetRiskControlConfig() *operation_setting.RiskControlSetting {
 
 func isRiskControlCollectEnabled(cfg *operation_setting.RiskControlSetting) bool {
 	return cfg != nil && cfg.Enabled && cfg.Mode != operation_setting.RiskControlModeOff
+}
+
+func newRiskMetricScopeSet(scopes ...string) map[string]struct{} {
+	set := make(map[string]struct{}, len(scopes))
+	for _, scope := range scopes {
+		if scope == "" {
+			continue
+		}
+		set[scope] = struct{}{}
+	}
+	return set
+}
+
+func getRiskMetricDefinition(metric string) (riskMetricDefinition, bool) {
+	def, ok := riskMetricDefinitions[strings.TrimSpace(metric)]
+	return def, ok
+}
+
+func isRiskMetricAllowedForScope(metric string, scope string) bool {
+	def, ok := getRiskMetricDefinition(metric)
+	if !ok {
+		return false
+	}
+	_, allowed := def.AllowedScopes[scope]
+	return allowed
+}
+
+func riskMetricAllowedScopes(metric string) []string {
+	def, ok := getRiskMetricDefinition(metric)
+	if !ok {
+		return nil
+	}
+	scopes := make([]string, 0, len(def.AllowedScopes))
+	if _, ok = def.AllowedScopes[RiskSubjectTypeToken]; ok {
+		scopes = append(scopes, RiskSubjectTypeToken)
+	}
+	if _, ok = def.AllowedScopes[RiskSubjectTypeUser]; ok {
+		scopes = append(scopes, RiskSubjectTypeUser)
+	}
+	return scopes
 }
 
 func RiskControlBeforeRelay(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
@@ -519,6 +580,8 @@ func getMetricValue(metrics types.RiskMetrics, metric string) float64 {
 		return float64(metrics.DistinctIP1H)
 	case "distinct_ua_10m":
 		return float64(metrics.DistinctUA10M)
+	case "tokens_per_ip_10m":
+		return float64(metrics.TokensPerIP10M)
 	case "request_count_1m", "req_1m":
 		return float64(metrics.RequestCount1M)
 	case "request_count_10m", "req_10m":
@@ -560,6 +623,7 @@ func computeRiskScore(metrics types.RiskMetrics, matched []*compiledRiskRule) in
 	score += minInt(metrics.InflightNow*4, 20)
 	score += minInt(metrics.RequestCount1M/5, 15)
 	score += minInt(metrics.DistinctUA10M*3, 10)
+	score += minInt(metrics.TokensPerIP10M*6, 30)
 	score += minInt(metrics.RuleHitCount24H*4, 15)
 	for _, rule := range matched {
 		if rule != nil && rule.Raw != nil && rule.Raw.ScoreWeight > 0 {
@@ -887,6 +951,28 @@ func validateRiskRule(rule *model.RiskRule) error {
 	if len(conditions) == 0 {
 		return errors.New("at least one condition is required")
 	}
+	for i, condition := range conditions {
+		condition.Metric = strings.TrimSpace(condition.Metric)
+		if condition.Metric == "" {
+			return fmt.Errorf("condition %d metric is required", i+1)
+		}
+		if _, ok := getRiskMetricDefinition(condition.Metric); !ok {
+			return fmt.Errorf("unsupported risk metric: %s", condition.Metric)
+		}
+		if !isRiskMetricAllowedForScope(condition.Metric, rule.Scope) {
+			return fmt.Errorf(
+				"metric %s is only supported for %s scope",
+				condition.Metric,
+				strings.Join(riskMetricAllowedScopes(condition.Metric), ", "),
+			)
+		}
+		conditions[i] = condition
+	}
+	conditionsBytes, err := common.Marshal(conditions)
+	if err != nil {
+		return err
+	}
+	rule.Conditions = string(conditionsBytes)
 	return nil
 }
 
@@ -906,6 +992,7 @@ func seedDefaultRiskRules() error {
 			RiskActionObserve,
 			false,
 			30,
+			0,
 			[]types.RiskCondition{{Metric: "distinct_ip_10m", Op: ">=", Value: 3}},
 		),
 		newDefaultRiskRule(
@@ -915,6 +1002,7 @@ func seedDefaultRiskRules() error {
 			RiskActionBlock,
 			true,
 			50,
+			15*60,
 			[]types.RiskCondition{
 				{Metric: "distinct_ip_10m", Op: ">=", Value: 5},
 				{Metric: "inflight_now", Op: ">=", Value: 8},
@@ -927,9 +1015,33 @@ func seedDefaultRiskRules() error {
 			RiskActionBlock,
 			true,
 			60,
+			60*60,
 			[]types.RiskCondition{
 				{Metric: "distinct_ip_10m", Op: ">=", Value: 3},
 				{Metric: "request_count_10m", Op: ">=", Value: 120},
+			},
+		),
+		newDefaultRiskRule(
+			"shared_ip_multi_token_observe",
+			"同一 IP 在 10 分钟内关联多个 API key，先进入观察状态",
+			RiskSubjectTypeToken,
+			RiskActionObserve,
+			false,
+			25,
+			0,
+			[]types.RiskCondition{{Metric: "tokens_per_ip_10m", Op: ">=", Value: 3}},
+		),
+		newDefaultRiskRule(
+			"shared_ip_multi_token_high_volume_block",
+			"同一 IP 在 10 分钟内关联多个 API key 且请求量明显偏高，自动封禁 15 分钟",
+			RiskSubjectTypeToken,
+			RiskActionBlock,
+			true,
+			50,
+			15*60,
+			[]types.RiskCondition{
+				{Metric: "tokens_per_ip_10m", Op: ">=", Value: 5},
+				{Metric: "request_count_10m", Op: ">=", Value: 50},
 			},
 		),
 		newDefaultRiskRule(
@@ -939,6 +1051,7 @@ func seedDefaultRiskRules() error {
 			RiskActionObserve,
 			false,
 			25,
+			0,
 			[]types.RiskCondition{{Metric: "distinct_ip_1h", Op: ">=", Value: 8}},
 		),
 	}
@@ -950,7 +1063,10 @@ func seedDefaultRiskRules() error {
 	return nil
 }
 
-func newDefaultRiskRule(name string, description string, scope string, action string, autoBlock bool, score int, conditions []types.RiskCondition) *model.RiskRule {
+func newDefaultRiskRule(name string, description string, scope string, action string, autoBlock bool, score int, recoverAfterSeconds int, conditions []types.RiskCondition) *model.RiskRule {
+	if recoverAfterSeconds <= 0 {
+		recoverAfterSeconds = operation_setting.GetRiskControlSetting().DefaultRecoverAfterSecs
+	}
 	return &model.RiskRule{
 		Name:                name,
 		Description:         description,
@@ -963,7 +1079,7 @@ func newDefaultRiskRule(name string, description string, scope string, action st
 		AutoBlock:           autoBlock,
 		AutoRecover:         true,
 		RecoverMode:         operation_setting.GetRiskControlSetting().DefaultRecoverMode,
-		RecoverAfterSeconds: operation_setting.GetRiskControlSetting().DefaultRecoverAfterSecs,
+		RecoverAfterSeconds: recoverAfterSeconds,
 		ResponseStatusCode:  operation_setting.GetRiskControlSetting().DefaultStatusCode,
 		ResponseMessage:     operation_setting.GetRiskControlSetting().DefaultResponseMessage,
 		ScoreWeight:         score,
