@@ -156,6 +156,9 @@ func main() {
 
 	// Initialize HTTP server
 	server := gin.New()
+	// Do not trust forwarded client-IP headers implicitly.
+	// Security-sensitive code resolves trusted upstream headers via runtime settings.
+	server.ForwardedByClientIP = false
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{

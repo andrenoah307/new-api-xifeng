@@ -1,6 +1,10 @@
 package operation_setting
 
-import "github.com/QuantumNous/new-api/setting/config"
+import (
+	"strings"
+
+	"github.com/QuantumNous/new-api/setting/config"
+)
 
 const (
 	RiskControlModeOff         = "off"
@@ -11,6 +15,8 @@ const (
 type RiskControlSetting struct {
 	Enabled                 bool   `json:"enabled"`
 	Mode                    string `json:"mode"`
+	TrustedIPHeaderEnabled  bool   `json:"trusted_ip_header_enabled"`
+	TrustedIPHeader         string `json:"trusted_ip_header"`
 	EventQueueSize          int    `json:"event_queue_size"`
 	WorkerCount             int    `json:"worker_count"`
 	LocalCacheSeconds       int    `json:"local_cache_seconds"`
@@ -25,6 +31,8 @@ type RiskControlSetting struct {
 var riskControlSetting = RiskControlSetting{
 	Enabled:                 false,
 	Mode:                    RiskControlModeObserveOnly,
+	TrustedIPHeaderEnabled:  false,
+	TrustedIPHeader:         "X-Real-IP",
 	EventQueueSize:          8192,
 	WorkerCount:             2,
 	LocalCacheSeconds:       2,
@@ -64,6 +72,7 @@ func NormalizeRiskControlSetting(setting *RiskControlSetting) {
 	if setting.DefaultResponseMessage == "" {
 		setting.DefaultResponseMessage = "当前请求触发风控，请稍后再试"
 	}
+	setting.TrustedIPHeader = strings.TrimSpace(setting.TrustedIPHeader)
 	switch setting.Mode {
 	case RiskControlModeOff, RiskControlModeObserveOnly, RiskControlModeEnforce:
 	default:

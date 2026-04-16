@@ -1218,6 +1218,64 @@ const RiskCenter = () => {
                 />
               </Col>
             </Row>
+
+            <Divider margin='16px' />
+
+            <div className='flex items-center justify-between gap-3 flex-wrap'>
+              <div className='flex items-center gap-3'>
+                <div>
+                  <Text strong>{t('信任上游 IP 头')}</Text>
+                  <Text
+                    type='tertiary'
+                    size='small'
+                    style={{ display: 'block', marginTop: 2 }}
+                  >
+                    {t('开启后全局生效：限流、令牌 IP 白名单、日志、风控等所有依赖 IP 的功能均受影响')}
+                  </Text>
+                </div>
+              </div>
+              <Switch
+                checked={config.trusted_ip_header_enabled}
+                onChange={(value) =>
+                  setConfig((prev) => ({
+                    ...prev,
+                    trusted_ip_header_enabled: value,
+                  }))
+                }
+              />
+            </div>
+
+            {config.trusted_ip_header_enabled && (
+              <div style={{ marginTop: 12 }}>
+                <Banner
+                  type='warning'
+                  closeIcon={null}
+                  style={{ marginBottom: 12 }}
+                  description={t(
+                    '请确保反向代理已正确配置该请求头（如 Nginx 的 proxy_set_header），否则所有依赖 IP 的功能将受影响。',
+                  )}
+                />
+                <Text strong>{t('请求头名称')}</Text>
+                <Input
+                  value={config.trusted_ip_header}
+                  onChange={(value) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      trusted_ip_header: value,
+                    }))
+                  }
+                  placeholder='X-Real-IP'
+                  style={{ marginTop: 4 }}
+                />
+                <Text
+                  type='tertiary'
+                  size='small'
+                  style={{ display: 'block', marginTop: 6 }}
+                >
+                  {t('Nginx / Ingress 填 X-Real-IP，Cloudflare 填 CF-Connecting-IP，直连公网请关闭此项')}
+                </Text>
+              </div>
+            )}
           </Card>
 
           <Card

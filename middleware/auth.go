@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -350,7 +351,7 @@ func TokenAuth() func(c *gin.Context) {
 
 		allowIps := token.GetIpLimits()
 		if len(allowIps) > 0 {
-			clientIp := c.ClientIP()
+			clientIp := requestip.GetClientIP(c)
 			logger.LogDebug(c, "Token has IP restrictions, checking client IP %s", clientIp)
 			ip := net.ParseIP(clientIp)
 			if ip == nil {

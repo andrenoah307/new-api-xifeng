@@ -11,6 +11,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -316,7 +317,7 @@ func (r *riskControlCenter) buildEvent(c *gin.Context, info *relaycommon.RelayIn
 	username := ""
 	tokenName := ""
 	if c != nil && c.Request != nil {
-		clientIP = c.ClientIP()
+		clientIP = requestip.GetClientIP(c)
 		userAgent = c.GetHeader("User-Agent")
 		username = c.GetString("username")
 		tokenName = c.GetString("token_name")

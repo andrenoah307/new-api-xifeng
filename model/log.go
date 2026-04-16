@@ -8,6 +8,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -121,7 +122,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 		Group:            group,
 		Ip: func() string {
 			if needRecordIp {
-				return c.ClientIP()
+				return requestip.GetClientIP(c)
 			}
 			return ""
 		}(),
@@ -182,7 +183,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		Group:            params.Group,
 		Ip: func() string {
 			if needRecordIp {
-				return c.ClientIP()
+				return requestip.GetClientIP(c)
 			}
 			return ""
 		}(),

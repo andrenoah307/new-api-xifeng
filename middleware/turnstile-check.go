@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
@@ -35,7 +36,7 @@ func TurnstileCheck() gin.HandlerFunc {
 			rawRes, err := http.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify", url.Values{
 				"secret":   {common.TurnstileSecretKey},
 				"response": {response},
-				"remoteip": {c.ClientIP()},
+				"remoteip": {requestip.GetClientIP(c)},
 			})
 			if err != nil {
 				common.SysLog(err.Error())
