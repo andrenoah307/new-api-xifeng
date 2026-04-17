@@ -14,6 +14,18 @@ import (
 	"github.com/QuantumNous/new-api/setting/system_setting"
 )
 
+// ResolveUserNotificationEmail 返回用户收件邮箱：优先用 UserSetting.NotificationEmail，其次 user.Email。
+// 两个都空则返回空串。
+func ResolveUserNotificationEmail(user *model.User, userSetting dto.UserSetting) string {
+	if override := strings.TrimSpace(userSetting.NotificationEmail); override != "" {
+		return override
+	}
+	if user == nil {
+		return ""
+	}
+	return strings.TrimSpace(user.Email)
+}
+
 func NotifyRootUser(t string, subject string, content string) {
 	user := model.GetRootUser().ToBaseUser()
 	err := NotifyUser(user.Id, user.Email, user.GetSetting(), dto.NewNotify(t, subject, content, nil))

@@ -284,7 +284,7 @@ func fulfillOrder(event stripe.Event, referenceId string, customerId string) {
 	total, _ := strconv.ParseFloat(event.GetObjectValue("amount_total"), 64)
 	currency := strings.ToUpper(event.GetObjectValue("currency"))
 	log.Printf("收到款项：%s, %.2f(%s)", referenceId, total/100, currency)
-	service.NotifyTopUpSuccess(model.GetTopUpByTradeNo(referenceId))
+	service.NotifyTopUpSuccessByTradeNo(referenceId)
 }
 
 func sessionExpired(event stripe.Event) {

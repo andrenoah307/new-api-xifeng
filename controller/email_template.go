@@ -27,15 +27,18 @@ func ListEmailTemplates(c *gin.Context) {
 	items := make([]EmailTemplateItem, 0, len(specs))
 
 	common.OptionMapRWMutex.RLock()
-	snapshot := make(map[string]string, len(common.OptionMap))
-	for k, v := range common.OptionMap {
-		snapshot[k] = v
+	saved := make(map[string]string, len(specs)*2)
+	for _, spec := range specs {
+		subjectKey := constant.EmailTemplateSubjectKey(spec.Key)
+		bodyKey := constant.EmailTemplateBodyKey(spec.Key)
+		saved[subjectKey] = common.OptionMap[subjectKey]
+		saved[bodyKey] = common.OptionMap[bodyKey]
 	}
 	common.OptionMapRWMutex.RUnlock()
 
 	for _, spec := range specs {
-		savedSubject := snapshot[constant.EmailTemplateSubjectKey(spec.Key)]
-		savedBody := snapshot[constant.EmailTemplateBodyKey(spec.Key)]
+		savedSubject := saved[constant.EmailTemplateSubjectKey(spec.Key)]
+		savedBody := saved[constant.EmailTemplateBodyKey(spec.Key)]
 		current := EmailTemplateItem{
 			Key:            spec.Key,
 			Name:           spec.Name,
@@ -47,7 +50,6 @@ func ListEmailTemplates(c *gin.Context) {
 			CurrentBody:    savedBody,
 			Customized:     savedSubject != "" || savedBody != "",
 		}
-		// 若未自定义，返回默认值方便前端直接展示/编辑
 		if current.CurrentSubject == "" {
 			current.CurrentSubject = spec.DefaultSubject
 		}

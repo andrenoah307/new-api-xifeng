@@ -47,20 +47,27 @@ func buildTopUpVars(topUp *model.TopUp, user *model.User, forAdmin bool) map[str
 	username := ""
 	userId := 0
 	if user != nil {
-		username = user.Username
+		username = strings.TrimSpace(user.Username)
 		userId = user.Id
 	}
 
+	tradeNoEsc := html.EscapeString(topUp.TradeNo)
+	methodEsc := html.EscapeString(paymentMethodLabel(topUp.PaymentMethod))
+	moneyStr := fmt.Sprintf("%.2f", topUp.Money)
+	amountStr := fmt.Sprintf("%d", topUp.Amount)
+	completedEsc := html.EscapeString(completedAt)
+	usernameEsc := html.EscapeString(username)
+
 	rows := []common.EmailTemplateRow{
-		{Label: "订单编号", Value: html.EscapeString(topUp.TradeNo)},
-		{Label: "支付方式", Value: html.EscapeString(paymentMethodLabel(topUp.PaymentMethod))},
-		{Label: "支付金额", Value: fmt.Sprintf("%.2f", topUp.Money)},
-		{Label: "充值额度", Value: fmt.Sprintf("%d", topUp.Amount)},
-		{Label: "完成时间", Value: html.EscapeString(completedAt)},
+		{Label: "订单编号", Value: tradeNoEsc},
+		{Label: "支付方式", Value: methodEsc},
+		{Label: "支付金额", Value: moneyStr},
+		{Label: "充值额度", Value: amountStr},
+		{Label: "完成时间", Value: completedEsc},
 	}
-	if strings.TrimSpace(username) != "" {
+	if username != "" {
 		rows = append([]common.EmailTemplateRow{
-			{Label: "下单用户", Value: html.EscapeString(strings.TrimSpace(username))},
+			{Label: "下单用户", Value: usernameEsc},
 		}, rows...)
 	}
 
@@ -74,23 +81,35 @@ func buildTopUpVars(topUp *model.TopUp, user *model.User, forAdmin bool) map[str
 	}
 
 	return map[string]string{
-		"system_name":           html.EscapeString(systemNameOrDefault()),
+		"system_name":           html.EscapeString(common.SystemNameOrDefault()),
 		"server_address":        html.EscapeString(strings.TrimRight(system_setting.ServerAddress, "/")),
 		"heading":               html.EscapeString(heading),
 		"intro":                 html.EscapeString(intro),
-		"trade_no":              html.EscapeString(topUp.TradeNo),
-		"payment_method":        html.EscapeString(paymentMethodLabel(topUp.PaymentMethod)),
-		"money":                 fmt.Sprintf("%.2f", topUp.Money),
-		"amount":                fmt.Sprintf("%d", topUp.Amount),
-		"username":              html.EscapeString(strings.TrimSpace(username)),
+		"trade_no":              tradeNoEsc,
+		"payment_method":        methodEsc,
+		"money":                 moneyStr,
+		"amount":                amountStr,
+		"username":              usernameEsc,
 		"user_id":               fmt.Sprintf("%d", userId),
-		"completed_at":          html.EscapeString(completedAt),
+		"completed_at":          completedEsc,
 		"info_table":            common.RenderInfoTableHTML(rows),
 		"content_preview":       "",
 		"content_preview_block": "",
 		"action_url":            html.EscapeString(paymentActionURL()),
 		"action_label":          html.EscapeString(actionLabel),
 	}
+}
+
+// NotifyTopUpSuccessByTradeNo 先按 tradeNo 查订单再转发到 NotifyTopUpSuccess。
+// 支付回调拿不到更新后的 TopUp 对象时用此入口。
+func NotifyTopUpSuccessByTradeNo(tradeNo string) {
+	if tradeNo == "" {
+		return
+	}
+	if !common.PaymentNotifyUserEnabled && !common.PaymentNotifyAdminEnabled {
+		return
+	}
+	NotifyTopUpSuccess(model.GetTopUpByTradeNo(tradeNo))
 }
 
 // NotifyTopUpSuccess 异步在支付成功后发送邮件（用户 / 管理员 两条通路各自可开关）
@@ -109,13 +128,9 @@ func NotifyTopUpSuccess(topUp *model.TopUp) {
 			return
 		}
 
-		// 通知下单用户
 		if common.PaymentNotifyUserEnabled {
 			userSetting := user.GetSetting()
-			userEmail := strings.TrimSpace(user.Email)
-			if strings.TrimSpace(userSetting.NotificationEmail) != "" {
-				userEmail = strings.TrimSpace(userSetting.NotificationEmail)
-			}
+			userEmail := ResolveUserNotificationEmail(user, userSetting)
 			if userEmail != "" {
 				vars := buildTopUpVars(topUp, user, false)
 				subject, body := RenderEmailByKey(constant.EmailTemplateKeyPaymentSuccessUser, vars)
@@ -128,7 +143,6 @@ func NotifyTopUpSuccess(topUp *model.TopUp) {
 			}
 		}
 
-		// 通知管理员
 		if common.PaymentNotifyAdminEnabled {
 			recipients := parseAdminEmails(common.PaymentAdminEmail)
 			if len(recipients) == 0 {

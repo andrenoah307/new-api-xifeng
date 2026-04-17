@@ -36,7 +36,6 @@ const EmailTemplateSetting = () => {
   const [previewing, setPreviewing] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [activeKey, setActiveKey] = useState('');
-  // 每个 key 对应 { subject, body } 草稿，允许切换 tab 不丢失输入
   const [drafts, setDrafts] = useState({});
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSubject, setPreviewSubject] = useState('');
@@ -44,7 +43,6 @@ const EmailTemplateSetting = () => {
 
   const subjectRef = useRef(null);
   const bodyRef = useRef(null);
-  // 记录最后获得焦点的输入框，用于"点击变量插入"
   const lastFocusedRef = useRef('body');
 
   const activeTemplate = useMemo(
@@ -115,7 +113,6 @@ const EmailTemplateSetting = () => {
           ? { subject: next }
           : { body: next },
       );
-      // 把光标定位到插入后的位置
       requestAnimationFrame(() => {
         try {
           el.focus();
@@ -126,7 +123,6 @@ const EmailTemplateSetting = () => {
         }
       });
     } else {
-      // 没拿到原生节点就简单追加到末尾
       if (lastFocusedRef.current === 'subject') {
         updateDraft({ subject: (currentDraft.subject || '') + token });
       } else {
@@ -165,7 +161,7 @@ const EmailTemplateSetting = () => {
     try {
       const subjectKey = `EmailTemplate.${activeKey}.subject`;
       const bodyKey = `EmailTemplate.${activeKey}.body`;
-      // 若用户把内容清空，等同于恢复默认
+      // 与默认值相同时存空串，让后端读取时回落到默认
       const subjectValue =
         currentDraft.subject === activeTemplate.default_subject
           ? ''
@@ -258,7 +254,6 @@ const EmailTemplateSetting = () => {
                   style={{ marginBottom: 12 }}
                 />
 
-                {/* 可用变量 */}
                 <div style={{ marginBottom: 8 }}>
                   <Text strong style={{ fontSize: 13 }}>
                     {t('可用变量')}
@@ -288,7 +283,6 @@ const EmailTemplateSetting = () => {
                   </Space>
                 </div>
 
-                {/* 主题 */}
                 <div style={{ marginTop: 12 }}>
                   <Text strong style={{ fontSize: 13 }}>
                     {t('邮件主题')}
@@ -303,7 +297,6 @@ const EmailTemplateSetting = () => {
                   />
                 </div>
 
-                {/* 正文 */}
                 <div style={{ marginTop: 12 }}>
                   <Text strong style={{ fontSize: 13 }}>
                     {t('邮件正文（HTML）')}
@@ -324,7 +317,6 @@ const EmailTemplateSetting = () => {
                   />
                 </div>
 
-                {/* 操作 */}
                 <div style={{ marginTop: 16 }}>
                   <Space>
                     <Button

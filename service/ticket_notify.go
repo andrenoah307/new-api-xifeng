@@ -86,15 +86,21 @@ func ticketLink() string {
 // buildTicketVars 准备工单邮件的所有占位变量。所有 value 都已转义为安全 HTML。
 func buildTicketVars(ticket *model.Ticket, message *model.TicketMessage, isAdmin bool, heading string) map[string]string {
 	createdAt := time.Unix(ticket.CreatedTime, 0).Format("2006-01-02 15:04:05")
+	typeLabel := html.EscapeString(ticketTypeLabel(ticket.Type))
+	priorityLabel := html.EscapeString(ticketPriorityLabel(ticket.Priority))
+	statusLabel := html.EscapeString(ticketStatusLabel(ticket.Status))
+	subjectEsc := html.EscapeString(ticket.Subject)
+	usernameEsc := html.EscapeString(strings.TrimSpace(ticket.Username))
+	createdEsc := html.EscapeString(createdAt)
 
 	rows := []common.EmailTemplateRow{
 		{Label: "工单编号", Value: fmt.Sprintf("#%d", ticket.Id)},
-		{Label: "主题", Value: html.EscapeString(ticket.Subject)},
-		{Label: "类型", Value: html.EscapeString(ticketTypeLabel(ticket.Type))},
-		{Label: "优先级", Value: html.EscapeString(ticketPriorityLabel(ticket.Priority))},
-		{Label: "当前状态", Value: html.EscapeString(ticketStatusLabel(ticket.Status))},
-		{Label: "提交用户", Value: html.EscapeString(strings.TrimSpace(ticket.Username))},
-		{Label: "创建时间", Value: html.EscapeString(createdAt)},
+		{Label: "主题", Value: subjectEsc},
+		{Label: "类型", Value: typeLabel},
+		{Label: "优先级", Value: priorityLabel},
+		{Label: "当前状态", Value: statusLabel},
+		{Label: "提交用户", Value: usernameEsc},
+		{Label: "创建时间", Value: createdEsc},
 	}
 
 	replyUsername := ""
@@ -116,17 +122,17 @@ func buildTicketVars(ticket *model.Ticket, message *model.TicketMessage, isAdmin
 	}
 
 	return map[string]string{
-		"system_name":           html.EscapeString(systemNameOrDefault()),
+		"system_name":           html.EscapeString(common.SystemNameOrDefault()),
 		"server_address":        html.EscapeString(strings.TrimRight(system_setting.ServerAddress, "/")),
 		"heading":               html.EscapeString(heading),
 		"intro":                 html.EscapeString(buildTicketIntro(ticket, message, isAdmin)),
 		"ticket_id":             fmt.Sprintf("%d", ticket.Id),
-		"ticket_subject":        html.EscapeString(ticket.Subject),
-		"ticket_type":           html.EscapeString(ticketTypeLabel(ticket.Type)),
-		"ticket_priority":       html.EscapeString(ticketPriorityLabel(ticket.Priority)),
-		"ticket_status":         html.EscapeString(ticketStatusLabel(ticket.Status)),
-		"ticket_username":       html.EscapeString(strings.TrimSpace(ticket.Username)),
-		"ticket_created_at":     html.EscapeString(createdAt),
+		"ticket_subject":        subjectEsc,
+		"ticket_type":           typeLabel,
+		"ticket_priority":       priorityLabel,
+		"ticket_status":         statusLabel,
+		"ticket_username":       usernameEsc,
+		"ticket_created_at":     createdEsc,
 		"reply_username":        html.EscapeString(replyUsername),
 		"reply_time":            html.EscapeString(replyTime),
 		"info_table":            common.RenderInfoTableHTML(rows),
@@ -177,11 +183,8 @@ func NotifyTicketReplyToUser(ticket *model.Ticket, message *model.TicketMessage)
 			common.SysLog(fmt.Sprintf("failed to load user %d for ticket reply email (ticket=%d): %s", ticket.UserId, ticket.Id, err.Error()))
 			return
 		}
-		userEmail := strings.TrimSpace(user.Email)
 		userSetting := user.GetSetting()
-		if strings.TrimSpace(userSetting.NotificationEmail) != "" {
-			userEmail = strings.TrimSpace(userSetting.NotificationEmail)
-		}
+		userEmail := ResolveUserNotificationEmail(user, userSetting)
 		if userEmail == "" {
 			return
 		}
@@ -223,9 +226,3 @@ func parseAdminEmails(raw string) []string {
 	return emails
 }
 
-func systemNameOrDefault() string {
-	if common.SystemName != "" {
-		return common.SystemName
-	}
-	return "New API"
-}
