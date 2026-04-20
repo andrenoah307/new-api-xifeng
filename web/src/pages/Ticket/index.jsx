@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Modal, Select, Space } from '@douyinfe/semi-ui';
 import { IconPlusCircle } from '@douyinfe/semi-icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess } from '../../helpers';
 import { useTableCompactMode } from '../../hooks/common/useTableCompactMode';
@@ -15,15 +15,53 @@ import {
 const Ticket = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [compactMode, setCompactMode] = useTableCompactMode('tickets-user');
   const [tickets, setTickets] = useState([]);
   const [ticketCount, setTicketCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [activePage, setActivePage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const activePage = Math.max(1, Number(searchParams.get('p')) || 1);
+  const pageSize = Math.max(1, Number(searchParams.get('page_size')) || 10);
+  const statusFilter = searchParams.get('status') || '';
+  const typeFilter = searchParams.get('type') || '';
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  const updateSearchParams = useCallback(
+    (patch) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          Object.entries(patch).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === '') {
+              next.delete(key);
+            } else {
+              next.set(key, String(value));
+            }
+          });
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const setActivePage = useCallback(
+    (page) => updateSearchParams({ p: page === 1 ? '' : page }),
+    [updateSearchParams],
+  );
+  const setPageSize = useCallback(
+    (size) => updateSearchParams({ page_size: size === 10 ? '' : size, p: '' }),
+    [updateSearchParams],
+  );
+  const setStatusFilter = useCallback(
+    (value) => updateSearchParams({ status: value, p: '' }),
+    [updateSearchParams],
+  );
+  const setTypeFilter = useCallback(
+    (value) => updateSearchParams({ type: value, p: '' }),
+    [updateSearchParams],
+  );
   const loadTickets = useCallback(async () => {
     setLoading(true);
     try {
@@ -96,8 +134,11 @@ const Ticket = () => {
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={() => {
-          setActivePage(1);
-          loadTickets();
+          if (activePage !== 1) {
+            setActivePage(1);
+          } else {
+            loadTickets();
+          }
         }}
         t={t}
       />
@@ -112,11 +153,13 @@ const Ticket = () => {
         pageSize={pageSize}
         ticketCount={ticketCount}
         handlePageChange={setActivePage}
-        handlePageSizeChange={(size) => {
-          setPageSize(size);
-          setActivePage(1);
+        handlePageSizeChange={setPageSize}
+        onOpenDetail={(ticket) => {
+          const query = searchParams.toString();
+          navigate(
+            `/console/ticket/${ticket.id}${query ? `?${query}` : ''}`,
+          );
         }}
-        onOpenDetail={(ticket) => navigate(`/console/ticket/${ticket.id}`)}
         onCloseTicket={handleCloseTicket}
         t={t}
         actionsArea={
@@ -136,19 +179,13 @@ const Ticket = () => {
                 value={statusFilter}
                 optionList={statusOptions}
                 style={{ width: 160 }}
-                onChange={(value) => {
-                  setStatusFilter(value);
-                  setActivePage(1);
-                }}
+                onChange={setStatusFilter}
               />
               <Select
                 value={typeFilter}
                 optionList={typeOptions}
                 style={{ width: 160 }}
-                onChange={(value) => {
-                  setTypeFilter(value);
-                  setActivePage(1);
-                }}
+                onChange={setTypeFilter}
               />
             </Space>
           </div>

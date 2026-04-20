@@ -11,7 +11,7 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
 import { useTableCompactMode } from '../../hooks/common/useTableCompactMode';
@@ -35,6 +35,7 @@ const { Title, Text } = Typography;
 const AdminTicketDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -183,7 +184,12 @@ const AdminTicketDetail = () => {
               <Space>
                 <Button
                   theme='borderless'
-                  onClick={() => navigate('/console/ticket_admin')}
+                  onClick={() => {
+                    const query = searchParams.toString();
+                    navigate(
+                      `/console/ticket_admin${query ? `?${query}` : ''}`,
+                    );
+                  }}
                 >
                   {t('返回工单管理')}
                 </Button>
@@ -255,16 +261,62 @@ const TicketAdmin = () => {
   const { id } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [compactMode, setCompactMode] = useTableCompactMode('tickets-admin');
   const [tickets, setTickets] = useState([]);
   const [ticketCount, setTicketCount] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [activePage, setActivePage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
-  const [keyword, setKeyword] = useState('');
-  const [searchKeyword, setSearchKeyword] = useState('');
+  const activePage = Math.max(1, Number(searchParams.get('p')) || 1);
+  const pageSize = Math.max(1, Number(searchParams.get('page_size')) || 10);
+  const statusFilter = searchParams.get('status') || '';
+  const typeFilter = searchParams.get('type') || '';
+  const searchKeyword = searchParams.get('keyword') || '';
+  const [keyword, setKeyword] = useState(searchKeyword);
+
+  const updateSearchParams = useCallback(
+    (patch) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          Object.entries(patch).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === '') {
+              next.delete(key);
+            } else {
+              next.set(key, String(value));
+            }
+          });
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const setActivePage = useCallback(
+    (page) => updateSearchParams({ p: page === 1 ? '' : page }),
+    [updateSearchParams],
+  );
+  const setPageSize = useCallback(
+    (size) => updateSearchParams({ page_size: size === 10 ? '' : size, p: '' }),
+    [updateSearchParams],
+  );
+  const setStatusFilter = useCallback(
+    (value) => updateSearchParams({ status: value, p: '' }),
+    [updateSearchParams],
+  );
+  const setTypeFilter = useCallback(
+    (value) => updateSearchParams({ type: value, p: '' }),
+    [updateSearchParams],
+  );
+  const setSearchKeyword = useCallback(
+    (value) => updateSearchParams({ keyword: value, p: '' }),
+    [updateSearchParams],
+  );
+
+  useEffect(() => {
+    setKeyword(searchKeyword);
+  }, [searchKeyword]);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -334,12 +386,14 @@ const TicketAdmin = () => {
       pageSize={pageSize}
       ticketCount={ticketCount}
       handlePageChange={setActivePage}
-      handlePageSizeChange={(size) => {
-        setPageSize(size);
-        setActivePage(1);
-      }}
+      handlePageSizeChange={setPageSize}
       admin
-      onOpenDetail={(ticket) => navigate(`/console/ticket_admin/${ticket.id}`)}
+      onOpenDetail={(ticket) => {
+        const query = searchParams.toString();
+        navigate(
+          `/console/ticket_admin/${ticket.id}${query ? `?${query}` : ''}`,
+        );
+      }}
       t={t}
       actionsArea={
         <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3 w-full'>
@@ -351,10 +405,7 @@ const TicketAdmin = () => {
               prefix={<IconSearch />}
               showClear
               onChange={setKeyword}
-              onEnterPress={() => {
-                setSearchKeyword(keyword);
-                setActivePage(1);
-              }}
+              onEnterPress={() => setSearchKeyword(keyword)}
             />
           </Space>
           <Space wrap>
@@ -362,19 +413,13 @@ const TicketAdmin = () => {
               value={statusFilter}
               optionList={statusOptions}
               style={{ width: 160 }}
-              onChange={(value) => {
-                setStatusFilter(value);
-                setActivePage(1);
-              }}
+              onChange={setStatusFilter}
             />
             <Select
               value={typeFilter}
               optionList={typeOptions}
               style={{ width: 160 }}
-              onChange={(value) => {
-                setTypeFilter(value);
-                setActivePage(1);
-              }}
+              onChange={setTypeFilter}
             />
           </Space>
         </div>

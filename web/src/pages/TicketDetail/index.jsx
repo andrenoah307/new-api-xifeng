@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card, Descriptions, Empty, Modal, Space, Tag, Typography } from '@douyinfe/semi-ui';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
 import TicketConversation from '../../components/ticket/TicketConversation';
@@ -20,6 +20,7 @@ const { Title, Text } = Typography;
 const TicketDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState(null);
@@ -131,7 +132,13 @@ const TicketDetail = () => {
           <div className='flex flex-col md:flex-row md:items-start md:justify-between gap-3'>
             <div className='flex flex-col gap-2'>
               <Space>
-                <Button theme='borderless' onClick={() => navigate('/console/ticket')}>
+                <Button
+                  theme='borderless'
+                  onClick={() => {
+                    const query = searchParams.toString();
+                    navigate(`/console/ticket${query ? `?${query}` : ''}`);
+                  }}
+                >
                   {t('返回工单列表')}
                 </Button>
                 <TicketStatusTag status={ticket?.status} t={t} />
