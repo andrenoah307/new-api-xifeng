@@ -115,6 +115,9 @@ func main() {
 	// Risk control center (async rules engine + gateway block checks)
 	service.StartRiskControlCenter()
 
+	// Ticket attachment orphan cleanup (master-node only)
+	service.StartTicketAttachmentCleanupTask()
+
 	// Wire task polling adaptor factory (breaks service -> relay import cycle)
 	service.GetTaskAdaptorFunc = func(platform constant.TaskPlatform) service.TaskPollingAdaptor {
 		a := relay.GetTaskAdaptor(platform)

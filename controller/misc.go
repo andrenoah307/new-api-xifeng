@@ -120,6 +120,12 @@ func GetStatus(c *gin.Context) {
 		"invitation_code_enabled":               common.InvitationCodeEnabled,
 		"invitation_code_oauth_required":        common.InvitationCodeOAuthRequired,
 		"invitation_code_user_generate_enabled": common.InvitationCodeUserGenerateEnabled,
+
+		// 工单附件配置下发给前端，避免选文件后才发现不支持。
+		"ticket_attachment_enabled":       setting.TicketAttachmentEnabled,
+		"ticket_attachment_max_size":      setting.TicketAttachmentMaxSize,
+		"ticket_attachment_max_count":     setting.TicketAttachmentMaxCount,
+		"ticket_attachment_allowed_exts":  setting.TicketAttachmentAllowedExts,
 	}
 
 	// 根据启用状态注入可选内容

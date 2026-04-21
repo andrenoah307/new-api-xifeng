@@ -98,6 +98,32 @@ const SystemSetting = () => {
     SMTPForceAuthLogin: '',
     TicketNotifyEnabled: '',
     TicketAdminEmail: '',
+    TicketAttachmentEnabled: true,
+    TicketAttachmentMaxSize: '52428800',
+    TicketAttachmentMaxCount: '5',
+    TicketAttachmentAllowedExts: '',
+    TicketAttachmentAllowedMimes: '',
+    TicketAttachmentStorage: 'local',
+    TicketAttachmentLocalPath: '',
+    TicketAttachmentSignedURLTTL: '900',
+    TicketAttachmentOSSEndpoint: '',
+    TicketAttachmentOSSBucket: '',
+    TicketAttachmentOSSRegion: '',
+    TicketAttachmentOSSAccessKeyId: '',
+    TicketAttachmentOSSAccessKeySecret: '',
+    TicketAttachmentOSSCustomDomain: '',
+    TicketAttachmentS3Endpoint: '',
+    TicketAttachmentS3Bucket: '',
+    TicketAttachmentS3Region: '',
+    TicketAttachmentS3AccessKeyId: '',
+    TicketAttachmentS3AccessKeySecret: '',
+    TicketAttachmentS3CustomDomain: '',
+    TicketAttachmentCOSEndpoint: '',
+    TicketAttachmentCOSBucket: '',
+    TicketAttachmentCOSRegion: '',
+    TicketAttachmentCOSSecretId: '',
+    TicketAttachmentCOSSecretKey: '',
+    TicketAttachmentCOSCustomDomain: '',
     PaymentNotifyUserEnabled: '',
     PaymentNotifyAdminEnabled: '',
     PaymentAdminEmail: '',
@@ -217,6 +243,7 @@ const SystemSetting = () => {
           case 'SMTPSSLEnabled':
           case 'SMTPForceAuthLogin':
           case 'TicketNotifyEnabled':
+          case 'TicketAttachmentEnabled':
           case 'PaymentNotifyUserEnabled':
           case 'PaymentNotifyAdminEnabled':
           case 'LinuxDOOAuthEnabled':
@@ -463,6 +490,55 @@ const SystemSetting = () => {
         value: (inputs.TicketAdminEmail || '').trim(),
       },
     ];
+    await updateOptions(options);
+  };
+
+  // 提交工单附件设置：包括总开关、大小/数量上限、白名单、存储后端及对应的凭证。
+  // 存储后端切换时，凭证字段只下发对应存储的那组（避免把空字段覆盖掉已有的其它后端配置）。
+  const submitTicketAttachment = async () => {
+    const pick = (key) => ({ key, value: String(inputs[key] ?? '').trim() });
+    const storage = String(inputs.TicketAttachmentStorage || 'local');
+    const options = [
+      {
+        key: 'TicketAttachmentEnabled',
+        value: inputs.TicketAttachmentEnabled ? 'true' : 'false',
+      },
+      pick('TicketAttachmentMaxSize'),
+      pick('TicketAttachmentMaxCount'),
+      pick('TicketAttachmentAllowedExts'),
+      pick('TicketAttachmentAllowedMimes'),
+      { key: 'TicketAttachmentStorage', value: storage },
+      pick('TicketAttachmentLocalPath'),
+      pick('TicketAttachmentSignedURLTTL'),
+    ];
+    if (storage === 'oss') {
+      options.push(
+        pick('TicketAttachmentOSSEndpoint'),
+        pick('TicketAttachmentOSSBucket'),
+        pick('TicketAttachmentOSSRegion'),
+        pick('TicketAttachmentOSSAccessKeyId'),
+        pick('TicketAttachmentOSSAccessKeySecret'),
+        pick('TicketAttachmentOSSCustomDomain'),
+      );
+    } else if (storage === 's3') {
+      options.push(
+        pick('TicketAttachmentS3Endpoint'),
+        pick('TicketAttachmentS3Bucket'),
+        pick('TicketAttachmentS3Region'),
+        pick('TicketAttachmentS3AccessKeyId'),
+        pick('TicketAttachmentS3AccessKeySecret'),
+        pick('TicketAttachmentS3CustomDomain'),
+      );
+    } else if (storage === 'cos') {
+      options.push(
+        pick('TicketAttachmentCOSEndpoint'),
+        pick('TicketAttachmentCOSBucket'),
+        pick('TicketAttachmentCOSRegion'),
+        pick('TicketAttachmentCOSSecretId'),
+        pick('TicketAttachmentCOSSecretKey'),
+        pick('TicketAttachmentCOSCustomDomain'),
+      );
+    }
     await updateOptions(options);
   };
 
@@ -1600,6 +1676,249 @@ const SystemSetting = () => {
                   </Row>
                   <Button onClick={submitTicketNotify}>
                     {t('保存工单通知设置')}
+                  </Button>
+                </Form.Section>
+              </Card>
+              <Card>
+                <Form.Section text={t('工单附件')}>
+                  <Text>
+                    {t(
+                      '允许用户和管理员在工单中上传图片、JSON/XML/TXT/PDF 等附件。出于安全考虑 SVG 被强制禁用；默认本地磁盘存储，也可切换到阿里云 OSS / AWS S3 / 腾讯 COS。',
+                    )}
+                  </Text>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={12} md={6}>
+                      <Form.Checkbox
+                        field='TicketAttachmentEnabled'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('TicketAttachmentEnabled', e)
+                        }
+                      >
+                        {t('启用工单附件')}
+                      </Form.Checkbox>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <Form.Input
+                        field='TicketAttachmentMaxSize'
+                        label={t('单文件上限（字节）')}
+                        placeholder='52428800'
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <Form.Input
+                        field='TicketAttachmentMaxCount'
+                        label={t('单条消息附件数上限')}
+                        placeholder='5'
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <Form.Input
+                        field='TicketAttachmentSignedURLTTL'
+                        label={t('签名 URL 有效期（秒）')}
+                        placeholder='900'
+                      />
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} md={12}>
+                      <Form.Input
+                        field='TicketAttachmentAllowedExts'
+                        label={t('允许的扩展名（逗号分隔，小写）')}
+                        placeholder='jpg,jpeg,png,gif,webp,json,xml,txt,log,md,csv,pdf'
+                      />
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <Form.Input
+                        field='TicketAttachmentAllowedMimes'
+                        label={t('允许的 MIME（支持 type/* 通配符）')}
+                        placeholder='image/*,application/json,application/xml,text/*,application/pdf'
+                      />
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={12} md={8}>
+                      <Form.Select
+                        field='TicketAttachmentStorage'
+                        label={t('存储后端')}
+                        optionList={[
+                          { label: t('本地磁盘'), value: 'local' },
+                          { label: t('阿里云 OSS'), value: 'oss' },
+                          { label: t('AWS S3'), value: 's3' },
+                          { label: t('腾讯云 COS'), value: 'cos' },
+                        ]}
+                        getPopupContainer={() => document.body}
+                      />
+                    </Col>
+                    {inputs.TicketAttachmentStorage === 'local' && (
+                      <Col xs={24} sm={12} md={16}>
+                        <Form.Input
+                          field='TicketAttachmentLocalPath'
+                          label={t('本地存储根目录')}
+                          placeholder='data/ticket_attachments'
+                        />
+                      </Col>
+                    )}
+                  </Row>
+
+                  {inputs.TicketAttachmentStorage === 'oss' && (
+                    <Row
+                      gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                      style={{ marginTop: 16 }}
+                    >
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentOSSEndpoint'
+                          label={t('OSS Endpoint')}
+                          placeholder='oss-cn-hangzhou.aliyuncs.com'
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentOSSBucket'
+                          label={t('OSS Bucket')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentOSSRegion'
+                          label={t('OSS Region')}
+                          placeholder='cn-hangzhou'
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentOSSAccessKeyId'
+                          label={t('AccessKey ID')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentOSSAccessKeySecret'
+                          label={t('AccessKey Secret')}
+                          type='password'
+                          placeholder={t('敏感信息不会回显')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentOSSCustomDomain'
+                          label={t('自定义域名（可选）')}
+                          placeholder='https://cdn.example.com'
+                        />
+                      </Col>
+                    </Row>
+                  )}
+
+                  {inputs.TicketAttachmentStorage === 's3' && (
+                    <Row
+                      gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                      style={{ marginTop: 16 }}
+                    >
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentS3Endpoint'
+                          label={t('S3 Endpoint（可选，MinIO/R2 使用）')}
+                          placeholder='https://s3.amazonaws.com'
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentS3Bucket'
+                          label={t('S3 Bucket')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentS3Region'
+                          label={t('S3 Region')}
+                          placeholder='us-east-1'
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentS3AccessKeyId'
+                          label={t('AccessKey ID')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentS3AccessKeySecret'
+                          label={t('AccessKey Secret')}
+                          type='password'
+                          placeholder={t('敏感信息不会回显')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentS3CustomDomain'
+                          label={t('自定义域名（可选）')}
+                          placeholder='https://cdn.example.com'
+                        />
+                      </Col>
+                    </Row>
+                  )}
+
+                  {inputs.TicketAttachmentStorage === 'cos' && (
+                    <Row
+                      gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                      style={{ marginTop: 16 }}
+                    >
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentCOSEndpoint'
+                          label={t('COS 完整 Bucket URL（可选）')}
+                          placeholder='https://<bucket>.cos.<region>.myqcloud.com'
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentCOSBucket'
+                          label={t('COS Bucket')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentCOSRegion'
+                          label={t('COS Region')}
+                          placeholder='ap-guangzhou'
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentCOSSecretId'
+                          label={t('SecretId')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentCOSSecretKey'
+                          label={t('SecretKey')}
+                          type='password'
+                          placeholder={t('敏感信息不会回显')}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Input
+                          field='TicketAttachmentCOSCustomDomain'
+                          label={t('自定义域名（可选）')}
+                          placeholder='https://cdn.example.com'
+                        />
+                      </Col>
+                    </Row>
+                  )}
+
+                  <Button onClick={submitTicketAttachment}>
+                    {t('保存工单附件设置')}
                   </Button>
                 </Form.Section>
               </Card>

@@ -184,6 +184,17 @@ func SetApiRouter(router *gin.Engine) {
 			ticketRoute.GET("/invoice/eligible_orders", controller.GetEligibleInvoiceOrders)
 			ticketRoute.POST("/invoice/", controller.CreateInvoiceTicket)
 			ticketRoute.POST("/refund/", controller.CreateRefundTicket)
+			ticketRoute.POST("/attachment", middleware.CriticalRateLimit(), controller.UploadTicketAttachment)
+			ticketRoute.DELETE("/attachment/:id", controller.DeleteTicketAttachment)
+		}
+
+		// 附件预览/下载独立路由：浏览器直接发起的 <img src> / <a href> 无法注入自定义
+		// 请求头，因此使用 SessionAuth（cookie-only）而非 UserAuth。
+		// 仅幂等的 GET 资源放在这里。
+		ticketAttachmentDownloadRoute := apiRouter.Group("/ticket/attachment")
+		ticketAttachmentDownloadRoute.Use(middleware.SessionAuth())
+		{
+			ticketAttachmentDownloadRoute.GET("/:id", controller.DownloadTicketAttachment)
 		}
 
 		ticketAdminRoute := apiRouter.Group("/ticket/admin")

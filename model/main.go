@@ -282,6 +282,7 @@ func migrateDB() error {
 		&TicketMessage{},
 		&TicketInvoice{},
 		&TicketRefund{},
+		&TicketAttachment{},
 		&SubscriptionOrder{},
 		&UserSubscription{},
 		&SubscriptionPreConsumeRecord{},

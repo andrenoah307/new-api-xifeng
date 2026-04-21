@@ -91,7 +91,7 @@ const TicketUserProfilePanel = ({ ticketId, username, userId, t }) => {
           : '-',
       },
       {
-        key: t('可用余额'),
+        key: t('当前余额'),
         value: <Text strong>{renderQuota(profile.quota || 0)}</Text>,
       },
       { key: t('累计消耗'), value: renderQuota(profile.used_quota || 0) },

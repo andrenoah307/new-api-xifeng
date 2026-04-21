@@ -10,18 +10,46 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting"
 	"github.com/gin-gonic/gin"
 )
 
+// validateAttachmentRequest 验证附件 ID 列表是否合法：数量不超过上限、无重复、为正整数。
+// 具体归属/绑定状态在 model 层的事务里一并校验。
+func validateAttachmentRequest(ids []int) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if !setting.TicketAttachmentEnabled {
+		return errors.New("ticket attachment is disabled")
+	}
+	if len(ids) > setting.TicketAttachmentMaxCount {
+		return fmt.Errorf("too many attachments: max %d", setting.TicketAttachmentMaxCount)
+	}
+	seen := make(map[int]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			return errors.New("invalid attachment id")
+		}
+		if _, ok := seen[id]; ok {
+			return errors.New("duplicate attachment id")
+		}
+		seen[id] = struct{}{}
+	}
+	return nil
+}
+
 type CreateTicketRequest struct {
-	Subject  string `json:"subject"`
-	Type     string `json:"type"`
-	Priority int    `json:"priority"`
-	Content  string `json:"content"`
+	Subject       string `json:"subject"`
+	Type          string `json:"type"`
+	Priority      int    `json:"priority"`
+	Content       string `json:"content"`
+	AttachmentIds []int  `json:"attachment_ids,omitempty"`
 }
 
 type CreateTicketMessageRequest struct {
-	Content string `json:"content"`
+	Content       string `json:"content"`
+	AttachmentIds []int  `json:"attachment_ids,omitempty"`
 }
 
 type UpdateTicketStatusRequest struct {
@@ -144,13 +172,21 @@ func handleTicketError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgTicketRefundNotPending)
 	case errors.Is(err, model.ErrTicketRefundQuotaModeInvalid):
 		common.ApiErrorI18n(c, i18n.MsgTicketRefundQuotaModeInvalid)
+	case errors.Is(err, model.ErrAttachmentNotFound):
+		common.ApiErrorMsg(c, "attachment not found")
+	case errors.Is(err, model.ErrAttachmentForbidden):
+		common.ApiErrorMsg(c, "attachment belongs to another user")
+	case errors.Is(err, model.ErrAttachmentBound):
+		common.ApiErrorMsg(c, "attachment already bound")
+	case errors.Is(err, model.ErrAttachmentBindTicket):
+		common.ApiErrorMsg(c, "attachment belongs to another ticket")
 	default:
 		common.ApiError(c, err)
 	}
 }
 
 func buildTicketDetailResponse(ticket *model.Ticket) (gin.H, error) {
-	messages, err := model.GetTicketMessages(ticket.Id)
+	messages, err := model.GetTicketMessagesWithAttachments(ticket.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -191,6 +227,10 @@ func CreateTicket(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if err := validateAttachmentRequest(req.AttachmentIds); err != nil {
+		common.ApiErrorMsg(c, err.Error())
+		return
+	}
 
 	currentUser, err := getTicketCurrentUser(c)
 	if err != nil {
@@ -199,13 +239,14 @@ func CreateTicket(c *gin.Context) {
 	}
 
 	ticket, message, err := model.CreateTicketWithMessage(model.CreateTicketParams{
-		UserId:   currentUser.Id,
-		Username: currentUser.Username,
-		Subject:  req.Subject,
-		Type:     req.Type,
-		Priority: req.Priority,
-		Content:  req.Content,
-		Role:     currentUser.Role,
+		UserId:        currentUser.Id,
+		Username:      currentUser.Username,
+		Subject:       req.Subject,
+		Type:          req.Type,
+		Priority:      req.Priority,
+		Content:       req.Content,
+		Role:          currentUser.Role,
+		AttachmentIds: req.AttachmentIds,
 	})
 	if err != nil {
 		handleTicketError(c, err)
@@ -270,6 +311,10 @@ func CreateUserTicketMessage(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if err := validateAttachmentRequest(req.AttachmentIds); err != nil {
+		common.ApiErrorMsg(c, err.Error())
+		return
+	}
 
 	currentUser, err := getTicketCurrentUser(c)
 	if err != nil {
@@ -287,6 +332,7 @@ func CreateUserTicketMessage(c *gin.Context) {
 		currentUser.Username,
 		currentUser.Role,
 		req.Content,
+		req.AttachmentIds,
 	)
 	if err != nil {
 		handleTicketError(c, err)
@@ -367,6 +413,10 @@ func CreateAdminTicketMessage(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if err := validateAttachmentRequest(req.AttachmentIds); err != nil {
+		common.ApiErrorMsg(c, err.Error())
+		return
+	}
 
 	currentUser, err := getTicketCurrentUser(c)
 	if err != nil {
@@ -380,6 +430,7 @@ func CreateAdminTicketMessage(c *gin.Context) {
 		currentUser.Username,
 		currentUser.Role,
 		req.Content,
+		req.AttachmentIds,
 	)
 	if err != nil {
 		handleTicketError(c, err)

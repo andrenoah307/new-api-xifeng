@@ -129,9 +129,12 @@ const AdminTicketDetail = () => {
     ];
   }, [ticket, t]);
 
-  const handleReply = async (content) => {
+  const handleReply = async (content, attachmentIds = []) => {
     try {
-      const res = await API.post(`/api/ticket/admin/${id}/message`, { content });
+      const res = await API.post(`/api/ticket/admin/${id}/message`, {
+        content,
+        attachment_ids: attachmentIds,
+      });
       if (res.data?.success) {
         showSuccess(t('回复已发送'));
         await loadDetail();

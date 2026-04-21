@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Banner, Form, Modal, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Form, Modal, Typography, Upload } from '@douyinfe/semi-ui';
+import { IconUpload } from '@douyinfe/semi-icons';
 import {
   API,
   getCurrencyConfig,
@@ -16,6 +17,7 @@ import {
   getTicketPriorityOptions,
   getTicketTypeOptions,
 } from '../../../ticket/ticketUtils';
+import { useTicketAttachments } from '../../../ticket/useTicketAttachments';
 
 const { Text } = Typography;
 
@@ -26,6 +28,16 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [userQuota, setUserQuota] = useState(0);
   const [quotaLoading, setQuotaLoading] = useState(false);
   const formApiRef = useRef(null);
+  const {
+    config,
+    attachments,
+    uploading,
+    reset,
+    discardAll,
+    uploadProps,
+    uploadRef,
+    handlePaste,
+  } = useTicketAttachments(t);
 
   const loadUserQuota = async () => {
     setQuotaLoading(true);
@@ -45,6 +57,8 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
     if (!visible) {
       setTicketType('general');
       setPayeeType('alipay');
+      // Modal 关闭时清空本地选中附件（真实删除交给父级的 cancel 流程处理）。
+      reset();
       return;
     }
     loadUserQuota();
@@ -112,14 +126,17 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
         return;
       }
 
+      // 发票工单有独立端点不走这里；这里只处理 general / 其它可带附件的普通工单。
       const res = await API.post('/api/ticket/', {
         subject: values.subject,
         type: values.type,
         priority: values.priority,
         content: values.content,
+        attachment_ids: attachments.map((a) => a.id),
       });
       if (res.data?.success) {
         showSuccess(t('工单创建成功'));
+        reset();
         onSuccess?.(res.data?.data);
         onClose?.();
       } else {
@@ -132,15 +149,21 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
     }
   };
 
+  const handleCancel = async () => {
+    // 主动撤回已上传但未提交的附件，立即释放存储空间。
+    await discardAll();
+    onClose?.();
+  };
+
   return (
     <Modal
       title={t('创建工单')}
       visible={visible}
-      onCancel={onClose}
+      onCancel={handleCancel}
       onOk={() => formApiRef.current?.submitForm()}
       okText={t('提交工单')}
       cancelText={t('取消')}
-      confirmLoading={loading}
+      confirmLoading={loading || uploading}
       centered
       width={560}
       style={{ maxWidth: '92vw' }}
@@ -150,6 +173,14 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
         overflowX: 'hidden',
       }}
     >
+      <div
+        onPasteCapture={(e) => {
+          // 包一层 div 挂 paste 监听：Modal 内部 content 渲染层不一定透传 React 合成事件。
+          // 退款工单分支不展示 Upload，handlePaste 内部通过 uploadRef 判空自行忽略。
+          if (!config.enabled) return;
+          handlePaste(e);
+        }}
+      >
       <Form
         layout='vertical'
         initValues={{
@@ -316,17 +347,35 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
             </Text>
           </>
         ) : (
-          <Form.TextArea
-            field='content'
-            label={t('问题描述')}
-            autosize={{ minRows: 4, maxRows: 8 }}
-            maxLength={5000}
-            showClear
-            placeholder={t('请详细描述问题，方便管理员更快定位')}
-            rules={[{ required: true, message: t('工单内容不能为空') }]}
-          />
+          <>
+            <Form.TextArea
+              field='content'
+              label={t('问题描述')}
+              autosize={{ minRows: 4, maxRows: 8 }}
+              maxLength={5000}
+              showClear
+              placeholder={t('请详细描述问题，方便管理员更快定位')}
+              rules={[{ required: true, message: t('工单内容不能为空') }]}
+            />
+            {config.enabled && (
+              <Form.Slot label={t('附件（可选）')}>
+                <Upload {...uploadProps} ref={uploadRef} disabled={loading}>
+                  <Button icon={<IconUpload />} disabled={loading}>
+                    {t('上传附件')}
+                  </Button>
+                  <Text type='tertiary' style={{ marginLeft: 8 }}>
+                    {t('最多 {{n}} 个，单个不超过 {{mb}} MB，可粘贴截图', {
+                      n: config.maxCount,
+                      mb: Math.floor(config.maxSize / 1024 / 1024),
+                    })}
+                  </Text>
+                </Upload>
+              </Form.Slot>
+            )}
+          </>
         )}
       </Form>
+      </div>
     </Modal>
   );
 };

@@ -69,6 +69,32 @@ func InitOptionMap() {
 	common.OptionMap["SMTPForceAuthLogin"] = strconv.FormatBool(common.SMTPForceAuthLogin)
 	common.OptionMap["TicketNotifyEnabled"] = strconv.FormatBool(common.TicketNotifyEnabled)
 	common.OptionMap["TicketAdminEmail"] = common.TicketAdminEmail
+	common.OptionMap["TicketAttachmentEnabled"] = strconv.FormatBool(setting.TicketAttachmentEnabled)
+	common.OptionMap["TicketAttachmentMaxSize"] = strconv.FormatInt(setting.TicketAttachmentMaxSize, 10)
+	common.OptionMap["TicketAttachmentMaxCount"] = strconv.Itoa(setting.TicketAttachmentMaxCount)
+	common.OptionMap["TicketAttachmentAllowedExts"] = setting.TicketAttachmentAllowedExts
+	common.OptionMap["TicketAttachmentAllowedMimes"] = setting.TicketAttachmentAllowedMimes
+	common.OptionMap["TicketAttachmentStorage"] = setting.TicketAttachmentStorage
+	common.OptionMap["TicketAttachmentLocalPath"] = setting.TicketAttachmentLocalPath
+	common.OptionMap["TicketAttachmentSignedURLTTL"] = strconv.FormatInt(setting.TicketAttachmentSignedURLTTL, 10)
+	common.OptionMap["TicketAttachmentOSSEndpoint"] = setting.TicketAttachmentOSSEndpoint
+	common.OptionMap["TicketAttachmentOSSBucket"] = setting.TicketAttachmentOSSBucket
+	common.OptionMap["TicketAttachmentOSSRegion"] = setting.TicketAttachmentOSSRegion
+	common.OptionMap["TicketAttachmentOSSAccessKeyId"] = setting.TicketAttachmentOSSAccessKeyId
+	common.OptionMap["TicketAttachmentOSSAccessKeySecret"] = setting.TicketAttachmentOSSAccessKeySecret
+	common.OptionMap["TicketAttachmentOSSCustomDomain"] = setting.TicketAttachmentOSSCustomDomain
+	common.OptionMap["TicketAttachmentS3Endpoint"] = setting.TicketAttachmentS3Endpoint
+	common.OptionMap["TicketAttachmentS3Bucket"] = setting.TicketAttachmentS3Bucket
+	common.OptionMap["TicketAttachmentS3Region"] = setting.TicketAttachmentS3Region
+	common.OptionMap["TicketAttachmentS3AccessKeyId"] = setting.TicketAttachmentS3AccessKeyId
+	common.OptionMap["TicketAttachmentS3AccessKeySecret"] = setting.TicketAttachmentS3AccessKeySecret
+	common.OptionMap["TicketAttachmentS3CustomDomain"] = setting.TicketAttachmentS3CustomDomain
+	common.OptionMap["TicketAttachmentCOSEndpoint"] = setting.TicketAttachmentCOSEndpoint
+	common.OptionMap["TicketAttachmentCOSBucket"] = setting.TicketAttachmentCOSBucket
+	common.OptionMap["TicketAttachmentCOSRegion"] = setting.TicketAttachmentCOSRegion
+	common.OptionMap["TicketAttachmentCOSSecretId"] = setting.TicketAttachmentCOSSecretId
+	common.OptionMap["TicketAttachmentCOSSecretKey"] = setting.TicketAttachmentCOSSecretKey
+	common.OptionMap["TicketAttachmentCOSCustomDomain"] = setting.TicketAttachmentCOSCustomDomain
 	common.OptionMap["PaymentNotifyUserEnabled"] = strconv.FormatBool(common.PaymentNotifyUserEnabled)
 	common.OptionMap["PaymentNotifyAdminEnabled"] = strconv.FormatBool(common.PaymentNotifyAdminEnabled)
 	common.OptionMap["PaymentAdminEmail"] = common.PaymentAdminEmail
@@ -340,6 +366,8 @@ func updateOptionMap(key string, value string) (err error) {
 			common.SMTPForceAuthLogin = boolValue
 		case "TicketNotifyEnabled":
 			common.TicketNotifyEnabled = boolValue
+		case "TicketAttachmentEnabled":
+			setting.TicketAttachmentEnabled = boolValue
 		case "PaymentNotifyUserEnabled":
 			common.PaymentNotifyUserEnabled = boolValue
 		case "PaymentNotifyAdminEnabled":
@@ -368,6 +396,62 @@ func updateOptionMap(key string, value string) (err error) {
 		common.SMTPToken = value
 	case "TicketAdminEmail":
 		common.TicketAdminEmail = value
+	case "TicketAttachmentMaxSize":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			setting.TicketAttachmentMaxSize = v
+		}
+	case "TicketAttachmentMaxCount":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			setting.TicketAttachmentMaxCount = v
+		}
+	case "TicketAttachmentAllowedExts":
+		setting.TicketAttachmentAllowedExts = value
+	case "TicketAttachmentAllowedMimes":
+		setting.TicketAttachmentAllowedMimes = value
+	case "TicketAttachmentStorage":
+		setting.TicketAttachmentStorage = value
+	case "TicketAttachmentLocalPath":
+		setting.TicketAttachmentLocalPath = value
+	case "TicketAttachmentSignedURLTTL":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			setting.TicketAttachmentSignedURLTTL = v
+		}
+	case "TicketAttachmentOSSEndpoint":
+		setting.TicketAttachmentOSSEndpoint = value
+	case "TicketAttachmentOSSBucket":
+		setting.TicketAttachmentOSSBucket = value
+	case "TicketAttachmentOSSRegion":
+		setting.TicketAttachmentOSSRegion = value
+	case "TicketAttachmentOSSAccessKeyId":
+		setting.TicketAttachmentOSSAccessKeyId = value
+	case "TicketAttachmentOSSAccessKeySecret":
+		setting.TicketAttachmentOSSAccessKeySecret = value
+	case "TicketAttachmentOSSCustomDomain":
+		setting.TicketAttachmentOSSCustomDomain = value
+	case "TicketAttachmentS3Endpoint":
+		setting.TicketAttachmentS3Endpoint = value
+	case "TicketAttachmentS3Bucket":
+		setting.TicketAttachmentS3Bucket = value
+	case "TicketAttachmentS3Region":
+		setting.TicketAttachmentS3Region = value
+	case "TicketAttachmentS3AccessKeyId":
+		setting.TicketAttachmentS3AccessKeyId = value
+	case "TicketAttachmentS3AccessKeySecret":
+		setting.TicketAttachmentS3AccessKeySecret = value
+	case "TicketAttachmentS3CustomDomain":
+		setting.TicketAttachmentS3CustomDomain = value
+	case "TicketAttachmentCOSEndpoint":
+		setting.TicketAttachmentCOSEndpoint = value
+	case "TicketAttachmentCOSBucket":
+		setting.TicketAttachmentCOSBucket = value
+	case "TicketAttachmentCOSRegion":
+		setting.TicketAttachmentCOSRegion = value
+	case "TicketAttachmentCOSSecretId":
+		setting.TicketAttachmentCOSSecretId = value
+	case "TicketAttachmentCOSSecretKey":
+		setting.TicketAttachmentCOSSecretKey = value
+	case "TicketAttachmentCOSCustomDomain":
+		setting.TicketAttachmentCOSCustomDomain = value
 	case "PaymentAdminEmail":
 		common.PaymentAdminEmail = value
 	case "ServerAddress":

@@ -64,13 +64,14 @@ type TicketQueryOptions struct {
 }
 
 type CreateTicketParams struct {
-	UserId   int
-	Username string
-	Subject  string
-	Type     string
-	Priority int
-	Content  string
-	Role     int
+	UserId        int
+	Username      string
+	Subject       string
+	Type          string
+	Priority      int
+	Content       string
+	Role          int
+	AttachmentIds []int
 }
 
 func (ticket *Ticket) BeforeCreate(tx *gorm.DB) error {
@@ -163,6 +164,9 @@ func CreateTicketWithMessage(params CreateTicketParams) (*Ticket, *TicketMessage
 		}
 		message.TicketId = ticket.Id
 		if err := tx.Create(message).Error; err != nil {
+			return err
+		}
+		if err := BindAttachmentsToMessage(tx, params.AttachmentIds, ticket.Id, message.Id, params.UserId); err != nil {
 			return err
 		}
 		return nil
@@ -266,11 +270,54 @@ func GetTicketMessages(ticketId int) (messages []*TicketMessage, err error) {
 	return messages, err
 }
 
+// TicketMessageWithAttachments 是工单详情页的渲染结构：消息 + 关联附件。
+type TicketMessageWithAttachments struct {
+	*TicketMessage
+	Attachments []*TicketAttachment `json:"attachments"`
+}
+
+// GetTicketMessagesWithAttachments 一次拉取工单所有消息及其附件，避免前端 N+1。
+func GetTicketMessagesWithAttachments(ticketId int) ([]*TicketMessageWithAttachments, error) {
+	messages, err := GetTicketMessages(ticketId)
+	if err != nil {
+		return nil, err
+	}
+	if len(messages) == 0 {
+		return []*TicketMessageWithAttachments{}, nil
+	}
+	ids := make([]int, 0, len(messages))
+	for _, m := range messages {
+		ids = append(ids, m.Id)
+	}
+	attachments, err := GetAttachmentsByMessageIds(ids)
+	if err != nil {
+		return nil, err
+	}
+	grouped := make(map[int][]*TicketAttachment, len(messages))
+	for _, a := range attachments {
+		grouped[a.MessageId] = append(grouped[a.MessageId], a)
+	}
+	out := make([]*TicketMessageWithAttachments, 0, len(messages))
+	for _, m := range messages {
+		list := grouped[m.Id]
+		if list == nil {
+			list = []*TicketAttachment{}
+		}
+		out = append(out, &TicketMessageWithAttachments{
+			TicketMessage: m,
+			Attachments:   list,
+		})
+	}
+	return out, nil
+}
+
 // AddTicketMessage 追加一条工单回复并按角色自动推进状态。
 // 第三个返回值是追加前的工单主状态，供调用方判定是否需要对外发送状态变更通知。
-func AddTicketMessage(ticketId int, userId int, username string, role int, content string) (*TicketMessage, *Ticket, int, error) {
+// attachmentIds 在同一事务内绑定到新建的消息上，失败整体回滚。允许 content 为空但 attachmentIds 非空
+// （纯图片/文件回复），反之至少要有一者。
+func AddTicketMessage(ticketId int, userId int, username string, role int, content string, attachmentIds []int) (*TicketMessage, *Ticket, int, error) {
 	content = strings.TrimSpace(content)
-	if content == "" {
+	if content == "" && len(attachmentIds) == 0 {
 		return nil, nil, 0, ErrTicketContentEmpty
 	}
 
@@ -300,6 +347,9 @@ func AddTicketMessage(ticketId int, userId int, username string, role int, conte
 		}
 		prevStatus = ticket.Status
 		if err := tx.Create(message).Error; err != nil {
+			return err
+		}
+		if err := BindAttachmentsToMessage(tx, attachmentIds, ticket.Id, message.Id, userId); err != nil {
 			return err
 		}
 

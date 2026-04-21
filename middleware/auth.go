@@ -174,6 +174,50 @@ func UserAuth() func(c *gin.Context) {
 	}
 }
 
+// SessionAuth 仅基于 cookie session 鉴权，不要求 New-Api-User 请求头。
+// 用于浏览器直发、无法注入自定义头的场景（如 <img src>、<a href> 下载链接）。
+// 与 UserAuth 的区别：跳过 CSRF 防护层的 New-Api-User 校验；因此应只用于幂等、只读的 GET 资源。
+func SessionAuth() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		id := session.Get("id")
+		role := session.Get("role")
+		status := session.Get("status")
+		username := session.Get("username")
+		if id == nil || role == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgAuthNotLoggedIn),
+			})
+			c.Abort()
+			return
+		}
+		if s, ok := status.(int); ok && s == common.UserStatusDisabled {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgAuthUserBanned),
+			})
+			c.Abort()
+			return
+		}
+		roleInt, ok := role.(int)
+		if !ok || roleInt < common.RoleCommonUser {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgAuthInsufficientPrivilege),
+			})
+			c.Abort()
+			return
+		}
+		c.Set("id", id)
+		c.Set("role", roleInt)
+		if username != nil {
+			c.Set("username", username)
+		}
+		c.Next()
+	}
+}
+
 func AdminAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		authHelper(c, common.RoleAdminUser)
