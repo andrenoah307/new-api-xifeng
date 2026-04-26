@@ -58,6 +58,27 @@ type User struct {
 	// non-zero. Acknowledging the modal zeros it; a fresh enforce decision
 	// against any group will refresh it.
 	RiskWarningPendingAt int64 `json:"risk_warning_pending_at" gorm:"bigint;default:0;index"`
+
+	// Enforcement layer counters — mirror the post-hit handling design in
+	// DEV_GUIDE §"处置操作". Counters live on the user row instead of a
+	// separate table because every increment is paired with a SELECT FOR
+	// UPDATE on the same row, and frequent reads (overview/admin views) are
+	// already serving from this table. Window semantics are FIXED: when
+	// (now - WindowStart) crosses CountWindowHours both source counters are
+	// reset to zero before the increment.
+	EnforcementHitCountRisk       int   `json:"enforcement_hit_count_risk" gorm:"default:0;index"`
+	EnforcementHitCountModeration int   `json:"enforcement_hit_count_moderation" gorm:"default:0;index"`
+	EnforcementWindowStartAt      int64 `json:"enforcement_window_start_at" gorm:"bigint;default:0"`
+	EnforcementLastHitAt          int64 `json:"enforcement_last_hit_at" gorm:"bigint;default:0;index"`
+	// EnforcementEmailWindowStartAt + Count implement the "max N emails per
+	// M minutes per user" rate limit. Reset whenever a send attempt notices
+	// the window has passed.
+	EnforcementEmailWindowStartAt int64 `json:"enforcement_email_window_start_at" gorm:"bigint;default:0"`
+	EnforcementEmailCountInWindow int   `json:"enforcement_email_count_in_window" gorm:"default:0"`
+	// EnforcementAutoBannedAt is non-zero once the engine has flipped the
+	// account to disabled. Used to short-circuit further hits (no double-ban
+	// emails) and to drive the audit timeline. Manual unban resets this to 0.
+	EnforcementAutoBannedAt int64 `json:"enforcement_auto_banned_at" gorm:"bigint;default:0;index"`
 }
 
 // MarkUserRiskWarningPending refreshes the pending warning timestamp for the
@@ -92,6 +113,147 @@ func GetUserRiskWarningPending(userID int) (int64, error) {
 	err := DB.Model(&User{}).Where("id = ?", userID).
 		Select("risk_warning_pending_at").Find(&ts).Error
 	return ts, err
+}
+
+// EnforcementCounterSnapshot is the per-source view returned to handlers /
+// the engine. It avoids loading the entire User row when callers only need
+// the counter state.
+type EnforcementCounterSnapshot struct {
+	UserID                int
+	HitCountRisk          int
+	HitCountModeration    int
+	WindowStartAt         int64
+	LastHitAt             int64
+	EmailWindowStartAt    int64
+	EmailCountInWindow    int
+	AutoBannedAt          int64
+	Status                int
+	Username              string
+	Email                 string
+}
+
+// LoadEnforcementCounter is a single-row read used inside the per-hit
+// transaction. Callers should wrap the read+update inside a DB transaction
+// to keep the increment atomic.
+func LoadEnforcementCounter(userID int) (*EnforcementCounterSnapshot, error) {
+	if userID <= 0 {
+		return nil, errors.New("invalid user id")
+	}
+	var u User
+	if err := DB.Select(
+		"id, status, username, email, "+
+			"enforcement_hit_count_risk, enforcement_hit_count_moderation, "+
+			"enforcement_window_start_at, enforcement_last_hit_at, "+
+			"enforcement_email_window_start_at, enforcement_email_count_in_window, "+
+			"enforcement_auto_banned_at").
+		Where("id = ?", userID).First(&u).Error; err != nil {
+		return nil, err
+	}
+	return &EnforcementCounterSnapshot{
+		UserID:             u.Id,
+		HitCountRisk:       u.EnforcementHitCountRisk,
+		HitCountModeration: u.EnforcementHitCountModeration,
+		WindowStartAt:      u.EnforcementWindowStartAt,
+		LastHitAt:          u.EnforcementLastHitAt,
+		EmailWindowStartAt: u.EnforcementEmailWindowStartAt,
+		EmailCountInWindow: u.EnforcementEmailCountInWindow,
+		AutoBannedAt:       u.EnforcementAutoBannedAt,
+		Status:             u.Status,
+		Username:           u.Username,
+		Email:              u.Email,
+	}, nil
+}
+
+// ApplyEnforcementHit performs the atomic counter update for one hit. The
+// caller has already determined the new counter values; this function only
+// translates them into a single UPDATE so concurrent hits cannot interleave.
+func ApplyEnforcementHit(userID int, hitCountRisk, hitCountModeration int, windowStartAt, lastHitAt int64) error {
+	if userID <= 0 {
+		return errors.New("invalid user id")
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"enforcement_hit_count_risk":       hitCountRisk,
+		"enforcement_hit_count_moderation": hitCountModeration,
+		"enforcement_window_start_at":      windowStartAt,
+		"enforcement_last_hit_at":          lastHitAt,
+	}).Error
+}
+
+// MarkEnforcementEmailSent advances the email rate-limit window state. The
+// caller has already decided whether the window should be reset (start = 0
+// means "open a new window"); this function persists the bump.
+func MarkEnforcementEmailSent(userID int, windowStartAt int64, count int) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"enforcement_email_window_start_at": windowStartAt,
+		"enforcement_email_count_in_window": count,
+	}).Error
+}
+
+// MarkEnforcementAutoBanned flips the user account to disabled and records
+// the timestamp. This is the auto-ban path — for parity with the existing
+// "管理员手动禁用" flow we set Status = UserStatusDisabled (decision point 3
+// "封禁路径 A").
+func MarkEnforcementAutoBanned(userID int, ts int64) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"status":                     common.UserStatusDisabled,
+		"enforcement_auto_banned_at": ts,
+	}).Error
+}
+
+// ResetEnforcementCounter zeros every enforcement field for a user. Called
+// by the unban handler so re-enabled accounts start clean instead of
+// tripping ban again on the very first new hit (decision point 6 "清零").
+func ResetEnforcementCounter(userID int) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"enforcement_hit_count_risk":        0,
+		"enforcement_hit_count_moderation":  0,
+		"enforcement_window_start_at":       int64(0),
+		"enforcement_last_hit_at":           int64(0),
+		"enforcement_email_window_start_at": int64(0),
+		"enforcement_email_count_in_window": 0,
+		"enforcement_auto_banned_at":        int64(0),
+	}).Error
+}
+
+// EnforcementCounterRow is the listing row for the admin "用户计数器视图".
+type EnforcementCounterRow struct {
+	Id                            int    `json:"id"`
+	Username                      string `json:"username"`
+	Email                         string `json:"email"`
+	Status                        int    `json:"status"`
+	EnforcementHitCountRisk       int    `json:"enforcement_hit_count_risk"`
+	EnforcementHitCountModeration int    `json:"enforcement_hit_count_moderation"`
+	EnforcementWindowStartAt      int64  `json:"enforcement_window_start_at"`
+	EnforcementLastHitAt          int64  `json:"enforcement_last_hit_at"`
+	EnforcementAutoBannedAt       int64  `json:"enforcement_auto_banned_at"`
+}
+
+// ListEnforcementCounters returns the top users by combined hit count. The
+// admin panel uses this to surface accounts close to the ban threshold.
+func ListEnforcementCounters(startIdx, pageSize int) ([]*EnforcementCounterRow, int64, error) {
+	var rows []*EnforcementCounterRow
+	var total int64
+	tx := DB.Model(&User{}).
+		Where("enforcement_hit_count_risk > 0 OR enforcement_hit_count_moderation > 0 OR enforcement_auto_banned_at > 0")
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := tx.Select("id, username, email, status, " +
+		"enforcement_hit_count_risk, enforcement_hit_count_moderation, " +
+		"enforcement_window_start_at, enforcement_last_hit_at, enforcement_auto_banned_at").
+		Order("(enforcement_hit_count_risk + enforcement_hit_count_moderation) desc, enforcement_last_hit_at desc, id asc").
+		Limit(pageSize).Offset(startIdx).
+		Find(&rows).Error
+	return rows, total, err
 }
 
 func (user *User) ToBaseUser() *UserBase {

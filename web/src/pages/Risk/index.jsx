@@ -2129,6 +2129,651 @@ function ModerationTab({ riskGroups }) {
   );
 }
 
+// EnforcementTab is the third top-level tab on /console/risk. It owns the
+// unified post-hit policy: which sources participate, whether to email
+// users on hit / on auto-ban, the ban threshold + per-source overrides,
+// the email rate-limit budget, and surfacing the per-user counter view.
+function EnforcementTab() {
+  const { t } = useTranslation();
+  const [config, setConfig] = useState({
+    enabled: false,
+    email_on_hit: false,
+    email_on_auto_ban: false,
+    count_window_hours: 24,
+    ban_threshold: 0,
+    ban_threshold_per_source: {},
+    enabled_sources: ['risk_distribution', 'moderation'],
+    email_hit_subject: '',
+    email_ban_subject: '',
+    email_hit_template: '',
+    email_ban_template: '',
+    email_rate_limit_window_minutes: 10,
+    email_rate_limit_max_per_window: 3,
+  });
+  const [overview, setOverview] = useState({});
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [counters, setCounters] = useState([]);
+  const [countersPage, setCountersPage] = useState({
+    page: 1,
+    page_size: 10,
+    total: 0,
+  });
+  const [incidents, setIncidents] = useState([]);
+  const [incidentsPage, setIncidentsPage] = useState({
+    page: 1,
+    page_size: 10,
+    total: 0,
+  });
+  const [incidentFilters, setIncidentFilters] = useState({
+    source: '',
+    action: '',
+    keyword: '',
+  });
+  const [sendingTest, setSendingTest] = useState(false);
+
+  const loadConfig = async () => {
+    const res = await API.get('/api/risk/enforcement/config');
+    if (res.data.success)
+      setConfig((p) => ({ ...p, ...(res.data.data || {}) }));
+  };
+  const loadOverview = async () => {
+    const res = await API.get('/api/risk/enforcement/overview');
+    if (res.data.success) setOverview(res.data.data || {});
+  };
+  const loadCounters = async (
+    page = countersPage.page,
+    pageSize = countersPage.page_size,
+  ) => {
+    const res = await API.get('/api/risk/enforcement/counters', {
+      params: { p: page, page_size: pageSize },
+    });
+    if (res.data.success) {
+      const data = res.data.data || {};
+      setCounters(data.items || []);
+      setCountersPage({
+        page: data.page || page,
+        page_size: data.page_size || pageSize,
+        total: data.total || 0,
+      });
+    }
+  };
+  const loadIncidents = async (
+    page = incidentsPage.page,
+    pageSize = incidentsPage.page_size,
+    filters = incidentFilters,
+  ) => {
+    const params = { p: page, page_size: pageSize };
+    if (filters.source) params.source = filters.source;
+    if (filters.action) params.action = filters.action;
+    if (filters.keyword) params.keyword = filters.keyword;
+    const res = await API.get('/api/risk/enforcement/incidents', { params });
+    if (res.data.success) {
+      const data = res.data.data || {};
+      setIncidents(data.items || []);
+      setIncidentsPage({
+        page: data.page || page,
+        page_size: data.page_size || pageSize,
+        total: data.total || 0,
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadConfig();
+    loadOverview();
+    loadCounters(1);
+    loadIncidents(1);
+  }, []);
+
+  const handleSaveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      const res = await API.put('/api/risk/enforcement/config', config);
+      if (!res.data.success) {
+        showError(res.data.message);
+        return;
+      }
+      showSuccess(t('处置策略已保存'));
+      setConfig((p) => ({ ...p, ...(res.data.data || {}) }));
+      await loadOverview();
+    } catch (e) {
+      showError(t('保存处置策略失败'));
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleResetCounter = async (uid) => {
+    Modal.confirm({
+      title: t('确认重置该用户的命中计数？'),
+      content: t('计数器将清零；账户状态保持不变。'),
+      onOk: async () => {
+        try {
+          const res = await API.post(
+            `/api/risk/enforcement/users/${uid}/reset_counter`,
+          );
+          if (!res.data.success) {
+            showError(res.data.message);
+            return;
+          }
+          showSuccess(t('已重置'));
+          await Promise.all([loadCounters(), loadIncidents(1)]);
+        } catch (e) {
+          showError(t('重置失败'));
+        }
+      },
+    });
+  };
+
+  const handleUnban = async (uid) => {
+    Modal.confirm({
+      title: t('确认立即解封该用户？'),
+      content: t('账户将恢复启用，且命中计数将清零。'),
+      onOk: async () => {
+        try {
+          const res = await API.post(
+            `/api/risk/enforcement/users/${uid}/unban`,
+          );
+          if (!res.data.success) {
+            showError(res.data.message);
+            return;
+          }
+          showSuccess(t('已解封'));
+          await Promise.all([loadCounters(), loadIncidents(1), loadOverview()]);
+        } catch (e) {
+          showError(t('解封失败'));
+        }
+      },
+    });
+  };
+
+  const handleSendTestEmail = async () => {
+    setSendingTest(true);
+    try {
+      const res = await API.post('/api/risk/enforcement/test_email');
+      if (!res.data.success) {
+        showError(res.data.message);
+        return;
+      }
+      showSuccess(t('测试邮件已发送至当前管理员邮箱'));
+    } catch (e) {
+      showError(t('发送测试邮件失败'));
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const counterColumns = [
+    { title: t('用户'), dataIndex: 'username' },
+    { title: t('邮箱'), dataIndex: 'email' },
+    {
+      title: t('账户状态'),
+      dataIndex: 'status',
+      render: (v) =>
+        v === 1 ? (
+          <Tag color='green'>{t('正常')}</Tag>
+        ) : (
+          <Tag color='red'>{t('已禁用')}</Tag>
+        ),
+    },
+    { title: t('分发命中'), dataIndex: 'enforcement_hit_count_risk' },
+    { title: t('内容命中'), dataIndex: 'enforcement_hit_count_moderation' },
+    {
+      title: t('窗口起始'),
+      dataIndex: 'enforcement_window_start_at',
+      render: (v) => (v ? timestamp2string(v) : '-'),
+    },
+    {
+      title: t('最近命中'),
+      dataIndex: 'enforcement_last_hit_at',
+      render: (v) => (v ? timestamp2string(v) : '-'),
+    },
+    {
+      title: t('自动封禁时间'),
+      dataIndex: 'enforcement_auto_banned_at',
+      render: (v) => (v ? timestamp2string(v) : '-'),
+    },
+    {
+      title: t('操作'),
+      dataIndex: 'operate',
+      render: (_, r) => (
+        <Space>
+          <Button
+            type='tertiary'
+            theme='borderless'
+            onClick={() => handleResetCounter(r.id)}
+          >
+            {t('重置计数')}
+          </Button>
+          <Button
+            type='warning'
+            theme='borderless'
+            disabled={!r.enforcement_auto_banned_at && r.status === 1}
+            onClick={() => handleUnban(r.id)}
+          >
+            {t('立即解封')}
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const incidentColumns = [
+    {
+      title: t('时间'),
+      dataIndex: 'created_at',
+      render: (v) => (v ? timestamp2string(v) : '-'),
+    },
+    { title: t('用户'), dataIndex: 'username' },
+    {
+      title: t('分组'),
+      dataIndex: 'group',
+      render: (v) => <Tag color='cyan'>{v || '-'}</Tag>,
+    },
+    {
+      title: t('来源'),
+      dataIndex: 'source',
+      render: (v) => {
+        const m = {
+          risk_distribution: t('分发检测'),
+          moderation: t('内容审核'),
+          test: t('测试'),
+        };
+        const c = {
+          risk_distribution: 'blue',
+          moderation: 'orange',
+          test: 'grey',
+        };
+        return <Tag color={c[v] || 'grey'}>{m[v] || v}</Tag>;
+      },
+    },
+    {
+      title: t('动作'),
+      dataIndex: 'action',
+      render: (v) => {
+        const m = {
+          hit: t('命中'),
+          auto_ban: t('自动封禁'),
+          manual_unban: t('解封'),
+          counter_reset: t('计数重置'),
+          test_email: t('测试邮件'),
+        };
+        const c = {
+          hit: 'orange',
+          auto_ban: 'red',
+          manual_unban: 'green',
+          counter_reset: 'blue',
+          test_email: 'grey',
+        };
+        return <Tag color={c[v] || 'grey'}>{m[v] || v}</Tag>;
+      },
+    },
+    {
+      title: t('计数/阈值'),
+      dataIndex: 'hit_count_after',
+      render: (v, r) => `${v} / ${r.threshold || 0}`,
+    },
+    {
+      title: t('邮件状态'),
+      dataIndex: 'email_delivered',
+      render: (v, r) =>
+        v ? (
+          <Tag color='green'>{t('已发送')}</Tag>
+        ) : r.email_skip_reason ? (
+          <Tag color='grey'>{r.email_skip_reason}</Tag>
+        ) : (
+          <Tag color='grey'>{t('未发送')}</Tag>
+        ),
+    },
+    {
+      title: t('原因'),
+      dataIndex: 'reason',
+      width: 280,
+      render: (v) => <Text ellipsis={{ showTooltip: true }}>{v || '-'}</Text>,
+    },
+  ];
+
+  return (
+    <div className='flex flex-col gap-3'>
+      <Banner
+        type='info'
+        closeIcon={null}
+        description={t(
+          '处置操作层在分发检测和内容审核命中后统一处理：发送邮件提醒、累计计数、达到阈值自动封禁。邮件复用工单系统通道。',
+        )}
+      />
+
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={12} md={6}>
+            <OverviewCard
+              title={t('启用状态')}
+              value={overview.enabled ? t('已启用') : t('未启用')}
+              extra={`${t('窗口')}: ${overview.window_hours ?? 0}h`}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <OverviewCard
+              title={t('24h 命中数')}
+              value={overview.hits_24h || 0}
+              extra={`${t('阈值')}: ${overview.ban_threshold ?? 0}`}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <OverviewCard
+              title={t('24h 自动封禁数')}
+              value={overview.auto_bans_24h || 0}
+              extra={`${t('启用源')}: ${(overview.enabled_sources || []).length}`}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <OverviewCard
+              title={t('邮件提醒')}
+              value={`${overview.email_on_hit ? t('命中:开') : t('命中:关')} / ${overview.email_on_autoban ? t('封禁:开') : t('封禁:关')}`}
+              extra={t('复用工单邮件通道')}
+            />
+          </Col>
+        </Row>
+      </Card>
+
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <div className='flex items-center justify-between gap-3 flex-wrap'>
+          <div>
+            <Title heading={5} style={{ marginTop: 0 }}>
+              {t('全局策略')}
+            </Title>
+            <Text type='secondary'>
+              {t(
+                '启用、计数窗口、阈值、邮件开关与模板。模板支持变量：username/time/group/source_zh/count/threshold。',
+              )}
+            </Text>
+          </div>
+          <Space>
+            <Button loading={sendingTest} onClick={handleSendTestEmail}>
+              {t('发送测试邮件至当前管理员')}
+            </Button>
+            <Button
+              type='primary'
+              loading={savingConfig}
+              onClick={handleSaveConfig}
+            >
+              {t('保存策略')}
+            </Button>
+          </Space>
+        </div>
+        <Row gutter={[12, 12]} style={{ marginTop: 14 }}>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('启用处置层')}</Text>
+            <div style={{ marginTop: 10 }}>
+              <Switch
+                checked={!!config.enabled}
+                onChange={(v) => setConfig((p) => ({ ...p, enabled: v }))}
+              />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('命中时发邮件')}</Text>
+            <div style={{ marginTop: 10 }}>
+              <Switch
+                checked={!!config.email_on_hit}
+                onChange={(v) => setConfig((p) => ({ ...p, email_on_hit: v }))}
+              />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('封禁时发邮件')}</Text>
+            <div style={{ marginTop: 10 }}>
+              <Switch
+                checked={!!config.email_on_auto_ban}
+                onChange={(v) =>
+                  setConfig((p) => ({ ...p, email_on_auto_ban: v }))
+                }
+              />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('启用源')}</Text>
+            <Select
+              multiple
+              style={{ width: '100%' }}
+              value={config.enabled_sources || []}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, enabled_sources: v || [] }))
+              }
+              optionList={[
+                { label: t('分发检测'), value: 'risk_distribution' },
+                { label: t('内容审核'), value: 'moderation' },
+              ]}
+              getPopupContainer={() => document.body}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('计数窗口（小时，0=永久累计）')}</Text>
+            <InputNumber
+              min={0}
+              value={config.count_window_hours}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  count_window_hours: typeof v === 'number' ? v : 0,
+                }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('默认封禁阈值（0=不自动封禁）')}</Text>
+            <InputNumber
+              min={0}
+              value={config.ban_threshold}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  ban_threshold: typeof v === 'number' ? v : 0,
+                }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('分发检测专属阈值（0=回退默认）')}</Text>
+            <InputNumber
+              min={0}
+              value={config.ban_threshold_per_source?.risk_distribution ?? 0}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  ban_threshold_per_source: {
+                    ...(p.ban_threshold_per_source || {}),
+                    risk_distribution: typeof v === 'number' ? v : 0,
+                  },
+                }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('内容审核专属阈值（0=回退默认）')}</Text>
+            <InputNumber
+              min={0}
+              value={config.ban_threshold_per_source?.moderation ?? 0}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  ban_threshold_per_source: {
+                    ...(p.ban_threshold_per_source || {}),
+                    moderation: typeof v === 'number' ? v : 0,
+                  },
+                }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('邮件冷却窗口（分钟）')}</Text>
+            <InputNumber
+              min={1}
+              value={config.email_rate_limit_window_minutes}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  email_rate_limit_window_minutes: v || 10,
+                }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('窗口内最多邮件数')}</Text>
+            <InputNumber
+              min={1}
+              value={config.email_rate_limit_max_per_window}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  email_rate_limit_max_per_window: v || 3,
+                }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} md={12}>
+            <Text strong>{t('命中邮件主题')}</Text>
+            <Input
+              value={config.email_hit_subject}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, email_hit_subject: v }))
+              }
+            />
+          </Col>
+          <Col xs={24} md={12}>
+            <Text strong>{t('封禁邮件主题')}</Text>
+            <Input
+              value={config.email_ban_subject}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, email_ban_subject: v }))
+              }
+            />
+          </Col>
+          <Col xs={24}>
+            <Text strong>{t('命中邮件模板（HTML，支持变量）')}</Text>
+            <TextArea
+              rows={5}
+              value={config.email_hit_template}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, email_hit_template: v }))
+              }
+            />
+          </Col>
+          <Col xs={24}>
+            <Text strong>{t('封禁邮件模板（HTML，支持变量）')}</Text>
+            <TextArea
+              rows={5}
+              value={config.email_ban_template}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, email_ban_template: v }))
+              }
+            />
+          </Col>
+        </Row>
+      </Card>
+
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <div className='flex items-center justify-between gap-3 flex-wrap'>
+          <Title heading={5} style={{ marginTop: 0 }}>
+            {t('用户计数器')}
+          </Title>
+          <Button onClick={() => loadCounters(1)}>{t('刷新')}</Button>
+        </div>
+        <Table
+          style={{ marginTop: 12 }}
+          dataSource={counters}
+          rowKey='id'
+          columns={counterColumns}
+          scroll={{ x: 'max-content' }}
+          pagination={{
+            currentPage: countersPage.page,
+            pageSize: countersPage.page_size,
+            total: countersPage.total,
+            onPageChange: (page) => loadCounters(page),
+          }}
+        />
+      </Card>
+
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <div className='flex items-center justify-between gap-3 flex-wrap'>
+          <Title heading={5} style={{ marginTop: 0 }}>
+            {t('处置事件流水')}
+          </Title>
+          <Space wrap>
+            <Select
+              value={incidentFilters.source}
+              style={{ width: 160 }}
+              placeholder={t('全部来源')}
+              optionList={[
+                { label: t('全部来源'), value: '' },
+                { label: t('分发检测'), value: 'risk_distribution' },
+                { label: t('内容审核'), value: 'moderation' },
+                { label: t('测试'), value: 'test' },
+              ]}
+              onChange={(v) => {
+                setIncidentFilters((p) => ({ ...p, source: v }));
+                loadIncidents(1, incidentsPage.page_size, {
+                  ...incidentFilters,
+                  source: v,
+                });
+              }}
+            />
+            <Select
+              value={incidentFilters.action}
+              style={{ width: 160 }}
+              placeholder={t('全部动作')}
+              optionList={[
+                { label: t('全部动作'), value: '' },
+                { label: t('命中'), value: 'hit' },
+                { label: t('自动封禁'), value: 'auto_ban' },
+                { label: t('解封'), value: 'manual_unban' },
+                { label: t('计数重置'), value: 'counter_reset' },
+                { label: t('测试邮件'), value: 'test_email' },
+              ]}
+              onChange={(v) => {
+                setIncidentFilters((p) => ({ ...p, action: v }));
+                loadIncidents(1, incidentsPage.page_size, {
+                  ...incidentFilters,
+                  action: v,
+                });
+              }}
+            />
+            <Input
+              value={incidentFilters.keyword}
+              placeholder={t('按用户名/原因')}
+              style={{ width: 200 }}
+              onChange={(v) =>
+                setIncidentFilters((p) => ({ ...p, keyword: v }))
+              }
+              onEnterPress={() => loadIncidents(1)}
+            />
+            <Button onClick={() => loadIncidents(1)}>{t('刷新')}</Button>
+          </Space>
+        </div>
+        <Table
+          style={{ marginTop: 12 }}
+          dataSource={incidents}
+          rowKey='id'
+          columns={incidentColumns}
+          scroll={{ x: 'max-content' }}
+          pagination={{
+            currentPage: incidentsPage.page,
+            pageSize: incidentsPage.page_size,
+            total: incidentsPage.total,
+            onPageChange: (page) => loadIncidents(page),
+          }}
+        />
+      </Card>
+    </div>
+  );
+}
+
 const RiskCenter = () => {
   const { t } = useTranslation();
   // topTab toggles between the original distribution-detection workflow
@@ -2849,11 +3494,14 @@ const RiskCenter = () => {
       >
         <TabPane tab={t('分发检测')} itemKey='distribution' />
         <TabPane tab={t('内容审核')} itemKey='moderation' />
+        <TabPane tab={t('处置操作')} itemKey='enforcement' />
       </Tabs>
 
       {topTab === 'moderation' ? (
         <ModerationTab riskGroups={riskGroups} />
       ) : null}
+
+      {topTab === 'enforcement' ? <EnforcementTab /> : null}
 
       {topTab !== 'distribution' ? null : (
         <>

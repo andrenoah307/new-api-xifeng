@@ -391,6 +391,14 @@ func (m *moderationCenter) recordResult(event *moderationEvent, result *Moderati
 	if err := model.CreateModerationIncident(incident); err != nil {
 		common.SysError("moderation create incident failed: " + err.Error())
 	}
+	// Forward to the unified enforcement layer once the rule decision is
+	// not allow. Debug events stay local — they are admin-driven and
+	// shouldn't bump production counters or send users emails.
+	if event.Source != "debug" && event.UserID > 0 && event.Group != "" &&
+		decision != ModerationDecisionAllow {
+		EnforcementHit(event.UserID, event.Group, operation_setting.EnforcementSourceModeration,
+			"moderation_"+decision)
+	}
 }
 
 // previewModerationDecision powers the debug card: try evaluating the

@@ -638,6 +638,11 @@ func (r *riskControlCenter) evaluateAndPersistSubject(event *RiskEvent, scope st
 				common.SysError("risk control mark user warning failed: " + markErr.Error())
 			}
 		})
+		// Hand off to the unified enforcement layer for email + counter +
+		// auto-ban handling. EnforcementHit is internally async and does
+		// nothing when the layer is disabled, so this is safe to call here.
+		EnforcementHit(uid, group, operation_setting.EnforcementSourceRiskDistribution,
+			"distribution_"+decision.Action)
 	}
 	snapshot := buildRiskSubjectSnapshot(event, scope, subjectID, group, metrics, decision, matched, previous)
 	if err = model.UpsertRiskSubjectSnapshot(snapshot); err != nil {

@@ -286,6 +286,16 @@ func SetApiRouter(router *gin.Engine) {
 			riskRoute.POST("/moderation/rules", controller.CreateModerationRule)
 			riskRoute.PUT("/moderation/rules/:id", controller.UpdateModerationRule)
 			riskRoute.DELETE("/moderation/rules/:id", controller.DeleteModerationRule)
+
+			// enforcement layer (unified post-hit handling)
+			riskRoute.GET("/enforcement/config", controller.GetEnforcementConfig)
+			riskRoute.PUT("/enforcement/config", controller.UpdateEnforcementConfig)
+			riskRoute.GET("/enforcement/overview", controller.GetEnforcementOverview)
+			riskRoute.GET("/enforcement/incidents", controller.GetEnforcementIncidents)
+			riskRoute.GET("/enforcement/counters", controller.GetEnforcementCounters)
+			riskRoute.POST("/enforcement/users/:id/reset_counter", controller.ResetEnforcementCounter)
+			riskRoute.POST("/enforcement/users/:id/unban", controller.UnbanEnforcementUser)
+			riskRoute.POST("/enforcement/test_email", controller.SendEnforcementTestEmail)
 		}
 		channelRoute := apiRouter.Group("/channel")
 		channelRoute.Use(middleware.AdminAuth())
