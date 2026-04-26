@@ -197,7 +197,18 @@ func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, met
 // SubmitModerationDebug is invoked from the admin debug card. It enqueues a
 // debug event with a Done channel and returns the request_id immediately so
 // the frontend can poll GetModerationDebugResult.
-func SubmitModerationDebug(text string, images []string) (string, error) {
+//
+// group selects the group context for rule evaluation:
+//   - non-empty:  evaluate against that group's bound rules (mirrors how the
+//                 production relay path would judge the same input). The
+//                 group does NOT need to be inside ModerationSetting
+//                 .EnabledGroups — debug bypasses the whitelist gate so
+//                 admins can rehearse before flipping it on.
+//   - empty:      fall back to the legacy preview behavior, which scans
+//                 every enabled rule regardless of group bindings — useful
+//                 for "would any rule have fired?" rehearsals before any
+//                 group is bound.
+func SubmitModerationDebug(text string, images []string, group string) (string, error) {
 	cfg := operation_setting.GetModerationSetting()
 	if !cfg.Enabled {
 		return "", errors.New("moderation is disabled in global config")
@@ -219,10 +230,14 @@ func SubmitModerationDebug(text string, images []string) (string, error) {
 	}
 	requestID := "mod-debug-" + common.GetTimeString() + common.GetRandomString(6)
 	occurAt := common.GetTimestamp()
+	effectiveGroup := strings.TrimSpace(group)
+	if effectiveGroup == "" {
+		effectiveGroup = "__debug__"
+	}
 	event := &moderationEvent{
 		OccurAt:   occurAt,
 		Source:    "debug",
-		Group:     "__debug__",
+		Group:     effectiveGroup,
 		RequestID: requestID,
 		TextItems: []string{text},
 		Images:    cleanedImages,

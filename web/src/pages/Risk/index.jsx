@@ -1125,6 +1125,11 @@ function ModerationTab({ riskGroups }) {
   const [debugRunning, setDebugRunning] = useState(false);
   const [debugResult, setDebugResult] = useState(null);
   const [debugError, setDebugError] = useState('');
+  // debugGroup: the group context used to evaluate rules during a debug run.
+  // Empty string => preview mode (every enabled rule, no group filter); a
+  // group name => evaluate against that group's bound rules, mirroring how
+  // production traffic in that group would be judged.
+  const [debugGroup, setDebugGroup] = useState('');
   // Incidents
   const [incidents, setIncidents] = useState([]);
   const [incidentsPage, setIncidentsPage] = useState({
@@ -1335,6 +1340,7 @@ function ModerationTab({ riskGroups }) {
       const res = await API.post('/api/risk/moderation/debug', {
         text: debugText,
         images,
+        group: debugGroup || '',
       });
       if (!res.data.success) {
         setDebugError(res.data.message || t('提交失败'));
@@ -1892,6 +1898,40 @@ function ModerationTab({ riskGroups }) {
         </Text>
         <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
           <Col xs={24} md={12}>
+            <Text strong>{t('调试分组')}</Text>
+            <Select
+              style={{ width: '100%' }}
+              value={debugGroup}
+              onChange={(v) => setDebugGroup(v ?? '')}
+              optionList={[
+                {
+                  label: t('全部规则预览（不限分组）'),
+                  value: '',
+                },
+                ...(riskGroups.items || [])
+                  .filter((g) => g.name !== 'auto')
+                  .map((g) => ({
+                    label: enabledGroupSet.has(g.name)
+                      ? g.name
+                      : `${g.name} ${t('(分组未启用内容审核)')}`,
+                    value: g.name,
+                  })),
+              ]}
+              getPopupContainer={() => document.body}
+            />
+            <Text
+              type='tertiary'
+              size='small'
+              style={{ display: 'block', marginTop: 6 }}
+            >
+              {t(
+                '选择某个分组将按该分组绑定的规则评估，等同生产流量在该分组下的判定；未选则预览所有启用规则。',
+              )}
+            </Text>
+          </Col>
+        </Row>
+        <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+          <Col xs={24} md={12}>
             <Text strong>{t('文本输入')}</Text>
             <TextArea
               value={debugText}
@@ -1930,11 +1970,32 @@ function ModerationTab({ riskGroups }) {
         {debugResult ? (
           <div style={{ marginTop: 12 }}>
             <Space wrap>
-              {debugResult.flagged ? (
-                <Tag color='red'>{t('命中')}</Tag>
-              ) : (
-                <Tag color='grey'>{t('未命中')}</Tag>
-              )}
+              {/* OpenAI flagged: raw upstream judgment, independent of rules. */}
+              <Tag color={debugResult.flagged ? 'red' : 'grey'}>
+                {t('OpenAI 原始判定')}:{' '}
+                {debugResult.flagged ? t('命中') : t('未命中')}
+              </Tag>
+              {/* Rule decision: synthesized from the rules bound to the
+                  selected debug group (or every enabled rule when group is
+                  empty). This is what production traffic would see. */}
+              {debugResult.decision ? (
+                <Tag
+                  color={
+                    debugResult.decision.decision === 'block'
+                      ? 'red'
+                      : debugResult.decision.decision === 'flag'
+                        ? 'red'
+                        : debugResult.decision.decision === 'observe'
+                          ? 'orange'
+                          : 'grey'
+                  }
+                >
+                  {t('规则决策')}: {debugResult.decision.decision || 'allow'}
+                  {debugResult.decision.primary_rule_name
+                    ? ` (${debugResult.decision.primary_rule_name})`
+                    : ''}
+                </Tag>
+              ) : null}
               <Tag color='blue'>
                 {t('最高类别')}: {debugResult.max_category || '-'}
               </Tag>
@@ -1955,6 +2016,20 @@ function ModerationTab({ riskGroups }) {
                 </Tag>
               ) : null}
             </Space>
+            {debugResult.decision &&
+            debugResult.decision.matched_rules &&
+            debugResult.decision.matched_rules.length > 0 ? (
+              <div style={{ marginTop: 8 }}>
+                <Text strong>{t('命中规则')}</Text>
+                <Space wrap style={{ marginTop: 6 }}>
+                  {debugResult.decision.matched_rules.map((r) => (
+                    <Tag key={r.rule_id} color='red'>
+                      {r.name} ({r.action})
+                    </Tag>
+                  ))}
+                </Space>
+              </div>
+            ) : null}
             <div style={{ marginTop: 8 }}>
               <Text strong>{t('类别评分')}</Text>
               <Row gutter={[8, 8]} style={{ marginTop: 6 }}>

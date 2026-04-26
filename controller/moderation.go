@@ -133,10 +133,13 @@ func findKeyBySuffix(keys []string, masked string) string {
 }
 
 // SubmitModerationDebug enqueues a debug moderation job and returns the
-// request_id for the frontend to poll.
+// request_id for the frontend to poll. Group lets admins rehearse a specific
+// group's rule set; empty group falls back to a "preview against every
+// enabled rule" mode for early-stage exploration.
 type submitModerationDebugRequest struct {
 	Text   string   `json:"text"`
 	Images []string `json:"images"`
+	Group  string   `json:"group"`
 }
 
 func SubmitModerationDebug(c *gin.Context) {
@@ -148,7 +151,7 @@ func SubmitModerationDebug(c *gin.Context) {
 		})
 		return
 	}
-	requestID, err := service.SubmitModerationDebug(req.Text, req.Images)
+	requestID, err := service.SubmitModerationDebug(req.Text, req.Images, req.Group)
 	if err != nil {
 		common.ApiErrorMsg(c, err.Error())
 		return
@@ -156,6 +159,7 @@ func SubmitModerationDebug(c *gin.Context) {
 	common.ApiSuccess(c, gin.H{
 		"request_id": requestID,
 		"queued":     true,
+		"group":      strings.TrimSpace(req.Group),
 	})
 }
 
