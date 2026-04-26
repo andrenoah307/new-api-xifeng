@@ -1149,16 +1149,21 @@ function ModerationTab({ riskGroups }) {
   const [editingModerationRule, setEditingModerationRule] = useState(null);
   const [savingModerationRule, setSavingModerationRule] = useState(false);
 
-  // enabledGroupSet for moderation tab uses the same source as the
-  // distribution-detection tab: GET /api/risk/groups response. Tag colors
-  // and rule editor warnings depend on this set.
+  // enabledGroupSet — every "is this group enabled for content moderation"
+  // decision inside this tab MUST consult the moderation engine's own
+  // EnabledGroups, not the risk-control whitelist. The two engines are
+  // decoupled (DEV_GUIDE §8) so an admin can perfectly enable a group for
+  // moderation while leaving distribution detection off, and vice versa.
+  // Earlier versions wrongly read riskGroups (risk-control's view) and
+  // produced contradictory labels — e.g. the matrix showed default = ON
+  // but the debug dropdown still tagged default as "未启用内容审核".
   const enabledGroupSet = useMemo(() => {
     const s = new Set();
-    for (const item of riskGroups.items || []) {
-      if (item.enabled) s.add(item.name);
+    for (const g of config.enabled_groups || []) {
+      s.add(g);
     }
     return s;
-  }, [riskGroups]);
+  }, [config.enabled_groups]);
 
   const loadConfig = async () => {
     const res = await API.get('/api/risk/moderation/config');
