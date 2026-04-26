@@ -8,15 +8,19 @@ import (
 )
 
 type RiskSubjectSnapshot struct {
-	Id                int    `json:"id"`
-	SubjectType       string `json:"subject_type" gorm:"type:varchar(16);uniqueIndex:idx_risk_subject_unique;index"`
-	SubjectID         int    `json:"subject_id" gorm:"uniqueIndex:idx_risk_subject_unique;index"`
-	UserID            int    `json:"user_id" gorm:"index"`
-	TokenID           int    `json:"token_id" gorm:"index"`
-	Username          string `json:"username" gorm:"type:varchar(64);index;default:''"`
-	TokenName         string `json:"token_name" gorm:"type:varchar(128);index;default:''"`
-	TokenMaskedKey    string `json:"token_masked_key" gorm:"type:varchar(64);default:''"`
-	Group             string `json:"group" gorm:"type:varchar(64);index;default:''"`
+	Id          int    `json:"id"`
+	SubjectType string `json:"subject_type" gorm:"type:varchar(16);uniqueIndex:idx_risk_subject_unique_v2;index"`
+	SubjectID   int    `json:"subject_id" gorm:"uniqueIndex:idx_risk_subject_unique_v2;index"`
+	UserID      int    `json:"user_id" gorm:"index"`
+	TokenID     int    `json:"token_id" gorm:"index"`
+	Username    string `json:"username" gorm:"type:varchar(64);index;default:''"`
+	TokenName   string `json:"token_name" gorm:"type:varchar(128);index;default:''"`
+	TokenMaskedKey string `json:"token_masked_key" gorm:"type:varchar(64);default:''"`
+	// Group is part of the unique key so that the same (scope, subjectID) can
+	// have separate risk states across groups (vip vs free). Empty group rows
+	// are legacy data left over from before the v4 migration and the engine
+	// never writes new rows with an empty group.
+	Group             string `json:"group" gorm:"column:group;type:varchar(64);uniqueIndex:idx_risk_subject_unique_v2;index;default:''"`
 	Status            string `json:"status" gorm:"type:varchar(16);index;default:'normal'"`
 	RiskScore         int    `json:"risk_score" gorm:"index;default:0"`
 	DistinctIP10M     int    `json:"distinct_ip_10m" gorm:"default:0"`
@@ -46,6 +50,7 @@ type RiskSubjectQuery struct {
 	Scope   string
 	Status  string
 	Keyword string
+	Group   string
 }
 
 func UpsertRiskSubjectSnapshot(snapshot *RiskSubjectSnapshot) error {
@@ -63,6 +68,7 @@ func UpsertRiskSubjectSnapshot(snapshot *RiskSubjectSnapshot) error {
 		Columns: []clause.Column{
 			{Name: "subject_type"},
 			{Name: "subject_id"},
+			{Name: "group"},
 		},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"user_id",
@@ -70,7 +76,6 @@ func UpsertRiskSubjectSnapshot(snapshot *RiskSubjectSnapshot) error {
 			"username",
 			"token_name",
 			"token_masked_key",
-			"group",
 			"status",
 			"risk_score",
 			"distinct_ip_10m",
@@ -98,9 +103,9 @@ func UpsertRiskSubjectSnapshot(snapshot *RiskSubjectSnapshot) error {
 	}).Create(snapshot).Error
 }
 
-func GetRiskSubjectSnapshot(subjectType string, subjectID int) (*RiskSubjectSnapshot, error) {
+func GetRiskSubjectSnapshot(subjectType string, subjectID int, group string) (*RiskSubjectSnapshot, error) {
 	var snapshot RiskSubjectSnapshot
-	err := DB.First(&snapshot, "subject_type = ? AND subject_id = ?", subjectType, subjectID).Error
+	err := DB.First(&snapshot, "subject_type = ? AND subject_id = ? AND "+commonGroupCol+" = ?", subjectType, subjectID, group).Error
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +121,9 @@ func ListRiskSubjectSnapshots(query RiskSubjectQuery, startIdx int, pageSize int
 	}
 	if query.Status != "" {
 		tx = tx.Where("status = ?", query.Status)
+	}
+	if query.Group != "" {
+		tx = tx.Where(commonGroupCol+" = ?", query.Group)
 	}
 	if keyword := strings.TrimSpace(query.Keyword); keyword != "" {
 		pattern := "%" + keyword + "%"
@@ -138,9 +146,29 @@ func CountRiskSubjectSnapshotsByStatus(status string) (int64, error) {
 	return total, err
 }
 
+// CountRiskSubjectSnapshotsByStatusAndGroup powers the per-group statistics on
+// the GET /api/risk/groups response.
+func CountRiskSubjectSnapshotsByStatusAndGroup(status, group string) (int64, error) {
+	var total int64
+	err := DB.Model(&RiskSubjectSnapshot{}).
+		Where("status = ? AND "+commonGroupCol+" = ?", status, group).
+		Count(&total).Error
+	return total, err
+}
+
 func CountHighRiskSubjectSnapshots(minRiskScore int) (int64, error) {
 	var total int64
 	err := DB.Model(&RiskSubjectSnapshot{}).Where("risk_score >= ?", minRiskScore).Count(&total).Error
+	return total, err
+}
+
+// CountHighRiskSubjectSnapshotsByGroup powers per-group "high risk subjects"
+// counter.
+func CountHighRiskSubjectSnapshotsByGroup(minRiskScore int, group string) (int64, error) {
+	var total int64
+	err := DB.Model(&RiskSubjectSnapshot{}).
+		Where("risk_score >= ? AND "+commonGroupCol+" = ?", minRiskScore, group).
+		Count(&total).Error
 	return total, err
 }
 

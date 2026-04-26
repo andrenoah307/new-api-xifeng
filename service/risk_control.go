@@ -69,8 +69,12 @@ func GetRiskControlConfig() *operation_setting.RiskControlSetting {
 	return operation_setting.GetRiskControlSetting()
 }
 
-func isRiskControlCollectEnabled(cfg *operation_setting.RiskControlSetting) bool {
-	return cfg != nil && cfg.Enabled && cfg.Mode != operation_setting.RiskControlModeOff
+// isRiskControlActiveForGroup is the engine-side wrapper around
+// operation_setting.IsRiskControlEnabledForGroup so callers don't need to
+// import the setting package. It is the single gate every BeforeRelay /
+// AfterRelay / enqueue path consults.
+func isRiskControlActiveForGroup(cfg *operation_setting.RiskControlSetting, group string) bool {
+	return operation_setting.IsRiskControlEnabledForGroup(cfg, group)
 }
 
 func newRiskMetricScopeSet(scopes ...string) map[string]struct{} {
@@ -113,26 +117,49 @@ func riskMetricAllowedScopes(metric string) []string {
 	return scopes
 }
 
+// ruleAppliesToGroup returns true when the compiled rule is configured for the
+// given group. Unconfigured rules (empty Groups set) are filtered out at reload
+// time, so this only needs to test set membership.
+func ruleAppliesToGroup(rule *compiledRiskRule, group string) bool {
+	if rule == nil || len(rule.Groups) == 0 {
+		return false
+	}
+	_, ok := rule.Groups[group]
+	return ok
+}
+
+// RiskControlBeforeRelay is invoked from controller/relay.go after relay info
+// has been resolved. It snapshots info.UsingGroup into info.RiskGroup, decides
+// whether the request participates in risk control at all, and (in enforce
+// mode) consults the gate cache for an existing block decision.
 func RiskControlBeforeRelay(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
-	decision := globalRiskCenter.beforeRelay(c, info)
+	if info == nil {
+		return nil
+	}
+	// Snapshot once — auto cross-group retry rewrites UsingGroup later.
+	info.RiskGroup = info.UsingGroup
+	cfg := operation_setting.GetRiskControlSetting()
+	if !isRiskControlActiveForGroup(cfg, info.RiskGroup) {
+		return nil
+	}
+	decision := globalRiskCenter.beforeRelay(c, info, cfg)
 	if decision == nil {
 		return nil
 	}
-	if info != nil {
-		info.RiskAudit = &types.RiskAudit{
-			FinalDecision: decision.Decision,
-			FinalReason:   decision.Reason,
-		}
-		if decision.Scope == RiskSubjectTypeToken {
-			info.RiskAudit.TokenDecision = decision
-		} else {
-			info.RiskAudit.UserDecision = decision
-		}
+	if info.RiskAudit == nil {
+		info.RiskAudit = &types.RiskAudit{}
+	}
+	info.RiskAudit.FinalDecision = decision.Decision
+	info.RiskAudit.FinalReason = decision.Reason
+	if decision.Scope == RiskSubjectTypeToken {
+		info.RiskAudit.TokenDecision = decision
+	} else {
+		info.RiskAudit.UserDecision = decision
 	}
 	message := normalizeRiskMessage(decision.ResponseMessage)
 	statusCode := decision.StatusCode
 	if statusCode <= 0 {
-		statusCode = operation_setting.GetRiskControlSetting().DefaultStatusCode
+		statusCode = cfg.DefaultStatusCode
 	}
 	return types.NewErrorWithStatusCode(
 		errors.New(message),
@@ -142,7 +169,17 @@ func RiskControlBeforeRelay(c *gin.Context, info *relaycommon.RelayInfo) *types.
 	)
 }
 
+// RiskControlAfterRelay enqueues the finish event using info.RiskGroup so that
+// the start/finish pair always lands on the same group bucket even if the
+// engine retried into another group meanwhile.
 func RiskControlAfterRelay(c *gin.Context, info *relaycommon.RelayInfo, relayErr *types.NewAPIError) {
+	if info == nil {
+		return
+	}
+	cfg := operation_setting.GetRiskControlSetting()
+	if !isRiskControlActiveForGroup(cfg, info.RiskGroup) {
+		return
+	}
 	globalRiskCenter.afterRelay(c, info, relayErr)
 }
 
@@ -163,15 +200,64 @@ func GetRiskOverview() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	unconfigured, err := model.CountEnabledRiskRulesWithoutGroups()
+	if err != nil {
+		return nil, err
+	}
+	cfg := operation_setting.GetRiskControlSetting()
+	groupUnlistedRuleCount, err := countEnabledRulesWithAllGroupsUnlisted(cfg)
+	if err != nil {
+		return nil, err
+	}
 	return map[string]any{
-		"observed_subjects":  observed,
-		"blocked_subjects":   blocked,
-		"high_risk_subjects": highRisk,
-		"rule_count":         ruleCount,
-		"queue_dropped":      globalRiskCenter.dropCount.Load(),
-		"mode":               operation_setting.GetRiskControlSetting().Mode,
-		"enabled":            operation_setting.GetRiskControlSetting().Enabled,
+		"observed_subjects":         observed,
+		"blocked_subjects":          blocked,
+		"high_risk_subjects":        highRisk,
+		"rule_count":                ruleCount,
+		"unconfigured_rule_count":   unconfigured,
+		"group_unlisted_rule_count": groupUnlistedRuleCount,
+		"enabled_group_count":       len(cfg.EnabledGroups),
+		"queue_dropped":             globalRiskCenter.dropCount.Load(),
+		"mode":                      cfg.Mode,
+		"enabled":                   cfg.Enabled,
 	}, nil
+}
+
+// countEnabledRulesWithAllGroupsUnlisted returns the number of rules where
+// Enabled=true and every entry in Groups is missing from EnabledGroups. These
+// rules silently never fire and are surfaced on the overview card so admins
+// can spot the misconfiguration.
+func countEnabledRulesWithAllGroupsUnlisted(cfg *operation_setting.RiskControlSetting) (int64, error) {
+	rules, err := model.ListEnabledRiskRulesAll()
+	if err != nil {
+		return 0, err
+	}
+	whitelist := make(map[string]struct{}, len(cfg.EnabledGroups))
+	for _, g := range cfg.EnabledGroups {
+		whitelist[g] = struct{}{}
+	}
+	var n int64
+	for _, rule := range rules {
+		if rule == nil {
+			continue
+		}
+		groups := rule.ParsedGroups()
+		if len(groups) == 0 {
+			// already counted via CountEnabledRiskRulesWithoutGroups
+			continue
+		}
+		anyListed := false
+		for _, g := range groups {
+			if _, ok := whitelist[g]; ok {
+				anyListed = true
+				break
+			}
+		}
+		if !anyListed {
+			n++
+		}
+	}
+	return n, nil
 }
 
 func ListRiskRules() ([]*model.RiskRule, error) {
@@ -213,18 +299,26 @@ func ListRiskIncidents(query model.RiskIncidentQuery, pageInfo *common.PageInfo)
 	return model.ListRiskIncidents(query, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
 }
 
-func UnblockRiskSubject(scope string, subjectID int, operator string) error {
+// UnblockRiskSubject clears the (scope, subjectID, group) block and writes a
+// manual_unblock incident. It deliberately does NOT validate that group is
+// inside the EnabledGroups whitelist — admins must be able to clean up legacy
+// blocks left behind after a group is removed from the whitelist (see
+// DEV_GUIDE §5 red line "解封粒度对齐评估粒度" and §12.2).
+func UnblockRiskSubject(scope string, subjectID int, group, operator string) error {
 	if scope != RiskSubjectTypeToken && scope != RiskSubjectTypeUser {
 		return errors.New("invalid subject scope")
 	}
 	if subjectID <= 0 {
 		return errors.New("invalid subject id")
 	}
-	if err := globalRiskCenter.store.ClearBlock(scope, subjectID); err != nil {
+	if strings.TrimSpace(group) == "" {
+		return errors.New("group is required")
+	}
+	if err := globalRiskCenter.store.ClearBlock(scope, subjectID, group); err != nil {
 		return err
 	}
-	globalRiskCenter.cache.Delete(riskMemoryKey(scope, subjectID))
-	snapshot, err := model.GetRiskSubjectSnapshot(scope, subjectID)
+	globalRiskCenter.cache.Delete(riskMemoryKey(scope, subjectID, group))
+	snapshot, err := model.GetRiskSubjectSnapshot(scope, subjectID, group)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
@@ -254,6 +348,7 @@ func UnblockRiskSubject(scope string, subjectID int, operator string) error {
 			Username:           snapshot.Username,
 			TokenName:          snapshot.TokenName,
 			TokenMaskedKey:     snapshot.TokenMaskedKey,
+			Group:              group,
 			Action:             RiskActionManual,
 			Decision:           RiskDecisionAllow,
 			Status:             status,
@@ -301,6 +396,8 @@ func (r *riskControlCenter) start() {
 	r.started.Store(true)
 }
 
+// reloadRules compiles model rows into compiledRiskRule. Rules without any
+// configured groups are dropped (and logged) per DEV_GUIDE §5 — "未配置分组 = 不启用".
 func (r *riskControlCenter) reloadRules() error {
 	rules, err := model.ListEnabledRiskRules()
 	if err != nil {
@@ -314,9 +411,19 @@ func (r *riskControlCenter) reloadRules() error {
 				return fmt.Errorf("rule %s conditions invalid: %w", rule.Name, err)
 			}
 		}
+		groups := rule.ParsedGroups()
+		if len(groups) == 0 {
+			common.SysLog(fmt.Sprintf("risk rule %q skipped: no groups configured", rule.Name))
+			continue
+		}
+		groupSet := make(map[string]struct{}, len(groups))
+		for _, g := range groups {
+			groupSet[g] = struct{}{}
+		}
 		compiled = append(compiled, &compiledRiskRule{
 			Raw:        rule,
 			Conditions: conditions,
+			Groups:     groupSet,
 		})
 	}
 	r.rules.Store(compiled)
@@ -332,21 +439,16 @@ func (r *riskControlCenter) currentRules() []*compiledRiskRule {
 	return nil
 }
 
-func (r *riskControlCenter) beforeRelay(c *gin.Context, info *relaycommon.RelayInfo) *types.RiskDecision {
-	cfg := operation_setting.GetRiskControlSetting()
-	if info == nil || !isRiskControlCollectEnabled(cfg) {
+func (r *riskControlCenter) beforeRelay(c *gin.Context, info *relaycommon.RelayInfo, cfg *operation_setting.RiskControlSetting) *types.RiskDecision {
+	mode := operation_setting.EffectiveRiskModeForGroup(cfg, info.RiskGroup)
+	if mode != operation_setting.RiskControlModeEnforce {
+		r.enqueueStart(c, info)
 		return nil
 	}
-	if cfg.Mode != operation_setting.RiskControlModeEnforce {
-		if info != nil {
-			r.enqueueStart(c, info)
-		}
-		return nil
-	}
-	if decision := r.getCachedDecision(RiskSubjectTypeUser, info.UserId); decision != nil {
+	if decision := r.getCachedDecision(RiskSubjectTypeUser, info.UserId, info.RiskGroup); decision != nil {
 		return decision
 	}
-	if decision := r.getCachedDecision(RiskSubjectTypeToken, info.TokenId); decision != nil {
+	if decision := r.getCachedDecision(RiskSubjectTypeToken, info.TokenId, info.RiskGroup); decision != nil {
 		return decision
 	}
 	r.enqueueStart(c, info)
@@ -354,9 +456,6 @@ func (r *riskControlCenter) beforeRelay(c *gin.Context, info *relaycommon.RelayI
 }
 
 func (r *riskControlCenter) afterRelay(c *gin.Context, info *relaycommon.RelayInfo, relayErr *types.NewAPIError) {
-	if info == nil || !isRiskControlCollectEnabled(operation_setting.GetRiskControlSetting()) {
-		return
-	}
 	now := common.GetTimestamp()
 	statusCode := 0
 	if relayErr != nil {
@@ -396,7 +495,7 @@ func (r *riskControlCenter) buildEvent(c *gin.Context, info *relaycommon.RelayIn
 		TokenID:        info.TokenId,
 		TokenName:      tokenName,
 		TokenMaskedKey: model.MaskTokenKey(info.TokenKey),
-		Group:          info.UsingGroup,
+		Group:          info.RiskGroup,
 		ClientIPHash:   common.GenerateHMAC(clientIP),
 		UserAgentHash:  common.GenerateHMAC(normalizeUserAgent(userAgent)),
 		StatusCode:     statusCode,
@@ -409,7 +508,14 @@ func (r *riskControlCenter) enqueueStart(c *gin.Context, info *relaycommon.Relay
 }
 
 func (r *riskControlCenter) enqueueEvent(event *RiskEvent) {
-	if event == nil || r.queue == nil || !isRiskControlCollectEnabled(operation_setting.GetRiskControlSetting()) {
+	if event == nil || r.queue == nil {
+		return
+	}
+	if event.Group == "" {
+		// Defensive: never persist data against an empty group bucket.
+		return
+	}
+	if !isRiskControlActiveForGroup(operation_setting.GetRiskControlSetting(), event.Group) {
 		return
 	}
 	select {
@@ -441,23 +547,26 @@ func (r *riskControlCenter) runWorker() {
 }
 
 func (r *riskControlCenter) handleStartEvent(event *RiskEvent) error {
+	if event.Group == "" {
+		return nil
+	}
 	now := time.Unix(event.OccurAt, 0)
-	tokenMetrics, err := r.store.RecordStart(RiskSubjectTypeToken, event.TokenID, event.ClientIPHash, event.UserAgentHash, now)
+	tokenMetrics, err := r.store.RecordStart(RiskSubjectTypeToken, event.TokenID, event.Group, event.ClientIPHash, event.UserAgentHash, now)
 	if err != nil {
 		return err
 	}
-	userMetrics, err := r.store.RecordStart(RiskSubjectTypeUser, event.UserID, event.ClientIPHash, "", now)
+	userMetrics, err := r.store.RecordStart(RiskSubjectTypeUser, event.UserID, event.Group, event.ClientIPHash, "", now)
 	if err != nil {
 		return err
 	}
-	tokenMetrics.RuleHitCount24H, _ = r.store.GetRuleHitCount(RiskSubjectTypeToken, event.TokenID, now)
-	userMetrics.RuleHitCount24H, _ = r.store.GetRuleHitCount(RiskSubjectTypeUser, event.UserID, now)
+	tokenMetrics.RuleHitCount24H, _ = r.store.GetRuleHitCount(RiskSubjectTypeToken, event.TokenID, event.Group, now)
+	userMetrics.RuleHitCount24H, _ = r.store.GetRuleHitCount(RiskSubjectTypeUser, event.UserID, event.Group, now)
 
-	tokenDecision, tokenMatched, err := r.evaluateAndPersistSubject(event, RiskSubjectTypeToken, event.TokenID, tokenMetrics)
+	tokenDecision, tokenMatched, err := r.evaluateAndPersistSubject(event, RiskSubjectTypeToken, event.TokenID, event.Group, tokenMetrics)
 	if err != nil {
 		return err
 	}
-	userDecision, userMatched, err := r.evaluateAndPersistSubject(event, RiskSubjectTypeUser, event.UserID, userMetrics)
+	userDecision, userMatched, err := r.evaluateAndPersistSubject(event, RiskSubjectTypeUser, event.UserID, event.Group, userMetrics)
 	if err != nil {
 		return err
 	}
@@ -472,31 +581,34 @@ func (r *riskControlCenter) handleStartEvent(event *RiskEvent) error {
 }
 
 func (r *riskControlCenter) handleFinishEvent(event *RiskEvent) error {
+	if event.Group == "" {
+		return nil
+	}
 	now := time.Unix(event.OccurAt, 0)
-	if _, err := r.store.RecordFinish(RiskSubjectTypeToken, event.TokenID, now); err != nil {
+	if _, err := r.store.RecordFinish(RiskSubjectTypeToken, event.TokenID, event.Group, now); err != nil {
 		return err
 	}
-	if _, err := r.store.RecordFinish(RiskSubjectTypeUser, event.UserID, now); err != nil {
+	if _, err := r.store.RecordFinish(RiskSubjectTypeUser, event.UserID, event.Group, now); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *riskControlCenter) evaluateAndPersistSubject(event *RiskEvent, scope string, subjectID int, metrics types.RiskMetrics) (*types.RiskDecision, []*compiledRiskRule, error) {
-	if subjectID <= 0 {
+func (r *riskControlCenter) evaluateAndPersistSubject(event *RiskEvent, scope string, subjectID int, group string, metrics types.RiskMetrics) (*types.RiskDecision, []*compiledRiskRule, error) {
+	if subjectID <= 0 || group == "" {
 		return nil, nil, nil
 	}
 	rules := r.currentRules()
-	matched := evaluateRiskRules(rules, scope, metrics)
+	matched := evaluateRiskRules(rules, scope, group, metrics)
 	if len(matched) > 0 {
-		hitCount, hitErr := r.store.IncrementRuleHit(scope, subjectID, time.Unix(event.OccurAt, 0))
+		hitCount, hitErr := r.store.IncrementRuleHit(scope, subjectID, group, time.Unix(event.OccurAt, 0))
 		if hitErr == nil {
 			metrics.RuleHitCount24H = hitCount
 		}
 	}
 	metrics.RiskScore = computeRiskScore(metrics, matched)
-	decision := buildRiskDecision(scope, subjectID, matched, metrics)
-	previous, err := model.GetRiskSubjectSnapshot(scope, subjectID)
+	decision := buildRiskDecision(scope, subjectID, group, matched, metrics)
+	previous, err := model.GetRiskSubjectSnapshot(scope, subjectID, group)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil, err
 	}
@@ -504,13 +616,13 @@ func (r *riskControlCenter) evaluateAndPersistSubject(event *RiskEvent, scope st
 		if decision.AutoRecover {
 			decision.BlockUntil = time.Unix(event.OccurAt, 0).Add(time.Duration(decision.RecoverAfterSecond) * time.Second).Unix()
 		}
-		if operation_setting.GetRiskControlSetting().Mode == operation_setting.RiskControlModeEnforce {
-			if err = r.store.SetBlock(scope, subjectID, decision); err != nil {
+		if operation_setting.EffectiveRiskModeForGroup(operation_setting.GetRiskControlSetting(), group) == operation_setting.RiskControlModeEnforce {
+			if err = r.store.SetBlock(scope, subjectID, group, decision); err != nil {
 				common.SysError("risk control set block failed: " + err.Error())
 			}
 		}
 	}
-	snapshot := buildRiskSubjectSnapshot(event, scope, subjectID, metrics, decision, matched, previous)
+	snapshot := buildRiskSubjectSnapshot(event, scope, subjectID, group, metrics, decision, matched, previous)
 	if err = model.UpsertRiskSubjectSnapshot(snapshot); err != nil {
 		return nil, nil, err
 	}
@@ -525,13 +637,16 @@ func (r *riskControlCenter) evaluateAndPersistSubject(event *RiskEvent, scope st
 	return decision, matched, nil
 }
 
-func evaluateRiskRules(rules []*compiledRiskRule, scope string, metrics types.RiskMetrics) []*compiledRiskRule {
-	if len(rules) == 0 {
+func evaluateRiskRules(rules []*compiledRiskRule, scope, group string, metrics types.RiskMetrics) []*compiledRiskRule {
+	if len(rules) == 0 || group == "" {
 		return nil
 	}
 	matched := make([]*compiledRiskRule, 0)
 	for _, rule := range rules {
 		if rule == nil || rule.Raw == nil || !rule.Raw.Enabled || rule.Raw.Scope != scope {
+			continue
+		}
+		if !ruleAppliesToGroup(rule, group) {
 			continue
 		}
 		if matchesRiskRule(rule, metrics) {
@@ -639,15 +754,17 @@ func computeRiskScore(metrics types.RiskMetrics, matched []*compiledRiskRule) in
 	return score
 }
 
-func buildRiskDecision(scope string, subjectID int, matched []*compiledRiskRule, metrics types.RiskMetrics) *types.RiskDecision {
+func buildRiskDecision(scope string, subjectID int, group string, matched []*compiledRiskRule, metrics types.RiskMetrics) *types.RiskDecision {
 	if subjectID <= 0 {
 		return nil
 	}
 	cfg := operation_setting.GetRiskControlSetting()
+	mode := operation_setting.EffectiveRiskModeForGroup(cfg, group)
 	if len(matched) == 0 {
 		return &types.RiskDecision{
 			Scope:           scope,
 			SubjectID:       subjectID,
+			Group:           group,
 			Decision:        RiskDecisionAllow,
 			Action:          RiskDecisionAllow,
 			Status:          RiskStatusNormal,
@@ -699,7 +816,7 @@ func buildRiskDecision(scope string, subjectID int, matched []*compiledRiskRule,
 			status = RiskStatusObserve
 		}
 	}
-	if action == RiskActionBlock && cfg.Mode != operation_setting.RiskControlModeEnforce {
+	if action == RiskActionBlock && mode != operation_setting.RiskControlModeEnforce {
 		action = RiskActionObserve
 		decisionType = RiskDecisionObserve
 		status = RiskStatusObserve
@@ -707,6 +824,7 @@ func buildRiskDecision(scope string, subjectID int, matched []*compiledRiskRule,
 	return &types.RiskDecision{
 		Scope:              scope,
 		SubjectID:          subjectID,
+		Group:              group,
 		Decision:           decisionType,
 		Action:             action,
 		Status:             status,
@@ -725,7 +843,7 @@ func buildRiskDecision(scope string, subjectID int, matched []*compiledRiskRule,
 	}
 }
 
-func buildRiskSubjectSnapshot(event *RiskEvent, scope string, subjectID int, metrics types.RiskMetrics, decision *types.RiskDecision, matched []*compiledRiskRule, previous *model.RiskSubjectSnapshot) *model.RiskSubjectSnapshot {
+func buildRiskSubjectSnapshot(event *RiskEvent, scope string, subjectID int, group string, metrics types.RiskMetrics, decision *types.RiskDecision, matched []*compiledRiskRule, previous *model.RiskSubjectSnapshot) *model.RiskSubjectSnapshot {
 	status := RiskStatusNormal
 	lastDecision := RiskDecisionAllow
 	lastAction := RiskDecisionAllow
@@ -765,7 +883,7 @@ func buildRiskSubjectSnapshot(event *RiskEvent, scope string, subjectID int, met
 		Username:          event.Username,
 		TokenName:         event.TokenName,
 		TokenMaskedKey:    event.TokenMaskedKey,
-		Group:             event.Group,
+		Group:             group,
 		Status:            status,
 		RiskScore:         metrics.RiskScore,
 		DistinctIP10M:     metrics.DistinctIP10M,
@@ -837,6 +955,7 @@ func buildRiskIncident(event *RiskEvent, snapshot *model.RiskSubjectSnapshot, de
 		Username:           snapshot.Username,
 		TokenName:          snapshot.TokenName,
 		TokenMaskedKey:     snapshot.TokenMaskedKey,
+		Group:              snapshot.Group,
 		RuleID:             decision.RuleID,
 		RuleName:           decision.RuleName,
 		Detector:           decision.Detector,
@@ -858,11 +977,11 @@ func buildRiskIncident(event *RiskEvent, snapshot *model.RiskSubjectSnapshot, de
 	}
 }
 
-func (r *riskControlCenter) getCachedDecision(scope string, subjectID int) *types.RiskDecision {
-	if subjectID <= 0 {
+func (r *riskControlCenter) getCachedDecision(scope string, subjectID int, group string) *types.RiskDecision {
+	if subjectID <= 0 || group == "" {
 		return nil
 	}
-	key := riskMemoryKey(scope, subjectID)
+	key := riskMemoryKey(scope, subjectID, group)
 	if cached, ok := r.cache.Load(key); ok {
 		entry, ok := cached.(*localRiskGateCacheEntry)
 		if ok && entry != nil && entry.ExpiresAt > time.Now().Unix() {
@@ -874,7 +993,7 @@ func (r *riskControlCenter) getCachedDecision(scope string, subjectID int) *type
 		}
 		r.cache.Delete(key)
 	}
-	decision, err := r.store.GetBlock(scope, subjectID)
+	decision, err := r.store.GetBlock(scope, subjectID, group)
 	if err != nil {
 		return nil
 	}
@@ -898,10 +1017,10 @@ func (r *riskControlCenter) getCachedDecision(scope string, subjectID int) *type
 }
 
 func (r *riskControlCenter) updateGateCache(decision *types.RiskDecision) {
-	if decision == nil {
+	if decision == nil || decision.Group == "" {
 		return
 	}
-	r.cache.Store(riskMemoryKey(decision.Scope, decision.SubjectID), &localRiskGateCacheEntry{
+	r.cache.Store(riskMemoryKey(decision.Scope, decision.SubjectID, decision.Group), &localRiskGateCacheEntry{
 		Decision:  decision,
 		ExpiresAt: decision.BlockUntil,
 	})
@@ -915,6 +1034,16 @@ func normalizeUserAgent(ua string) string {
 	return ua
 }
 
+// validateRiskRule enforces the v4 invariants for stored rules:
+//   - scope must be token or user
+//   - conditions must be valid JSON with at least one supported metric
+//   - when Enabled=true, ParsedGroups() must be non-empty (a rule cannot be
+//     turned on without at least one group binding); the engine skips
+//     unconfigured rules, so allowing enabled+empty would be a silent footgun
+//
+// validateRiskRule deliberately does NOT check whether the chosen groups are
+// inside RiskControlSetting.EnabledGroups. Admins should be able to draft
+// rules ahead of flipping the whitelist (see DEV_GUIDE §12.5).
 func validateRiskRule(rule *model.RiskRule) error {
 	if rule == nil {
 		return errors.New("rule is nil")
@@ -973,9 +1102,27 @@ func validateRiskRule(rule *model.RiskRule) error {
 		return err
 	}
 	rule.Conditions = string(conditionsBytes)
+
+	// Normalize Groups (trim/dedupe/drop empties) and persist back so reload
+	// sees the canonical form. Do NOT validate against the whitelist — that
+	// is intentional, see the function comment above.
+	parsedGroups := rule.ParsedGroups()
+	if rule.Enabled && len(parsedGroups) == 0 {
+		return errors.New("启用规则前必须至少选择一个分组")
+	}
+	groupsBytes, err := common.Marshal(parsedGroups)
+	if err != nil {
+		return err
+	}
+	rule.Groups = string(groupsBytes)
 	return nil
 }
 
+// seedDefaultRiskRules inserts a starter set of disabled rules on a fresh
+// install. Each default rule has Enabled=false and Groups="" — operators must
+// configure the whitelist (RiskControlSetting.EnabledGroups) and pick at
+// least one group on each rule before turning it on. This is the v4 default
+// safe upgrade behavior: zero-impact at install time.
 func seedDefaultRiskRules() error {
 	count, err := model.CountRiskRules()
 	if err != nil {
@@ -987,7 +1134,7 @@ func seedDefaultRiskRules() error {
 	defaultRules := []*model.RiskRule{
 		newDefaultRiskRule(
 			"token_multi_ip_observe",
-			"单个 API key 在短时间内出现多个不同 IP，先进入观察状态",
+			"单个 API key 在短时间内出现多个不同 IP，先进入观察状态（启用前请绑定分组）",
 			RiskSubjectTypeToken,
 			RiskActionObserve,
 			false,
@@ -997,7 +1144,7 @@ func seedDefaultRiskRules() error {
 		),
 		newDefaultRiskRule(
 			"token_multi_ip_high_concurrency_block",
-			"单个 API key 在短时间内出现多个不同 IP 且并发明显偏高，自动封禁 15 分钟",
+			"单个 API key 在短时间内出现多个不同 IP 且并发明显偏高，自动封禁 15 分钟（启用前请绑定分组）",
 			RiskSubjectTypeToken,
 			RiskActionBlock,
 			true,
@@ -1010,7 +1157,7 @@ func seedDefaultRiskRules() error {
 		),
 		newDefaultRiskRule(
 			"token_multi_ip_burst_block",
-			"单个 API key 在 10 分钟内请求量异常且伴随多 IP 轮询，自动封禁 1 小时",
+			"单个 API key 在 10 分钟内请求量异常且伴随多 IP 轮询，自动封禁 1 小时（启用前请绑定分组）",
 			RiskSubjectTypeToken,
 			RiskActionBlock,
 			true,
@@ -1023,7 +1170,7 @@ func seedDefaultRiskRules() error {
 		),
 		newDefaultRiskRule(
 			"shared_ip_multi_token_observe",
-			"同一 IP 在 10 分钟内关联多个 API key，先进入观察状态",
+			"同一 IP 在 10 分钟内关联多个 API key，先进入观察状态（启用前请绑定分组）",
 			RiskSubjectTypeToken,
 			RiskActionObserve,
 			false,
@@ -1033,7 +1180,7 @@ func seedDefaultRiskRules() error {
 		),
 		newDefaultRiskRule(
 			"shared_ip_multi_token_high_volume_block",
-			"同一 IP 在 10 分钟内关联多个 API key 且请求量明显偏高，自动封禁 15 分钟",
+			"同一 IP 在 10 分钟内关联多个 API key 且请求量明显偏高，自动封禁 15 分钟（启用前请绑定分组）",
 			RiskSubjectTypeToken,
 			RiskActionBlock,
 			true,
@@ -1046,7 +1193,7 @@ func seedDefaultRiskRules() error {
 		),
 		newDefaultRiskRule(
 			"user_multi_ip_observe",
-			"同一用户在 1 小时内出现异常多的不同 IP，进入用户级观察",
+			"同一用户在 1 小时内出现异常多的不同 IP，进入用户级观察（启用前请绑定分组）",
 			RiskSubjectTypeUser,
 			RiskActionObserve,
 			false,
@@ -1070,7 +1217,7 @@ func newDefaultRiskRule(name string, description string, scope string, action st
 	return &model.RiskRule{
 		Name:                name,
 		Description:         description,
-		Enabled:             true,
+		Enabled:             false,
 		Scope:               scope,
 		Detector:            "distribution",
 		MatchMode:           "all",
@@ -1083,6 +1230,7 @@ func newDefaultRiskRule(name string, description string, scope string, action st
 		ResponseStatusCode:  operation_setting.GetRiskControlSetting().DefaultStatusCode,
 		ResponseMessage:     operation_setting.GetRiskControlSetting().DefaultResponseMessage,
 		ScoreWeight:         score,
+		Groups:              "",
 		Conditions:          encodeRiskJSON(conditions),
 		CreatedBy:           0,
 		UpdatedBy:           0,
@@ -1104,8 +1252,8 @@ func (r *riskControlCenter) runRecoveryLoop() {
 			if snapshot == nil {
 				continue
 			}
-			_ = r.store.ClearBlock(snapshot.SubjectType, snapshot.SubjectID)
-			r.cache.Delete(riskMemoryKey(snapshot.SubjectType, snapshot.SubjectID))
+			_ = r.store.ClearBlock(snapshot.SubjectType, snapshot.SubjectID, snapshot.Group)
+			r.cache.Delete(riskMemoryKey(snapshot.SubjectType, snapshot.SubjectID, snapshot.Group))
 			incident := &model.RiskIncident{
 				CreatedAt:      now,
 				SubjectType:    snapshot.SubjectType,
@@ -1115,6 +1263,7 @@ func (r *riskControlCenter) runRecoveryLoop() {
 				Username:       snapshot.Username,
 				TokenName:      snapshot.TokenName,
 				TokenMaskedKey: snapshot.TokenMaskedKey,
+				Group:          snapshot.Group,
 				RuleName:       snapshot.LastRuleName,
 				Action:         RiskActionRecover,
 				Decision:       RiskDecisionAllow,
@@ -1179,7 +1328,7 @@ func GetBlockingDecisionFromAudit(audit *types.RiskAudit) *types.RiskDecision {
 }
 
 func RecordRiskBlockedAccess(ctx *gin.Context, info *relaycommon.RelayInfo, decision *types.RiskDecision) {
-	if decision == nil {
+	if decision == nil || decision.Group == "" {
 		return
 	}
 	gopool.Go(func() {
@@ -1187,7 +1336,7 @@ func RecordRiskBlockedAccess(ctx *gin.Context, info *relaycommon.RelayInfo, deci
 		if event == nil {
 			return
 		}
-		snapshot, err := model.GetRiskSubjectSnapshot(decision.Scope, decision.SubjectID)
+		snapshot, err := model.GetRiskSubjectSnapshot(decision.Scope, decision.SubjectID, decision.Group)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			common.SysError("risk control blocked access load snapshot failed: " + err.Error())
 			return

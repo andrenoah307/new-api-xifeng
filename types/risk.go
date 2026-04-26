@@ -19,8 +19,12 @@ type RiskMetrics struct {
 }
 
 type RiskDecision struct {
-	Scope              string      `json:"scope"`
-	SubjectID          int         `json:"subject_id"`
+	Scope     string `json:"scope"`
+	SubjectID int    `json:"subject_id"`
+	// Group is the request group this decision applies to. Always populated by
+	// the engine; downstream serialization keeps it for audit and reverse-key
+	// lookup of caches.
+	Group              string      `json:"group"`
 	Decision           string      `json:"decision"`
 	Action             string      `json:"action"`
 	Status             string      `json:"status"`

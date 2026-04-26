@@ -148,7 +148,8 @@ const emptyRuleForm = () => ({
   id: 0,
   name: '',
   description: '',
-  enabled: true,
+  // v4: rules default to disabled because they cannot fire without group bindings.
+  enabled: false,
   scope: 'token',
   detector: 'distribution',
   match_mode: 'all',
@@ -162,6 +163,7 @@ const emptyRuleForm = () => ({
   response_message: '当前请求触发风控，请稍后再试',
   score_weight: 20,
   conditions: [{ metric: 'distinct_ip_10m', op: '>=', value: 3 }],
+  groups: [],
 });
 
 function safeParseJSON(value, fallback = []) {
@@ -241,6 +243,8 @@ function RuleEditorModal({
   visible,
   loading,
   initialValue,
+  groupOptions,
+  enabledGroupSet,
   onCancel,
   onSubmit,
 }) {
@@ -257,6 +261,7 @@ function RuleEditorModal({
         conditions: safeParseJSON(initialValue.conditions, [
           { metric: 'distinct_ip_10m', op: '>=', value: 3 },
         ]),
+        groups: safeParseJSON(initialValue.groups, []),
       };
       const sanitized = sanitizeConditionsForScope(
         nextForm.conditions,
@@ -338,6 +343,11 @@ function RuleEditorModal({
     }
     if (!form.conditions.length) {
       return showError(t('至少需要一个条件'));
+    }
+    // v4 invariant: enabled rules must be bound to at least one group, otherwise
+    // the engine silently skips them (DEV_GUIDE §5).
+    if (form.enabled && (!form.groups || form.groups.length === 0)) {
+      return showError(t('启用规则前必须至少选择一个分组'));
     }
     onSubmit(form);
   };
@@ -428,6 +438,35 @@ function RuleEditorModal({
                 onChange={(value) => updateField('description', value)}
                 placeholder={t('简要说明此规则的风险目标和作用')}
               />
+            </Col>
+            <Col span={24}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('适用分组')}
+              </Text>
+              <Select
+                multiple
+                style={{ width: '100%' }}
+                value={form.groups || []}
+                onChange={(value) => updateField('groups', value || [])}
+                placeholder={t('选择规则生效的分组')}
+                optionList={(groupOptions || []).map((name) => ({
+                  label:
+                    enabledGroupSet && enabledGroupSet.has(name)
+                      ? name
+                      : `${name} ${t('(分组未启用风控)')}`,
+                  value: name,
+                }))}
+                getPopupContainer={() => document.body}
+              />
+              <Text
+                type='tertiary'
+                size='small'
+                style={{ display: 'block', marginTop: 6 }}
+              >
+                {t(
+                  '未配置分组的规则不会生效。仅在分组被加入风控白名单后规则才会真正参与评估。',
+                )}
+              </Text>
             </Col>
           </Row>
         </div>
@@ -699,11 +738,35 @@ const RiskCenter = () => {
   });
   const [editorVisible, setEditorVisible] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
+  // riskGroups holds the GET /api/risk/groups response. Used to render the
+  // group enablement matrix and to seed the rule editor's group multi-select.
+  const [riskGroups, setRiskGroups] = useState({ items: [] });
+
+  const enabledGroupSet = useMemo(() => {
+    const set = new Set();
+    for (const item of riskGroups.items || []) {
+      if (item.enabled) set.add(item.name);
+    }
+    return set;
+  }, [riskGroups]);
+
+  const groupOptions = useMemo(() => {
+    return (riskGroups.items || []).map((item) => item.name);
+  }, [riskGroups]);
 
   const loadOverview = async () => {
     const res = await API.get('/api/risk/overview');
     if (res.data.success) {
       setOverview(res.data.data || {});
+      return;
+    }
+    throw new Error(res.data.message);
+  };
+
+  const loadRiskGroups = async () => {
+    const res = await API.get('/api/risk/groups');
+    if (res.data.success) {
+      setRiskGroups(res.data.data || { items: [] });
       return;
     }
     throw new Error(res.data.message);
@@ -786,6 +849,7 @@ const RiskCenter = () => {
         loadRules(),
         loadSubjects(1),
         loadIncidents(1),
+        loadRiskGroups(),
       ]);
     } catch (error) {
       showError(error.message || t('加载风控中心失败'));
@@ -807,12 +871,37 @@ const RiskCenter = () => {
       }
       showSuccess(t('风控配置已保存'));
       setConfig(res.data.data || {});
-      await loadOverview();
+      await Promise.all([loadOverview(), loadRiskGroups()]);
     } catch (error) {
       showError(t('保存风控配置失败'));
     } finally {
       setSavingConfig(false);
     }
+  };
+
+  // toggleGroupEnabled flips the (group, enabled) bit in EnabledGroups and
+  // synchronizes config locally; admin still needs to click "保存" to persist.
+  const toggleGroupEnabled = (groupName, enabled) => {
+    setConfig((prev) => {
+      const list = Array.isArray(prev.enabled_groups)
+        ? [...prev.enabled_groups]
+        : [];
+      const next = list.filter((g) => g !== groupName);
+      if (enabled) next.push(groupName);
+      return { ...prev, enabled_groups: next };
+    });
+  };
+
+  const setGroupMode = (groupName, mode) => {
+    setConfig((prev) => {
+      const modes = { ...(prev.group_modes || {}) };
+      if (mode === '__delete__') {
+        delete modes[groupName];
+      } else {
+        modes[groupName] = mode;
+      }
+      return { ...prev, group_modes: modes };
+    });
   };
 
   const handleDetectIP = async () => {
@@ -901,23 +990,40 @@ const RiskCenter = () => {
   };
 
   const handleToggleRule = async (rule, enabled) => {
+    const groups = safeParseJSON(rule.groups, []);
+    if (enabled && (!groups || groups.length === 0)) {
+      return showError(t('启用规则前必须至少选择一个分组'));
+    }
     await handleSaveRule({
       ...rule,
       conditions: safeParseJSON(rule.conditions, []),
+      groups,
       enabled,
     });
   };
 
+  // handleUnblock — v4 sends ?group= because the engine stores blocks under
+  // (scope, subjectID, group). Falls back to record.group set on each row.
   const handleUnblock = async (record) => {
+    if (!record.group) {
+      return showError(t('解封必须指定分组'));
+    }
     try {
       const res = await API.post(
         `/api/risk/subjects/${record.subject_type}/${record.subject_id}/unblock`,
+        null,
+        { params: { group: record.group } },
       );
       if (!res.data.success) {
         return showError(res.data.message);
       }
       showSuccess(t('已解除封禁'));
-      await Promise.all([loadOverview(), loadSubjects(), loadIncidents()]);
+      await Promise.all([
+        loadOverview(),
+        loadSubjects(),
+        loadIncidents(),
+        loadRiskGroups(),
+      ]);
     } catch (error) {
       showError(t('解除封禁失败'));
     }
@@ -964,6 +1070,11 @@ const RiskCenter = () => {
             </Text>
           </Space>
         ),
+      },
+      {
+        title: t('分组'),
+        dataIndex: 'group',
+        render: (value) => <Tag color='cyan'>{value || t('（未知）')}</Tag>,
       },
       {
         title: t('状态'),
@@ -1103,6 +1214,11 @@ const RiskCenter = () => {
         ),
       },
       {
+        title: t('分组'),
+        dataIndex: 'group',
+        render: (value) => <Tag color='cyan'>{value || t('（未知）')}</Tag>,
+      },
+      {
         title: t('规则'),
         dataIndex: 'rule_name',
         render: (value) => value || '-',
@@ -1176,6 +1292,28 @@ const RiskCenter = () => {
             {value === 'token' ? 'API Key' : t('用户')}
           </Tag>
         ),
+      },
+      {
+        title: t('适用分组'),
+        dataIndex: 'groups',
+        render: (value) => {
+          const arr = safeParseJSON(value, []);
+          if (!arr.length) {
+            return <Tag color='red'>{t('未配置（已停用）')}</Tag>;
+          }
+          return (
+            <Space wrap>
+              {arr.map((g) => {
+                const listed = enabledGroupSet.has(g);
+                return (
+                  <Tag key={g} color={listed ? 'green' : 'grey'}>
+                    {listed ? g : `${g} ${t('(分组未启用风控)')}`}
+                  </Tag>
+                );
+              })}
+            </Space>
+          );
+        },
       },
       {
         title: t('动作'),
@@ -1264,7 +1402,7 @@ const RiskCenter = () => {
         ),
       },
     ],
-    [t, rules],
+    [t, rules, enabledGroupSet],
   );
 
   return (
@@ -1273,6 +1411,8 @@ const RiskCenter = () => {
         visible={editorVisible}
         loading={savingRule}
         initialValue={editingRule}
+        groupOptions={groupOptions}
+        enabledGroupSet={enabledGroupSet}
         onCancel={() => {
           setEditorVisible(false);
           setEditingRule(null);
@@ -1338,6 +1478,27 @@ const RiskCenter = () => {
                     title={t('规则数量')}
                     value={overview.rule_count || 0}
                     extra={`${t('事件丢弃')}: ${overview.queue_dropped || 0}`}
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <OverviewCard
+                    title={t('启用风控的分组数')}
+                    value={overview.enabled_group_count || 0}
+                    extra={t('已加入白名单且模式不为 off 的分组个数')}
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <OverviewCard
+                    title={t('未配置分组的规则数')}
+                    value={overview.unconfigured_rule_count || 0}
+                    extra={t('启用但未绑定任何分组，引擎会跳过这些规则')}
+                  />
+                </Col>
+                <Col xs={24} sm={12} md={6}>
+                  <OverviewCard
+                    title={t('启用但分组未启用风控的规则数')}
+                    value={overview.group_unlisted_rule_count || 0}
+                    extra={t('规则的所有 group 都不在白名单中')}
                   />
                 </Col>
               </Row>
@@ -1722,6 +1883,110 @@ const RiskCenter = () => {
                 </div>
               ) : null}
             </Modal>
+          </Card>
+
+          {/* 分组启用矩阵 — v4: per-group whitelist + mode override.
+              `auto` is filtered out by the backend (and documented in DEV_GUIDE §11). */}
+          <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+            <div className='flex items-center justify-between gap-3 flex-wrap'>
+              <div>
+                <Title heading={5} style={{ marginTop: 0 }}>
+                  {t('分组启用矩阵')}
+                </Title>
+                <Text type='secondary'>
+                  {t(
+                    '风控分发检测默认对所有分组关闭。请按分组启用风控并选择该分组的运行模式（缺省则使用全局模式）。',
+                  )}
+                </Text>
+              </div>
+              <Button
+                type='primary'
+                loading={savingConfig}
+                onClick={handleSaveConfig}
+              >
+                {t('保存全局策略')}
+              </Button>
+            </div>
+            <Table
+              style={{ marginTop: 12 }}
+              dataSource={riskGroups.items || []}
+              rowKey='name'
+              size='small'
+              pagination={false}
+              columns={[
+                {
+                  title: t('分组'),
+                  dataIndex: 'name',
+                  render: (v) => <Tag color='cyan'>{v}</Tag>,
+                },
+                {
+                  title: t('启用风控'),
+                  dataIndex: 'enabled',
+                  width: 120,
+                  render: (_v, record) => (
+                    <Switch
+                      checked={(config.enabled_groups || []).includes(
+                        record.name,
+                      )}
+                      onChange={(checked) =>
+                        toggleGroupEnabled(record.name, checked)
+                      }
+                    />
+                  ),
+                },
+                {
+                  title: t('运行模式'),
+                  dataIndex: 'mode',
+                  width: 200,
+                  render: (_v, record) => {
+                    const current = (config.group_modes || {})[record.name];
+                    const value =
+                      current === undefined ? '__delete__' : current;
+                    return (
+                      <Select
+                        style={{ width: '100%' }}
+                        value={value}
+                        onChange={(v) => setGroupMode(record.name, v)}
+                        getPopupContainer={() => document.body}
+                        optionList={[
+                          { label: t('未配置（关闭）'), value: '__delete__' },
+                          { label: t('跟随全局模式'), value: '' },
+                          { label: t('观察模式'), value: 'observe_only' },
+                          { label: t('执行模式'), value: 'enforce' },
+                          { label: t('显式关闭'), value: 'off' },
+                        ]}
+                      />
+                    );
+                  },
+                },
+                {
+                  title: t('实际生效模式'),
+                  dataIndex: 'effective_mode',
+                  render: (v) => (
+                    <Tag
+                      color={
+                        v === 'enforce'
+                          ? 'red'
+                          : v === 'observe_only'
+                            ? 'orange'
+                            : 'grey'
+                      }
+                    >
+                      {v || 'off'}
+                    </Tag>
+                  ),
+                },
+                {
+                  title: t('规则数（启用/全部）'),
+                  dataIndex: 'rule_count_total',
+                  render: (_v, r) =>
+                    `${r.rule_count_enabled || 0} / ${r.rule_count_total || 0}`,
+                },
+                { title: t('观察主体'), dataIndex: 'active_subject_count' },
+                { title: t('封禁主体'), dataIndex: 'blocked_subject_count' },
+                { title: t('高风险'), dataIndex: 'high_risk_subject_count' },
+              ]}
+            />
           </Card>
 
           <Card

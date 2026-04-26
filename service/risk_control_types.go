@@ -31,24 +31,31 @@ const (
 )
 
 type RiskEvent struct {
-	Type          string `json:"type"`
-	OccurAt       int64  `json:"occur_at"`
-	RequestID     string `json:"request_id"`
-	RequestPath   string `json:"request_path"`
-	UserID        int    `json:"user_id"`
-	Username      string `json:"username"`
-	TokenID       int    `json:"token_id"`
-	TokenName     string `json:"token_name"`
+	Type           string `json:"type"`
+	OccurAt        int64  `json:"occur_at"`
+	RequestID      string `json:"request_id"`
+	RequestPath    string `json:"request_path"`
+	UserID         int    `json:"user_id"`
+	Username       string `json:"username"`
+	TokenID        int    `json:"token_id"`
+	TokenName      string `json:"token_name"`
 	TokenMaskedKey string `json:"token_masked_key"`
+	// Group is the risk group dimension snapshot, captured at BeforeRelay.
+	// Always equals info.RiskGroup; never re-read from UsingGroup downstream
+	// because auto cross-group retry can rewrite UsingGroup mid-request.
 	Group         string `json:"group"`
 	ClientIPHash  string `json:"client_ip_hash"`
 	UserAgentHash string `json:"user_agent_hash"`
 	StatusCode    int    `json:"status_code"`
 }
 
+// compiledRiskRule is the in-memory form of a model.RiskRule, with conditions
+// and groups parsed once at reload time. Rules with an empty Groups set are
+// dropped during reload — see DEV_GUIDE §5 red line "未配置分组 = 不启用".
 type compiledRiskRule struct {
 	Raw        *model.RiskRule
 	Conditions []types.RiskCondition
+	Groups     map[string]struct{}
 }
 
 func normalizeRiskMessage(message string) string {

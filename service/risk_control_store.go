@@ -14,14 +14,17 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+// riskMetricStore tracks per-(scope, subjectID, group) counters and block
+// state for the risk control engine. All methods short-circuit on empty group
+// because the engine never persists data for unscoped requests.
 type riskMetricStore interface {
-	GetBlock(scope string, subjectID int) (*types.RiskDecision, error)
-	SetBlock(scope string, subjectID int, decision *types.RiskDecision) error
-	ClearBlock(scope string, subjectID int) error
-	RecordStart(scope string, subjectID int, ipHash string, uaHash string, now time.Time) (types.RiskMetrics, error)
-	RecordFinish(scope string, subjectID int, now time.Time) (int, error)
-	GetRuleHitCount(scope string, subjectID int, now time.Time) (int, error)
-	IncrementRuleHit(scope string, subjectID int, now time.Time) (int, error)
+	GetBlock(scope string, subjectID int, group string) (*types.RiskDecision, error)
+	SetBlock(scope string, subjectID int, group string, decision *types.RiskDecision) error
+	ClearBlock(scope string, subjectID int, group string) error
+	RecordStart(scope string, subjectID int, group, ipHash, uaHash string, now time.Time) (types.RiskMetrics, error)
+	RecordFinish(scope string, subjectID int, group string, now time.Time) (int, error)
+	GetRuleHitCount(scope string, subjectID int, group string, now time.Time) (int, error)
+	IncrementRuleHit(scope string, subjectID int, group string, now time.Time) (int, error)
 }
 
 func newRiskMetricStore() riskMetricStore {
@@ -45,45 +48,45 @@ func (s *redisRiskMetricStore) timeoutContext() (context.Context, context.Cancel
 	return context.WithTimeout(context.Background(), timeout)
 }
 
-func riskBlockKey(scope string, subjectID int) string {
-	return fmt.Sprintf("rc:block:%s:%d", scope, subjectID)
+func riskBlockKey(scope, group string, subjectID int) string {
+	return fmt.Sprintf("rc:block:%s:%s:%d", scope, group, subjectID)
 }
 
-func riskInflightKey(scope string, subjectID int) string {
-	return fmt.Sprintf("rc:inflight:%s:%d", scope, subjectID)
+func riskInflightKey(scope, group string, subjectID int) string {
+	return fmt.Sprintf("rc:inflight:%s:%s:%d", scope, group, subjectID)
 }
 
-func riskReqBucketKey(scope string, subjectID int, bucket int64) string {
-	return fmt.Sprintf("rc:req:%s:%d:%d", scope, subjectID, bucket)
+func riskReqBucketKey(scope, group string, subjectID int, bucket int64) string {
+	return fmt.Sprintf("rc:req:%s:%s:%d:%d", scope, group, subjectID, bucket)
 }
 
-func riskIPMinuteBucketKey(scope string, subjectID int, bucket int64) string {
-	return fmt.Sprintf("rc:ip:min:%s:%d:%d", scope, subjectID, bucket)
+func riskIPMinuteBucketKey(scope, group string, subjectID int, bucket int64) string {
+	return fmt.Sprintf("rc:ip:min:%s:%s:%d:%d", scope, group, subjectID, bucket)
 }
 
-func riskIPHourBucketKey(scope string, subjectID int, bucket int64) string {
-	return fmt.Sprintf("rc:ip:hour:%s:%d:%d", scope, subjectID, bucket)
+func riskIPHourBucketKey(scope, group string, subjectID int, bucket int64) string {
+	return fmt.Sprintf("rc:ip:hour:%s:%s:%d:%d", scope, group, subjectID, bucket)
 }
 
-func riskUAMinuteBucketKey(scope string, subjectID int, bucket int64) string {
-	return fmt.Sprintf("rc:ua:min:%s:%d:%d", scope, subjectID, bucket)
+func riskUAMinuteBucketKey(scope, group string, subjectID int, bucket int64) string {
+	return fmt.Sprintf("rc:ua:min:%s:%s:%d:%d", scope, group, subjectID, bucket)
 }
 
-func riskIPTokenBucketKey(ipHash string, bucket int64) string {
-	return fmt.Sprintf("rc:ip-tkn:%s:%d", ipHash, bucket)
+func riskIPTokenBucketKey(group, ipHash string, bucket int64) string {
+	return fmt.Sprintf("rc:ip-tkn:%s:%s:%d", group, ipHash, bucket)
 }
 
-func riskRuleHitKey(scope string, subjectID int) string {
-	return fmt.Sprintf("rc:rule-hit:%s:%d", scope, subjectID)
+func riskRuleHitKey(scope, group string, subjectID int) string {
+	return fmt.Sprintf("rc:rule-hit:%s:%s:%d", scope, group, subjectID)
 }
 
-func (s *redisRiskMetricStore) GetBlock(scope string, subjectID int) (*types.RiskDecision, error) {
-	if subjectID <= 0 {
+func (s *redisRiskMetricStore) GetBlock(scope string, subjectID int, group string) (*types.RiskDecision, error) {
+	if subjectID <= 0 || group == "" {
 		return nil, nil
 	}
 	ctx, cancel := s.timeoutContext()
 	defer cancel()
-	value, err := s.rdb.Get(ctx, riskBlockKey(scope, subjectID)).Result()
+	value, err := s.rdb.Get(ctx, riskBlockKey(scope, group, subjectID)).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return nil, nil
@@ -95,14 +98,14 @@ func (s *redisRiskMetricStore) GetBlock(scope string, subjectID int) (*types.Ris
 		return nil, err
 	}
 	if decision.BlockUntil > 0 && decision.BlockUntil <= time.Now().Unix() {
-		_ = s.ClearBlock(scope, subjectID)
+		_ = s.ClearBlock(scope, subjectID, group)
 		return nil, nil
 	}
 	return &decision, nil
 }
 
-func (s *redisRiskMetricStore) SetBlock(scope string, subjectID int, decision *types.RiskDecision) error {
-	if subjectID <= 0 || decision == nil {
+func (s *redisRiskMetricStore) SetBlock(scope string, subjectID int, group string, decision *types.RiskDecision) error {
+	if subjectID <= 0 || group == "" || decision == nil {
 		return nil
 	}
 	if decision.BlockUntil <= 0 {
@@ -114,20 +117,20 @@ func (s *redisRiskMetricStore) SetBlock(scope string, subjectID int, decision *t
 	}
 	ctx, cancel := s.timeoutContext()
 	defer cancel()
-	return s.rdb.Set(ctx, riskBlockKey(scope, subjectID), encodeRiskJSON(decision), ttl).Err()
+	return s.rdb.Set(ctx, riskBlockKey(scope, group, subjectID), encodeRiskJSON(decision), ttl).Err()
 }
 
-func (s *redisRiskMetricStore) ClearBlock(scope string, subjectID int) error {
-	if subjectID <= 0 {
+func (s *redisRiskMetricStore) ClearBlock(scope string, subjectID int, group string) error {
+	if subjectID <= 0 || group == "" {
 		return nil
 	}
 	ctx, cancel := s.timeoutContext()
 	defer cancel()
-	return s.rdb.Del(ctx, riskBlockKey(scope, subjectID)).Err()
+	return s.rdb.Del(ctx, riskBlockKey(scope, group, subjectID)).Err()
 }
 
-func (s *redisRiskMetricStore) RecordStart(scope string, subjectID int, ipHash string, uaHash string, now time.Time) (types.RiskMetrics, error) {
-	if subjectID <= 0 {
+func (s *redisRiskMetricStore) RecordStart(scope string, subjectID int, group, ipHash, uaHash string, now time.Time) (types.RiskMetrics, error) {
+	if subjectID <= 0 || group == "" {
 		return types.RiskMetrics{}, nil
 	}
 	ctx, cancel := s.timeoutContext()
@@ -135,14 +138,14 @@ func (s *redisRiskMetricStore) RecordStart(scope string, subjectID int, ipHash s
 
 	minuteBucket := now.Unix() / 60
 	hourBucket := now.Unix() / 600
-	inflightKey := riskInflightKey(scope, subjectID)
-	reqKey := riskReqBucketKey(scope, subjectID, minuteBucket)
-	ipMinuteKey := riskIPMinuteBucketKey(scope, subjectID, minuteBucket)
-	ipHourKey := riskIPHourBucketKey(scope, subjectID, hourBucket)
-	uaMinuteKey := riskUAMinuteBucketKey(scope, subjectID, minuteBucket)
+	inflightKey := riskInflightKey(scope, group, subjectID)
+	reqKey := riskReqBucketKey(scope, group, subjectID, minuteBucket)
+	ipMinuteKey := riskIPMinuteBucketKey(scope, group, subjectID, minuteBucket)
+	ipHourKey := riskIPHourBucketKey(scope, group, subjectID, hourBucket)
+	uaMinuteKey := riskUAMinuteBucketKey(scope, group, subjectID, minuteBucket)
 	ipTokenKey := ""
 	if ipHash != "" && scope == RiskSubjectTypeToken {
-		ipTokenKey = riskIPTokenBucketKey(ipHash, minuteBucket)
+		ipTokenKey = riskIPTokenBucketKey(group, ipHash, minuteBucket)
 	}
 
 	pipe := s.rdb.TxPipeline()
@@ -168,28 +171,28 @@ func (s *redisRiskMetricStore) RecordStart(scope string, subjectID int, ipHash s
 		return types.RiskMetrics{}, err
 	}
 
-	req10M, err := s.sumRequestBuckets(ctx, scope, subjectID, minuteBucket, 10)
+	req10M, err := s.sumRequestBuckets(ctx, scope, group, subjectID, minuteBucket, 10)
 	if err != nil {
 		return types.RiskMetrics{}, err
 	}
-	distinctIP10M, err := s.countUnion(ctx, buildMinuteKeys(riskIPMinuteBucketKey, scope, subjectID, minuteBucket, 10))
+	distinctIP10M, err := s.countUnion(ctx, buildScopedMinuteKeys(riskIPMinuteBucketKey, scope, group, subjectID, minuteBucket, 10))
 	if err != nil {
 		return types.RiskMetrics{}, err
 	}
-	distinctIP1H, err := s.countUnion(ctx, buildTenMinuteKeys(riskIPHourBucketKey, scope, subjectID, hourBucket, 6))
+	distinctIP1H, err := s.countUnion(ctx, buildScopedMinuteKeys(riskIPHourBucketKey, scope, group, subjectID, hourBucket, 6))
 	if err != nil {
 		return types.RiskMetrics{}, err
 	}
 	distinctUA10M := 0
 	if scope == RiskSubjectTypeToken {
-		distinctUA10M, err = s.countUnion(ctx, buildMinuteKeys(riskUAMinuteBucketKey, scope, subjectID, minuteBucket, 10))
+		distinctUA10M, err = s.countUnion(ctx, buildScopedMinuteKeys(riskUAMinuteBucketKey, scope, group, subjectID, minuteBucket, 10))
 		if err != nil {
 			return types.RiskMetrics{}, err
 		}
 	}
 	tokensPerIP10M := 0
 	if ipTokenKey != "" {
-		tokensPerIP10M, err = s.countUnion(ctx, buildHashBucketKeys(riskIPTokenBucketKey, ipHash, minuteBucket, 10))
+		tokensPerIP10M, err = s.countUnion(ctx, buildIPTokenKeys(group, ipHash, minuteBucket, 10))
 		if err != nil {
 			return types.RiskMetrics{}, err
 		}
@@ -205,18 +208,18 @@ func (s *redisRiskMetricStore) RecordStart(scope string, subjectID int, ipHash s
 	}, nil
 }
 
-func (s *redisRiskMetricStore) RecordFinish(scope string, subjectID int, now time.Time) (int, error) {
-	if subjectID <= 0 {
+func (s *redisRiskMetricStore) RecordFinish(scope string, subjectID int, group string, now time.Time) (int, error) {
+	if subjectID <= 0 || group == "" {
 		return 0, nil
 	}
 	ctx, cancel := s.timeoutContext()
 	defer cancel()
-	value, err := s.rdb.Decr(ctx, riskInflightKey(scope, subjectID)).Result()
+	value, err := s.rdb.Decr(ctx, riskInflightKey(scope, group, subjectID)).Result()
 	if err != nil {
 		return 0, err
 	}
 	if value < 0 {
-		if err = s.rdb.Set(ctx, riskInflightKey(scope, subjectID), 0, 2*time.Hour).Err(); err != nil {
+		if err = s.rdb.Set(ctx, riskInflightKey(scope, group, subjectID), 0, 2*time.Hour).Err(); err != nil {
 			return 0, err
 		}
 		return 0, nil
@@ -224,13 +227,13 @@ func (s *redisRiskMetricStore) RecordFinish(scope string, subjectID int, now tim
 	return int(value), nil
 }
 
-func (s *redisRiskMetricStore) GetRuleHitCount(scope string, subjectID int, now time.Time) (int, error) {
-	if subjectID <= 0 {
+func (s *redisRiskMetricStore) GetRuleHitCount(scope string, subjectID int, group string, now time.Time) (int, error) {
+	if subjectID <= 0 || group == "" {
 		return 0, nil
 	}
 	ctx, cancel := s.timeoutContext()
 	defer cancel()
-	value, err := s.rdb.Get(ctx, riskRuleHitKey(scope, subjectID)).Result()
+	value, err := s.rdb.Get(ctx, riskRuleHitKey(scope, group, subjectID)).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return 0, nil
@@ -244,13 +247,13 @@ func (s *redisRiskMetricStore) GetRuleHitCount(scope string, subjectID int, now 
 	return count, nil
 }
 
-func (s *redisRiskMetricStore) IncrementRuleHit(scope string, subjectID int, now time.Time) (int, error) {
-	if subjectID <= 0 {
+func (s *redisRiskMetricStore) IncrementRuleHit(scope string, subjectID int, group string, now time.Time) (int, error) {
+	if subjectID <= 0 || group == "" {
 		return 0, nil
 	}
 	ctx, cancel := s.timeoutContext()
 	defer cancel()
-	key := riskRuleHitKey(scope, subjectID)
+	key := riskRuleHitKey(scope, group, subjectID)
 	pipe := s.rdb.TxPipeline()
 	incrCmd := pipe.Incr(ctx, key)
 	pipe.Expire(ctx, key, 24*time.Hour)
@@ -260,10 +263,10 @@ func (s *redisRiskMetricStore) IncrementRuleHit(scope string, subjectID int, now
 	return int(incrCmd.Val()), nil
 }
 
-func (s *redisRiskMetricStore) sumRequestBuckets(ctx context.Context, scope string, subjectID int, minuteBucket int64, size int) (int, error) {
+func (s *redisRiskMetricStore) sumRequestBuckets(ctx context.Context, scope, group string, subjectID int, minuteBucket int64, size int) (int, error) {
 	keys := make([]string, 0, size)
 	for i := 0; i < size; i++ {
-		keys = append(keys, riskReqBucketKey(scope, subjectID, minuteBucket-int64(i)))
+		keys = append(keys, riskReqBucketKey(scope, group, subjectID, minuteBucket-int64(i)))
 	}
 	values, err := s.rdb.MGet(ctx, keys...).Result()
 	if err != nil {
@@ -302,34 +305,29 @@ func (s *redisRiskMetricStore) countUnion(ctx context.Context, keys []string) (i
 	return int(count), nil
 }
 
-func buildMinuteKeys(builder func(string, int, int64) string, scope string, subjectID int, currentBucket int64, size int) []string {
+func buildScopedMinuteKeys(builder func(string, string, int, int64) string, scope, group string, subjectID int, currentBucket int64, size int) []string {
 	keys := make([]string, 0, size)
 	for i := 0; i < size; i++ {
-		keys = append(keys, builder(scope, subjectID, currentBucket-int64(i)))
+		keys = append(keys, builder(scope, group, subjectID, currentBucket-int64(i)))
 	}
 	return keys
 }
 
-func buildTenMinuteKeys(builder func(string, int, int64) string, scope string, subjectID int, currentBucket int64, size int) []string {
+func buildIPTokenKeys(group, hash string, currentBucket int64, size int) []string {
 	keys := make([]string, 0, size)
 	for i := 0; i < size; i++ {
-		keys = append(keys, builder(scope, subjectID, currentBucket-int64(i)))
+		keys = append(keys, riskIPTokenBucketKey(group, hash, currentBucket-int64(i)))
 	}
 	return keys
 }
 
-func buildHashBucketKeys(builder func(string, int64) string, hash string, currentBucket int64, size int) []string {
-	keys := make([]string, 0, size)
-	for i := 0; i < size; i++ {
-		keys = append(keys, builder(hash, currentBucket-int64(i)))
-	}
-	return keys
-}
-
+// memoryRiskMetricStore is the fallback when Redis is not configured. The map
+// keys are (scope, subjectID, group) so the same token can be tracked across
+// multiple groups without contention.
 type memoryRiskMetricStore struct {
 	mu          sync.Mutex
 	subject     map[string]*memoryRiskSubjectState
-	ipTokens    map[string]map[int64]map[string]struct{}
+	ipTokens    map[string]map[int64]map[string]struct{} // key = group + ":" + ipHash
 	lastSweepAt int64
 }
 
@@ -350,8 +348,12 @@ func newMemoryRiskMetricStore() *memoryRiskMetricStore {
 	}
 }
 
-func riskMemoryKey(scope string, subjectID int) string {
-	return scope + ":" + strconv.Itoa(subjectID)
+func riskMemoryKey(scope string, subjectID int, group string) string {
+	return scope + ":" + group + ":" + strconv.Itoa(subjectID)
+}
+
+func memoryIPTokenKey(group, ipHash string) string {
+	return group + ":" + ipHash
 }
 
 func newMemoryRiskSubjectState() *memoryRiskSubjectState {
@@ -411,8 +413,8 @@ func (s *memoryRiskMetricStore) cleanState(state *memoryRiskSubjectState, now ti
 	}
 }
 
-func (s *memoryRiskMetricStore) cleanIPTokenState(ipHash string, now time.Time) map[int64]map[string]struct{} {
-	buckets := s.ipTokens[ipHash]
+func (s *memoryRiskMetricStore) cleanIPTokenState(key string, now time.Time) map[int64]map[string]struct{} {
+	buckets := s.ipTokens[key]
 	if buckets == nil {
 		return nil
 	}
@@ -423,7 +425,7 @@ func (s *memoryRiskMetricStore) cleanIPTokenState(ipHash string, now time.Time) 
 		}
 	}
 	if len(buckets) == 0 {
-		delete(s.ipTokens, ipHash)
+		delete(s.ipTokens, key)
 		return nil
 	}
 	return buckets
@@ -440,8 +442,8 @@ func (s *memoryRiskMetricStore) maybeSweep(now time.Time) {
 			delete(s.subject, key)
 		}
 	}
-	for ipHash := range s.ipTokens {
-		s.cleanIPTokenState(ipHash, now)
+	for key := range s.ipTokens {
+		s.cleanIPTokenState(key, now)
 	}
 	s.lastSweepAt = now.Unix()
 }
@@ -459,12 +461,12 @@ func isMemoryRiskStateIdle(state *memoryRiskSubjectState) bool {
 		len(state.RuleHits) == 0
 }
 
-func (s *memoryRiskMetricStore) GetBlock(scope string, subjectID int) (*types.RiskDecision, error) {
-	if subjectID <= 0 {
+func (s *memoryRiskMetricStore) GetBlock(scope string, subjectID int, group string) (*types.RiskDecision, error) {
+	if subjectID <= 0 || group == "" {
 		return nil, nil
 	}
 	now := time.Now()
-	key := riskMemoryKey(scope, subjectID)
+	key := riskMemoryKey(scope, subjectID, group)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maybeSweep(now)
@@ -484,11 +486,11 @@ func (s *memoryRiskMetricStore) GetBlock(scope string, subjectID int) (*types.Ri
 	return &decision, nil
 }
 
-func (s *memoryRiskMetricStore) SetBlock(scope string, subjectID int, decision *types.RiskDecision) error {
-	if subjectID <= 0 || decision == nil {
+func (s *memoryRiskMetricStore) SetBlock(scope string, subjectID int, group string, decision *types.RiskDecision) error {
+	if subjectID <= 0 || group == "" || decision == nil {
 		return nil
 	}
-	key := riskMemoryKey(scope, subjectID)
+	key := riskMemoryKey(scope, subjectID, group)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maybeSweep(time.Now())
@@ -498,12 +500,12 @@ func (s *memoryRiskMetricStore) SetBlock(scope string, subjectID int, decision *
 	return nil
 }
 
-func (s *memoryRiskMetricStore) ClearBlock(scope string, subjectID int) error {
-	if subjectID <= 0 {
+func (s *memoryRiskMetricStore) ClearBlock(scope string, subjectID int, group string) error {
+	if subjectID <= 0 || group == "" {
 		return nil
 	}
 	now := time.Now()
-	key := riskMemoryKey(scope, subjectID)
+	key := riskMemoryKey(scope, subjectID, group)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maybeSweep(now)
@@ -518,11 +520,11 @@ func (s *memoryRiskMetricStore) ClearBlock(scope string, subjectID int) error {
 	return nil
 }
 
-func (s *memoryRiskMetricStore) RecordStart(scope string, subjectID int, ipHash string, uaHash string, now time.Time) (types.RiskMetrics, error) {
-	if subjectID <= 0 {
+func (s *memoryRiskMetricStore) RecordStart(scope string, subjectID int, group, ipHash, uaHash string, now time.Time) (types.RiskMetrics, error) {
+	if subjectID <= 0 || group == "" {
 		return types.RiskMetrics{}, nil
 	}
-	key := riskMemoryKey(scope, subjectID)
+	key := riskMemoryKey(scope, subjectID, group)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maybeSweep(now)
@@ -544,10 +546,11 @@ func (s *memoryRiskMetricStore) RecordStart(scope string, subjectID int, ipHash 
 		state.IP1HBuckets[hourBucket][ipHash] = struct{}{}
 	}
 	if scope == RiskSubjectTypeToken && ipHash != "" {
-		ipBuckets := s.cleanIPTokenState(ipHash, now)
+		ipTokenK := memoryIPTokenKey(group, ipHash)
+		ipBuckets := s.cleanIPTokenState(ipTokenK, now)
 		if ipBuckets == nil {
 			ipBuckets = make(map[int64]map[string]struct{})
-			s.ipTokens[ipHash] = ipBuckets
+			s.ipTokens[ipTokenK] = ipBuckets
 		}
 		if ipBuckets[minuteBucket] == nil {
 			ipBuckets[minuteBucket] = make(map[string]struct{})
@@ -573,11 +576,11 @@ func (s *memoryRiskMetricStore) RecordStart(scope string, subjectID int, ipHash 
 	}, nil
 }
 
-func (s *memoryRiskMetricStore) RecordFinish(scope string, subjectID int, now time.Time) (int, error) {
-	if subjectID <= 0 {
+func (s *memoryRiskMetricStore) RecordFinish(scope string, subjectID int, group string, now time.Time) (int, error) {
+	if subjectID <= 0 || group == "" {
 		return 0, nil
 	}
-	key := riskMemoryKey(scope, subjectID)
+	key := riskMemoryKey(scope, subjectID, group)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maybeSweep(now)
@@ -596,11 +599,11 @@ func (s *memoryRiskMetricStore) RecordFinish(scope string, subjectID int, now ti
 	return state.Inflight, nil
 }
 
-func (s *memoryRiskMetricStore) GetRuleHitCount(scope string, subjectID int, now time.Time) (int, error) {
-	if subjectID <= 0 {
+func (s *memoryRiskMetricStore) GetRuleHitCount(scope string, subjectID int, group string, now time.Time) (int, error) {
+	if subjectID <= 0 || group == "" {
 		return 0, nil
 	}
-	key := riskMemoryKey(scope, subjectID)
+	key := riskMemoryKey(scope, subjectID, group)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maybeSweep(now)
@@ -616,11 +619,11 @@ func (s *memoryRiskMetricStore) GetRuleHitCount(scope string, subjectID int, now
 	return len(state.RuleHits), nil
 }
 
-func (s *memoryRiskMetricStore) IncrementRuleHit(scope string, subjectID int, now time.Time) (int, error) {
-	if subjectID <= 0 {
+func (s *memoryRiskMetricStore) IncrementRuleHit(scope string, subjectID int, group string, now time.Time) (int, error) {
+	if subjectID <= 0 || group == "" {
 		return 0, nil
 	}
-	key := riskMemoryKey(scope, subjectID)
+	key := riskMemoryKey(scope, subjectID, group)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.maybeSweep(now)

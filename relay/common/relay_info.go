@@ -153,6 +153,11 @@ type RelayInfo struct {
 	UseRuntimeHeadersOverride             bool
 	ParamOverrideAudit                    []string
 	RiskAudit                             *types.RiskAudit
+	// RiskGroup is a snapshot of UsingGroup taken when RiskControlBeforeRelay
+	// runs, so the after-relay defer (and any auto cross-group retry that
+	// rewrites UsingGroup) still records the start/finish pair against the
+	// same group bucket.
+	RiskGroup string
 
 	PriceData types.PriceData
 

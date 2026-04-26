@@ -7,15 +7,18 @@ import (
 )
 
 type RiskIncident struct {
-	Id                 int    `json:"id"`
-	CreatedAt          int64  `json:"created_at" gorm:"bigint;index"`
-	SubjectType        string `json:"subject_type" gorm:"type:varchar(16);index"`
-	SubjectID          int    `json:"subject_id" gorm:"index"`
-	UserID             int    `json:"user_id" gorm:"index"`
-	TokenID            int    `json:"token_id" gorm:"index"`
-	Username           string `json:"username" gorm:"type:varchar(64);index;default:''"`
-	TokenName          string `json:"token_name" gorm:"type:varchar(128);index;default:''"`
-	TokenMaskedKey     string `json:"token_masked_key" gorm:"type:varchar(64);default:''"`
+	Id             int    `json:"id"`
+	CreatedAt      int64  `json:"created_at" gorm:"bigint;index"`
+	SubjectType    string `json:"subject_type" gorm:"type:varchar(16);index"`
+	SubjectID      int    `json:"subject_id" gorm:"index"`
+	UserID         int    `json:"user_id" gorm:"index"`
+	TokenID        int    `json:"token_id" gorm:"index"`
+	Username       string `json:"username" gorm:"type:varchar(64);index;default:''"`
+	TokenName      string `json:"token_name" gorm:"type:varchar(128);index;default:''"`
+	TokenMaskedKey string `json:"token_masked_key" gorm:"type:varchar(64);default:''"`
+	// Group records the group dimension of the incident at the time it
+	// occurred. For legacy rows from before the v4 migration this is empty.
+	Group              string `json:"group" gorm:"column:group;type:varchar(64);index;default:''"`
 	RuleID             int    `json:"rule_id" gorm:"index"`
 	RuleName           string `json:"rule_name" gorm:"type:varchar(128);index;default:''"`
 	Detector           string `json:"detector" gorm:"type:varchar(32);index;default:''"`
@@ -39,6 +42,7 @@ type RiskIncidentQuery struct {
 	Scope   string
 	Action  string
 	Keyword string
+	Group   string
 }
 
 func CreateRiskIncident(incident *RiskIncident) error {
@@ -60,6 +64,9 @@ func ListRiskIncidents(query RiskIncidentQuery, startIdx int, pageSize int) ([]*
 	}
 	if query.Action != "" {
 		tx = tx.Where("action = ?", query.Action)
+	}
+	if query.Group != "" {
+		tx = tx.Where(commonGroupCol+" = ?", query.Group)
 	}
 	if keyword := strings.TrimSpace(query.Keyword); keyword != "" {
 		pattern := "%" + keyword + "%"

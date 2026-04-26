@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -11,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +34,7 @@ type riskRuleUpsertRequest struct {
 	ResponseMessage     string                `json:"response_message"`
 	ScoreWeight         int                   `json:"score_weight"`
 	Conditions          []types.RiskCondition `json:"conditions"`
+	Groups              []string              `json:"groups"`
 }
 
 func GetRiskCenterOverview(c *gin.Context) {
@@ -137,6 +140,7 @@ func GetRiskSubjects(c *gin.Context) {
 		Scope:   c.Query("scope"),
 		Status:  c.Query("status"),
 		Keyword: c.Query("keyword"),
+		Group:   c.Query("group"),
 	}
 	items, total, err := service.ListRiskSubjectSnapshots(query, pageInfo)
 	if err != nil {
@@ -154,6 +158,7 @@ func GetRiskIncidents(c *gin.Context) {
 		Scope:   c.Query("scope"),
 		Action:  c.Query("action"),
 		Keyword: c.Query("keyword"),
+		Group:   c.Query("group"),
 	}
 	items, total, err := service.ListRiskIncidents(query, pageInfo)
 	if err != nil {
@@ -165,6 +170,10 @@ func GetRiskIncidents(c *gin.Context) {
 	common.ApiSuccess(c, pageInfo)
 }
 
+// UnblockRiskSubject requires ?group=<name>; the engine stores blocks under
+// the (scope, subjectID, group) triple, so the operator must say which group
+// to clear. The group does not need to be inside EnabledGroups — admins may
+// clean up legacy blocks left behind after a group leaves the whitelist.
 func UnblockRiskSubject(c *gin.Context) {
 	scope := c.Param("scope")
 	subjectID, err := strconv.Atoi(c.Param("id"))
@@ -172,15 +181,117 @@ func UnblockRiskSubject(c *gin.Context) {
 		common.ApiErrorMsg(c, "无效的主体 ID")
 		return
 	}
+	group := strings.TrimSpace(c.Query("group"))
+	if group == "" {
+		common.ApiErrorMsg(c, "解封必须指定分组")
+		return
+	}
 	operator := fmt.Sprintf("%s#%d", c.GetString("username"), c.GetInt("id"))
-	if err = service.UnblockRiskSubject(scope, subjectID, operator); err != nil {
+	if err = service.UnblockRiskSubject(scope, subjectID, group, operator); err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	common.ApiSuccess(c, gin.H{
 		"scope": scope,
 		"id":    subjectID,
+		"group": group,
 	})
+}
+
+// GetRiskGroups returns the per-group risk control matrix consumed by the
+// admin "分组启用矩阵" widget. See DEV_GUIDE §12.1 for the schema.
+//
+//	{ schema_version: 1, global_mode: ..., items: [...] }
+//
+// `auto` is filtered out — auto resolves to a real group during distribute and
+// is never a valid risk control target on its own.
+func GetRiskGroups(c *gin.Context) {
+	cfg := operation_setting.GetRiskControlSetting()
+	whitelist := make(map[string]struct{}, len(cfg.EnabledGroups))
+	for _, g := range cfg.EnabledGroups {
+		whitelist[g] = struct{}{}
+	}
+
+	rules, err := model.ListRiskRules()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	totalByGroup := make(map[string]int)
+	enabledByGroup := make(map[string]int)
+	for _, rule := range rules {
+		if rule == nil {
+			continue
+		}
+		for _, g := range rule.ParsedGroups() {
+			totalByGroup[g]++
+			if rule.Enabled {
+				enabledByGroup[g]++
+			}
+		}
+	}
+
+	groupRatios := ratio_setting.GetGroupRatioCopy()
+	names := make([]string, 0, len(groupRatios))
+	for name := range groupRatios {
+		if name == operation_setting.RiskControlAutoGroup || name == "" {
+			continue
+		}
+		names = append(names, name)
+	}
+	// stable order: enabled first, then alphabetic
+	sortRiskGroups(names, whitelist)
+
+	items := make([]map[string]any, 0, len(names))
+	for _, name := range names {
+		_, enabled := whitelist[name]
+		mode := cfg.GroupModes[name]
+		items = append(items, map[string]any{
+			"name":                    name,
+			"enabled":                 enabled,
+			"mode":                    mode,
+			"effective_mode":          operation_setting.EffectiveRiskModeForGroup(cfg, name),
+			"rule_count_total":        totalByGroup[name],
+			"rule_count_enabled":      enabledByGroup[name],
+			"active_subject_count":    countOrZero(model.CountRiskSubjectSnapshotsByStatusAndGroup(service.RiskStatusObserve, name)),
+			"blocked_subject_count":   countOrZero(model.CountRiskSubjectSnapshotsByStatusAndGroup(service.RiskStatusBlocked, name)),
+			"high_risk_subject_count": countOrZero(model.CountHighRiskSubjectSnapshotsByGroup(60, name)),
+		})
+	}
+
+	common.ApiSuccess(c, gin.H{
+		"schema_version": 1,
+		"global_mode":    cfg.Mode,
+		"items":          items,
+	})
+}
+
+// sortRiskGroups sorts in-place: enabled groups first, then by lexicographic
+// order. Stable enough for the matrix UI; the absolute ordering is not
+// observable to clients besides display.
+func sortRiskGroups(names []string, whitelist map[string]struct{}) {
+	for i := 1; i < len(names); i++ {
+		for j := i; j > 0; j-- {
+			_, ai := whitelist[names[j]]
+			_, bi := whitelist[names[j-1]]
+			if ai && !bi {
+				names[j], names[j-1] = names[j-1], names[j]
+				continue
+			}
+			if ai == bi && names[j] < names[j-1] {
+				names[j], names[j-1] = names[j-1], names[j]
+				continue
+			}
+			break
+		}
+	}
+}
+
+func countOrZero(n int64, err error) int64 {
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 func bindRiskRuleRequest(c *gin.Context, ruleID int) (*model.RiskRule, error) {
@@ -189,6 +300,11 @@ func bindRiskRuleRequest(c *gin.Context, ruleID int) (*model.RiskRule, error) {
 		return nil, err
 	}
 	conditionsBytes, err := common.Marshal(req.Conditions)
+	if err != nil {
+		return nil, err
+	}
+	groups := dedupeStrings(req.Groups)
+	groupsBytes, err := common.Marshal(groups)
 	if err != nil {
 		return nil, err
 	}
@@ -210,5 +326,23 @@ func bindRiskRuleRequest(c *gin.Context, ruleID int) (*model.RiskRule, error) {
 		ResponseMessage:     req.ResponseMessage,
 		ScoreWeight:         req.ScoreWeight,
 		Conditions:          string(conditionsBytes),
+		Groups:              string(groupsBytes),
 	}, nil
+}
+
+func dedupeStrings(in []string) []string {
+	seen := make(map[string]struct{}, len(in))
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	return out
 }

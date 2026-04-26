@@ -255,6 +255,13 @@ func migrateDB() error {
 	if err := migrateTokenModelLimitsToText(); err != nil {
 		return err
 	}
+	// Drop the legacy (subject_type, subject_id) unique index on
+	// risk_subject_snapshot before AutoMigrate creates the new v2 unique
+	// index that includes the group column. Idempotent across SQLite /
+	// MySQL / PostgreSQL.
+	if err := dropLegacyRiskSubjectUniqueIndex(); err != nil {
+		return err
+	}
 
 	err := DB.AutoMigrate(
 		&Channel{},
@@ -464,6 +471,49 @@ PRIMARY KEY (` + "`id`" + `)
 		}
 		if err := DB.Exec("ALTER TABLE `" + tableName + "` ADD COLUMN " + col.DDL).Error; err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// dropLegacyRiskSubjectUniqueIndex removes the v1 unique index
+// idx_risk_subject_unique on risk_subject_snapshot (subject_type, subject_id)
+// so AutoMigrate can install the v2 index that also includes the group column.
+// Safe to run repeatedly — every branch checks for index existence first.
+//
+// Why a custom helper: GORM AutoMigrate happily ADDs new unique indexes from
+// struct tags but never DROPs old ones, and the legacy two-column unique
+// constraint would block the v2 three-column index from inserting separate
+// rows for the same subject across different groups.
+func dropLegacyRiskSubjectUniqueIndex() error {
+	tableName := "risk_subject_snapshot"
+	legacyIndexName := "idx_risk_subject_unique"
+	if !DB.Migrator().HasTable(tableName) {
+		// fresh install — AutoMigrate will create the v2 index directly
+		return nil
+	}
+	switch {
+	case common.UsingPostgreSQL:
+		// PG: schema-qualified index lookup; DROP INDEX IF EXISTS is supported
+		if err := DB.Exec(`DROP INDEX IF EXISTS ` + legacyIndexName).Error; err != nil {
+			return fmt.Errorf("drop legacy risk subject unique index (pg): %w", err)
+		}
+	case common.UsingMySQL:
+		// MySQL 5.7 lacks DROP INDEX IF EXISTS, so probe information_schema first.
+		var count int
+		if err := DB.Raw(`SELECT COUNT(*) FROM information_schema.statistics
+			WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?`,
+			tableName, legacyIndexName).Scan(&count).Error; err != nil {
+			return fmt.Errorf("probe legacy risk subject unique index (mysql): %w", err)
+		}
+		if count > 0 {
+			if err := DB.Exec("DROP INDEX `" + legacyIndexName + "` ON `" + tableName + "`").Error; err != nil {
+				return fmt.Errorf("drop legacy risk subject unique index (mysql): %w", err)
+			}
+		}
+	case common.UsingSQLite:
+		if err := DB.Exec(`DROP INDEX IF EXISTS ` + legacyIndexName).Error; err != nil {
+			return fmt.Errorf("drop legacy risk subject unique index (sqlite): %w", err)
 		}
 	}
 	return nil

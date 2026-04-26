@@ -263,6 +263,7 @@ func SetApiRouter(router *gin.Engine) {
 			riskRoute.GET("/config", controller.GetRiskCenterConfig)
 			riskRoute.GET("/detect-ip", controller.DetectRiskIP)
 			riskRoute.PUT("/config", controller.UpdateRiskCenterConfig)
+			riskRoute.GET("/groups", controller.GetRiskGroups)
 			riskRoute.GET("/rules", controller.GetRiskRules)
 			riskRoute.POST("/rules", controller.CreateRiskRule)
 			riskRoute.PUT("/rules/:id", controller.UpdateRiskRule)
