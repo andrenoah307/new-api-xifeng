@@ -70,6 +70,7 @@ func SetApiRouter(router *gin.Engine) {
 			selfRoute := userRoute.Group("/")
 			selfRoute.Use(middleware.UserAuth())
 			{
+				selfRoute.POST("/risk_warning/ack", controller.AcknowledgeRiskWarning)
 				selfRoute.GET("/self/groups", controller.GetUserGroups)
 				selfRoute.GET("/self", controller.GetSelf)
 				selfRoute.GET("/models", controller.GetUserModels)
@@ -271,6 +272,14 @@ func SetApiRouter(router *gin.Engine) {
 			riskRoute.GET("/subjects", controller.GetRiskSubjects)
 			riskRoute.POST("/subjects/:scope/:id/unblock", controller.UnblockRiskSubject)
 			riskRoute.GET("/incidents", controller.GetRiskIncidents)
+
+			// omni-moderation tab
+			riskRoute.GET("/moderation/config", controller.GetModerationConfig)
+			riskRoute.PUT("/moderation/config", controller.UpdateModerationConfig)
+			riskRoute.GET("/moderation/overview", controller.GetModerationOverview)
+			riskRoute.GET("/moderation/incidents", controller.GetModerationIncidents)
+			riskRoute.POST("/moderation/debug", controller.SubmitModerationDebug)
+			riskRoute.GET("/moderation/debug/:id", controller.GetModerationDebugResult)
 		}
 		channelRoute := apiRouter.Group("/channel")
 		channelRoute.Use(middleware.AdminAuth())

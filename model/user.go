@@ -52,6 +52,46 @@ type User struct {
 	InvitationCode   string         `json:"invitation_code" gorm:"-:all"`
 	Remark           string         `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string         `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
+	// RiskWarningPendingAt is the unix timestamp of the most recent enforce-mode
+	// block/observe decision recorded against this user. The login flow shows
+	// a vague "your account triggered platform protection" modal when this is
+	// non-zero. Acknowledging the modal zeros it; a fresh enforce decision
+	// against any group will refresh it.
+	RiskWarningPendingAt int64 `json:"risk_warning_pending_at" gorm:"bigint;default:0;index"`
+}
+
+// MarkUserRiskWarningPending refreshes the pending warning timestamp for the
+// given user. Called from the risk control engine the moment an enforce-mode
+// decision against a user subject is non-allow. Idempotent and atomic.
+func MarkUserRiskWarningPending(userID int, ts int64) error {
+	if userID <= 0 || ts <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).
+		Update("risk_warning_pending_at", ts).Error
+}
+
+// AckUserRiskWarningPending zeroes the pending timestamp. The user clicked
+// "我已知晓" — note this does NOT lift the actual block; it only clears the
+// next-login modal trigger.
+func AckUserRiskWarningPending(userID int) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).
+		Update("risk_warning_pending_at", int64(0)).Error
+}
+
+// GetUserRiskWarningPending reads only the pending field; used by GetSelf so
+// we don't pull the entire user row twice.
+func GetUserRiskWarningPending(userID int) (int64, error) {
+	if userID <= 0 {
+		return 0, nil
+	}
+	var ts int64
+	err := DB.Model(&User{}).Where("id = ?", userID).
+		Select("risk_warning_pending_at").Find(&ts).Error
+	return ts, err
 }
 
 func (user *User) ToBaseUser() *UserBase {

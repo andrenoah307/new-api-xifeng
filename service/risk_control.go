@@ -612,15 +612,32 @@ func (r *riskControlCenter) evaluateAndPersistSubject(event *RiskEvent, scope st
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil, err
 	}
+	mode := operation_setting.EffectiveRiskModeForGroup(operation_setting.GetRiskControlSetting(), group)
 	if decision != nil && decision.Action == RiskActionBlock {
 		if decision.AutoRecover {
 			decision.BlockUntil = time.Unix(event.OccurAt, 0).Add(time.Duration(decision.RecoverAfterSecond) * time.Second).Unix()
 		}
-		if operation_setting.EffectiveRiskModeForGroup(operation_setting.GetRiskControlSetting(), group) == operation_setting.RiskControlModeEnforce {
+		if mode == operation_setting.RiskControlModeEnforce {
 			if err = r.store.SetBlock(scope, subjectID, group, decision); err != nil {
 				common.SysError("risk control set block failed: " + err.Error())
 			}
 		}
+	}
+	// Mark a vague pending warning on the user when an enforce-mode decision
+	// is non-allow. We deliberately fire only on the user scope (token-only
+	// hits would multiply notifications for the same human) and only in
+	// enforce mode (observe_only hasn't actually restricted anything yet).
+	if scope == RiskSubjectTypeUser &&
+		decision != nil &&
+		decision.Decision != RiskDecisionAllow &&
+		mode == operation_setting.RiskControlModeEnforce {
+		uid := subjectID
+		ts := event.OccurAt
+		gopool.Go(func() {
+			if markErr := model.MarkUserRiskWarningPending(uid, ts); markErr != nil {
+				common.SysError("risk control mark user warning failed: " + markErr.Error())
+			}
+		})
 	}
 	snapshot := buildRiskSubjectSnapshot(event, scope, subjectID, group, metrics, decision, matched, previous)
 	if err = model.UpsertRiskSubjectSnapshot(snapshot); err != nil {

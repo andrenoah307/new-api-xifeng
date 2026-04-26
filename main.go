@@ -115,6 +115,10 @@ func main() {
 	// Risk control center (async rules engine + gateway block checks)
 	service.StartRiskControlCenter()
 
+	// Moderation center (async OpenAI omni-moderation scoring with multi-key
+	// rotation; never blocks the relay path).
+	service.StartModerationCenter()
+
 	// Ticket attachment orphan cleanup (master-node only)
 	service.StartTicketAttachmentCleanupTask()
 

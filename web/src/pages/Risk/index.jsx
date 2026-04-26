@@ -702,8 +702,736 @@ function RuleEditorModal({
   );
 }
 
+// ModerationTab is the second top-level tab on /console/risk. It owns its
+// own state because the moderation engine is decoupled from the
+// distribution-detection engine on the backend; sharing state here would only
+// introduce coupling for the sake of saving a few lines.
+function ModerationTab({ riskGroups }) {
+  const { t } = useTranslation();
+  const [config, setConfig] = useState({
+    enabled: false,
+    mode: 'off',
+    base_url: 'https://api.openai.com',
+    model: 'omni-moderation-latest',
+    api_keys: [],
+    sampling_rate_percent: 100,
+    flag_score_threshold: 0.5,
+    enabled_groups: [],
+    group_modes: {},
+    flagged_retention_hours: 720,
+    benign_retention_hours: 72,
+    event_queue_size: 4096,
+    worker_count: 2,
+    http_timeout_ms: 5000,
+    max_retries: 3,
+    image_max_size_kb: 2048,
+    debug_result_retain_minutes: 10,
+  });
+  const [overview, setOverview] = useState({});
+  const [keyCount, setKeyCount] = useState(0);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [keysInput, setKeysInput] = useState('');
+  // Debug card state
+  const [debugText, setDebugText] = useState('');
+  const [debugImages, setDebugImages] = useState('');
+  const [debugRunning, setDebugRunning] = useState(false);
+  const [debugResult, setDebugResult] = useState(null);
+  const [debugError, setDebugError] = useState('');
+  // Incidents
+  const [incidents, setIncidents] = useState([]);
+  const [incidentsPage, setIncidentsPage] = useState({
+    page: 1,
+    page_size: 10,
+    total: 0,
+  });
+  const [incidentFilters, setIncidentFilters] = useState({
+    group: '',
+    flagged: '',
+    keyword: '',
+  });
+
+  const loadConfig = async () => {
+    const res = await API.get('/api/risk/moderation/config');
+    if (res.data.success) {
+      const cfg = res.data.data?.config || {};
+      setConfig((prev) => ({ ...prev, ...cfg }));
+      setKeyCount(res.data.data?.key_count || 0);
+      // pre-fill the keys textarea with the masked entries so admins can
+      // see how many keys are currently configured without exposing them.
+      setKeysInput((cfg.api_keys || []).join('\n'));
+    }
+  };
+
+  const loadOverview = async () => {
+    const res = await API.get('/api/risk/moderation/overview');
+    if (res.data.success) setOverview(res.data.data || {});
+  };
+
+  const loadIncidents = async (
+    page = incidentsPage.page,
+    pageSize = incidentsPage.page_size,
+    filters = incidentFilters,
+  ) => {
+    const params = { p: page, page_size: pageSize };
+    if (filters.group) params.group = filters.group;
+    if (filters.flagged !== '' && filters.flagged !== undefined)
+      params.flagged = filters.flagged;
+    if (filters.keyword) params.keyword = filters.keyword;
+    const res = await API.get('/api/risk/moderation/incidents', { params });
+    if (res.data.success) {
+      const data = res.data.data || {};
+      setIncidents(data.items || []);
+      setIncidentsPage({
+        page: data.page || page,
+        page_size: data.page_size || pageSize,
+        total: data.total || 0,
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadConfig();
+    loadOverview();
+    loadIncidents(1);
+  }, []);
+
+  const handleSaveConfig = async () => {
+    setSavingConfig(true);
+    try {
+      const payload = {
+        ...config,
+        // Split textarea into lines; backend mergePreservedModerationKeys
+        // will substitute masked entries with the existing real keys.
+        api_keys: keysInput
+          .split('\n')
+          .map((s) => s.trim())
+          .filter((s) => s),
+        preserve_existing_keys: true,
+      };
+      const res = await API.put('/api/risk/moderation/config', payload);
+      if (!res.data.success) {
+        showError(res.data.message);
+        return;
+      }
+      showSuccess(t('内容审核配置已保存'));
+      const cfg = res.data.data?.config || {};
+      setConfig((prev) => ({ ...prev, ...cfg }));
+      setKeyCount(res.data.data?.key_count || 0);
+      setKeysInput((cfg.api_keys || []).join('\n'));
+      await loadOverview();
+    } catch (e) {
+      showError(t('保存内容审核配置失败'));
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const toggleModerationGroup = (name, enabled) => {
+    setConfig((prev) => {
+      const list = Array.isArray(prev.enabled_groups)
+        ? [...prev.enabled_groups]
+        : [];
+      const next = list.filter((g) => g !== name);
+      if (enabled) next.push(name);
+      return { ...prev, enabled_groups: next };
+    });
+  };
+
+  const setGroupMode = (name, mode) => {
+    setConfig((prev) => {
+      const modes = { ...(prev.group_modes || {}) };
+      if (mode === '__delete__') delete modes[name];
+      else modes[name] = mode;
+      return { ...prev, group_modes: modes };
+    });
+  };
+
+  const runDebug = async () => {
+    setDebugRunning(true);
+    setDebugError('');
+    setDebugResult(null);
+    try {
+      const images = debugImages
+        .split('\n')
+        .map((s) => s.trim())
+        .filter((s) => s);
+      const res = await API.post('/api/risk/moderation/debug', {
+        text: debugText,
+        images,
+      });
+      if (!res.data.success) {
+        setDebugError(res.data.message || t('提交失败'));
+        setDebugRunning(false);
+        return;
+      }
+      const requestID = res.data.data?.request_id;
+      // Poll up to 30s, 1s interval. Server side uses the same async worker
+      // pool so the debug job competes fairly with relay traffic; if the
+      // queue is busy the poller times out and the admin can retry.
+      const start = Date.now();
+      const poll = async () => {
+        if (Date.now() - start > 30000) {
+          setDebugError(t('检测超时，请稍后重试'));
+          setDebugRunning(false);
+          return;
+        }
+        try {
+          const r = await API.get(
+            `/api/risk/moderation/debug/${encodeURIComponent(requestID)}`,
+          );
+          if (r.data.success && r.data.data?.pending === false) {
+            setDebugResult(r.data.data.result);
+            setDebugRunning(false);
+            return;
+          }
+        } catch (e) {
+          // transient — keep polling
+        }
+        setTimeout(poll, 1000);
+      };
+      poll();
+    } catch (e) {
+      setDebugError(t('提交失败'));
+      setDebugRunning(false);
+    }
+  };
+
+  const incidentColumns = [
+    {
+      title: t('时间'),
+      dataIndex: 'created_at',
+      render: (v) => (v ? timestamp2string(v) : '-'),
+    },
+    {
+      title: t('分组'),
+      dataIndex: 'group',
+      render: (v) => <Tag color='cyan'>{v || '-'}</Tag>,
+    },
+    {
+      title: t('用户'),
+      dataIndex: 'username',
+      render: (_, r) => (
+        <Space vertical spacing={2}>
+          <Text>{r.username || '-'}</Text>
+          <Text type='secondary' size='small'>
+            UID {r.user_id || '-'}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: t('API Key'),
+      dataIndex: 'token_name',
+      render: (_, r) => (
+        <Space vertical spacing={2}>
+          <Text>{r.token_name || '-'}</Text>
+          <Text type='secondary' size='small'>
+            {r.token_masked_key || '-'}
+          </Text>
+        </Space>
+      ),
+    },
+    {
+      title: t('结果'),
+      dataIndex: 'flagged',
+      render: (v) =>
+        v ? (
+          <Tag color='red'>{t('命中')}</Tag>
+        ) : (
+          <Tag color='grey'>{t('未命中')}</Tag>
+        ),
+    },
+    {
+      title: t('最高分'),
+      dataIndex: 'max_score',
+      render: (v) => (typeof v === 'number' ? v.toFixed(3) : '-'),
+    },
+    { title: t('最高类别'), dataIndex: 'max_category' },
+    { title: t('来源'), dataIndex: 'source' },
+    { title: t('上游耗时(ms)'), dataIndex: 'upstream_latency_ms' },
+    {
+      title: t('输入摘要'),
+      dataIndex: 'input_summary',
+      width: 280,
+      render: (v) => <Text ellipsis={{ showTooltip: true }}>{v || '-'}</Text>,
+    },
+  ];
+
+  return (
+    <div className='flex flex-col gap-3'>
+      <Banner
+        type='info'
+        closeIcon={null}
+        description={t(
+          '内容审核默认对所有分组关闭。所有调用都是异步且不阻塞主链路；建议先观察打分，确认阈值合适后再考虑后续动作。',
+        )}
+      />
+
+      {/* Overview cards */}
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={12} md={6}>
+            <OverviewCard
+              title={t('启用状态')}
+              value={overview.enabled ? t('已启用') : t('未启用')}
+              extra={`${t('全局模式')}: ${overview.mode || 'off'}`}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <OverviewCard
+              title={t('已配置 API Key 数')}
+              value={overview.key_count || 0}
+              extra={t('多 key 轮询，触发限流自动切换')}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <OverviewCard
+              title={t('24h 命中数')}
+              value={overview.flagged_24h || 0}
+              extra={`${t('阈值')}: ${overview.flag_score_threshold ?? '-'}`}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <OverviewCard
+              title={t('事件丢弃')}
+              value={overview.queue_dropped || 0}
+              extra={`${t('采样率')}: ${overview.sampling_rate_percent ?? 100}%`}
+            />
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Global config */}
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <div className='flex items-center justify-between gap-3 flex-wrap'>
+          <div>
+            <Title heading={5} style={{ marginTop: 0 }}>
+              {t('内容审核全局策略')}
+            </Title>
+            <Text type='secondary'>
+              {t(
+                '调用 OpenAI omni-moderation 模型进行异步内容评分；命中阈值的事件保留供下游处置使用。',
+              )}
+            </Text>
+          </div>
+          <Button
+            type='primary'
+            loading={savingConfig}
+            onClick={handleSaveConfig}
+          >
+            {t('保存内容审核配置')}
+          </Button>
+        </div>
+        <Row gutter={[12, 12]} style={{ marginTop: 14 }}>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('开启内容审核')}</Text>
+            <div style={{ marginTop: 10 }}>
+              <Switch
+                checked={!!config.enabled}
+                onChange={(v) => setConfig((p) => ({ ...p, enabled: v }))}
+              />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('全局模式')}</Text>
+            <Select
+              value={config.mode}
+              style={{ width: '100%' }}
+              onChange={(v) => setConfig((p) => ({ ...p, mode: v }))}
+              optionList={[
+                { label: t('关闭'), value: 'off' },
+                { label: t('观察模式'), value: 'observe_only' },
+                {
+                  label: t('执行模式（预留，本期等同观察）'),
+                  value: 'enforce',
+                },
+              ]}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('OpenAI Base URL')}</Text>
+            <Input
+              value={config.base_url}
+              onChange={(v) => setConfig((p) => ({ ...p, base_url: v }))}
+              placeholder='https://api.openai.com'
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('模型名')}</Text>
+            <Input
+              value={config.model}
+              onChange={(v) => setConfig((p) => ({ ...p, model: v }))}
+              placeholder='omni-moderation-latest'
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('采样率（%）')}</Text>
+            <InputNumber
+              min={0}
+              max={100}
+              value={config.sampling_rate_percent}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  sampling_rate_percent: typeof v === 'number' ? v : 100,
+                }))
+              }
+              style={{ width: '100%' }}
+              suffix='%'
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('命中阈值（0-1）')}</Text>
+            <InputNumber
+              min={0}
+              max={1}
+              step={0.05}
+              value={config.flag_score_threshold}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  flag_score_threshold: typeof v === 'number' ? v : 0.5,
+                }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('队列大小')}</Text>
+            <InputNumber
+              min={64}
+              value={config.event_queue_size}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, event_queue_size: v || 4096 }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('Worker 数')}</Text>
+            <InputNumber
+              min={1}
+              max={32}
+              value={config.worker_count}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, worker_count: v || 2 }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('HTTP 超时（ms）')}</Text>
+            <InputNumber
+              min={500}
+              value={config.http_timeout_ms}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, http_timeout_ms: v || 5000 }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('429/5xx 重试次数')}</Text>
+            <InputNumber
+              min={0}
+              max={10}
+              value={config.max_retries}
+              onChange={(v) =>
+                setConfig((p) => ({
+                  ...p,
+                  max_retries: typeof v === 'number' ? v : 3,
+                }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('命中保留（小时）')}</Text>
+            <InputNumber
+              min={1}
+              value={config.flagged_retention_hours}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, flagged_retention_hours: v || 720 }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('未命中保留（小时）')}</Text>
+            <InputNumber
+              min={1}
+              value={config.benign_retention_hours}
+              onChange={(v) =>
+                setConfig((p) => ({ ...p, benign_retention_hours: v || 72 }))
+              }
+              style={{ width: '100%' }}
+            />
+          </Col>
+          <Col xs={24}>
+            <Text strong>
+              {t(
+                'OpenAI API Keys（每行一个，已存在的 key 显示为掩码，保存时保持不变）',
+              )}
+            </Text>
+            <TextArea
+              value={keysInput}
+              onChange={(v) => setKeysInput(v)}
+              rows={4}
+              placeholder={t('每行一个 API Key；触发 RPM 限制时按顺序自动切换')}
+              style={{ marginTop: 6 }}
+            />
+            <Text type='tertiary' size='small'>
+              {t('当前已配置 {{n}} 个 key', { n: keyCount })}
+            </Text>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Group enable matrix */}
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <div>
+          <Title heading={5} style={{ marginTop: 0 }}>
+            {t('分组启用矩阵（内容审核）')}
+          </Title>
+          <Text type='secondary'>
+            {t(
+              '内容审核默认对所有分组关闭。请按分组启用并选择运行模式（缺省则使用全局模式）。',
+            )}
+          </Text>
+        </div>
+        <Table
+          style={{ marginTop: 12 }}
+          dataSource={riskGroups.items || []}
+          rowKey='name'
+          size='small'
+          pagination={false}
+          columns={[
+            {
+              title: t('分组'),
+              dataIndex: 'name',
+              render: (v) => <Tag color='cyan'>{v}</Tag>,
+            },
+            {
+              title: t('启用内容审核'),
+              dataIndex: 'enabled',
+              width: 140,
+              render: (_v, record) => (
+                <Switch
+                  checked={(config.enabled_groups || []).includes(record.name)}
+                  onChange={(checked) =>
+                    toggleModerationGroup(record.name, checked)
+                  }
+                />
+              ),
+            },
+            {
+              title: t('运行模式'),
+              dataIndex: 'mode',
+              width: 240,
+              render: (_v, record) => {
+                const current = (config.group_modes || {})[record.name];
+                const value = current === undefined ? '__delete__' : current;
+                return (
+                  <Select
+                    style={{ width: '100%' }}
+                    value={value}
+                    onChange={(v) => setGroupMode(record.name, v)}
+                    getPopupContainer={() => document.body}
+                    optionList={[
+                      { label: t('未配置（关闭）'), value: '__delete__' },
+                      { label: t('跟随全局模式'), value: '' },
+                      { label: t('观察模式'), value: 'observe_only' },
+                      { label: t('执行模式（预留）'), value: 'enforce' },
+                      { label: t('显式关闭'), value: 'off' },
+                    ]}
+                  />
+                );
+              },
+            },
+          ]}
+        />
+      </Card>
+
+      {/* Debug card */}
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <Title heading={5} style={{ marginTop: 0 }}>
+          {t('内容审核调试')}
+        </Title>
+        <Text type='secondary'>
+          {t(
+            '管理员手动测试输入文本/图像的审核结果。请求异步入队执行，前端轮询取回结果，超时 30 秒。',
+          )}
+        </Text>
+        <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+          <Col xs={24} md={12}>
+            <Text strong>{t('文本输入')}</Text>
+            <TextArea
+              value={debugText}
+              onChange={(v) => setDebugText(v)}
+              rows={6}
+              placeholder={t('输入需要审核的文本（可留空）')}
+            />
+          </Col>
+          <Col xs={24} md={12}>
+            <Text strong>
+              {t(
+                '图像 URL（每行一个，支持 https:// 或 data:image/...;base64,...）',
+              )}
+            </Text>
+            <TextArea
+              value={debugImages}
+              onChange={(v) => setDebugImages(v)}
+              rows={6}
+              placeholder={t('每行一个图像 URL 或 data URI')}
+            />
+          </Col>
+        </Row>
+        <div style={{ marginTop: 12 }}>
+          <Button type='primary' loading={debugRunning} onClick={runDebug}>
+            {t('发起检测')}
+          </Button>
+        </div>
+        {debugError ? (
+          <Banner
+            type='warning'
+            closeIcon={null}
+            description={debugError}
+            style={{ marginTop: 12 }}
+          />
+        ) : null}
+        {debugResult ? (
+          <div style={{ marginTop: 12 }}>
+            <Space wrap>
+              {debugResult.flagged ? (
+                <Tag color='red'>{t('命中')}</Tag>
+              ) : (
+                <Tag color='grey'>{t('未命中')}</Tag>
+              )}
+              <Tag color='blue'>
+                {t('最高类别')}: {debugResult.max_category || '-'}
+              </Tag>
+              <Tag color='blue'>
+                {t('最高分')}: {(debugResult.max_score ?? 0).toFixed(3)}
+              </Tag>
+              <Tag color='cyan'>
+                {t('上游耗时')}: {debugResult.upstream_latency_ms || 0} ms
+              </Tag>
+              {debugResult.used_key_suffix ? (
+                <Tag>
+                  {t('使用 key')}: {debugResult.used_key_suffix}
+                </Tag>
+              ) : null}
+              {debugResult.error ? (
+                <Tag color='red'>
+                  {t('错误')}: {debugResult.error}
+                </Tag>
+              ) : null}
+            </Space>
+            <div style={{ marginTop: 8 }}>
+              <Text strong>{t('类别评分')}</Text>
+              <Row gutter={[8, 8]} style={{ marginTop: 6 }}>
+                {Object.entries(debugResult.categories || {}).map(
+                  ([cat, score]) => (
+                    <Col key={cat} xs={24} sm={12} md={8} lg={6}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <Text size='small'>{cat}</Text>
+                        <Text size='small'>{Number(score).toFixed(3)}</Text>
+                      </div>
+                      <Progress
+                        percent={Math.min(
+                          100,
+                          Math.round((Number(score) || 0) * 100),
+                        )}
+                        stroke={
+                          score >= 0.7
+                            ? 'var(--semi-color-danger)'
+                            : score >= 0.3
+                              ? 'var(--semi-color-warning)'
+                              : 'var(--semi-color-primary)'
+                        }
+                        showInfo={false}
+                      />
+                    </Col>
+                  ),
+                )}
+              </Row>
+            </div>
+          </div>
+        ) : null}
+      </Card>
+
+      {/* Incidents */}
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <div className='flex items-center justify-between gap-3 flex-wrap'>
+          <Title heading={5} style={{ marginTop: 0 }}>
+            {t('审核记录')}
+          </Title>
+          <Space wrap>
+            <Select
+              value={incidentFilters.flagged}
+              style={{ width: 140 }}
+              placeholder={t('全部结果')}
+              optionList={[
+                { label: t('全部结果'), value: '' },
+                { label: t('仅命中'), value: 'true' },
+                { label: t('仅未命中'), value: 'false' },
+              ]}
+              onChange={(v) => {
+                setIncidentFilters((p) => ({ ...p, flagged: v }));
+                loadIncidents(1, incidentsPage.page_size, {
+                  ...incidentFilters,
+                  flagged: v,
+                });
+              }}
+            />
+            <Input
+              value={incidentFilters.group}
+              placeholder={t('按分组过滤')}
+              style={{ width: 160 }}
+              onChange={(v) => setIncidentFilters((p) => ({ ...p, group: v }))}
+              onEnterPress={() => loadIncidents(1)}
+            />
+            <Input
+              value={incidentFilters.keyword}
+              placeholder={t('按用户名/Key/类别')}
+              style={{ width: 200 }}
+              onChange={(v) =>
+                setIncidentFilters((p) => ({ ...p, keyword: v }))
+              }
+              onEnterPress={() => loadIncidents(1)}
+            />
+            <Button onClick={() => loadIncidents(1)}>{t('刷新')}</Button>
+          </Space>
+        </div>
+        <Table
+          style={{ marginTop: 12 }}
+          dataSource={incidents}
+          rowKey='id'
+          columns={incidentColumns}
+          scroll={{ x: 'max-content' }}
+          pagination={{
+            currentPage: incidentsPage.page,
+            pageSize: incidentsPage.page_size,
+            total: incidentsPage.total,
+            onPageChange: (page) => loadIncidents(page),
+          }}
+        />
+      </Card>
+    </div>
+  );
+}
+
 const RiskCenter = () => {
   const { t } = useTranslation();
+  // topTab toggles between the original distribution-detection workflow
+  // and the new omni-moderation workflow. Two engines, two tabs — keeps
+  // the admin mental model simple and avoids growing the existing tab strip.
+  const [topTab, setTopTab] = useState('distribution');
 
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
@@ -1407,846 +2135,891 @@ const RiskCenter = () => {
 
   return (
     <div className='mt-[60px] px-2 pb-6'>
-      <RuleEditorModal
-        visible={editorVisible}
-        loading={savingRule}
-        initialValue={editingRule}
-        groupOptions={groupOptions}
-        enabledGroupSet={enabledGroupSet}
-        onCancel={() => {
-          setEditorVisible(false);
-          setEditingRule(null);
-        }}
-        onSubmit={handleSaveRule}
-      />
+      {/* Top-level tab strip: 分发检测（原有风控引擎） / 内容审核（omni-moderation）。
+          The two tabs intentionally share the page chrome and the riskGroups
+          list; everything else is decoupled. */}
+      <Tabs
+        type='line'
+        activeKey={topTab}
+        onChange={setTopTab}
+        style={{ marginBottom: 12 }}
+      >
+        <TabPane tab={t('分发检测')} itemKey='distribution' />
+        <TabPane tab={t('内容审核')} itemKey='moderation' />
+      </Tabs>
 
-      <Spin spinning={loading} size='large'>
-        <div className='flex flex-col gap-3'>
-          <Banner
-            type='warning'
-            closeIcon={null}
-            description={t(
-              '风控中心采用异步事件引擎。主请求链路只做极轻量封禁态检查，因此不会在首次异常请求上做重计算，后续请求会根据规则命中快速进入封禁或观察。',
-            )}
+      {topTab === 'moderation' ? (
+        <ModerationTab riskGroups={riskGroups} />
+      ) : null}
+
+      {topTab !== 'distribution' ? null : (
+        <>
+          <RuleEditorModal
+            visible={editorVisible}
+            loading={savingRule}
+            initialValue={editingRule}
+            groupOptions={groupOptions}
+            enabledGroupSet={enabledGroupSet}
+            onCancel={() => {
+              setEditorVisible(false);
+              setEditingRule(null);
+            }}
+            onSubmit={handleSaveRule}
           />
 
-          <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+          <Spin spinning={loading} size='large'>
             <div className='flex flex-col gap-3'>
-              <div className='flex flex-col md:flex-row md:items-end md:justify-between gap-3'>
-                <div>
-                  <Title heading={4} style={{ margin: 0 }}>
-                    {t('风控中心')}
-                  </Title>
-                  <Text type='secondary'>
-                    {t('集中管理分发检测、自动封禁、恢复策略和风险主体列表')}
-                  </Text>
-                </div>
-                <Space wrap>
-                  <Tag color={config.enabled ? 'green' : 'grey'}>
-                    {config.enabled ? t('已启用') : t('已关闭')}
-                  </Tag>
-                  <Tag color={config.mode === 'enforce' ? 'red' : 'orange'}>
-                    {config.mode === 'enforce' ? t('执行模式') : t('观察模式')}
-                  </Tag>
-                </Space>
-              </div>
-
-              <Row gutter={[12, 12]}>
-                <Col xs={24} sm={12} md={6}>
-                  <OverviewCard
-                    title={t('观察中的主体')}
-                    value={overview.observed_subjects || 0}
-                    extra={t('当前处于高风险观察态的用户 / API key')}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <OverviewCard
-                    title={t('已封禁主体')}
-                    value={overview.blocked_subjects || 0}
-                    extra={t('当前已进入自动封禁的用户 / API key')}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <OverviewCard
-                    title={t('高可疑主体')}
-                    value={overview.high_risk_subjects || 0}
-                    extra={t('可疑度 >= 60 的主体')}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <OverviewCard
-                    title={t('规则数量')}
-                    value={overview.rule_count || 0}
-                    extra={`${t('事件丢弃')}: ${overview.queue_dropped || 0}`}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <OverviewCard
-                    title={t('启用风控的分组数')}
-                    value={overview.enabled_group_count || 0}
-                    extra={t('已加入白名单且模式不为 off 的分组个数')}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <OverviewCard
-                    title={t('未配置分组的规则数')}
-                    value={overview.unconfigured_rule_count || 0}
-                    extra={t('启用但未绑定任何分组，引擎会跳过这些规则')}
-                  />
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <OverviewCard
-                    title={t('启用但分组未启用风控的规则数')}
-                    value={overview.group_unlisted_rule_count || 0}
-                    extra={t('规则的所有 group 都不在白名单中')}
-                  />
-                </Col>
-              </Row>
-            </div>
-          </Card>
-
-          <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
-            <div className='flex items-center justify-between gap-3 flex-wrap'>
-              <div>
-                <Title heading={5} style={{ marginTop: 0 }}>
-                  {t('全局策略')}
-                </Title>
-                <Text type='secondary'>
-                  {t('控制风控中心是否开启、运行模式，以及默认封禁返回行为。')}
-                </Text>
-              </div>
-              <Button
-                type='primary'
-                loading={savingConfig}
-                onClick={handleSaveConfig}
-              >
-                {t('保存全局策略')}
-              </Button>
-            </div>
-
-            <Row gutter={[12, 12]} style={{ marginTop: 14 }}>
-              <Col xs={24} sm={12} md={6}>
-                <Text strong>{t('开启风控中心')}</Text>
-                <div style={{ marginTop: 10 }}>
-                  <Switch
-                    checked={config.enabled}
-                    onChange={(value) =>
-                      setConfig((prev) => ({ ...prev, enabled: value }))
-                    }
-                  />
-                </div>
-              </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Text strong>{t('运行模式')}</Text>
-                <Select
-                  value={config.mode}
-                  onChange={(value) =>
-                    setConfig((prev) => ({ ...prev, mode: value }))
-                  }
-                  optionList={[
-                    { label: t('关闭'), value: 'off' },
-                    { label: t('观察模式'), value: 'observe_only' },
-                    { label: t('执行模式'), value: 'enforce' },
-                  ]}
-                />
-              </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Text strong>{t('默认状态码')}</Text>
-                <InputNumber
-                  value={config.default_status_code}
-                  min={200}
-                  max={599}
-                  style={{ width: '100%' }}
-                  onChange={(value) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      default_status_code: value || 429,
-                    }))
-                  }
-                />
-              </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Text strong>{t('默认恢复时间（秒）')}</Text>
-                <InputNumber
-                  value={config.default_recover_after_secs}
-                  min={60}
-                  max={86400 * 7}
-                  style={{ width: '100%' }}
-                  onChange={(value) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      default_recover_after_secs: value || 900,
-                    }))
-                  }
-                />
-              </Col>
-              <Col span={24}>
-                <Text strong>{t('默认返回消息')}</Text>
-                <Input
-                  value={config.default_response_message}
-                  onChange={(value) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      default_response_message: value,
-                    }))
-                  }
-                  placeholder={t('当前请求触发风控，请稍后再试')}
-                />
-              </Col>
-            </Row>
-
-            <Divider margin='16px' />
-
-            <div className='flex items-center justify-between gap-3 flex-wrap'>
-              <div className='flex items-center gap-3'>
-                <div>
-                  <Text strong>{t('信任上游 IP 头')}</Text>
-                  <Text
-                    type='tertiary'
-                    size='small'
-                    style={{ display: 'block', marginTop: 2 }}
-                  >
-                    {t(
-                      '开启后会统一影响限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
-                    )}
-                  </Text>
-                </div>
-              </div>
-              <Switch
-                checked={config.trusted_ip_header_enabled}
-                onChange={(value) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    trusted_ip_header_enabled: value,
-                  }))
-                }
-              />
-            </div>
-
-            <Banner
-              type='info'
-              closeIcon={null}
-              style={{ marginTop: 12 }}
-              description={
-                config.trusted_ip_header_enabled
-                  ? t(
-                      '当前已开启“信任上游 IP 头”。系统会优先读取你填写的请求头作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
-                    )
-                  : t(
-                      '当前未开启“信任上游 IP 头”。系统会统一使用 TCP RemoteAddr 作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
-                    )
-              }
-            />
-
-            <div style={{ marginTop: 12 }}>
-              {config.trusted_ip_header_enabled && (
-                <Banner
-                  type='warning'
-                  closeIcon={null}
-                  style={{ marginBottom: 12 }}
-                  description={t(
-                    '请确保反向代理已正确配置该请求头（如 Nginx 的 proxy_set_header），否则所有依赖 IP 的功能将受影响。',
-                  )}
-                />
-              )}
-
-              <Text strong>{t('请求头名称')}</Text>
-              <Input
-                value={config.trusted_ip_header}
-                onChange={(value) =>
-                  setConfig((prev) => ({
-                    ...prev,
-                    trusted_ip_header: value,
-                  }))
-                }
-                disabled={!config.trusted_ip_header_enabled}
-                placeholder={t('例如 X-Real-IP 或 CF-Connecting-IP')}
-                style={{ marginTop: 4 }}
-              />
-              <Text
-                type='tertiary'
-                size='small'
-                style={{ display: 'block', marginTop: 6 }}
-              >
-                {t(
-                  '只有在你的服务前面有你完全信任的反向代理、Ingress 或 CDN，并且它会覆盖写入真实客户端 IP 请求头时，才应开启。直连公网通常保持关闭；Nginx / Ingress 常用 X-Real-IP；Cloudflare 常用 CF-Connecting-IP。',
+              <Banner
+                type='warning'
+                closeIcon={null}
+                description={t(
+                  '风控中心采用异步事件引擎。主请求链路只做极轻量封禁态检查，因此不会在首次异常请求上做重计算，后续请求会根据规则命中快速进入封禁或观察。',
                 )}
-              </Text>
-            </div>
+              />
 
-            <div style={{ marginTop: 8 }}>
-              <Button loading={detectingIP} onClick={handleDetectIP}>
-                {t('检测当前环境')}
-              </Button>
-              <Text type='tertiary' size='small' style={{ marginLeft: 8 }}>
-                {t('不确定填什么？点击检测，系统会自动分析并推荐')}
-              </Text>
-            </div>
-
-            <Modal
-              title={t('IP 环境诊断')}
-              visible={diagnosisVisible}
-              onCancel={() => setDiagnosisVisible(false)}
-              footer={
-                <div className='flex justify-between'>
-                  <Button onClick={() => setDiagnosisVisible(false)}>
-                    {t('关闭')}
-                  </Button>
-                  <Button
-                    type='primary'
-                    onClick={() => {
-                      handleApplyIPRecommendation();
-                      setDiagnosisVisible(false);
-                    }}
-                  >
-                    {t('应用推荐配置')}
-                  </Button>
-                </div>
-              }
-              width={720}
-              bodyStyle={{ maxHeight: '65vh', overflowY: 'auto' }}
-            >
-              {detectingIP ? (
-                <div style={{ textAlign: 'center', padding: 40 }}>
-                  <Spin size='large' />
-                </div>
-              ) : ipDiagnosis ? (
-                <div className='flex flex-col gap-4'>
-                  <Banner
-                    type={
-                      ipDiagnosis.recommended_mode === 'trusted_header'
-                        ? 'info'
-                        : 'success'
-                    }
-                    closeIcon={null}
-                    description={ipDiagnosis.recommendation_message || '-'}
-                  />
-
-                  <Row gutter={[12, 12]}>
-                    <Col span={8}>
-                      <Text type='secondary' size='small'>
-                        {t('当前配置')}
-                      </Text>
-                      <div style={{ marginTop: 4 }}>
-                        <Tag
-                          color={
-                            ipDiagnosis.current_mode === 'trusted_header'
-                              ? 'orange'
-                              : 'blue'
-                          }
-                          size='large'
-                        >
-                          {ipDiagnosis.current_mode === 'trusted_header'
-                            ? t('信任请求头')
-                            : 'RemoteAddr'}
-                        </Tag>
-                      </div>
-                    </Col>
-                    <Col span={8}>
-                      <Text type='secondary' size='small'>
-                        {t('推荐配置')}
-                      </Text>
-                      <div style={{ marginTop: 4 }}>
-                        <Tag
-                          color={
-                            ipDiagnosis.recommended_mode === 'trusted_header'
-                              ? 'green'
-                              : 'blue'
-                          }
-                          size='large'
-                        >
-                          {ipDiagnosis.recommended_mode === 'trusted_header'
-                            ? ipDiagnosis.recommended_header
-                            : 'RemoteAddr'}
-                        </Tag>
-                      </div>
-                    </Col>
-                    <Col span={8}>
-                      <Text type='secondary' size='small'>
-                        {t('当前生效 IP')}
-                      </Text>
-                      <div style={{ marginTop: 4 }}>
-                        <Text
-                          strong
-                          style={{
-                            fontFamily:
-                              'ui-monospace, SFMono-Regular, Menlo, monospace',
-                          }}
-                        >
-                          {ipDiagnosis.effective_client_ip || '-'}
-                        </Text>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  <Divider margin='4px' />
-
-                  <div>
-                    <Text strong style={{ marginBottom: 8, display: 'block' }}>
-                      {t('请求头明细')}
-                    </Text>
-                    <Table
-                      dataSource={ipDiagnosis.items || []}
-                      rowKey={(record, index) => `${record.name}-${index}`}
-                      pagination={false}
-                      size='small'
-                      columns={[
-                        {
-                          title: t('来源'),
-                          dataIndex: 'name',
-                          width: 180,
-                          render: (_, record) => (
-                            <Space wrap>
-                              <Text strong>{record.name}</Text>
-                              {record.is_current ? (
-                                <Tag color='cyan' size='small'>
-                                  {t('生效')}
-                                </Tag>
-                              ) : null}
-                              {ipDiagnosis.recommended_mode ===
-                                'trusted_header' &&
-                              ipDiagnosis.recommended_header === record.name ? (
-                                <Tag color='green' size='small'>
-                                  {t('推荐')}
-                                </Tag>
-                              ) : null}
-                            </Space>
-                          ),
-                        },
-                        {
-                          title: t('原始值'),
-                          dataIndex: 'raw_value',
-                          render: (value) => (
-                            <Text
-                              style={{
-                                fontFamily:
-                                  'ui-monospace, SFMono-Regular, Menlo, monospace',
-                                wordBreak: 'break-all',
-                                fontSize: 13,
-                              }}
-                            >
-                              {value || '-'}
-                            </Text>
-                          ),
-                        },
-                        {
-                          title: t('解析 IP'),
-                          dataIndex: 'parsed_ip',
-                          width: 140,
-                          render: (value) => (
-                            <Text
-                              style={{
-                                fontFamily:
-                                  'ui-monospace, SFMono-Regular, Menlo, monospace',
-                                fontSize: 13,
-                              }}
-                            >
-                              {value || '-'}
-                            </Text>
-                          ),
-                        },
-                        {
-                          title: t('类型'),
-                          dataIndex: 'classification',
-                          width: 90,
-                          render: (value) => {
-                            const map = {
-                              public: {
-                                color: 'green',
-                                label: t('公网'),
-                              },
-                              private: {
-                                color: 'orange',
-                                label: t('内网'),
-                              },
-                              invalid: {
-                                color: 'red',
-                                label: t('无效'),
-                              },
-                            };
-                            const info = map[value] || {
-                              color: 'grey',
-                              label: t('无值'),
-                            };
-                            return <Tag color={info.color}>{info.label}</Tag>;
-                          },
-                        },
-                      ]}
-                    />
-                  </div>
-
-                  <Text type='tertiary' size='small'>
-                    {t(
-                      '点击”应用推荐配置”会自动填充表单，还需要点击”保存全局策略”才会真正生效。',
-                    )}
-                  </Text>
-                </div>
-              ) : null}
-            </Modal>
-          </Card>
-
-          {/* 分组启用矩阵 — v4: per-group whitelist + mode override.
-              `auto` is filtered out by the backend (and documented in DEV_GUIDE §11). */}
-          <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
-            <div className='flex items-center justify-between gap-3 flex-wrap'>
-              <div>
-                <Title heading={5} style={{ marginTop: 0 }}>
-                  {t('分组启用矩阵')}
-                </Title>
-                <Text type='secondary'>
-                  {t(
-                    '风控分发检测默认对所有分组关闭。请按分组启用风控并选择该分组的运行模式（缺省则使用全局模式）。',
-                  )}
-                </Text>
-              </div>
-              <Button
-                type='primary'
-                loading={savingConfig}
-                onClick={handleSaveConfig}
-              >
-                {t('保存全局策略')}
-              </Button>
-            </div>
-            <Table
-              style={{ marginTop: 12 }}
-              dataSource={riskGroups.items || []}
-              rowKey='name'
-              size='small'
-              pagination={false}
-              columns={[
-                {
-                  title: t('分组'),
-                  dataIndex: 'name',
-                  render: (v) => <Tag color='cyan'>{v}</Tag>,
-                },
-                {
-                  title: t('启用风控'),
-                  dataIndex: 'enabled',
-                  width: 120,
-                  render: (_v, record) => (
-                    <Switch
-                      checked={(config.enabled_groups || []).includes(
-                        record.name,
-                      )}
-                      onChange={(checked) =>
-                        toggleGroupEnabled(record.name, checked)
-                      }
-                    />
-                  ),
-                },
-                {
-                  title: t('运行模式'),
-                  dataIndex: 'mode',
-                  width: 200,
-                  render: (_v, record) => {
-                    const current = (config.group_modes || {})[record.name];
-                    const value =
-                      current === undefined ? '__delete__' : current;
-                    return (
-                      <Select
-                        style={{ width: '100%' }}
-                        value={value}
-                        onChange={(v) => setGroupMode(record.name, v)}
-                        getPopupContainer={() => document.body}
-                        optionList={[
-                          { label: t('未配置（关闭）'), value: '__delete__' },
-                          { label: t('跟随全局模式'), value: '' },
-                          { label: t('观察模式'), value: 'observe_only' },
-                          { label: t('执行模式'), value: 'enforce' },
-                          { label: t('显式关闭'), value: 'off' },
-                        ]}
-                      />
-                    );
-                  },
-                },
-                {
-                  title: t('实际生效模式'),
-                  dataIndex: 'effective_mode',
-                  render: (v) => (
-                    <Tag
-                      color={
-                        v === 'enforce'
-                          ? 'red'
-                          : v === 'observe_only'
-                            ? 'orange'
-                            : 'grey'
-                      }
-                    >
-                      {v || 'off'}
-                    </Tag>
-                  ),
-                },
-                {
-                  title: t('规则数（启用/全部）'),
-                  dataIndex: 'rule_count_total',
-                  render: (_v, r) =>
-                    `${r.rule_count_enabled || 0} / ${r.rule_count_total || 0}`,
-                },
-                { title: t('观察主体'), dataIndex: 'active_subject_count' },
-                { title: t('封禁主体'), dataIndex: 'blocked_subject_count' },
-                { title: t('高风险'), dataIndex: 'high_risk_subject_count' },
-              ]}
-            />
-          </Card>
-
-          <Card
-            bodyStyle={{ padding: 0, overflow: 'hidden' }}
-            style={{ borderRadius: 16 }}
-          >
-            <Tabs type='card' collapsible>
-              <TabPane tab={t('风险主体')} itemKey='subjects'>
-                <div style={{ padding: 20 }}>
-                  <div className='flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-4'>
-                    <Space wrap>
-                      <Select
-                        value={subjectFilters.scope}
-                        style={{ width: 140 }}
-                        placeholder={t('全部作用域')}
-                        optionList={[
-                          { label: t('全部作用域'), value: '' },
-                          { label: 'API Key', value: 'token' },
-                          { label: t('用户'), value: 'user' },
-                        ]}
-                        onChange={(value) =>
-                          setSubjectFilters((prev) => ({
-                            ...prev,
-                            scope: value,
-                          }))
-                        }
-                      />
-                      <Select
-                        value={subjectFilters.status}
-                        style={{ width: 140 }}
-                        placeholder={t('全部状态')}
-                        optionList={[
-                          { label: t('全部状态'), value: '' },
-                          { label: t('正常'), value: 'normal' },
-                          { label: t('观察中'), value: 'observe' },
-                          { label: t('已封禁'), value: 'blocked' },
-                        ]}
-                        onChange={(value) =>
-                          setSubjectFilters((prev) => ({
-                            ...prev,
-                            status: value,
-                          }))
-                        }
-                      />
-                      <Input
-                        style={{ width: 260 }}
-                        value={subjectFilters.keyword}
-                        onChange={(value) =>
-                          setSubjectFilters((prev) => ({
-                            ...prev,
-                            keyword: value,
-                          }))
-                        }
-                        placeholder={t('搜索用户、API key、规则名')}
-                      />
-                      <Button
-                        onClick={() =>
-                          loadSubjects(
-                            1,
-                            subjectsPage.page_size,
-                            subjectFilters,
-                          )
-                        }
-                      >
-                        {t('查询')}
-                      </Button>
-                    </Space>
-                    <Button
-                      onClick={() =>
-                        loadSubjects(
-                          subjectsPage.page,
-                          subjectsPage.page_size,
-                          subjectFilters,
-                        )
-                      }
-                    >
-                      {t('刷新')}
-                    </Button>
-                  </div>
-
-                  <Table
-                    columns={subjectColumns}
-                    dataSource={subjects}
-                    rowKey='id'
-                    pagination={{
-                      currentPage: subjectsPage.page,
-                      pageSize: subjectsPage.page_size,
-                      total: subjectsPage.total,
-                      pageSizeOpts: [10, 20, 50, 100],
-                      showSizeChanger: true,
-                      onPageChange: (page) =>
-                        loadSubjects(
-                          page,
-                          subjectsPage.page_size,
-                          subjectFilters,
-                        ),
-                      onPageSizeChange: (pageSize) =>
-                        loadSubjects(1, pageSize, subjectFilters),
-                    }}
-                    scroll={{ x: 'max-content' }}
-                    empty={
-                      <Empty
-                        title={t('暂无风险主体')}
-                        description={t('当前没有满足条件的风险主体记录')}
-                      />
-                    }
-                  />
-                </div>
-              </TabPane>
-
-              <TabPane tab={t('命中事件')} itemKey='incidents'>
-                <div style={{ padding: 20 }}>
-                  <div className='flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-4'>
-                    <Space wrap>
-                      <Select
-                        value={incidentFilters.scope}
-                        style={{ width: 140 }}
-                        placeholder={t('全部作用域')}
-                        optionList={[
-                          { label: t('全部作用域'), value: '' },
-                          { label: 'API Key', value: 'token' },
-                          { label: t('用户'), value: 'user' },
-                        ]}
-                        onChange={(value) =>
-                          setIncidentFilters((prev) => ({
-                            ...prev,
-                            scope: value,
-                          }))
-                        }
-                      />
-                      <Select
-                        value={incidentFilters.action}
-                        style={{ width: 140 }}
-                        placeholder={t('全部动作')}
-                        optionList={[
-                          { label: t('全部动作'), value: '' },
-                          { label: t('观察'), value: 'observe' },
-                          { label: t('封禁'), value: 'block' },
-                          { label: t('恢复'), value: 'recover' },
-                          { label: t('手动解除'), value: 'manual_unblock' },
-                        ]}
-                        onChange={(value) =>
-                          setIncidentFilters((prev) => ({
-                            ...prev,
-                            action: value,
-                          }))
-                        }
-                      />
-                      <Input
-                        style={{ width: 260 }}
-                        value={incidentFilters.keyword}
-                        onChange={(value) =>
-                          setIncidentFilters((prev) => ({
-                            ...prev,
-                            keyword: value,
-                          }))
-                        }
-                        placeholder={t('搜索用户、API key、规则、原因')}
-                      />
-                      <Button
-                        onClick={() =>
-                          loadIncidents(
-                            1,
-                            incidentsPage.page_size,
-                            incidentFilters,
-                          )
-                        }
-                      >
-                        {t('查询')}
-                      </Button>
-                    </Space>
-                    <Button
-                      onClick={() =>
-                        loadIncidents(
-                          incidentsPage.page,
-                          incidentsPage.page_size,
-                          incidentFilters,
-                        )
-                      }
-                    >
-                      {t('刷新')}
-                    </Button>
-                  </div>
-
-                  <Table
-                    columns={incidentColumns}
-                    dataSource={incidents}
-                    rowKey='id'
-                    pagination={{
-                      currentPage: incidentsPage.page,
-                      pageSize: incidentsPage.page_size,
-                      total: incidentsPage.total,
-                      pageSizeOpts: [10, 20, 50, 100],
-                      showSizeChanger: true,
-                      onPageChange: (page) =>
-                        loadIncidents(
-                          page,
-                          incidentsPage.page_size,
-                          incidentFilters,
-                        ),
-                      onPageSizeChange: (pageSize) =>
-                        loadIncidents(1, pageSize, incidentFilters),
-                    }}
-                    scroll={{ x: 'max-content' }}
-                    empty={
-                      <Empty
-                        title={t('暂无命中事件')}
-                        description={t('当前没有满足条件的风控事件')}
-                      />
-                    }
-                  />
-                </div>
-              </TabPane>
-
-              <TabPane tab={t('规则管理')} itemKey='rules'>
-                <div style={{ padding: 20 }}>
-                  <div className='flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-4'>
+              <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+                <div className='flex flex-col gap-3'>
+                  <div className='flex flex-col md:flex-row md:items-end md:justify-between gap-3'>
                     <div>
-                      <Title heading={5} style={{ marginTop: 0 }}>
-                        {t('规则列表')}
+                      <Title heading={4} style={{ margin: 0 }}>
+                        {t('风控中心')}
                       </Title>
                       <Text type='secondary'>
                         {t(
-                          '每条规则可单独设置作用域、动作、状态码、消息与恢复策略。',
+                          '集中管理分发检测、自动封禁、恢复策略和风险主体列表',
                         )}
                       </Text>
                     </div>
-                    <Space>
-                      <Button onClick={() => loadRules()}>{t('刷新')}</Button>
-                      <Button
-                        type='primary'
-                        onClick={() => {
-                          setEditingRule(null);
-                          setEditorVisible(true);
-                        }}
-                      >
-                        {t('新建规则')}
-                      </Button>
+                    <Space wrap>
+                      <Tag color={config.enabled ? 'green' : 'grey'}>
+                        {config.enabled ? t('已启用') : t('已关闭')}
+                      </Tag>
+                      <Tag color={config.mode === 'enforce' ? 'red' : 'orange'}>
+                        {config.mode === 'enforce'
+                          ? t('执行模式')
+                          : t('观察模式')}
+                      </Tag>
                     </Space>
                   </div>
 
-                  <Table
-                    columns={ruleColumns}
-                    dataSource={rules}
-                    rowKey='id'
-                    pagination={false}
-                    scroll={{ x: 'max-content' }}
-                    empty={
-                      <Empty
-                        title={t('暂无规则')}
-                        description={t('可以先创建默认的分发检测规则')}
+                  <Row gutter={[12, 12]}>
+                    <Col xs={24} sm={12} md={6}>
+                      <OverviewCard
+                        title={t('观察中的主体')}
+                        value={overview.observed_subjects || 0}
+                        extra={t('当前处于高风险观察态的用户 / API key')}
                       />
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <OverviewCard
+                        title={t('已封禁主体')}
+                        value={overview.blocked_subjects || 0}
+                        extra={t('当前已进入自动封禁的用户 / API key')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <OverviewCard
+                        title={t('高可疑主体')}
+                        value={overview.high_risk_subjects || 0}
+                        extra={t('可疑度 >= 60 的主体')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <OverviewCard
+                        title={t('规则数量')}
+                        value={overview.rule_count || 0}
+                        extra={`${t('事件丢弃')}: ${overview.queue_dropped || 0}`}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <OverviewCard
+                        title={t('启用风控的分组数')}
+                        value={overview.enabled_group_count || 0}
+                        extra={t('已加入白名单且模式不为 off 的分组个数')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <OverviewCard
+                        title={t('未配置分组的规则数')}
+                        value={overview.unconfigured_rule_count || 0}
+                        extra={t('启用但未绑定任何分组，引擎会跳过这些规则')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                      <OverviewCard
+                        title={t('启用但分组未启用风控的规则数')}
+                        value={overview.group_unlisted_rule_count || 0}
+                        extra={t('规则的所有 group 都不在白名单中')}
+                      />
+                    </Col>
+                  </Row>
+                </div>
+              </Card>
+
+              <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+                <div className='flex items-center justify-between gap-3 flex-wrap'>
+                  <div>
+                    <Title heading={5} style={{ marginTop: 0 }}>
+                      {t('全局策略')}
+                    </Title>
+                    <Text type='secondary'>
+                      {t(
+                        '控制风控中心是否开启、运行模式，以及默认封禁返回行为。',
+                      )}
+                    </Text>
+                  </div>
+                  <Button
+                    type='primary'
+                    loading={savingConfig}
+                    onClick={handleSaveConfig}
+                  >
+                    {t('保存全局策略')}
+                  </Button>
+                </div>
+
+                <Row gutter={[12, 12]} style={{ marginTop: 14 }}>
+                  <Col xs={24} sm={12} md={6}>
+                    <Text strong>{t('开启风控中心')}</Text>
+                    <div style={{ marginTop: 10 }}>
+                      <Switch
+                        checked={config.enabled}
+                        onChange={(value) =>
+                          setConfig((prev) => ({ ...prev, enabled: value }))
+                        }
+                      />
+                    </div>
+                  </Col>
+                  <Col xs={24} sm={12} md={6}>
+                    <Text strong>{t('运行模式')}</Text>
+                    <Select
+                      value={config.mode}
+                      onChange={(value) =>
+                        setConfig((prev) => ({ ...prev, mode: value }))
+                      }
+                      optionList={[
+                        { label: t('关闭'), value: 'off' },
+                        { label: t('观察模式'), value: 'observe_only' },
+                        { label: t('执行模式'), value: 'enforce' },
+                      ]}
+                    />
+                  </Col>
+                  <Col xs={24} sm={12} md={6}>
+                    <Text strong>{t('默认状态码')}</Text>
+                    <InputNumber
+                      value={config.default_status_code}
+                      min={200}
+                      max={599}
+                      style={{ width: '100%' }}
+                      onChange={(value) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          default_status_code: value || 429,
+                        }))
+                      }
+                    />
+                  </Col>
+                  <Col xs={24} sm={12} md={6}>
+                    <Text strong>{t('默认恢复时间（秒）')}</Text>
+                    <InputNumber
+                      value={config.default_recover_after_secs}
+                      min={60}
+                      max={86400 * 7}
+                      style={{ width: '100%' }}
+                      onChange={(value) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          default_recover_after_secs: value || 900,
+                        }))
+                      }
+                    />
+                  </Col>
+                  <Col span={24}>
+                    <Text strong>{t('默认返回消息')}</Text>
+                    <Input
+                      value={config.default_response_message}
+                      onChange={(value) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          default_response_message: value,
+                        }))
+                      }
+                      placeholder={t('当前请求触发风控，请稍后再试')}
+                    />
+                  </Col>
+                </Row>
+
+                <Divider margin='16px' />
+
+                <div className='flex items-center justify-between gap-3 flex-wrap'>
+                  <div className='flex items-center gap-3'>
+                    <div>
+                      <Text strong>{t('信任上游 IP 头')}</Text>
+                      <Text
+                        type='tertiary'
+                        size='small'
+                        style={{ display: 'block', marginTop: 2 }}
+                      >
+                        {t(
+                          '开启后会统一影响限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
+                        )}
+                      </Text>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.trusted_ip_header_enabled}
+                    onChange={(value) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        trusted_ip_header_enabled: value,
+                      }))
                     }
                   />
                 </div>
-              </TabPane>
-            </Tabs>
-          </Card>
-        </div>
-      </Spin>
+
+                <Banner
+                  type='info'
+                  closeIcon={null}
+                  style={{ marginTop: 12 }}
+                  description={
+                    config.trusted_ip_header_enabled
+                      ? t(
+                          '当前已开启“信任上游 IP 头”。系统会优先读取你填写的请求头作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
+                        )
+                      : t(
+                          '当前未开启“信任上游 IP 头”。系统会统一使用 TCP RemoteAddr 作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
+                        )
+                  }
+                />
+
+                <div style={{ marginTop: 12 }}>
+                  {config.trusted_ip_header_enabled && (
+                    <Banner
+                      type='warning'
+                      closeIcon={null}
+                      style={{ marginBottom: 12 }}
+                      description={t(
+                        '请确保反向代理已正确配置该请求头（如 Nginx 的 proxy_set_header），否则所有依赖 IP 的功能将受影响。',
+                      )}
+                    />
+                  )}
+
+                  <Text strong>{t('请求头名称')}</Text>
+                  <Input
+                    value={config.trusted_ip_header}
+                    onChange={(value) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        trusted_ip_header: value,
+                      }))
+                    }
+                    disabled={!config.trusted_ip_header_enabled}
+                    placeholder={t('例如 X-Real-IP 或 CF-Connecting-IP')}
+                    style={{ marginTop: 4 }}
+                  />
+                  <Text
+                    type='tertiary'
+                    size='small'
+                    style={{ display: 'block', marginTop: 6 }}
+                  >
+                    {t(
+                      '只有在你的服务前面有你完全信任的反向代理、Ingress 或 CDN，并且它会覆盖写入真实客户端 IP 请求头时，才应开启。直连公网通常保持关闭；Nginx / Ingress 常用 X-Real-IP；Cloudflare 常用 CF-Connecting-IP。',
+                    )}
+                  </Text>
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                  <Button loading={detectingIP} onClick={handleDetectIP}>
+                    {t('检测当前环境')}
+                  </Button>
+                  <Text type='tertiary' size='small' style={{ marginLeft: 8 }}>
+                    {t('不确定填什么？点击检测，系统会自动分析并推荐')}
+                  </Text>
+                </div>
+
+                <Modal
+                  title={t('IP 环境诊断')}
+                  visible={diagnosisVisible}
+                  onCancel={() => setDiagnosisVisible(false)}
+                  footer={
+                    <div className='flex justify-between'>
+                      <Button onClick={() => setDiagnosisVisible(false)}>
+                        {t('关闭')}
+                      </Button>
+                      <Button
+                        type='primary'
+                        onClick={() => {
+                          handleApplyIPRecommendation();
+                          setDiagnosisVisible(false);
+                        }}
+                      >
+                        {t('应用推荐配置')}
+                      </Button>
+                    </div>
+                  }
+                  width={720}
+                  bodyStyle={{ maxHeight: '65vh', overflowY: 'auto' }}
+                >
+                  {detectingIP ? (
+                    <div style={{ textAlign: 'center', padding: 40 }}>
+                      <Spin size='large' />
+                    </div>
+                  ) : ipDiagnosis ? (
+                    <div className='flex flex-col gap-4'>
+                      <Banner
+                        type={
+                          ipDiagnosis.recommended_mode === 'trusted_header'
+                            ? 'info'
+                            : 'success'
+                        }
+                        closeIcon={null}
+                        description={ipDiagnosis.recommendation_message || '-'}
+                      />
+
+                      <Row gutter={[12, 12]}>
+                        <Col span={8}>
+                          <Text type='secondary' size='small'>
+                            {t('当前配置')}
+                          </Text>
+                          <div style={{ marginTop: 4 }}>
+                            <Tag
+                              color={
+                                ipDiagnosis.current_mode === 'trusted_header'
+                                  ? 'orange'
+                                  : 'blue'
+                              }
+                              size='large'
+                            >
+                              {ipDiagnosis.current_mode === 'trusted_header'
+                                ? t('信任请求头')
+                                : 'RemoteAddr'}
+                            </Tag>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <Text type='secondary' size='small'>
+                            {t('推荐配置')}
+                          </Text>
+                          <div style={{ marginTop: 4 }}>
+                            <Tag
+                              color={
+                                ipDiagnosis.recommended_mode ===
+                                'trusted_header'
+                                  ? 'green'
+                                  : 'blue'
+                              }
+                              size='large'
+                            >
+                              {ipDiagnosis.recommended_mode === 'trusted_header'
+                                ? ipDiagnosis.recommended_header
+                                : 'RemoteAddr'}
+                            </Tag>
+                          </div>
+                        </Col>
+                        <Col span={8}>
+                          <Text type='secondary' size='small'>
+                            {t('当前生效 IP')}
+                          </Text>
+                          <div style={{ marginTop: 4 }}>
+                            <Text
+                              strong
+                              style={{
+                                fontFamily:
+                                  'ui-monospace, SFMono-Regular, Menlo, monospace',
+                              }}
+                            >
+                              {ipDiagnosis.effective_client_ip || '-'}
+                            </Text>
+                          </div>
+                        </Col>
+                      </Row>
+
+                      <Divider margin='4px' />
+
+                      <div>
+                        <Text
+                          strong
+                          style={{ marginBottom: 8, display: 'block' }}
+                        >
+                          {t('请求头明细')}
+                        </Text>
+                        <Table
+                          dataSource={ipDiagnosis.items || []}
+                          rowKey={(record, index) => `${record.name}-${index}`}
+                          pagination={false}
+                          size='small'
+                          columns={[
+                            {
+                              title: t('来源'),
+                              dataIndex: 'name',
+                              width: 180,
+                              render: (_, record) => (
+                                <Space wrap>
+                                  <Text strong>{record.name}</Text>
+                                  {record.is_current ? (
+                                    <Tag color='cyan' size='small'>
+                                      {t('生效')}
+                                    </Tag>
+                                  ) : null}
+                                  {ipDiagnosis.recommended_mode ===
+                                    'trusted_header' &&
+                                  ipDiagnosis.recommended_header ===
+                                    record.name ? (
+                                    <Tag color='green' size='small'>
+                                      {t('推荐')}
+                                    </Tag>
+                                  ) : null}
+                                </Space>
+                              ),
+                            },
+                            {
+                              title: t('原始值'),
+                              dataIndex: 'raw_value',
+                              render: (value) => (
+                                <Text
+                                  style={{
+                                    fontFamily:
+                                      'ui-monospace, SFMono-Regular, Menlo, monospace',
+                                    wordBreak: 'break-all',
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  {value || '-'}
+                                </Text>
+                              ),
+                            },
+                            {
+                              title: t('解析 IP'),
+                              dataIndex: 'parsed_ip',
+                              width: 140,
+                              render: (value) => (
+                                <Text
+                                  style={{
+                                    fontFamily:
+                                      'ui-monospace, SFMono-Regular, Menlo, monospace',
+                                    fontSize: 13,
+                                  }}
+                                >
+                                  {value || '-'}
+                                </Text>
+                              ),
+                            },
+                            {
+                              title: t('类型'),
+                              dataIndex: 'classification',
+                              width: 90,
+                              render: (value) => {
+                                const map = {
+                                  public: {
+                                    color: 'green',
+                                    label: t('公网'),
+                                  },
+                                  private: {
+                                    color: 'orange',
+                                    label: t('内网'),
+                                  },
+                                  invalid: {
+                                    color: 'red',
+                                    label: t('无效'),
+                                  },
+                                };
+                                const info = map[value] || {
+                                  color: 'grey',
+                                  label: t('无值'),
+                                };
+                                return (
+                                  <Tag color={info.color}>{info.label}</Tag>
+                                );
+                              },
+                            },
+                          ]}
+                        />
+                      </div>
+
+                      <Text type='tertiary' size='small'>
+                        {t(
+                          '点击”应用推荐配置”会自动填充表单，还需要点击”保存全局策略”才会真正生效。',
+                        )}
+                      </Text>
+                    </div>
+                  ) : null}
+                </Modal>
+              </Card>
+
+              {/* 分组启用矩阵 — v4: per-group whitelist + mode override.
+              `auto` is filtered out by the backend (and documented in DEV_GUIDE §11). */}
+              <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+                <div className='flex items-center justify-between gap-3 flex-wrap'>
+                  <div>
+                    <Title heading={5} style={{ marginTop: 0 }}>
+                      {t('分组启用矩阵')}
+                    </Title>
+                    <Text type='secondary'>
+                      {t(
+                        '风控分发检测默认对所有分组关闭。请按分组启用风控并选择该分组的运行模式（缺省则使用全局模式）。',
+                      )}
+                    </Text>
+                  </div>
+                  <Button
+                    type='primary'
+                    loading={savingConfig}
+                    onClick={handleSaveConfig}
+                  >
+                    {t('保存全局策略')}
+                  </Button>
+                </div>
+                <Table
+                  style={{ marginTop: 12 }}
+                  dataSource={riskGroups.items || []}
+                  rowKey='name'
+                  size='small'
+                  pagination={false}
+                  columns={[
+                    {
+                      title: t('分组'),
+                      dataIndex: 'name',
+                      render: (v) => <Tag color='cyan'>{v}</Tag>,
+                    },
+                    {
+                      title: t('启用风控'),
+                      dataIndex: 'enabled',
+                      width: 120,
+                      render: (_v, record) => (
+                        <Switch
+                          checked={(config.enabled_groups || []).includes(
+                            record.name,
+                          )}
+                          onChange={(checked) =>
+                            toggleGroupEnabled(record.name, checked)
+                          }
+                        />
+                      ),
+                    },
+                    {
+                      title: t('运行模式'),
+                      dataIndex: 'mode',
+                      width: 200,
+                      render: (_v, record) => {
+                        const current = (config.group_modes || {})[record.name];
+                        const value =
+                          current === undefined ? '__delete__' : current;
+                        return (
+                          <Select
+                            style={{ width: '100%' }}
+                            value={value}
+                            onChange={(v) => setGroupMode(record.name, v)}
+                            getPopupContainer={() => document.body}
+                            optionList={[
+                              {
+                                label: t('未配置（关闭）'),
+                                value: '__delete__',
+                              },
+                              { label: t('跟随全局模式'), value: '' },
+                              { label: t('观察模式'), value: 'observe_only' },
+                              { label: t('执行模式'), value: 'enforce' },
+                              { label: t('显式关闭'), value: 'off' },
+                            ]}
+                          />
+                        );
+                      },
+                    },
+                    {
+                      title: t('实际生效模式'),
+                      dataIndex: 'effective_mode',
+                      render: (v) => (
+                        <Tag
+                          color={
+                            v === 'enforce'
+                              ? 'red'
+                              : v === 'observe_only'
+                                ? 'orange'
+                                : 'grey'
+                          }
+                        >
+                          {v || 'off'}
+                        </Tag>
+                      ),
+                    },
+                    {
+                      title: t('规则数（启用/全部）'),
+                      dataIndex: 'rule_count_total',
+                      render: (_v, r) =>
+                        `${r.rule_count_enabled || 0} / ${r.rule_count_total || 0}`,
+                    },
+                    { title: t('观察主体'), dataIndex: 'active_subject_count' },
+                    {
+                      title: t('封禁主体'),
+                      dataIndex: 'blocked_subject_count',
+                    },
+                    {
+                      title: t('高风险'),
+                      dataIndex: 'high_risk_subject_count',
+                    },
+                  ]}
+                />
+              </Card>
+
+              <Card
+                bodyStyle={{ padding: 0, overflow: 'hidden' }}
+                style={{ borderRadius: 16 }}
+              >
+                <Tabs type='card' collapsible>
+                  <TabPane tab={t('风险主体')} itemKey='subjects'>
+                    <div style={{ padding: 20 }}>
+                      <div className='flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-4'>
+                        <Space wrap>
+                          <Select
+                            value={subjectFilters.scope}
+                            style={{ width: 140 }}
+                            placeholder={t('全部作用域')}
+                            optionList={[
+                              { label: t('全部作用域'), value: '' },
+                              { label: 'API Key', value: 'token' },
+                              { label: t('用户'), value: 'user' },
+                            ]}
+                            onChange={(value) =>
+                              setSubjectFilters((prev) => ({
+                                ...prev,
+                                scope: value,
+                              }))
+                            }
+                          />
+                          <Select
+                            value={subjectFilters.status}
+                            style={{ width: 140 }}
+                            placeholder={t('全部状态')}
+                            optionList={[
+                              { label: t('全部状态'), value: '' },
+                              { label: t('正常'), value: 'normal' },
+                              { label: t('观察中'), value: 'observe' },
+                              { label: t('已封禁'), value: 'blocked' },
+                            ]}
+                            onChange={(value) =>
+                              setSubjectFilters((prev) => ({
+                                ...prev,
+                                status: value,
+                              }))
+                            }
+                          />
+                          <Input
+                            style={{ width: 260 }}
+                            value={subjectFilters.keyword}
+                            onChange={(value) =>
+                              setSubjectFilters((prev) => ({
+                                ...prev,
+                                keyword: value,
+                              }))
+                            }
+                            placeholder={t('搜索用户、API key、规则名')}
+                          />
+                          <Button
+                            onClick={() =>
+                              loadSubjects(
+                                1,
+                                subjectsPage.page_size,
+                                subjectFilters,
+                              )
+                            }
+                          >
+                            {t('查询')}
+                          </Button>
+                        </Space>
+                        <Button
+                          onClick={() =>
+                            loadSubjects(
+                              subjectsPage.page,
+                              subjectsPage.page_size,
+                              subjectFilters,
+                            )
+                          }
+                        >
+                          {t('刷新')}
+                        </Button>
+                      </div>
+
+                      <Table
+                        columns={subjectColumns}
+                        dataSource={subjects}
+                        rowKey='id'
+                        pagination={{
+                          currentPage: subjectsPage.page,
+                          pageSize: subjectsPage.page_size,
+                          total: subjectsPage.total,
+                          pageSizeOpts: [10, 20, 50, 100],
+                          showSizeChanger: true,
+                          onPageChange: (page) =>
+                            loadSubjects(
+                              page,
+                              subjectsPage.page_size,
+                              subjectFilters,
+                            ),
+                          onPageSizeChange: (pageSize) =>
+                            loadSubjects(1, pageSize, subjectFilters),
+                        }}
+                        scroll={{ x: 'max-content' }}
+                        empty={
+                          <Empty
+                            title={t('暂无风险主体')}
+                            description={t('当前没有满足条件的风险主体记录')}
+                          />
+                        }
+                      />
+                    </div>
+                  </TabPane>
+
+                  <TabPane tab={t('命中事件')} itemKey='incidents'>
+                    <div style={{ padding: 20 }}>
+                      <div className='flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-4'>
+                        <Space wrap>
+                          <Select
+                            value={incidentFilters.scope}
+                            style={{ width: 140 }}
+                            placeholder={t('全部作用域')}
+                            optionList={[
+                              { label: t('全部作用域'), value: '' },
+                              { label: 'API Key', value: 'token' },
+                              { label: t('用户'), value: 'user' },
+                            ]}
+                            onChange={(value) =>
+                              setIncidentFilters((prev) => ({
+                                ...prev,
+                                scope: value,
+                              }))
+                            }
+                          />
+                          <Select
+                            value={incidentFilters.action}
+                            style={{ width: 140 }}
+                            placeholder={t('全部动作')}
+                            optionList={[
+                              { label: t('全部动作'), value: '' },
+                              { label: t('观察'), value: 'observe' },
+                              { label: t('封禁'), value: 'block' },
+                              { label: t('恢复'), value: 'recover' },
+                              { label: t('手动解除'), value: 'manual_unblock' },
+                            ]}
+                            onChange={(value) =>
+                              setIncidentFilters((prev) => ({
+                                ...prev,
+                                action: value,
+                              }))
+                            }
+                          />
+                          <Input
+                            style={{ width: 260 }}
+                            value={incidentFilters.keyword}
+                            onChange={(value) =>
+                              setIncidentFilters((prev) => ({
+                                ...prev,
+                                keyword: value,
+                              }))
+                            }
+                            placeholder={t('搜索用户、API key、规则、原因')}
+                          />
+                          <Button
+                            onClick={() =>
+                              loadIncidents(
+                                1,
+                                incidentsPage.page_size,
+                                incidentFilters,
+                              )
+                            }
+                          >
+                            {t('查询')}
+                          </Button>
+                        </Space>
+                        <Button
+                          onClick={() =>
+                            loadIncidents(
+                              incidentsPage.page,
+                              incidentsPage.page_size,
+                              incidentFilters,
+                            )
+                          }
+                        >
+                          {t('刷新')}
+                        </Button>
+                      </div>
+
+                      <Table
+                        columns={incidentColumns}
+                        dataSource={incidents}
+                        rowKey='id'
+                        pagination={{
+                          currentPage: incidentsPage.page,
+                          pageSize: incidentsPage.page_size,
+                          total: incidentsPage.total,
+                          pageSizeOpts: [10, 20, 50, 100],
+                          showSizeChanger: true,
+                          onPageChange: (page) =>
+                            loadIncidents(
+                              page,
+                              incidentsPage.page_size,
+                              incidentFilters,
+                            ),
+                          onPageSizeChange: (pageSize) =>
+                            loadIncidents(1, pageSize, incidentFilters),
+                        }}
+                        scroll={{ x: 'max-content' }}
+                        empty={
+                          <Empty
+                            title={t('暂无命中事件')}
+                            description={t('当前没有满足条件的风控事件')}
+                          />
+                        }
+                      />
+                    </div>
+                  </TabPane>
+
+                  <TabPane tab={t('规则管理')} itemKey='rules'>
+                    <div style={{ padding: 20 }}>
+                      <div className='flex flex-col md:flex-row gap-3 md:items-center md:justify-between mb-4'>
+                        <div>
+                          <Title heading={5} style={{ marginTop: 0 }}>
+                            {t('规则列表')}
+                          </Title>
+                          <Text type='secondary'>
+                            {t(
+                              '每条规则可单独设置作用域、动作、状态码、消息与恢复策略。',
+                            )}
+                          </Text>
+                        </div>
+                        <Space>
+                          <Button onClick={() => loadRules()}>
+                            {t('刷新')}
+                          </Button>
+                          <Button
+                            type='primary'
+                            onClick={() => {
+                              setEditingRule(null);
+                              setEditorVisible(true);
+                            }}
+                          >
+                            {t('新建规则')}
+                          </Button>
+                        </Space>
+                      </div>
+
+                      <Table
+                        columns={ruleColumns}
+                        dataSource={rules}
+                        rowKey='id'
+                        pagination={false}
+                        scroll={{ x: 'max-content' }}
+                        empty={
+                          <Empty
+                            title={t('暂无规则')}
+                            description={t('可以先创建默认的分发检测规则')}
+                          />
+                        }
+                      />
+                    </div>
+                  </TabPane>
+                </Tabs>
+              </Card>
+            </div>
+          </Spin>
+        </>
+      )}
     </div>
   );
 };

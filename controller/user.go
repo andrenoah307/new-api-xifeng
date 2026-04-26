@@ -435,6 +435,11 @@ func GetSelf(c *gin.Context) {
 		"stripe_customer":   user.StripeCustomer,
 		"sidebar_modules":   userSetting.SidebarModules, // 正确提取sidebar_modules字段
 		"permissions":       permissions,                // 新增权限字段
+		// risk_warning_pending: a vague-on-purpose flag the frontend uses to
+		// pop a generic warning modal at login. We never expose the timestamp
+		// or the underlying rule to prevent users from reverse-engineering
+		// detection thresholds.
+		"risk_warning_pending": user.RiskWarningPendingAt > 0,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -443,6 +448,22 @@ func GetSelf(c *gin.Context) {
 		"data":    responseData,
 	})
 	return
+}
+
+// AcknowledgeRiskWarning clears the user's pending risk-warning flag. The
+// underlying block / observe decision in risk_subject_snapshot is unchanged,
+// so this purely dismisses the next-login modal.
+func AcknowledgeRiskWarning(c *gin.Context) {
+	id := c.GetInt("id")
+	if id <= 0 {
+		common.ApiErrorMsg(c, "未登录")
+		return
+	}
+	if err := model.AckUserRiskWarningPending(id); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"acknowledged": true})
 }
 
 // 计算用户权限的辅助函数

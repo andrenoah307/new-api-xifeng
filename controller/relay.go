@@ -128,15 +128,22 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		service.RecordRiskBlockedAccess(c, relayInfo, service.GetBlockingDecisionFromAudit(relayInfo.RiskAudit))
 		return
 	}
+	// meta is hoisted above the defer so the closure can reference it; the
+	// concrete value is filled in below once we know whether token counting
+	// or sensitive-text checks are required.
+	var meta *types.TokenCountMeta
 	defer func() {
 		c.Set("risk_audit", relayInfo.RiskAudit)
 		service.RiskControlAfterRelay(c, relayInfo, newAPIError)
+		// Async OpenAI moderation scoring. The hook copies what it needs out
+		// of gin context, gopool.Go's the rest, and never blocks the relay
+		// path even when the upstream is unreachable.
+		service.EnqueueModerationFromRelay(c, relayInfo, meta)
 	}()
 
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
 	needCountToken := constant.CountToken
 	// Avoid building huge CombineText (strings.Join) when token counting and sensitive check are both disabled.
-	var meta *types.TokenCountMeta
 	if needSensitiveCheck || needCountToken {
 		meta = request.GetTokenCountMeta()
 	} else {

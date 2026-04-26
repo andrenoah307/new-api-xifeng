@@ -298,6 +298,7 @@ func migrateDB() error {
 		&RiskRule{},
 		&RiskSubjectSnapshot{},
 		&RiskIncident{},
+		&ModerationIncident{},
 	)
 	if err != nil {
 		return err
