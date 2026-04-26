@@ -702,6 +702,395 @@ function RuleEditorModal({
   );
 }
 
+// emptyModerationRuleForm seeds the editor with sane defaults — match_mode
+// "all" is the conservative pick (every condition must satisfy) so admins
+// who skim past the toggle don't accidentally configure broad triggers.
+const emptyModerationRuleForm = () => ({
+  id: 0,
+  name: '',
+  description: '',
+  enabled: false,
+  match_mode: 'all',
+  action: 'observe',
+  priority: 50,
+  score_weight: 20,
+  conditions: [
+    {
+      category: 'sexual',
+      op: '>=',
+      value: 0.5,
+      apply_input_type: false,
+      applied_input_type: '',
+    },
+  ],
+  groups: [],
+});
+
+// ModerationRuleEditorModal mirrors the structure of RuleEditorModal so admins
+// don't need a separate mental model. Each condition row exposes a toggle
+// "限定输入类型" — when off the score is taken from any input modality;
+// when on the admin picks text or image and the rule only fires when the
+// upstream attributed the score to that input.
+function ModerationRuleEditorModal({
+  visible,
+  loading,
+  initialValue,
+  groupOptions,
+  enabledGroupSet,
+  categories,
+  onCancel,
+  onSubmit,
+}) {
+  const { t } = useTranslation();
+  const [form, setForm] = useState(emptyModerationRuleForm());
+
+  useEffect(() => {
+    if (!visible) return;
+    if (initialValue) {
+      setForm({
+        ...emptyModerationRuleForm(),
+        ...initialValue,
+        conditions: safeParseJSON(initialValue.conditions, [
+          {
+            category: 'sexual',
+            op: '>=',
+            value: 0.5,
+            apply_input_type: false,
+            applied_input_type: '',
+          },
+        ]),
+        groups: safeParseJSON(initialValue.groups, []),
+      });
+      return;
+    }
+    setForm(emptyModerationRuleForm());
+  }, [visible, initialValue]);
+
+  const updateField = (field, value) =>
+    setForm((p) => ({ ...p, [field]: value }));
+
+  const updateCondition = (index, field, value) =>
+    setForm((p) => ({
+      ...p,
+      conditions: p.conditions.map((c, i) =>
+        i === index ? { ...c, [field]: value } : c,
+      ),
+    }));
+
+  const addCondition = () =>
+    setForm((p) => ({
+      ...p,
+      conditions: [
+        ...p.conditions,
+        {
+          category: categories[0]?.name || 'sexual',
+          op: '>=',
+          value: 0.5,
+          apply_input_type: false,
+          applied_input_type: '',
+        },
+      ],
+    }));
+
+  const removeCondition = (index) =>
+    setForm((p) => ({
+      ...p,
+      conditions: p.conditions.filter((_, i) => i !== index),
+    }));
+
+  const submit = () => {
+    if (!form.name.trim()) return showError(t('规则名称不能为空'));
+    if (!form.conditions.length) return showError(t('至少需要一个条件'));
+    if (form.enabled && (!form.groups || form.groups.length === 0)) {
+      return showError(t('启用规则前必须至少选择一个分组'));
+    }
+    onSubmit(form);
+  };
+
+  const categoryOptions = (categories || []).map((c) => ({
+    label: c.label,
+    value: c.name,
+  }));
+
+  const sectionStyle = {
+    background: 'var(--semi-color-fill-0)',
+    borderRadius: 10,
+    padding: '14px 16px',
+    width: '100%',
+  };
+
+  return (
+    <Modal
+      title={form.id ? t('编辑审核规则') : t('新建审核规则')}
+      visible={visible}
+      onCancel={onCancel}
+      onOk={submit}
+      okText={t('保存')}
+      cancelText={t('取消')}
+      confirmLoading={loading}
+      width={860}
+      centered
+      style={{ maxWidth: '92vw' }}
+      bodyStyle={{
+        maxHeight: 'calc(80vh - 120px)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+      }}
+    >
+      <Space vertical align='start' style={{ width: '100%' }} spacing='medium'>
+        <div style={sectionStyle}>
+          <Text strong style={{ display: 'block', marginBottom: 12 }}>
+            {t('基础信息')}
+          </Text>
+          <Row gutter={[16, 16]}>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('规则名称')}
+              </Text>
+              <Input
+                value={form.name}
+                onChange={(v) => updateField('name', v)}
+                placeholder={t('例如 sexual_minors_block')}
+              />
+            </Col>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('匹配方式')}
+              </Text>
+              <Select
+                style={{ width: '100%' }}
+                value={form.match_mode}
+                onChange={(v) => updateField('match_mode', v)}
+                optionList={[
+                  { label: t('全部满足 (AND)'), value: 'all' },
+                  { label: t('任一满足 (OR)'), value: 'any' },
+                ]}
+                getPopupContainer={() => document.body}
+              />
+            </Col>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('动作')}
+              </Text>
+              <Select
+                style={{ width: '100%' }}
+                value={form.action}
+                onChange={(v) => updateField('action', v)}
+                optionList={[
+                  { label: t('观察 (observe)'), value: 'observe' },
+                  { label: t('标记 (flag)'), value: 'flag' },
+                  {
+                    label: t('阻断 (block) — 与 flag 等效，预留'),
+                    value: 'block',
+                  },
+                ]}
+                getPopupContainer={() => document.body}
+              />
+            </Col>
+            <Col span={24}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('描述')}
+              </Text>
+              <TextArea
+                rows={2}
+                value={form.description}
+                onChange={(v) => updateField('description', v)}
+                placeholder={t('简要说明规则用途')}
+              />
+            </Col>
+            <Col span={24}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('适用分组')}
+              </Text>
+              <Select
+                multiple
+                style={{ width: '100%' }}
+                value={form.groups || []}
+                onChange={(v) => updateField('groups', v || [])}
+                optionList={(groupOptions || []).map((name) => ({
+                  label:
+                    enabledGroupSet && enabledGroupSet.has(name)
+                      ? name
+                      : `${name} ${t('(分组未启用内容审核)')}`,
+                  value: name,
+                }))}
+                getPopupContainer={() => document.body}
+              />
+              <Text
+                type='tertiary'
+                size='small'
+                style={{ display: 'block', marginTop: 6 }}
+              >
+                {t(
+                  '未绑定分组的规则不会生效；分组未在白名单中时规则不会被加载。',
+                )}
+              </Text>
+            </Col>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('启用')}
+              </Text>
+              <Switch
+                checked={!!form.enabled}
+                onChange={(v) => updateField('enabled', v)}
+              />
+            </Col>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('优先级')}
+              </Text>
+              <InputNumber
+                value={form.priority}
+                onChange={(v) => updateField('priority', v || 0)}
+                style={{ width: '100%' }}
+              />
+            </Col>
+            <Col span={8}>
+              <Text strong style={{ display: 'block', marginBottom: 6 }}>
+                {t('权重')}
+              </Text>
+              <InputNumber
+                value={form.score_weight}
+                onChange={(v) => updateField('score_weight', v || 0)}
+                style={{ width: '100%' }}
+              />
+            </Col>
+          </Row>
+        </div>
+
+        <div style={sectionStyle}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 12,
+            }}
+          >
+            <Text strong>{t('规则条件')}</Text>
+            <Button type='tertiary' size='small' onClick={addCondition}>
+              {t('添加条件')}
+            </Button>
+          </div>
+          <Space vertical style={{ width: '100%' }} spacing='tight'>
+            {form.conditions.map((c, idx) => {
+              const catDef = (categories || []).find(
+                (x) => x.name === c.category,
+              );
+              const imageScored = !!catDef?.image_scored;
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    border: '1px solid var(--semi-color-border)',
+                    background: 'var(--semi-color-bg-1)',
+                  }}
+                >
+                  <Row gutter={12} type='flex' align='middle'>
+                    <Col span={8}>
+                      <Text type='secondary' size='small'>
+                        {t('类别')}
+                      </Text>
+                      <Select
+                        value={c.category}
+                        optionList={categoryOptions}
+                        style={{ width: '100%' }}
+                        onChange={(v) => updateCondition(idx, 'category', v)}
+                        getPopupContainer={() => document.body}
+                      />
+                    </Col>
+                    <Col span={4}>
+                      <Text type='secondary' size='small'>
+                        {t('比较')}
+                      </Text>
+                      <Select
+                        value={c.op}
+                        optionList={OP_OPTIONS}
+                        style={{ width: '100%' }}
+                        onChange={(v) => updateCondition(idx, 'op', v)}
+                        getPopupContainer={() => document.body}
+                      />
+                    </Col>
+                    <Col span={4}>
+                      <Text type='secondary' size='small'>
+                        {t('阈值')}
+                      </Text>
+                      <InputNumber
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        value={c.value}
+                        style={{ width: '100%' }}
+                        onChange={(v) =>
+                          updateCondition(
+                            idx,
+                            'value',
+                            typeof v === 'number' ? v : 0,
+                          )
+                        }
+                      />
+                    </Col>
+                    <Col span={5}>
+                      <Text type='secondary' size='small'>
+                        {t('限定输入类型')}
+                      </Text>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Switch
+                          checked={!!c.apply_input_type}
+                          onChange={(v) =>
+                            updateCondition(idx, 'apply_input_type', v)
+                          }
+                        />
+                        {c.apply_input_type ? (
+                          <Select
+                            value={c.applied_input_type || 'text'}
+                            style={{ flex: 1 }}
+                            onChange={(v) =>
+                              updateCondition(idx, 'applied_input_type', v)
+                            }
+                            getPopupContainer={() => document.body}
+                            optionList={[
+                              { label: t('文本'), value: 'text' },
+                              {
+                                label: t('图像'),
+                                value: 'image',
+                                disabled: !imageScored,
+                              },
+                            ]}
+                          />
+                        ) : null}
+                      </div>
+                    </Col>
+                    <Col span={3} style={{ textAlign: 'right' }}>
+                      <Button
+                        type='danger'
+                        theme='borderless'
+                        size='small'
+                        onClick={() => removeCondition(idx)}
+                        disabled={form.conditions.length === 1}
+                      >
+                        {t('删除')}
+                      </Button>
+                    </Col>
+                  </Row>
+                </div>
+              );
+            })}
+          </Space>
+        </div>
+      </Space>
+    </Modal>
+  );
+}
+
 // ModerationTab is the second top-level tab on /console/risk. It owns its
 // own state because the moderation engine is decoupled from the
 // distribution-detection engine on the backend; sharing state here would only
@@ -715,7 +1104,6 @@ function ModerationTab({ riskGroups }) {
     model: 'omni-moderation-latest',
     api_keys: [],
     sampling_rate_percent: 100,
-    flag_score_threshold: 0.5,
     enabled_groups: [],
     group_modes: {},
     flagged_retention_hours: 720,
@@ -749,6 +1137,23 @@ function ModerationTab({ riskGroups }) {
     flagged: '',
     keyword: '',
   });
+  // Moderation rules
+  const [moderationRules, setModerationRules] = useState([]);
+  const [moderationCategories, setModerationCategories] = useState([]);
+  const [ruleEditorVisible, setRuleEditorVisible] = useState(false);
+  const [editingModerationRule, setEditingModerationRule] = useState(null);
+  const [savingModerationRule, setSavingModerationRule] = useState(false);
+
+  // enabledGroupSet for moderation tab uses the same source as the
+  // distribution-detection tab: GET /api/risk/groups response. Tag colors
+  // and rule editor warnings depend on this set.
+  const enabledGroupSet = useMemo(() => {
+    const s = new Set();
+    for (const item of riskGroups.items || []) {
+      if (item.enabled) s.add(item.name);
+    }
+    return s;
+  }, [riskGroups]);
 
   const loadConfig = async () => {
     const res = await API.get('/api/risk/moderation/config');
@@ -789,10 +1194,82 @@ function ModerationTab({ riskGroups }) {
     }
   };
 
+  const loadModerationRules = async () => {
+    const res = await API.get('/api/risk/moderation/rules');
+    if (res.data.success) setModerationRules(res.data.data || []);
+  };
+
+  const loadModerationCategories = async () => {
+    const res = await API.get('/api/risk/moderation/categories');
+    if (res.data.success) setModerationCategories(res.data.data || []);
+  };
+
+  const handleSaveModerationRule = async (form) => {
+    setSavingModerationRule(true);
+    try {
+      const payload = {
+        ...form,
+        conditions: form.conditions || [],
+        groups: form.groups || [],
+      };
+      const res = form.id
+        ? await API.put(`/api/risk/moderation/rules/${form.id}`, payload)
+        : await API.post('/api/risk/moderation/rules', payload);
+      if (!res.data.success) {
+        showError(res.data.message);
+        return;
+      }
+      showSuccess(t('审核规则已保存'));
+      setRuleEditorVisible(false);
+      setEditingModerationRule(null);
+      await Promise.all([loadModerationRules(), loadOverview()]);
+    } catch (e) {
+      showError(t('保存审核规则失败'));
+    } finally {
+      setSavingModerationRule(false);
+    }
+  };
+
+  const handleDeleteModerationRule = (rule) => {
+    Modal.confirm({
+      title: t('确认删除规则'),
+      content: `${t('规则')}: ${rule?.name || '-'}`,
+      onOk: async () => {
+        try {
+          const res = await API.delete(`/api/risk/moderation/rules/${rule.id}`);
+          if (!res.data.success) {
+            showError(res.data.message);
+            return;
+          }
+          showSuccess(t('规则已删除'));
+          await Promise.all([loadModerationRules(), loadOverview()]);
+        } catch (e) {
+          showError(t('删除规则失败'));
+        }
+      },
+    });
+  };
+
+  const handleToggleModerationRule = async (rule, enabled) => {
+    const groups = safeParseJSON(rule.groups, []);
+    if (enabled && (!groups || groups.length === 0)) {
+      showError(t('启用规则前必须至少选择一个分组'));
+      return;
+    }
+    await handleSaveModerationRule({
+      ...rule,
+      conditions: safeParseJSON(rule.conditions, []),
+      groups,
+      enabled,
+    });
+  };
+
   useEffect(() => {
     loadConfig();
     loadOverview();
     loadIncidents(1);
+    loadModerationRules();
+    loadModerationCategories();
   }, []);
 
   const handleSaveConfig = async () => {
@@ -988,7 +1465,7 @@ function ModerationTab({ riskGroups }) {
             <OverviewCard
               title={t('24h 命中数')}
               value={overview.flagged_24h || 0}
-              extra={`${t('阈值')}: ${overview.flag_score_threshold ?? '-'}`}
+              extra={`${t('规则数')}: ${overview.rule_count ?? 0} / ${t('未配置')}: ${overview.unconfigured_rule_count ?? 0}`}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -1080,22 +1557,7 @@ function ModerationTab({ riskGroups }) {
               suffix='%'
             />
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Text strong>{t('命中阈值（0-1）')}</Text>
-            <InputNumber
-              min={0}
-              max={1}
-              step={0.05}
-              value={config.flag_score_threshold}
-              onChange={(v) =>
-                setConfig((p) => ({
-                  ...p,
-                  flag_score_threshold: typeof v === 'number' ? v : 0.5,
-                }))
-              }
-              style={{ width: '100%' }}
-            />
-          </Col>
+          {/* v3: 兜底阈值已移除，命中由审核规则系统决定 */}
           <Col xs={24} sm={12} md={6}>
             <Text strong>{t('队列大小')}</Text>
             <InputNumber
@@ -1251,6 +1713,172 @@ function ModerationTab({ riskGroups }) {
           ]}
         />
       </Card>
+
+      {/* Moderation rules — AND/OR multi-condition rules over the OpenAI
+          response categories. Same edit/save model as 分发检测 rules. */}
+      <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>
+        <div className='flex items-center justify-between gap-3 flex-wrap'>
+          <div>
+            <Title heading={5} style={{ marginTop: 0 }}>
+              {t('审核规则')}
+            </Title>
+            <Text type='secondary'>
+              {t(
+                '基于 OpenAI 类别评分定义条件组合（AND/OR），命中后写入审核记录。空分组的规则不会生效。',
+              )}
+            </Text>
+          </div>
+          <Button
+            type='primary'
+            onClick={() => {
+              setEditingModerationRule(null);
+              setRuleEditorVisible(true);
+            }}
+          >
+            {t('新建审核规则')}
+          </Button>
+        </div>
+        <Table
+          style={{ marginTop: 12 }}
+          dataSource={moderationRules}
+          rowKey='id'
+          size='small'
+          pagination={false}
+          scroll={{ x: 'max-content' }}
+          empty={
+            <Empty
+              title={t('暂无规则')}
+              description={t('点击"新建审核规则"配置')}
+            />
+          }
+          columns={[
+            {
+              title: t('启用'),
+              dataIndex: 'enabled',
+              width: 80,
+              render: (v, r) => (
+                <Switch
+                  checked={v}
+                  onChange={(c) => handleToggleModerationRule(r, c)}
+                />
+              ),
+            },
+            {
+              title: t('名称'),
+              dataIndex: 'name',
+              render: (_, r) => (
+                <Space vertical spacing={2}>
+                  <Text strong>{r.name}</Text>
+                  <Text type='secondary' size='small'>
+                    {r.description || '-'}
+                  </Text>
+                </Space>
+              ),
+            },
+            {
+              title: t('匹配方式'),
+              dataIndex: 'match_mode',
+              width: 110,
+              render: (v) => (
+                <Tag color='blue'>
+                  {v === 'any' ? t('OR (任一)') : t('AND (全部)')}
+                </Tag>
+              ),
+            },
+            {
+              title: t('动作'),
+              dataIndex: 'action',
+              width: 110,
+              render: (v) => {
+                const colors = { observe: 'orange', flag: 'red', block: 'red' };
+                return <Tag color={colors[v] || 'grey'}>{v || 'observe'}</Tag>;
+              },
+            },
+            {
+              title: t('适用分组'),
+              dataIndex: 'groups',
+              render: (v) => {
+                const arr = safeParseJSON(v, []);
+                if (!arr.length)
+                  return <Tag color='red'>{t('未配置（已停用）')}</Tag>;
+                return (
+                  <Space wrap>
+                    {arr.map((g) => (
+                      <Tag
+                        key={g}
+                        color={enabledGroupSet.has(g) ? 'green' : 'grey'}
+                      >
+                        {g}
+                      </Tag>
+                    ))}
+                  </Space>
+                );
+              },
+            },
+            {
+              title: t('条件'),
+              dataIndex: 'conditions',
+              width: 320,
+              render: (v) => {
+                const arr = safeParseJSON(v, []);
+                if (!arr.length) return '-';
+                return (
+                  <Space vertical spacing={2}>
+                    {arr.map((c, i) => (
+                      <Text key={i} size='small'>
+                        {c.category} {c.op} {c.value}
+                        {c.apply_input_type ? ` (${c.applied_input_type})` : ''}
+                      </Text>
+                    ))}
+                  </Space>
+                );
+              },
+            },
+            { title: t('优先级'), dataIndex: 'priority', width: 90 },
+            {
+              title: t('操作'),
+              dataIndex: 'operate',
+              fixed: 'right',
+              width: 160,
+              render: (_, r) => (
+                <Space>
+                  <Button
+                    type='tertiary'
+                    theme='borderless'
+                    onClick={() => {
+                      setEditingModerationRule(r);
+                      setRuleEditorVisible(true);
+                    }}
+                  >
+                    {t('编辑')}
+                  </Button>
+                  <Button
+                    type='danger'
+                    theme='borderless'
+                    onClick={() => handleDeleteModerationRule(r)}
+                  >
+                    {t('删除')}
+                  </Button>
+                </Space>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      <ModerationRuleEditorModal
+        visible={ruleEditorVisible}
+        loading={savingModerationRule}
+        initialValue={editingModerationRule}
+        groupOptions={(riskGroups.items || []).map((i) => i.name)}
+        enabledGroupSet={enabledGroupSet}
+        categories={moderationCategories}
+        onCancel={() => {
+          setRuleEditorVisible(false);
+          setEditingModerationRule(null);
+        }}
+        onSubmit={handleSaveModerationRule}
+      />
 
       {/* Debug card */}
       <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>

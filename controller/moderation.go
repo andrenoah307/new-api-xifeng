@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 )
 
@@ -214,4 +215,106 @@ func GetModerationOverview(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, overview)
+}
+
+// GetModerationCategories powers the rule editor dropdown so the UI doesn't
+// have to maintain its own copy of the OpenAI category list.
+func GetModerationCategories(c *gin.Context) {
+	common.ApiSuccess(c, service.ListModerationCategories())
+}
+
+type moderationRuleUpsertRequest struct {
+	Name        string                      `json:"name"`
+	Description string                      `json:"description"`
+	Enabled     bool                        `json:"enabled"`
+	MatchMode   string                      `json:"match_mode"`
+	Action      string                      `json:"action"`
+	Priority    int                         `json:"priority"`
+	ScoreWeight int                         `json:"score_weight"`
+	Conditions  []types.ModerationCondition `json:"conditions"`
+	Groups      []string                    `json:"groups"`
+}
+
+func GetModerationRules(c *gin.Context) {
+	rules, err := model.ListModerationRules()
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, rules)
+}
+
+func CreateModerationRule(c *gin.Context) {
+	rule, err := bindModerationRuleRequest(c, 0)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	rule.CreatedBy = c.GetInt("id")
+	rule.UpdatedBy = c.GetInt("id")
+	if err = service.CreateModerationRule(rule); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, rule)
+}
+
+func UpdateModerationRule(c *gin.Context) {
+	ruleID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || ruleID <= 0 {
+		common.ApiErrorMsg(c, "无效的规则 ID")
+		return
+	}
+	rule, err := bindModerationRuleRequest(c, ruleID)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	rule.UpdatedBy = c.GetInt("id")
+	if err = service.UpdateModerationRule(rule); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, rule)
+}
+
+func DeleteModerationRule(c *gin.Context) {
+	ruleID, err := strconv.Atoi(c.Param("id"))
+	if err != nil || ruleID <= 0 {
+		common.ApiErrorMsg(c, "无效的规则 ID")
+		return
+	}
+	if err = service.DeleteModerationRule(ruleID); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"id": ruleID})
+}
+
+func bindModerationRuleRequest(c *gin.Context, ruleID int) (*model.ModerationRule, error) {
+	var req moderationRuleUpsertRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		return nil, err
+	}
+	condBytes, err := common.Marshal(req.Conditions)
+	if err != nil {
+		return nil, err
+	}
+	groups := dedupeStrings(req.Groups)
+	groupsBytes, err := common.Marshal(groups)
+	if err != nil {
+		return nil, err
+	}
+	return &model.ModerationRule{
+		Id:          ruleID,
+		Name:        req.Name,
+		Description: req.Description,
+		Enabled:     req.Enabled,
+		MatchMode:   req.MatchMode,
+		Action:      req.Action,
+		Priority:    req.Priority,
+		ScoreWeight: req.ScoreWeight,
+		Conditions:  string(condBytes),
+		Groups:      string(groupsBytes),
+	}, nil
 }

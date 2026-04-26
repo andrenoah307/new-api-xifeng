@@ -34,7 +34,6 @@ type ModerationSetting struct {
 	WorkerCount          int               `json:"worker_count"`
 	HTTPTimeoutMS        int               `json:"http_timeout_ms"`
 	MaxRetries           int               `json:"max_retries"`
-	FlagScoreThreshold   float64           `json:"flag_score_threshold"`
 	SamplingRatePercent  int               `json:"sampling_rate_percent"`
 	ImageMaxSizeKB       int               `json:"image_max_size_kb"`
 	EnabledGroups        []string          `json:"enabled_groups"`
@@ -60,7 +59,6 @@ var moderationSetting = ModerationSetting{
 	WorkerCount:           2,
 	HTTPTimeoutMS:         5000,
 	MaxRetries:            3,
-	FlagScoreThreshold:    0.5,
 	SamplingRatePercent:   100,
 	ImageMaxSizeKB:        2048,
 	EnabledGroups:         []string{},
@@ -152,9 +150,6 @@ func NormalizeModerationSetting(setting *ModerationSetting) {
 	}
 	if setting.MaxRetries < 0 {
 		setting.MaxRetries = 3
-	}
-	if setting.FlagScoreThreshold <= 0 || setting.FlagScoreThreshold > 1 {
-		setting.FlagScoreThreshold = 0.5
 	}
 	if setting.SamplingRatePercent < 0 {
 		setting.SamplingRatePercent = 0

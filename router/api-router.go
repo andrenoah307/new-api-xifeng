@@ -280,6 +280,12 @@ func SetApiRouter(router *gin.Engine) {
 			riskRoute.GET("/moderation/incidents", controller.GetModerationIncidents)
 			riskRoute.POST("/moderation/debug", controller.SubmitModerationDebug)
 			riskRoute.GET("/moderation/debug/:id", controller.GetModerationDebugResult)
+			// rule CRUD + category dictionary
+			riskRoute.GET("/moderation/categories", controller.GetModerationCategories)
+			riskRoute.GET("/moderation/rules", controller.GetModerationRules)
+			riskRoute.POST("/moderation/rules", controller.CreateModerationRule)
+			riskRoute.PUT("/moderation/rules/:id", controller.UpdateModerationRule)
+			riskRoute.DELETE("/moderation/rules/:id", controller.DeleteModerationRule)
 		}
 		channelRoute := apiRouter.Group("/channel")
 		channelRoute.Use(middleware.AdminAuth())

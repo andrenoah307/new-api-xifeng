@@ -24,18 +24,21 @@ import (
 )
 
 // ModerationResult is the structured result returned to debug callers and
-// (in summarised form) persisted to moderation_incidents.
+// (in summarised form) persisted to moderation_incidents. As of v3 the
+// engine attaches the rule decision so the debug card can show admins which
+// rules fired without re-running the upstream model.
 type ModerationResult struct {
-	RequestID         string             `json:"request_id"`
-	Flagged           bool               `json:"flagged"`
-	MaxScore          float64            `json:"max_score"`
-	MaxCategory       string             `json:"max_category"`
-	Categories        map[string]float64 `json:"categories"`
-	AppliedTypes      map[string][]string `json:"applied_types"`
-	UpstreamLatencyMS int                `json:"upstream_latency_ms"`
-	UsedKeySuffix     string             `json:"used_key_suffix"`
-	Error             string             `json:"error,omitempty"`
-	CompletedAt       int64              `json:"completed_at"`
+	RequestID         string                  `json:"request_id"`
+	Flagged           bool                    `json:"flagged"`
+	MaxScore          float64                 `json:"max_score"`
+	MaxCategory       string                  `json:"max_category"`
+	Categories        map[string]float64      `json:"categories"`
+	AppliedTypes      map[string][]string     `json:"applied_types"`
+	UpstreamLatencyMS int                     `json:"upstream_latency_ms"`
+	UsedKeySuffix     string                  `json:"used_key_suffix"`
+	Error             string                  `json:"error,omitempty"`
+	CompletedAt       int64                   `json:"completed_at"`
+	Decision          *types.ModerationDecision `json:"decision,omitempty"`
 }
 
 type moderationEvent struct {
@@ -93,6 +96,18 @@ func (m *moderationCenter) start() {
 	m.stopCh = make(chan struct{})
 	m.httpClient = &http.Client{Timeout: time.Duration(cfg.HTTPTimeoutMS) * time.Millisecond}
 	m.keyRing = NewModerationKeyRing(cfg.APIKeys)
+	if err := ReloadModerationRules(); err != nil {
+		common.SysError("moderation reload rules failed: " + err.Error())
+	}
+	if common.IsMasterNode {
+		if err := SeedDefaultModerationRules(); err != nil {
+			common.SysError("moderation seed default rules failed: " + err.Error())
+		}
+		// Reload after seed in case this was a fresh install.
+		if err := ReloadModerationRules(); err != nil {
+			common.SysError("moderation reload rules after seed failed: " + err.Error())
+		}
+	}
 	for i := 0; i < cfg.WorkerCount; i++ {
 		go m.runWorker()
 	}
@@ -285,6 +300,22 @@ func (m *moderationCenter) runWorker() {
 }
 
 func (m *moderationCenter) recordResult(event *moderationEvent, result *ModerationResult) {
+	cfg := operation_setting.GetModerationSetting()
+	// Run the rule engine against the API response (no-op for debug events
+	// that hit a non-existent group). Decision is attached to the result
+	// before notifying any waiter so the debug card can render it.
+	if result != nil && result.Error == "" && event.Group != "" && event.Group != "__debug__" {
+		matched := EvaluateModerationRules(event.Group, result)
+		decision := BuildModerationDecision(matched)
+		result.Decision = &decision
+	} else if result != nil && event.Source == "debug" {
+		// Debug runs evaluate against EVERY enabled rule by default (group
+		// is "__debug__", which never matches a configured rule). Provide a
+		// "preview" view by re-running against all whitelisted groups so
+		// the admin sees what would have happened in production.
+		preview := previewModerationDecision(result, cfg)
+		result.Decision = &preview
+	}
 	if event.Done != nil {
 		select {
 		case event.Done <- result:
@@ -292,8 +323,6 @@ func (m *moderationCenter) recordResult(event *moderationEvent, result *Moderati
 		}
 	}
 	if event.Source == "debug" {
-		// Stash the result in debugStore for the polling endpoint.
-		cfg := operation_setting.GetModerationSetting()
 		ttl := time.Duration(cfg.DebugResultRetainMin) * time.Minute
 		m.debugStore.Store(event.RequestID, &moderationDebugEntry{
 			Result:    result,
@@ -301,26 +330,27 @@ func (m *moderationCenter) recordResult(event *moderationEvent, result *Moderati
 		})
 	}
 	if result == nil || result.Error != "" {
-		// Even failures get persisted so admins can see why a key was failing
-		// — but only for debug runs to avoid swamping the relay-source log.
+		// Failures are not persisted for relay traffic; debug callers see
+		// the error via the polled Done channel.
+		return
+	}
+	// v3: no fallback threshold — only persist when a rule fired. Debug
+	// events always persist so admins can audit threshold-tuning sessions.
+	if result.Decision == nil || result.Decision.Decision == ModerationDecisionAllow {
 		if event.Source != "debug" {
 			return
 		}
 	}
-	cfg := operation_setting.GetModerationSetting()
-	threshold := cfg.FlagScoreThreshold
-	if result == nil {
-		return
+	matchedJSON := ""
+	primaryRule := ""
+	decision := ModerationDecisionAllow
+	flagged := false
+	if result.Decision != nil {
+		matchedJSON = encodeRiskJSON(result.Decision.MatchedRules)
+		primaryRule = result.Decision.PrimaryRuleName
+		decision = result.Decision.Decision
+		flagged = decision != ModerationDecisionAllow
 	}
-	flagged := result.Flagged || result.MaxScore >= threshold
-	if !flagged && event.Source != "debug" {
-		// Below threshold relay events are dropped silently to keep the table
-		// small; flagged rows are kept for downstream client handling.
-		return
-	}
-	categoriesJSON := encodeRiskJSON(result.Categories)
-	appliedTypesJSON := encodeRiskJSON(result.AppliedTypes)
-	summary := buildModerationInputSummary(event)
 	incident := &model.ModerationIncident{
 		CreatedAt:         event.OccurAt,
 		UserID:            event.UserID,
@@ -334,15 +364,47 @@ func (m *moderationCenter) recordResult(event *moderationEvent, result *Moderati
 		Flagged:           flagged,
 		MaxScore:          result.MaxScore,
 		MaxCategory:       result.MaxCategory,
-		Categories:        categoriesJSON,
-		AppliedTypes:      appliedTypesJSON,
-		InputSummary:      summary,
+		Categories:        encodeRiskJSON(result.Categories),
+		AppliedTypes:      encodeRiskJSON(result.AppliedTypes),
+		InputSummary:      buildModerationInputSummary(event),
 		UpstreamLatencyMS: result.UpstreamLatencyMS,
 		Source:            event.Source,
+		Decision:          decision,
+		PrimaryRule:       primaryRule,
+		MatchedRules:      matchedJSON,
 	}
 	if err := model.CreateModerationIncident(incident); err != nil {
 		common.SysError("moderation create incident failed: " + err.Error())
 	}
+}
+
+// previewModerationDecision powers the debug card: try evaluating the
+// current API response against every enabled rule (regardless of group)
+// and return the worst decision. The admin gets to see what would have
+// fired, even though no real production group is involved.
+func previewModerationDecision(result *ModerationResult, cfg *operation_setting.ModerationSetting) types.ModerationDecision {
+	if result == nil {
+		return types.ModerationDecision{Decision: ModerationDecisionAllow}
+	}
+	rules := currentModerationRules()
+	matched := make([]types.ModerationMatchedRule, 0)
+	for _, rule := range rules {
+		if !rule.Raw.Enabled {
+			continue
+		}
+		hit, conds := matchesModerationRule(rule, result)
+		if !hit {
+			continue
+		}
+		matched = append(matched, types.ModerationMatchedRule{
+			RuleID:            rule.Raw.Id,
+			Name:              rule.Raw.Name,
+			Action:            rule.Raw.Action,
+			ScoreWeight:       rule.Raw.ScoreWeight,
+			MatchedConditions: conds,
+		})
+	}
+	return BuildModerationDecision(matched)
 }
 
 func buildModerationInputSummary(event *moderationEvent) string {
@@ -620,14 +682,23 @@ func ModerationOverview() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	ruleCount, err := model.CountModerationRules()
+	if err != nil {
+		return nil, err
+	}
+	unconfigured, err := model.CountEnabledModerationRulesWithoutGroups()
+	if err != nil {
+		return nil, err
+	}
 	return map[string]any{
-		"enabled":              cfg.Enabled,
-		"mode":                 cfg.Mode,
-		"key_count":            len(cfg.APIKeys),
-		"queue_dropped":        globalModerationCenter.dropCount.Load(),
-		"flagged_24h":          flagged24h,
-		"sampling_rate_percent": cfg.SamplingRatePercent,
-		"flag_score_threshold": cfg.FlagScoreThreshold,
-		"enabled_group_count":  len(cfg.EnabledGroups),
+		"enabled":                 cfg.Enabled,
+		"mode":                    cfg.Mode,
+		"key_count":               len(cfg.APIKeys),
+		"queue_dropped":           globalModerationCenter.dropCount.Load(),
+		"flagged_24h":             flagged24h,
+		"sampling_rate_percent":   cfg.SamplingRatePercent,
+		"enabled_group_count":     len(cfg.EnabledGroups),
+		"rule_count":              ruleCount,
+		"unconfigured_rule_count": unconfigured,
 	}, nil
 }

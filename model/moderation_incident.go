@@ -29,10 +29,21 @@ type ModerationIncident struct {
 	Categories        string  `json:"categories" gorm:"type:text"`
 	AppliedTypes      string  `json:"applied_types" gorm:"type:text"`
 	InputSummary      string  `json:"input_summary" gorm:"type:text"`
-	UpstreamLatencyMS int     `json:"upstream_latency_ms" gorm:"default:0"`
+	UpstreamLatencyMS int `json:"upstream_latency_ms" gorm:"default:0"`
 	// Source distinguishes traffic events ("relay") from admin debug runs
 	// ("debug") so debug calls don't pollute production sensitivity tuning.
 	Source string `json:"source" gorm:"type:varchar(16);index;default:'relay'"`
+	// Decision is the synthesized verdict produced by the rule engine. One of
+	// allow / observe / flag / block. allow events are not persisted.
+	Decision string `json:"decision" gorm:"type:varchar(16);index;default:'allow'"`
+	// PrimaryRule is the name of the most severe rule that fired (block >
+	// flag > observe). Empty when no rule matched (which never happens in v3
+	// because incidents only land here when at least one rule matches).
+	PrimaryRule string `json:"primary_rule" gorm:"type:varchar(128);index;default:''"`
+	// MatchedRules holds the JSON-encoded []ModerationMatchedRule slice. We
+	// keep all matched rules (not just the primary) so admins can audit
+	// overlapping coverage without re-running the model.
+	MatchedRules string `json:"matched_rules" gorm:"type:text"`
 }
 
 type ModerationIncidentQuery struct {

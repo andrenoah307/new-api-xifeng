@@ -72,7 +72,6 @@ func TestModerationSettingNormalizeFiltersAutoAndClampsRate(t *testing.T) {
 		GroupModes:          map[string]string{"vip": "enforce", "auto": "enforce", "free": "garbage"},
 		APIKeys:             []string{"sk-1", "sk-1", " "},
 		SamplingRatePercent: 250,
-		FlagScoreThreshold:  -1,
 	}
 	operation_setting.NormalizeModerationSetting(cfg)
 	if cfg.Mode != operation_setting.ModerationModeOff {
@@ -92,9 +91,6 @@ func TestModerationSettingNormalizeFiltersAutoAndClampsRate(t *testing.T) {
 	}
 	if cfg.SamplingRatePercent != 100 {
 		t.Errorf("SamplingRatePercent should clamp to 100, got %d", cfg.SamplingRatePercent)
-	}
-	if cfg.FlagScoreThreshold != 0.5 {
-		t.Errorf("FlagScoreThreshold should reset to default, got %v", cfg.FlagScoreThreshold)
 	}
 }
 
