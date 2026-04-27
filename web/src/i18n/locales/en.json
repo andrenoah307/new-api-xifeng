@@ -4475,6 +4475,7 @@
     "输入内容详情": "Input content details",
     "完整输入内容": "Full input content",
     "分组监控": "Group Monitoring",
+    "分组可用率与缓存监控": "Group availability & cache hit monitoring",
     "分组监控设置": "Group Monitoring Settings",
     "监控分组": "Monitoring Groups",
     "个分组": "groups",

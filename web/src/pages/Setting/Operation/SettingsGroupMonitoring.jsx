@@ -40,23 +40,22 @@ export default function SettingsGroupMonitoring(props) {
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
 
-  // Parse comma-separated or JSON array string to array
   function parseArrayField(value) {
-    if (!value) return [];
+    if (!value || value === '[]' || value === 'null') return [];
+    let arr = [];
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) arr = parsed;
       } catch {
-        // Fall through to comma-split
+        arr = value.split(',');
       }
-      return value
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
+    } else if (Array.isArray(value)) {
+      arr = value;
     }
-    if (Array.isArray(value)) return value;
-    return [];
+    return arr
+      .map((v) => String(v).trim())
+      .filter((v) => v && v !== 'null' && v !== 'undefined');
   }
 
   // Convert array to stored string
@@ -152,9 +151,13 @@ export default function SettingsGroupMonitoring(props) {
     }
   }
 
-  const selectedGroups = parseArrayField(
+  const rawGroups = parseArrayField(
     inputs['group_monitoring_setting.monitoring_groups']
   );
+  const selectedGroups =
+    availableGroups.length > 0
+      ? rawGroups.filter((g) => availableGroups.includes(g))
+      : rawGroups;
 
   return (
     <Spin spinning={loading}>
