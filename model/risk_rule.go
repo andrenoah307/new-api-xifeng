@@ -30,7 +30,7 @@ type RiskRule struct {
 	// Empty/"" / "[]" means "not configured" and the engine skips loading the
 	// rule. The engine uses this together with the request's UsingGroup to
 	// decide whether the rule participates in evaluation.
-	Groups    string         `json:"groups" gorm:"type:text"`
+	Groups    string         `json:"groups" gorm:"column:groups;type:text"`
 	Metadata  string         `json:"metadata" gorm:"type:text"`
 	CreatedAt int64          `json:"created_at" gorm:"bigint;index"`
 	UpdatedAt int64          `json:"updated_at" gorm:"bigint"`
@@ -164,8 +164,12 @@ func CountRiskRules() (int64, error) {
 // the misconfiguration.
 func CountEnabledRiskRulesWithoutGroups() (int64, error) {
 	var count int64
+	emptyGroups := DB.Where(map[string]interface{}{"groups": nil}).
+		Or(map[string]interface{}{"groups": ""}).
+		Or(map[string]interface{}{"groups": "[]"})
 	err := DB.Model(&RiskRule{}).
-		Where("enabled = ? AND ("+commonGroupsCol+" IS NULL OR "+commonGroupsCol+" = '' OR "+commonGroupsCol+" = '[]')", true).
+		Where(map[string]interface{}{"enabled": true}).
+		Where(emptyGroups).
 		Count(&count).Error
 	return count, err
 }
