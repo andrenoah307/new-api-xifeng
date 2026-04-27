@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
 )
@@ -169,12 +170,7 @@ func TestRecordResultPersistsBenignDecisionsTooSentinel(t *testing.T) {
 	}
 }
 
-// TestExtractModerationPayloadHandlesNilAndEmpty pins the contract used
-// by EnqueueModerationFromRelay's lazy fallback: nil meta returns ("", nil)
-// without panic; an empty meta returns the same; populated meta returns
-// the trimmed text and only image-typed files. This is the regression
-// that prevents the "fast pricing path produces empty CombineText →
-// moderation silently dropped" bug from coming back.
+// TestExtractModerationPayloadHandlesNilAndEmpty pins the debug-card path.
 func TestExtractModerationPayloadHandlesNilAndEmpty(t *testing.T) {
 	if txt, imgs := extractModerationPayload(nil); txt != "" || len(imgs) != 0 {
 		t.Fatalf("nil meta should yield empty result; got %q %v", txt, imgs)
@@ -182,6 +178,76 @@ func TestExtractModerationPayloadHandlesNilAndEmpty(t *testing.T) {
 	emptyText, emptyImgs := extractModerationPayload(&types.TokenCountMeta{})
 	if emptyText != "" || len(emptyImgs) != 0 {
 		t.Fatalf("empty meta should yield empty result; got %q %v", emptyText, emptyImgs)
+	}
+}
+
+func TestExtractLastMessagePayloadOpenAI(t *testing.T) {
+	req := &dto.GeneralOpenAIRequest{
+		Messages: []dto.Message{
+			{Role: "system", Content: "You are a helpful assistant."},
+			{Role: "user", Content: "previous question"},
+			{Role: "assistant", Content: "previous answer"},
+			{Role: "user", Content: "hello world"},
+		},
+	}
+	text, images := extractLastMessagePayload(req)
+	if text != "hello world" {
+		t.Fatalf("expected last user message text, got %q", text)
+	}
+	if len(images) != 0 {
+		t.Fatalf("expected no images, got %v", images)
+	}
+}
+
+func TestExtractLastMessagePayloadOpenAIMultiModal(t *testing.T) {
+	req := &dto.GeneralOpenAIRequest{
+		Messages: []dto.Message{
+			{Role: "system", Content: "system prompt"},
+			{Role: "user", Content: []any{
+				map[string]any{"type": "text", "text": "describe this"},
+				map[string]any{"type": "image_url", "image_url": map[string]any{"url": "https://example.com/img.png"}},
+			}},
+		},
+	}
+	text, images := extractLastMessagePayload(req)
+	if text != "describe this" {
+		t.Fatalf("expected text from last message, got %q", text)
+	}
+	if len(images) != 1 || images[0] != "https://example.com/img.png" {
+		t.Fatalf("expected 1 image URL, got %v", images)
+	}
+}
+
+func TestExtractLastMessagePayloadClaude(t *testing.T) {
+	req := &dto.ClaudeRequest{
+		System:   "You are helpful.",
+		Messages: []dto.ClaudeMessage{
+			{Role: "user", Content: "first question"},
+			{Role: "assistant", Content: "first answer"},
+			{Role: "user", Content: "latest question"},
+		},
+	}
+	text, images := extractLastMessagePayload(req)
+	if text != "latest question" {
+		t.Fatalf("expected last message text, got %q", text)
+	}
+	if len(images) != 0 {
+		t.Fatalf("expected no images, got %v", images)
+	}
+}
+
+func TestExtractLastMessagePayloadNilRequest(t *testing.T) {
+	text, images := extractLastMessagePayload(nil)
+	if text != "" || len(images) != 0 {
+		t.Fatalf("nil request should yield empty; got %q %v", text, images)
+	}
+}
+
+func TestExtractLastMessagePayloadEmptyMessages(t *testing.T) {
+	req := &dto.GeneralOpenAIRequest{Messages: nil}
+	text, images := extractLastMessagePayload(req)
+	if text != "" || len(images) != 0 {
+		t.Fatalf("empty messages should yield empty; got %q %v", text, images)
 	}
 }
 

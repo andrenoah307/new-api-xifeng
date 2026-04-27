@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -175,12 +176,12 @@ func (m *moderationCenter) applyConfig(cfg *operation_setting.ModerationSetting)
 // fastTokenCountMetaForPricing path which never populates CombineText or
 // Files. That left moderation silently dropping every request — usage
 // logs were still written but no moderation incident ever appeared.
-// We now lazily call info.Request.GetTokenCountMeta() inside the async
-// gopool callback whenever the passed-in meta is empty, paying the
-// strings.Join cost only when moderation is actually configured for the
+// We now lazily call extractLastMessagePayload inside the async gopool
+// callback whenever the eagerly-extracted payload is empty, paying the
+// ParseContent cost only when moderation is actually configured for the
 // group. The relay client has already received its response by then, so
 // the latency is invisible to users.
-func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, meta *types.TokenCountMeta, relayErr *types.NewAPIError) {
+func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, _ *types.TokenCountMeta, relayErr *types.NewAPIError) {
 	if info == nil {
 		return
 	}
@@ -195,13 +196,10 @@ func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, met
 		return
 	}
 	if cfg.SamplingRatePercent < 100 {
-		// random sampling — mathrand is fine here, it's a sampling decision
-		// not a security gate.
 		if mathrand.Intn(100) >= cfg.SamplingRatePercent {
 			return
 		}
 	}
-	text, images := extractModerationPayload(meta)
 	username := ""
 	tokenName := ""
 	if c != nil && c.Request != nil {
@@ -214,17 +212,9 @@ func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, met
 	userID := info.UserId
 	tokenID := info.TokenId
 	occurAt := common.GetTimestamp()
-	request := info.Request // captured for the lazy fallback below
+	request := info.Request
 	gopool.Go(func() {
-		// Lazy meta materialisation: the relay caller may have used the
-		// fast pricing path, which never populates CombineText/Files.
-		// Reach for the full GetTokenCountMeta() now that we know
-		// moderation is configured for this group.
-		if text == "" && len(images) == 0 && request != nil {
-			if full := request.GetTokenCountMeta(); full != nil {
-				text, images = extractModerationPayload(full)
-			}
-		}
+		text, images := extractLastMessagePayload(request)
 		if text == "" && len(images) == 0 {
 			return
 		}
@@ -244,10 +234,82 @@ func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, met
 	})
 }
 
+// extractLastMessagePayload extracts text and image URLs from only the
+// last message in the request. This is the correct input for content
+// moderation — CombineText aggregates system prompts, all history, and
+// tool definitions which pollute the moderation signal.
+func extractLastMessagePayload(request dto.Request) (string, []string) {
+	if request == nil {
+		return "", nil
+	}
+	switch r := request.(type) {
+	case *dto.GeneralOpenAIRequest:
+		if len(r.Messages) == 0 {
+			return "", nil
+		}
+		return extractFromOpenAIMessage(r.Messages[len(r.Messages)-1])
+	case *dto.ClaudeRequest:
+		if len(r.Messages) == 0 {
+			return "", nil
+		}
+		return extractFromClaudeMessage(r.Messages[len(r.Messages)-1])
+	default:
+		if m := request.GetTokenCountMeta(); m != nil {
+			return strings.TrimSpace(m.CombineText), nil
+		}
+		return "", nil
+	}
+}
+
+func extractFromOpenAIMessage(msg dto.Message) (string, []string) {
+	parts := msg.ParseContent()
+	texts := make([]string, 0, len(parts))
+	var images []string
+	for _, p := range parts {
+		switch p.Type {
+		case dto.ContentTypeText:
+			if t := strings.TrimSpace(p.Text); t != "" {
+				texts = append(texts, t)
+			}
+		case dto.ContentTypeImageURL:
+			if img := p.GetImageMedia(); img != nil && img.Url != "" {
+				images = append(images, img.Url)
+			}
+		}
+	}
+	return strings.Join(texts, "\n"), images
+}
+
+func extractFromClaudeMessage(msg dto.ClaudeMessage) (string, []string) {
+	if msg.IsStringContent() {
+		return strings.TrimSpace(msg.GetStringContent()), nil
+	}
+	parts, err := msg.ParseContent()
+	if err != nil || len(parts) == 0 {
+		return "", nil
+	}
+	texts := make([]string, 0, len(parts))
+	var images []string
+	for _, p := range parts {
+		switch p.Type {
+		case "text":
+			if t := strings.TrimSpace(p.GetText()); t != "" {
+				texts = append(texts, t)
+			}
+		case "image":
+			if src := p.ToFileSource(); src != nil {
+				if raw := src.GetRawData(); strings.TrimSpace(raw) != "" {
+					images = append(images, raw)
+				}
+			}
+		}
+	}
+	return strings.Join(texts, "\n"), images
+}
+
 // extractModerationPayload normalises a TokenCountMeta into the
-// (text, image-uris) pair the upstream OpenAI call expects. Returned
-// values are safe to use even when the input is nil so callers can chain
-// without nil-checks.
+// (text, image-uris) pair the upstream OpenAI call expects. Kept for
+// the debug-card path which has no Request object.
 func extractModerationPayload(meta *types.TokenCountMeta) (string, []string) {
 	if meta == nil {
 		return "", nil
