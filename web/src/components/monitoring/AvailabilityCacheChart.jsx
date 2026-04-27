@@ -7,16 +7,16 @@ function alignAndFillHistory(history, intervalMinutes) {
   if (!history || history.length === 0) return [];
 
   const sorted = [...history].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    (a, b) => a.recorded_at * 1000 - b.recorded_at * 1000
   );
 
-  const startMs = new Date(sorted[0].timestamp).getTime();
-  const endMs = new Date(sorted[sorted.length - 1].timestamp).getTime();
+  const startMs = sorted[0].recorded_at * 1000;
+  const endMs = sorted[sorted.length - 1].recorded_at * 1000;
   const stepMs = (intervalMinutes || 5) * 60 * 1000;
 
   const byTime = {};
   for (const h of sorted) {
-    const t = new Date(h.timestamp).getTime();
+    const t = h.recorded_at * 1000;
     const aligned = Math.round(t / stepMs) * stepMs;
     byTime[aligned] = h;
   }

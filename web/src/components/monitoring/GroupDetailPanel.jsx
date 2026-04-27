@@ -78,10 +78,9 @@ const GroupDetailPanel = ({ visible, group, onClose }) => {
           `/api/monitoring/${prefix}/groups/${encodeURIComponent(groupName)}/history`
         );
         if (res.data.success) {
-          const data = res.data.data;
-          setHistory(data.history || data || []);
-          if (data.aggregation_interval_minutes) {
-            setIntervalMinutes(data.aggregation_interval_minutes);
+          setHistory(res.data.data || []);
+          if (res.data.aggregation_interval_minutes) {
+            setIntervalMinutes(res.data.aggregation_interval_minutes);
           }
         }
       } catch {
