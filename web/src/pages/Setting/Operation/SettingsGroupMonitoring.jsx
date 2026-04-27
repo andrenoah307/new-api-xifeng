@@ -35,6 +35,7 @@ export default function SettingsGroupMonitoring(props) {
     'group_monitoring_setting.availability_exclude_models': '',
     'group_monitoring_setting.cache_hit_exclude_models': '',
     'group_monitoring_setting.availability_exclude_keywords': '',
+    'group_monitoring_setting.availability_exclude_status_codes': '',
     'group_monitoring_setting.cache_tokens_separate_groups': '',
   });
   const refForm = useRef();
@@ -367,6 +368,37 @@ export default function SettingsGroupMonitoring(props) {
                 </Text>
               </div>
             </Col>
+            <Col xs={24} sm={12}>
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                  {t('可用率排除状态码')}
+                </Text>
+                <TagInput
+                  value={parseArrayField(
+                    inputs['group_monitoring_setting.availability_exclude_status_codes']
+                  )}
+                  onChange={(val) =>
+                    setInputs({
+                      ...inputs,
+                      'group_monitoring_setting.availability_exclude_status_codes':
+                        arrayToString(val),
+                    })
+                  }
+                  placeholder={t('输入状态码后回车，如 400、503')}
+                  style={{ width: '100%' }}
+                />
+                <Text
+                  type='tertiary'
+                  size='small'
+                  style={{ marginTop: 4, display: 'block' }}
+                >
+                  {t('这些HTTP状态码的错误不计入不可用')}
+                </Text>
+              </div>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col xs={24} sm={12}>
               <div style={{ marginBottom: 16 }}>
                 <Text strong style={{ display: 'block', marginBottom: 8 }}>

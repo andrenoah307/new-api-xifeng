@@ -92,6 +92,7 @@ const OperationSetting = () => {
     'group_monitoring_setting.availability_exclude_models': '',
     'group_monitoring_setting.cache_hit_exclude_models': '',
     'group_monitoring_setting.availability_exclude_keywords': '',
+    'group_monitoring_setting.availability_exclude_status_codes': '',
     'group_monitoring_setting.cache_tokens_separate_groups': '',
   });
 

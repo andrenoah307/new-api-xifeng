@@ -186,7 +186,16 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 		logger.LogError(c, "failed to record log: "+err.Error())
 	}
 	if common.GroupMonitoringHook != nil {
-		common.GroupMonitoringHook(group, channelId, false, 0, 0, useTimeSeconds*1000, 0)
+		sc := 0
+		if v, ok := other["status_code"]; ok {
+			switch n := v.(type) {
+			case int:
+				sc = n
+			case float64:
+				sc = int(n)
+			}
+		}
+		common.GroupMonitoringHook(group, channelId, false, 0, 0, useTimeSeconds*1000, 0, modelName, sc, content)
 	}
 }
 
@@ -270,7 +279,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 				cacheTokens = int(v)
 			}
 		}
-		common.GroupMonitoringHook(params.Group, params.ChannelId, true, params.PromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs)
+		common.GroupMonitoringHook(params.Group, params.ChannelId, true, params.PromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "")
 	}
 }
 

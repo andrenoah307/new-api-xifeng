@@ -24,7 +24,9 @@ func StartGroupMonitoringAggregation() {
 	if !common.IsMasterNode {
 		return
 	}
-	common.GroupMonitoringHook = RecordMonitoringMetric
+	common.GroupMonitoringHook = func(group string, channelId int, isSuccess bool, promptTokens, cacheTokens, useTimeMs, frtMs int, modelName string, statusCode int, content string) {
+		RecordMonitoringMetric(group, channelId, isSuccess, promptTokens, cacheTokens, useTimeMs, frtMs, modelName, statusCode, content)
+	}
 	refreshMonitoredGroupsCache()
 	go monitoringLoop()
 }
