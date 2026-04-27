@@ -439,3 +439,93 @@ func TestComposeTieredTextQuotaErrorFallbackUsesPreConsumedQuota(t *testing.T) {
 	require.Equal(t, int64(12500), summary.ToolCallSurchargeQuota.Round(0).IntPart())
 	require.Equal(t, 14500, quota)
 }
+
+func TestCalculateTextQuotaSummaryZeroChargeOnServerSideStreamError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	ss := relaycommon.NewStreamStatus()
+	ss.SetEndReason(relaycommon.StreamEndReasonTimeout, nil)
+
+	relayInfo := &relaycommon.RelayInfo{
+		IsStream:          true,
+		StreamStatus:      ss,
+		SendResponseCount: 5,
+		OriginModelName:   "gpt-4o",
+		PriceData: types.PriceData{
+			ModelRatio:      1,
+			CompletionRatio: 1,
+			GroupRatioInfo:  types.GroupRatioInfo{GroupRatio: 1},
+		},
+		StartTime: time.Now(),
+	}
+
+	usage := &dto.Usage{
+		PromptTokens:     500,
+		CompletionTokens: 100,
+		TotalTokens:      600,
+	}
+
+	summary := calculateTextQuotaSummary(ctx, relayInfo, usage)
+	require.Equal(t, 0, summary.TotalTokens, "server-side stream error must zero all tokens")
+	require.Equal(t, 0, summary.Quota, "server-side stream error must zero charge")
+}
+
+func TestCalculateTextQuotaSummaryChargesOnClientGone(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	ss := relaycommon.NewStreamStatus()
+	ss.SetEndReason(relaycommon.StreamEndReasonClientGone, nil)
+
+	relayInfo := &relaycommon.RelayInfo{
+		IsStream:          true,
+		StreamStatus:      ss,
+		SendResponseCount: 5,
+		OriginModelName:   "gpt-4o",
+		PriceData: types.PriceData{
+			ModelRatio:      1,
+			CompletionRatio: 1,
+			GroupRatioInfo:  types.GroupRatioInfo{GroupRatio: 1},
+		},
+		StartTime: time.Now(),
+	}
+
+	usage := &dto.Usage{
+		PromptTokens:     500,
+		CompletionTokens: 100,
+		TotalTokens:      600,
+	}
+
+	summary := calculateTextQuotaSummary(ctx, relayInfo, usage)
+	require.Equal(t, 600, summary.TotalTokens, "client_gone should still charge")
+	require.Greater(t, summary.Quota, 0, "client_gone should have non-zero quota")
+}
+
+func TestCalculateTextQuotaSummaryZeroChargeNilUsageServerError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	ss := relaycommon.NewStreamStatus()
+	ss.SetEndReason(relaycommon.StreamEndReasonScannerErr, nil)
+
+	relayInfo := &relaycommon.RelayInfo{
+		IsStream:          true,
+		StreamStatus:      ss,
+		SendResponseCount: 0,
+		OriginModelName:   "gpt-4o",
+		PriceData: types.PriceData{
+			ModelRatio:      1,
+			CompletionRatio: 1,
+			GroupRatioInfo:  types.GroupRatioInfo{GroupRatio: 1},
+		},
+		StartTime: time.Now(),
+	}
+
+	summary := calculateTextQuotaSummary(ctx, relayInfo, nil)
+	require.Equal(t, 0, summary.TotalTokens)
+	require.Equal(t, 0, summary.Quota)
+}

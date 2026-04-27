@@ -194,6 +194,10 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		return openaiErr
 	}
 
+	if retryErr := service.StreamAbortRetryError(info); retryErr != nil {
+		return retryErr
+	}
+
 	service.PostTextConsumeQuota(c, info, usage.(*dto.Usage), nil)
 	return nil
 }
