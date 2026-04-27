@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/types"
 )
 
 func TestBuildModerationRequestEmitsMultiModalArray(t *testing.T) {
@@ -132,6 +133,22 @@ func TestPreflightModerationHookIsAllowAll(t *testing.T) {
 	allow, reason := PreflightModerationHook(nil, nil, nil)
 	if !allow {
 		t.Fatalf("PreflightModerationHook must allow in v2; got allow=false reason=%q", reason)
+	}
+}
+
+// TestExtractModerationPayloadHandlesNilAndEmpty pins the contract used
+// by EnqueueModerationFromRelay's lazy fallback: nil meta returns ("", nil)
+// without panic; an empty meta returns the same; populated meta returns
+// the trimmed text and only image-typed files. This is the regression
+// that prevents the "fast pricing path produces empty CombineText →
+// moderation silently dropped" bug from coming back.
+func TestExtractModerationPayloadHandlesNilAndEmpty(t *testing.T) {
+	if txt, imgs := extractModerationPayload(nil); txt != "" || len(imgs) != 0 {
+		t.Fatalf("nil meta should yield empty result; got %q %v", txt, imgs)
+	}
+	emptyText, emptyImgs := extractModerationPayload(&types.TokenCountMeta{})
+	if emptyText != "" || len(emptyImgs) != 0 {
+		t.Fatalf("empty meta should yield empty result; got %q %v", emptyText, emptyImgs)
 	}
 }
 

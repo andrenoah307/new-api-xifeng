@@ -169,8 +169,19 @@ func (m *moderationCenter) applyConfig(cfg *operation_setting.ModerationSetting)
 //   - SendResponseCount > 0    ⇒ stream/SSE delivered at least one chunk
 //     to the client before failing — the user did see content; enqueue.
 //   - otherwise                ⇒ skip.
+//
+// CombineText materialisation: when neither sensitive-text scanning nor
+// token counting is enabled, controller/relay.go uses the lightweight
+// fastTokenCountMetaForPricing path which never populates CombineText or
+// Files. That left moderation silently dropping every request — usage
+// logs were still written but no moderation incident ever appeared.
+// We now lazily call info.Request.GetTokenCountMeta() inside the async
+// gopool callback whenever the passed-in meta is empty, paying the
+// strings.Join cost only when moderation is actually configured for the
+// group. The relay client has already received its response by then, so
+// the latency is invisible to users.
 func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, meta *types.TokenCountMeta, relayErr *types.NewAPIError) {
-	if info == nil || meta == nil {
+	if info == nil {
 		return
 	}
 	if relayErr != nil && info.SendResponseCount == 0 {
@@ -190,21 +201,7 @@ func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, met
 			return
 		}
 	}
-	text := strings.TrimSpace(meta.CombineText)
-	images := make([]string, 0, len(meta.Files))
-	for _, f := range meta.Files {
-		if f == nil || f.FileType != types.FileTypeImage {
-			continue
-		}
-		raw := f.GetRawData()
-		if strings.TrimSpace(raw) == "" {
-			continue
-		}
-		images = append(images, raw)
-	}
-	if text == "" && len(images) == 0 {
-		return
-	}
+	text, images := extractModerationPayload(meta)
 	username := ""
 	tokenName := ""
 	if c != nil && c.Request != nil {
@@ -217,7 +214,20 @@ func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, met
 	userID := info.UserId
 	tokenID := info.TokenId
 	occurAt := common.GetTimestamp()
+	request := info.Request // captured for the lazy fallback below
 	gopool.Go(func() {
+		// Lazy meta materialisation: the relay caller may have used the
+		// fast pricing path, which never populates CombineText/Files.
+		// Reach for the full GetTokenCountMeta() now that we know
+		// moderation is configured for this group.
+		if text == "" && len(images) == 0 && request != nil {
+			if full := request.GetTokenCountMeta(); full != nil {
+				text, images = extractModerationPayload(full)
+			}
+		}
+		if text == "" && len(images) == 0 {
+			return
+		}
 		globalModerationCenter.enqueue(&moderationEvent{
 			OccurAt:        occurAt,
 			Source:         "relay",
@@ -232,6 +242,29 @@ func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, met
 			Images:         images,
 		})
 	})
+}
+
+// extractModerationPayload normalises a TokenCountMeta into the
+// (text, image-uris) pair the upstream OpenAI call expects. Returned
+// values are safe to use even when the input is nil so callers can chain
+// without nil-checks.
+func extractModerationPayload(meta *types.TokenCountMeta) (string, []string) {
+	if meta == nil {
+		return "", nil
+	}
+	text := strings.TrimSpace(meta.CombineText)
+	images := make([]string, 0, len(meta.Files))
+	for _, f := range meta.Files {
+		if f == nil || f.FileType != types.FileTypeImage {
+			continue
+		}
+		raw := f.GetRawData()
+		if strings.TrimSpace(raw) == "" {
+			continue
+		}
+		images = append(images, raw)
+	}
+	return text, images
 }
 
 // SubmitModerationDebug is invoked from the admin debug card. It enqueues a
