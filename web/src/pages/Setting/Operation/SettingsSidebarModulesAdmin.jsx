@@ -53,6 +53,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       midjourney: true,
       task: true,
       ticket: true,
+      monitoring: true,
     },
     personal: {
       enabled: true,
@@ -89,6 +90,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       midjourney: true,
       task: true,
       ticket: true,
+      monitoring: true,
     },
     personal: {
       enabled: true,
@@ -238,6 +240,11 @@ export default function SettingsSidebarModulesAdmin(props) {
         },
         { key: 'task', title: t('任务日志'), description: t('系统任务记录') },
         { key: 'ticket', title: t('工单'), description: t('用户工单中心') },
+        {
+          key: 'monitoring',
+          title: t('分组监控'),
+          description: t('分组可用率与缓存监控'),
+        },
       ],
     },
     {

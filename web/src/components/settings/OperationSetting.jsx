@@ -27,6 +27,7 @@ import SettingsLog from '../../pages/Setting/Operation/SettingsLog';
 import SettingsMonitoring from '../../pages/Setting/Operation/SettingsMonitoring';
 import SettingsCreditLimit from '../../pages/Setting/Operation/SettingsCreditLimit';
 import SettingsCheckin from '../../pages/Setting/Operation/SettingsCheckin';
+import SettingsGroupMonitoring from '../../pages/Setting/Operation/SettingsGroupMonitoring';
 import { API, showError, toBoolean } from '../../helpers';
 
 const OperationSetting = () => {
@@ -81,6 +82,18 @@ const OperationSetting = () => {
 
     /* 令牌设置 */
     'token_setting.max_user_tokens': 1000,
+
+    /* 分组监控设置 */
+    'group_monitoring_setting.monitoring_groups': '',
+    'group_monitoring_setting.group_display_order': '',
+    'group_monitoring_setting.availability_period_minutes': 60,
+    'group_monitoring_setting.cache_hit_period_minutes': 60,
+    'group_monitoring_setting.aggregation_interval_minutes': 5,
+    'group_monitoring_setting.availability_exclude_models': '',
+    'group_monitoring_setting.cache_hit_exclude_models': '',
+    'group_monitoring_setting.availability_exclude_keywords': '',
+    'group_monitoring_setting.availability_exclude_status_codes': '',
+    'group_monitoring_setting.cache_tokens_separate_groups': '',
   });
 
   let [loading, setLoading] = useState(false);
@@ -145,6 +158,10 @@ const OperationSetting = () => {
         {/* 监控设置 */}
         <Card style={{ marginTop: '10px' }}>
           <SettingsMonitoring options={inputs} refresh={onRefresh} />
+        </Card>
+        {/* 分组监控设置 */}
+        <Card style={{ marginTop: '10px' }}>
+          <SettingsGroupMonitoring options={inputs} refresh={onRefresh} />
         </Card>
         {/* 额度设置 */}
         <Card style={{ marginTop: '10px' }}>

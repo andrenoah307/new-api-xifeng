@@ -82,6 +82,7 @@ import {
   Package,
   Server,
   CalendarClock,
+  Activity,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -162,6 +163,8 @@ export function getLucideIcon(key, selected = false) {
       return <Ticket {...commonProps} color={iconColor} />;
     case 'setting':
       return <Settings {...commonProps} color={iconColor} />;
+    case 'monitoring':
+      return <Activity {...commonProps} color={iconColor} />;
     default:
       return <CircleUser {...commonProps} color={iconColor} />;
   }

@@ -4343,6 +4343,11 @@
     "默认状态码": "",
     "默认用户消息": "Bonjour",
     "默认补全倍率": "Taux de complétion par défaut",
-    "默认返回消息": ""
+    "默认返回消息": "",
+    "记录未命中输入": "Enregistrer les entrées non correspondantes",
+    "关闭时仅记录命中规则的请求，降低数据库压力": "Lorsque désactivé, seules les requêtes correspondant aux règles sont enregistrées, réduisant la charge de la base de données",
+    "取自用户请求的最后一条消息内容，可能包含客户端注入的协议标签，属正常现象": "Extrait du dernier message de la requête utilisateur ; peut contenir des balises de protocole injectées par le client, ce qui est normal",
+    "输入内容详情": "Détails du contenu d'entrée",
+    "完整输入内容": "Contenu d'entrée complet"
   }
 }

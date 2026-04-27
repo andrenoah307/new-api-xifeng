@@ -41,6 +41,7 @@ const routerMap = {
   ticket: '/console/ticket',
   user: '/console/user',
   risk: '/console/risk',
+  monitoring: '/console/monitoring',
   subscription: '/console/subscription',
   ticket_admin: '/console/ticket_admin',
   log: '/console/log',
@@ -109,6 +110,11 @@ const SiderBar = ({ onNavigate = () => { } }) => {
         to: '/task',
         className:
           localStorage.getItem('enable_task') === 'true' ? '' : 'tableHiddle',
+      },
+      {
+        text: t('分组监控'),
+        itemKey: 'monitoring',
+        to: '/console/monitoring',
       },
     ];
 

@@ -4862,6 +4862,11 @@
     "默认状态码": "",
     "默认用户消息": "Xin chào",
     "默认补全倍率": "Tỷ lệ hoàn thành mặc định",
-    "默认返回消息": ""
+    "默认返回消息": "",
+    "记录未命中输入": "Ghi lại đầu vào không khớp",
+    "关闭时仅记录命中规则的请求，降低数据库压力": "Khi tắt, chỉ ghi lại các yêu cầu khớp với quy tắc, giảm áp lực cơ sở dữ liệu",
+    "取自用户请求的最后一条消息内容，可能包含客户端注入的协议标签，属正常现象": "Lấy từ tin nhắn cuối cùng trong yêu cầu người dùng; có thể chứa thẻ giao thức do máy khách chèn, đây là hiện tượng bình thường",
+    "输入内容详情": "Chi tiết nội dung đầu vào",
+    "完整输入内容": "Nội dung đầu vào đầy đủ"
   }
 }
