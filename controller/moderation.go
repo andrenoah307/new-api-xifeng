@@ -186,6 +186,20 @@ func GetModerationDebugResult(c *gin.Context) {
 	})
 }
 
+func GetModerationIncidentDetail(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil || id <= 0 {
+		common.ApiErrorMsg(c, "无效的 ID")
+		return
+	}
+	row, err := model.GetModerationIncident(id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, row)
+}
+
 func GetModerationIncidents(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	query := model.ModerationIncidentQuery{

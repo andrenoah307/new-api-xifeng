@@ -278,6 +278,7 @@ func SetApiRouter(router *gin.Engine) {
 			riskRoute.PUT("/moderation/config", controller.UpdateModerationConfig)
 			riskRoute.GET("/moderation/overview", controller.GetModerationOverview)
 			riskRoute.GET("/moderation/incidents", controller.GetModerationIncidents)
+			riskRoute.GET("/moderation/incidents/:id", controller.GetModerationIncidentDetail)
 			riskRoute.POST("/moderation/debug", controller.SubmitModerationDebug)
 			riskRoute.GET("/moderation/debug/:id", controller.GetModerationDebugResult)
 			// rule CRUD + category dictionary

@@ -54,6 +54,14 @@ type ModerationIncidentQuery struct {
 	UserID  int
 }
 
+func GetModerationIncident(id int) (*ModerationIncident, error) {
+	var row ModerationIncident
+	if err := DB.First(&row, id).Error; err != nil {
+		return nil, err
+	}
+	return &row, nil
+}
+
 func CreateModerationIncident(incident *ModerationIncident) error {
 	if incident == nil {
 		return nil
@@ -89,6 +97,13 @@ func ListModerationIncidents(query ModerationIncidentQuery, startIdx, pageSize i
 		return nil, 0, err
 	}
 	err := tx.Order("created_at desc, id desc").Limit(pageSize).Offset(startIdx).Find(&rows).Error
+	if err == nil {
+		for _, r := range rows {
+			if len(r.InputSummary) > 200 {
+				r.InputSummary = r.InputSummary[:200] + "..."
+			}
+		}
+	}
 	return rows, total, err
 }
 

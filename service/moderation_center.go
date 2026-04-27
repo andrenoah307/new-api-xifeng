@@ -604,6 +604,9 @@ func (m *moderationCenter) recordResult(event *moderationEvent, result *Moderati
 		decision = result.Decision.Decision
 		flagged = decision != ModerationDecisionAllow
 	}
+	if !flagged && !cfg.RecordUnmatchedInputs {
+		return
+	}
 	incident := &model.ModerationIncident{
 		CreatedAt:         event.OccurAt,
 		UserID:            event.UserID,
@@ -619,7 +622,7 @@ func (m *moderationCenter) recordResult(event *moderationEvent, result *Moderati
 		MaxCategory:       result.MaxCategory,
 		Categories:        encodeRiskJSON(result.Categories),
 		AppliedTypes:      encodeRiskJSON(result.AppliedTypes),
-		InputSummary:      buildModerationInputSummary(event),
+		InputSummary:      buildModerationInputSummary(event, flagged),
 		UpstreamLatencyMS: result.UpstreamLatencyMS,
 		Source:            event.Source,
 		Decision:          decision,
@@ -673,7 +676,7 @@ func previewModerationDecision(result *ModerationResult, cfg *operation_setting.
 	return BuildModerationDecision(matched)
 }
 
-func buildModerationInputSummary(event *moderationEvent) string {
+func buildModerationInputSummary(event *moderationEvent, fullText bool) string {
 	if event == nil {
 		return ""
 	}
@@ -683,7 +686,7 @@ func buildModerationInputSummary(event *moderationEvent) string {
 		if t == "" {
 			continue
 		}
-		if len(t) > 200 {
+		if !fullText && len(t) > 200 {
 			t = t[:200] + "..."
 		}
 		sb.WriteString(t)

@@ -56,7 +56,8 @@ type ModerationSetting struct {
 	FlaggedRetentionHours int `json:"flagged_retention_hours"`
 	// BenignRetentionHours bounds how long below-threshold incidents stick
 	// around. Default 72h.
-	BenignRetentionHours int `json:"benign_retention_hours"`
+	BenignRetentionHours    int  `json:"benign_retention_hours"`
+	RecordUnmatchedInputs   bool `json:"record_unmatched_inputs"`
 }
 
 var moderationSetting = ModerationSetting{
@@ -83,6 +84,7 @@ var moderationSetting = ModerationSetting{
 	DebugResultRetainMin:  10,
 	FlaggedRetentionHours: 720,
 	BenignRetentionHours:  72,
+	RecordUnmatchedInputs: false,
 }
 
 func isValidModerationMode(mode string) bool {

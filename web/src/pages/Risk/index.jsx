@@ -23,6 +23,7 @@ import {
   Button,
   Card,
   Col,
+  Descriptions,
   Divider,
   Empty,
   Input,
@@ -39,6 +40,7 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
@@ -1108,6 +1110,7 @@ function ModerationTab({ riskGroups }) {
     group_modes: {},
     flagged_retention_hours: 720,
     benign_retention_hours: 72,
+    record_unmatched_inputs: false,
     event_queue_size: 4096,
     worker_count: 2,
     http_timeout_ms: 5000,
@@ -1146,6 +1149,12 @@ function ModerationTab({ riskGroups }) {
   // and polled every 15s while this tab is visible. Polling pauses on
   // unmount via the cleanup return.
   const [queueStats, setQueueStats] = useState(null);
+
+  // Detail modal for viewing full input content of an incident
+  const [detailIncidentId, setDetailIncidentId] = useState(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [detailData, setDetailData] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Moderation rules
   const [moderationRules, setModerationRules] = useState([]);
@@ -1303,6 +1312,18 @@ function ModerationTab({ riskGroups }) {
     loadModerationCategories();
   }, []);
 
+  useEffect(() => {
+    if (!detailModalVisible || !detailIncidentId) return;
+    setDetailLoading(true);
+    API.get(`/api/risk/moderation/incidents/${detailIncidentId}`)
+      .then((res) => {
+        if (res.data?.success) {
+          setDetailData(res.data.data);
+        }
+      })
+      .finally(() => setDetailLoading(false));
+  }, [detailModalVisible, detailIncidentId]);
+
   const handleSaveConfig = async () => {
     setSavingConfig(true);
     try {
@@ -1459,10 +1480,28 @@ function ModerationTab({ riskGroups }) {
     { title: t('来源'), dataIndex: 'source' },
     { title: t('上游耗时(ms)'), dataIndex: 'upstream_latency_ms' },
     {
-      title: t('输入摘要'),
+      title: (
+        <Tooltip content={t('取自用户请求的最后一条消息内容，可能包含客户端注入的协议标签，属正常现象')}>
+          <span style={{ cursor: 'help', borderBottom: '1px dashed var(--semi-color-text-2)' }}>
+            {t('输入摘要')}
+          </span>
+        </Tooltip>
+      ),
       dataIndex: 'input_summary',
-      width: 280,
-      render: (v) => <Text ellipsis={{ showTooltip: true }}>{v || '-'}</Text>,
+      render: (v, record) => (
+        <Text
+          ellipsis={{ showTooltip: false }}
+          style={{ maxWidth: '30vw', cursor: v ? 'pointer' : 'default' }}
+          onClick={() => {
+            if (v) {
+              setDetailIncidentId(record.id);
+              setDetailModalVisible(true);
+            }
+          }}
+        >
+          {v || '-'}
+        </Text>
+      ),
     },
   ];
 
@@ -1722,6 +1761,20 @@ function ModerationTab({ riskGroups }) {
               }
               style={{ width: '100%' }}
             />
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Text strong>{t('记录未命中输入')}</Text>
+            <div style={{ marginTop: 6 }}>
+              <Switch
+                checked={config.record_unmatched_inputs}
+                onChange={(v) =>
+                  setConfig((p) => ({ ...p, record_unmatched_inputs: v }))
+                }
+              />
+              <Text type='tertiary' size='small' style={{ marginLeft: 8 }}>
+                {t('关闭时仅记录命中规则的请求，降低数据库压力')}
+              </Text>
+            </div>
           </Col>
           <Col xs={24}>
             <Text strong>
@@ -2213,6 +2266,56 @@ function ModerationTab({ riskGroups }) {
           }}
         />
       </Card>
+
+      <Modal
+        title={t('输入内容详情')}
+        visible={detailModalVisible}
+        onCancel={() => {
+          setDetailModalVisible(false);
+          setDetailData(null);
+        }}
+        footer={null}
+        centered
+        width={700}
+        style={{ maxWidth: '92vw' }}
+        bodyStyle={{ maxHeight: 'calc(80vh - 120px)', overflowY: 'auto', overflowX: 'hidden' }}
+      >
+        {detailLoading ? (
+          <Spin />
+        ) : detailData ? (
+          <div>
+            <Descriptions row size='small' data={[
+              { key: t('请求 ID'), value: detailData.request_id },
+              { key: t('用户'), value: detailData.username },
+              { key: t('令牌'), value: detailData.token_name },
+              { key: t('分组'), value: detailData.group },
+              { key: t('决策'), value: detailData.decision },
+              { key: t('最高类别'), value: detailData.max_category },
+              { key: t('最高分数'), value: typeof detailData.max_score === 'number' ? detailData.max_score.toFixed(4) : '-' },
+            ]} />
+            <div style={{ marginTop: 16 }}>
+              <Text strong>{t('完整输入内容')}</Text>
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: 12,
+                  background: 'var(--semi-color-fill-0)',
+                  borderRadius: 8,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                  maxHeight: 400,
+                  overflowY: 'auto',
+                  userSelect: 'text',
+                }}
+              >
+                {detailData.input_summary || '-'}
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

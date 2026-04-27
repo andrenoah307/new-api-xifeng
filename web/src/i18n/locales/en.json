@@ -4468,6 +4468,11 @@
     "默认状态码": "",
     "默认用户消息": "Default User Message",
     "默认补全倍率": "Default completion ratio",
-    "默认返回消息": ""
+    "默认返回消息": "",
+    "记录未命中输入": "Record unmatched inputs",
+    "关闭时仅记录命中规则的请求，降低数据库压力": "When off, only requests that match rules are recorded, reducing database pressure",
+    "取自用户请求的最后一条消息内容，可能包含客户端注入的协议标签，属正常现象": "Taken from the last message in the user request; may contain client-injected protocol tags, which is normal",
+    "输入内容详情": "Input content details",
+    "完整输入内容": "Full input content"
   }
 }
