@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Tag, Progress, Typography } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
-import MiniHistoryChart from './MiniHistoryChart';
+import AvailabilityCacheChart from './AvailabilityCacheChart';
 
 const { Text } = Typography;
 
@@ -177,11 +177,12 @@ const GroupStatusCard = ({ group, onClick }) => {
         />
       </div>
 
-      {/* Mini history chart */}
+      {/* History chart */}
       {group.history && group.history.length > 0 && (
-        <MiniHistoryChart
+        <AvailabilityCacheChart
           history={group.history}
           intervalMinutes={group.aggregation_interval_minutes}
+          compact
         />
       )}
     </Card>

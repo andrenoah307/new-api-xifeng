@@ -48,7 +48,7 @@ function alignAndFillHistory(history, intervalMinutes) {
   return result;
 }
 
-const AvailabilityCacheChart = ({ history, intervalMinutes }) => {
+const AvailabilityCacheChart = ({ history, intervalMinutes, compact }) => {
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -68,16 +68,18 @@ const AvailabilityCacheChart = ({ history, intervalMinutes }) => {
     return Math.max(0, Math.floor(min / 5) * 5 - 5);
   }, [chartData]);
 
+  const h = compact ? 120 : 260;
+
   if (!chartData || chartData.length === 0) {
     return (
       <div
         style={{
-          height: 260,
+          height: h,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--semi-color-text-2)',
-          fontSize: 14,
+          fontSize: compact ? 12 : 14,
         }}
       >
         {t('暂无历史数据')}
@@ -91,11 +93,14 @@ const AvailabilityCacheChart = ({ history, intervalMinutes }) => {
     xField: 'time',
     yField: 'value',
     seriesField: 'type',
-    height: 260,
-    padding: { top: 12, bottom: 24, left: 8, right: 8 },
+    height: h,
+    padding: compact
+      ? { top: 4, bottom: 20, left: 4, right: 4 }
+      : { top: 12, bottom: 24, left: 8, right: 8 },
+    animation: compact ? false : undefined,
     line: {
       style: {
-        lineWidth: 2,
+        lineWidth: compact ? 1.5 : 2,
         curveType: 'monotone',
       },
     },
@@ -106,28 +111,32 @@ const AvailabilityCacheChart = ({ history, intervalMinutes }) => {
         label: {
           autoRotate: true,
           autoHide: true,
-          style: { fontSize: 11 },
+          style: { fontSize: compact ? 9 : 11 },
         },
       },
       {
         orient: 'left',
         min: yMin,
         max: 100,
-        label: {
-          formatMethod: (v) => `${v}%`,
-          style: { fontSize: 11 },
-        },
+        label: compact
+          ? { visible: false }
+          : {
+              formatMethod: (v) => `${v}%`,
+              style: { fontSize: 11 },
+            },
       },
     ],
-    legends: {
-      visible: true,
-      orient: 'top',
-      position: 'start',
-      data: [
-        { label: t('可用率'), shape: { fill: '#3b82f6' } },
-        { label: t('缓存命中率'), shape: { fill: '#22c55e' } },
-      ],
-    },
+    legends: compact
+      ? { visible: false }
+      : {
+          visible: true,
+          orient: 'top',
+          position: 'start',
+          data: [
+            { label: t('可用率'), shape: { fill: '#3b82f6' } },
+            { label: t('缓存命中率'), shape: { fill: '#22c55e' } },
+          ],
+        },
     tooltip: {
       mark: {
         content: [
