@@ -1142,6 +1142,11 @@ function ModerationTab({ riskGroups }) {
     flagged: '',
     keyword: '',
   });
+  // Live runtime stats — populated by GET /api/risk/moderation/queue_stats
+  // and polled every 15s while this tab is visible. Polling pauses on
+  // unmount via the cleanup return.
+  const [queueStats, setQueueStats] = useState(null);
+
   // Moderation rules
   const [moderationRules, setModerationRules] = useState([]);
   const [moderationCategories, setModerationCategories] = useState([]);
@@ -1213,6 +1218,22 @@ function ModerationTab({ riskGroups }) {
     const res = await API.get('/api/risk/moderation/categories');
     if (res.data.success) setModerationCategories(res.data.data || []);
   };
+
+  const loadQueueStats = async () => {
+    try {
+      const res = await API.get('/api/risk/moderation/queue_stats');
+      if (res.data.success) setQueueStats(res.data.data || null);
+    } catch (e) {
+      // silent — the stats card is informational, errors should not
+      // disrupt the rest of the tab.
+    }
+  };
+
+  useEffect(() => {
+    loadQueueStats();
+    const id = setInterval(loadQueueStats, 15000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleSaveModerationRule = async (form) => {
     setSavingModerationRule(true);
@@ -1454,6 +1475,68 @@ function ModerationTab({ riskGroups }) {
           '内容审核默认对所有分组关闭。所有调用都是异步且不阻塞主链路；建议先观察打分，确认阈值合适后再考虑后续动作。',
         )}
       />
+
+      {/* Live runtime stats card — refreshed every 15s. Shows queue depth
+          (memory + Redis), per-worker state, dropped events, and the
+          incident batcher backlog. */}
+      <Card bodyStyle={{ padding: 16 }} style={{ borderRadius: 16 }}>
+        <div className='flex items-center justify-between gap-3 flex-wrap'>
+          <Title heading={6} style={{ marginTop: 0 }}>
+            {t('运行状态（每 15 秒自动刷新）')}
+          </Title>
+          <Space>
+            <Button onClick={loadQueueStats}>{t('立即刷新')}</Button>
+          </Space>
+        </div>
+        {queueStats ? (
+          <div style={{ marginTop: 8 }}>
+            <Space wrap>
+              <Tag color='blue'>
+                {t('内存队列')}: {queueStats.queue_depth_memory ?? 0}
+              </Tag>
+              <Tag color={queueStats.redis_available ? 'cyan' : 'grey'}>
+                {t('Redis 队列')}:{' '}
+                {queueStats.redis_available
+                  ? (queueStats.queue_depth_redis ?? 0)
+                  : t('未启用')}
+              </Tag>
+              <Tag color='orange'>
+                {t('事件丢弃累计')}: {queueStats.drop_count_total ?? 0}
+              </Tag>
+              <Tag color='green'>
+                {t('Worker 总数')}: {queueStats.worker_count ?? 0}
+              </Tag>
+              {queueStats.incident_batcher ? (
+                <Tag color='purple'>
+                  {t('待写入审计')}: {queueStats.incident_batcher.pending ?? 0}{' '}
+                  / {t('累计写入')}:{' '}
+                  {queueStats.incident_batcher.total_flushed ?? 0}
+                </Tag>
+              ) : null}
+            </Space>
+            <div style={{ marginTop: 10 }}>
+              <Text type='secondary' size='small'>
+                {t('Worker 状态')}：
+              </Text>
+              <Space wrap style={{ marginTop: 4 }}>
+                {(queueStats.worker_state || []).map((w) => (
+                  <Tag
+                    key={w.id}
+                    color={w.state === 'processing' ? 'orange' : 'green'}
+                    size='small'
+                  >
+                    #{w.id} {w.state === 'processing' ? t('处理中') : t('空闲')}
+                  </Tag>
+                ))}
+              </Space>
+            </div>
+          </div>
+        ) : (
+          <Text type='tertiary' size='small'>
+            {t('正在加载运行状态…')}
+          </Text>
+        )}
+      </Card>
 
       {/* Overview cards */}
       <Card bodyStyle={{ padding: 20 }} style={{ borderRadius: 16 }}>

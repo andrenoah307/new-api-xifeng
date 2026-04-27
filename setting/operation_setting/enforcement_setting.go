@@ -49,11 +49,34 @@ type EnforcementSetting struct {
 	EmailHitSubject  string `json:"email_hit_subject"`
 	EmailBanSubject  string `json:"email_ban_subject"`
 
-	// EmailRateLimitWindowMinutes / EmailRateLimitMaxPerWindow implement
-	// "no more than N emails per user in M minutes" (decision point 8).
-	// Defaults: 10 / 3 — three emails per ten minutes.
-	EmailRateLimitWindowMinutes int `json:"email_rate_limit_window_minutes"`
-	EmailRateLimitMaxPerWindow  int `json:"email_rate_limit_max_per_window"`
+	// HitEmailWindowMinutes / HitEmailMaxPerWindow govern the per-user
+	// rate limit for HIT notification emails ("you triggered a rule").
+	// Defaults: 10 / 3 — at most three hit emails per ten minutes per user.
+	//
+	// JSON also accepts the legacy email_rate_limit_* keys for backwards
+	// compatibility — admins who saved configs on v2 see the values
+	// migrate automatically on the next save.
+	HitEmailWindowMinutes int `json:"hit_email_window_minutes,omitempty" gorm:"-"`
+	HitEmailMaxPerWindow  int `json:"hit_email_max_per_window,omitempty" gorm:"-"`
+
+	// LegacyEmailRateLimitWindowMinutes / LegacyEmailRateLimitMaxPerWindow
+	// preserve the v2 field name so JSON round-trips don't strip a
+	// pre-existing config entry. The Normalize step migrates them into
+	// HitEmailWindowMinutes / HitEmailMaxPerWindow when those new fields
+	// are still zero.
+	LegacyEmailRateLimitWindowMinutes int `json:"email_rate_limit_window_minutes,omitempty"`
+	LegacyEmailRateLimitMaxPerWindow  int `json:"email_rate_limit_max_per_window,omitempty"`
+
+	// BanEmailWindowMinutes / BanEmailMaxPerWindow govern the BAN
+	// notification email rate limit independently from hit emails. The
+	// production v2 deployment had ban emails skipped because the single
+	// hit-email budget was already exhausted — this split is the fix.
+	// Defaults: 60 / 3 — three ban emails per hour per user as a sanity
+	// cap that should never trip in practice (already_banned short-
+	// circuits any subsequent hit; a healthy user never sees more than
+	// one ban email between manual unbans).
+	BanEmailWindowMinutes int `json:"ban_email_window_minutes"`
+	BanEmailMaxPerWindow  int `json:"ban_email_max_per_window"`
 }
 
 var enforcementSetting = EnforcementSetting{
@@ -66,10 +89,12 @@ var enforcementSetting = EnforcementSetting{
 	EnabledSources:              []string{EnforcementSourceRiskDistribution, EnforcementSourceModeration},
 	EmailHitTemplate:            DefaultEnforcementHitTemplate,
 	EmailBanTemplate:            DefaultEnforcementBanTemplate,
-	EmailHitSubject:             "您的账户触发了平台风控策略",
-	EmailBanSubject:             "您的账户已被自动封禁",
-	EmailRateLimitWindowMinutes: 10,
-	EmailRateLimitMaxPerWindow:  3,
+	EmailHitSubject:       "您的账户触发了平台风控策略",
+	EmailBanSubject:       "您的账户已被自动封禁",
+	HitEmailWindowMinutes: 10,
+	HitEmailMaxPerWindow:  3,
+	BanEmailWindowMinutes: 60,
+	BanEmailMaxPerWindow:  3,
 }
 
 // DefaultEnforcementHitTemplate is intentionally vague — see DEV_GUIDE
@@ -129,11 +154,28 @@ func NormalizeEnforcementSetting(setting *EnforcementSetting) {
 	if setting.BanThreshold < 0 {
 		setting.BanThreshold = 0
 	}
-	if setting.EmailRateLimitWindowMinutes <= 0 {
-		setting.EmailRateLimitWindowMinutes = 10
+	// Migrate legacy v2 field names into the new bucketed defaults the
+	// first time we see them. Once HitEmail*-prefixed values are set the
+	// legacy fields are ignored on subsequent loads.
+	if setting.HitEmailWindowMinutes <= 0 && setting.LegacyEmailRateLimitWindowMinutes > 0 {
+		setting.HitEmailWindowMinutes = setting.LegacyEmailRateLimitWindowMinutes
 	}
-	if setting.EmailRateLimitMaxPerWindow <= 0 {
-		setting.EmailRateLimitMaxPerWindow = 3
+	if setting.HitEmailMaxPerWindow <= 0 && setting.LegacyEmailRateLimitMaxPerWindow > 0 {
+		setting.HitEmailMaxPerWindow = setting.LegacyEmailRateLimitMaxPerWindow
+	}
+	setting.LegacyEmailRateLimitWindowMinutes = 0
+	setting.LegacyEmailRateLimitMaxPerWindow = 0
+	if setting.HitEmailWindowMinutes <= 0 {
+		setting.HitEmailWindowMinutes = 10
+	}
+	if setting.HitEmailMaxPerWindow <= 0 {
+		setting.HitEmailMaxPerWindow = 3
+	}
+	if setting.BanEmailWindowMinutes <= 0 {
+		setting.BanEmailWindowMinutes = 60
+	}
+	if setting.BanEmailMaxPerWindow <= 0 {
+		setting.BanEmailMaxPerWindow = 3
 	}
 	cleanedPerSource := map[string]int{}
 	for k, v := range setting.BanThresholdPerSource {

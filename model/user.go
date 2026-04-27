@@ -70,11 +70,19 @@ type User struct {
 	EnforcementHitCountModeration int   `json:"enforcement_hit_count_moderation" gorm:"default:0;index"`
 	EnforcementWindowStartAt      int64 `json:"enforcement_window_start_at" gorm:"bigint;default:0"`
 	EnforcementLastHitAt          int64 `json:"enforcement_last_hit_at" gorm:"bigint;default:0;index"`
-	// EnforcementEmailWindowStartAt + Count implement the "max N emails per
-	// M minutes per user" rate limit. Reset whenever a send attempt notices
-	// the window has passed.
+	// EnforcementEmailWindowStartAt + Count implement the "max N HIT
+	// emails per M minutes per user" rate limit. The original single
+	// bucket meant a flurry of hit emails could exhaust the budget and
+	// then the eventual ban email was silently dropped — production
+	// observed exactly this. Hit and ban now have independent buckets.
 	EnforcementEmailWindowStartAt int64 `json:"enforcement_email_window_start_at" gorm:"bigint;default:0"`
 	EnforcementEmailCountInWindow int   `json:"enforcement_email_count_in_window" gorm:"default:0"`
+	// EnforcementBanEmailWindowStartAt + Count are the BAN bucket. 60min
+	// / 3 emails default; this should never throttle a healthy user
+	// (already_banned short-circuits subsequent hits) — it exists as a
+	// last-resort sanity cap against runaway code bugs.
+	EnforcementBanEmailWindowStartAt int64 `json:"enforcement_ban_email_window_start_at" gorm:"bigint;default:0"`
+	EnforcementBanEmailCountInWindow int   `json:"enforcement_ban_email_count_in_window" gorm:"default:0"`
 	// EnforcementAutoBannedAt is non-zero once the engine has flipped the
 	// account to disabled. Used to short-circuit further hits (no double-ban
 	// emails) and to drive the audit timeline. Manual unban resets this to 0.
@@ -126,6 +134,8 @@ type EnforcementCounterSnapshot struct {
 	LastHitAt             int64
 	EmailWindowStartAt    int64
 	EmailCountInWindow    int
+	BanEmailWindowStartAt int64
+	BanEmailCountInWindow int
 	AutoBannedAt          int64
 	Status                int
 	Username              string
@@ -145,22 +155,25 @@ func LoadEnforcementCounter(userID int) (*EnforcementCounterSnapshot, error) {
 			"enforcement_hit_count_risk, enforcement_hit_count_moderation, "+
 			"enforcement_window_start_at, enforcement_last_hit_at, "+
 			"enforcement_email_window_start_at, enforcement_email_count_in_window, "+
+			"enforcement_ban_email_window_start_at, enforcement_ban_email_count_in_window, "+
 			"enforcement_auto_banned_at").
 		Where("id = ?", userID).First(&u).Error; err != nil {
 		return nil, err
 	}
 	return &EnforcementCounterSnapshot{
-		UserID:             u.Id,
-		HitCountRisk:       u.EnforcementHitCountRisk,
-		HitCountModeration: u.EnforcementHitCountModeration,
-		WindowStartAt:      u.EnforcementWindowStartAt,
-		LastHitAt:          u.EnforcementLastHitAt,
-		EmailWindowStartAt: u.EnforcementEmailWindowStartAt,
-		EmailCountInWindow: u.EnforcementEmailCountInWindow,
-		AutoBannedAt:       u.EnforcementAutoBannedAt,
-		Status:             u.Status,
-		Username:           u.Username,
-		Email:              u.Email,
+		UserID:                u.Id,
+		HitCountRisk:          u.EnforcementHitCountRisk,
+		HitCountModeration:    u.EnforcementHitCountModeration,
+		WindowStartAt:         u.EnforcementWindowStartAt,
+		LastHitAt:             u.EnforcementLastHitAt,
+		EmailWindowStartAt:    u.EnforcementEmailWindowStartAt,
+		EmailCountInWindow:    u.EnforcementEmailCountInWindow,
+		BanEmailWindowStartAt: u.EnforcementBanEmailWindowStartAt,
+		BanEmailCountInWindow: u.EnforcementBanEmailCountInWindow,
+		AutoBannedAt:          u.EnforcementAutoBannedAt,
+		Status:                u.Status,
+		Username:              u.Username,
+		Email:                 u.Email,
 	}, nil
 }
 
@@ -179,9 +192,9 @@ func ApplyEnforcementHit(userID int, hitCountRisk, hitCountModeration int, windo
 	}).Error
 }
 
-// MarkEnforcementEmailSent advances the email rate-limit window state. The
-// caller has already decided whether the window should be reset (start = 0
-// means "open a new window"); this function persists the bump.
+// MarkEnforcementEmailSent advances the HIT email rate-limit window state.
+// Ban emails go through MarkEnforcementBanEmailSent — they are independent
+// buckets so a flurry of hit emails cannot starve a ban notification.
 func MarkEnforcementEmailSent(userID int, windowStartAt int64, count int) error {
 	if userID <= 0 {
 		return nil
@@ -189,6 +202,18 @@ func MarkEnforcementEmailSent(userID int, windowStartAt int64, count int) error 
 	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
 		"enforcement_email_window_start_at": windowStartAt,
 		"enforcement_email_count_in_window": count,
+	}).Error
+}
+
+// MarkEnforcementBanEmailSent advances the BAN email rate-limit window
+// state. Independent from the hit bucket per DEV_GUIDE §B/§14.
+func MarkEnforcementBanEmailSent(userID int, windowStartAt int64, count int) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"enforcement_ban_email_window_start_at": windowStartAt,
+		"enforcement_ban_email_count_in_window": count,
 	}).Error
 }
 
@@ -218,9 +243,11 @@ func ResetEnforcementCounter(userID int) error {
 		"enforcement_hit_count_moderation":  0,
 		"enforcement_window_start_at":       int64(0),
 		"enforcement_last_hit_at":           int64(0),
-		"enforcement_email_window_start_at": int64(0),
-		"enforcement_email_count_in_window": 0,
-		"enforcement_auto_banned_at":        int64(0),
+		"enforcement_email_window_start_at":     int64(0),
+		"enforcement_email_count_in_window":     0,
+		"enforcement_ban_email_window_start_at": int64(0),
+		"enforcement_ban_email_count_in_window": 0,
+		"enforcement_auto_banned_at":            int64(0),
 	}).Error
 }
 

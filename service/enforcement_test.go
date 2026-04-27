@@ -18,9 +18,11 @@ func TestEnforcementSettingNormalizeFiltersUnknownSources(t *testing.T) {
 			operation_setting.EnforcementSourceRiskDistribution: 5,
 			"another_unknown": 7,
 		},
-		EmailRateLimitMaxPerWindow:  -1,
-		EmailRateLimitWindowMinutes: 0,
-		CountWindowHours:            -2,
+		HitEmailMaxPerWindow:  -1,
+		HitEmailWindowMinutes: 0,
+		BanEmailMaxPerWindow:  0,
+		BanEmailWindowMinutes: 0,
+		CountWindowHours:      -2,
 	}
 	operation_setting.NormalizeEnforcementSetting(cfg)
 	if len(cfg.EnabledSources) != 1 || cfg.EnabledSources[0] != operation_setting.EnforcementSourceModeration {
@@ -29,11 +31,17 @@ func TestEnforcementSettingNormalizeFiltersUnknownSources(t *testing.T) {
 	if _, ok := cfg.BanThresholdPerSource["another_unknown"]; ok {
 		t.Fatal("unknown source key must be filtered from BanThresholdPerSource")
 	}
-	if cfg.EmailRateLimitMaxPerWindow != 3 {
-		t.Errorf("EmailRateLimitMaxPerWindow should default to 3, got %d", cfg.EmailRateLimitMaxPerWindow)
+	if cfg.HitEmailMaxPerWindow != 3 {
+		t.Errorf("HitEmailMaxPerWindow should default to 3, got %d", cfg.HitEmailMaxPerWindow)
 	}
-	if cfg.EmailRateLimitWindowMinutes != 10 {
-		t.Errorf("EmailRateLimitWindowMinutes should default to 10, got %d", cfg.EmailRateLimitWindowMinutes)
+	if cfg.HitEmailWindowMinutes != 10 {
+		t.Errorf("HitEmailWindowMinutes should default to 10, got %d", cfg.HitEmailWindowMinutes)
+	}
+	if cfg.BanEmailMaxPerWindow != 3 {
+		t.Errorf("BanEmailMaxPerWindow should default to 3, got %d", cfg.BanEmailMaxPerWindow)
+	}
+	if cfg.BanEmailWindowMinutes != 60 {
+		t.Errorf("BanEmailWindowMinutes should default to 60, got %d", cfg.BanEmailWindowMinutes)
 	}
 	if cfg.CountWindowHours != 24 {
 		t.Errorf("CountWindowHours should default to 24 when negative, got %d", cfg.CountWindowHours)

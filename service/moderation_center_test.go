@@ -134,3 +134,26 @@ func TestPreflightModerationHookIsAllowAll(t *testing.T) {
 		t.Fatalf("PreflightModerationHook must allow in v2; got allow=false reason=%q", reason)
 	}
 }
+
+// TestRingBufferDropsOldestWhenFull verifies that the moderation queue
+// follows ring-buffer semantics (DEV_GUIDE §14): when a 2-slot queue is
+// already full, pushing a third event drops the OLDEST while preserving
+// the newest. This is the inverse of stdlib select-default ("drop new").
+func TestRingBufferDropsOldestWhenFull(t *testing.T) {
+	m := &moderationCenter{queue: make(chan *moderationEvent, 2)}
+	a := &moderationEvent{RequestID: "a", Group: "vip"}
+	b := &moderationEvent{RequestID: "b", Group: "vip"}
+	c := &moderationEvent{RequestID: "c", Group: "vip"}
+	m.enqueue(a)
+	m.enqueue(b)
+	m.enqueue(c) // ring drop: a evicted, b+c remain
+	if got := <-m.queue; got.RequestID != "b" {
+		t.Fatalf("expected oldest survivor 'b', got %q", got.RequestID)
+	}
+	if got := <-m.queue; got.RequestID != "c" {
+		t.Fatalf("expected newest 'c' to survive, got %q", got.RequestID)
+	}
+	if m.dropCount.Load() == 0 {
+		t.Fatal("dropCount should reflect the discarded oldest event")
+	}
+}

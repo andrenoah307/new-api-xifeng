@@ -34,6 +34,16 @@ type ModerationSetting struct {
 	WorkerCount          int               `json:"worker_count"`
 	HTTPTimeoutMS        int               `json:"http_timeout_ms"`
 	MaxRetries           int               `json:"max_retries"`
+	// IncidentFlushIntervalMs / IncidentMaxBatchSize drive the periodic
+	// moderation_incidents batcher (DEV_GUIDE §14). The batcher amortises
+	// PG writes so the OpenAI worker pool is decoupled from DB latency.
+	IncidentFlushIntervalMs int `json:"incident_flush_interval_ms"`
+	IncidentMaxBatchSize    int `json:"incident_max_batch_size"`
+	// RedisQueueEnabled toggles the Redis-backed persistent queue. When
+	// false the engine uses the in-memory channel only (events lost on
+	// restart). Falls back to memory automatically when Redis is
+	// unreachable, regardless of this flag.
+	RedisQueueEnabled bool `json:"redis_queue_enabled"`
 	SamplingRatePercent  int               `json:"sampling_rate_percent"`
 	ImageMaxSizeKB       int               `json:"image_max_size_kb"`
 	EnabledGroups        []string          `json:"enabled_groups"`
@@ -55,10 +65,17 @@ var moderationSetting = ModerationSetting{
 	BaseURL:               ModerationDefaultBaseURL,
 	Model:                 ModerationDefaultModel,
 	APIKeys:               []string{},
-	EventQueueSize:        4096,
-	WorkerCount:           2,
-	HTTPTimeoutMS:         5000,
-	MaxRetries:            3,
+	// 1500 RPM target sizing — see DEV_GUIDE §14 for the math. OpenAI
+	// moderation RTT measured ~140ms in production; 16 workers x 7 req/s
+	// ~= 113 req/s capacity gives 6.5x headroom over the 17.5 req/s
+	// expected steady-state load (after the failed-request filter).
+	EventQueueSize:          32768,
+	WorkerCount:             16,
+	HTTPTimeoutMS:           3000,
+	MaxRetries:              3,
+	IncidentFlushIntervalMs: 500,
+	IncidentMaxBatchSize:    100,
+	RedisQueueEnabled:       true,
 	SamplingRatePercent:   100,
 	ImageMaxSizeKB:        2048,
 	EnabledGroups:         []string{},
@@ -150,6 +167,12 @@ func NormalizeModerationSetting(setting *ModerationSetting) {
 	}
 	if setting.MaxRetries < 0 {
 		setting.MaxRetries = 3
+	}
+	if setting.IncidentFlushIntervalMs <= 0 {
+		setting.IncidentFlushIntervalMs = 500
+	}
+	if setting.IncidentMaxBatchSize <= 0 {
+		setting.IncidentMaxBatchSize = 100
 	}
 	if setting.SamplingRatePercent < 0 {
 		setting.SamplingRatePercent = 0

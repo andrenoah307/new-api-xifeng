@@ -114,8 +114,8 @@ func processEnforcementHit(
 
 	emailDelivered, skipReason := false, ""
 	if cfg.EmailOnHit {
-		emailDelivered, skipReason = sendEnforcementEmailWithRateLimit(
-			snap, cfg, group, source, currentCount, threshold, false, now,
+		emailDelivered, skipReason = sendEnforcementHitEmail(
+			snap, cfg, group, source, currentCount, threshold, now,
 		)
 	} else {
 		skipReason = model.EnforcementEmailSkipReasonDisabled
@@ -153,14 +153,15 @@ func applyEnforcementAutoBan(
 	}
 	emailDelivered, skipReason := false, ""
 	if cfg.EmailOnAutoBan {
-		// Refresh the snapshot for the email rate-limit window — the hit
-		// path may have just sent an email and bumped the counter.
+		// Refresh the snapshot — the hit path may have just bumped the
+		// hit-email window. The ban-email window is independent, but we
+		// still want a fresh read for username/email accuracy.
 		fresh, err := model.LoadEnforcementCounter(snap.UserID)
 		if err == nil && fresh != nil {
 			snap = fresh
 		}
-		emailDelivered, skipReason = sendEnforcementEmailWithRateLimit(
-			snap, cfg, group, source, currentCount, threshold, true, now,
+		emailDelivered, skipReason = sendEnforcementBanEmail(
+			snap, cfg, group, source, currentCount, threshold, now,
 		)
 	} else {
 		skipReason = model.EnforcementEmailSkipReasonDisabled
@@ -190,39 +191,72 @@ func counterForSource(snap *model.EnforcementCounterSnapshot, source string) int
 	return snap.HitCountRisk
 }
 
-// sendEnforcementEmailWithRateLimit returns (delivered, skip_reason). Skips
-// silently when the per-user "max N emails per M minutes" budget is
-// exhausted, when the user has no email address, or when the SMTP layer
-// errors out. Skip reasons are recorded on the audit row so admins can
-// understand why their threshold settings produced no email.
-func sendEnforcementEmailWithRateLimit(
+// sendEnforcementHitEmail handles HIT notification rate limiting against
+// the dedicated hit bucket. Skips silently when the per-user budget is
+// exhausted, the user has no email, or SMTP errors out.
+func sendEnforcementHitEmail(
 	snap *model.EnforcementCounterSnapshot,
 	cfg *operation_setting.EnforcementSetting,
-	group, source string, count, threshold int,
-	isBan bool, now int64,
+	group, source string, count, threshold int, now int64,
 ) (bool, string) {
 	if snap == nil || strings.TrimSpace(snap.Email) == "" {
 		return false, model.EnforcementEmailSkipReasonNoEmail
 	}
-	if cfg.EmailRateLimitMaxPerWindow > 0 && cfg.EmailRateLimitWindowMinutes > 0 {
+	if cfg.HitEmailMaxPerWindow > 0 && cfg.HitEmailWindowMinutes > 0 {
 		windowStart := snap.EmailWindowStartAt
-		windowSec := int64(cfg.EmailRateLimitWindowMinutes) * 60
+		windowSec := int64(cfg.HitEmailWindowMinutes) * 60
 		newCount := snap.EmailCountInWindow
 		if windowStart == 0 || now-windowStart >= windowSec {
 			windowStart = now
 			newCount = 0
 		}
-		if newCount >= cfg.EmailRateLimitMaxPerWindow {
+		if newCount >= cfg.HitEmailMaxPerWindow {
 			return false, model.EnforcementEmailSkipReasonRateLimit
 		}
 		newCount++
 		if err := model.MarkEnforcementEmailSent(snap.UserID, windowStart, newCount); err != nil {
-			common.SysError("enforcement email window update failed: " + err.Error())
+			common.SysError("enforcement hit email window update failed: " + err.Error())
 		}
 	}
-	subject, body := renderEnforcementEmail(cfg, snap.Username, group, source, count, threshold, isBan, now)
+	subject, body := renderEnforcementEmail(cfg, snap.Username, group, source, count, threshold, false, now)
 	if err := common.SendEmail(subject, snap.Email, body); err != nil {
-		common.SysError("enforcement send email failed: " + err.Error())
+		common.SysError("enforcement send hit email failed: " + err.Error())
+		return false, model.EnforcementEmailSkipReasonSendError
+	}
+	return true, ""
+}
+
+// sendEnforcementBanEmail uses the dedicated BAN bucket. The hit bucket's
+// state has zero influence here, so a hit-email storm cannot starve the
+// ban notification. The bucket itself is a sanity cap (default 60min/3) —
+// already_banned short-circuits ensure the bucket is rarely touched.
+func sendEnforcementBanEmail(
+	snap *model.EnforcementCounterSnapshot,
+	cfg *operation_setting.EnforcementSetting,
+	group, source string, count, threshold int, now int64,
+) (bool, string) {
+	if snap == nil || strings.TrimSpace(snap.Email) == "" {
+		return false, model.EnforcementEmailSkipReasonNoEmail
+	}
+	if cfg.BanEmailMaxPerWindow > 0 && cfg.BanEmailWindowMinutes > 0 {
+		windowStart := snap.BanEmailWindowStartAt
+		windowSec := int64(cfg.BanEmailWindowMinutes) * 60
+		newCount := snap.BanEmailCountInWindow
+		if windowStart == 0 || now-windowStart >= windowSec {
+			windowStart = now
+			newCount = 0
+		}
+		if newCount >= cfg.BanEmailMaxPerWindow {
+			return false, model.EnforcementEmailSkipReasonRateLimit
+		}
+		newCount++
+		if err := model.MarkEnforcementBanEmailSent(snap.UserID, windowStart, newCount); err != nil {
+			common.SysError("enforcement ban email window update failed: " + err.Error())
+		}
+	}
+	subject, body := renderEnforcementEmail(cfg, snap.Username, group, source, count, threshold, true, now)
+	if err := common.SendEmail(subject, snap.Email, body); err != nil {
+		common.SysError("enforcement send ban email failed: " + err.Error())
 		return false, model.EnforcementEmailSkipReasonSendError
 	}
 	return true, ""

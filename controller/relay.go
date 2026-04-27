@@ -137,8 +137,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		service.RiskControlAfterRelay(c, relayInfo, newAPIError)
 		// Async OpenAI moderation scoring. The hook copies what it needs out
 		// of gin context, gopool.Go's the rest, and never blocks the relay
-		// path even when the upstream is unreachable.
-		service.EnqueueModerationFromRelay(c, relayInfo, meta)
+		// path even when the upstream is unreachable. The relay error is
+		// passed in so failed-upstream requests (no client output) skip
+		// moderation entirely.
+		service.EnqueueModerationFromRelay(c, relayInfo, meta, newAPIError)
 	}()
 
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()

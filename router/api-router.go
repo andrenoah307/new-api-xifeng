@@ -286,6 +286,7 @@ func SetApiRouter(router *gin.Engine) {
 			riskRoute.POST("/moderation/rules", controller.CreateModerationRule)
 			riskRoute.PUT("/moderation/rules/:id", controller.UpdateModerationRule)
 			riskRoute.DELETE("/moderation/rules/:id", controller.DeleteModerationRule)
+			riskRoute.GET("/moderation/queue_stats", controller.GetModerationQueueStats)
 
 			// enforcement layer (unified post-hit handling)
 			riskRoute.GET("/enforcement/config", controller.GetEnforcementConfig)

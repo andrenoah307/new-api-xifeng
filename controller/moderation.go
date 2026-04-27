@@ -221,6 +221,14 @@ func GetModerationOverview(c *gin.Context) {
 	common.ApiSuccess(c, overview)
 }
 
+// GetModerationQueueStats powers the live "运行状态" card on the content
+// moderation tab. Returns the in-memory queue depth, Redis-persisted
+// queue depth, per-worker state, dropped-count, and incident batcher
+// pending size.
+func GetModerationQueueStats(c *gin.Context) {
+	common.ApiSuccess(c, service.QueueStats())
+}
+
 // GetModerationCategories powers the rule editor dropdown so the UI doesn't
 // have to maintain its own copy of the OpenAI category list.
 func GetModerationCategories(c *gin.Context) {

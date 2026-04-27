@@ -57,15 +57,24 @@ type moderationEvent struct {
 }
 
 type moderationCenter struct {
-	started    atomic.Bool
-	mu         sync.Mutex
-	queue      chan *moderationEvent
-	keyRing    *ModerationKeyRing
-	dropCount  atomic.Int64
-	httpClient *http.Client
-	debugStore sync.Map // requestID -> *moderationDebugEntry
-	stopOnce   sync.Once
-	stopCh     chan struct{}
+	started     atomic.Bool
+	mu          sync.Mutex
+	queue       chan *moderationEvent
+	keyRing     *ModerationKeyRing
+	dropCount   atomic.Int64
+	httpClient  *http.Client
+	debugStore  sync.Map // requestID -> *moderationDebugEntry
+	stopOnce    sync.Once
+	stopCh      chan struct{}
+	batcher     *moderationIncidentBatcher
+	workerState sync.Map // workerID -> *moderationWorkerState
+	redisQueue  *moderationRedisQueue
+}
+
+type moderationWorkerState struct {
+	State       string // "idle" / "processing"
+	SinceUnix   int64
+	LastEventAt int64
 }
 
 type moderationDebugEntry struct {
@@ -94,8 +103,24 @@ func (m *moderationCenter) start() {
 	cfg := operation_setting.GetModerationSetting()
 	m.queue = make(chan *moderationEvent, cfg.EventQueueSize)
 	m.stopCh = make(chan struct{})
-	m.httpClient = &http.Client{Timeout: time.Duration(cfg.HTTPTimeoutMS) * time.Millisecond}
+	// Beefy keep-alive transport — moderation traffic is many small POSTs
+	// against the same OpenAI host, so connection reuse matters more than
+	// the default Transport allows.
+	m.httpClient = &http.Client{
+		Timeout: time.Duration(cfg.HTTPTimeoutMS) * time.Millisecond,
+		Transport: &http.Transport{
+			MaxIdleConns:        cfg.WorkerCount * 4,
+			MaxIdleConnsPerHost: cfg.WorkerCount * 4,
+			IdleConnTimeout:     90 * time.Second,
+		},
+	}
 	m.keyRing = NewModerationKeyRing(cfg.APIKeys)
+	m.batcher = newModerationIncidentBatcher(cfg.IncidentMaxBatchSize * 8)
+	m.batcher.start()
+	if cfg.RedisQueueEnabled {
+		m.redisQueue = newModerationRedisQueue(cfg.EventQueueSize)
+		m.redisQueue.recoverProcessing()
+	}
 	if err := ReloadModerationRules(); err != nil {
 		common.SysError("moderation reload rules failed: " + err.Error())
 	}
@@ -109,7 +134,9 @@ func (m *moderationCenter) start() {
 		}
 	}
 	for i := 0; i < cfg.WorkerCount; i++ {
-		go m.runWorker()
+		workerID := i
+		m.workerState.Store(workerID, &moderationWorkerState{State: "idle"})
+		go m.runWorker(workerID)
 	}
 	if common.IsMasterNode {
 		go m.runRetentionLoop()
@@ -132,8 +159,21 @@ func (m *moderationCenter) applyConfig(cfg *operation_setting.ModerationSetting)
 // EnqueueModerationFromRelay is the relay-side hook; it copies the data it
 // needs out of gin context and gopool.Go's the rest. Designed to be called
 // from a defer block; never blocks the relay path.
-func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, meta *types.TokenCountMeta) {
+//
+// relayErr lets the engine drop requests that never produced output —
+// upstream 4xx/5xx, timeout, channel error, etc. Such requests have no
+// content the user actually saw, so moderating them wastes OpenAI tokens
+// and pollutes hit counts (see DEV_GUIDE §14 "失败请求过滤"). The rule:
+//
+//   - relayErr == nil          ⇒ HTTP 2xx success, enqueue.
+//   - SendResponseCount > 0    ⇒ stream/SSE delivered at least one chunk
+//     to the client before failing — the user did see content; enqueue.
+//   - otherwise                ⇒ skip.
+func EnqueueModerationFromRelay(c *gin.Context, info *relaycommon.RelayInfo, meta *types.TokenCountMeta, relayErr *types.NewAPIError) {
 	if info == nil || meta == nil {
+		return
+	}
+	if relayErr != nil && info.SendResponseCount == 0 {
 		return
 	}
 	cfg := operation_setting.GetModerationSetting()
@@ -274,17 +314,46 @@ func PreflightModerationHook(ctx context.Context, info *relaycommon.RelayInfo, m
 	return true, ""
 }
 
+// enqueue uses ring-buffer semantics — when the queue is full we discard
+// the OLDEST queued event so the most recent moderation observation always
+// has a chance to be processed. This is the inverse of stdlib select-default
+// and matches the operational reality that an old hit is less interesting
+// than a fresh one (DEV_GUIDE §14 "Ring buffer").
+//
+// When Redis persistence is enabled the event is also pushed to the
+// rc:mod:queue list so it survives a restart. Redis push errors do not
+// affect the in-memory enqueue path — persistence is best-effort.
 func (m *moderationCenter) enqueue(event *moderationEvent) {
 	if event == nil || m.queue == nil {
 		return
+	}
+	if m.redisQueue != nil {
+		if payload, err := common.Marshal(event); err == nil {
+			if err := m.redisQueue.enqueue(string(payload)); err != nil {
+				common.SysError("moderation redis enqueue failed: " + err.Error())
+			}
+		}
+	}
+	select {
+	case m.queue <- event:
+		return
+	default:
+	}
+	// Drop one old event then retry. The two select-defaults handle the
+	// rare but possible race where another worker drains the queue
+	// between our two attempts.
+	select {
+	case <-m.queue:
+		m.dropCount.Add(1)
+	default:
 	}
 	select {
 	case m.queue <- event:
 	default:
 		m.dropCount.Add(1)
-		if m.dropCount.Load()%100 == 1 {
-			common.SysLog("moderation event queue is full, dropping events")
-		}
+	}
+	if m.dropCount.Load()%100 == 1 {
+		common.SysLog("moderation event queue is full, ring-buffer dropping oldest")
 	}
 }
 
@@ -304,14 +373,89 @@ func (m *moderationCenter) enqueueDirect(event *moderationEvent) error {
 	}
 }
 
-func (m *moderationCenter) runWorker() {
+func (m *moderationCenter) runWorker(workerID int) {
 	for event := range m.queue {
 		if event == nil {
 			continue
 		}
+		m.markWorker(workerID, "processing", common.GetTimestamp())
 		result := m.processEvent(event)
 		m.recordResult(event, result)
+		now := common.GetTimestamp()
+		// If we have a Redis-persisted copy of this event, removing it
+		// from the worker's processing list completes the lifecycle.
+		// Best-effort — a stale entry just gets retried after recovery,
+		// which is the correct failure mode.
+		if m.redisQueue != nil {
+			if payload, err := common.Marshal(event); err == nil {
+				_ = m.redisQueue.complete(workerID, string(payload))
+			}
+		}
+		m.markWorker(workerID, "idle", now)
 	}
+}
+
+func (m *moderationCenter) markWorker(workerID int, state string, ts int64) {
+	v, ok := m.workerState.Load(workerID)
+	if !ok {
+		ws := &moderationWorkerState{State: state, SinceUnix: ts, LastEventAt: ts}
+		m.workerState.Store(workerID, ws)
+		return
+	}
+	ws := v.(*moderationWorkerState)
+	ws.State = state
+	ws.SinceUnix = ts
+	if state == "idle" {
+		ws.LastEventAt = ts
+	}
+}
+
+// QueueStats powers the UI live status card. Snapshot is best-effort —
+// reads are unsynchronised against worker mutations because operators
+// only need ballpark numbers, not transactional accuracy.
+func QueueStats() map[string]any {
+	m := globalModerationCenter
+	if m == nil {
+		return map[string]any{"queue_depth_memory": 0, "worker_count": 0}
+	}
+	memDepth := 0
+	if m.queue != nil {
+		memDepth = len(m.queue)
+	}
+	redisDepth := int64(0)
+	redisAvailable := false
+	if m.redisQueue != nil {
+		redisDepth = m.redisQueue.depth()
+		redisAvailable = true
+	}
+	workerCount := 0
+	workers := make([]map[string]any, 0)
+	m.workerState.Range(func(key, value any) bool {
+		ws, ok := value.(*moderationWorkerState)
+		if !ok || ws == nil {
+			return true
+		}
+		workerCount++
+		workers = append(workers, map[string]any{
+			"id":            key,
+			"state":         ws.State,
+			"since":         ws.SinceUnix,
+			"last_event_at": ws.LastEventAt,
+		})
+		return true
+	})
+	out := map[string]any{
+		"queue_depth_memory": memDepth,
+		"queue_depth_redis":  redisDepth,
+		"redis_available":    redisAvailable,
+		"worker_count":       workerCount,
+		"worker_state":       workers,
+		"drop_count_total":   m.dropCount.Load(),
+	}
+	if m.batcher != nil {
+		out["incident_batcher"] = m.batcher.stats()
+	}
+	return out
 }
 
 func (m *moderationCenter) recordResult(event *moderationEvent, result *ModerationResult) {
@@ -388,7 +532,12 @@ func (m *moderationCenter) recordResult(event *moderationEvent, result *Moderati
 		PrimaryRule:       primaryRule,
 		MatchedRules:      matchedJSON,
 	}
-	if err := model.CreateModerationIncident(incident); err != nil {
+	// Hand off to the batcher; submit() falls back to a synchronous insert
+	// if the batcher's inbound channel is saturated, so we never lose audit
+	// rows even under bursty traffic.
+	if m.batcher != nil {
+		m.batcher.submit(incident)
+	} else if err := model.CreateModerationIncident(incident); err != nil {
 		common.SysError("moderation create incident failed: " + err.Error())
 	}
 	// Forward to the unified enforcement layer once the rule decision is
