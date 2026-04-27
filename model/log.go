@@ -185,6 +185,18 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
 	}
+	if common.GroupMonitoringHook != nil {
+		sc := 0
+		if v, ok := other["status_code"]; ok {
+			switch n := v.(type) {
+			case int:
+				sc = n
+			case float64:
+				sc = int(n)
+			}
+		}
+		common.GroupMonitoringHook(group, channelId, false, 0, 0, useTimeSeconds*1000, 0, modelName, sc, content)
+	}
 }
 
 type RecordConsumeLogParams struct {
@@ -250,6 +262,24 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		gopool.Go(func() {
 			LogQuotaData(userId, username, params.ModelName, params.Quota, common.GetTimestamp(), params.PromptTokens+params.CompletionTokens)
 		})
+	}
+	if common.GroupMonitoringHook != nil {
+		frtMs := 0
+		if frt, ok := params.Other["frt"]; ok {
+			if v, ok := frt.(float64); ok {
+				frtMs = int(v)
+			}
+		}
+		cacheTokens := 0
+		if ct, ok := params.Other["cache_tokens"]; ok {
+			switch v := ct.(type) {
+			case int:
+				cacheTokens = v
+			case float64:
+				cacheTokens = int(v)
+			}
+		}
+		common.GroupMonitoringHook(params.Group, params.ChannelId, true, params.PromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "")
 	}
 }
 

@@ -112,6 +112,9 @@ func main() {
 	// Subscription quota reset task (daily/weekly/monthly/custom)
 	service.StartSubscriptionQuotaResetTask()
 
+	// Group monitoring aggregation (Redis counter → snapshot pipeline)
+	service.StartGroupMonitoringAggregation()
+
 	// Risk control center (async rules engine + gateway block checks)
 	service.StartRiskControlCenter()
 
