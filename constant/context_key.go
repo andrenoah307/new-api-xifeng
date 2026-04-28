@@ -73,4 +73,7 @@ const (
 	// transient rate-limit detour does not displace cache affinity on the
 	// original channel.
 	ContextKeyRateLimitSkipped ContextKey = "rate_limit_skipped"
+
+	ContextKeyUpstreamRequestId ContextKey = "upstream_request_id"
+	ContextKeyClaudeSessionId   ContextKey = "claude_session_id"
 )
