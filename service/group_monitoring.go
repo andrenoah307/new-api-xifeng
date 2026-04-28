@@ -212,6 +212,9 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 
 		if cache, ok := channelCacheData[ck]; ok && cache.PromptTokens > 0 {
 			stat.CacheHitRate = float64(cache.CacheTokens) / float64(cache.PromptTokens) * 100
+			if stat.CacheHitRate > 100 {
+				stat.CacheHitRate = 100
+			}
 		} else {
 			stat.CacheHitRate = -1
 		}
@@ -278,6 +281,9 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 
 		if ga.totalPromptTok > 0 {
 			stat.CacheHitRate = float64(ga.totalCacheTok) / float64(ga.totalPromptTok) * 100
+			if stat.CacheHitRate > 100 {
+				stat.CacheHitRate = 100
+			}
 		} else {
 			stat.CacheHitRate = -1
 		}
@@ -297,6 +303,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 			GroupName:        groupName,
 			AvailabilityRate: stat.AvailabilityRate,
 			CacheHitRate:     stat.CacheHitRate,
+			AvgFRT:           stat.AvgFRT,
 			RecordedAt:       time.Now().Unix(),
 		})
 	}
@@ -414,6 +421,7 @@ func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting) {
 			GroupName:        groupName,
 			AvailabilityRate: stat.AvailabilityRate,
 			CacheHitRate:     stat.CacheHitRate,
+			AvgFRT:           stat.AvgFRT,
 			RecordedAt:       time.Now().Unix(),
 		})
 	}
