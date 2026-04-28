@@ -17,6 +17,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel/gemini"
 	"github.com/QuantumNous/new-api/relay/channel/ollama"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/channel_limiter"
 
 	"github.com/gin-gonic/gin"
 )
@@ -1986,4 +1987,25 @@ func OllamaVersion(c *gin.Context) {
 			"version": version,
 		},
 	})
+}
+
+func GetChannelRateLimitStats(c *gin.Context) {
+	var rows []model.Channel
+	if err := model.DB.Model(&model.Channel{}).Select("id, setting").Where("status = ?", common.ChannelStatusEnabled).Find(&rows).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	cfgs := make(map[int]*dto.ChannelRateLimit)
+	for i := range rows {
+		setting := rows[i].GetSetting()
+		if channel_limiter.IsActive(setting.RateLimit) {
+			cfgs[rows[i].Id] = setting.RateLimit
+		}
+	}
+	if len(cfgs) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{}})
+		return
+	}
+	stats := channel_limiter.GetStats(c.Request.Context(), cfgs)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": stats})
 }

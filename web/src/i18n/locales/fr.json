@@ -4628,6 +4628,7 @@
 "FRT 阈值 (ms)，留空默认 8000": "Seuil FRT (ms), défaut 8000",
     "触发百分比 (%)，留空默认 50": "Pourcentage de déclenchement (%), défaut 50",
     "冷却时长 (秒)，留空默认 300": "Durée de refroidissement (sec), défaut 300",
-    "观察窗口 (秒)，留空默认 60": "Fenêtre d'observation (sec), défaut 60"
+    "观察窗口 (秒)，留空默认 60": "Fenêtre d'observation (sec), défaut 60",
+    "并发": "Conc"
   }
 }

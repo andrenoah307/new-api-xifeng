@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   API,
@@ -43,6 +43,27 @@ import { openCodexUsageModal } from '../../components/table/channels/modals/Code
 export const useChannelsData = () => {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
+
+  // Rate limit stats (polled every 5s)
+  const [rateLimitStats, setRateLimitStats] = useState({});
+  const rateLimitTimerRef = useRef(null);
+
+  const fetchRateLimitStats = useCallback(async () => {
+    try {
+      const res = await API.get('/api/channel/rate-limit-stats');
+      if (res?.data?.success) {
+        setRateLimitStats(res.data.data || {});
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (rateLimitTimerRef.current) clearInterval(rateLimitTimerRef.current);
+    };
+  }, []);
 
   // Basic states
   const [channels, setChannels] = useState([]);
@@ -166,6 +187,8 @@ export const useChannelsData = () => {
     fetchGroups().then();
     loadChannelModels().then();
     fetchGlobalPassThroughEnabled().then();
+    fetchRateLimitStats();
+    rateLimitTimerRef.current = setInterval(fetchRateLimitStats, 5000);
   }, []);
 
   // Column visibility management
@@ -1138,6 +1161,7 @@ export const useChannelsData = () => {
     channels,
     loading,
     searching,
+    rateLimitStats,
     activePage,
     pageSize,
     channelCount,

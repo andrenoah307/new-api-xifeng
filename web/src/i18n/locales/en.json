@@ -4774,6 +4774,7 @@
 "FRT 阈值 (ms)，留空默认 8000": "FRT Threshold (ms), default 8000",
     "触发百分比 (%)，留空默认 50": "Trigger Percent (%), default 50",
     "冷却时长 (秒)，留空默认 300": "Cooldown Duration (sec), default 300",
-    "观察窗口 (秒)，留空默认 60": "Observation Window (sec), default 60"
+    "观察窗口 (秒)，留空默认 60": "Observation Window (sec), default 60",
+    "并发": "Conc"
   }
 }

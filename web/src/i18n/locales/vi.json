@@ -5140,6 +5140,7 @@
 "FRT 阈值 (ms)，留空默认 8000": "Ngưỡng FRT (ms), mặc định 8000",
     "触发百分比 (%)，留空默认 50": "Tỷ lệ kích hoạt (%), mặc định 50",
     "冷却时长 (秒)，留空默认 300": "Thời gian hạ nhiệt (giây), mặc định 300",
-    "观察窗口 (秒)，留空默认 60": "Cửa sổ quan sát (giây), mặc định 60"
+    "观察窗口 (秒)，留空默认 60": "Cửa sổ quan sát (giây), mặc định 60",
+    "并发": "Đồng thời"
   }
 }
