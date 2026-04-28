@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -68,6 +69,46 @@ function avgAvailability(groups) {
   return valid.reduce((s, v) => s + v, 0) / valid.length;
 }
 
+const RefreshButton = memo(({ admin, refreshing, onRefresh, lastUpdated, t }) => {
+  const [countdown, setCountdown] = useState(POLL_INTERVAL_MS);
+
+  useEffect(() => {
+    setCountdown(POLL_INTERVAL_MS);
+  }, [lastUpdated]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCountdown((c) => Math.max(0, c - 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const label = `${Math.floor(countdown / 60000)}:${String(
+    Math.floor((countdown % 60000) / 1000),
+  ).padStart(2, '0')}`;
+
+  return (
+    <Button
+      icon={<RefreshCw size={14} />}
+      size='default'
+      theme='borderless'
+      type='tertiary'
+      loading={refreshing}
+      onClick={admin ? onRefresh : undefined}
+      disabled={!admin}
+      title={
+        admin
+          ? t('立即刷新 · 下次自动刷新 {{c}}', { c: label })
+          : t('下次自动刷新 {{c}}', { c: label })
+      }
+    >
+      <span className='font-mono text-[11px] text-semi-color-text-3'>
+        {label}
+      </span>
+    </Button>
+  );
+});
+
 function rateAccent(rate) {
   if (rate == null || rate < 0) return 'var(--semi-color-text-2)';
   if (rate >= 99) return 'var(--semi-color-success)';
@@ -92,9 +133,7 @@ const GroupMonitoringDashboard = () => {
       return 'status';
     }
   });
-  const [countdown, setCountdown] = useState(POLL_INTERVAL_MS);
   const pollTimerRef = useRef(null);
-  const tickRef = useRef(null);
   const initialLoad = useRef(true);
 
   const admin = isAdmin();
@@ -163,7 +202,6 @@ const GroupMonitoringDashboard = () => {
       await fetchGroups(true);
       setLoading(false);
       initialLoad.current = false;
-      setCountdown(POLL_INTERVAL_MS);
     };
     init();
   }, [fetchGroups]);
@@ -172,18 +210,10 @@ const GroupMonitoringDashboard = () => {
     pollTimerRef.current = setInterval(() => {
       if (!initialLoad.current) {
         fetchGroups(false);
-        setCountdown(POLL_INTERVAL_MS);
       }
     }, POLL_INTERVAL_MS);
     return () => clearInterval(pollTimerRef.current);
   }, [fetchGroups]);
-
-  useEffect(() => {
-    tickRef.current = setInterval(() => {
-      setCountdown((c) => Math.max(0, c - 1000));
-    }, 1000);
-    return () => clearInterval(tickRef.current);
-  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -195,7 +225,6 @@ const GroupMonitoringDashboard = () => {
         }
       }
       await fetchGroups(true);
-      setCountdown(POLL_INTERVAL_MS);
     } catch {
       showError(t('刷新失败'));
     } finally {
@@ -212,11 +241,11 @@ const GroupMonitoringDashboard = () => {
     }
   };
 
-  const handleCardClick = (group) => {
+  const handleCardClick = useCallback((group) => {
     if (!admin) return;
     setSelectedGroup(group);
     setDetailVisible(true);
-  };
+  }, [admin]);
 
   const visible = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
@@ -234,9 +263,10 @@ const GroupMonitoringDashboard = () => {
   const offlineCount = groups.length - onlineCount;
   const avgAvail = avgAvailability(groups);
 
-  const countdownLabel = `${Math.floor(countdown / 60000)}:${String(
-    Math.floor((countdown % 60000) / 1000),
-  ).padStart(2, '0')}`;
+  const handleCloseDetail = useCallback(() => {
+    setDetailVisible(false);
+    setSelectedGroup(null);
+  }, []);
 
   return (
     <div className='mt-[60px] px-4 sm:px-8 lg:px-10 pb-12'>
@@ -308,24 +338,13 @@ const GroupMonitoringDashboard = () => {
                 </Select.Option>
               ))}
             </Select>
-            <Button
-              icon={<RefreshCw size={14} />}
-              size='default'
-              theme='borderless'
-              type='tertiary'
-              loading={refreshing}
-              onClick={admin ? handleRefresh : undefined}
-              disabled={!admin}
-              title={
-                admin
-                  ? t('立即刷新 · 下次自动刷新 {{c}}', { c: countdownLabel })
-                  : t('下次自动刷新 {{c}}', { c: countdownLabel })
-              }
-            >
-              <span className='font-mono text-[11px] text-semi-color-text-3'>
-                {countdownLabel}
-              </span>
-            </Button>
+            <RefreshButton
+              admin={admin}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              lastUpdated={lastUpdated}
+              t={t}
+            />
           </div>
         </div>
 
@@ -371,10 +390,7 @@ const GroupMonitoringDashboard = () => {
         <GroupDetailPanel
           visible={detailVisible}
           group={selectedGroup}
-          onClose={() => {
-            setDetailVisible(false);
-            setSelectedGroup(null);
-          }}
+          onClose={handleCloseDetail}
         />
       </div>
     </div>

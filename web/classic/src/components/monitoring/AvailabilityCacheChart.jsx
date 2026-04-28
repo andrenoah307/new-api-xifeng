@@ -1,4 +1,23 @@
-import React, { useEffect, useMemo } from 'react';
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+
+import React, { useEffect, useMemo, memo } from 'react';
 import { VChart } from '@visactor/react-vchart';
 import { initVChartSemiTheme } from '@visactor/vchart-semi-theme';
 import { useTranslation } from 'react-i18next';
@@ -50,7 +69,11 @@ function alignAndFillHistory(history, intervalMinutes) {
   return result;
 }
 
-const AvailabilityCacheChart = ({ history, intervalMinutes, compact }) => {
+const VCHART_OPTION = { mode: 'desktop-browser' };
+const tooltipValueFn = (datum) => `${datum.value.toFixed(1)}%`;
+const formatPercent = (v) => `${v}%`;
+
+const AvailabilityCacheChart = memo(({ history, intervalMinutes, compact }) => {
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -72,7 +95,78 @@ const AvailabilityCacheChart = ({ history, intervalMinutes, compact }) => {
 
   const h = compact ? 120 : 260;
 
-  if (!chartData || chartData.length === 0) {
+  const spec = useMemo(() => {
+    if (!chartData || chartData.length === 0) return null;
+
+    const tooltipKeyFn = (datum) =>
+      datum.type === 'availability' ? t('可用率') : t('缓存命中率');
+
+    return {
+      type: 'line',
+      data: [{ id: 'history', values: chartData }],
+      xField: 'time',
+      yField: 'value',
+      seriesField: 'type',
+      height: h,
+      padding: compact
+        ? { top: 4, bottom: 20, left: 4, right: 4 }
+        : { top: 12, bottom: 24, left: 8, right: 8 },
+      animation: compact ? false : undefined,
+      line: {
+        style: {
+          lineWidth: compact ? 1.5 : 2,
+          curveType: 'monotone',
+        },
+      },
+      point: { visible: false },
+      axes: [
+        {
+          orient: 'bottom',
+          label: {
+            autoRotate: true,
+            autoHide: true,
+            style: { fontSize: compact ? 9 : 11 },
+          },
+        },
+        {
+          orient: 'left',
+          min: yMin,
+          max: 100,
+          label: compact
+            ? { visible: false }
+            : {
+                formatMethod: formatPercent,
+                style: { fontSize: 11 },
+              },
+        },
+      ],
+      legends: compact
+        ? { visible: false }
+        : {
+            visible: true,
+            orient: 'top',
+            position: 'start',
+            data: [
+              { label: t('可用率'), shape: { fill: '#3b82f6' } },
+              { label: t('缓存命中率'), shape: { fill: '#22c55e' } },
+            ],
+          },
+      tooltip: {
+        mark: {
+          content: [{ key: tooltipKeyFn, value: tooltipValueFn }],
+        },
+        dimension: {
+          content: [{ key: tooltipKeyFn, value: tooltipValueFn }],
+        },
+      },
+      color: ['#3b82f6', '#22c55e'],
+      crosshair: {
+        xField: { visible: true, line: { type: 'line' } },
+      },
+    };
+  }, [chartData, yMin, compact, t]);
+
+  if (!spec) {
     return (
       <div
         style={{
@@ -89,87 +183,7 @@ const AvailabilityCacheChart = ({ history, intervalMinutes, compact }) => {
     );
   }
 
-  const spec = {
-    type: 'line',
-    data: [{ id: 'history', values: chartData }],
-    xField: 'time',
-    yField: 'value',
-    seriesField: 'type',
-    height: h,
-    padding: compact
-      ? { top: 4, bottom: 20, left: 4, right: 4 }
-      : { top: 12, bottom: 24, left: 8, right: 8 },
-    animation: compact ? false : undefined,
-    line: {
-      style: {
-        lineWidth: compact ? 1.5 : 2,
-        curveType: 'monotone',
-      },
-    },
-    point: { visible: false },
-    axes: [
-      {
-        orient: 'bottom',
-        label: {
-          autoRotate: true,
-          autoHide: true,
-          style: { fontSize: compact ? 9 : 11 },
-        },
-      },
-      {
-        orient: 'left',
-        min: yMin,
-        max: 100,
-        label: compact
-          ? { visible: false }
-          : {
-              formatMethod: (v) => `${v}%`,
-              style: { fontSize: 11 },
-            },
-      },
-    ],
-    legends: compact
-      ? { visible: false }
-      : {
-          visible: true,
-          orient: 'top',
-          position: 'start',
-          data: [
-            { label: t('可用率'), shape: { fill: '#3b82f6' } },
-            { label: t('缓存命中率'), shape: { fill: '#22c55e' } },
-          ],
-        },
-    tooltip: {
-      mark: {
-        content: [
-          {
-            key: (datum) =>
-              datum.type === 'availability'
-                ? t('可用率')
-                : t('缓存命中率'),
-            value: (datum) => `${datum.value.toFixed(1)}%`,
-          },
-        ],
-      },
-      dimension: {
-        content: [
-          {
-            key: (datum) =>
-              datum.type === 'availability'
-                ? t('可用率')
-                : t('缓存命中率'),
-            value: (datum) => `${datum.value.toFixed(1)}%`,
-          },
-        ],
-      },
-    },
-    color: ['#3b82f6', '#22c55e'],
-    crosshair: {
-      xField: { visible: true, line: { type: 'line' } },
-    },
-  };
-
-  return <VChart spec={spec} option={{ mode: 'desktop-browser' }} />;
-};
+  return <VChart spec={spec} option={VCHART_OPTION} skipFunctionDiff />;
+});
 
 export default AvailabilityCacheChart;

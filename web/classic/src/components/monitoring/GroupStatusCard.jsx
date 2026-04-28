@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Tooltip, Typography } from '@douyinfe/semi-ui';
 import { Database, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -48,7 +48,7 @@ function formatClock(unixSec) {
   });
 }
 
-const GroupStatusCard = ({ group, onClick }) => {
+const GroupStatusCard = memo(({ group, onClick }) => {
   const { t } = useTranslation();
 
   const isOnline = group.is_online ?? group.online_channels > 0;
@@ -185,6 +185,6 @@ const GroupStatusCard = ({ group, onClick }) => {
       </div>
     </div>
   );
-};
+});
 
 export default GroupStatusCard;

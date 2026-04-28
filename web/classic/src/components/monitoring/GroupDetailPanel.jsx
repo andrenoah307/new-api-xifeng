@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import {
   SideSheet,
   Skeleton,
@@ -73,7 +73,7 @@ const Stat = ({ icon, label, value, valueColor }) => (
   </div>
 );
 
-const GroupDetailPanel = ({ visible, group, onClose }) => {
+const GroupDetailPanel = memo(({ visible, group, onClose }) => {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
   const [detail, setDetail] = useState(null);
@@ -321,6 +321,6 @@ const GroupDetailPanel = ({ visible, group, onClose }) => {
       </div>
     </SideSheet>
   );
-};
+});
 
 export default GroupDetailPanel;
