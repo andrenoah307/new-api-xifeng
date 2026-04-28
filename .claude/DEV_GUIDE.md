@@ -1078,3 +1078,24 @@ UpstreamRequestId string `gorm:"type:varchar(64);index:idx_logs_upstream_req_id;
 - 不依赖组件状态的回调函数（如 `formatMethod`、`tooltipValueFn`）提升到模块级
 - 对包含函数引用的 spec 使用 `skipFunctionDiff` prop 跳过函数比较
 - `option={{ mode: 'desktop-browser' }}` 必须提升为模块常量，否则每次 render 生成新对象
+
+## 20. 分组监控数据准确性修复
+
+### 20.1 可用率永远 100%
+
+**根因**：`controller/relay.go:processChannelError` 中，监控 hook 调用位于 `if constant.ErrorLogEnabled` 闸门内部（通过 `model.RecordErrorLog` 间接调用）。`ErrorLogEnabled` 默认 `false`（`common/init.go:156`），导致请求失败时监控 hook 从未被触发，只有成功请求入统计。
+
+**修复**：在 `processChannelError` 中将 `common.GroupMonitoringHook(... false ...)` 提升到 `ErrorLogEnabled` 闸门之前无条件调用；同时从 `model.RecordErrorLog` 中移除重复的 hook 调用以防 `ErrorLogEnabled=true` 时双重计数。
+
+### 20.2 缓存命中率 >100%
+
+**根因**：部分 provider 的 `cacheTokens` 可独立于 `promptTokens` 报告（不是子集关系），聚合公式 `cacheTokens / promptTokens * 100` 可能超 100。
+
+**修复**：在 `service/group_monitoring.go` 的 Redis 和 DB fallback 聚合路径中，对单渠道和分组级 `CacheHitRate` 均加 `if rate > 100 { rate = 100 }` clamp。
+
+### 20.3 状态时间线 FRT 黄色指示
+
+**变更**：
+- `model/group_monitoring.go`：`MonitoringHistory` 新增 `AvgFRT int` 字段（GORM AutoMigrate 自动加列）
+- `service/group_monitoring.go`：`InsertMonitoringHistory` 时写入 `AvgFRT`
+- `web/.../StatusTimeline.jsx`：`segmentColor(rate, avgFrt)` — 当可用率 ≥99% 但 `avg_frt > 8000ms` 时显示黄色（warning）；tooltip 展示 FRT 值
