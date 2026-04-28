@@ -83,6 +83,26 @@ func (b *memoryBackend) Acquire(_ context.Context, channelID int, cfg *dto.Chann
 	}, Decision{Allowed: true}
 }
 
+func (b *memoryBackend) Stats(_ context.Context, channelIDs []int) map[int][2]int64 {
+	out := make(map[int][2]int64, len(channelIDs))
+	now := time.Now().UnixMilli()
+	windowStart := now - rpmWindowSeconds*1000
+	for _, id := range channelIDs {
+		b.mu.Lock()
+		e, ok := b.entries[id]
+		b.mu.Unlock()
+		if !ok {
+			out[id] = [2]int64{0, 0}
+			continue
+		}
+		e.mu.Lock()
+		e.trimRPMLocked(windowStart)
+		out[id] = [2]int64{int64(len(e.rpmHits)), int64(e.concurrency)}
+		e.mu.Unlock()
+	}
+	return out
+}
+
 func (b *memoryBackend) Peek(_ context.Context, channelID int, cfg *dto.ChannelRateLimit) Decision {
 	e := b.entry(channelID)
 	e.mu.Lock()

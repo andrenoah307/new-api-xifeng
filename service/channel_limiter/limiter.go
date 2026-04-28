@@ -166,10 +166,47 @@ func leaveQueue(channelID int) {
 	}
 }
 
+// ChannelLimitStats 渠道限流实时统计。
+type ChannelLimitStats struct {
+	RPM       int64 `json:"rpm"`
+	RPMLimit  int   `json:"rpm_limit"`
+	Conc      int64 `json:"conc"`
+	ConcLimit int   `json:"conc_limit"`
+}
+
+// GetStats 批量查询渠道的实时 RPM 和并发计数。
+// channelCfgs: channelID -> *ChannelRateLimit（仅需 Enabled=true 且 RPM>0 或 Concurrency>0 的渠道传入）。
+func GetStats(ctx context.Context, channelCfgs map[int]*dto.ChannelRateLimit) map[int]*ChannelLimitStats {
+	if len(channelCfgs) == 0 {
+		return nil
+	}
+	ids := make([]int, 0, len(channelCfgs))
+	for id := range channelCfgs {
+		ids = append(ids, id)
+	}
+	raw := getBackend().Stats(ctx, ids)
+	if raw == nil {
+		return nil
+	}
+	out := make(map[int]*ChannelLimitStats, len(ids))
+	for _, id := range ids {
+		v := raw[id]
+		cfg := channelCfgs[id]
+		out[id] = &ChannelLimitStats{
+			RPM:       v[0],
+			RPMLimit:  cfg.RPM,
+			Conc:      v[1],
+			ConcLimit: cfg.Concurrency,
+		}
+	}
+	return out
+}
+
 // backend 抽象：当前提供 Redis（首选）与内存（单实例）两种实现。
 type backend interface {
 	Acquire(ctx context.Context, channelID int, cfg *dto.ChannelRateLimit) (*Token, Decision)
 	Peek(ctx context.Context, channelID int, cfg *dto.ChannelRateLimit) Decision
+	Stats(ctx context.Context, channelIDs []int) map[int][2]int64
 }
 
 var (
