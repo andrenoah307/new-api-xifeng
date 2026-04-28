@@ -1180,20 +1180,26 @@ function ModerationTab({ riskGroups }) {
   }, [config.enabled_groups]);
 
   const loadConfig = async () => {
-    const res = await API.get('/api/risk/moderation/config');
-    if (res.data.success) {
-      const cfg = res.data.data?.config || {};
-      setConfig((prev) => ({ ...prev, ...cfg }));
-      setKeyCount(res.data.data?.key_count || 0);
-      // pre-fill the keys textarea with the masked entries so admins can
-      // see how many keys are currently configured without exposing them.
-      setKeysInput((cfg.api_keys || []).join('\n'));
+    try {
+      const res = await API.get('/api/risk/moderation/config');
+      if (res.data.success) {
+        const cfg = res.data.data?.config || {};
+        setConfig((prev) => ({ ...prev, ...cfg }));
+        setKeyCount(res.data.data?.key_count || 0);
+        setKeysInput((cfg.api_keys || []).join('\n'));
+      }
+    } catch {
+      // silent
     }
   };
 
   const loadOverview = async () => {
-    const res = await API.get('/api/risk/moderation/overview');
-    if (res.data.success) setOverview(res.data.data || {});
+    try {
+      const res = await API.get('/api/risk/moderation/overview');
+      if (res.data.success) setOverview(res.data.data || {});
+    } catch {
+      // silent
+    }
   };
 
   const loadIncidents = async (
@@ -1583,14 +1589,14 @@ function ModerationTab({ riskGroups }) {
           <Col xs={24} sm={12} md={6}>
             <OverviewCard
               title={t('启用状态')}
-              value={overview.enabled ? t('已启用') : t('未启用')}
-              extra={`${t('全局模式')}: ${overview.mode || 'off'}`}
+              value={config.enabled ? t('已启用') : t('未启用')}
+              extra={`${t('全局模式')}: ${config.mode || 'off'}`}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
             <OverviewCard
               title={t('已配置 API Key 数')}
-              value={overview.key_count || 0}
+              value={keyCount}
               extra={t('多 key 轮询，触发限流自动切换')}
             />
           </Col>
@@ -2363,13 +2369,21 @@ function EnforcementTab() {
   const [sendingTest, setSendingTest] = useState(false);
 
   const loadConfig = async () => {
-    const res = await API.get('/api/risk/enforcement/config');
-    if (res.data.success)
-      setConfig((p) => ({ ...p, ...(res.data.data || {}) }));
+    try {
+      const res = await API.get('/api/risk/enforcement/config');
+      if (res.data.success)
+        setConfig((p) => ({ ...p, ...(res.data.data || {}) }));
+    } catch {
+      // silent
+    }
   };
   const loadOverview = async () => {
-    const res = await API.get('/api/risk/enforcement/overview');
-    if (res.data.success) setOverview(res.data.data || {});
+    try {
+      const res = await API.get('/api/risk/enforcement/overview');
+      if (res.data.success) setOverview(res.data.data || {});
+    } catch {
+      // silent
+    }
   };
   const loadCounters = async (
     page = countersPage.page,
@@ -2639,8 +2653,8 @@ function EnforcementTab() {
           <Col xs={24} sm={12} md={6}>
             <OverviewCard
               title={t('启用状态')}
-              value={overview.enabled ? t('已启用') : t('未启用')}
-              extra={`${t('窗口')}: ${overview.window_hours ?? 0}h`}
+              value={config.enabled ? t('已启用') : t('未启用')}
+              extra={`${t('窗口')}: ${config.window_hours ?? 0}h`}
             />
           </Col>
           <Col xs={24} sm={12} md={6}>
