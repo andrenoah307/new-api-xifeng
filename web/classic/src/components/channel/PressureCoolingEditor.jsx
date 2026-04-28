@@ -128,22 +128,6 @@ const PressureCoolingEditor = ({ value, onChange }) => {
 
       {hasOverride && (
         <>
-          <div className='flex items-center gap-2 mb-4'>
-            <Text type='secondary' size='small'>
-              {t('启用压力冷却')}
-            </Text>
-            <Switch
-              checked={v.enabled === true}
-              onChange={(checked) => update({ enabled: checked })}
-              size='small'
-            />
-            {v.enabled === null && (
-              <Text type='tertiary' size='small'>
-                ({t('跟随全局')})
-              </Text>
-            )}
-          </div>
-
           <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
               <FieldLabel>
