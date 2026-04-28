@@ -141,6 +141,9 @@ func main() {
 	// Ticket attachment orphan cleanup (master-node only)
 	service.StartTicketAttachmentCleanupTask()
 
+	// Pressure cooling recovery loop (master-node only)
+	service.StartPressureCoolingRecovery()
+
 	// Wire task polling adaptor factory (breaks service -> relay import cycle).
 	// Must run before the system task runner starts: the async_task_poll handler
 	// calls service.RunTaskPollingOnce, which needs this factory set.

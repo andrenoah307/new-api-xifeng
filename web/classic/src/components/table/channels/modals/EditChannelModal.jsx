@@ -73,6 +73,9 @@ import RiskControlHeadersEditor from '../../../channel/RiskControlHeadersEditor'
 import ChannelRateLimitEditor, {
   normalizeChannelRateLimit,
 } from '../../../channel/ChannelRateLimitEditor';
+import PressureCoolingEditor, {
+  normalizePressureCooling,
+} from '../../../channel/PressureCoolingEditor';
 import { useSecureVerification } from '../../../../hooks/common/useSecureVerification';
 import { parseChannelConnectionString } from '../../../../helpers/token';
 import { createApiCalls } from '../../../../services/secureVerification';
@@ -599,6 +602,7 @@ const EditChannelModal = (props) => {
     error_filter_rules: [],
     risk_control_headers: [],
     rate_limit: normalizeChannelRateLimit(null),
+    pressure_cooling: null,
   });
   const showApiConfigCard = true; // 控制是否显示 API 配置卡片
   const getInitValues = () => ({ ...originInputs });
@@ -961,6 +965,9 @@ const EditChannelModal = (props) => {
           data.rate_limit = normalizeChannelRateLimit(
             parsedSettings.rate_limit,
           );
+          data.pressure_cooling = normalizePressureCooling(
+            parsedSettings.pressure_cooling,
+          );
         } catch (error) {
           console.error('解析渠道设置失败:', error);
           data.force_format = false;
@@ -972,6 +979,7 @@ const EditChannelModal = (props) => {
           data.error_filter_rules = [];
           data.risk_control_headers = [];
           data.rate_limit = normalizeChannelRateLimit(null);
+          data.pressure_cooling = null;
         }
       } else {
         data.force_format = false;
@@ -983,6 +991,7 @@ const EditChannelModal = (props) => {
         data.error_filter_rules = [];
         data.risk_control_headers = [];
         data.rate_limit = normalizeChannelRateLimit(null);
+        data.pressure_cooling = null;
       }
 
       if (data.settings) {
@@ -1097,6 +1106,7 @@ const EditChannelModal = (props) => {
           data.risk_control_headers,
         ),
         rate_limit: normalizeChannelRateLimit(data.rate_limit),
+        pressure_cooling: normalizePressureCooling(data.pressure_cooling),
       });
       initialModelsRef.current = (data.models || [])
         .map((model) => (model || '').trim())
@@ -1879,6 +1889,10 @@ const EditChannelModal = (props) => {
     ) {
       channelExtraSettings.rate_limit = normalizedRateLimit;
     }
+    const normalizedPC = normalizePressureCooling(localInputs.pressure_cooling);
+    if (normalizedPC) {
+      channelExtraSettings.pressure_cooling = normalizedPC;
+    }
     localInputs.setting = JSON.stringify(channelExtraSettings);
 
     // 处理 settings 字段（包括企业账户设置和字段透传控制）
@@ -1962,6 +1976,7 @@ const EditChannelModal = (props) => {
     delete localInputs.error_filter_rules;
     delete localInputs.risk_control_headers;
     delete localInputs.rate_limit;
+    delete localInputs.pressure_cooling;
     delete localInputs.is_enterprise_account;
     // 顶层的 vertex_key_type 不应发送给后端
     delete localInputs.vertex_key_type;
@@ -4114,6 +4129,17 @@ const EditChannelModal = (props) => {
                         handleChannelSettingsChange(
                           'rate_limit',
                           normalizeChannelRateLimit(value),
+                        )
+                      }
+                    />
+
+                    {/* Pressure Cooling */}
+                    <PressureCoolingEditor
+                      value={inputs.pressure_cooling}
+                      onChange={(value) =>
+                        handleChannelSettingsChange(
+                          'pressure_cooling',
+                          value,
                         )
                       }
                     />

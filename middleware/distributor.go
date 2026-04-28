@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 )
@@ -165,6 +166,16 @@ func Distribute() func(c *gin.Context) {
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			service.RecordChannelAffinity(c, channel.Id)
+		}
+		if frtMs, exists := c.Get("relay_frt_ms"); exists {
+			if frt, ok := frtMs.(int64); ok && frt > 0 {
+				chId := c.GetInt("channel_id")
+				if chId > 0 {
+					gopool.Go(func() {
+						service.CheckPressureCooling(chId, frt)
+					})
+				}
+			}
 		}
 	}
 }

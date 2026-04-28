@@ -1080,6 +1080,9 @@ func UpdateChannel(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if originChannel.Status != common.ChannelStatusEnabled && channel.Status == common.ChannelStatusEnabled {
+		service.ResetPressureCoolingState(channel.Id)
+	}
 	model.InitChannelCache()
 	service.ResetProxyClientCache()
 	// 记录变更的字段名（语言无关的字段标识），密钥仅记录"已更换"绝不记录内容。
