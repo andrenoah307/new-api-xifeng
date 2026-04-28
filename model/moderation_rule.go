@@ -173,8 +173,12 @@ func CountModerationRules() (int64, error) {
 // side, mirrored here so each engine surfaces its own misconfiguration.
 func CountEnabledModerationRulesWithoutGroups() (int64, error) {
 	var n int64
+	emptyGroups := DB.Where(map[string]interface{}{"groups": nil}).
+		Or(map[string]interface{}{"groups": ""}).
+		Or(map[string]interface{}{"groups": "[]"})
 	err := DB.Model(&ModerationRule{}).
-		Where("enabled = ? AND (groups IS NULL OR groups = '' OR groups = '[]')", true).
+		Where(map[string]interface{}{"enabled": true}).
+		Where(emptyGroups).
 		Count(&n).Error
 	return n, err
 }
