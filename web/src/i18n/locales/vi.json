@@ -5136,10 +5136,10 @@
     "默认补全倍率": "Tỷ lệ hoàn thành mặc định",
     "默认返回消息": "",
     "压力冷却": "Làm mát áp lực",
-    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用全局默认配置": "Tự động tắt kênh khi độ trễ token đầu tiên quá cao, bật lại sau khi hạ nhiệt",
-"FRT 阈值 (ms)，留空跟随全局": "Ngưỡng FRT (ms), để trống = toàn cục",
-    "触发次数，留空跟随全局": "Số lần kích hoạt, để trống = toàn cục",
-    "冷却时长 (秒)，留空跟随全局": "Thời gian hạ nhiệt (giây), để trống = toàn cục",
-    "观察窗口 (秒)，留空跟随全局": "Cửa sổ quan sát (giây), để trống = toàn cục"
+    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置": "Tự động tắt kênh khi độ trễ token đầu tiên quá cao, bật lại sau khi hạ nhiệt",
+"FRT 阈值 (ms)，留空默认 8000": "Ngưỡng FRT (ms), mặc định 8000",
+    "触发次数，留空默认 3": "Số lần kích hoạt, mặc định 3",
+    "冷却时长 (秒)，留空默认 300": "Thời gian hạ nhiệt (giây), mặc định 300",
+    "观察窗口 (秒)，留空默认 60": "Cửa sổ quan sát (giây), mặc định 60"
   }
 }

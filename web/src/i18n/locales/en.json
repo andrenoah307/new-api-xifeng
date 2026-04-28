@@ -4770,10 +4770,10 @@
     "在网关侧串行等待，超过最长等待时长或队列深度后，回退为跳过": "Wait serially at the gateway; once the max wait time or queue depth is exceeded, fall back to skip",
     "立即返回 429，不再尝试其他渠道": "Return 429 immediately without trying other channels",
     "压力冷却": "Pressure Cooling",
-    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用全局默认配置": "Automatically disable channel when first-token latency stays too high, re-enable after cooldown; uses global defaults if not overridden",
-"FRT 阈值 (ms)，留空跟随全局": "FRT Threshold (ms), leave empty to use global",
-    "触发次数，留空跟随全局": "Trigger Count, leave empty to use global",
-    "冷却时长 (秒)，留空跟随全局": "Cooldown Duration (sec), leave empty to use global",
-    "观察窗口 (秒)，留空跟随全局": "Observation Window (sec), leave empty to use global"
+    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置": "Automatically disable channel when first-token latency stays too high, re-enable after cooldown; uses defaults if not overridden",
+"FRT 阈值 (ms)，留空默认 8000": "FRT Threshold (ms), default 8000",
+    "触发次数，留空默认 3": "Trigger Count, default 3",
+    "冷却时长 (秒)，留空默认 300": "Cooldown Duration (sec), default 300",
+    "观察窗口 (秒)，留空默认 60": "Observation Window (sec), default 60"
   }
 }
