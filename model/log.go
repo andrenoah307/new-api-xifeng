@@ -283,6 +283,9 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		if sem, ok := params.Other["usage_semantic"]; ok && sem == "anthropic" && cacheTokens > 0 {
 			monitorPromptTokens += cacheTokens
 		}
+		if cacheTokens > 0 && monitorPromptTokens < cacheTokens {
+			monitorPromptTokens = params.PromptTokens + cacheTokens
+		}
 		common.GroupMonitoringHook(params.Group, params.ChannelId, true, monitorPromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "")
 	}
 }
