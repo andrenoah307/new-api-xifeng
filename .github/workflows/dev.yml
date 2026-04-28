@@ -5,6 +5,7 @@ name: Dev Branch CI (test + image)
 on:
   push:
     branches:
+      - 'dev/*'
       - 'dev/**'
       - 'dev-*'
   workflow_dispatch:
