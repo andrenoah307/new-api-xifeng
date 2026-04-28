@@ -71,10 +71,17 @@ const PageLayout = () => {
   const shouldInnerPadding =
     location.pathname.includes('/console') &&
     !location.pathname.startsWith('/console/chat') &&
-    location.pathname !== '/console/playground';
+    location.pathname !== '/console/playground' &&
+    location.pathname !== '/console/monitoring';
 
   const isConsoleRoute = location.pathname.startsWith('/console');
-  const showSider = isConsoleRoute && (!isMobile || drawerOpen);
+  // Top-level dashboards reached from the global header nav don't need the
+  // console sidebar — they read better as standalone, full-width pages.
+  const standaloneConsoleRoutes = ['/console/monitoring'];
+  const showSider =
+    isConsoleRoute &&
+    !standaloneConsoleRoutes.includes(location.pathname) &&
+    (!isMobile || drawerOpen);
 
   useEffect(() => {
     if (isMobile && drawerOpen && collapsed) {

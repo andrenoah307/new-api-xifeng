@@ -17,14 +17,33 @@ type ErrorFilterRule struct {
 	ReplaceMessage    string `json:"replace_message,omitempty"`
 }
 
+// RiskControlHeaderRule 用于将 new-api 内部的请求级数据（用户名、用户 ID、令牌 ID 等）
+// 透传给上游，便于上游基于这些标识做风控/审计/限流。
+//
+// Source 取值：
+//   - "username"     => new-api 内部用户名
+//   - "user_id"      => new-api 用户 ID
+//   - "user_email"   => 用户邮箱
+//   - "user_group"   => 用户所属分组
+//   - "using_group"  => 实际使用的分组（可能因 auto 跨组重试而变动）
+//   - "token_id"     => 令牌 ID
+//   - "request_id"   => 当前请求 ID
+//   - "custom"       => 使用 Value 中的内容，支持占位符（详见 risk control 实现）
+type RiskControlHeaderRule struct {
+	Name   string `json:"name"`
+	Source string `json:"source,omitempty"`
+	Value  string `json:"value,omitempty"`
+}
+
 type ChannelSettings struct {
-	ForceFormat            bool              `json:"force_format,omitempty"`
-	ThinkingToContent      bool              `json:"thinking_to_content,omitempty"`
-	Proxy                  string            `json:"proxy"`
-	PassThroughBodyEnabled bool              `json:"pass_through_body_enabled,omitempty"`
-	SystemPrompt           string            `json:"system_prompt,omitempty"`
-	SystemPromptOverride   bool              `json:"system_prompt_override,omitempty"`
-	ErrorFilterRules       []ErrorFilterRule `json:"error_filter_rules,omitempty"`
+	ForceFormat            bool                    `json:"force_format,omitempty"`
+	ThinkingToContent      bool                    `json:"thinking_to_content,omitempty"`
+	Proxy                  string                  `json:"proxy"`
+	PassThroughBodyEnabled bool                    `json:"pass_through_body_enabled,omitempty"`
+	SystemPrompt           string                  `json:"system_prompt,omitempty"`
+	SystemPromptOverride   bool                    `json:"system_prompt_override,omitempty"`
+	ErrorFilterRules       []ErrorFilterRule       `json:"error_filter_rules,omitempty"`
+	RiskControlHeaders     []RiskControlHeaderRule `json:"risk_control_headers,omitempty"`
 }
 
 type VertexKeyType string

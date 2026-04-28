@@ -18,21 +18,14 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Card, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
-import {
-  AlertTriangle,
-  Activity,
-  Database,
-  Zap,
-  CircleCheck,
-  CircleX,
-} from 'lucide-react';
+import { Tooltip, Typography } from '@douyinfe/semi-ui';
+import { Database, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import StatusTimeline from './StatusTimeline';
 
 const { Text } = Typography;
 
-function rateColor(rate) {
+function rateAccent(rate) {
   if (rate == null || rate < 0) return 'var(--semi-color-text-2)';
   if (rate >= 99) return 'var(--semi-color-success)';
   if (rate >= 95) return 'var(--semi-color-success-light-active)';
@@ -41,27 +34,19 @@ function rateColor(rate) {
 }
 
 function formatFRT(ms) {
-  if (ms == null || ms <= 0) return '-';
+  if (ms == null || ms <= 0) return '—';
   if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
   return `${Math.round(ms)}ms`;
 }
 
-const Metric = ({ icon, label, value, valueColor }) => (
-  <div className='rounded-xl bg-semi-color-fill-0 p-3 transition-colors group-hover:bg-semi-color-fill-1'>
-    <div className='flex items-center gap-1.5 text-semi-color-text-2'>
-      {icon}
-      <span className='text-[10px] font-semibold uppercase tracking-wider'>
-        {label}
-      </span>
-    </div>
-    <div
-      className='mt-1 font-mono text-base font-semibold leading-tight'
-      style={{ color: valueColor || 'var(--semi-color-text-0)' }}
-    >
-      {value}
-    </div>
-  </div>
-);
+function formatClock(unixSec) {
+  if (!unixSec || unixSec <= 0) return '';
+  return new Date(unixSec * 1000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+}
 
 const GroupStatusCard = ({ group, onClick }) => {
   const { t } = useTranslation();
@@ -76,156 +61,129 @@ const GroupStatusCard = ({ group, onClick }) => {
       ? group.cache_hit_rate
       : null;
   const showCache = cacheRate != null && cacheRate >= 3;
+  const frt = group.avg_frt ?? group.first_response_time;
 
-  // Banner: full outage or severely degraded
-  const banner =
-    !isOnline
-      ? {
-          tone: 'danger',
-          label: t('分组离线'),
-          desc: t('所有渠道当前不可用'),
-        }
-      : availRate != null && availRate < 80
-        ? {
-            tone: 'warning',
-            label: t('可用率告警'),
-            desc: t('当前可用率 {{rate}}%', { rate: availRate.toFixed(1) }),
-          }
-        : null;
+  // Status dot reflects current online state primarily, then degrades
+  // by historical availability if online.
+  const dotColor = !isOnline
+    ? 'var(--semi-color-danger)'
+    : availRate == null
+      ? 'var(--semi-color-fill-2)'
+      : rateAccent(availRate);
 
-  const bannerClass =
-    banner?.tone === 'danger'
-      ? 'border-b border-semi-color-danger/30 bg-semi-color-danger-light-default text-semi-color-danger'
-      : banner?.tone === 'warning'
-        ? 'border-b border-semi-color-warning/30 bg-semi-color-warning-light-default text-semi-color-warning'
-        : '';
+  const headlineColor = !isOnline
+    ? 'var(--semi-color-danger)'
+    : rateAccent(availRate);
 
   return (
-    <Card
-      bodyStyle={{ padding: 0 }}
-      className='group monitoring-card !rounded-2xl border border-semi-color-border bg-semi-color-bg-1 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md'
+    <div
+      className='group relative rounded-2xl border border-semi-color-border bg-semi-color-bg-1 p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-semi-color-primary/40 hover:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.12)]'
       style={{ cursor: onClick ? 'pointer' : 'default' }}
       onClick={() => onClick && onClick(group)}
     >
-      {banner && (
-        <div className={`flex items-start gap-2 px-4 py-2 ${bannerClass}`}>
-          <AlertTriangle className='mt-0.5 h-3.5 w-3.5 flex-shrink-0' />
-          <div className='min-w-0 flex-1'>
-            <div className='text-xs font-semibold leading-tight'>
-              {banner.label}
-            </div>
-            <div className='mt-0.5 text-[11px] leading-snug opacity-80'>
-              {banner.desc}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className='p-4'>
-        {/* Header: name + status badge */}
-        <div className='mb-3 flex items-start justify-between gap-2'>
-          <div className='min-w-0 flex-1'>
+      {/* Header: name + meta on left, big availability on right */}
+      <div className='flex items-start justify-between gap-3'>
+        <div className='min-w-0 flex-1'>
+          <div className='flex items-center gap-2'>
+            <span
+              className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${
+                !isOnline ? 'animate-pulse' : ''
+              }`}
+              style={{ background: dotColor }}
+              aria-hidden
+            />
             <Text
               strong
-              className='block truncate text-base'
+              className='!block truncate !text-sm !text-semi-color-text-0'
               title={group.group_name}
             >
               {group.group_name}
             </Text>
-            <div className='mt-0.5 flex items-center gap-1.5 text-[11px] text-semi-color-text-2'>
-              {group.last_test_model && (
-                <Tooltip content={group.last_test_model}>
-                  <span className='max-w-[140px] truncate font-mono'>
-                    {group.last_test_model}
-                  </span>
-                </Tooltip>
-              )}
-              {group.last_test_model && group.group_ratio != null && (
-                <span className='text-semi-color-text-3'>·</span>
-              )}
-              {group.group_ratio != null && (
-                <span>
-                  {group.group_ratio}
-                  {t('元/刀')}
-                </span>
-              )}
-            </div>
           </div>
-          <Tag
-            color={isOnline ? 'green' : 'red'}
-            size='small'
-            shape='circle'
-            type='light'
-            prefixIcon={
-              isOnline ? (
-                <CircleCheck size={12} />
-              ) : (
-                <CircleX size={12} />
-              )
-            }
-          >
-            {isOnline ? t('在线') : t('离线')}
-          </Tag>
+          <div className='mt-1.5 flex items-center gap-1.5 text-[11px] text-semi-color-text-3'>
+            {group.last_test_model && (
+              <Tooltip content={group.last_test_model}>
+                <span className='max-w-[140px] truncate font-mono'>
+                  {group.last_test_model}
+                </span>
+              </Tooltip>
+            )}
+            {group.last_test_model && group.group_ratio != null && (
+              <span className='opacity-60'>·</span>
+            )}
+            {group.group_ratio != null && (
+              <span>
+                {group.group_ratio}
+                {t('元/刀')}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Metrics: 3 tiles for availability / FRT / cache */}
-        <div className='mb-3 grid grid-cols-3 gap-2'>
-          <Metric
-            icon={<Activity size={12} />}
-            label={t('可用率')}
-            value={availRate != null ? `${availRate.toFixed(1)}%` : 'N/A'}
-            valueColor={rateColor(availRate)}
-          />
-          <Metric
-            icon={<Zap size={12} />}
-            label='FRT'
-            value={formatFRT(group.avg_frt ?? group.first_response_time)}
-          />
-          <Metric
-            icon={<Database size={12} />}
-            label={t('缓存')}
-            value={showCache ? `${cacheRate.toFixed(1)}%` : '—'}
-            valueColor={showCache ? rateColor(cacheRate) : undefined}
-          />
+        <div className='flex-shrink-0 text-right leading-none'>
+          {availRate != null ? (
+            <div
+              className='font-mono text-[28px] font-semibold tracking-tight'
+              style={{ color: headlineColor }}
+            >
+              {availRate.toFixed(1)}
+              <span className='ml-0.5 text-base font-normal'>%</span>
+            </div>
+          ) : (
+            <div className='font-mono text-[28px] font-semibold tracking-tight text-semi-color-text-3'>
+              —
+            </div>
+          )}
+          <div className='mt-1 text-[10px] uppercase tracking-wider text-semi-color-text-3'>
+            {isOnline ? t('可用率') : t('已离线')}
+          </div>
         </div>
+      </div>
 
-        {/* Status timeline */}
+      {/* Status timeline — the focal proof */}
+      <div className='mt-5'>
         {group.history && group.history.length > 0 ? (
-          <StatusTimeline history={group.history} segmentCount={30} compact />
+          <StatusTimeline history={group.history} segmentCount={32} compact />
         ) : (
           <div className='flex h-[22px] items-center justify-center rounded-md bg-semi-color-fill-0 text-[10px] text-semi-color-text-3'>
             {t('暂无历史数据')}
           </div>
         )}
+      </div>
 
-        {/* Footer: channel count (admin only) + last update time */}
-        <div className='mt-3 flex items-center justify-between text-[11px] text-semi-color-text-2'>
-          {group.total_channels != null ? (
+      {/* Footer: inline stats, no nested boxes */}
+      <div className='mt-4 flex items-center justify-between text-[11px] text-semi-color-text-2'>
+        <div className='flex items-center gap-3'>
+          <span className='inline-flex items-center gap-1'>
+            <Zap size={11} className='text-semi-color-text-3' />
+            <span className='font-mono'>{formatFRT(frt)}</span>
+          </span>
+          <span className='inline-flex items-center gap-1'>
+            <Database size={11} className='text-semi-color-text-3' />
+            <span className='font-mono'>
+              {showCache ? `${cacheRate.toFixed(1)}%` : '—'}
+            </span>
+          </span>
+        </div>
+        <div className='flex items-center gap-3'>
+          {group.total_channels != null && (
             <span>
-              {t('渠道')}{' '}
-              <span className='font-semibold text-semi-color-text-1'>
+              <span className='font-mono text-semi-color-text-1'>
                 {group.online_channels ?? 0}
               </span>
               <span className='text-semi-color-text-3'>
-                {' '}
-                / {group.total_channels}
+                /{group.total_channels}
               </span>
             </span>
-          ) : (
-            <span />
           )}
           {group.updated_at > 0 && (
-            <span className='font-mono'>
-              {new Date(group.updated_at * 1000).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false,
-              })}
+            <span className='font-mono text-semi-color-text-3'>
+              {formatClock(group.updated_at)}
             </span>
           )}
         </div>
       </div>
-    </Card>
+    </div>
   );
 };
 

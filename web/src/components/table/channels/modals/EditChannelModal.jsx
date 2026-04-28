@@ -70,6 +70,7 @@ import SecureVerificationModal from '../../../common/modals/SecureVerificationMo
 import StatusCodeRiskGuardModal from './StatusCodeRiskGuardModal';
 import ChannelKeyDisplay from '../../../common/ui/ChannelKeyDisplay';
 import ErrorFilterRulesEditor from '../../../channel/ErrorFilterRulesEditor';
+import RiskControlHeadersEditor from '../../../channel/RiskControlHeadersEditor';
 import { useSecureVerification } from '../../../../hooks/common/useSecureVerification';
 import { parseChannelConnectionString } from '../../../../helpers/token';
 import { createApiCalls } from '../../../../services/secureVerification';
@@ -174,6 +175,33 @@ const normalizeErrorFilterRules = (rules) =>
     normalizeErrorFilterRule(rule),
   );
 
+const RISK_CONTROL_HEADER_SOURCES = new Set([
+  'username',
+  'user_id',
+  'user_email',
+  'user_group',
+  'using_group',
+  'token_id',
+  'request_id',
+  'custom',
+]);
+
+const normalizeRiskControlHeaderRule = (rule = {}) => {
+  const source = RISK_CONTROL_HEADER_SOURCES.has(rule.source)
+    ? rule.source
+    : 'username';
+  return {
+    name: String(rule.name || '').trim(),
+    source,
+    value: source === 'custom' ? String(rule.value || '') : '',
+  };
+};
+
+const normalizeRiskControlHeaders = (rules) =>
+  (Array.isArray(rules) ? rules : []).map((rule) =>
+    normalizeRiskControlHeaderRule(rule),
+  );
+
 const DEPRECATED_DOUBAO_CODING_PLAN_BASE_URL = 'doubao-coding-plan';
 
 // 支持并且已适配通过接口获取模型列表的渠道类型
@@ -243,6 +271,7 @@ const EditChannelModal = (props) => {
     system_prompt: '',
     system_prompt_override: false,
     error_filter_rules: [],
+    risk_control_headers: [],
     settings: '',
     // 仅 Vertex: 密钥格式（存入 settings.vertex_key_type）
     vertex_key_type: 'json',
@@ -566,6 +595,7 @@ const EditChannelModal = (props) => {
     system_prompt: '',
     system_prompt_override: false,
     error_filter_rules: [],
+    risk_control_headers: [],
   });
   const showApiConfigCard = true; // 控制是否显示 API 配置卡片
   const getInitValues = () => ({ ...originInputs });
@@ -922,6 +952,9 @@ const EditChannelModal = (props) => {
           data.error_filter_rules = normalizeErrorFilterRules(
             parsedSettings.error_filter_rules,
           );
+          data.risk_control_headers = normalizeRiskControlHeaders(
+            parsedSettings.risk_control_headers,
+          );
         } catch (error) {
           console.error('解析渠道设置失败:', error);
           data.force_format = false;
@@ -931,6 +964,7 @@ const EditChannelModal = (props) => {
           data.system_prompt = '';
           data.system_prompt_override = false;
           data.error_filter_rules = [];
+          data.risk_control_headers = [];
         }
       } else {
         data.force_format = false;
@@ -940,6 +974,7 @@ const EditChannelModal = (props) => {
         data.system_prompt = '';
         data.system_prompt_override = false;
         data.error_filter_rules = [];
+        data.risk_control_headers = [];
       }
 
       if (data.settings) {
@@ -1050,6 +1085,9 @@ const EditChannelModal = (props) => {
         system_prompt: data.system_prompt,
         system_prompt_override: data.system_prompt_override || false,
         error_filter_rules: normalizeErrorFilterRules(data.error_filter_rules),
+        risk_control_headers: normalizeRiskControlHeaders(
+          data.risk_control_headers,
+        ),
       });
       initialModelsRef.current = (data.models || [])
         .map((model) => (model || '').trim())
@@ -1090,6 +1128,8 @@ const EditChannelModal = (props) => {
         (data.system_prompt && data.system_prompt.trim()) ||
         (Array.isArray(data.error_filter_rules) &&
           data.error_filter_rules.length > 0) ||
+        (Array.isArray(data.risk_control_headers) &&
+          data.risk_control_headers.length > 0) ||
         data.thinking_to_content ||
         data.pass_through_body_enabled ||
         data.force_format ||
@@ -1446,6 +1486,7 @@ const EditChannelModal = (props) => {
       system_prompt: '',
       system_prompt_override: false,
       error_filter_rules: [],
+      risk_control_headers: [],
     });
     // 重置密钥模式状态
     setKeyMode('append');
@@ -1819,6 +1860,9 @@ const EditChannelModal = (props) => {
       error_filter_rules: normalizeErrorFilterRules(
         localInputs.error_filter_rules,
       ),
+      risk_control_headers: normalizeRiskControlHeaders(
+        localInputs.risk_control_headers,
+      ).filter((rule) => rule.name),
     };
     localInputs.setting = JSON.stringify(channelExtraSettings);
 
@@ -1901,6 +1945,7 @@ const EditChannelModal = (props) => {
     delete localInputs.system_prompt;
     delete localInputs.system_prompt_override;
     delete localInputs.error_filter_rules;
+    delete localInputs.risk_control_headers;
     delete localInputs.is_enterprise_account;
     // 顶层的 vertex_key_type 不应发送给后端
     delete localInputs.vertex_key_type;
@@ -4056,6 +4101,17 @@ const EditChannelModal = (props) => {
                         )
                       }
                       channelId={isEdit ? channelId : null}
+                    />
+
+                    {/* Risk Control Headers */}
+                    <RiskControlHeadersEditor
+                      value={inputs.risk_control_headers}
+                      onChange={(value) =>
+                        handleChannelSettingsChange(
+                          'risk_control_headers',
+                          normalizeRiskControlHeaders(value),
+                        )
+                      }
                     />
 
                     {/* Advanced Settings Toggle / Collapse */}

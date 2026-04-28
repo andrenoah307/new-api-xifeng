@@ -7,14 +7,17 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	common2 "github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relay/constant"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -26,9 +29,9 @@ import (
 )
 
 func SetupApiRequestHeader(info *common.RelayInfo, c *gin.Context, req *http.Header) {
-	if info.RelayMode == constant.RelayModeAudioTranscription || info.RelayMode == constant.RelayModeAudioTranslation {
+	if info.RelayMode == relayconstant.RelayModeAudioTranscription || info.RelayMode == relayconstant.RelayModeAudioTranslation {
 		// multipart/form-data
-	} else if info.RelayMode == constant.RelayModeRealtime {
+	} else if info.RelayMode == relayconstant.RelayModeRealtime {
 		// websocket
 	} else {
 		req.Set("Content-Type", c.Request.Header.Get("Content-Type"))
@@ -287,6 +290,114 @@ func applyHeaderOverrideToRequest(req *http.Request, headerOverride map[string]s
 	}
 }
 
+// resolveRiskControlValue 把单条风控规则解析为最终透传给上游的字符串。
+// 当返回空字符串时调用方应跳过该 header（避免发送空值给上游）。
+func resolveRiskControlValue(rule dto.RiskControlHeaderRule, c *gin.Context, info *common.RelayInfo) string {
+	switch strings.TrimSpace(rule.Source) {
+	case "username":
+		if c != nil {
+			return common2.GetContextKeyString(c, constant.ContextKeyUserName)
+		}
+	case "user_id":
+		if info != nil && info.UserId > 0 {
+			return strconv.Itoa(info.UserId)
+		}
+	case "user_email":
+		if info != nil {
+			return info.UserEmail
+		}
+	case "user_group":
+		if info != nil {
+			return info.UserGroup
+		}
+	case "using_group":
+		if info != nil {
+			return info.UsingGroup
+		}
+	case "token_id":
+		if info != nil && info.TokenId > 0 {
+			return strconv.Itoa(info.TokenId)
+		}
+	case "request_id":
+		if info != nil {
+			return info.RequestId
+		}
+	case "", "custom":
+		return resolveRiskControlCustomValue(rule.Value, c, info)
+	}
+	return ""
+}
+
+// resolveRiskControlCustomValue 替换自定义模板中的占位符，
+// 支持 {username} {user_id} {user_email} {user_group} {using_group} {token_id} {request_id}。
+func resolveRiskControlCustomValue(template string, c *gin.Context, info *common.RelayInfo) string {
+	if template == "" {
+		return ""
+	}
+	if !strings.Contains(template, "{") {
+		return template
+	}
+	var (
+		username, userIdStr, userEmail, userGroup, usingGroup, tokenIdStr, requestId string
+	)
+	if c != nil {
+		username = common2.GetContextKeyString(c, constant.ContextKeyUserName)
+	}
+	if info != nil {
+		if info.UserId > 0 {
+			userIdStr = strconv.Itoa(info.UserId)
+		}
+		userEmail = info.UserEmail
+		userGroup = info.UserGroup
+		usingGroup = info.UsingGroup
+		if info.TokenId > 0 {
+			tokenIdStr = strconv.Itoa(info.TokenId)
+		}
+		requestId = info.RequestId
+	}
+	replacer := strings.NewReplacer(
+		"{username}", username,
+		"{user_id}", userIdStr,
+		"{user_email}", userEmail,
+		"{user_group}", userGroup,
+		"{using_group}", usingGroup,
+		"{token_id}", tokenIdStr,
+		"{request_id}", requestId,
+	)
+	return replacer.Replace(template)
+}
+
+// applyRiskControlHeadersToRequest 将渠道配置的风控识别字段写入上游请求 header。
+// 设计选择：在 applyHeaderOverrideToRequest 之后调用，让风控字段拥有最高优先级，
+// 避免被通用 header_override 误覆盖。空值规则会被跳过，防止发送 "X-Username:" 这种无意义 header。
+func applyRiskControlHeadersToRequest(req *http.Request, rules []dto.RiskControlHeaderRule, c *gin.Context, info *common.RelayInfo) {
+	if req == nil || len(rules) == 0 {
+		return
+	}
+	for _, rule := range rules {
+		name := strings.TrimSpace(rule.Name)
+		if name == "" {
+			continue
+		}
+		value := resolveRiskControlValue(rule, c, info)
+		if value == "" {
+			continue
+		}
+		req.Header.Set(name, value)
+		if strings.EqualFold(name, "Host") {
+			req.Host = value
+		}
+	}
+}
+
+// getRiskControlHeaders 从 RelayInfo 中安全地取出风控规则切片。
+func getRiskControlHeaders(info *common.RelayInfo) []dto.RiskControlHeaderRule {
+	if info == nil || info.ChannelMeta == nil {
+		return nil
+	}
+	return info.ChannelSetting.RiskControlHeaders
+}
+
 func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody io.Reader) (*http.Response, error) {
 	fullRequestURL, err := a.GetRequestURL(info)
 	if err != nil {
@@ -311,6 +422,7 @@ func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		return nil, err
 	}
 	applyHeaderOverrideToRequest(req, headerOverride)
+	applyRiskControlHeadersToRequest(req, getRiskControlHeaders(info), c, info)
 	resp, err := doRequest(c, req, info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)
@@ -344,6 +456,7 @@ func DoFormRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBod
 		return nil, err
 	}
 	applyHeaderOverrideToRequest(req, headerOverride)
+	applyRiskControlHeadersToRequest(req, getRiskControlHeaders(info), c, info)
 	resp, err := doRequest(c, req, info)
 	if err != nil {
 		return nil, fmt.Errorf("do request failed: %w", err)
@@ -369,6 +482,17 @@ func DoWssRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 	}
 	for key, value := range headerOverride {
 		targetHeader.Set(key, value)
+	}
+	for _, rule := range getRiskControlHeaders(info) {
+		name := strings.TrimSpace(rule.Name)
+		if name == "" {
+			continue
+		}
+		value := resolveRiskControlValue(rule, c, info)
+		if value == "" {
+			continue
+		}
+		targetHeader.Set(name, value)
 	}
 	targetHeader.Set("Content-Type", c.Request.Header.Get("Content-Type"))
 	targetConn, _, err := websocket.DefaultDialer.Dial(fullRequestURL, targetHeader)
