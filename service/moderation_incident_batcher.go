@@ -6,7 +6,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/setting/operation_setting"
+
 	"gorm.io/gorm"
 )
 
@@ -72,15 +72,8 @@ func (b *moderationIncidentBatcher) stop() {
 
 func (b *moderationIncidentBatcher) run() {
 	defer close(b.doneCh)
-	cfg := operation_setting.GetModerationSetting()
-	flushInterval := time.Duration(cfg.IncidentFlushIntervalMs) * time.Millisecond
-	maxBatch := cfg.IncidentMaxBatchSize
-	if flushInterval <= 0 {
-		flushInterval = 500 * time.Millisecond
-	}
-	if maxBatch <= 0 {
-		maxBatch = 100
-	}
+	flushInterval := 500 * time.Millisecond
+	maxBatch := 100
 	ticker := time.NewTicker(flushInterval)
 	defer ticker.Stop()
 
