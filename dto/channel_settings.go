@@ -44,6 +44,22 @@ type ChannelSettings struct {
 	SystemPromptOverride   bool                    `json:"system_prompt_override,omitempty"`
 	ErrorFilterRules       []ErrorFilterRule       `json:"error_filter_rules,omitempty"`
 	RiskControlHeaders     []RiskControlHeaderRule `json:"risk_control_headers,omitempty"`
+	RateLimit              *ChannelRateLimit       `json:"rate_limit,omitempty"`
+}
+
+// ChannelRateLimit 渠道级 RPM / 并发限流配置
+//
+// OnLimit 取值：
+//   - "skip"   => 满载后跳过该渠道，由 retry 路由到同分组其他渠道（默认）
+//   - "queue"  => 满载后串行排队等待，超 QueueMaxWaitMs 或队列深度 QueueDepth 后回退为 skip
+//   - "reject" => 满载后直接返回 429，不再 retry 其他渠道
+type ChannelRateLimit struct {
+	Enabled        bool   `json:"enabled,omitempty"`
+	RPM            int    `json:"rpm,omitempty"`         // 每分钟最大请求数，0 = 不限
+	Concurrency    int    `json:"concurrency,omitempty"` // 同时在飞请求数上限，0 = 不限
+	OnLimit        string `json:"on_limit,omitempty"`
+	QueueMaxWaitMs int    `json:"queue_max_wait_ms,omitempty"`
+	QueueDepth     int    `json:"queue_depth,omitempty"`
 }
 
 type VertexKeyType string

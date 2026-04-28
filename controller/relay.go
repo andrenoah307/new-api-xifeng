@@ -20,6 +20,7 @@ import (
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/channel_limiter"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -202,8 +203,22 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
 
+	// Channel rate-limit token from current iteration. We release it at the top of
+	// the next iteration (before acquiring a new one) and via defer on function exit.
+	// Token.Release uses sync.Once so double-release is safe.
+	var rateLimitToken *channel_limiter.Token
+	defer func() {
+		if rateLimitToken != nil {
+			rateLimitToken.Release()
+		}
+	}()
+
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
 		relayInfo.RetryIndex = retryParam.GetRetry()
+		if rateLimitToken != nil {
+			rateLimitToken.Release()
+			rateLimitToken = nil
+		}
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
 			logger.LogError(c, channelErr.Error())
@@ -212,6 +227,34 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		addUsedChannel(c, channel.Id)
+
+		// Channel-level rate limit (RPM / concurrency).
+		if rateLimitCfg := channel.GetSetting().RateLimit; channel_limiter.IsActive(rateLimitCfg) {
+			token, decision := channel_limiter.Acquire(c.Request.Context(), channel.Id, rateLimitCfg)
+			if decision.Allowed {
+				rateLimitToken = token
+			} else {
+				logger.LogWarn(c, fmt.Sprintf("channel %d (%s) rate-limited: reason=%s, action=%s", channel.Id, channel.Name, decision.Reason, rateLimitCfg.OnLimit))
+				rlErr := types.NewErrorWithStatusCode(
+					fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
+					types.ErrorCodeChannelRateLimited,
+					http.StatusTooManyRequests,
+				)
+				relayInfo.LastError = rlErr
+				if rateLimitCfg.OnLimit == channel_limiter.OnLimitReject {
+					newAPIError = types.NewErrorWithStatusCode(
+						fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
+						types.ErrorCodeChannelRateLimited,
+						http.StatusTooManyRequests,
+						types.ErrOptionWithSkipRetry(),
+					)
+					break
+				}
+				// skip / queue-timeout / queue-full: try the next channel via retry
+				continue
+			}
+		}
+
 		bodyStorage, bodyErr := common.GetBodyStorage(c)
 		if bodyErr != nil {
 			// Ensure consistent 413 for oversized bodies even when error occurs later (e.g., retry path)

@@ -439,6 +439,35 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 		return fmt.Errorf("渠道额外设置[channel setting] 格式错误：%s", err.Error())
 	}
 
+	// 渠道限流配置校验
+	if rl := channel.GetSetting().RateLimit; rl != nil {
+		if rl.RPM < 0 {
+			return fmt.Errorf("渠道限流 RPM 不能为负数")
+		}
+		if rl.Concurrency < 0 {
+			return fmt.Errorf("渠道限流并发数不能为负数")
+		}
+		if rl.RPM > 1000000 {
+			return fmt.Errorf("渠道限流 RPM 不能超过 1000000")
+		}
+		if rl.Concurrency > 100000 {
+			return fmt.Errorf("渠道限流并发数不能超过 100000")
+		}
+		switch rl.OnLimit {
+		case "", "skip", "queue", "reject":
+		default:
+			return fmt.Errorf("渠道限流满载策略仅支持 skip / queue / reject")
+		}
+		if rl.OnLimit == "queue" {
+			if rl.QueueMaxWaitMs < 0 || rl.QueueMaxWaitMs > 60000 {
+				return fmt.Errorf("渠道限流排队等待时长须在 0~60000 毫秒之间")
+			}
+			if rl.QueueDepth < 0 || rl.QueueDepth > 10000 {
+				return fmt.Errorf("渠道限流队列深度须在 0~10000 之间")
+			}
+		}
+	}
+
 	// 如果是添加操作，检查 channel 和 key 是否为空
 	if isAdd {
 		if channel == nil || channel.Key == "" {

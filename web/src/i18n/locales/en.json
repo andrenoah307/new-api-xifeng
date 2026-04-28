@@ -4752,6 +4752,22 @@
     "默认状态码": "",
     "默认用户消息": "Default User Message",
     "默认补全倍率": "Default completion ratio",
-    "默认返回消息": ""
+    "默认返回消息": "",
+    "渠道限流": "Channel rate limit",
+    "限制本渠道的每分钟请求数 (RPM) 与并发数，避免被上游风控；满载时可跳过到同分组其他渠道、串行排队或直接拒绝": "Limit this channel's requests per minute (RPM) and concurrency to avoid upstream throttling; when saturated, skip to other channels in the same group, queue serially, or reject directly",
+    "当前未启用 Redis：渠道限流需要 Redis 才能在多副本部署中精准生效。单实例部署可继续使用，但多实例时各副本会各自计数。": "Redis is not enabled: channel rate limiting requires Redis for accurate enforcement across replicas. Single-instance deployments still work, but each replica counts independently when running multiple instances.",
+    "每分钟请求数 RPM (0 = 不限)": "Requests per minute (RPM, 0 = unlimited)",
+    "并发数 (同时在飞请求, 0 = 不限)": "Concurrency (in-flight requests, 0 = unlimited)",
+    "满载策略": "On-limit strategy",
+    "跳过 (路由到同分组其他渠道)": "Skip (route to other channels in the same group)",
+    "排队等待": "Queue and wait",
+    "直接拒绝 (返回 429)": "Reject directly (return 429)",
+    "最长等待 (毫秒)": "Max wait (ms)",
+    "队列深度 (最多排队请求数)": "Queue depth (max queued requests)",
+    "跳过": "Skip",
+    "直接拒绝": "Reject",
+    "当前渠道达限时，自动路由到同分组下其他渠道": "When this channel is saturated, automatically route to other channels in the same group",
+    "在网关侧串行等待，超过最长等待时长或队列深度后，回退为跳过": "Wait serially at the gateway; once the max wait time or queue depth is exceeded, fall back to skip",
+    "立即返回 429，不再尝试其他渠道": "Return 429 immediately without trying other channels"
   }
 }
