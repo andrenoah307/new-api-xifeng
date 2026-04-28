@@ -292,6 +292,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		if newAPIError == nil {
 			relayInfo.LastError = nil
+			if relayInfo.HasSendResponse() {
+				c.Set("relay_frt_ms", relayInfo.FirstResponseTime.Sub(relayInfo.StartTime).Milliseconds())
+			}
 			return
 		}
 

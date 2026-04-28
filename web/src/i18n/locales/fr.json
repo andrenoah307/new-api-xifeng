@@ -4622,6 +4622,14 @@
     "默认状态码": "",
     "默认用户消息": "Bonjour",
     "默认补全倍率": "Taux de complétion par défaut",
-    "默认返回消息": ""
+    "默认返回消息": "",
+    "压力冷却": "Refroidissement sous pression",
+    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用全局默认配置": "Désactiver automatiquement le canal lorsque la latence du premier jeton reste trop élevée, réactiver après refroidissement",
+    "启用压力冷却": "Activer le refroidissement",
+    "FRT 阈值 (ms)，留空跟随全局": "Seuil FRT (ms), vide = global",
+    "触发次数，留空跟随全局": "Nombre de déclenchements, vide = global",
+    "冷却时长 (秒)，留空跟随全局": "Durée de refroidissement (sec), vide = global",
+    "观察窗口 (秒)，留空跟随全局": "Fenêtre d'observation (sec), vide = global",
+    "跟随全局": "Global"
   }
 }

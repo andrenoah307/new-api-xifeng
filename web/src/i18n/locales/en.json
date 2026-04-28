@@ -4768,6 +4768,14 @@
     "直接拒绝": "Reject",
     "当前渠道达限时，自动路由到同分组下其他渠道": "When this channel is saturated, automatically route to other channels in the same group",
     "在网关侧串行等待，超过最长等待时长或队列深度后，回退为跳过": "Wait serially at the gateway; once the max wait time or queue depth is exceeded, fall back to skip",
-    "立即返回 429，不再尝试其他渠道": "Return 429 immediately without trying other channels"
+    "立即返回 429，不再尝试其他渠道": "Return 429 immediately without trying other channels",
+    "压力冷却": "Pressure Cooling",
+    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用全局默认配置": "Automatically disable channel when first-token latency stays too high, re-enable after cooldown; uses global defaults if not overridden",
+    "启用压力冷却": "Enable Pressure Cooling",
+    "FRT 阈值 (ms)，留空跟随全局": "FRT Threshold (ms), leave empty to use global",
+    "触发次数，留空跟随全局": "Trigger Count, leave empty to use global",
+    "冷却时长 (秒)，留空跟随全局": "Cooldown Duration (sec), leave empty to use global",
+    "观察窗口 (秒)，留空跟随全局": "Observation Window (sec), leave empty to use global",
+    "跟随全局": "Use Global"
   }
 }

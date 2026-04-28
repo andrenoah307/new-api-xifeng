@@ -35,16 +35,25 @@ type RiskControlHeaderRule struct {
 	Value  string `json:"value,omitempty"`
 }
 
+type PressureCoolingOverride struct {
+	Enabled                  *bool `json:"enabled,omitempty"`
+	FRTThresholdMs           *int  `json:"frt_threshold_ms,omitempty"`
+	TriggerCount             *int  `json:"trigger_count,omitempty"`
+	CooldownSeconds          *int  `json:"cooldown_seconds,omitempty"`
+	ObservationWindowSeconds *int  `json:"observation_window_seconds,omitempty"`
+}
+
 type ChannelSettings struct {
-	ForceFormat            bool                    `json:"force_format,omitempty"`
-	ThinkingToContent      bool                    `json:"thinking_to_content,omitempty"`
-	Proxy                  string                  `json:"proxy"`
-	PassThroughBodyEnabled bool                    `json:"pass_through_body_enabled,omitempty"`
-	SystemPrompt           string                  `json:"system_prompt,omitempty"`
-	SystemPromptOverride   bool                    `json:"system_prompt_override,omitempty"`
-	ErrorFilterRules       []ErrorFilterRule       `json:"error_filter_rules,omitempty"`
-	RiskControlHeaders     []RiskControlHeaderRule `json:"risk_control_headers,omitempty"`
-	RateLimit              *ChannelRateLimit       `json:"rate_limit,omitempty"`
+	ForceFormat            bool                     `json:"force_format,omitempty"`
+	ThinkingToContent      bool                     `json:"thinking_to_content,omitempty"`
+	Proxy                  string                   `json:"proxy"`
+	PassThroughBodyEnabled bool                     `json:"pass_through_body_enabled,omitempty"`
+	SystemPrompt           string                   `json:"system_prompt,omitempty"`
+	SystemPromptOverride   bool                     `json:"system_prompt_override,omitempty"`
+	ErrorFilterRules       []ErrorFilterRule        `json:"error_filter_rules,omitempty"`
+	RiskControlHeaders     []RiskControlHeaderRule  `json:"risk_control_headers,omitempty"`
+	RateLimit              *ChannelRateLimit        `json:"rate_limit,omitempty"`
+	PressureCooling        *PressureCoolingOverride `json:"pressure_cooling,omitempty"`
 }
 
 // ChannelRateLimit 渠道级 RPM / 并发限流配置

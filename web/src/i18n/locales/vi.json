@@ -5134,6 +5134,14 @@
     "默认状态码": "",
     "默认用户消息": "Xin chào",
     "默认补全倍率": "Tỷ lệ hoàn thành mặc định",
-    "默认返回消息": ""
+    "默认返回消息": "",
+    "压力冷却": "Làm mát áp lực",
+    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用全局默认配置": "Tự động tắt kênh khi độ trễ token đầu tiên quá cao, bật lại sau khi hạ nhiệt",
+    "启用压力冷却": "Bật làm mát áp lực",
+    "FRT 阈值 (ms)，留空跟随全局": "Ngưỡng FRT (ms), để trống = toàn cục",
+    "触发次数，留空跟随全局": "Số lần kích hoạt, để trống = toàn cục",
+    "冷却时长 (秒)，留空跟随全局": "Thời gian hạ nhiệt (giây), để trống = toàn cục",
+    "观察窗口 (秒)，留空跟随全局": "Cửa sổ quan sát (giây), để trống = toàn cục",
+    "跟随全局": "Toàn cục"
   }
 }
