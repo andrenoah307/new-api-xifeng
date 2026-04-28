@@ -16,7 +16,7 @@ type resolvedPressureCoolingConfig struct {
 	Enabled                  bool
 	ObservationWindowSeconds int
 	FRTThresholdMs           int
-	TriggerCount             int
+	TriggerPercent           int
 	CooldownSeconds          int
 	MaxConsecutiveCooldowns  int
 	CooldownBackoffMultiplier float64
@@ -31,7 +31,7 @@ func resolvePressureCoolingConfig(override *dto.PressureCoolingOverride) resolve
 		Enabled:                   g.Enabled,
 		ObservationWindowSeconds:  g.ObservationWindowSeconds,
 		FRTThresholdMs:            g.FRTThresholdMs,
-		TriggerCount:              g.TriggerCount,
+		TriggerPercent:            g.TriggerPercent,
 		CooldownSeconds:           g.CooldownSeconds,
 		MaxConsecutiveCooldowns:   g.MaxConsecutiveCooldowns,
 		CooldownBackoffMultiplier: g.CooldownBackoffMultiplier,
@@ -48,8 +48,8 @@ func resolvePressureCoolingConfig(override *dto.PressureCoolingOverride) resolve
 	if override.FRTThresholdMs != nil {
 		r.FRTThresholdMs = *override.FRTThresholdMs
 	}
-	if override.TriggerCount != nil {
-		r.TriggerCount = *override.TriggerCount
+	if override.TriggerPercent != nil {
+		r.TriggerPercent = *override.TriggerPercent
 	}
 	if override.CooldownSeconds != nil {
 		r.CooldownSeconds = *override.CooldownSeconds
@@ -62,15 +62,12 @@ func resolvePressureCoolingConfig(override *dto.PressureCoolingOverride) resolve
 
 func CheckPressureCooling(channelId int, frtMs int64) {
 	ch, err := model.CacheGetChannel(channelId)
-	if err != nil || ch == nil {
+	if err != nil || ch == nil || frtMs <= 0 {
 		return
 	}
 	setting := ch.GetSetting()
 	cfg := resolvePressureCoolingConfig(setting.PressureCooling)
 	if !cfg.Enabled {
-		return
-	}
-	if frtMs <= 0 || frtMs < int64(cfg.FRTThresholdMs) {
 		return
 	}
 
@@ -87,6 +84,7 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 			state.State = "obs"
 			state.GraceUntil = now + int64(cfg.GracePeriodSeconds)
 			state.Violations = 0
+			state.TotalRequests = 0
 			state.WindowStart = now
 			savePressureCoolingState(channelId, state, stateTTL)
 		}
@@ -106,12 +104,17 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 	if now-state.WindowStart > int64(cfg.ObservationWindowSeconds) {
 		state.Consecutive = 0
 		state.Violations = 0
+		state.TotalRequests = 0
 		state.WindowStart = now
 	}
 
-	state.Violations++
+	state.TotalRequests++
+	if frtMs >= int64(cfg.FRTThresholdMs) {
+		state.Violations++
+	}
 
-	if state.Violations >= int64(cfg.TriggerCount) {
+	violationPct := state.Violations * 100 / state.TotalRequests
+	if violationPct >= int64(cfg.TriggerPercent) && state.TotalRequests >= 3 {
 		executePressureCooling(ch, state, cfg, now, stateTTL)
 	} else {
 		savePressureCoolingState(channelId, state, stateTTL)
@@ -136,7 +139,12 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 	}
 	cooldownSec := int64(math.Ceil(effectiveCooldown))
 
-	reason := fmt.Sprintf("压力冷却：观察期内 %d 次 FRT 超阈值 %dms，冷却 %ds", state.Violations, cfg.FRTThresholdMs, cooldownSec)
+	pct := int64(0)
+	if state.TotalRequests > 0 {
+		pct = state.Violations * 100 / state.TotalRequests
+	}
+	reason := fmt.Sprintf("压力冷却：观察期内 %d/%d 请求 FRT 超 %dms（%d%%），冷却 %ds",
+		state.Violations, state.TotalRequests, cfg.FRTThresholdMs, pct, cooldownSec)
 	model.UpdateChannelStatus(ch.Id, "", common.ChannelStatusAutoDisabled, reason)
 
 	state.State = "cool"
@@ -239,6 +247,7 @@ func pressureCoolingRecoveryLoop() {
 			state.State = "obs"
 			state.GraceUntil = now + int64(cfg.GracePeriodSeconds)
 			state.Violations = 0
+			state.TotalRequests = 0
 			state.WindowStart = now
 			savePressureCoolingState(channelId, state, stateTTL)
 

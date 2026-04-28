@@ -34,7 +34,7 @@ const { Text } = Typography;
 const DEFAULT_VALUE = Object.freeze({
   enabled: null,
   frt_threshold_ms: null,
-  trigger_count: null,
+  trigger_percent: null,
   cooldown_seconds: null,
   observation_window_seconds: null,
 });
@@ -44,14 +44,14 @@ export const normalizePressureCooling = (value) => {
   const hasOverride =
     value.enabled != null ||
     value.frt_threshold_ms != null ||
-    value.trigger_count != null ||
+    value.trigger_percent != null ||
     value.cooldown_seconds != null ||
     value.observation_window_seconds != null;
   if (!hasOverride) return null;
   return {
     enabled: value.enabled ?? null,
     frt_threshold_ms: value.frt_threshold_ms ?? null,
-    trigger_count: value.trigger_count ?? null,
+    trigger_percent: value.trigger_percent ?? null,
     cooldown_seconds: value.cooldown_seconds ?? null,
     observation_window_seconds: value.observation_window_seconds ?? null,
   };
@@ -76,7 +76,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
   const hasOverride =
     v.enabled != null ||
     v.frt_threshold_ms != null ||
-    v.trigger_count != null ||
+    v.trigger_percent != null ||
     v.cooldown_seconds != null ||
     v.observation_window_seconds != null;
 
@@ -151,16 +151,17 @@ const PressureCoolingEditor = ({ value, onChange }) => {
             </Col>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
               <FieldLabel>
-                {t('触发次数，留空默认 3')}
+                {t('触发百分比 (%)，留空默认 50')}
               </FieldLabel>
               <InputNumber
                 min={1}
                 max={100}
-                value={v.trigger_count}
-                placeholder='3'
+                value={v.trigger_percent}
+                placeholder='50'
+                suffix='%'
                 onChange={(n) =>
                   update({
-                    trigger_count:
+                    trigger_percent:
                       typeof n === 'number' && n > 0 ? n : null,
                   })
                 }
