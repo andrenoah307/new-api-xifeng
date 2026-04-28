@@ -327,6 +327,7 @@ export const getChannelsColumns = ({
   setCurrentMultiKeyChannel,
   openUpstreamUpdateModal,
   detectChannelUpstreamUpdates,
+  rateLimitStats = {},
 }) => {
   return [
     {
@@ -383,77 +384,128 @@ export const getChannelsColumns = ({
             <span>{text}</span>
           );
 
-        if (!passThroughEnabled && !showUpstreamUpdateTag) {
-          return nameNode;
+        const rlStat = rateLimitStats[record.id];
+        const topRow =
+          !passThroughEnabled && !showUpstreamUpdateTag ? (
+            nameNode
+          ) : (
+            <Space spacing={6} align='center'>
+              {nameNode}
+              {passThroughEnabled && (
+                <Tooltip
+                  content={t(
+                    '该渠道已开启请求透传：参数覆写、模型重定向、渠道适配等 NewAPI 内置功能将失效，非最佳实践；如因此产生问题，请勿提交 issue 反馈。',
+                  )}
+                  trigger='hover'
+                  position='topLeft'
+                >
+                  <span className='inline-flex items-center'>
+                    <IconAlertTriangle
+                      style={{ color: 'var(--semi-color-warning)' }}
+                    />
+                  </span>
+                </Tooltip>
+              )}
+              {showUpstreamUpdateTag && (
+                <Space spacing={4} align='center'>
+                  {pendingAddCount > 0 ? (
+                    <Tooltip content={t('点击处理新增模型')} position='top'>
+                      <Tag
+                        color='green'
+                        type='light'
+                        size='small'
+                        shape='circle'
+                        className='cursor-pointer transition-all duration-150 hover:opacity-85 hover:-translate-y-px active:scale-95'
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openUpstreamUpdateModal(
+                            record,
+                            upstreamUpdateMeta.pendingAddModels,
+                            upstreamUpdateMeta.pendingRemoveModels,
+                            'add',
+                          );
+                        }}
+                      >
+                        +{pendingAddCount}
+                      </Tag>
+                    </Tooltip>
+                  ) : null}
+                  {pendingRemoveCount > 0 ? (
+                    <Tooltip content={t('点击处理删除模型')} position='top'>
+                      <Tag
+                        color='red'
+                        type='light'
+                        size='small'
+                        shape='circle'
+                        className='cursor-pointer transition-all duration-150 hover:opacity-85 hover:-translate-y-px active:scale-95'
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openUpstreamUpdateModal(
+                            record,
+                            upstreamUpdateMeta.pendingAddModels,
+                            upstreamUpdateMeta.pendingRemoveModels,
+                            'remove',
+                          );
+                        }}
+                      >
+                        -{pendingRemoveCount}
+                      </Tag>
+                    </Tooltip>
+                  ) : null}
+                </Space>
+              )}
+            </Space>
+          );
+
+        if (!rlStat) return topRow;
+
+        const segments = [];
+        if (rlStat.conc_limit > 0) {
+          const pct = (rlStat.conc / rlStat.conc_limit) * 100;
+          const color =
+            pct >= 95
+              ? 'var(--semi-color-danger)'
+              : pct >= 80
+                ? 'var(--semi-color-warning)'
+                : 'var(--semi-color-text-2)';
+          segments.push(
+            <span key='conc' style={{ color }}>
+              {t('并发')} {rlStat.conc}/{rlStat.conc_limit}
+            </span>,
+          );
+        }
+        if (rlStat.rpm_limit > 0) {
+          const pct = (rlStat.rpm / rlStat.rpm_limit) * 100;
+          const color =
+            pct >= 95
+              ? 'var(--semi-color-danger)'
+              : pct >= 80
+                ? 'var(--semi-color-warning)'
+                : 'var(--semi-color-text-2)';
+          segments.push(
+            <span key='rpm' style={{ color }}>
+              RPM {rlStat.rpm}/{rlStat.rpm_limit}
+            </span>,
+          );
         }
 
+        if (segments.length === 0) return topRow;
+
         return (
-          <Space spacing={6} align='center'>
-            {nameNode}
-            {passThroughEnabled && (
-              <Tooltip
-                content={t(
-                  '该渠道已开启请求透传：参数覆写、模型重定向、渠道适配等 NewAPI 内置功能将失效，非最佳实践；如因此产生问题，请勿提交 issue 反馈。',
-                )}
-                trigger='hover'
-                position='topLeft'
-              >
-                <span className='inline-flex items-center'>
-                  <IconAlertTriangle
-                    style={{ color: 'var(--semi-color-warning)' }}
-                  />
-                </span>
-              </Tooltip>
-            )}
-            {showUpstreamUpdateTag && (
-              <Space spacing={4} align='center'>
-                {pendingAddCount > 0 ? (
-                  <Tooltip content={t('点击处理新增模型')} position='top'>
-                    <Tag
-                      color='green'
-                      type='light'
-                      size='small'
-                      shape='circle'
-                      className='cursor-pointer transition-all duration-150 hover:opacity-85 hover:-translate-y-px active:scale-95'
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openUpstreamUpdateModal(
-                          record,
-                          upstreamUpdateMeta.pendingAddModels,
-                          upstreamUpdateMeta.pendingRemoveModels,
-                          'add',
-                        );
-                      }}
-                    >
-                      +{pendingAddCount}
-                    </Tag>
-                  </Tooltip>
-                ) : null}
-                {pendingRemoveCount > 0 ? (
-                  <Tooltip content={t('点击处理删除模型')} position='top'>
-                    <Tag
-                      color='red'
-                      type='light'
-                      size='small'
-                      shape='circle'
-                      className='cursor-pointer transition-all duration-150 hover:opacity-85 hover:-translate-y-px active:scale-95'
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openUpstreamUpdateModal(
-                          record,
-                          upstreamUpdateMeta.pendingAddModels,
-                          upstreamUpdateMeta.pendingRemoveModels,
-                          'remove',
-                        );
-                      }}
-                    >
-                      -{pendingRemoveCount}
-                    </Tag>
-                  </Tooltip>
-                ) : null}
-              </Space>
-            )}
-          </Space>
+          <div>
+            {topRow}
+            <div
+              style={{
+                fontSize: 11,
+                lineHeight: '16px',
+                marginTop: 2,
+                display: 'flex',
+                gap: 8,
+              }}
+            >
+              {segments}
+            </div>
+          </div>
         );
       },
     },

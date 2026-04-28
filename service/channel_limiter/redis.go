@@ -22,11 +22,15 @@ var redisReleaseScript string
 //go:embed lua/peek.lua
 var redisPeekScript string
 
+//go:embed lua/stats.lua
+var redisStatsScript string
+
 type redisBackend struct {
 	client     *redis.Client
 	acquireSHA string
 	releaseSHA string
 	peekSHA    string
+	statsSHA   string
 }
 
 func newRedisBackend() (*redisBackend, error) {
@@ -48,11 +52,16 @@ func newRedisBackend() (*redisBackend, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load peek script: %w", err)
 	}
+	sSHA, err := common.RDB.ScriptLoad(ctx, redisStatsScript).Result()
+	if err != nil {
+		return nil, fmt.Errorf("load stats script: %w", err)
+	}
 	return &redisBackend{
 		client:     common.RDB,
 		acquireSHA: aSHA,
 		releaseSHA: rSHA,
 		peekSHA:    pSHA,
+		statsSHA:   sSHA,
 	}, nil
 }
 
@@ -95,6 +104,26 @@ func (b *redisBackend) Acquire(ctx context.Context, channelID int, cfg *dto.Chan
 		reason = res[1]
 	}
 	return nil, Decision{Allowed: false, Reason: reason}
+}
+
+func (b *redisBackend) Stats(ctx context.Context, channelIDs []int) map[int][2]int64 {
+	if len(channelIDs) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(channelIDs)*2)
+	for _, id := range channelIDs {
+		rpmKey, concKey := b.keys(id)
+		keys = append(keys, rpmKey, concKey)
+	}
+	res, err := b.client.EvalSha(ctx, b.statsSHA, keys, rpmWindowSeconds).Int64Slice()
+	if err != nil || len(res) != len(channelIDs)*2 {
+		return nil
+	}
+	out := make(map[int][2]int64, len(channelIDs))
+	for i, id := range channelIDs {
+		out[id] = [2]int64{res[i*2], res[i*2+1]}
+	}
+	return out
 }
 
 func (b *redisBackend) Peek(ctx context.Context, channelID int, cfg *dto.ChannelRateLimit) Decision {
