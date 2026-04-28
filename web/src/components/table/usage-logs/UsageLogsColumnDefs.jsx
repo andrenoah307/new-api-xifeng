@@ -870,6 +870,32 @@ export const getLogsColumns = ({
       },
     },
     {
+      key: COLUMN_KEYS.SESSION_ID,
+      title: t('Session'),
+      dataIndex: 'session_id',
+      render: (text, record) => {
+        if (!isAdminUser || !text) {
+          return <></>;
+        }
+        const short = text.length > 12 ? text.slice(0, 8) + '…' : text;
+        return (
+          <Tooltip content={text}>
+            <span>
+              <Tag
+                color='blue'
+                shape='circle'
+                onClick={(event) => {
+                  copyText(event, text);
+                }}
+              >
+                {short}
+              </Tag>
+            </span>
+          </Tooltip>
+        );
+      },
+    },
+    {
       key: COLUMN_KEYS.RETRY,
       title: t('重试'),
       dataIndex: 'retry',
