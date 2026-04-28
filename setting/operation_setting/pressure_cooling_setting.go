@@ -8,7 +8,7 @@ type PressureCoolingSetting struct {
 	Enabled                      bool    `json:"enabled"`
 	ObservationWindowSeconds     int     `json:"observation_window_seconds"`
 	FRTThresholdMs               int     `json:"frt_threshold_ms"`
-	TriggerCount                 int     `json:"trigger_count"`
+	TriggerPercent               int     `json:"trigger_percent"`
 	CooldownSeconds              int     `json:"cooldown_seconds"`
 	MaxConsecutiveCooldowns      int     `json:"max_consecutive_cooldowns"`
 	CooldownBackoffMultiplier    float64 `json:"cooldown_backoff_multiplier"`
@@ -22,7 +22,7 @@ var pressureCoolingSetting = PressureCoolingSetting{
 	Enabled:                      false,
 	ObservationWindowSeconds:     60,
 	FRTThresholdMs:               8000,
-	TriggerCount:                 3,
+	TriggerPercent:               50,
 	CooldownSeconds:              300,
 	MaxConsecutiveCooldowns:      5,
 	CooldownBackoffMultiplier:    1.5,

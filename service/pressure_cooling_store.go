@@ -13,6 +13,7 @@ import (
 type PressureCoolingState struct {
 	State         string // "obs" | "cool" | "susp"
 	Violations    int64
+	TotalRequests int64
 	WindowStart   int64
 	CooldownUntil int64
 	Consecutive   int64
@@ -60,6 +61,7 @@ func loadPressureCoolingStateRedis(channelId int) *PressureCoolingState {
 		s.State = "obs"
 	}
 	s.Violations, _ = strconv.ParseInt(vals["vc"], 10, 64)
+	s.TotalRequests, _ = strconv.ParseInt(vals["tr"], 10, 64)
 	s.WindowStart, _ = strconv.ParseInt(vals["ws"], 10, 64)
 	s.CooldownUntil, _ = strconv.ParseInt(vals["cu"], 10, 64)
 	s.Consecutive, _ = strconv.ParseInt(vals["cc"], 10, 64)
@@ -73,6 +75,7 @@ func savePressureCoolingStateRedis(channelId int, state *PressureCoolingState, t
 	fields := map[string]interface{}{
 		"st": state.State,
 		"vc": strconv.FormatInt(state.Violations, 10),
+		"tr": strconv.FormatInt(state.TotalRequests, 10),
 		"ws": strconv.FormatInt(state.WindowStart, 10),
 		"cu": strconv.FormatInt(state.CooldownUntil, 10),
 		"cc": strconv.FormatInt(state.Consecutive, 10),
