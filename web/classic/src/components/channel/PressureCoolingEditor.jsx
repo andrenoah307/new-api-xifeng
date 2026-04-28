@@ -115,7 +115,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
               style={{ color: 'var(--semi-color-text-2)' }}
             >
               {t(
-                '当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用全局默认配置',
+                '当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置',
               )}
             </div>
           </div>
@@ -131,7 +131,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
           <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
               <FieldLabel>
-                {t('FRT 阈值 (ms)，留空跟随全局')}
+                {t('FRT 阈值 (ms)，留空默认 8000')}
               </FieldLabel>
               <InputNumber
                 min={1000}
@@ -151,7 +151,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
             </Col>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
               <FieldLabel>
-                {t('触发次数，留空跟随全局')}
+                {t('触发次数，留空默认 3')}
               </FieldLabel>
               <InputNumber
                 min={1}
@@ -173,7 +173,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
           <Row gutter={16} type='flex'>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
               <FieldLabel>
-                {t('冷却时长 (秒)，留空跟随全局')}
+                {t('冷却时长 (秒)，留空默认 300')}
               </FieldLabel>
               <InputNumber
                 min={10}
@@ -193,7 +193,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
             </Col>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
               <FieldLabel>
-                {t('观察窗口 (秒)，留空跟随全局')}
+                {t('观察窗口 (秒)，留空默认 60')}
               </FieldLabel>
               <InputNumber
                 min={10}
