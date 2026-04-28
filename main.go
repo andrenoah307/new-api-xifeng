@@ -130,6 +130,9 @@ func main() {
 	// Ticket attachment orphan cleanup (master-node only)
 	service.StartTicketAttachmentCleanupTask()
 
+	// Pressure cooling recovery loop (master-node only)
+	service.StartPressureCoolingRecovery()
+
 	// Wire task polling adaptor factory (breaks service -> relay import cycle)
 	service.GetTaskAdaptorFunc = func(platform constant.TaskPlatform) service.TaskPollingAdaptor {
 		a := relay.GetTaskAdaptor(platform)

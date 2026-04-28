@@ -222,6 +222,22 @@ func CacheGetChannelInfo(id int) (*ChannelInfo, error) {
 	return &c.ChannelInfo, nil
 }
 
+func CountEnabledChannelsForGroupModel(group string, modelName string) int {
+	if !common.MemoryCacheEnabled {
+		return 0
+	}
+	channelSyncLock.RLock()
+	defer channelSyncLock.RUnlock()
+	channels := group2model2channels[group][modelName]
+	count := 0
+	for _, chId := range channels {
+		if ch, ok := channelsIDM[chId]; ok && ch.Status == common.ChannelStatusEnabled {
+			count++
+		}
+	}
+	return count
+}
+
 func CacheUpdateChannelStatus(id int, status int) {
 	if !common.MemoryCacheEnabled {
 		return
