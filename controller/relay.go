@@ -482,8 +482,22 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		})
 	}
 
+	// Record failure to monitoring unconditionally (not gated by ErrorLogEnabled)
+	if common.GroupMonitoringHook != nil {
+		startTime := common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)
+		if startTime.IsZero() {
+			startTime = time.Now()
+		}
+		useTimeMs := int(time.Since(startTime).Seconds()) * 1000
+		common.GroupMonitoringHook(
+			c.GetString("group"), c.GetInt("channel_id"), false,
+			0, 0, useTimeMs, 0,
+			c.GetString("original_model"), err.StatusCode,
+			err.MaskSensitiveErrorWithStatusCode(),
+		)
+	}
+
 	if constant.ErrorLogEnabled && types.IsRecordErrorLog(err) {
-		// 保存错误日志到mysql中
 		userId := c.GetInt("id")
 		tokenName := c.GetString("token_name")
 		modelName := c.GetString("original_model")
