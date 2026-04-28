@@ -4772,7 +4772,7 @@
     "压力冷却": "Pressure Cooling",
     "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置": "Automatically disable channel when first-token latency stays too high, re-enable after cooldown; uses defaults if not overridden",
 "FRT 阈值 (ms)，留空默认 8000": "FRT Threshold (ms), default 8000",
-    "触发次数，留空默认 3": "Trigger Count, default 3",
+    "触发百分比 (%)，留空默认 50": "Trigger Percent (%), default 50",
     "冷却时长 (秒)，留空默认 300": "Cooldown Duration (sec), default 300",
     "观察窗口 (秒)，留空默认 60": "Observation Window (sec), default 60"
   }
