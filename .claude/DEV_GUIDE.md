@@ -1197,3 +1197,174 @@ scripts/merge-check.sh pre    # merge 前：检查分支、remote、gap、冲突
 scripts/merge-check.sh post   # merge 后：冲突标记、编译、文件完整、测试、i18n
 scripts/merge-check.sh full   # 两者都跑
 ```
+
+---
+
+## 22. 前端同步策略：Classic → Default 二开功能移植
+
+> 决策日期：2026-05-02
+> 背景：上游在 `a42b3976` 引入 `web/default/`（React 19 + TypeScript + shadcn/ui + TanStack Router/Query/Table），本 fork 的二开 UI（~14,565 行、~40 文件）仅存在于 `web/classic/`，需同步到 `web/default/`。
+
+### 22.1 核心约束
+
+**模块化隔离**：最大化新建文件，最小化对上游文件的改动（~36 行改动 / 6 个上游文件），降低后续 merge upstream 冲突。
+
+### 22.2 架构决策汇总
+
+| 编号 | 决策 | 选型 | 理由 |
+|-----|------|------|------|
+| D1 | 目录隔离 | `src/features/<name>/` 标准目录 | TanStack Router 只扫描 `src/routes/`，`src-custom/` 需额外配置 |
+| D2 | 侧边栏 | 独立 `use-custom-sidebar-items.ts` + 单行 spread | 上游文件仅增 ~3 行 |
+| D3 | i18n | `addResourceBundle()` 注入独立翻译包 | 零修改上游 locale JSON |
+| D4 | 渠道表单 | `ChannelCustomSections` 包装组件 + 单点插入 | drawer 3,358 行只增 1 import + 1 JSX |
+| D5 | 系统设置 | 独立 section-registry + 追加导入 | 纯追加，不修改现有条目 |
+| D6 | 工单角色 | `TICKET_STAFF: 5` 追加到 `roles.ts` | 后端已有 `RoleCustomerServiceUser = 5` |
+| D7 | 路由 | `src/routes/_authenticated/` 下新建文件 | TanStack Router 自动发现，零冲突 |
+
+### 22.3 上游文件改动清单
+
+以下 8 个上游文件被改动，合计 ~45 行：
+
+| 上游文件 | 改动 | 行数 | 风险 |
+|---------|------|------|------|
+| `src/hooks/use-sidebar-data.ts` | 1 import + spread + userRole | ~5 | 低 |
+| `src/main.tsx` | 1 import | ~1 | 极低 |
+| `src/lib/roles.ts` | 追加 `TICKET_STAFF: 5` | ~1 | 极低 |
+| `src/components/layout/config/system-settings.config.ts` | 1 icon + 1 import + 5 行 sidebar 条目 | ~7 | 低 |
+| `src/features/channels/lib/channel-form.ts` | schema 追加 4 字段 + transform/build 序列化 | ~20 | 中 |
+| `src/features/channels/components/drawers/channel-mutate-drawer.tsx` | 1 import + 2 行 JSX | ~3 | 中 |
+
+### 22.4 技术转换速查表
+
+| Classic (Semi Design) | Default (shadcn/ui + Tailwind) | 备注 |
+|---|---|---|
+| `<Table>` | TanStack Table + `DataTable*` 组件族 | `ColumnDef[]` + `useReactTable` |
+| `<Modal>` | `<Dialog>` / `<AlertDialog>` | Dialog=表单, AlertDialog=确认 |
+| `<SideSheet>` | `<Sheet>` | `side` prop 控制方向 |
+| `<Form>` + `<Form.Input>` | react-hook-form + `<FormField>` | zod schema 验证 |
+| `<Select>` | `<Select>` 或 `<Combobox>` | 需搜索用 Combobox |
+| `<Tag>` | `<Badge>` / `<StatusBadge>` | |
+| `<Banner>` | `<Alert>` | |
+| `<Tabs>` + `<TabPane>` | `<Tabs>` + `<TabsContent>` | |
+| `<Descriptions>` | `<dl>/<dt>/<dd>` + Tailwind | 无直接等效 |
+| `<Spin>` / `<Empty>` | `<Skeleton>` / `<EmptyState>` | |
+| `<Upload>` | 自建或 react-dropzone | shadcn 无内置 |
+| `<ImagePreview>` | Dialog + `<img>` | 需自建 |
+| `<Space>` | `flex gap-*` | Tailwind class |
+| `<Row>` / `<Col>` | `grid grid-cols-*` | Tailwind grid |
+| `<Popconfirm>` | `<ConfirmDialog>` | 项目已有 |
+| `<DatePicker>` | `<DatePicker>` | 项目已有 |
+| Toast (`showError`/`showSuccess`) | `toast.error()`/`toast.success()` (sonner) | |
+| `isAdmin` (localStorage) | `useIsAdmin()` hook | |
+| `StatusContext` | Zustand store / TanStack Query | 需确认 default 等效方式 |
+| VChart | recharts（推荐）或沿用 | 需评估 |
+
+### 22.5 坑点表
+
+| 编号 | 坑点 | 说明 | 处理 |
+|-----|------|------|------|
+| P1 | i18n Key 风格 | classic 用中文 key `t('风控中心')`，default 用英文 key `t('Risk Control')` | 移植时**全部转英文 key**，zh.ts 提供中文翻译 |
+| P2 | setting/settings JSON | 渠道编辑器数据存储在两个 JSON string 字段，有独立 build/parse 函数 | 新字段必须正确挂载且不破坏上游已有序列化 |
+| P3 | routeTree.gen.ts | 自动生成文件 | **绝不手动编辑**，`bun run dev` 自动重生成 |
+| P4 | Upload 组件 | shadcn 无内置 Upload | 用 react-dropzone + 自定义 UI |
+| P5 | 工单角色粒度 | backend `RoleCustomerServiceUser=5`，default 只有 0/1/10/100 | roles.ts 追加 `TICKET_STAFF: 5` |
+| P6 | StatusContext | classic 用 React Context 传服务器状态 | 找 default 等效方式（Zustand/Query） |
+| P7 | 图表库 | classic 用 VChart（重量级） | default 无图表库时引入 recharts |
+| P8 | 附件下载 | 用 SessionAuth（cookie-only） | `<img src>` / `<a href>` 自动带 cookie |
+| P9 | drawer 冲突热区 | `channel-mutate-drawer.tsx` 3,358 行，上游高频变更 | 插入点加 `{/* fork: custom channel extensions */}` 注释作锚点 |
+| P10 | mobile 兼容 | default 用 `MobileCardList` | 列定义需加 `meta.mobileHidden/mobileBadge/mobileTitle` |
+| P11 | URL 路径 | classic `/console/risk`，default 不用 `/console/` | 统一为 `/risk`、`/tickets`、`/monitoring` |
+| P12 | 额度工具函数 | 退款面板需 `renderQuota` / `quotaToDisplayAmount` | 确认 default 有等效工具再复用 |
+
+### 22.6 分阶段实施记录（全部完成 2026-05-03）
+
+| 阶段 | 内容 | 新建文件 | 改上游 | 状态 |
+|-----|------|---------|-------|------|
+| P0 | 基础设施（i18n + 角色 + 侧边栏） | 5 | 3 | ✅ |
+| P1 | 分组监控 | 11 | 0 | ✅ |
+| P2 | 邀请码管理 | 12 | 0 | ✅ |
+| P3 | 充值历史 | 6 | 0 | ✅ |
+| P4 | 工单系统 | 18 | 0 | ✅ |
+| P5 | 风控中心 | 15 | 0 | ✅ |
+| P6 | 渠道编辑器扩展 | 5 | 2 | ✅ |
+| P7 | 系统设置扩展 | 8 | 1 | ✅ |
+| P8 | i18n 补全（6 语言）+ 构建验证 | 4 | 0 | ✅ |
+
+### 22.7 实际新建文件清单
+
+**P0 基础设施**：
+- `src/i18n/custom-translations/{en,zh,fr,ja,ru,vi,index}.ts` — 独立翻译注入
+- `src/hooks/use-custom-sidebar-items.ts` — 二开侧边栏项（含 role 参数动态显示 Ticket Admin）
+
+**P1 分组监控** (`src/features/monitoring/`)：
+- `api.ts`, `constants.ts`, `components/monitoring-dashboard.tsx`, `group-status-card.tsx`, `group-detail-panel.tsx`, `status-timeline.tsx`, `availability-chart.tsx` 等 11 文件
+- 路由 `src/routes/_authenticated/monitoring/index.tsx`
+
+**P2 邀请码** (`src/features/invitation-codes/`)：
+- `api.ts`, `constants.ts`, `components/{table,columns,provider,dialogs}` 等 12 文件
+- 路由 `src/routes/_authenticated/invitation-codes/index.tsx`
+
+**P3 充值历史** (`src/features/topup-history/`)：
+- `api.ts`, `constants.ts`, `components/{table,columns}` 等 6 文件
+- 路由 `src/routes/_authenticated/topup-history/index.tsx`
+
+**P4 工单系统** (`src/features/tickets/`)：
+- `api.ts`, `constants.ts`, `lib/`, `hooks/`, `components/{ticket-list,ticket-detail,ticket-admin-list,ticket-admin-detail,conversation,message-item,reply-box,...}` 等 18 文件
+- 路由 4 个：`tickets/{index,$ticketId}`, `ticket-admin/{index,$ticketId}`
+- 角色守卫：`TICKET_STAFF(5)` 用于 ticket-admin 路由
+
+**P5 风控中心** (`src/features/risk/`)：
+- `api.ts`（~300 行，30+ API 函数，完整类型定义）
+- `constants.ts`（~180 行，9 metric 定义 + 全部 option/map）
+- `components/risk-tabs.tsx` — 3 Tab 容器（distribution/moderation/enforcement）
+- `components/distribution-tab.tsx` — 概览卡片 + 配置 + 分组矩阵 + 子 Tab
+- `components/moderation-tab.tsx` — 队列统计 + 配置 + 规则 + 调试 + incidents
+- `components/enforcement-tab.tsx` — 概览 + 配置 + 计数器 + incidents
+- `components/{overview/,config/,groups/,subjects/,incidents/,rules/,moderation/}` 子组件
+- 路由 `src/routes/_authenticated/risk/index.tsx`（ADMIN 守卫）
+
+**P6 渠道编辑器** (`src/features/channels/components/custom/`)：
+- `channel-custom-sections.tsx` — 包装组件（单一入口点）
+- `pressure-cooling-editor.tsx` — 压力冷却（switch + 4 字段）
+- `channel-rate-limit-editor.tsx` — 限流（switch + RPM/并发/策略/队列）
+- `error-filter-rules-editor.tsx` — 错误过滤（动态规则数组）
+- `risk-control-headers-editor.tsx` — 风控头部（8 种 source + custom 占位符）
+
+**P7 系统设置** (`src/features/system-settings/custom/`)：
+- `section-registry.tsx` — 3 section 注册
+- `index.tsx` — 页面组件
+- `email-template-settings-section.tsx` — 模板选择/编辑/预览/重置
+- `ticket-settings-section.tsx` — 分配规则/通知/附件（3 Tab）
+- `group-monitoring-settings-section.tsx` — 分组多选/参数/排除列表
+- 路由 2 个：`custom/{index,$section}`
+
+**P8 i18n**：
+- `{fr,ja,ru,vi}.ts` — 4 语言翻译文件（高可见 key 翻译，其余 fallback 英文）
+
+### 22.8 default 前端关键模式备忘
+
+**Feature 目录结构**：
+```
+src/features/<name>/
+  index.tsx, api.ts, types.ts, constants.ts
+  components/ (table, columns, provider, dialogs, drawers)
+  lib/ (actions, form, utils)
+  hooks/
+```
+
+**新建页面清单**：
+1. 路由文件 `src/routes/_authenticated/<name>/index.tsx`（`createFileRoute` + `beforeLoad` 权限检查 + `validateSearch`）
+2. Feature 组件（`SectionPageLayout` compound component）
+3. API 层（axios 函数 + TanStack Query keys factory）
+4. 表格（`ColumnDef[]` + `useReactTable` + `useTableUrlState`）
+5. 表单（zod schema + `useForm` + `zodResolver`）
+
+**Dialog 状态管理**：Context provider 持有 `open: 'create' | 'edit' | null` + `currentRow`，子组件调用 `setOpen('create')` 打开。
+
+**API 通信**：`api.ts` 导出函数 → TanStack Query `useQuery`/`useMutation` → `queryClient.invalidateQueries` 刷新。
+
+**表格状态同步 URL**：`useTableUrlState({ search, navigate, pagination, globalFilter, columnFilters })`。
+
+### 22.9 变更 §21.4 决策
+
+> ~~`web/default/` 作为只读接收，不做定制~~ → 改为：`web/default/` 中添加二开功能，与 `web/classic/` 保持功能入口统一。二开代码通过模块化隔离（82 新建文件 vs ~45 行上游改动 / 6 个上游文件）最小化 merge 冲突。全部 8 阶段已于 2026-05-03 完成。

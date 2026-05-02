@@ -141,6 +141,7 @@ import {
 import { ParamOverrideEditorDialog } from '../dialogs/param-override-editor-dialog'
 import { StatusCodeRiskDialog } from '../dialogs/status-code-risk-dialog'
 import { ModelMappingEditor } from '../model-mapping-editor'
+import { ChannelCustomSections } from '../custom/channel-custom-sections'
 
 type ChannelMutateDrawerProps = {
   open: boolean
@@ -3273,6 +3274,8 @@ export function ChannelMutateDrawer({
                   </div>
                 </CollapsibleContent>
               </Collapsible>
+              {/* fork: custom channel extensions */}
+              <ChannelCustomSections form={form} channelId={channelId ?? undefined} />
             </form>
           </Form>
 

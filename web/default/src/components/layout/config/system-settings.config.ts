@@ -7,9 +7,11 @@ import {
   Plug,
   Box,
   Wrench,
+  Blocks,
 } from 'lucide-react'
 import { getAuthSectionNavItems } from '@/features/system-settings/auth/section-registry.tsx'
 import { getContentSectionNavItems } from '@/features/system-settings/content/section-registry.tsx'
+import { getCustomSectionNavItems } from '@/features/system-settings/custom/section-registry'
 import { getGeneralSectionNavItems } from '@/features/system-settings/general/section-registry.tsx'
 import { getIntegrationsSectionNavItems } from '@/features/system-settings/integrations/section-registry.tsx'
 import { getMaintenanceSectionNavItems } from '@/features/system-settings/maintenance/section-registry.tsx'
@@ -63,6 +65,11 @@ export function getSystemSettingsNavGroups(t: TFunction): NavGroup[] {
           title: t('Maintenance'),
           icon: Wrench,
           items: getMaintenanceSectionNavItems(t),
+        },
+        {
+          title: t('Custom Extensions'),
+          icon: Blocks,
+          items: getCustomSectionNavItems(t),
         },
       ],
     },
