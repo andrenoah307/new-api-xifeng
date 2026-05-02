@@ -1276,6 +1276,7 @@ scripts/merge-check.sh full   # 两者都跑
 | P11 | URL 路径 | classic `/console/risk`，default 不用 `/console/` | 统一为 `/risk`、`/tickets`、`/monitoring` |
 | P12 | 额度工具函数 | 退款面板需 `renderQuota` / `quotaToDisplayAmount` | 确认 default 有等效工具再复用 |
 | P13 | **Radix Select 禁止空字符串 value** | `@radix-ui/react-select` 的 `SelectItem` 在渲染时硬校验 `value !== ""`，违反即 throw（被 TanStack Router errorComponent 捕获后显示 500 页面）。Semi Design Select 无此限制，因此从 classic 移植 `<Select>` 筛选器时极易遗漏 | 用哨兵值 `"__all__"` 替代空字符串，初始 state、`<SelectItem value>`、API params 三处同步修改。**新增任何 Radix Select 组件时务必检查** |
+| P14 | **API 响应结构不一致** | 后端 `GET /api/risk/groups` 返回 `{ schema_version, global_mode, items: [...] }` 包裹对象，而非直接数组。classic 正确处理了 `riskGroups.items`，但 default 移植时误用 `res.data?.data ?? []` 当数组 → `for...of` 报 `not iterable` → 500 | 移植 API 函数时**必须对照后端 controller 的 `common.ApiSuccess(c, ...)` 实际传入的数据结构**，特别注意 `gin.H{...items}` 包裹、`PageInfo` 分页封装等 |
 
 ### 22.6 分阶段实施记录（全部完成 2026-05-03）
 
