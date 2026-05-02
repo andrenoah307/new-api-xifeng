@@ -17,11 +17,14 @@ import {
   Settings,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useAuthStore } from '@/stores/auth-store'
 import { WORKSPACE_IDS } from '@/components/layout/lib/workspace-registry'
 import { type SidebarData } from '@/components/layout/types'
+import { getCustomAdminItems, getCustomGeneralItems } from './use-custom-sidebar-items'
 
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  const userRole = useAuthStore((s) => s.auth.user?.role ?? 0)
 
   return {
     workspaces: [
@@ -80,6 +83,7 @@ export function useSidebarData(): SidebarData {
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
             icon: ListTodo,
           },
+          ...getCustomGeneralItems(t, userRole),
         ],
       },
       {
@@ -133,6 +137,7 @@ export function useSidebarData(): SidebarData {
             activeUrls: ['/system-settings'],
             icon: Settings,
           },
+          ...getCustomAdminItems(t),
         ],
       },
     ],

@@ -18,6 +18,7 @@ import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
 import './i18n/config'
+import './i18n/custom-translations'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
 // Styles

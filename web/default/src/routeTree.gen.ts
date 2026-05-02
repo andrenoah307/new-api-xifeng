@@ -15,7 +15,6 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SetupIndexRouteImport } from './routes/setup/index'
-import { Route as RankingsIndexRouteImport } from './routes/rankings/index'
 import { Route as PricingIndexRouteImport } from './routes/pricing/index'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as OauthProviderRouteImport } from './routes/oauth/$provider'
@@ -36,34 +35,44 @@ import { Route as PricingModelIdIndexRouteImport } from './routes/pricing/$model
 import { Route as AuthenticatedWalletIndexRouteImport } from './routes/_authenticated/wallet/index'
 import { Route as AuthenticatedUsersIndexRouteImport } from './routes/_authenticated/users/index'
 import { Route as AuthenticatedUsageLogsIndexRouteImport } from './routes/_authenticated/usage-logs/index'
+import { Route as AuthenticatedTopupHistoryIndexRouteImport } from './routes/_authenticated/topup-history/index'
+import { Route as AuthenticatedTicketsIndexRouteImport } from './routes/_authenticated/tickets/index'
+import { Route as AuthenticatedTicketAdminIndexRouteImport } from './routes/_authenticated/ticket-admin/index'
 import { Route as AuthenticatedSystemSettingsIndexRouteImport } from './routes/_authenticated/system-settings/index'
 import { Route as AuthenticatedSubscriptionsIndexRouteImport } from './routes/_authenticated/subscriptions/index'
+import { Route as AuthenticatedRiskIndexRouteImport } from './routes/_authenticated/risk/index'
 import { Route as AuthenticatedRedemptionCodesIndexRouteImport } from './routes/_authenticated/redemption-codes/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedPlaygroundIndexRouteImport } from './routes/_authenticated/playground/index'
+import { Route as AuthenticatedMonitoringIndexRouteImport } from './routes/_authenticated/monitoring/index'
 import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models/index'
 import { Route as AuthenticatedKeysIndexRouteImport } from './routes/_authenticated/keys/index'
+import { Route as AuthenticatedInvitationCodesIndexRouteImport } from './routes/_authenticated/invitation-codes/index'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
 import { Route as AuthenticatedChannelsIndexRouteImport } from './routes/_authenticated/channels/index'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
+import { Route as AuthenticatedTicketsTicketIdRouteImport } from './routes/_authenticated/tickets/$ticketId'
+import { Route as AuthenticatedTicketAdminTicketIdRouteImport } from './routes/_authenticated/ticket-admin/$ticketId'
 import { Route as AuthenticatedModelsSectionRouteImport } from './routes/_authenticated/models/$section'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 import { Route as AuthenticatedDashboardSectionRouteImport } from './routes/_authenticated/dashboard/$section'
 import { Route as AuthenticatedChatChatIdRouteImport } from './routes/_authenticated/chat/$chatId'
 import { Route as authUserResetRouteImport } from './routes/(auth)/user/reset'
-import { Route as AuthenticatedSystemSettingsSiteIndexRouteImport } from './routes/_authenticated/system-settings/site/index'
-import { Route as AuthenticatedSystemSettingsSecurityIndexRouteImport } from './routes/_authenticated/system-settings/security/index'
-import { Route as AuthenticatedSystemSettingsOperationsIndexRouteImport } from './routes/_authenticated/system-settings/operations/index'
+import { Route as AuthenticatedSystemSettingsRequestLimitsIndexRouteImport } from './routes/_authenticated/system-settings/request-limits/index'
 import { Route as AuthenticatedSystemSettingsModelsIndexRouteImport } from './routes/_authenticated/system-settings/models/index'
+import { Route as AuthenticatedSystemSettingsMaintenanceIndexRouteImport } from './routes/_authenticated/system-settings/maintenance/index'
+import { Route as AuthenticatedSystemSettingsIntegrationsIndexRouteImport } from './routes/_authenticated/system-settings/integrations/index'
+import { Route as AuthenticatedSystemSettingsGeneralIndexRouteImport } from './routes/_authenticated/system-settings/general/index'
+import { Route as AuthenticatedSystemSettingsCustomIndexRouteImport } from './routes/_authenticated/system-settings/custom/index'
 import { Route as AuthenticatedSystemSettingsContentIndexRouteImport } from './routes/_authenticated/system-settings/content/index'
-import { Route as AuthenticatedSystemSettingsBillingIndexRouteImport } from './routes/_authenticated/system-settings/billing/index'
 import { Route as AuthenticatedSystemSettingsAuthIndexRouteImport } from './routes/_authenticated/system-settings/auth/index'
-import { Route as AuthenticatedSystemSettingsSiteSectionRouteImport } from './routes/_authenticated/system-settings/site/$section'
-import { Route as AuthenticatedSystemSettingsSecuritySectionRouteImport } from './routes/_authenticated/system-settings/security/$section'
-import { Route as AuthenticatedSystemSettingsOperationsSectionRouteImport } from './routes/_authenticated/system-settings/operations/$section'
+import { Route as AuthenticatedSystemSettingsRequestLimitsSectionRouteImport } from './routes/_authenticated/system-settings/request-limits/$section'
 import { Route as AuthenticatedSystemSettingsModelsSectionRouteImport } from './routes/_authenticated/system-settings/models/$section'
+import { Route as AuthenticatedSystemSettingsMaintenanceSectionRouteImport } from './routes/_authenticated/system-settings/maintenance/$section'
+import { Route as AuthenticatedSystemSettingsIntegrationsSectionRouteImport } from './routes/_authenticated/system-settings/integrations/$section'
+import { Route as AuthenticatedSystemSettingsGeneralSectionRouteImport } from './routes/_authenticated/system-settings/general/$section'
+import { Route as AuthenticatedSystemSettingsCustomSectionRouteImport } from './routes/_authenticated/system-settings/custom/$section'
 import { Route as AuthenticatedSystemSettingsContentSectionRouteImport } from './routes/_authenticated/system-settings/content/$section'
-import { Route as AuthenticatedSystemSettingsBillingSectionRouteImport } from './routes/_authenticated/system-settings/billing/$section'
 import { Route as AuthenticatedSystemSettingsAuthSectionRouteImport } from './routes/_authenticated/system-settings/auth/$section'
 
 const UserAgreementRoute = UserAgreementRouteImport.update({
@@ -92,11 +101,6 @@ const IndexRoute = IndexRouteImport.update({
 const SetupIndexRoute = SetupIndexRouteImport.update({
   id: '/setup/',
   path: '/setup/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RankingsIndexRoute = RankingsIndexRouteImport.update({
-  id: '/rankings/',
-  path: '/rankings/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingIndexRoute = PricingIndexRouteImport.update({
@@ -202,6 +206,24 @@ const AuthenticatedUsageLogsIndexRoute =
     path: '/usage-logs/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTopupHistoryIndexRoute =
+  AuthenticatedTopupHistoryIndexRouteImport.update({
+    id: '/topup-history/',
+    path: '/topup-history/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTicketsIndexRoute =
+  AuthenticatedTicketsIndexRouteImport.update({
+    id: '/tickets/',
+    path: '/tickets/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTicketAdminIndexRoute =
+  AuthenticatedTicketAdminIndexRouteImport.update({
+    id: '/ticket-admin/',
+    path: '/ticket-admin/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSystemSettingsIndexRoute =
   AuthenticatedSystemSettingsIndexRouteImport.update({
     id: '/',
@@ -214,6 +236,11 @@ const AuthenticatedSubscriptionsIndexRoute =
     path: '/subscriptions/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRiskIndexRoute = AuthenticatedRiskIndexRouteImport.update({
+  id: '/risk/',
+  path: '/risk/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedRedemptionCodesIndexRoute =
   AuthenticatedRedemptionCodesIndexRouteImport.update({
     id: '/redemption-codes/',
@@ -232,6 +259,12 @@ const AuthenticatedPlaygroundIndexRoute =
     path: '/playground/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMonitoringIndexRoute =
+  AuthenticatedMonitoringIndexRouteImport.update({
+    id: '/monitoring/',
+    path: '/monitoring/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedModelsIndexRoute =
   AuthenticatedModelsIndexRouteImport.update({
     id: '/models/',
@@ -243,6 +276,12 @@ const AuthenticatedKeysIndexRoute = AuthenticatedKeysIndexRouteImport.update({
   path: '/keys/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInvitationCodesIndexRoute =
+  AuthenticatedInvitationCodesIndexRouteImport.update({
+    id: '/invitation-codes/',
+    path: '/invitation-codes/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedDashboardIndexRoute =
   AuthenticatedDashboardIndexRouteImport.update({
     id: '/dashboard/',
@@ -259,6 +298,18 @@ const AuthenticatedUsageLogsSectionRoute =
   AuthenticatedUsageLogsSectionRouteImport.update({
     id: '/usage-logs/$section',
     path: '/usage-logs/$section',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTicketsTicketIdRoute =
+  AuthenticatedTicketsTicketIdRouteImport.update({
+    id: '/tickets/$ticketId',
+    path: '/tickets/$ticketId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTicketAdminTicketIdRoute =
+  AuthenticatedTicketAdminTicketIdRouteImport.update({
+    id: '/ticket-admin/$ticketId',
+    path: '/ticket-admin/$ticketId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedModelsSectionRoute =
@@ -289,22 +340,10 @@ const authUserResetRoute = authUserResetRouteImport.update({
   path: '/user/reset',
   getParentRoute: () => authRouteRoute,
 } as any)
-const AuthenticatedSystemSettingsSiteIndexRoute =
-  AuthenticatedSystemSettingsSiteIndexRouteImport.update({
-    id: '/site/',
-    path: '/site/',
-    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
-  } as any)
-const AuthenticatedSystemSettingsSecurityIndexRoute =
-  AuthenticatedSystemSettingsSecurityIndexRouteImport.update({
-    id: '/security/',
-    path: '/security/',
-    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
-  } as any)
-const AuthenticatedSystemSettingsOperationsIndexRoute =
-  AuthenticatedSystemSettingsOperationsIndexRouteImport.update({
-    id: '/operations/',
-    path: '/operations/',
+const AuthenticatedSystemSettingsRequestLimitsIndexRoute =
+  AuthenticatedSystemSettingsRequestLimitsIndexRouteImport.update({
+    id: '/request-limits/',
+    path: '/request-limits/',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
 const AuthenticatedSystemSettingsModelsIndexRoute =
@@ -313,16 +352,34 @@ const AuthenticatedSystemSettingsModelsIndexRoute =
     path: '/models/',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
+const AuthenticatedSystemSettingsMaintenanceIndexRoute =
+  AuthenticatedSystemSettingsMaintenanceIndexRouteImport.update({
+    id: '/maintenance/',
+    path: '/maintenance/',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
+const AuthenticatedSystemSettingsIntegrationsIndexRoute =
+  AuthenticatedSystemSettingsIntegrationsIndexRouteImport.update({
+    id: '/integrations/',
+    path: '/integrations/',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
+const AuthenticatedSystemSettingsGeneralIndexRoute =
+  AuthenticatedSystemSettingsGeneralIndexRouteImport.update({
+    id: '/general/',
+    path: '/general/',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
+const AuthenticatedSystemSettingsCustomIndexRoute =
+  AuthenticatedSystemSettingsCustomIndexRouteImport.update({
+    id: '/custom/',
+    path: '/custom/',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
 const AuthenticatedSystemSettingsContentIndexRoute =
   AuthenticatedSystemSettingsContentIndexRouteImport.update({
     id: '/content/',
     path: '/content/',
-    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
-  } as any)
-const AuthenticatedSystemSettingsBillingIndexRoute =
-  AuthenticatedSystemSettingsBillingIndexRouteImport.update({
-    id: '/billing/',
-    path: '/billing/',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
 const AuthenticatedSystemSettingsAuthIndexRoute =
@@ -331,22 +388,10 @@ const AuthenticatedSystemSettingsAuthIndexRoute =
     path: '/auth/',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
-const AuthenticatedSystemSettingsSiteSectionRoute =
-  AuthenticatedSystemSettingsSiteSectionRouteImport.update({
-    id: '/site/$section',
-    path: '/site/$section',
-    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
-  } as any)
-const AuthenticatedSystemSettingsSecuritySectionRoute =
-  AuthenticatedSystemSettingsSecuritySectionRouteImport.update({
-    id: '/security/$section',
-    path: '/security/$section',
-    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
-  } as any)
-const AuthenticatedSystemSettingsOperationsSectionRoute =
-  AuthenticatedSystemSettingsOperationsSectionRouteImport.update({
-    id: '/operations/$section',
-    path: '/operations/$section',
+const AuthenticatedSystemSettingsRequestLimitsSectionRoute =
+  AuthenticatedSystemSettingsRequestLimitsSectionRouteImport.update({
+    id: '/request-limits/$section',
+    path: '/request-limits/$section',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
 const AuthenticatedSystemSettingsModelsSectionRoute =
@@ -355,16 +400,34 @@ const AuthenticatedSystemSettingsModelsSectionRoute =
     path: '/models/$section',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
+const AuthenticatedSystemSettingsMaintenanceSectionRoute =
+  AuthenticatedSystemSettingsMaintenanceSectionRouteImport.update({
+    id: '/maintenance/$section',
+    path: '/maintenance/$section',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
+const AuthenticatedSystemSettingsIntegrationsSectionRoute =
+  AuthenticatedSystemSettingsIntegrationsSectionRouteImport.update({
+    id: '/integrations/$section',
+    path: '/integrations/$section',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
+const AuthenticatedSystemSettingsGeneralSectionRoute =
+  AuthenticatedSystemSettingsGeneralSectionRouteImport.update({
+    id: '/general/$section',
+    path: '/general/$section',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
+const AuthenticatedSystemSettingsCustomSectionRoute =
+  AuthenticatedSystemSettingsCustomSectionRouteImport.update({
+    id: '/custom/$section',
+    path: '/custom/$section',
+    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
+  } as any)
 const AuthenticatedSystemSettingsContentSectionRoute =
   AuthenticatedSystemSettingsContentSectionRouteImport.update({
     id: '/content/$section',
     path: '/content/$section',
-    getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
-  } as any)
-const AuthenticatedSystemSettingsBillingSectionRoute =
-  AuthenticatedSystemSettingsBillingSectionRouteImport.update({
-    id: '/billing/$section',
-    path: '/billing/$section',
     getParentRoute: () => AuthenticatedSystemSettingsRouteRoute,
   } as any)
 const AuthenticatedSystemSettingsAuthSectionRoute =
@@ -394,41 +457,50 @@ export interface FileRoutesByFullPath {
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
   '/pricing/': typeof PricingIndexRoute
-  '/rankings/': typeof RankingsIndexRoute
   '/setup/': typeof SetupIndexRoute
   '/user/reset': typeof authUserResetRoute
   '/chat/$chatId': typeof AuthenticatedChatChatIdRoute
   '/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/ticket-admin/$ticketId': typeof AuthenticatedTicketAdminTicketIdRoute
+  '/tickets/$ticketId': typeof AuthenticatedTicketsTicketIdRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/invitation-codes/': typeof AuthenticatedInvitationCodesIndexRoute
   '/keys/': typeof AuthenticatedKeysIndexRoute
   '/models/': typeof AuthenticatedModelsIndexRoute
+  '/monitoring/': typeof AuthenticatedMonitoringIndexRoute
   '/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
+  '/risk/': typeof AuthenticatedRiskIndexRoute
   '/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
   '/system-settings/': typeof AuthenticatedSystemSettingsIndexRoute
+  '/ticket-admin/': typeof AuthenticatedTicketAdminIndexRoute
+  '/tickets/': typeof AuthenticatedTicketsIndexRoute
+  '/topup-history/': typeof AuthenticatedTopupHistoryIndexRoute
   '/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/wallet/': typeof AuthenticatedWalletIndexRoute
   '/pricing/$modelId/': typeof PricingModelIdIndexRoute
   '/system-settings/auth/$section': typeof AuthenticatedSystemSettingsAuthSectionRoute
-  '/system-settings/billing/$section': typeof AuthenticatedSystemSettingsBillingSectionRoute
   '/system-settings/content/$section': typeof AuthenticatedSystemSettingsContentSectionRoute
+  '/system-settings/custom/$section': typeof AuthenticatedSystemSettingsCustomSectionRoute
+  '/system-settings/general/$section': typeof AuthenticatedSystemSettingsGeneralSectionRoute
+  '/system-settings/integrations/$section': typeof AuthenticatedSystemSettingsIntegrationsSectionRoute
+  '/system-settings/maintenance/$section': typeof AuthenticatedSystemSettingsMaintenanceSectionRoute
   '/system-settings/models/$section': typeof AuthenticatedSystemSettingsModelsSectionRoute
-  '/system-settings/operations/$section': typeof AuthenticatedSystemSettingsOperationsSectionRoute
-  '/system-settings/security/$section': typeof AuthenticatedSystemSettingsSecuritySectionRoute
-  '/system-settings/site/$section': typeof AuthenticatedSystemSettingsSiteSectionRoute
+  '/system-settings/request-limits/$section': typeof AuthenticatedSystemSettingsRequestLimitsSectionRoute
   '/system-settings/auth/': typeof AuthenticatedSystemSettingsAuthIndexRoute
-  '/system-settings/billing/': typeof AuthenticatedSystemSettingsBillingIndexRoute
   '/system-settings/content/': typeof AuthenticatedSystemSettingsContentIndexRoute
+  '/system-settings/custom/': typeof AuthenticatedSystemSettingsCustomIndexRoute
+  '/system-settings/general/': typeof AuthenticatedSystemSettingsGeneralIndexRoute
+  '/system-settings/integrations/': typeof AuthenticatedSystemSettingsIntegrationsIndexRoute
+  '/system-settings/maintenance/': typeof AuthenticatedSystemSettingsMaintenanceIndexRoute
   '/system-settings/models/': typeof AuthenticatedSystemSettingsModelsIndexRoute
-  '/system-settings/operations/': typeof AuthenticatedSystemSettingsOperationsIndexRoute
-  '/system-settings/security/': typeof AuthenticatedSystemSettingsSecurityIndexRoute
-  '/system-settings/site/': typeof AuthenticatedSystemSettingsSiteIndexRoute
+  '/system-settings/request-limits/': typeof AuthenticatedSystemSettingsRequestLimitsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -449,41 +521,50 @@ export interface FileRoutesByTo {
   '/oauth/$provider': typeof OauthProviderRoute
   '/about': typeof AboutIndexRoute
   '/pricing': typeof PricingIndexRoute
-  '/rankings': typeof RankingsIndexRoute
   '/setup': typeof SetupIndexRoute
   '/user/reset': typeof authUserResetRoute
   '/chat/$chatId': typeof AuthenticatedChatChatIdRoute
   '/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/ticket-admin/$ticketId': typeof AuthenticatedTicketAdminTicketIdRoute
+  '/tickets/$ticketId': typeof AuthenticatedTicketsTicketIdRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
+  '/invitation-codes': typeof AuthenticatedInvitationCodesIndexRoute
   '/keys': typeof AuthenticatedKeysIndexRoute
   '/models': typeof AuthenticatedModelsIndexRoute
+  '/monitoring': typeof AuthenticatedMonitoringIndexRoute
   '/playground': typeof AuthenticatedPlaygroundIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes': typeof AuthenticatedRedemptionCodesIndexRoute
+  '/risk': typeof AuthenticatedRiskIndexRoute
   '/subscriptions': typeof AuthenticatedSubscriptionsIndexRoute
   '/system-settings': typeof AuthenticatedSystemSettingsIndexRoute
+  '/ticket-admin': typeof AuthenticatedTicketAdminIndexRoute
+  '/tickets': typeof AuthenticatedTicketsIndexRoute
+  '/topup-history': typeof AuthenticatedTopupHistoryIndexRoute
   '/usage-logs': typeof AuthenticatedUsageLogsIndexRoute
   '/users': typeof AuthenticatedUsersIndexRoute
   '/wallet': typeof AuthenticatedWalletIndexRoute
   '/pricing/$modelId': typeof PricingModelIdIndexRoute
   '/system-settings/auth/$section': typeof AuthenticatedSystemSettingsAuthSectionRoute
-  '/system-settings/billing/$section': typeof AuthenticatedSystemSettingsBillingSectionRoute
   '/system-settings/content/$section': typeof AuthenticatedSystemSettingsContentSectionRoute
+  '/system-settings/custom/$section': typeof AuthenticatedSystemSettingsCustomSectionRoute
+  '/system-settings/general/$section': typeof AuthenticatedSystemSettingsGeneralSectionRoute
+  '/system-settings/integrations/$section': typeof AuthenticatedSystemSettingsIntegrationsSectionRoute
+  '/system-settings/maintenance/$section': typeof AuthenticatedSystemSettingsMaintenanceSectionRoute
   '/system-settings/models/$section': typeof AuthenticatedSystemSettingsModelsSectionRoute
-  '/system-settings/operations/$section': typeof AuthenticatedSystemSettingsOperationsSectionRoute
-  '/system-settings/security/$section': typeof AuthenticatedSystemSettingsSecuritySectionRoute
-  '/system-settings/site/$section': typeof AuthenticatedSystemSettingsSiteSectionRoute
+  '/system-settings/request-limits/$section': typeof AuthenticatedSystemSettingsRequestLimitsSectionRoute
   '/system-settings/auth': typeof AuthenticatedSystemSettingsAuthIndexRoute
-  '/system-settings/billing': typeof AuthenticatedSystemSettingsBillingIndexRoute
   '/system-settings/content': typeof AuthenticatedSystemSettingsContentIndexRoute
+  '/system-settings/custom': typeof AuthenticatedSystemSettingsCustomIndexRoute
+  '/system-settings/general': typeof AuthenticatedSystemSettingsGeneralIndexRoute
+  '/system-settings/integrations': typeof AuthenticatedSystemSettingsIntegrationsIndexRoute
+  '/system-settings/maintenance': typeof AuthenticatedSystemSettingsMaintenanceIndexRoute
   '/system-settings/models': typeof AuthenticatedSystemSettingsModelsIndexRoute
-  '/system-settings/operations': typeof AuthenticatedSystemSettingsOperationsIndexRoute
-  '/system-settings/security': typeof AuthenticatedSystemSettingsSecurityIndexRoute
-  '/system-settings/site': typeof AuthenticatedSystemSettingsSiteIndexRoute
+  '/system-settings/request-limits': typeof AuthenticatedSystemSettingsRequestLimitsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -508,41 +589,50 @@ export interface FileRoutesById {
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
   '/pricing/': typeof PricingIndexRoute
-  '/rankings/': typeof RankingsIndexRoute
   '/setup/': typeof SetupIndexRoute
   '/(auth)/user/reset': typeof authUserResetRoute
   '/_authenticated/chat/$chatId': typeof AuthenticatedChatChatIdRoute
   '/_authenticated/dashboard/$section': typeof AuthenticatedDashboardSectionRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/models/$section': typeof AuthenticatedModelsSectionRoute
+  '/_authenticated/ticket-admin/$ticketId': typeof AuthenticatedTicketAdminTicketIdRoute
+  '/_authenticated/tickets/$ticketId': typeof AuthenticatedTicketsTicketIdRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
+  '/_authenticated/invitation-codes/': typeof AuthenticatedInvitationCodesIndexRoute
   '/_authenticated/keys/': typeof AuthenticatedKeysIndexRoute
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
+  '/_authenticated/monitoring/': typeof AuthenticatedMonitoringIndexRoute
   '/_authenticated/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
+  '/_authenticated/risk/': typeof AuthenticatedRiskIndexRoute
   '/_authenticated/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
   '/_authenticated/system-settings/': typeof AuthenticatedSystemSettingsIndexRoute
+  '/_authenticated/ticket-admin/': typeof AuthenticatedTicketAdminIndexRoute
+  '/_authenticated/tickets/': typeof AuthenticatedTicketsIndexRoute
+  '/_authenticated/topup-history/': typeof AuthenticatedTopupHistoryIndexRoute
   '/_authenticated/usage-logs/': typeof AuthenticatedUsageLogsIndexRoute
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
   '/pricing/$modelId/': typeof PricingModelIdIndexRoute
   '/_authenticated/system-settings/auth/$section': typeof AuthenticatedSystemSettingsAuthSectionRoute
-  '/_authenticated/system-settings/billing/$section': typeof AuthenticatedSystemSettingsBillingSectionRoute
   '/_authenticated/system-settings/content/$section': typeof AuthenticatedSystemSettingsContentSectionRoute
+  '/_authenticated/system-settings/custom/$section': typeof AuthenticatedSystemSettingsCustomSectionRoute
+  '/_authenticated/system-settings/general/$section': typeof AuthenticatedSystemSettingsGeneralSectionRoute
+  '/_authenticated/system-settings/integrations/$section': typeof AuthenticatedSystemSettingsIntegrationsSectionRoute
+  '/_authenticated/system-settings/maintenance/$section': typeof AuthenticatedSystemSettingsMaintenanceSectionRoute
   '/_authenticated/system-settings/models/$section': typeof AuthenticatedSystemSettingsModelsSectionRoute
-  '/_authenticated/system-settings/operations/$section': typeof AuthenticatedSystemSettingsOperationsSectionRoute
-  '/_authenticated/system-settings/security/$section': typeof AuthenticatedSystemSettingsSecuritySectionRoute
-  '/_authenticated/system-settings/site/$section': typeof AuthenticatedSystemSettingsSiteSectionRoute
+  '/_authenticated/system-settings/request-limits/$section': typeof AuthenticatedSystemSettingsRequestLimitsSectionRoute
   '/_authenticated/system-settings/auth/': typeof AuthenticatedSystemSettingsAuthIndexRoute
-  '/_authenticated/system-settings/billing/': typeof AuthenticatedSystemSettingsBillingIndexRoute
   '/_authenticated/system-settings/content/': typeof AuthenticatedSystemSettingsContentIndexRoute
+  '/_authenticated/system-settings/custom/': typeof AuthenticatedSystemSettingsCustomIndexRoute
+  '/_authenticated/system-settings/general/': typeof AuthenticatedSystemSettingsGeneralIndexRoute
+  '/_authenticated/system-settings/integrations/': typeof AuthenticatedSystemSettingsIntegrationsIndexRoute
+  '/_authenticated/system-settings/maintenance/': typeof AuthenticatedSystemSettingsMaintenanceIndexRoute
   '/_authenticated/system-settings/models/': typeof AuthenticatedSystemSettingsModelsIndexRoute
-  '/_authenticated/system-settings/operations/': typeof AuthenticatedSystemSettingsOperationsIndexRoute
-  '/_authenticated/system-settings/security/': typeof AuthenticatedSystemSettingsSecurityIndexRoute
-  '/_authenticated/system-settings/site/': typeof AuthenticatedSystemSettingsSiteIndexRoute
+  '/_authenticated/system-settings/request-limits/': typeof AuthenticatedSystemSettingsRequestLimitsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -566,41 +656,50 @@ export interface FileRouteTypes {
     | '/oauth/$provider'
     | '/about/'
     | '/pricing/'
-    | '/rankings/'
     | '/setup/'
     | '/user/reset'
     | '/chat/$chatId'
     | '/dashboard/$section'
     | '/errors/$error'
     | '/models/$section'
+    | '/ticket-admin/$ticketId'
+    | '/tickets/$ticketId'
     | '/usage-logs/$section'
     | '/channels/'
     | '/dashboard/'
+    | '/invitation-codes/'
     | '/keys/'
     | '/models/'
+    | '/monitoring/'
     | '/playground/'
     | '/profile/'
     | '/redemption-codes/'
+    | '/risk/'
     | '/subscriptions/'
     | '/system-settings/'
+    | '/ticket-admin/'
+    | '/tickets/'
+    | '/topup-history/'
     | '/usage-logs/'
     | '/users/'
     | '/wallet/'
     | '/pricing/$modelId/'
     | '/system-settings/auth/$section'
-    | '/system-settings/billing/$section'
     | '/system-settings/content/$section'
+    | '/system-settings/custom/$section'
+    | '/system-settings/general/$section'
+    | '/system-settings/integrations/$section'
+    | '/system-settings/maintenance/$section'
     | '/system-settings/models/$section'
-    | '/system-settings/operations/$section'
-    | '/system-settings/security/$section'
-    | '/system-settings/site/$section'
+    | '/system-settings/request-limits/$section'
     | '/system-settings/auth/'
-    | '/system-settings/billing/'
     | '/system-settings/content/'
+    | '/system-settings/custom/'
+    | '/system-settings/general/'
+    | '/system-settings/integrations/'
+    | '/system-settings/maintenance/'
     | '/system-settings/models/'
-    | '/system-settings/operations/'
-    | '/system-settings/security/'
-    | '/system-settings/site/'
+    | '/system-settings/request-limits/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -621,41 +720,50 @@ export interface FileRouteTypes {
     | '/oauth/$provider'
     | '/about'
     | '/pricing'
-    | '/rankings'
     | '/setup'
     | '/user/reset'
     | '/chat/$chatId'
     | '/dashboard/$section'
     | '/errors/$error'
     | '/models/$section'
+    | '/ticket-admin/$ticketId'
+    | '/tickets/$ticketId'
     | '/usage-logs/$section'
     | '/channels'
     | '/dashboard'
+    | '/invitation-codes'
     | '/keys'
     | '/models'
+    | '/monitoring'
     | '/playground'
     | '/profile'
     | '/redemption-codes'
+    | '/risk'
     | '/subscriptions'
     | '/system-settings'
+    | '/ticket-admin'
+    | '/tickets'
+    | '/topup-history'
     | '/usage-logs'
     | '/users'
     | '/wallet'
     | '/pricing/$modelId'
     | '/system-settings/auth/$section'
-    | '/system-settings/billing/$section'
     | '/system-settings/content/$section'
+    | '/system-settings/custom/$section'
+    | '/system-settings/general/$section'
+    | '/system-settings/integrations/$section'
+    | '/system-settings/maintenance/$section'
     | '/system-settings/models/$section'
-    | '/system-settings/operations/$section'
-    | '/system-settings/security/$section'
-    | '/system-settings/site/$section'
+    | '/system-settings/request-limits/$section'
     | '/system-settings/auth'
-    | '/system-settings/billing'
     | '/system-settings/content'
+    | '/system-settings/custom'
+    | '/system-settings/general'
+    | '/system-settings/integrations'
+    | '/system-settings/maintenance'
     | '/system-settings/models'
-    | '/system-settings/operations'
-    | '/system-settings/security'
-    | '/system-settings/site'
+    | '/system-settings/request-limits'
   id:
     | '__root__'
     | '/'
@@ -679,41 +787,50 @@ export interface FileRouteTypes {
     | '/oauth/$provider'
     | '/about/'
     | '/pricing/'
-    | '/rankings/'
     | '/setup/'
     | '/(auth)/user/reset'
     | '/_authenticated/chat/$chatId'
     | '/_authenticated/dashboard/$section'
     | '/_authenticated/errors/$error'
     | '/_authenticated/models/$section'
+    | '/_authenticated/ticket-admin/$ticketId'
+    | '/_authenticated/tickets/$ticketId'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/channels/'
     | '/_authenticated/dashboard/'
+    | '/_authenticated/invitation-codes/'
     | '/_authenticated/keys/'
     | '/_authenticated/models/'
+    | '/_authenticated/monitoring/'
     | '/_authenticated/playground/'
     | '/_authenticated/profile/'
     | '/_authenticated/redemption-codes/'
+    | '/_authenticated/risk/'
     | '/_authenticated/subscriptions/'
     | '/_authenticated/system-settings/'
+    | '/_authenticated/ticket-admin/'
+    | '/_authenticated/tickets/'
+    | '/_authenticated/topup-history/'
     | '/_authenticated/usage-logs/'
     | '/_authenticated/users/'
     | '/_authenticated/wallet/'
     | '/pricing/$modelId/'
     | '/_authenticated/system-settings/auth/$section'
-    | '/_authenticated/system-settings/billing/$section'
     | '/_authenticated/system-settings/content/$section'
+    | '/_authenticated/system-settings/custom/$section'
+    | '/_authenticated/system-settings/general/$section'
+    | '/_authenticated/system-settings/integrations/$section'
+    | '/_authenticated/system-settings/maintenance/$section'
     | '/_authenticated/system-settings/models/$section'
-    | '/_authenticated/system-settings/operations/$section'
-    | '/_authenticated/system-settings/security/$section'
-    | '/_authenticated/system-settings/site/$section'
+    | '/_authenticated/system-settings/request-limits/$section'
     | '/_authenticated/system-settings/auth/'
-    | '/_authenticated/system-settings/billing/'
     | '/_authenticated/system-settings/content/'
+    | '/_authenticated/system-settings/custom/'
+    | '/_authenticated/system-settings/general/'
+    | '/_authenticated/system-settings/integrations/'
+    | '/_authenticated/system-settings/maintenance/'
     | '/_authenticated/system-settings/models/'
-    | '/_authenticated/system-settings/operations/'
-    | '/_authenticated/system-settings/security/'
-    | '/_authenticated/system-settings/site/'
+    | '/_authenticated/system-settings/request-limits/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -730,7 +847,6 @@ export interface RootRouteChildren {
   OauthProviderRoute: typeof OauthProviderRoute
   AboutIndexRoute: typeof AboutIndexRoute
   PricingIndexRoute: typeof PricingIndexRoute
-  RankingsIndexRoute: typeof RankingsIndexRoute
   SetupIndexRoute: typeof SetupIndexRoute
   PricingModelIdIndexRoute: typeof PricingModelIdIndexRoute
 }
@@ -777,13 +893,6 @@ declare module '@tanstack/react-router' {
       path: '/setup'
       fullPath: '/setup/'
       preLoaderRoute: typeof SetupIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/rankings/': {
-      id: '/rankings/'
-      path: '/rankings'
-      fullPath: '/rankings/'
-      preLoaderRoute: typeof RankingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing/': {
@@ -926,6 +1035,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsageLogsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/topup-history/': {
+      id: '/_authenticated/topup-history/'
+      path: '/topup-history'
+      fullPath: '/topup-history/'
+      preLoaderRoute: typeof AuthenticatedTopupHistoryIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tickets/': {
+      id: '/_authenticated/tickets/'
+      path: '/tickets'
+      fullPath: '/tickets/'
+      preLoaderRoute: typeof AuthenticatedTicketsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ticket-admin/': {
+      id: '/_authenticated/ticket-admin/'
+      path: '/ticket-admin'
+      fullPath: '/ticket-admin/'
+      preLoaderRoute: typeof AuthenticatedTicketAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/system-settings/': {
       id: '/_authenticated/system-settings/'
       path: '/'
@@ -938,6 +1068,13 @@ declare module '@tanstack/react-router' {
       path: '/subscriptions'
       fullPath: '/subscriptions/'
       preLoaderRoute: typeof AuthenticatedSubscriptionsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/risk/': {
+      id: '/_authenticated/risk/'
+      path: '/risk'
+      fullPath: '/risk/'
+      preLoaderRoute: typeof AuthenticatedRiskIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/redemption-codes/': {
@@ -961,6 +1098,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlaygroundIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/monitoring/': {
+      id: '/_authenticated/monitoring/'
+      path: '/monitoring'
+      fullPath: '/monitoring/'
+      preLoaderRoute: typeof AuthenticatedMonitoringIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/models/': {
       id: '/_authenticated/models/'
       path: '/models'
@@ -973,6 +1117,13 @@ declare module '@tanstack/react-router' {
       path: '/keys'
       fullPath: '/keys/'
       preLoaderRoute: typeof AuthenticatedKeysIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/invitation-codes/': {
+      id: '/_authenticated/invitation-codes/'
+      path: '/invitation-codes'
+      fullPath: '/invitation-codes/'
+      preLoaderRoute: typeof AuthenticatedInvitationCodesIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard/': {
@@ -994,6 +1145,20 @@ declare module '@tanstack/react-router' {
       path: '/usage-logs/$section'
       fullPath: '/usage-logs/$section'
       preLoaderRoute: typeof AuthenticatedUsageLogsSectionRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/tickets/$ticketId': {
+      id: '/_authenticated/tickets/$ticketId'
+      path: '/tickets/$ticketId'
+      fullPath: '/tickets/$ticketId'
+      preLoaderRoute: typeof AuthenticatedTicketsTicketIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ticket-admin/$ticketId': {
+      id: '/_authenticated/ticket-admin/$ticketId'
+      path: '/ticket-admin/$ticketId'
+      fullPath: '/ticket-admin/$ticketId'
+      preLoaderRoute: typeof AuthenticatedTicketAdminTicketIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/models/$section': {
@@ -1031,25 +1196,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authUserResetRouteImport
       parentRoute: typeof authRouteRoute
     }
-    '/_authenticated/system-settings/site/': {
-      id: '/_authenticated/system-settings/site/'
-      path: '/site'
-      fullPath: '/system-settings/site/'
-      preLoaderRoute: typeof AuthenticatedSystemSettingsSiteIndexRouteImport
-      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
-    }
-    '/_authenticated/system-settings/security/': {
-      id: '/_authenticated/system-settings/security/'
-      path: '/security'
-      fullPath: '/system-settings/security/'
-      preLoaderRoute: typeof AuthenticatedSystemSettingsSecurityIndexRouteImport
-      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
-    }
-    '/_authenticated/system-settings/operations/': {
-      id: '/_authenticated/system-settings/operations/'
-      path: '/operations'
-      fullPath: '/system-settings/operations/'
-      preLoaderRoute: typeof AuthenticatedSystemSettingsOperationsIndexRouteImport
+    '/_authenticated/system-settings/request-limits/': {
+      id: '/_authenticated/system-settings/request-limits/'
+      path: '/request-limits'
+      fullPath: '/system-settings/request-limits/'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsRequestLimitsIndexRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
     '/_authenticated/system-settings/models/': {
@@ -1059,18 +1210,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSystemSettingsModelsIndexRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
+    '/_authenticated/system-settings/maintenance/': {
+      id: '/_authenticated/system-settings/maintenance/'
+      path: '/maintenance'
+      fullPath: '/system-settings/maintenance/'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsMaintenanceIndexRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
+    '/_authenticated/system-settings/integrations/': {
+      id: '/_authenticated/system-settings/integrations/'
+      path: '/integrations'
+      fullPath: '/system-settings/integrations/'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsIntegrationsIndexRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
+    '/_authenticated/system-settings/general/': {
+      id: '/_authenticated/system-settings/general/'
+      path: '/general'
+      fullPath: '/system-settings/general/'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsGeneralIndexRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
+    '/_authenticated/system-settings/custom/': {
+      id: '/_authenticated/system-settings/custom/'
+      path: '/custom'
+      fullPath: '/system-settings/custom/'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsCustomIndexRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
     '/_authenticated/system-settings/content/': {
       id: '/_authenticated/system-settings/content/'
       path: '/content'
       fullPath: '/system-settings/content/'
       preLoaderRoute: typeof AuthenticatedSystemSettingsContentIndexRouteImport
-      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
-    }
-    '/_authenticated/system-settings/billing/': {
-      id: '/_authenticated/system-settings/billing/'
-      path: '/billing'
-      fullPath: '/system-settings/billing/'
-      preLoaderRoute: typeof AuthenticatedSystemSettingsBillingIndexRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
     '/_authenticated/system-settings/auth/': {
@@ -1080,25 +1252,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSystemSettingsAuthIndexRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
-    '/_authenticated/system-settings/site/$section': {
-      id: '/_authenticated/system-settings/site/$section'
-      path: '/site/$section'
-      fullPath: '/system-settings/site/$section'
-      preLoaderRoute: typeof AuthenticatedSystemSettingsSiteSectionRouteImport
-      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
-    }
-    '/_authenticated/system-settings/security/$section': {
-      id: '/_authenticated/system-settings/security/$section'
-      path: '/security/$section'
-      fullPath: '/system-settings/security/$section'
-      preLoaderRoute: typeof AuthenticatedSystemSettingsSecuritySectionRouteImport
-      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
-    }
-    '/_authenticated/system-settings/operations/$section': {
-      id: '/_authenticated/system-settings/operations/$section'
-      path: '/operations/$section'
-      fullPath: '/system-settings/operations/$section'
-      preLoaderRoute: typeof AuthenticatedSystemSettingsOperationsSectionRouteImport
+    '/_authenticated/system-settings/request-limits/$section': {
+      id: '/_authenticated/system-settings/request-limits/$section'
+      path: '/request-limits/$section'
+      fullPath: '/system-settings/request-limits/$section'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsRequestLimitsSectionRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
     '/_authenticated/system-settings/models/$section': {
@@ -1108,18 +1266,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSystemSettingsModelsSectionRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
+    '/_authenticated/system-settings/maintenance/$section': {
+      id: '/_authenticated/system-settings/maintenance/$section'
+      path: '/maintenance/$section'
+      fullPath: '/system-settings/maintenance/$section'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsMaintenanceSectionRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
+    '/_authenticated/system-settings/integrations/$section': {
+      id: '/_authenticated/system-settings/integrations/$section'
+      path: '/integrations/$section'
+      fullPath: '/system-settings/integrations/$section'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsIntegrationsSectionRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
+    '/_authenticated/system-settings/general/$section': {
+      id: '/_authenticated/system-settings/general/$section'
+      path: '/general/$section'
+      fullPath: '/system-settings/general/$section'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsGeneralSectionRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
+    '/_authenticated/system-settings/custom/$section': {
+      id: '/_authenticated/system-settings/custom/$section'
+      path: '/custom/$section'
+      fullPath: '/system-settings/custom/$section'
+      preLoaderRoute: typeof AuthenticatedSystemSettingsCustomSectionRouteImport
+      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
+    }
     '/_authenticated/system-settings/content/$section': {
       id: '/_authenticated/system-settings/content/$section'
       path: '/content/$section'
       fullPath: '/system-settings/content/$section'
       preLoaderRoute: typeof AuthenticatedSystemSettingsContentSectionRouteImport
-      parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
-    }
-    '/_authenticated/system-settings/billing/$section': {
-      id: '/_authenticated/system-settings/billing/$section'
-      path: '/billing/$section'
-      fullPath: '/system-settings/billing/$section'
-      preLoaderRoute: typeof AuthenticatedSystemSettingsBillingSectionRouteImport
       parentRoute: typeof AuthenticatedSystemSettingsRouteRoute
     }
     '/_authenticated/system-settings/auth/$section': {
@@ -1159,19 +1338,21 @@ const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
 interface AuthenticatedSystemSettingsRouteRouteChildren {
   AuthenticatedSystemSettingsIndexRoute: typeof AuthenticatedSystemSettingsIndexRoute
   AuthenticatedSystemSettingsAuthSectionRoute: typeof AuthenticatedSystemSettingsAuthSectionRoute
-  AuthenticatedSystemSettingsBillingSectionRoute: typeof AuthenticatedSystemSettingsBillingSectionRoute
   AuthenticatedSystemSettingsContentSectionRoute: typeof AuthenticatedSystemSettingsContentSectionRoute
+  AuthenticatedSystemSettingsCustomSectionRoute: typeof AuthenticatedSystemSettingsCustomSectionRoute
+  AuthenticatedSystemSettingsGeneralSectionRoute: typeof AuthenticatedSystemSettingsGeneralSectionRoute
+  AuthenticatedSystemSettingsIntegrationsSectionRoute: typeof AuthenticatedSystemSettingsIntegrationsSectionRoute
+  AuthenticatedSystemSettingsMaintenanceSectionRoute: typeof AuthenticatedSystemSettingsMaintenanceSectionRoute
   AuthenticatedSystemSettingsModelsSectionRoute: typeof AuthenticatedSystemSettingsModelsSectionRoute
-  AuthenticatedSystemSettingsOperationsSectionRoute: typeof AuthenticatedSystemSettingsOperationsSectionRoute
-  AuthenticatedSystemSettingsSecuritySectionRoute: typeof AuthenticatedSystemSettingsSecuritySectionRoute
-  AuthenticatedSystemSettingsSiteSectionRoute: typeof AuthenticatedSystemSettingsSiteSectionRoute
+  AuthenticatedSystemSettingsRequestLimitsSectionRoute: typeof AuthenticatedSystemSettingsRequestLimitsSectionRoute
   AuthenticatedSystemSettingsAuthIndexRoute: typeof AuthenticatedSystemSettingsAuthIndexRoute
-  AuthenticatedSystemSettingsBillingIndexRoute: typeof AuthenticatedSystemSettingsBillingIndexRoute
   AuthenticatedSystemSettingsContentIndexRoute: typeof AuthenticatedSystemSettingsContentIndexRoute
+  AuthenticatedSystemSettingsCustomIndexRoute: typeof AuthenticatedSystemSettingsCustomIndexRoute
+  AuthenticatedSystemSettingsGeneralIndexRoute: typeof AuthenticatedSystemSettingsGeneralIndexRoute
+  AuthenticatedSystemSettingsIntegrationsIndexRoute: typeof AuthenticatedSystemSettingsIntegrationsIndexRoute
+  AuthenticatedSystemSettingsMaintenanceIndexRoute: typeof AuthenticatedSystemSettingsMaintenanceIndexRoute
   AuthenticatedSystemSettingsModelsIndexRoute: typeof AuthenticatedSystemSettingsModelsIndexRoute
-  AuthenticatedSystemSettingsOperationsIndexRoute: typeof AuthenticatedSystemSettingsOperationsIndexRoute
-  AuthenticatedSystemSettingsSecurityIndexRoute: typeof AuthenticatedSystemSettingsSecurityIndexRoute
-  AuthenticatedSystemSettingsSiteIndexRoute: typeof AuthenticatedSystemSettingsSiteIndexRoute
+  AuthenticatedSystemSettingsRequestLimitsIndexRoute: typeof AuthenticatedSystemSettingsRequestLimitsIndexRoute
 }
 
 const AuthenticatedSystemSettingsRouteRouteChildren: AuthenticatedSystemSettingsRouteRouteChildren =
@@ -1180,32 +1361,36 @@ const AuthenticatedSystemSettingsRouteRouteChildren: AuthenticatedSystemSettings
       AuthenticatedSystemSettingsIndexRoute,
     AuthenticatedSystemSettingsAuthSectionRoute:
       AuthenticatedSystemSettingsAuthSectionRoute,
-    AuthenticatedSystemSettingsBillingSectionRoute:
-      AuthenticatedSystemSettingsBillingSectionRoute,
     AuthenticatedSystemSettingsContentSectionRoute:
       AuthenticatedSystemSettingsContentSectionRoute,
+    AuthenticatedSystemSettingsCustomSectionRoute:
+      AuthenticatedSystemSettingsCustomSectionRoute,
+    AuthenticatedSystemSettingsGeneralSectionRoute:
+      AuthenticatedSystemSettingsGeneralSectionRoute,
+    AuthenticatedSystemSettingsIntegrationsSectionRoute:
+      AuthenticatedSystemSettingsIntegrationsSectionRoute,
+    AuthenticatedSystemSettingsMaintenanceSectionRoute:
+      AuthenticatedSystemSettingsMaintenanceSectionRoute,
     AuthenticatedSystemSettingsModelsSectionRoute:
       AuthenticatedSystemSettingsModelsSectionRoute,
-    AuthenticatedSystemSettingsOperationsSectionRoute:
-      AuthenticatedSystemSettingsOperationsSectionRoute,
-    AuthenticatedSystemSettingsSecuritySectionRoute:
-      AuthenticatedSystemSettingsSecuritySectionRoute,
-    AuthenticatedSystemSettingsSiteSectionRoute:
-      AuthenticatedSystemSettingsSiteSectionRoute,
+    AuthenticatedSystemSettingsRequestLimitsSectionRoute:
+      AuthenticatedSystemSettingsRequestLimitsSectionRoute,
     AuthenticatedSystemSettingsAuthIndexRoute:
       AuthenticatedSystemSettingsAuthIndexRoute,
-    AuthenticatedSystemSettingsBillingIndexRoute:
-      AuthenticatedSystemSettingsBillingIndexRoute,
     AuthenticatedSystemSettingsContentIndexRoute:
       AuthenticatedSystemSettingsContentIndexRoute,
+    AuthenticatedSystemSettingsCustomIndexRoute:
+      AuthenticatedSystemSettingsCustomIndexRoute,
+    AuthenticatedSystemSettingsGeneralIndexRoute:
+      AuthenticatedSystemSettingsGeneralIndexRoute,
+    AuthenticatedSystemSettingsIntegrationsIndexRoute:
+      AuthenticatedSystemSettingsIntegrationsIndexRoute,
+    AuthenticatedSystemSettingsMaintenanceIndexRoute:
+      AuthenticatedSystemSettingsMaintenanceIndexRoute,
     AuthenticatedSystemSettingsModelsIndexRoute:
       AuthenticatedSystemSettingsModelsIndexRoute,
-    AuthenticatedSystemSettingsOperationsIndexRoute:
-      AuthenticatedSystemSettingsOperationsIndexRoute,
-    AuthenticatedSystemSettingsSecurityIndexRoute:
-      AuthenticatedSystemSettingsSecurityIndexRoute,
-    AuthenticatedSystemSettingsSiteIndexRoute:
-      AuthenticatedSystemSettingsSiteIndexRoute,
+    AuthenticatedSystemSettingsRequestLimitsIndexRoute:
+      AuthenticatedSystemSettingsRequestLimitsIndexRoute,
   }
 
 const AuthenticatedSystemSettingsRouteRouteWithChildren =
@@ -1220,15 +1405,23 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardSectionRoute: typeof AuthenticatedDashboardSectionRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedModelsSectionRoute: typeof AuthenticatedModelsSectionRoute
+  AuthenticatedTicketAdminTicketIdRoute: typeof AuthenticatedTicketAdminTicketIdRoute
+  AuthenticatedTicketsTicketIdRoute: typeof AuthenticatedTicketsTicketIdRoute
   AuthenticatedUsageLogsSectionRoute: typeof AuthenticatedUsageLogsSectionRoute
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
+  AuthenticatedInvitationCodesIndexRoute: typeof AuthenticatedInvitationCodesIndexRoute
   AuthenticatedKeysIndexRoute: typeof AuthenticatedKeysIndexRoute
   AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
+  AuthenticatedMonitoringIndexRoute: typeof AuthenticatedMonitoringIndexRoute
   AuthenticatedPlaygroundIndexRoute: typeof AuthenticatedPlaygroundIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
   AuthenticatedRedemptionCodesIndexRoute: typeof AuthenticatedRedemptionCodesIndexRoute
+  AuthenticatedRiskIndexRoute: typeof AuthenticatedRiskIndexRoute
   AuthenticatedSubscriptionsIndexRoute: typeof AuthenticatedSubscriptionsIndexRoute
+  AuthenticatedTicketAdminIndexRoute: typeof AuthenticatedTicketAdminIndexRoute
+  AuthenticatedTicketsIndexRoute: typeof AuthenticatedTicketsIndexRoute
+  AuthenticatedTopupHistoryIndexRoute: typeof AuthenticatedTopupHistoryIndexRoute
   AuthenticatedUsageLogsIndexRoute: typeof AuthenticatedUsageLogsIndexRoute
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
@@ -1242,16 +1435,25 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardSectionRoute: AuthenticatedDashboardSectionRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedModelsSectionRoute: AuthenticatedModelsSectionRoute,
+  AuthenticatedTicketAdminTicketIdRoute: AuthenticatedTicketAdminTicketIdRoute,
+  AuthenticatedTicketsTicketIdRoute: AuthenticatedTicketsTicketIdRoute,
   AuthenticatedUsageLogsSectionRoute: AuthenticatedUsageLogsSectionRoute,
   AuthenticatedChannelsIndexRoute: AuthenticatedChannelsIndexRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
+  AuthenticatedInvitationCodesIndexRoute:
+    AuthenticatedInvitationCodesIndexRoute,
   AuthenticatedKeysIndexRoute: AuthenticatedKeysIndexRoute,
   AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
+  AuthenticatedMonitoringIndexRoute: AuthenticatedMonitoringIndexRoute,
   AuthenticatedPlaygroundIndexRoute: AuthenticatedPlaygroundIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
   AuthenticatedRedemptionCodesIndexRoute:
     AuthenticatedRedemptionCodesIndexRoute,
+  AuthenticatedRiskIndexRoute: AuthenticatedRiskIndexRoute,
   AuthenticatedSubscriptionsIndexRoute: AuthenticatedSubscriptionsIndexRoute,
+  AuthenticatedTicketAdminIndexRoute: AuthenticatedTicketAdminIndexRoute,
+  AuthenticatedTicketsIndexRoute: AuthenticatedTicketsIndexRoute,
+  AuthenticatedTopupHistoryIndexRoute: AuthenticatedTopupHistoryIndexRoute,
   AuthenticatedUsageLogsIndexRoute: AuthenticatedUsageLogsIndexRoute,
   AuthenticatedUsersIndexRoute: AuthenticatedUsersIndexRoute,
   AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,
@@ -1274,7 +1476,6 @@ const rootRouteChildren: RootRouteChildren = {
   OauthProviderRoute: OauthProviderRoute,
   AboutIndexRoute: AboutIndexRoute,
   PricingIndexRoute: PricingIndexRoute,
-  RankingsIndexRoute: RankingsIndexRoute,
   SetupIndexRoute: SetupIndexRoute,
   PricingModelIdIndexRoute: PricingModelIdIndexRoute,
 }
