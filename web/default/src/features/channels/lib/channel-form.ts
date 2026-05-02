@@ -209,6 +209,11 @@ export const channelFormSchema = z
     upstream_model_update_check_enabled: z.boolean().optional(),
     upstream_model_update_auto_sync_enabled: z.boolean().optional(),
     upstream_model_update_ignored_models: z.string().optional(),
+    // --- Custom extensions (fork) ---
+    pressure_cooling: z.string().optional(),
+    channel_rate_limit: z.string().optional(),
+    error_filter_rules: z.string().optional(),
+    risk_control_headers: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if ([3, 8, 36, 45].includes(data.type) && !data.base_url?.trim()) {
@@ -370,6 +375,8 @@ export function transformChannelToFormDefaults(
     system_prompt: '',
     system_prompt_override: false,
   }
+  // --- Custom extensions (fork) ---
+  const customExtensions: Record<string, string> = {}
 
   if (channel.setting) {
     try {
@@ -382,6 +389,11 @@ export function transformChannelToFormDefaults(
         system_prompt: parsed.system_prompt || '',
         system_prompt_override: parsed.system_prompt_override || false,
       }
+      // --- Custom extensions (fork) ---
+      if (parsed.pressure_cooling) customExtensions.pressure_cooling = JSON.stringify(parsed.pressure_cooling)
+      if (parsed.rate_limit) customExtensions.channel_rate_limit = JSON.stringify(parsed.rate_limit)
+      if (parsed.error_filter_rules) customExtensions.error_filter_rules = JSON.stringify(parsed.error_filter_rules)
+      if (parsed.risk_control_headers) customExtensions.risk_control_headers = JSON.stringify(parsed.risk_control_headers)
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to parse channel setting:', error)
@@ -484,6 +496,8 @@ export function transformChannelToFormDefaults(
     upstream_model_update_auto_sync_enabled: upstreamModelUpdateAutoSyncEnabled,
     upstream_model_update_ignored_models: upstreamModelUpdateIgnoredModels,
     advanced_custom: advancedCustom,
+    // --- Custom extensions (fork) ---
+    ...customExtensions,
   }
 }
 
@@ -491,7 +505,7 @@ export function transformChannelToFormDefaults(
  * Build the setting JSON string from form extra settings
  */
 function buildSettingJSON(formData: ChannelFormValues): string {
-  const settingObj = {
+  const settingObj: Record<string, unknown> = {
     force_format: formData.force_format || false,
     thinking_to_content: formData.thinking_to_content || false,
     proxy: formData.proxy || '',
@@ -499,6 +513,11 @@ function buildSettingJSON(formData: ChannelFormValues): string {
     system_prompt: formData.system_prompt || '',
     system_prompt_override: formData.system_prompt_override || false,
   }
+  // --- Custom extensions (fork) ---
+  try { if (formData.pressure_cooling) settingObj.pressure_cooling = JSON.parse(formData.pressure_cooling) } catch { /* skip */ }
+  try { if (formData.channel_rate_limit) settingObj.rate_limit = JSON.parse(formData.channel_rate_limit) } catch { /* skip */ }
+  try { if (formData.error_filter_rules) settingObj.error_filter_rules = JSON.parse(formData.error_filter_rules) } catch { /* skip */ }
+  try { if (formData.risk_control_headers) settingObj.risk_control_headers = JSON.parse(formData.risk_control_headers) } catch { /* skip */ }
   return JSON.stringify(settingObj)
 }
 

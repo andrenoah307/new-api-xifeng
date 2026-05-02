@@ -183,6 +183,7 @@ import {
   ChannelEditorLoadingState,
   ChannelModelsSection,
 } from './sections'
+import { ChannelCustomSections } from '../custom/channel-custom-sections'
 
 type ChannelMutateDrawerProps = {
   open: boolean
@@ -4494,6 +4495,8 @@ export function ChannelMutateDrawer({
                   </div>
                 </div>
               )}
+              {/* fork: custom channel extensions */}
+              <ChannelCustomSections form={form} channelId={channelId ?? undefined} />
             </form>
           </Form>
 
