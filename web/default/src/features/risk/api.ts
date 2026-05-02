@@ -296,9 +296,16 @@ export async function unblockSubject(
   return res.data
 }
 
+export interface RiskGroupsPayload {
+  schema_version: number
+  global_mode: string
+  items: RiskGroup[]
+}
+
 export async function getRiskGroups() {
   const res = await api.get('/api/risk/groups')
-  return (res.data?.data ?? []) as RiskGroup[]
+  const payload = res.data?.data as RiskGroupsPayload | undefined
+  return (payload?.items ?? []) as RiskGroup[]
 }
 
 export async function detectIP(ip: string) {
