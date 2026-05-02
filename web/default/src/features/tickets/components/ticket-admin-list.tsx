@@ -52,8 +52,8 @@ export default function TicketAdminListPage() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const viewerIsAdmin = useIsAdmin()
 
-  const [statusFilter, setStatusFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('__all__')
+  const [typeFilter, setTypeFilter] = useState('__all__')
   const [scope, setScope] = useState(viewerIsAdmin ? 'all' : 'mine')
 
   const {
@@ -92,8 +92,8 @@ export default function TicketAdminListPage() {
     () => ({
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
-      status: statusFilter || undefined,
-      type: typeFilter || undefined,
+      status: statusFilter === '__all__' ? undefined : statusFilter,
+      type: typeFilter === '__all__' ? undefined : typeFilter,
       keyword: keyword || undefined,
       scope,
     }),
@@ -177,7 +177,7 @@ export default function TicketAdminListPage() {
                     <SelectValue placeholder={t('Status')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">{t('All')}</SelectItem>
+                    <SelectItem value="__all__">{t('All')}</SelectItem>
                     {getStatusOptions(true).map((o) => (
                       <SelectItem key={o.value} value={o.value}>
                         {t(o.label)}
@@ -190,7 +190,7 @@ export default function TicketAdminListPage() {
                     <SelectValue placeholder={t('Type')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">{t('All')}</SelectItem>
+                    <SelectItem value="__all__">{t('All')}</SelectItem>
                     {getTypeOptions(true).map((o) => (
                       <SelectItem key={o.value} value={o.value}>
                         {t(o.label)}

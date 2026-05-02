@@ -57,8 +57,8 @@ export default function TicketListPage() {
   const userId = useAuthStore((s) => s.auth.user?.id ?? 0)
 
   const [createOpen, setCreateOpen] = useState(false)
-  const [statusFilter, setStatusFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('__all__')
+  const [typeFilter, setTypeFilter] = useState('__all__')
 
   const {
     pagination,
@@ -77,8 +77,8 @@ export default function TicketListPage() {
     () => ({
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
-      status: statusFilter || undefined,
-      type: typeFilter || undefined,
+      status: statusFilter === '__all__' ? undefined : statusFilter,
+      type: typeFilter === '__all__' ? undefined : typeFilter,
     }),
     [pagination, statusFilter, typeFilter]
   )
@@ -141,7 +141,7 @@ export default function TicketListPage() {
                   <SelectValue placeholder={t('Status')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('All')}</SelectItem>
+                  <SelectItem value="__all__">{t('All')}</SelectItem>
                   {getStatusOptions().map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {t(o.label)}
@@ -154,7 +154,7 @@ export default function TicketListPage() {
                   <SelectValue placeholder={t('Type')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">{t('All')}</SelectItem>
+                  <SelectItem value="__all__">{t('All')}</SelectItem>
                   {getTypeOptions(true).map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {t(o.label)}

@@ -63,12 +63,12 @@ export function ModerationTab() {
   const [deletingRule, setDeletingRule] = useState<ModerationRule | null>(null)
   const [incidentPage, setIncidentPage] = useState(1)
   const [incidentFilters, setIncidentFilters] = useState({
-    group: '',
-    flagged: '',
+    group: '__all__',
+    flagged: '__all__',
     keyword: '',
   })
   const [debugText, setDebugText] = useState('')
-  const [debugGroup, setDebugGroup] = useState('')
+  const [debugGroup, setDebugGroup] = useState('__default__')
   const [debugRunning, setDebugRunning] = useState(false)
   const [debugResult, setDebugResult] = useState<Record<string, unknown> | null>(null)
 
@@ -102,8 +102,8 @@ export function ModerationTab() {
     () => ({
       p: incidentPage,
       page_size: 10,
-      group: incidentFilters.group || undefined,
-      flagged: incidentFilters.flagged || undefined,
+      group: incidentFilters.group === '__all__' ? undefined : incidentFilters.group,
+      flagged: incidentFilters.flagged === '__all__' ? undefined : incidentFilters.flagged,
       keyword: incidentFilters.keyword || undefined,
     }),
     [incidentPage, incidentFilters]
@@ -168,7 +168,7 @@ export function ModerationTab() {
     try {
       const { request_id } = await runModerationDebug({
         text: debugText,
-        group: debugGroup || undefined,
+        group: debugGroup === '__default__' ? undefined : debugGroup,
       })
       let attempts = 0
       const poll = async (): Promise<void> => {
@@ -489,7 +489,7 @@ export function ModerationTab() {
                 <SelectValue placeholder={t('Group')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t('Default')}</SelectItem>
+                <SelectItem value="__default__">{t('Default')}</SelectItem>
                 {groupNames.map((g) => (
                   <SelectItem key={g} value={g}>
                     {g}
@@ -531,7 +531,7 @@ export function ModerationTab() {
                 <SelectValue placeholder={t('Group')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t('All')}</SelectItem>
+                <SelectItem value="__all__">{t('All')}</SelectItem>
                 {groupNames.map((g) => (
                   <SelectItem key={g} value={g}>
                     {g}
@@ -549,7 +549,7 @@ export function ModerationTab() {
                 <SelectValue placeholder={t('Flagged')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t('All')}</SelectItem>
+                <SelectItem value="__all__">{t('All')}</SelectItem>
                 <SelectItem value="true">{t('Flagged')}</SelectItem>
                 <SelectItem value="false">{t('Clean')}</SelectItem>
               </SelectContent>

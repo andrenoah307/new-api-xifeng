@@ -1275,6 +1275,7 @@ scripts/merge-check.sh full   # 两者都跑
 | P10 | mobile 兼容 | default 用 `MobileCardList` | 列定义需加 `meta.mobileHidden/mobileBadge/mobileTitle` |
 | P11 | URL 路径 | classic `/console/risk`，default 不用 `/console/` | 统一为 `/risk`、`/tickets`、`/monitoring` |
 | P12 | 额度工具函数 | 退款面板需 `renderQuota` / `quotaToDisplayAmount` | 确认 default 有等效工具再复用 |
+| P13 | **Radix Select 禁止空字符串 value** | `@radix-ui/react-select` 的 `SelectItem` 在渲染时硬校验 `value !== ""`，违反即 throw（被 TanStack Router errorComponent 捕获后显示 500 页面）。Semi Design Select 无此限制，因此从 classic 移植 `<Select>` 筛选器时极易遗漏 | 用哨兵值 `"__all__"` 替代空字符串，初始 state、`<SelectItem value>`、API params 三处同步修改。**新增任何 Radix Select 组件时务必检查** |
 
 ### 22.6 分阶段实施记录（全部完成 2026-05-03）
 
