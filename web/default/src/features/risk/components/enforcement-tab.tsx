@@ -56,8 +56,8 @@ export function EnforcementTab() {
   const [counterPage, setCounterPage] = useState(1)
   const [incidentPage, setIncidentPage] = useState(1)
   const [incidentFilters, setIncidentFilters] = useState({
-    source: '',
-    action: '',
+    source: '__all__',
+    action: '__all__',
     keyword: '',
   })
   const [resetOpen, setResetOpen] = useState(false)
@@ -92,8 +92,8 @@ export function EnforcementTab() {
     () => ({
       p: incidentPage,
       page_size: 10,
-      source: incidentFilters.source || undefined,
-      action: incidentFilters.action || undefined,
+      source: incidentFilters.source === '__all__' ? undefined : incidentFilters.source,
+      action: incidentFilters.action === '__all__' ? undefined : incidentFilters.action,
       keyword: incidentFilters.keyword || undefined,
     }),
     [incidentPage, incidentFilters]
@@ -482,7 +482,7 @@ export function EnforcementTab() {
                 <SelectValue placeholder={t('Source')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t('All')}</SelectItem>
+                <SelectItem value="__all__">{t('All')}</SelectItem>
                 {ENFORCEMENT_SOURCE_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {t(o.label)}
@@ -500,7 +500,7 @@ export function EnforcementTab() {
                 <SelectValue placeholder={t('Action')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">{t('All')}</SelectItem>
+                <SelectItem value="__all__">{t('All')}</SelectItem>
                 {ENFORCEMENT_ACTION_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {t(o.label)}
