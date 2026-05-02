@@ -33,8 +33,8 @@ export function RiskIncidentsTable() {
   const [page, setPage] = useState(1)
   const pageSize = 10
   const [filters, setFilters] = useState({
-    scope: '',
-    action: '',
+    scope: '__all__',
+    action: '__all__',
     keyword: '',
   })
 
@@ -42,8 +42,8 @@ export function RiskIncidentsTable() {
     () => ({
       p: page,
       page_size: pageSize,
-      scope: filters.scope || undefined,
-      action: filters.action || undefined,
+      scope: filters.scope === '__all__' ? undefined : filters.scope,
+      action: filters.action === '__all__' ? undefined : filters.action,
       keyword: filters.keyword || undefined,
     }),
     [page, filters]
@@ -89,7 +89,7 @@ export function RiskIncidentsTable() {
             <SelectValue placeholder={t('Scope')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">{t('All')}</SelectItem>
+            <SelectItem value="__all__">{t('All')}</SelectItem>
             {SCOPE_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
@@ -107,7 +107,7 @@ export function RiskIncidentsTable() {
             <SelectValue placeholder={t('Decision')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">{t('All')}</SelectItem>
+            <SelectItem value="__all__">{t('All')}</SelectItem>
             <SelectItem value="block">{t('Block')}</SelectItem>
             <SelectItem value="observe">{t('Observe')}</SelectItem>
           </SelectContent>
