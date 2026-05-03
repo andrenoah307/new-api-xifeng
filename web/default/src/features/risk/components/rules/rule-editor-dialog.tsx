@@ -35,7 +35,6 @@ import {
   SCOPE_OPTIONS,
   ACTION_OPTIONS,
   MATCH_MODE_OPTIONS,
-  METRIC_LABEL_MAP,
 } from '../../constants'
 
 interface Props {
@@ -43,7 +42,6 @@ interface Props {
   onOpenChange: (open: boolean) => void
   initialRule: RiskRule | null
   groupOptions: string[]
-  enabledGroupSet: Set<string>
   onSaved: () => void
 }
 
@@ -52,7 +50,6 @@ export function RuleEditorDialog({
   onOpenChange,
   initialRule,
   groupOptions,
-  enabledGroupSet,
   onSaved,
 }: Props) {
   const { t } = useTranslation()

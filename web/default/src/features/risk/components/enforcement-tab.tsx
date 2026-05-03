@@ -210,7 +210,7 @@ export function EnforcementTab() {
         <OverviewCard
           title={t('Email Reminders')}
           value={
-            overview?.email_reminder_enabled ? t('Enabled') : t('Disabled')
+            overview?.email_on_hit ? t('Enabled') : t('Disabled')
           }
         />
       </div>
@@ -235,9 +235,9 @@ export function EnforcementTab() {
               <div className="flex items-center gap-3">
                 <Label>{t('Email Enabled')}</Label>
                 <Switch
-                  checked={localConfig.email_enabled}
+                  checked={localConfig.email_on_hit}
                   onCheckedChange={(v) =>
-                    setLocalConfig((p) => p && { ...p, email_enabled: v })
+                    setLocalConfig((p) => p && { ...p, email_on_hit: v })
                   }
                 />
               </div>
@@ -261,12 +261,12 @@ export function EnforcementTab() {
                 <Label>{t('Ban Threshold (Default)')}</Label>
                 <Input
                   type="number"
-                  value={localConfig.ban_threshold_default}
+                  value={localConfig.ban_threshold}
                   onChange={(e) =>
                     setLocalConfig((p) =>
                       p && {
                         ...p,
-                        ban_threshold_default: Number(e.target.value),
+                        ban_threshold: Number(e.target.value),
                       }
                     )
                   }
@@ -277,14 +277,15 @@ export function EnforcementTab() {
                 <Label>{t('Ban Threshold (Distribution)')}</Label>
                 <Input
                   type="number"
-                  value={localConfig.ban_threshold_risk_distribution}
+                  value={localConfig.ban_threshold_per_source?.['risk_distribution'] ?? 0}
                   onChange={(e) =>
                     setLocalConfig((p) =>
                       p && {
                         ...p,
-                        ban_threshold_risk_distribution: Number(
-                          e.target.value
-                        ),
+                        ban_threshold_per_source: {
+                          ...p.ban_threshold_per_source,
+                          risk_distribution: Number(e.target.value),
+                        },
                       }
                     )
                   }
@@ -295,12 +296,15 @@ export function EnforcementTab() {
                 <Label>{t('Ban Threshold (Moderation)')}</Label>
                 <Input
                   type="number"
-                  value={localConfig.ban_threshold_moderation}
+                  value={localConfig.ban_threshold_per_source?.['moderation'] ?? 0}
                   onChange={(e) =>
                     setLocalConfig((p) =>
                       p && {
                         ...p,
-                        ban_threshold_moderation: Number(e.target.value),
+                        ban_threshold_per_source: {
+                          ...p.ban_threshold_per_source,
+                          moderation: Number(e.target.value),
+                        },
                       }
                     )
                   }
@@ -311,12 +315,12 @@ export function EnforcementTab() {
                 <Label>{t('Email Rate Limit (min)')}</Label>
                 <Input
                   type="number"
-                  value={localConfig.email_rate_limit_minutes}
+                  value={localConfig.hit_email_window_minutes}
                   onChange={(e) =>
                     setLocalConfig((p) =>
                       p && {
                         ...p,
-                        email_rate_limit_minutes: Number(e.target.value),
+                        hit_email_window_minutes: Number(e.target.value),
                       }
                     )
                   }
@@ -327,10 +331,10 @@ export function EnforcementTab() {
             <div className="space-y-1">
               <Label>{t('Email Subject Template')}</Label>
               <Input
-                value={localConfig.email_template_subject}
+                value={localConfig.email_hit_subject}
                 onChange={(e) =>
                   setLocalConfig((p) =>
-                    p && { ...p, email_template_subject: e.target.value }
+                    p && { ...p, email_hit_subject: e.target.value }
                   )
                 }
               />
@@ -338,10 +342,10 @@ export function EnforcementTab() {
             <div className="space-y-1">
               <Label>{t('Email Body Template')}</Label>
               <Textarea
-                value={localConfig.email_template_body}
+                value={localConfig.email_hit_template}
                 onChange={(e) =>
                   setLocalConfig((p) =>
-                    p && { ...p, email_template_body: e.target.value }
+                    p && { ...p, email_hit_template: e.target.value }
                   )
                 }
                 rows={4}
@@ -408,25 +412,25 @@ export function EnforcementTab() {
                   </TableRow>
                 ) : (
                   counters.map((c) => (
-                    <TableRow key={c.user_id}>
+                    <TableRow key={c.id}>
                       <TableCell>
                         <div>
                           <span className="font-medium">
                             {c.username || '-'}
                           </span>
                           <p className="text-muted-foreground text-xs">
-                            UID {c.user_id}
+                            UID {c.id}
                           </p>
                         </div>
                       </TableCell>
-                      <TableCell>{c.total_hits}</TableCell>
-                      <TableCell>{c.risk_distribution_hits}</TableCell>
-                      <TableCell>{c.moderation_hits}</TableCell>
+                      <TableCell>{(c.enforcement_hit_count_risk ?? 0) + (c.enforcement_hit_count_moderation ?? 0)}</TableCell>
+                      <TableCell>{c.enforcement_hit_count_risk}</TableCell>
+                      <TableCell>{c.enforcement_hit_count_moderation}</TableCell>
                       <TableCell>
                         <StatusBadge
-                          variant={c.banned ? 'danger' : 'success'}
+                          variant={c.enforcement_auto_banned_at > 0 ? 'danger' : 'success'}
                         >
-                          {c.banned ? t('Banned') : t('Normal')}
+                          {c.enforcement_auto_banned_at > 0 ? t('Banned') : t('Normal')}
                         </StatusBadge>
                       </TableCell>
                       <TableCell>
@@ -435,18 +439,18 @@ export function EnforcementTab() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              setTargetUid(c.user_id)
+                              setTargetUid(c.id)
                               setResetOpen(true)
                             }}
                           >
                             {t('Reset')}
                           </Button>
-                          {c.banned && (
+                          {c.enforcement_auto_banned_at > 0 && (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => {
-                                setTargetUid(c.user_id)
+                                setTargetUid(c.id)
                                 setUnbanOpen(true)
                               }}
                             >
@@ -580,7 +584,7 @@ export function EnforcementTab() {
                         </StatusBadge>
                       </TableCell>
                       <TableCell className="max-w-[300px] truncate text-xs">
-                        {item.detail || '-'}
+                        {item.reason || '-'}
                       </TableCell>
                     </TableRow>
                   ))

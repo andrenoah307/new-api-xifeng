@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Download, FileText, Image as ImageIcon } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
 import { StatusBadge } from '@/components/status-badge'
 import { cn } from '@/lib/utils'
 import { formatTimestampToDate } from '@/lib/format'
