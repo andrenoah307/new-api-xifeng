@@ -21,12 +21,13 @@ interface MultiSelectProps {
 
 export function MultiSelect({
   options,
-  selected,
+  selected: rawSelected,
   onChange,
   placeholder,
   className,
 }: MultiSelectProps) {
   const { t } = useTranslation()
+  const selected = Array.isArray(rawSelected) ? rawSelected : []
   const resolvedPlaceholder = placeholder ?? t('Select items...')
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [open, setOpen] = React.useState(false)

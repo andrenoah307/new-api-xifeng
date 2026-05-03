@@ -186,6 +186,8 @@ export const riskQueryKeys = {
     categories: () => ['risk', 'moderation', 'categories'] as const,
     incidents: (params: Record<string, unknown>) =>
       ['risk', 'moderation', 'incidents', params] as const,
+    incidentDetail: (id: number) =>
+      ['risk', 'moderation', 'incident', id] as const,
     queueStats: () => ['risk', 'moderation', 'queueStats'] as const,
   },
   enforcement: {

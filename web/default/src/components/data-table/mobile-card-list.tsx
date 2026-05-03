@@ -23,6 +23,7 @@ interface MobileCardListProps<TData> {
   emptyDescription?: string
   getRowKey?: (row: Row<TData>) => string | number
   getRowClassName?: (row: Row<TData>) => string | undefined
+  onRowClick?: (row: Row<TData>) => void
 }
 
 interface MobileColumnMeta {
@@ -241,6 +242,7 @@ export function MobileCardList<TData>(props: MobileCardListProps<TData>) {
     emptyDescription,
     getRowKey,
     getRowClassName,
+    onRowClick,
   } = props
   const { t } = useTranslation()
 
@@ -283,7 +285,8 @@ export function MobileCardList<TData>(props: MobileCardListProps<TData>) {
         return (
           <div
             key={key}
-            className={cn('bg-card px-3 py-2.5', getRowClassName?.(row))}
+            className={cn('bg-card px-3 py-2.5', onRowClick && 'cursor-pointer', getRowClassName?.(row))}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
           >
             <RowComponent row={row} />
           </div>

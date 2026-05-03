@@ -99,30 +99,37 @@ export function DistributionTab() {
         <OverviewCard
           title={t('Observed Subjects')}
           value={overview?.observed_subjects ?? 0}
+          extra={t('Users / API keys currently under high-risk observation')}
         />
         <OverviewCard
           title={t('Blocked Subjects')}
           value={overview?.blocked_subjects ?? 0}
+          extra={t('Users / API keys currently auto-blocked')}
         />
         <OverviewCard
           title={t('High Risk Subjects')}
           value={overview?.high_risk_subjects ?? 0}
+          extra={t('Subjects with risk score >= 60')}
         />
         <OverviewCard
           title={t('Total Rules')}
           value={overview?.rule_count ?? 0}
+          extra={t('Active detection rules')}
         />
         <OverviewCard
           title={t('Enabled Groups')}
           value={overview?.enabled_group_count ?? 0}
+          extra={t('Groups whitelisted with mode != off')}
         />
         <OverviewCard
           title={t('Unconfigured Rules')}
           value={overview?.unconfigured_rule_count ?? 0}
+          extra={t('Enabled rules not bound to any group')}
         />
         <OverviewCard
           title={t('Unlisted Rules')}
           value={overview?.group_unlisted_rule_count ?? 0}
+          extra={t('Rules whose groups are not whitelisted')}
         />
       </div>
 
