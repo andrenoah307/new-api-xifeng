@@ -40,13 +40,13 @@ const GroupStatusCard = memo(function GroupStatusCard({
   const frt = group.avg_frt ?? group.first_response_time
 
   const dotColor = !online
-    ? 'hsl(var(--destructive))'
+    ? 'var(--destructive)'
     : availRate == null
-      ? 'hsl(var(--muted-foreground) / 0.4)'
+      ? 'color-mix(in oklch, var(--muted-foreground) 40%, transparent)'
       : rateAccentColor(availRate)
 
   const headlineColor = !online
-    ? 'hsl(var(--destructive))'
+    ? 'var(--destructive)'
     : rateAccentColor(availRate)
 
   return (

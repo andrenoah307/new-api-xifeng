@@ -283,7 +283,7 @@ export default function MonitoringDashboard() {
             {!loading && groups.length > 0 && (
               <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="bg-success inline-block h-1.5 w-1.5 rounded-full" style={{ background: 'hsl(var(--success, 142 76% 36%))' }} />
+                  <span className="bg-success inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#22c55e' }} />
                   <span className="text-foreground font-mono">
                     {onlineCount}
                   </span>
@@ -295,8 +295,8 @@ export default function MonitoringDashboard() {
                     style={{
                       background:
                         offlineCount > 0
-                          ? 'hsl(var(--destructive))'
-                          : 'hsl(var(--muted-foreground) / 0.3)',
+                          ? 'var(--destructive)'
+                          : 'color-mix(in oklch, var(--muted-foreground) 30%, transparent)',
                     }}
                   />
                   <span className="text-foreground font-mono">
