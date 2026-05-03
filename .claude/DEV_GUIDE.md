@@ -1277,6 +1277,8 @@ scripts/merge-check.sh full   # 两者都跑
 | P12 | 额度工具函数 | 退款面板需 `renderQuota` / `quotaToDisplayAmount` | 确认 default 有等效工具再复用 |
 | P13 | **Radix Select 禁止空字符串 value** | `@radix-ui/react-select` 的 `SelectItem` 在渲染时硬校验 `value !== ""`，违反即 throw（被 TanStack Router errorComponent 捕获后显示 500 页面）。Semi Design Select 无此限制，因此从 classic 移植 `<Select>` 筛选器时极易遗漏 | 用哨兵值 `"__all__"` 替代空字符串，初始 state、`<SelectItem value>`、API params 三处同步修改。**新增任何 Radix Select 组件时务必检查** |
 | P14 | **API 响应结构不一致** | 后端 `GET /api/risk/groups` 返回 `{ schema_version, global_mode, items: [...] }` 包裹对象，而非直接数组。classic 正确处理了 `riskGroups.items`，但 default 移植时误用 `res.data?.data ?? []` 当数组 → `for...of` 报 `not iterable` → 500 | 移植 API 函数时**必须对照后端 controller 的 `common.ApiSuccess(c, ...)` 实际传入的数据结构**，特别注意 `gin.H{...items}` 包裹、`PageInfo` 分页封装等 |
+| P15 | **TypeScript 接口字段必须对照后端 JSON tag** | 初始移植时 `api.ts` 的 54+ 个字段名凭猜测编写，与后端 Go struct JSON tag 不符（如 `sampling_rate` vs `sampling_rate_percent`、`logic` vs `match_mode`、`threshold` vs `value`、`user_id` vs `id`）。运行时表现为数据显示 undefined 或 React error #31（对象渲染为子节点） | 每新增/修改 `api.ts` 接口时，**必须 `grep` 对应后端 model/controller 的 JSON tag**，不可凭记忆。特别注意：(1) `ModerationConfig` 被 `ModerationConfigPayload { config, key_count }` 包裹；(2) `ModerationDebugResult` 被 `ModerationDebugPayload { pending, result }` 包裹；(3) `worker_state` 是对象数组不可直接渲染为 React children |
+| P16 | **`tsc --noEmit` 需指定 `-p tsconfig.app.json`** | 项目根 `tsconfig.json` 设置 `"files": []` + references，直接 `tsc --noEmit` 不检查任何源文件，返回 0 exit code 造成误判 | 必须使用 `npx tsc --noEmit -p tsconfig.app.json` 才能真正检查前端 TypeScript |
 
 ### 22.6 分阶段实施记录（全部完成 2026-05-03）
 

@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsAdmin } from '@/hooks/use-admin'
-import type { MonitoringGroupWithHistory } from '../api'
+import type { MonitoringGroupWithHistory, MonitoringHistoryPoint } from '../api'
 import {
   getMonitoringGroups,
   getGroupHistory,
@@ -158,7 +158,6 @@ export default function MonitoringDashboard() {
 
   const {
     data: historyMap,
-    isLoading: historyLoading,
   } = useQuery({
     queryKey: ['monitoring', 'allHistory', groupNamesKey, admin],
     queryFn: async () => {
@@ -168,7 +167,7 @@ export default function MonitoringDashboard() {
             const data = await getGroupHistory(name, admin)
             return [name, data] as const
           } catch {
-            return [name, { history: [], intervalMinutes: 5 }] as const
+            return [name, { history: [] as MonitoringHistoryPoint[], intervalMinutes: 5 }] as const
           }
         })
       )
