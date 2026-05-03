@@ -36,12 +36,11 @@ export function RiskGroupsPanel({
   const { t } = useTranslation()
 
   const enabledGroups = new Set(
-    Array.isArray((config as Record<string, unknown>).enabled_groups)
-      ? ((config as Record<string, unknown>).enabled_groups as string[])
+    Array.isArray(config.enabled_groups)
+      ? config.enabled_groups
       : []
   )
-  const groupModes: Record<string, string> =
-    ((config as Record<string, unknown>).group_modes as Record<string, string>) ?? {}
+  const groupModes: Record<string, string> = config.group_modes ?? {}
 
   const toggleGroup = (name: string, enabled: boolean) => {
     const list = [...enabledGroups]
@@ -49,8 +48,8 @@ export function RiskGroupsPanel({
     if (enabled) next.push(name)
     onConfigChange({
       ...config,
-      ...(({ enabled_groups: next }) as Partial<RiskConfig>),
-    } as Partial<RiskConfig>)
+      enabled_groups: next,
+    })
   }
 
   const setGroupMode = (name: string, mode: string) => {
@@ -62,8 +61,8 @@ export function RiskGroupsPanel({
     }
     onConfigChange({
       ...config,
-      ...(({ group_modes: modes }) as Partial<RiskConfig>),
-    } as Partial<RiskConfig>)
+      group_modes: modes,
+    })
   }
 
   return (
@@ -128,8 +127,8 @@ export function RiskGroupsPanel({
                       {g.effective_mode || config.mode}
                     </StatusBadge>
                   </TableCell>
-                  <TableCell>{g.rule_count}</TableCell>
-                  <TableCell>{g.subject_count}</TableCell>
+                  <TableCell>{g.rule_count_total}</TableCell>
+                  <TableCell>{g.active_subject_count}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

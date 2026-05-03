@@ -81,10 +81,10 @@ export function RiskConfigPanel({ config, saving, onSave }: Props) {
             <Label>{t('Default Recovery Seconds')}</Label>
             <Input
               type="number"
-              value={local.default_recover_after_seconds}
+              value={local.default_recover_after_secs}
               onChange={(e) =>
                 update(
-                  'default_recover_after_seconds',
+                  'default_recover_after_secs',
                   Number(e.target.value)
                 )
               }

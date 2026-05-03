@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Plus, RefreshCw } from 'lucide-react'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -17,7 +16,6 @@ import {
 } from '../api'
 import {
   riskQueryKeys,
-  safeParseJSON,
 } from '../constants'
 import { OverviewCard } from './overview/overview-card'
 import { RiskConfigPanel } from './config/risk-config-panel'
@@ -96,16 +94,6 @@ export function DistributionTab() {
 
   return (
     <div className="space-y-6">
-      {config && !config.async_event_engine && (
-        <Alert>
-          <AlertDescription>
-            {t(
-              'Async event engine is not enabled. Some features may be limited.'
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
       {/* Overview Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <OverviewCard
@@ -205,7 +193,6 @@ export function DistributionTab() {
         onOpenChange={setEditorOpen}
         initialRule={editingRule}
         groupOptions={groupOptions}
-        enabledGroupSet={enabledGroupSet}
         onSaved={handleRuleSaved}
       />
     </div>

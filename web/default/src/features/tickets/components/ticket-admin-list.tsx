@@ -27,7 +27,6 @@ import {
 } from '@/components/data-table'
 import { DataTablePagination } from '@/components/data-table/pagination'
 import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
-import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -204,9 +203,21 @@ export default function TicketAdminListPage() {
           {isMobile ? (
             <MobileCardList table={table} isLoading={isLoading} />
           ) : isLoading && items.length === 0 ? (
-            <TableSkeleton columnCount={columns.length} rowCount={8} />
+            <div className="rounded-md border">
+              <Table>
+                <TableBody>
+                  <TableSkeleton table={table} rowCount={8} />
+                </TableBody>
+              </Table>
+            </div>
           ) : items.length === 0 ? (
-            <TableEmpty />
+            <div className="rounded-md border">
+              <Table>
+                <TableBody>
+                  <TableEmpty colSpan={columns.length} />
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="rounded-md border">
               <Table>

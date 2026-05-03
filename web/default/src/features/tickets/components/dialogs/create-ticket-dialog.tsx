@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -68,7 +68,7 @@ export function CreateTicketDialog({
   const [ticketType, setTicketType] = useState<'general' | 'refund'>('general')
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(generalSchema),
+    resolver: zodResolver(generalSchema) as Resolver<FormValues>,
     defaultValues: {
       type: 'general',
       subject: '',

@@ -209,9 +209,21 @@ export function TopupTable() {
         {isMobile ? (
           <MobileCardList table={table} isLoading={isLoading} />
         ) : isLoading && items.length === 0 ? (
-          <TableSkeleton columnCount={allColumns.length} rowCount={10} />
+          <div className="rounded-md border">
+            <Table>
+              <TableBody>
+                <TableSkeleton table={table} rowCount={10} />
+              </TableBody>
+            </Table>
+          </div>
         ) : items.length === 0 ? (
-          <TableEmpty />
+          <div className="rounded-md border">
+            <Table>
+              <TableBody>
+                <TableEmpty colSpan={allColumns.length} />
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           <div className="rounded-md border">
             <Table>

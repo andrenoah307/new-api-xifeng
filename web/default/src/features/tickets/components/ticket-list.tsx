@@ -11,7 +11,6 @@ import {
 import { Plus } from 'lucide-react'
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
-import { useAuthStore } from '@/stores/auth-store'
 import {
   Table,
   TableBody,
@@ -21,7 +20,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  DataTableToolbar,
   TableSkeleton,
   TableEmpty,
   MobileCardList,
@@ -54,7 +52,6 @@ export default function TicketListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 640px)')
-  const userId = useAuthStore((s) => s.auth.user?.id ?? 0)
 
   const [createOpen, setCreateOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState('__all__')
@@ -166,9 +163,21 @@ export default function TicketListPage() {
             {isMobile ? (
               <MobileCardList table={table} isLoading={isLoading} />
             ) : isLoading && items.length === 0 ? (
-              <TableSkeleton columnCount={columns.length} rowCount={8} />
+              <div className="rounded-md border">
+                <Table>
+                  <TableBody>
+                    <TableSkeleton table={table} rowCount={8} />
+                  </TableBody>
+                </Table>
+              </div>
             ) : items.length === 0 ? (
-              <TableEmpty />
+              <div className="rounded-md border">
+                <Table>
+                  <TableBody>
+                    <TableEmpty colSpan={columns.length} />
+                  </TableBody>
+                </Table>
+              </div>
             ) : (
               <div className="rounded-md border">
                 <Table>

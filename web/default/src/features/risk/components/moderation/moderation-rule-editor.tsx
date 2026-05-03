@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -56,7 +56,7 @@ export function ModerationRuleEditorDialog({
         ...initialRule,
         conditions: safeParseJSON<ModerationRuleCondition[]>(
           initialRule.conditions,
-          [{ category: '', op: '>=', threshold: 0.5 }]
+          [{ category: '', op: '>=', value: 0.5 }]
         ),
       })
     } else {
@@ -94,7 +94,7 @@ export function ModerationRuleEditorDialog({
       ...p,
       conditions: [
         ...p.conditions,
-        { category: categories[0]?.key || '', op: '>=', threshold: 0.5 },
+        { category: categories[0]?.name || '', op: '>=', value: 0.5 },
       ],
     }))
   }
@@ -141,9 +141,9 @@ export function ModerationRuleEditorDialog({
             <div className="space-y-1">
               <Label>{t('Logic')}</Label>
               <Select
-                value={form.logic}
+                value={form.match_mode}
                 onValueChange={(v) =>
-                  setForm((p) => ({ ...p, logic: v }))
+                  setForm((p) => ({ ...p, match_mode: v }))
                 }
               >
                 <SelectTrigger>
@@ -222,7 +222,7 @@ export function ModerationRuleEditorDialog({
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((cat) => (
-                      <SelectItem key={cat.key} value={cat.key}>
+                      <SelectItem key={cat.name} value={cat.name}>
                         {cat.label}
                       </SelectItem>
                     ))}
@@ -248,9 +248,9 @@ export function ModerationRuleEditorDialog({
                   step="0.01"
                   min="0"
                   max="1"
-                  value={c.threshold}
+                  value={c.value}
                   onChange={(e) =>
-                    updateCondition(i, 'threshold', Number(e.target.value))
+                    updateCondition(i, 'value', Number(e.target.value))
                   }
                   className="w-[100px]"
                 />
