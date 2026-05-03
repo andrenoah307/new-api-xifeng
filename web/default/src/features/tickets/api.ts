@@ -64,9 +64,9 @@ export interface TicketRefund {
   ticket_id: number
   user_id: number
   refund_status: number
-  requested_amount: number
+  refund_quota: number
   frozen_quota: number
-  snapshot_quota: number
+  user_quota_snapshot: number
   actual_refund_quota: number
   quota_mode: string
   payee_type: string
@@ -87,19 +87,17 @@ export interface StaffUser {
 }
 
 export interface UserProfile {
-  user: {
-    id: number
-    username: string
-    display_name: string
-    email: string
-    role: number
-    status: number
-    group: string
-    created_time: number
-    quota: number
-    used_quota: number
-    request_count: number
-  }
+  user_id: number
+  username: string
+  display_name: string
+  email: string
+  role: number
+  status: number
+  group: string
+  created_time: number
+  quota: number
+  used_quota: number
+  request_count: number
   pending_refund_quota: number
   recent_logs: Array<{
     created_at: number
@@ -182,8 +180,7 @@ export async function createGeneralTicket(data: {
 export async function createRefundTicket(data: {
   subject: string
   priority: number
-  content: string
-  refund_amount: number
+  refund_quota: number
   payee_type: string
   payee_name: string
   payee_account: string

@@ -106,7 +106,7 @@ export function RefundDetail({
                 {t('Requested Amount')}
               </div>
               <div className="mt-1 font-mono text-sm font-semibold">
-                {formatQuota(refund.requested_amount)}
+                {formatQuota(refund.refund_quota)}
               </div>
             </div>
             <div className="bg-muted/50 rounded-lg p-3 text-center">
@@ -122,7 +122,7 @@ export function RefundDetail({
                 {t('Snapshot Balance')}
               </div>
               <div className="mt-1 font-mono text-sm font-semibold">
-                {formatQuota(refund.snapshot_quota)}
+                {formatQuota(refund.user_quota_snapshot)}
               </div>
             </div>
           </div>

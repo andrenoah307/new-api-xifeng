@@ -1,9 +1,9 @@
 export function rateAccentColor(rate: number | null | undefined): string {
-  if (rate == null || rate < 0) return 'hsl(var(--muted-foreground))'
-  if (rate >= 99) return 'hsl(var(--success, 142 76% 36%))'
-  if (rate >= 95) return 'hsl(var(--success, 142 76% 36%) / 0.8)'
-  if (rate >= 80) return 'hsl(var(--warning, 38 92% 50%))'
-  return 'hsl(var(--destructive))'
+  if (rate == null || rate < 0) return 'var(--muted-foreground)'
+  if (rate >= 99) return '#22c55e'
+  if (rate >= 95) return 'rgba(34,197,94,0.8)'
+  if (rate >= 80) return '#eab308'
+  return 'var(--destructive)'
 }
 
 export function rateVariant(
@@ -107,15 +107,15 @@ export function segmentColor(
   rate: number | null | undefined,
   avgFrt: number | null | undefined
 ): string {
-  if (rate == null || rate < 0) return 'hsl(var(--muted) / 0.5)'
+  if (rate == null || rate < 0) return 'color-mix(in oklch, var(--muted) 50%, transparent)'
   if (rate >= 99) {
-    if (avgFrt != null && avgFrt > 8000) return 'hsl(var(--warning, 38 92% 50%))'
-    return 'hsl(var(--success, 142 76% 36%))'
+    if (avgFrt != null && avgFrt > 8000) return '#eab308'
+    return '#22c55e'
   }
-  if (rate >= 95) return 'hsl(var(--success, 142 76% 36%) / 0.7)'
-  if (rate >= 80) return 'hsl(var(--warning, 38 92% 50%))'
+  if (rate >= 95) return 'rgba(34,197,94,0.7)'
+  if (rate >= 80) return '#eab308'
   if (rate >= 50) return '#f97316'
-  return 'hsl(var(--destructive))'
+  return 'var(--destructive)'
 }
 
 export function segmentLabel(

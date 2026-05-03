@@ -31,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { parseQuotaFromDollars } from '@/lib/format'
 import { createGeneralTicket, createRefundTicket } from '../../api'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
 import { PAYEE_TYPE_OPTIONS } from '../../constants'
@@ -118,14 +119,13 @@ export function CreateTicketDialog({
         createRefund.mutate({
           subject: values.subject || t('Refund Ticket'),
           priority: values.priority,
-          content: values.content,
-          refund_amount: values.refund_amount ?? 0,
+          refund_quota: parseQuotaFromDollars(values.refund_amount ?? 0),
           payee_type: values.payee_type ?? 'alipay',
           payee_name: values.payee_name ?? '',
           payee_account: values.payee_account ?? '',
           payee_bank: values.payee_bank ?? '',
           contact: values.contact ?? '',
-          reason: values.reason ?? '',
+          reason: values.reason || values.content || '',
           attachment_ids: [],
         })
       } else {
