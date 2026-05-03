@@ -38,7 +38,7 @@ type WorkspaceSwitcherProps = {
 export function WorkspaceSwitcher({
   workspaces,
   defaultName = 'New API',
-  defaultVersion,
+  defaultVersion = 'MICU-V1',
 }: WorkspaceSwitcherProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()

@@ -123,7 +123,7 @@ export function ApiKeysMutateDrawer({
     staleTime: 5 * 60 * 1000,
   })
 
-  const models = modelsData?.data || []
+  const models = Array.isArray(modelsData?.data) ? modelsData.data : []
   const groupsRaw = groupsData?.data || {}
   const groups: ApiKeyGroupOption[] = Object.entries(groupsRaw).map(
     ([key, info]) => ({

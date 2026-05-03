@@ -79,7 +79,7 @@ export function ErrorFilterRulesEditor({ form }: Props) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium">{t('Error Filter Rules')}</h4>
-        <Button variant="outline" size="sm" onClick={addRule}>
+        <Button type="button" variant="outline" size="sm" onClick={addRule}>
           <Plus className="mr-1 h-3.5 w-3.5" />
           {t('Add Rule')}
         </Button>
@@ -90,6 +90,7 @@ export function ErrorFilterRulesEditor({ form }: Props) {
           className="bg-muted/50 relative space-y-2 rounded-md border p-3"
         >
           <Button
+            type="button"
             variant="ghost"
             size="icon"
             className="absolute right-2 top-2 h-6 w-6"

@@ -189,6 +189,7 @@ func GetUserTopUps(userId int, filter TopUpFilter, pageInfo *common.PageInfo) (t
 		}
 	}()
 
+	topups = make([]*TopUp, 0)
 	query := tx.Model(&TopUp{}).Where("user_id = ? AND create_time >= ?", userId, topUpQueryCutoff())
 	query, err = applyTopUpQueryFilters(query, filter)
 	if err != nil {
@@ -196,7 +197,7 @@ func GetUserTopUps(userId int, filter TopUpFilter, pageInfo *common.PageInfo) (t
 		return nil, 0, err
 	}
 
-	if err = query.Limit(searchTopUpCountHardLimit).Count(&total).Error; err != nil {
+	if err = query.Session(&gorm.Session{}).Limit(searchTopUpCountHardLimit).Count(&total).Error; err != nil {
 		tx.Rollback()
 		common.SysError("failed to count user topups: " + err.Error())
 		return nil, 0, errors.New("查询充值记录失败")
@@ -226,6 +227,7 @@ func GetAllTopUps(filter TopUpFilter, pageInfo *common.PageInfo) (topups []*TopU
 		}
 	}()
 
+	topups = make([]*TopUp, 0)
 	query := tx.Model(&TopUp{})
 	query, err = applyTopUpQueryFilters(query, filter)
 	if err != nil {
@@ -233,7 +235,7 @@ func GetAllTopUps(filter TopUpFilter, pageInfo *common.PageInfo) (topups []*TopU
 		return nil, 0, err
 	}
 
-	if err = query.Limit(searchTopUpCountHardLimit).Count(&total).Error; err != nil {
+	if err = query.Session(&gorm.Session{}).Limit(searchTopUpCountHardLimit).Count(&total).Error; err != nil {
 		tx.Rollback()
 		common.SysError("failed to count topups: " + err.Error())
 		return nil, 0, errors.New("查询充值记录失败")

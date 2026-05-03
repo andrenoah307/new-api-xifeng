@@ -160,10 +160,10 @@ func GetInvitationCodeById(id int) (*InvitationCode, error) {
 }
 
 func GetAllInvitationCodes(startIdx int, num int) ([]*InvitationCode, int64, error) {
-	var invitationCodes []*InvitationCode
+	invitationCodes := make([]*InvitationCode, 0)
 	var total int64
 	query := DB.Model(&InvitationCode{})
-	if err := query.Count(&total).Error; err != nil {
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	if err := query.Order("id desc").Limit(num).Offset(startIdx).Find(&invitationCodes).Error; err != nil {
@@ -173,7 +173,7 @@ func GetAllInvitationCodes(startIdx int, num int) ([]*InvitationCode, int64, err
 }
 
 func SearchInvitationCodes(keyword string, startIdx int, num int) ([]*InvitationCode, int64, error) {
-	var invitationCodes []*InvitationCode
+	invitationCodes := make([]*InvitationCode, 0)
 	var total int64
 	query := DB.Model(&InvitationCode{})
 	if id, err := strconv.Atoi(keyword); err == nil {
@@ -181,7 +181,7 @@ func SearchInvitationCodes(keyword string, startIdx int, num int) ([]*Invitation
 	} else {
 		query = query.Where("name LIKE ? OR code LIKE ?", keyword+"%", keyword+"%")
 	}
-	if err := query.Count(&total).Error; err != nil {
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	if err := query.Order("id desc").Limit(num).Offset(startIdx).Find(&invitationCodes).Error; err != nil {

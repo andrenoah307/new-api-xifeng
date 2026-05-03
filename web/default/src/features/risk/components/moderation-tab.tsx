@@ -2,10 +2,16 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Play } from 'lucide-react'
+import { Plus, Pencil, Trash2, Play, Eye } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -39,6 +45,7 @@ import {
   getModerationRules,
   getModerationCategories,
   getModerationIncidents,
+  getModerationIncidentDetail,
   deleteModerationRule,
   getModerationQueueStats,
   runModerationDebug,
@@ -68,6 +75,7 @@ export function ModerationTab() {
   const [debugGroup, setDebugGroup] = useState('__default__')
   const [debugRunning, setDebugRunning] = useState(false)
   const [debugResult, setDebugResult] = useState<Record<string, unknown> | null>(null)
+  const [detailId, setDetailId] = useState<number | null>(null)
 
   const { data: config } = useQuery({
     queryKey: riskQueryKeys.moderation.config(),
@@ -114,6 +122,12 @@ export function ModerationTab() {
 
   const incidents = incidentsData?.items ?? []
   const incidentTotal = incidentsData?.total ?? 0
+
+  const { data: detailData } = useQuery({
+    queryKey: riskQueryKeys.moderation.incidentDetail(detailId!),
+    queryFn: () => getModerationIncidentDetail(detailId!),
+    enabled: detailId !== null,
+  })
 
   const incidentTable = useReactTable({
     data: incidents,
@@ -239,18 +253,22 @@ export function ModerationTab() {
         <OverviewCard
           title={t('Status')}
           value={overview?.enabled ? t('Enabled') : t('Disabled')}
+          extra={t('Global mode: ') + (overview?.mode ?? '-')}
         />
         <OverviewCard
           title={t('API Keys')}
           value={overview?.key_count ?? 0}
+          extra={t('Multi-key rotation with auto-failover')}
         />
         <OverviewCard
           title={t('Flagged (24h)')}
           value={overview?.flagged_24h ?? 0}
+          extra={`${t('Rules')}: ${overview?.rule_count ?? 0} / ${t('Enabled groups')}: ${overview?.enabled_group_count ?? 0}`}
         />
         <OverviewCard
           title={t('Event Drops')}
           value={overview?.queue_dropped ?? 0}
+          extra={`${t('Sampling rate')}: ${overview?.sampling_rate_percent ?? 0}%`}
         />
       </div>
 
@@ -289,6 +307,28 @@ export function ModerationTab() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>{t('Base URL')}</Label>
+                <Input
+                  value={localConfig.base_url}
+                  onChange={(e) =>
+                    setLocalConfig((p) => p && { ...p, base_url: e.target.value })
+                  }
+                  placeholder="https://api.openai.com"
+                  className="h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{t('Model')}</Label>
+                <Input
+                  value={localConfig.model}
+                  onChange={(e) =>
+                    setLocalConfig((p) => p && { ...p, model: e.target.value })
+                  }
+                  placeholder="omni-moderation-latest"
+                  className="h-8"
+                />
               </div>
               <div className="space-y-1">
                 <Label>{t('Sampling Rate')}</Label>
@@ -343,6 +383,41 @@ export function ModerationTab() {
                     )
                   }
                   className="h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{t('HTTP Timeout (ms)')}</Label>
+                <Input
+                  type="number"
+                  value={localConfig.http_timeout_ms}
+                  onChange={(e) =>
+                    setLocalConfig((p) =>
+                      p && { ...p, http_timeout_ms: Number(e.target.value) }
+                    )
+                  }
+                  className="h-8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{t('Max Retries')}</Label>
+                <Input
+                  type="number"
+                  value={localConfig.max_retries}
+                  onChange={(e) =>
+                    setLocalConfig((p) =>
+                      p && { ...p, max_retries: Number(e.target.value) }
+                    )
+                  }
+                  className="h-8"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Label>{t('Record Unmatched')}</Label>
+                <Switch
+                  checked={localConfig.record_unmatched_inputs}
+                  onCheckedChange={(v) =>
+                    setLocalConfig((p) => p && { ...p, record_unmatched_inputs: v })
+                  }
                 />
               </div>
             </div>
@@ -570,21 +645,23 @@ export function ModerationTab() {
                   <TableHead>{t('User')}</TableHead>
                   <TableHead>{t('Model')}</TableHead>
                   <TableHead>{t('Group')}</TableHead>
+                  <TableHead>{t('Input Summary')}</TableHead>
                   <TableHead>{t('Flagged')}</TableHead>
                   <TableHead>{t('Action')}</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {incidentsLoading && incidents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       {t('Loading...')}
                     </TableCell>
                   </TableRow>
                 ) : incidents.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={8}
                       className="text-center py-8 text-muted-foreground"
                     >
                       {t('No data')}
@@ -607,6 +684,19 @@ export function ModerationTab() {
                           {item.group || '-'}
                         </StatusBadge>
                       </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-xs">
+                        {item.input_summary ? (
+                          <button
+                            type="button"
+                            className="text-left text-primary hover:underline cursor-pointer truncate block max-w-full"
+                            onClick={() => setDetailId(item.id)}
+                          >
+                            {item.input_summary}
+                          </button>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
                       <TableCell>
                         <StatusBadge
                           variant={item.flagged ? 'danger' : 'success'}
@@ -616,6 +706,16 @@ export function ModerationTab() {
                       </TableCell>
                       <TableCell className="text-xs">
                         {item.decision || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => setDetailId(item.id)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -650,6 +750,77 @@ export function ModerationTab() {
         }
         isLoading={deleteRuleMutation.isPending}
       />
+
+      {/* Incident Detail Dialog */}
+      <Dialog open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('Incident Detail')}</DialogTitle>
+          </DialogHeader>
+          {detailData ? (
+            <div className="space-y-4">
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">{t('Request ID')}</dt>
+                <dd className="font-mono text-xs break-all">{detailData.request_id}</dd>
+                <dt className="text-muted-foreground">{t('User')}</dt>
+                <dd>{detailData.username} (UID {detailData.user_id})</dd>
+                <dt className="text-muted-foreground">{t('Token')}</dt>
+                <dd>ID {detailData.token_id}</dd>
+                <dt className="text-muted-foreground">{t('Model')}</dt>
+                <dd>{detailData.model}</dd>
+                <dt className="text-muted-foreground">{t('Group')}</dt>
+                <dd>
+                  <StatusBadge variant="cyan">{detailData.group || '-'}</StatusBadge>
+                </dd>
+                <dt className="text-muted-foreground">{t('Decision')}</dt>
+                <dd>{detailData.decision || '-'}</dd>
+                <dt className="text-muted-foreground">{t('Flagged')}</dt>
+                <dd>
+                  <StatusBadge variant={detailData.flagged ? 'danger' : 'success'}>
+                    {detailData.flagged ? t('Flagged') : t('Clean')}
+                  </StatusBadge>
+                </dd>
+                <dt className="text-muted-foreground">{t('Max Category')}</dt>
+                <dd>{detailData.max_category || '-'}</dd>
+                <dt className="text-muted-foreground">{t('Max Score')}</dt>
+                <dd>{detailData.max_score ?? '-'}</dd>
+                <dt className="text-muted-foreground">{t('Matched Rules')}</dt>
+                <dd>{detailData.matched_rules || '-'}</dd>
+                <dt className="text-muted-foreground">{t('Time')}</dt>
+                <dd>{formatTimestamp(detailData.created_at)}</dd>
+              </dl>
+              {detailData.categories && (
+                <>
+                  <Separator />
+                  <div>
+                    <Label className="text-xs font-medium">{t('Category Scores')}</Label>
+                    <pre className="bg-muted mt-1 rounded-md p-3 text-xs overflow-auto max-h-[150px]">
+                      {typeof detailData.categories === 'string'
+                        ? (() => { try { return JSON.stringify(JSON.parse(detailData.categories), null, 2) } catch { return detailData.categories } })()
+                        : JSON.stringify(detailData.categories, null, 2)}
+                    </pre>
+                  </div>
+                </>
+              )}
+              {detailData.input_summary && (
+                <>
+                  <Separator />
+                  <div>
+                    <Label className="text-xs font-medium">{t('Input Content')}</Label>
+                    <pre className="bg-muted mt-1 rounded-md p-3 text-xs overflow-auto max-h-[200px] whitespace-pre-wrap break-words">
+                      {detailData.input_summary}
+                    </pre>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              {t('Loading...')}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

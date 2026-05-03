@@ -256,8 +256,9 @@ func ListTickets(options TicketQueryOptions, pageInfo *common.PageInfo) (tickets
 		}
 	}()
 
+	tickets = make([]*Ticket, 0)
 	query := applyTicketFilters(tx.Model(&Ticket{}), options)
-	if err = query.Count(&total).Error; err != nil {
+	if err = query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
 		tx.Rollback()
 		return nil, 0, err
 	}
