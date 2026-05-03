@@ -55,7 +55,7 @@ export function TopupTable() {
   const isMobile = useMediaQuery('(max-width: 640px)')
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('__all__')
   const [dateStart, setDateStart] = useState<Date | undefined>()
   const [dateEnd, setDateEnd] = useState<Date | undefined>()
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
@@ -85,7 +85,7 @@ export function TopupTable() {
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
       keyword: keyword || undefined,
-      status: statusFilter || undefined,
+      status: statusFilter === '__all__' ? undefined : statusFilter,
       start_time: dateStart
         ? Math.floor(dateStart.getTime() / 1000)
         : undefined,
