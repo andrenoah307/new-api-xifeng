@@ -17,9 +17,14 @@ export interface RiskConfig {
   mode: string
   default_status_code: number
   default_response_message: string
-  default_recover_after_seconds: number
+  default_recover_after_secs: number
+  default_recover_mode: string
   trusted_ip_header: string
-  async_event_engine: boolean
+  trusted_ip_header_enabled: boolean
+  enabled_groups: string[]
+  group_modes: Record<string, string>
+  event_queue_size: number
+  worker_count: number
 }
 
 export interface RiskCondition {
@@ -52,25 +57,36 @@ export interface RiskRule {
 }
 
 export interface RiskSubject {
-  type: string
-  id: string | number
+  id: number
+  subject_type: string
+  subject_id: number
+  user_id: number
+  token_id: number
+  username: string
+  token_name: string
+  token_masked_key: string
+  group: string
   status: string
   risk_score: number
-  last_rule: string
-  last_hit_at: number
-  blocked_at: number
-  group: string
+  active_rule_names: string
+  last_rule_name: string
+  last_seen_at: number
+  block_until: number
 }
 
 export interface RiskIncident {
   id: number
-  scope: string
   subject_type: string
-  subject_id: string | number
+  subject_id: number
+  user_id: number
+  token_id: number
+  username: string
   rule_name: string
   decision: string
-  metric_snapshot: string
+  action: string
+  snapshot: string
   group: string
+  risk_score: number
   created_at: number
 }
 
@@ -79,46 +95,57 @@ export interface RiskGroup {
   enabled: boolean
   mode: string
   effective_mode: string
-  rule_count: number
-  subject_count: number
+  rule_count_total: number
+  rule_count_enabled: number
+  active_subject_count: number
+  blocked_subject_count: number
+  high_risk_subject_count: number
 }
 
 export interface IPDiagnosis {
-  ip: string
-  country: string
-  region: string
-  city: string
-  isp: string
-  is_proxy: boolean
-  is_vpn: boolean
-  is_tor: boolean
-  is_datacenter: boolean
-  risk_level: string
+  current_mode: string
+  current_header: string
+  effective_client_ip: string
+  effective_source: string
+  recommended_mode: string
+  recommended_header: string
+  recommendation_message: string
+  items: { header: string; value: string; source: string }[]
 }
 
 // ─── Moderation Types ───
+
+export interface ModerationConfigPayload {
+  config: ModerationConfig
+  key_count: number
+}
 
 export interface ModerationConfig {
   enabled: boolean
   mode: string
   base_url: string
   model: string
-  api_keys: string
-  sampling_rate: number
-  queue_size: number
+  api_keys: string[]
+  sampling_rate_percent: number
+  event_queue_size: number
   worker_count: number
-  http_timeout: number
-  retries: number
-  retention_hours: number
+  http_timeout_ms: number
+  max_retries: number
+  flagged_retention_hours: number
   record_unmatched_inputs: boolean
-  groups: Record<string, { enabled: boolean; mode: string }>
+  enabled_groups: string[]
+  group_modes: Record<string, string>
 }
 
 export interface ModerationOverview {
   enabled: boolean
-  api_key_count: number
+  key_count: number
   flagged_24h: number
-  event_drop_count: number
+  queue_dropped: number
+  mode: string
+  sampling_rate_percent: number
+  enabled_group_count: number
+  rule_count: number
 }
 
 export interface ModerationRule {
@@ -126,10 +153,11 @@ export interface ModerationRule {
   name: string
   description: string
   enabled: boolean
-  logic: string
+  match_mode: string
   conditions: ModerationRuleCondition[] | string
   action: string
-  action_params: string
+  score_weight: number
+  groups: string | string[]
   priority: number
   created_at: number
   updated_at: number
@@ -138,7 +166,7 @@ export interface ModerationRule {
 export interface ModerationRuleCondition {
   category: string
   op: string
-  threshold: number
+  value: number
 }
 
 export interface ModerationIncident {
@@ -146,72 +174,94 @@ export interface ModerationIncident {
   request_id: string
   user_id: number
   token_id: number
+  username: string
   model: string
   group: string
   input_summary: string
   flagged: boolean
   categories: string
-  scores: string
+  max_score: number
+  max_category: string
   matched_rules: string
-  action_taken: string
+  decision: string
   created_at: number
 }
 
 export interface ModerationCategory {
-  key: string
+  name: string
   label: string
+  image_scored: boolean
+}
+
+export interface ModerationWorkerState {
+  id: number
+  state: string
+  since: number
+  last_event_at: number
 }
 
 export interface ModerationQueueStats {
-  memory_queue_depth: number
-  redis_queue_depth: number
-  worker_state: string
-  drop_count: number
-  incident_batcher: string
+  queue_depth_memory: number
+  queue_depth_redis: number
+  redis_available: boolean
+  worker_count: number
+  worker_state: ModerationWorkerState[]
+  drop_count_total: number
+}
+
+export interface ModerationDebugPayload {
+  request_id: string
+  pending: boolean
+  result?: ModerationDebugResult
 }
 
 export interface ModerationDebugResult {
-  status: string
   flagged: boolean
   categories: Record<string, number>
-  matched_rules: string[]
   error?: string
+  decision?: {
+    decision: string
+    primary_rule_name: string
+    matched_rules: { name: string; action: string }[]
+    reason?: string
+  }
 }
 
 // ─── Enforcement Types ───
 
 export interface EnforcementConfig {
   enabled: boolean
-  email_enabled: boolean
-  email_on_risk_hit: boolean
-  email_on_moderation_hit: boolean
+  email_on_hit: boolean
   email_on_auto_ban: boolean
-  enabled_sources: string[]
   count_window_hours: number
-  ban_threshold_default: number
-  ban_threshold_risk_distribution: number
-  ban_threshold_moderation: number
-  email_rate_limit_minutes: number
-  email_template_subject: string
-  email_template_body: string
+  ban_threshold: number
+  ban_threshold_per_source: Record<string, number>
+  enabled_sources: string[]
+  email_hit_subject: string
+  email_hit_template: string
+  email_ban_subject: string
+  email_ban_template: string
+  hit_email_window_minutes: number
+  hit_email_max_per_window: number
 }
 
 export interface EnforcementOverview {
   enabled: boolean
   hits_24h: number
   auto_bans_24h: number
-  email_reminder_enabled: boolean
+  email_on_hit: boolean
+  email_on_autoban: boolean
+  ban_threshold: number
 }
 
 export interface EnforcementCounter {
-  user_id: number
+  id: number
   username: string
-  total_hits: number
-  risk_distribution_hits: number
-  moderation_hits: number
-  banned: boolean
-  banned_at: number
-  last_hit_at: number
+  email: string
+  enforcement_hit_count_risk: number
+  enforcement_hit_count_moderation: number
+  enforcement_auto_banned_at: number
+  enforcement_last_hit_at: number
 }
 
 export interface EnforcementIncident {
@@ -220,7 +270,10 @@ export interface EnforcementIncident {
   username: string
   source: string
   action: string
-  detail: string
+  reason: string
+  group: string
+  hit_count_after: number
+  threshold: number
   created_at: number
 }
 
@@ -296,15 +349,11 @@ export async function unblockSubject(
   return res.data
 }
 
-export interface RiskGroupsPayload {
-  schema_version: number
-  global_mode: string
-  items: RiskGroup[]
-}
-
 export async function getRiskGroups() {
   const res = await api.get('/api/risk/groups')
-  const payload = res.data?.data as RiskGroupsPayload | undefined
+  const payload = res.data?.data as
+    | { schema_version: number; global_mode: string; items: RiskGroup[] }
+    | undefined
   return (payload?.items ?? []) as RiskGroup[]
 }
 
@@ -317,7 +366,8 @@ export async function detectIP(ip: string) {
 
 export async function getModerationConfig() {
   const res = await api.get('/api/risk/moderation/config')
-  return res.data?.data as ModerationConfig
+  const payload = res.data?.data as ModerationConfigPayload | undefined
+  return payload
 }
 
 export async function saveModerationConfig(config: Partial<ModerationConfig>) {
@@ -385,7 +435,7 @@ export async function runModerationDebug(body: {
 
 export async function getModerationDebugResult(requestId: string) {
   const res = await api.get(`/api/risk/moderation/debug/${requestId}`)
-  return res.data?.data as ModerationDebugResult
+  return res.data?.data as ModerationDebugPayload
 }
 
 export async function getModerationQueueStats() {

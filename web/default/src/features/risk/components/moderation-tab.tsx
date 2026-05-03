@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { RefreshCw, Plus, Pencil, Trash2, Play } from 'lucide-react'
+import { Plus, Pencil, Trash2, Play } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -45,12 +45,9 @@ import {
   getModerationDebugResult,
   type ModerationConfig,
   type ModerationRule,
-  type ModerationIncident,
 } from '../api'
 import {
   riskQueryKeys,
-  safeParseJSON,
-  MODERATION_ACTION_OPTIONS,
 } from '../constants'
 import { ModerationRuleEditorDialog } from './moderation/moderation-rule-editor'
 
@@ -136,7 +133,7 @@ export function ModerationTab() {
 
   const [localConfig, setLocalConfig] = useState<ModerationConfig | null>(null)
   useEffect(() => {
-    if (config) setLocalConfig(config)
+    if (config) setLocalConfig(config.config)
   }, [config])
 
   const configMutation = useMutation({
@@ -179,7 +176,7 @@ export function ModerationTab() {
         }
         attempts++
         const result = await getModerationDebugResult(request_id)
-        if (result.status === 'completed' || result.error) {
+        if (!result.pending || result.result?.error) {
           setDebugResult(result as unknown as Record<string, unknown>)
           setDebugRunning(false)
           return
@@ -195,8 +192,7 @@ export function ModerationTab() {
   }, [debugText, debugGroup, t])
 
   const groupNames = useMemo(() => {
-    if (!config?.groups) return []
-    return Object.keys(config.groups)
+    return config?.config?.enabled_groups ?? []
   }, [config])
 
   return (
@@ -219,19 +215,19 @@ export function ModerationTab() {
             <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
               <div>
                 <span className="text-muted-foreground">{t('Memory Queue')}: </span>
-                {queueStats.memory_queue_depth}
+                {queueStats.queue_depth_memory}
               </div>
               <div>
                 <span className="text-muted-foreground">{t('Redis Queue')}: </span>
-                {queueStats.redis_queue_depth}
+                {queueStats.queue_depth_redis}
               </div>
               <div>
                 <span className="text-muted-foreground">{t('Workers')}: </span>
-                {queueStats.worker_state}
+                {queueStats.worker_count}
               </div>
               <div>
                 <span className="text-muted-foreground">{t('Drops')}: </span>
-                {queueStats.drop_count}
+                {queueStats.drop_count_total}
               </div>
             </div>
           </CardContent>
@@ -246,7 +242,7 @@ export function ModerationTab() {
         />
         <OverviewCard
           title={t('API Keys')}
-          value={overview?.api_key_count ?? 0}
+          value={overview?.key_count ?? 0}
         />
         <OverviewCard
           title={t('Flagged (24h)')}
@@ -254,7 +250,7 @@ export function ModerationTab() {
         />
         <OverviewCard
           title={t('Event Drops')}
-          value={overview?.event_drop_count ?? 0}
+          value={overview?.queue_dropped ?? 0}
         />
       </div>
 
@@ -301,10 +297,10 @@ export function ModerationTab() {
                   step="0.01"
                   min="0"
                   max="1"
-                  value={localConfig.sampling_rate}
+                  value={localConfig.sampling_rate_percent}
                   onChange={(e) =>
                     setLocalConfig((p) =>
-                      p && { ...p, sampling_rate: Number(e.target.value) }
+                      p && { ...p, sampling_rate_percent: Number(e.target.value) }
                     )
                   }
                   className="h-8"
@@ -327,10 +323,10 @@ export function ModerationTab() {
                 <Label>{t('Queue Size')}</Label>
                 <Input
                   type="number"
-                  value={localConfig.queue_size}
+                  value={localConfig.event_queue_size}
                   onChange={(e) =>
                     setLocalConfig((p) =>
-                      p && { ...p, queue_size: Number(e.target.value) }
+                      p && { ...p, event_queue_size: Number(e.target.value) }
                     )
                   }
                   className="h-8"
@@ -340,10 +336,10 @@ export function ModerationTab() {
                 <Label>{t('Retention Hours')}</Label>
                 <Input
                   type="number"
-                  value={localConfig.retention_hours}
+                  value={localConfig.flagged_retention_hours}
                   onChange={(e) =>
                     setLocalConfig((p) =>
-                      p && { ...p, retention_hours: Number(e.target.value) }
+                      p && { ...p, flagged_retention_hours: Number(e.target.value) }
                     )
                   }
                   className="h-8"
@@ -353,10 +349,10 @@ export function ModerationTab() {
             <div className="space-y-1">
               <Label>{t('API Keys')}</Label>
               <Textarea
-                value={localConfig.api_keys}
+                value={(localConfig.api_keys ?? []).join('\n')}
                 onChange={(e) =>
                   setLocalConfig((p) =>
-                    p && { ...p, api_keys: e.target.value }
+                    p && { ...p, api_keys: e.target.value.split('\n').filter(Boolean) }
                   )
                 }
                 rows={3}
@@ -424,7 +420,7 @@ export function ModerationTab() {
                         {rule.name}
                       </TableCell>
                       <TableCell className="uppercase text-xs">
-                        {rule.logic}
+                        {rule.match_mode}
                       </TableCell>
                       <TableCell>
                         <StatusBadge
@@ -619,7 +615,7 @@ export function ModerationTab() {
                         </StatusBadge>
                       </TableCell>
                       <TableCell className="text-xs">
-                        {item.action_taken || '-'}
+                        {item.decision || '-'}
                       </TableCell>
                     </TableRow>
                   ))

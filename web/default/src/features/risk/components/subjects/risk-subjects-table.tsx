@@ -170,7 +170,7 @@ export function RiskSubjectsTable() {
               items.map((item, idx) => {
                 const sc = SUBJECT_STATUS_MAP[item.status] ?? SUBJECT_STATUS_MAP.normal
                 const ruleNames = safeParseJSON(
-                  (item as Record<string, unknown>).active_rule_names,
+                  item.active_rule_names,
                   []
                 ) as string[]
                 return (
@@ -179,10 +179,10 @@ export function RiskSubjectsTable() {
                       <div className="space-y-0.5">
                         <StatusBadge
                           variant={
-                            item.type === 'token' ? 'blue' : 'success'
+                            item.subject_type === 'token' ? 'blue' : 'success'
                           }
                         >
-                          {item.type === 'token' ? 'Token' : t('User')}
+                          {item.subject_type === 'token' ? 'Token' : t('User')}
                         </StatusBadge>
                         <p className="text-muted-foreground text-xs">
                           #{item.id}
@@ -222,10 +222,8 @@ export function RiskSubjectsTable() {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">
-                      {(item as Record<string, unknown>).last_seen_at
-                        ? formatTimestamp(
-                            (item as Record<string, unknown>).last_seen_at as number
-                          )
+                      {item.last_seen_at
+                        ? formatTimestamp(item.last_seen_at)
                         : '-'}
                     </TableCell>
                     <TableCell>
@@ -238,7 +236,7 @@ export function RiskSubjectsTable() {
                         }
                         onClick={() =>
                           unblockMutation.mutate({
-                            subject_type: item.type,
+                            subject_type: item.subject_type,
                             subject_id: item.id,
                             group: item.group,
                           })
