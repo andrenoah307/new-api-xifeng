@@ -161,7 +161,7 @@ export default function TicketListPage() {
               </Select>
             </div>
             {isMobile ? (
-              <MobileCardList table={table} isLoading={isLoading} />
+              <MobileCardList table={table} isLoading={isLoading} onRowClick={(row) => handleRowClick(row.original.id)} />
             ) : isLoading && items.length === 0 ? (
               <div className="rounded-md border">
                 <Table>

@@ -270,7 +270,7 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 }
 
 func SearchUsers(keyword string, group string, role *int, status *int, startIdx int, num int) ([]*User, int64, error) {
-	var users []*User
+	users := make([]*User, 0)
 	var total int64
 	var err error
 
@@ -315,8 +315,8 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 		}
 	}
 
-	// 获取总数
-	err = query.Count(&total).Error
+	// 获取总数 — 使用 Session 克隆避免 Count 污染 query 的 Statement
+	err = query.Session(&gorm.Session{}).Count(&total).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err

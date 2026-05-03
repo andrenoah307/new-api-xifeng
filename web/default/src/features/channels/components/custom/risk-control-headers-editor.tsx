@@ -105,7 +105,7 @@ export function RiskControlHeadersEditor({ form }: Props) {
         <h4 className="text-sm font-medium">
           {t('Risk Control Headers')}
         </h4>
-        <Button variant="outline" size="sm" onClick={addRule}>
+        <Button type="button" variant="outline" size="sm" onClick={addRule}>
           <Plus className="mr-1 h-3.5 w-3.5" />
           {t('Add Field')}
         </Button>
@@ -120,6 +120,7 @@ export function RiskControlHeadersEditor({ form }: Props) {
           className="bg-muted/50 relative space-y-2 rounded-md border p-3"
         >
           <Button
+            type="button"
             variant="ghost"
             size="icon"
             className="absolute right-2 top-2 h-6 w-6"

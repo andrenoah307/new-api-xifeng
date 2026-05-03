@@ -102,6 +102,7 @@ export default function TicketDetailPage({
   }
 
   return (
+    <>
     <SectionPageLayout>
       <SectionPageLayout.Title>
         <div className="flex items-center gap-3">
@@ -158,14 +159,15 @@ export default function TicketDetailPage({
         </div>
       </SectionPageLayout.Content>
 
-      <ConfirmDialog
-        open={closeOpen}
-        onOpenChange={setCloseOpen}
-        title={t('Close Ticket')}
-        desc={t('Are you sure you want to close this ticket?')}
-        handleConfirm={() => closeMutation.mutate()}
-        isLoading={closeMutation.isPending}
-      />
     </SectionPageLayout>
+    <ConfirmDialog
+      open={closeOpen}
+      onOpenChange={setCloseOpen}
+      title={t('Close Ticket')}
+      desc={t('Are you sure you want to close this ticket?')}
+      handleConfirm={() => closeMutation.mutate()}
+      isLoading={closeMutation.isPending}
+    />
+    </>
   )
 }

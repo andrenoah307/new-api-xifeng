@@ -72,6 +72,7 @@ func SearchRedemptions(keyword string, startIdx int, num int) (redemptions []*Re
 	}()
 
 	// Build query based on keyword type
+	redemptions = make([]*Redemption, 0)
 	query := tx.Model(&Redemption{})
 
 	// Only try to convert to ID if the string represents a valid integer
@@ -82,7 +83,7 @@ func SearchRedemptions(keyword string, startIdx int, num int) (redemptions []*Re
 	}
 
 	// Get total count
-	err = query.Count(&total).Error
+	err = query.Session(&gorm.Session{}).Count(&total).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err

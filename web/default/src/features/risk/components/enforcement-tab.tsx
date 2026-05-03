@@ -198,10 +198,12 @@ export function EnforcementTab() {
         <OverviewCard
           title={t('Status')}
           value={overview?.enabled ? t('Enabled') : t('Disabled')}
+          extra={`${t('Window')}: ${localConfig?.count_window_hours ?? '-'}h`}
         />
         <OverviewCard
           title={t('Hits (24h)')}
           value={overview?.hits_24h ?? 0}
+          extra={`${t('Threshold')}: ${overview?.ban_threshold ?? '-'}`}
         />
         <OverviewCard
           title={t('Auto Bans (24h)')}
@@ -212,6 +214,7 @@ export function EnforcementTab() {
           value={
             overview?.email_on_hit ? t('Enabled') : t('Disabled')
           }
+          extra={t('Reuses ticket email channel')}
         />
       </div>
 
@@ -238,6 +241,15 @@ export function EnforcementTab() {
                   checked={localConfig.email_on_hit}
                   onCheckedChange={(v) =>
                     setLocalConfig((p) => p && { ...p, email_on_hit: v })
+                  }
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <Label>{t('Email on Auto-ban')}</Label>
+                <Switch
+                  checked={localConfig.email_on_auto_ban}
+                  onCheckedChange={(v) =>
+                    setLocalConfig((p) => p && { ...p, email_on_auto_ban: v })
                   }
                 />
               </div>
@@ -327,6 +339,40 @@ export function EnforcementTab() {
                   className="h-8"
                 />
               </div>
+              <div className="space-y-1">
+                <Label>{t('Max Emails per Window')}</Label>
+                <Input
+                  type="number"
+                  value={localConfig.hit_email_max_per_window}
+                  onChange={(e) =>
+                    setLocalConfig((p) =>
+                      p && {
+                        ...p,
+                        hit_email_max_per_window: Number(e.target.value),
+                      }
+                    )
+                  }
+                  className="h-8"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>{t('Enabled Sources')}</Label>
+              <Input
+                value={(localConfig.enabled_sources ?? []).join(', ')}
+                onChange={(e) =>
+                  setLocalConfig((p) =>
+                    p && {
+                      ...p,
+                      enabled_sources: e.target.value
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    }
+                  )
+                }
+                placeholder="risk_distribution, moderation"
+              />
             </div>
             <div className="space-y-1">
               <Label>{t('Email Subject Template')}</Label>
@@ -346,6 +392,29 @@ export function EnforcementTab() {
                 onChange={(e) =>
                   setLocalConfig((p) =>
                     p && { ...p, email_hit_template: e.target.value }
+                  )
+                }
+                rows={4}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{t('Ban Email Subject Template')}</Label>
+              <Input
+                value={localConfig.email_ban_subject}
+                onChange={(e) =>
+                  setLocalConfig((p) =>
+                    p && { ...p, email_ban_subject: e.target.value }
+                  )
+                }
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>{t('Ban Email Body Template')}</Label>
+              <Textarea
+                value={localConfig.email_ban_template}
+                onChange={(e) =>
+                  setLocalConfig((p) =>
+                    p && { ...p, email_ban_template: e.target.value }
                   )
                 }
                 rows={4}

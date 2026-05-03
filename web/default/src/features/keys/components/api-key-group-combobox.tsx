@@ -152,6 +152,10 @@ export function ApiKeyGroupCombobox({
               <span className='text-muted-foreground block truncate text-[11px] sm:text-xs'>
                 {selectedOption.desc}
               </span>
+            {selectedOption?.desc && (
+              <span className='text-muted-foreground block text-[11px] leading-snug break-words sm:text-xs'>
+                {selectedOption.desc}
+              </span>
             )}
           </span>
           <span className='hidden sm:block'>
@@ -193,7 +197,7 @@ export function ApiKeyGroupCombobox({
                       {option.label}
                     </span>
                     {option.desc && (
-                      <span className='text-muted-foreground block truncate text-xs'>
+                      <span className='text-muted-foreground block text-xs leading-snug break-words'>
                         {option.desc}
                       </span>
                     )}
