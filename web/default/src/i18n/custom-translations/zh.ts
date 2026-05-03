@@ -115,7 +115,7 @@ const zh: Record<string, string> = {
   Clean: '正常',
   'Event Drops': '事件丢弃',
   'Content moderation is off by default and requires explicit configuration.':
-    '内容审核默认关闭，需要显式��置启用。',
+    '内容审核默认关闭，需要显式配置启用。',
   'Enforcement handles post-hit actions: email reminders, counter tracking, and auto-banning.':
     '处置操作处理命中后动作：邮件提醒、计数器跟踪和自动封禁。',
   'Email Enabled': '邮件启用',
