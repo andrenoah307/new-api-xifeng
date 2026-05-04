@@ -284,7 +284,7 @@ func desensitizeGroupStat(stat *model.GroupMonitoringStat) gin.H {
 		"cache_hit_rate":    stat.CacheHitRate,
 		"avg_response_time": stat.AvgResponseTime,
 		"avg_frt":           stat.AvgFRT,
-		"is_online":         stat.OnlineChannels > 0,
+		"is_online":         stat.OnlineChannels > 0 || stat.TotalChannels == 0,
 		"group_ratio":       stat.GroupRatio,
 		"last_test_model":   stat.LastTestModel,
 		"updated_at":        stat.UpdatedAt,
