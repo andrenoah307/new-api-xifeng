@@ -254,7 +254,7 @@ export async function getAdminRefundDetail(
   ticketId: number
 ): Promise<TicketRefund | null> {
   const res = await api.get(`/api/ticket/admin/${ticketId}/refund`)
-  return res.data?.data ?? null
+  return res.data?.data?.refund ?? null
 }
 
 export async function getAdminUserProfile(
