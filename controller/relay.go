@@ -311,6 +311,20 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 	}
 
+	if newAPIError != nil && common.GroupMonitoringHook != nil {
+		startTime := common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)
+		if startTime.IsZero() {
+			startTime = time.Now()
+		}
+		useTimeMs := int(time.Since(startTime).Milliseconds())
+		common.GroupMonitoringHook(
+			c.GetString("group"), c.GetInt("channel_id"), false,
+			0, 0, useTimeMs, 0,
+			c.GetString("original_model"), newAPIError.StatusCode,
+			newAPIError.MaskSensitiveErrorWithStatusCode(),
+		)
+	}
+
 	useChannel := c.GetStringSlice("use_channel")
 	if len(useChannel) > 1 {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
@@ -480,21 +494,6 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		gopool.Go(func() {
 			service.DisableChannel(channelError, err.ErrorWithStatusCode())
 		})
-	}
-
-	// Record failure to monitoring unconditionally (not gated by ErrorLogEnabled)
-	if common.GroupMonitoringHook != nil {
-		startTime := common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)
-		if startTime.IsZero() {
-			startTime = time.Now()
-		}
-		useTimeMs := int(time.Since(startTime).Seconds()) * 1000
-		common.GroupMonitoringHook(
-			c.GetString("group"), c.GetInt("channel_id"), false,
-			0, 0, useTimeMs, 0,
-			c.GetString("original_model"), err.StatusCode,
-			err.MaskSensitiveErrorWithStatusCode(),
-		)
 	}
 
 	if constant.ErrorLogEnabled && types.IsRecordErrorLog(err) {
@@ -699,6 +698,19 @@ func RelayTask(c *gin.Context) {
 		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
+	}
+
+	if taskErr != nil && !taskErr.LocalError && common.GroupMonitoringHook != nil {
+		startTime := common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)
+		if startTime.IsZero() {
+			startTime = time.Now()
+		}
+		useTimeMs := int(time.Since(startTime).Milliseconds())
+		common.GroupMonitoringHook(
+			c.GetString("group"), c.GetInt("channel_id"), false,
+			0, 0, useTimeMs, 0,
+			c.GetString("original_model"), taskErr.StatusCode, "",
+		)
 	}
 
 	useChannel := c.GetStringSlice("use_channel")
