@@ -293,7 +293,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 		if ga.totalRequests > 0 {
 			stat.AvailabilityRate = float64(ga.totalSuccess) / float64(ga.totalRequests) * 100
 		} else {
-			stat.AvailabilityRate = -1
+			stat.AvailabilityRate = 100
 		}
 
 		if ga.totalPromptTok > 0 {
@@ -445,10 +445,10 @@ func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting) {
 				stat.AvailabilityRate = float64(ga.totalSuccess) / float64(ga.totalReq) * 100
 				stat.AvgResponseTime = int(ga.totalRespMs / ga.totalReq)
 			} else {
-				stat.AvailabilityRate = -1
+				stat.AvailabilityRate = 100
 			}
 		} else {
-			stat.AvailabilityRate = -1
+			stat.AvailabilityRate = 100
 		}
 		stat.CacheHitRate = -1
 

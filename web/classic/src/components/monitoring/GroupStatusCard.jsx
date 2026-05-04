@@ -51,7 +51,7 @@ function formatClock(unixSec) {
 const GroupStatusCard = memo(({ group, onClick }) => {
   const { t } = useTranslation();
 
-  const isOnline = group.is_online ?? group.online_channels > 0;
+  const isOnline = group.is_online ?? (group.total_channels === 0 || group.online_channels > 0);
   const availRate =
     group.availability_rate != null && group.availability_rate >= 0
       ? group.availability_rate

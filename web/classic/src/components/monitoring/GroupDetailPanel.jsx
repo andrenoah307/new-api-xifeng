@@ -117,7 +117,7 @@ const GroupDetailPanel = memo(({ visible, group, onClose }) => {
   }, [visible, group, t, admin]);
 
   const isOnline = group
-    ? group.is_online ?? group.online_channels > 0
+    ? group.is_online ?? (group.total_channels === 0 || group.online_channels > 0)
     : false;
   const availRate =
     group?.availability_rate != null && group.availability_rate >= 0

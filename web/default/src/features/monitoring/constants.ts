@@ -44,8 +44,11 @@ export function formatDateTime(unixSec: number | null | undefined): string {
 export function isGroupOnline(group: {
   is_online?: boolean
   online_channels?: number
+  total_channels?: number
 }): boolean {
-  return group.is_online ?? (group.online_channels ?? 0) > 0
+  if (group.is_online != null) return group.is_online
+  if ((group.total_channels ?? 0) === 0) return true
+  return (group.online_channels ?? 0) > 0
 }
 
 export function avgAvailability(
