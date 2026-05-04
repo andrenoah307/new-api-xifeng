@@ -25,29 +25,23 @@ import { useTranslation } from 'react-i18next';
  * Color mapping for availability segments. Uses Semi design tokens so dark
  * mode is automatic via `theme-mode=dark` on body.
  */
-function segmentColor(rate, avgFrt) {
-  if (rate == null || rate < 0)
+function segmentColor(rate, avgFrt, requestCount) {
+  if (requestCount != null && requestCount <= 0)
     return 'var(--semi-color-fill-1)';
-  if (rate >= 99) {
-    if (avgFrt != null && avgFrt > 8000) return 'var(--semi-color-warning)';
-    return 'var(--semi-color-success)';
-  }
-  if (rate >= 95) return 'var(--semi-color-success-light-active)';
-  if (rate >= 80) return 'var(--semi-color-warning)';
-  if (rate >= 50) return '#f97316';
-  return 'var(--semi-color-danger)';
+  if (rate != null && rate < 0)
+    return 'var(--semi-color-fill-1)';
+  if (avgFrt == null || avgFrt <= 0)
+    return 'var(--semi-color-fill-1)';
+  if (avgFrt < 8000) return 'var(--semi-color-success)';
+  return 'var(--semi-color-warning)';
 }
 
-function segmentLabel(rate, avgFrt, t) {
-  if (rate == null || rate < 0) return t('暂无数据');
-  if (rate >= 99) {
-    if (avgFrt != null && avgFrt > 8000) return t('响应缓慢');
-    return t('正常');
-  }
-  if (rate >= 95) return t('轻微抖动');
-  if (rate >= 80) return t('部分异常');
-  if (rate >= 50) return t('严重异常');
-  return t('故障');
+function segmentLabel(rate, avgFrt, t, requestCount) {
+  if (requestCount != null && requestCount <= 0) return t('暂无数据');
+  if (rate != null && rate < 0) return t('暂无数据');
+  if (avgFrt == null || avgFrt <= 0) return t('暂无数据');
+  if (avgFrt < 8000) return t('正常');
+  return t('响应缓慢');
 }
 
 function formatTime(unixSec) {
@@ -107,7 +101,8 @@ const StatusTimeline = ({ history, segmentCount = 60, compact = false }) => {
         {segments.map((seg, idx) => {
           const rate = seg?.availability_rate;
           const avgFrt = seg?.avg_frt;
-          const bg = segmentColor(rate, avgFrt);
+          const requestCount = seg?.request_count;
+          const bg = segmentColor(rate, avgFrt, requestCount);
           const isEmpty = seg == null;
           const tip = isEmpty ? (
             <span className='text-xs'>{t('暂无数据')}</span>
@@ -115,7 +110,7 @@ const StatusTimeline = ({ history, segmentCount = 60, compact = false }) => {
             <div className='space-y-0.5 text-xs'>
               <div className='font-medium'>{formatTime(seg.recorded_at)}</div>
               <div>
-                {t('状态')}: {segmentLabel(rate, avgFrt, t)}
+                {t('状态')}: {segmentLabel(rate, avgFrt, t, requestCount)}
               </div>
               {rate != null && rate >= 0 && (
                 <div>

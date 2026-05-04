@@ -24,6 +24,7 @@ export interface MonitoringHistoryPoint {
   recorded_at: number
   availability_rate: number | null
   avg_frt: number | null
+  request_count: number | null
   cache_hit_rate: number | null
 }
 
