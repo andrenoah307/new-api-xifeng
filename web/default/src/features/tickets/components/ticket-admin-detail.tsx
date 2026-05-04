@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -72,6 +72,15 @@ export default function TicketAdminDetailPage({
 
   const isInvoice = ticket?.type === 'invoice'
   const isRefund = ticket?.type === 'refund'
+
+  const conversationMessages = useMemo(() => {
+    if (!isRefund || messages.length === 0) return messages
+    const first = messages[0]
+    if (first && first.content?.startsWith('退款申请信息')) {
+      return messages.slice(1)
+    }
+    return messages
+  }, [messages, isRefund])
 
   const { data: invoiceData } = useQuery({
     queryKey: ticketQueryKeys.adminInvoice(ticketId),
@@ -282,7 +291,7 @@ export default function TicketAdminDetailPage({
           <Separator />
 
           <TicketConversation
-            messages={messages}
+            messages={conversationMessages}
             currentUserId={accountId}
           />
 
