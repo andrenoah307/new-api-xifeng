@@ -105,33 +105,30 @@ export function saveSortMode(mode: SortMode): void {
 
 export function segmentColor(
   rate: number | null | undefined,
-  avgFrt: number | null | undefined
+  avgFrt: number | null | undefined,
+  requestCount?: number | null | undefined
 ): string {
-  if (rate == null || rate < 0) return 'color-mix(in oklch, var(--muted) 50%, transparent)'
-  if (rate >= 99) {
-    if (avgFrt != null && avgFrt > 8000) return '#eab308'
-    return '#22c55e'
-  }
-  if (rate >= 95) return 'rgba(34,197,94,0.7)'
-  if (rate >= 80) return '#eab308'
-  if (rate >= 50) return '#f97316'
-  return 'var(--destructive)'
+  if (requestCount != null && requestCount <= 0)
+    return 'color-mix(in oklch, var(--muted) 50%, transparent)'
+  if (rate != null && rate < 0)
+    return 'color-mix(in oklch, var(--muted) 50%, transparent)'
+  if (avgFrt == null || avgFrt <= 0)
+    return 'color-mix(in oklch, var(--muted) 50%, transparent)'
+  if (avgFrt < 8000) return '#22c55e'
+  return '#eab308'
 }
 
 export function segmentLabel(
   rate: number | null | undefined,
   avgFrt: number | null | undefined,
-  t: (key: string) => string
+  t: (key: string) => string,
+  requestCount?: number | null | undefined
 ): string {
-  if (rate == null || rate < 0) return t('No data available')
-  if (rate >= 99) {
-    if (avgFrt != null && avgFrt > 8000) return t('Slow Response')
-    return t('Normal')
-  }
-  if (rate >= 95) return t('Minor Jitter')
-  if (rate >= 80) return t('Partial Anomaly')
-  if (rate >= 50) return t('Severe Anomaly')
-  return t('Failure')
+  if (requestCount != null && requestCount <= 0) return t('No data available')
+  if (rate != null && rate < 0) return t('No data available')
+  if (avgFrt == null || avgFrt <= 0) return t('No data available')
+  if (avgFrt < 8000) return t('Normal')
+  return t('Slow Response')
 }
 
 export function alignAndFillHistory(

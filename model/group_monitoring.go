@@ -43,6 +43,7 @@ type MonitoringHistory struct {
 	AvailabilityRate float64 `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
 	CacheHitRate     float64 `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
 	AvgFRT           int     `json:"avg_frt" gorm:"default:0"`
+	RequestCount     int     `json:"request_count" gorm:"default:0"`
 	RecordedAt       int64   `json:"recorded_at" gorm:"bigint;index:idx_mh_group_time;index:idx_mh_time"`
 }
 
