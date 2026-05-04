@@ -15,6 +15,7 @@ const DEFAULT_HEADER_NAV_MODULES = {
   home: true,
   console: true,
   pricing: { enabled: true, requireAuth: false },
+  monitoring: true,
   docs: true,
   about: true,
 }
@@ -72,6 +73,11 @@ export function useTopNavLinks(): TopNavLink[] {
   if (pricing && typeof pricing === 'object' && pricing.enabled) {
     const disabled = pricing.requireAuth && !isAuthed
     links.push({ title: t('Model Square'), href: '/pricing', disabled })
+  }
+
+  // Group Monitoring
+  if (modules?.monitoring !== false) {
+    links.push({ title: t('Group Monitoring'), href: '/monitoring' })
   }
 
   // Docs (supports external links)
