@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -49,6 +49,15 @@ export default function TicketDetailPage({
   const invoice = data?.invoice
   const invoiceOrders = data?.invoice_orders ?? []
   const refund = data?.refund
+
+  const conversationMessages = useMemo(() => {
+    if (!refund || messages.length === 0) return messages
+    const first = messages[0]
+    if (first && first.content?.startsWith('退款申请信息')) {
+      return messages.slice(1)
+    }
+    return messages
+  }, [messages, refund])
 
   const replyMutation = useMutation({
     mutationFn: ({
@@ -146,7 +155,7 @@ export default function TicketDetailPage({
           <Separator />
 
           <TicketConversation
-            messages={messages}
+            messages={conversationMessages}
             currentUserId={userId}
           />
 
