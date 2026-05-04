@@ -578,7 +578,7 @@ export function ModerationTab() {
             </Button>
           </div>
           {debugResult && (
-            <pre className="bg-muted rounded-md p-3 text-xs overflow-auto max-h-[200px] whitespace-pre-wrap break-words">
+            <pre className="bg-muted max-h-[200px] overflow-x-hidden overflow-y-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
               {JSON.stringify(debugResult, null, 2)}
             </pre>
           )}
@@ -753,48 +753,48 @@ export function ModerationTab() {
 
       {/* Incident Detail Dialog */}
       <Dialog open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-x-hidden overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('Incident Detail')}</DialogTitle>
           </DialogHeader>
           {detailData ? (
-            <div className="space-y-4">
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+            <div className="min-w-0 space-y-4">
+              <dl className="grid min-w-0 grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
                 <dt className="text-muted-foreground">{t('Request ID')}</dt>
-                <dd className="font-mono text-xs break-all">{detailData.request_id}</dd>
+                <dd className="min-w-0 overflow-hidden font-mono text-xs break-all">{detailData.request_id}</dd>
                 <dt className="text-muted-foreground">{t('User')}</dt>
-                <dd>{detailData.username} (UID {detailData.user_id})</dd>
+                <dd className="min-w-0 overflow-hidden">{detailData.username} (UID {detailData.user_id})</dd>
                 <dt className="text-muted-foreground">{t('Token')}</dt>
-                <dd>ID {detailData.token_id}</dd>
+                <dd className="min-w-0 overflow-hidden">ID {detailData.token_id}</dd>
                 <dt className="text-muted-foreground">{t('Model')}</dt>
-                <dd>{detailData.model}</dd>
+                <dd className="min-w-0 overflow-hidden">{detailData.model}</dd>
                 <dt className="text-muted-foreground">{t('Group')}</dt>
-                <dd>
+                <dd className="min-w-0 overflow-hidden">
                   <StatusBadge variant="cyan">{detailData.group || '-'}</StatusBadge>
                 </dd>
                 <dt className="text-muted-foreground">{t('Decision')}</dt>
-                <dd>{detailData.decision || '-'}</dd>
+                <dd className="min-w-0 overflow-hidden">{detailData.decision || '-'}</dd>
                 <dt className="text-muted-foreground">{t('Flagged')}</dt>
-                <dd>
+                <dd className="min-w-0 overflow-hidden">
                   <StatusBadge variant={detailData.flagged ? 'danger' : 'success'}>
                     {detailData.flagged ? t('Flagged') : t('Clean')}
                   </StatusBadge>
                 </dd>
                 <dt className="text-muted-foreground">{t('Max Category')}</dt>
-                <dd>{detailData.max_category || '-'}</dd>
+                <dd className="min-w-0 overflow-hidden">{detailData.max_category || '-'}</dd>
                 <dt className="text-muted-foreground">{t('Max Score')}</dt>
-                <dd>{detailData.max_score ?? '-'}</dd>
+                <dd className="min-w-0 overflow-hidden">{detailData.max_score ?? '-'}</dd>
                 <dt className="text-muted-foreground">{t('Matched Rules')}</dt>
-                <dd>{detailData.matched_rules || '-'}</dd>
+                <dd className="min-w-0 overflow-hidden">{detailData.matched_rules || '-'}</dd>
                 <dt className="text-muted-foreground">{t('Time')}</dt>
-                <dd>{formatTimestamp(detailData.created_at)}</dd>
+                <dd className="min-w-0 overflow-hidden">{formatTimestamp(detailData.created_at)}</dd>
               </dl>
               {detailData.categories && (
                 <>
                   <Separator />
-                  <div>
+                  <div className="min-w-0">
                     <Label className="text-xs font-medium">{t('Category Scores')}</Label>
-                    <pre className="bg-muted mt-1 rounded-md p-3 text-xs overflow-auto max-h-[150px] whitespace-pre-wrap break-words">
+                    <pre className="bg-muted mt-1 max-h-[150px] overflow-x-hidden overflow-y-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
                       {typeof detailData.categories === 'string'
                         ? (() => { try { return JSON.stringify(JSON.parse(detailData.categories), null, 2) } catch { return detailData.categories } })()
                         : JSON.stringify(detailData.categories, null, 2)}
@@ -805,9 +805,9 @@ export function ModerationTab() {
               {detailData.input_summary && (
                 <>
                   <Separator />
-                  <div>
+                  <div className="min-w-0">
                     <Label className="text-xs font-medium">{t('Input Content')}</Label>
-                    <pre className="bg-muted mt-1 rounded-md p-3 text-xs overflow-auto max-h-[200px] whitespace-pre-wrap break-words">
+                    <pre className="bg-muted mt-1 max-h-[200px] overflow-x-hidden overflow-y-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
                       {detailData.input_summary}
                     </pre>
                   </div>
