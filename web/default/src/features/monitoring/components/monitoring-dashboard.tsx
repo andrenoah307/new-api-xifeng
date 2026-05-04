@@ -275,7 +275,7 @@ export default function MonitoringDashboard() {
   const loading = groupsLoading && groups.length === 0
 
   return (
-    <div className="mt-[60px] px-4 pb-12 sm:px-8 lg:px-10">
+    <div className="px-4 pb-12 sm:px-8 lg:px-10">
       <div className="mx-auto w-full max-w-[1440px]">
         {/* Title bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-6 sm:py-8">
