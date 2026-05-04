@@ -121,6 +121,13 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 	channelCacheData := make(map[channelKey]*bucketData)
 	channelLatestBucket := make(map[channelKey]int64)
 
+	// Per-group per-bucket FRT data for interval-level history points
+	type groupBucketKey struct {
+		Group    string
+		BucketTs int64
+	}
+	groupBucketFRT := make(map[groupBucketKey]*bucketData)
+
 	for {
 		keys, nextCursor, err := common.RDB.Scan(ctx, cursor, "gm:b:*", 200).Result()
 		if err != nil {
@@ -157,6 +164,16 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 				agg.RespTimeMs += bd.RespTimeMs
 				agg.FRTSumMs += bd.FRTSumMs
 				agg.FRTCount += bd.FRTCount
+
+				gbk := groupBucketKey{Group: group, BucketTs: bucketTs}
+				gbAgg, ok := groupBucketFRT[gbk]
+				if !ok {
+					gbAgg = &bucketData{}
+					groupBucketFRT[gbk] = gbAgg
+				}
+				gbAgg.Total += bd.Total
+				gbAgg.FRTSumMs += bd.FRTSumMs
+				gbAgg.FRTCount += bd.FRTCount
 			}
 
 			if bucketTs >= cacheStart {
@@ -299,11 +316,30 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 			common.SysError("group monitoring: upsert group stat error: " + err.Error())
 		}
 
+		// Find the latest bucket for this group to get per-interval FRT
+		var latestBucketTs int64
+		for gbk := range groupBucketFRT {
+			if gbk.Group == groupName && gbk.BucketTs > latestBucketTs {
+				latestBucketTs = gbk.BucketTs
+			}
+		}
+		intervalFRT := 0
+		intervalReqCount := 0
+		if latestBucketTs > 0 {
+			if gbData, ok := groupBucketFRT[groupBucketKey{Group: groupName, BucketTs: latestBucketTs}]; ok {
+				intervalReqCount = int(gbData.Total)
+				if gbData.FRTCount > 0 {
+					intervalFRT = int(gbData.FRTSumMs / gbData.FRTCount)
+				}
+			}
+		}
+
 		_ = model.InsertMonitoringHistory(&model.MonitoringHistory{
 			GroupName:        groupName,
 			AvailabilityRate: stat.AvailabilityRate,
 			CacheHitRate:     stat.CacheHitRate,
-			AvgFRT:           stat.AvgFRT,
+			AvgFRT:           intervalFRT,
+			RequestCount:     intervalReqCount,
 			RecordedAt:       time.Now().Unix(),
 		})
 	}
