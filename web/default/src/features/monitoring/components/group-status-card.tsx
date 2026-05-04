@@ -28,6 +28,8 @@ const GroupStatusCard = memo(function GroupStatusCard({
   const { t } = useTranslation()
 
   const online = isGroupOnline(group)
+  const noData =
+    (group.total_channels ?? 0) === 0 && (group.availability_rate == null || group.availability_rate < 0)
   const availRate =
     group.availability_rate != null && group.availability_rate >= 0
       ? group.availability_rate
@@ -39,15 +41,19 @@ const GroupStatusCard = memo(function GroupStatusCard({
   const showCache = cacheRate != null && cacheRate >= 3
   const frt = group.avg_frt ?? group.first_response_time
 
-  const dotColor = !online
-    ? 'var(--destructive)'
-    : availRate == null
-      ? 'color-mix(in oklch, var(--muted-foreground) 40%, transparent)'
-      : rateAccentColor(availRate)
+  const dotColor = noData
+    ? 'color-mix(in oklch, var(--muted-foreground) 40%, transparent)'
+    : !online
+      ? 'var(--destructive)'
+      : availRate == null
+        ? 'color-mix(in oklch, var(--muted-foreground) 40%, transparent)'
+        : rateAccentColor(availRate)
 
-  const headlineColor = !online
-    ? 'var(--destructive)'
-    : rateAccentColor(availRate)
+  const headlineColor = noData
+    ? 'var(--muted-foreground)'
+    : !online
+      ? 'var(--destructive)'
+      : rateAccentColor(availRate)
 
   return (
     <div
@@ -60,7 +66,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span
-              className={`inline-block h-2 w-2 shrink-0 rounded-full ${!online ? 'animate-pulse' : ''}`}
+              className={`inline-block h-2 w-2 shrink-0 rounded-full ${!online && !noData ? 'animate-pulse' : ''}`}
               style={{ background: dotColor }}
               aria-hidden
             />
@@ -111,7 +117,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
             </div>
           )}
           <div className="text-muted-foreground mt-1 text-[10px] uppercase tracking-wider">
-            {online ? t('Availability') : t('Offline')}
+            {noData ? t('No data available') : online ? t('Availability') : t('Offline')}
           </div>
         </div>
       </div>

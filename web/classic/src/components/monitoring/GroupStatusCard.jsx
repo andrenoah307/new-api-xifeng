@@ -51,7 +51,9 @@ function formatClock(unixSec) {
 const GroupStatusCard = memo(({ group, onClick }) => {
   const { t } = useTranslation();
 
-  const isOnline = group.is_online ?? (group.total_channels === 0 || group.online_channels > 0);
+  const noData =
+    (group.total_channels ?? 0) === 0 && (group.availability_rate == null || group.availability_rate < 0);
+  const isOnline = noData ? true : (group.is_online ?? (group.total_channels === 0 || group.online_channels > 0));
   const availRate =
     group.availability_rate != null && group.availability_rate >= 0
       ? group.availability_rate
@@ -63,17 +65,19 @@ const GroupStatusCard = memo(({ group, onClick }) => {
   const showCache = cacheRate != null && cacheRate >= 3;
   const frt = group.avg_frt ?? group.first_response_time;
 
-  // Status dot reflects current online state primarily, then degrades
-  // by historical availability if online.
-  const dotColor = !isOnline
-    ? 'var(--semi-color-danger)'
-    : availRate == null
-      ? 'var(--semi-color-fill-2)'
-      : rateAccent(availRate);
+  const dotColor = noData
+    ? 'var(--semi-color-fill-2)'
+    : !isOnline
+      ? 'var(--semi-color-danger)'
+      : availRate == null
+        ? 'var(--semi-color-fill-2)'
+        : rateAccent(availRate);
 
-  const headlineColor = !isOnline
-    ? 'var(--semi-color-danger)'
-    : rateAccent(availRate);
+  const headlineColor = noData
+    ? 'var(--semi-color-text-3)'
+    : !isOnline
+      ? 'var(--semi-color-danger)'
+      : rateAccent(availRate);
 
   return (
     <div
@@ -87,7 +91,7 @@ const GroupStatusCard = memo(({ group, onClick }) => {
           <div className='flex items-center gap-2'>
             <span
               className={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${
-                !isOnline ? 'animate-pulse' : ''
+                !isOnline && !noData ? 'animate-pulse' : ''
               }`}
               style={{ background: dotColor }}
               aria-hidden
@@ -135,7 +139,7 @@ const GroupStatusCard = memo(({ group, onClick }) => {
             </div>
           )}
           <div className='mt-1 text-[10px] uppercase tracking-wider text-semi-color-text-3'>
-            {isOnline ? t('可用率') : t('已离线')}
+            {noData ? t('暂无数据') : isOnline ? t('可用率') : t('已离线')}
           </div>
         </div>
       </div>

@@ -47,7 +47,6 @@ export function isGroupOnline(group: {
   total_channels?: number
 }): boolean {
   if (group.is_online != null) return group.is_online
-  if ((group.total_channels ?? 0) === 0) return true
   return (group.online_channels ?? 0) > 0
 }
 
