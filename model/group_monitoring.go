@@ -39,12 +39,12 @@ type GroupMonitoringStat struct {
 
 type MonitoringHistory struct {
 	Id               int64   `json:"id" gorm:"primaryKey;autoIncrement"`
-	GroupName        string  `json:"group_name" gorm:"type:varchar(64);index:idx_mh_group_time"`
+	GroupName        string  `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_mh_group_recorded"`
 	AvailabilityRate float64 `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
 	CacheHitRate     float64 `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
 	AvgFRT           int     `json:"avg_frt" gorm:"default:0"`
 	RequestCount     int     `json:"request_count" gorm:"default:0"`
-	RecordedAt       int64   `json:"recorded_at" gorm:"bigint;index:idx_mh_group_time;index:idx_mh_time"`
+	RecordedAt       int64   `json:"recorded_at" gorm:"bigint;uniqueIndex:idx_mh_group_recorded;index:idx_mh_time"`
 }
 
 func GetGroupMonitoringStatsByNames(names []string) ([]GroupMonitoringStat, error) {
@@ -113,8 +113,13 @@ func UpsertGroupMonitoringStat(stat *GroupMonitoringStat) error {
 	}).Create(stat).Error
 }
 
-func InsertMonitoringHistory(h *MonitoringHistory) error {
-	return DB.Create(h).Error
+func UpsertMonitoringHistory(h *MonitoringHistory) error {
+	return DB.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "group_name"}, {Name: "recorded_at"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"availability_rate", "cache_hit_rate", "avg_frt", "request_count",
+		}),
+	}).Create(h).Error
 }
 
 func CleanupOldMonitoringHistory(beforeTime int64) error {

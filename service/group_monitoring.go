@@ -346,13 +346,13 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 			}
 		}
 
-		_ = model.InsertMonitoringHistory(&model.MonitoringHistory{
+		_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
 			GroupName:        groupName,
 			AvailabilityRate: stat.AvailabilityRate,
 			CacheHitRate:     stat.CacheHitRate,
 			AvgFRT:           intervalFRT,
 			RequestCount:     intervalReqCount,
-			RecordedAt:       time.Now().Unix(),
+			RecordedAt:       (now / bucketSec) * bucketSec,
 		})
 	}
 
@@ -362,6 +362,11 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 
 func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting) {
 	now := time.Now().Unix()
+	intervalSec := int64(cfg.AggregationIntervalMinutes * 60)
+	if intervalSec <= 0 {
+		intervalSec = 300
+	}
+	alignedAt := (now / intervalSec) * intervalSec
 	availStart := now - int64(cfg.AvailabilityPeriodMinutes*60)
 
 	monitoredSet := make(map[string]struct{}, len(cfg.MonitoringGroups))
@@ -465,12 +470,12 @@ func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting) {
 		stat.CacheHitRate = -1
 
 		_ = model.UpsertGroupMonitoringStat(stat)
-		_ = model.InsertMonitoringHistory(&model.MonitoringHistory{
+		_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
 			GroupName:        groupName,
 			AvailabilityRate: stat.AvailabilityRate,
 			CacheHitRate:     stat.CacheHitRate,
 			AvgFRT:           stat.AvgFRT,
-			RecordedAt:       time.Now().Unix(),
+			RecordedAt:       alignedAt,
 		})
 	}
 
