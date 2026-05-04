@@ -40,7 +40,7 @@ import { TicketConversation } from './ticket-conversation'
 import { TicketReplyBox } from './ticket-reply-box'
 import { InvoiceDetail } from './invoice-detail'
 import { RefundDetail } from './refund-detail'
-import { TicketUserProfilePanel } from './ticket-user-profile'
+import { TicketUserProfileButton } from './ticket-user-profile'
 
 export default function TicketAdminDetailPage({
   ticketId,
@@ -255,12 +255,13 @@ export default function TicketAdminDetailPage({
           >
             {t('Save')}
           </Button>
+          {ticket?.user_id && (
+            <TicketUserProfileButton ticketId={ticketId} />
+          )}
         </div>
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <div className="space-y-6">
-          <TicketUserProfilePanel ticketId={ticketId} />
-
           {isInvoice && invoiceData?.invoice && (
             <InvoiceDetail
               invoice={invoiceData.invoice}
