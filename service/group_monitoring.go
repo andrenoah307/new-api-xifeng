@@ -215,6 +215,14 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 
 	channelStats := make([]*model.ChannelMonitoringStat, 0)
 
+	// First pass: determine channel online status
+	type channelResult struct {
+		stat     *model.ChannelMonitoringStat
+		avail    *bucketData
+		isOnline bool
+	}
+	channelResults := make(map[channelKey]*channelResult)
+
 	for ck, avail := range channelAvailData {
 		stat := &model.ChannelMonitoringStat{
 			GroupName: ck.Group,
@@ -250,24 +258,28 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 		stat.IsOnline = latestBD.Total > 0 && (latestBD.Error == 0 || latestBD.Success > 0)
 
 		channelStats = append(channelStats, stat)
+		channelResults[ck] = &channelResult{stat: stat, avail: avail, isOnline: stat.IsOnline}
+	}
 
+	// Second pass: aggregate only online channels into group stats
+	for ck, cr := range channelResults {
 		ga, ok := groupStats[ck.Group]
 		if !ok {
 			ga = &groupAgg{}
 			groupStats[ck.Group] = ga
 		}
-		ga.totalRequests += avail.Total
-		ga.totalSuccess += avail.Success
-		if cache, ok := channelCacheData[ck]; ok {
-			ga.totalCacheTok += cache.CacheTokens
-			ga.totalPromptTok += cache.PromptTokens
-		}
-		ga.totalRespMs += avail.RespTimeMs
-		ga.totalFRTMs += avail.FRTSumMs
-		ga.totalFRTCount += avail.FRTCount
 		ga.totalChannels++
-		if stat.IsOnline {
+		if cr.isOnline {
 			ga.onlineChannels++
+			ga.totalRequests += cr.avail.Total
+			ga.totalSuccess += cr.avail.Success
+			if cache, ok := channelCacheData[ck]; ok {
+				ga.totalCacheTok += cache.CacheTokens
+				ga.totalPromptTok += cache.PromptTokens
+			}
+			ga.totalRespMs += cr.avail.RespTimeMs
+			ga.totalFRTMs += cr.avail.FRTSumMs
+			ga.totalFRTCount += cr.avail.FRTCount
 		}
 	}
 
@@ -293,7 +305,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 		if ga.totalRequests > 0 {
 			stat.AvailabilityRate = float64(ga.totalSuccess) / float64(ga.totalRequests) * 100
 		} else {
-			stat.AvailabilityRate = 100
+			stat.AvailabilityRate = -1
 		}
 
 		if ga.totalPromptTok > 0 {
@@ -419,12 +431,12 @@ func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting) {
 			ga = &groupFallbackAgg{}
 			groupAggs[ck.Group] = ga
 		}
-		ga.totalReq += agg.Total
-		ga.totalSuccess += agg.Success
-		ga.totalRespMs += agg.RespMs
 		ga.total++
 		if stat.IsOnline {
 			ga.online++
+			ga.totalReq += agg.Total
+			ga.totalSuccess += agg.Success
+			ga.totalRespMs += agg.RespMs
 		}
 	}
 
@@ -445,10 +457,10 @@ func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting) {
 				stat.AvailabilityRate = float64(ga.totalSuccess) / float64(ga.totalReq) * 100
 				stat.AvgResponseTime = int(ga.totalRespMs / ga.totalReq)
 			} else {
-				stat.AvailabilityRate = 100
+				stat.AvailabilityRate = -1
 			}
 		} else {
-			stat.AvailabilityRate = 100
+			stat.AvailabilityRate = -1
 		}
 		stat.CacheHitRate = -1
 

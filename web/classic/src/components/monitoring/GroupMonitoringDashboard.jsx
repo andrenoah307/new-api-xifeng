@@ -44,8 +44,8 @@ const SORT_OPTIONS = [
 ];
 
 function compareGroups(a, b, mode) {
-  const aOnline = a.is_online ?? (a.total_channels === 0 || a.online_channels > 0);
-  const bOnline = b.is_online ?? (b.total_channels === 0 || b.online_channels > 0);
+  const aOnline = a.is_online ?? (a.online_channels > 0);
+  const bOnline = b.is_online ?? (b.online_channels > 0);
   switch (mode) {
     case 'name':
       return (a.group_name || '').localeCompare(b.group_name || '');
@@ -260,7 +260,10 @@ const GroupMonitoringDashboard = () => {
   const onlineCount = groups.filter(
     (g) => g.is_online ?? (g.total_channels === 0 || g.online_channels > 0),
   ).length;
-  const offlineCount = groups.length - onlineCount;
+  const noDataCount = groups.filter(
+    (g) => (g.total_channels ?? 0) === 0 && (g.availability_rate == null || g.availability_rate < 0),
+  ).length;
+  const offlineCount = groups.length - onlineCount - noDataCount;
   const avgAvail = avgAvailability(groups);
 
   const handleCloseDetail = useCallback(() => {
