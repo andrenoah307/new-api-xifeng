@@ -86,6 +86,11 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Rankings'), href: '/rankings', requiresAuth })
   }
 
+  // Group Monitoring
+  if (modules?.monitoring !== false) {
+    links.push({ title: t('Group Monitoring'), href: '/monitoring' })
+  }
+
   // Docs (supports external links)
   if (modules?.docs !== false) {
     if (docsLink) {
