@@ -203,6 +203,31 @@ type RecordConsumeLogParams struct {
 }
 
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
+	if common.GroupMonitoringHook != nil {
+		frtMs := 0
+		if frt, ok := params.Other["frt"]; ok {
+			if v, ok := frt.(float64); ok {
+				frtMs = int(v)
+			}
+		}
+		cacheTokens := 0
+		if ct, ok := params.Other["cache_tokens"]; ok {
+			switch v := ct.(type) {
+			case int:
+				cacheTokens = v
+			case float64:
+				cacheTokens = int(v)
+			}
+		}
+		monitorPromptTokens := params.PromptTokens
+		if sem, ok := params.Other["usage_semantic"]; ok && sem == "anthropic" && cacheTokens > 0 {
+			monitorPromptTokens += cacheTokens
+		}
+		if cacheTokens > 0 && monitorPromptTokens < cacheTokens {
+			monitorPromptTokens = params.PromptTokens + cacheTokens
+		}
+		common.GroupMonitoringHook(params.Group, params.ChannelId, true, monitorPromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "")
+	}
 	if !common.LogConsumeEnabled {
 		return
 	}
@@ -250,31 +275,6 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		gopool.Go(func() {
 			LogQuotaData(userId, username, params.ModelName, params.Quota, common.GetTimestamp(), params.PromptTokens+params.CompletionTokens)
 		})
-	}
-	if common.GroupMonitoringHook != nil {
-		frtMs := 0
-		if frt, ok := params.Other["frt"]; ok {
-			if v, ok := frt.(float64); ok {
-				frtMs = int(v)
-			}
-		}
-		cacheTokens := 0
-		if ct, ok := params.Other["cache_tokens"]; ok {
-			switch v := ct.(type) {
-			case int:
-				cacheTokens = v
-			case float64:
-				cacheTokens = int(v)
-			}
-		}
-		monitorPromptTokens := params.PromptTokens
-		if sem, ok := params.Other["usage_semantic"]; ok && sem == "anthropic" && cacheTokens > 0 {
-			monitorPromptTokens += cacheTokens
-		}
-		if cacheTokens > 0 && monitorPromptTokens < cacheTokens {
-			monitorPromptTokens = params.PromptTokens + cacheTokens
-		}
-		common.GroupMonitoringHook(params.Group, params.ChannelId, true, monitorPromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "")
 	}
 }
 
