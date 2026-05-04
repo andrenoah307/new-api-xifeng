@@ -266,7 +266,10 @@ export default function MonitoringDashboard() {
   }, [groups, keyword, sortMode])
 
   const onlineCount = groups.filter(isGroupOnline).length
-  const offlineCount = groups.length - onlineCount
+  const noDataCount = groups.filter(
+    (g) => (g.total_channels ?? 0) === 0 && (g.availability_rate == null || g.availability_rate < 0)
+  ).length
+  const offlineCount = groups.length - onlineCount - noDataCount
   const avgAvail = avgAvailability(groups)
 
   const loading = groupsLoading && groups.length === 0
