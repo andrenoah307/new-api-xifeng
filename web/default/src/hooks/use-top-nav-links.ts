@@ -16,6 +16,7 @@ const DEFAULT_HEADER_NAV_MODULES = {
   console: true,
   pricing: { enabled: true, requireAuth: false },
   rankings: { enabled: true, requireAuth: false },
+  monitoring: true,
   docs: true,
   about: true,
 }
@@ -124,6 +125,11 @@ export function useTopNavLinks(): TopNavLink[] {
   if (rankings && typeof rankings === 'object' && rankings.enabled) {
     const disabled = rankings.requireAuth && !isAuthed
     links.push({ title: t('Rankings'), href: '/rankings', disabled })
+  }
+
+  // Group Monitoring
+  if (modules?.monitoring !== false) {
+    links.push({ title: t('Group Monitoring'), href: '/monitoring' })
   }
 
   // Docs (supports external links)
