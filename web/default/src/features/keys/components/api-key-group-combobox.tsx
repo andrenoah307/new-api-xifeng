@@ -116,7 +116,7 @@ export function ApiKeyGroupCombobox({
           role='combobox'
           aria-expanded={open}
           disabled={disabled}
-          className='border-input bg-muted/40 h-auto min-h-14 w-full justify-between gap-2 rounded-lg px-3 py-2 text-start shadow-none transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/55 hover:text-foreground active:bg-background data-[state=open]:border-ring data-[state=open]:bg-background data-[state=open]:ring-ring/20 data-[state=open]:ring-[3px] sm:min-h-20 sm:gap-3 sm:px-4 sm:py-3'
+          className='border-input bg-muted/40 h-auto min-h-14 w-full justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-start shadow-none transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/55 hover:text-foreground active:bg-background data-[state=open]:border-ring data-[state=open]:bg-background data-[state=open]:ring-ring/20 data-[state=open]:ring-[3px] sm:min-h-20 sm:gap-3 sm:px-4 sm:py-3'
         >
           <span className='flex min-w-0 flex-1 items-center justify-between gap-2 sm:gap-3'>
             <span className='min-w-0'>

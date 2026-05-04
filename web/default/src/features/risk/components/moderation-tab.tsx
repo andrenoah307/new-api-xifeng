@@ -578,7 +578,7 @@ export function ModerationTab() {
             </Button>
           </div>
           {debugResult && (
-            <pre className="bg-muted rounded-md p-3 text-xs overflow-auto max-h-[200px]">
+            <pre className="bg-muted rounded-md p-3 text-xs overflow-auto max-h-[200px] whitespace-pre-wrap break-words">
               {JSON.stringify(debugResult, null, 2)}
             </pre>
           )}
@@ -794,7 +794,7 @@ export function ModerationTab() {
                   <Separator />
                   <div>
                     <Label className="text-xs font-medium">{t('Category Scores')}</Label>
-                    <pre className="bg-muted mt-1 rounded-md p-3 text-xs overflow-auto max-h-[150px]">
+                    <pre className="bg-muted mt-1 rounded-md p-3 text-xs overflow-auto max-h-[150px] whitespace-pre-wrap break-words">
                       {typeof detailData.categories === 'string'
                         ? (() => { try { return JSON.stringify(JSON.parse(detailData.categories), null, 2) } catch { return detailData.categories } })()
                         : JSON.stringify(detailData.categories, null, 2)}
