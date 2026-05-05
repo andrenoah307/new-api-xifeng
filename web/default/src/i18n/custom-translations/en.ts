@@ -186,6 +186,7 @@ const en = {
   'Apply for Invoice': 'Apply for Invoice',
   'Apply for Refund': 'Apply for Refund',
   'Search tickets...': 'Search tickets...',
+  'Invoice title (company)': 'Invoice title (company)',
   'Ticket not found': 'Ticket not found',
   'Ticket closed': 'Ticket closed',
   'Ticket claimed': 'Ticket claimed',
