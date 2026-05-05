@@ -6,8 +6,7 @@ import {
   Trash2,
   Power,
   PowerOff,
-  ArrowUp,
-  ArrowDown,
+  UserCog,
   KeyRound,
   ShieldAlert,
   Link2,
@@ -36,6 +35,7 @@ import {
 import { getUserActionMessage } from '../lib'
 import { type User, type ManageUserAction } from '../types'
 import { UserBindingDialog } from './dialogs/user-binding-dialog'
+import { RoleManagementDialog } from './dialogs/role-management-dialog'
 import { useUsers } from './users-provider'
 
 interface DataTableRowActionsProps {
@@ -50,6 +50,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
   const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false)
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false)
 
   const handleEdit = () => {
     setCurrentRow(user)
@@ -160,23 +161,18 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             </DropdownMenuItem>
           )}
 
-          {isAdmin && !isRoot && (
-            <DropdownMenuItem onClick={() => handleManage('demote')}>
-              {t('Demote')}
-              <DropdownMenuShortcut>
-                <ArrowDown size={16} />
-              </DropdownMenuShortcut>
-            </DropdownMenuItem>
-          )}
-
-          {!isAdmin && (
-            <DropdownMenuItem onClick={() => handleManage('promote')}>
-              {t('Promote')}
-              <DropdownMenuShortcut>
-                <ArrowUp size={16} />
-              </DropdownMenuShortcut>
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem
+            onSelect={(event) => {
+              event.preventDefault()
+              setRoleDialogOpen(true)
+            }}
+            disabled={isRoot}
+          >
+            {t('Manage Role')}
+            <DropdownMenuShortcut>
+              <UserCog size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
 
           <DropdownMenuItem
             onSelect={(event) => {
@@ -274,6 +270,13 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         open={subscriptionsDialogOpen}
         onOpenChange={setSubscriptionsDialogOpen}
         user={{ id: user.id, username: user.username }}
+        onSuccess={triggerRefresh}
+      />
+
+      <RoleManagementDialog
+        open={roleDialogOpen}
+        onOpenChange={setRoleDialogOpen}
+        user={user}
         onSuccess={triggerRefresh}
       />
     </>
