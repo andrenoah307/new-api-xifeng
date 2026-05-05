@@ -11,7 +11,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -43,7 +42,7 @@ import { ticketQueryKeys } from '../../lib/ticket-actions'
 const schema = z.object({
   company_name: z.string().min(1),
   tax_number: z.string().min(1),
-  email: z.string().email().or(z.literal('')).optional(),
+  email: z.string().email(),
   content: z.string().max(100).optional(),
 })
 
@@ -148,9 +147,6 @@ export function CreateInvoiceTicketDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t('Apply for Invoice')}</DialogTitle>
-          <DialogDescription>
-            {t('Select top-up orders and fill in invoice details')}
-          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -177,10 +173,10 @@ export function CreateInvoiceTicketDialog({
                       {t('Payment Method')}
                     </TableHead>
                     <TableHead className="w-[100px]">
-                      {t('Amount')}
+                      {t('Paid Amount')}
                     </TableHead>
                     <TableHead className="w-[160px]">
-                      {t('Completed At')}
+                      {t('Top-up Time')}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -235,7 +231,7 @@ export function CreateInvoiceTicketDialog({
             </div>
             <div className="bg-muted mt-2 flex items-center justify-between rounded-md px-3 py-2 text-sm">
               <span className="text-muted-foreground">
-                {t('Selected')}: {selectedIds.size}/{orders.length}
+                {t('Selected')}: {selectedIds.size}/{orders.length} {t('orders_unit')}
               </span>
               <span>
                 <span className="text-muted-foreground mr-1">
@@ -251,7 +247,7 @@ export function CreateInvoiceTicketDialog({
           {/* Step 2: Invoice details form */}
           <div>
             <h4 className="mb-2 text-sm font-medium">
-              2. {t('Invoice Details')}
+              2. {t('Fill in Invoice Header')}
             </h4>
             <Form {...form}>
               <form
@@ -265,7 +261,7 @@ export function CreateInvoiceTicketDialog({
                     name="company_name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('Company Name')}</FormLabel>
+                        <FormLabel>{t('Organization Name')}</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -281,7 +277,7 @@ export function CreateInvoiceTicketDialog({
                     name="tax_number"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('Tax ID')}</FormLabel>
+                        <FormLabel>{t('Taxpayer ID')}</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -308,7 +304,7 @@ export function CreateInvoiceTicketDialog({
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('Email')}</FormLabel>
+                        <FormLabel>{t('Receiving Email')}</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
@@ -328,7 +324,7 @@ export function CreateInvoiceTicketDialog({
                   name="content"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('Notes')}</FormLabel>
+                      <FormLabel>{t('Invoice Notes')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -351,7 +347,7 @@ export function CreateInvoiceTicketDialog({
             form="invoice-ticket-form"
             disabled={mutation.isPending || selectedIds.size === 0}
           >
-            {mutation.isPending ? t('Submitting...') : t('Submit')}
+            {mutation.isPending ? t('Submitting...') : t('Submit Application')}
           </Button>
         </DialogFooter>
       </DialogContent>
