@@ -2,7 +2,12 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
 import { formatTimestampToDate } from '@/lib/format'
+import { StatusBadge } from '@/components/status-badge'
 import type { Ticket, StaffUser } from '../api'
+import {
+  roleBadgeVariant,
+  roleBadgeLabel,
+} from '../constants'
 import {
   TicketStatusBadge,
   TicketPriorityBadge,
@@ -93,10 +98,19 @@ export function useTicketColumns(opts: {
             )
           }
           const staff = staffMap.get(aid)
+          if (!staff) {
+            return <span className="text-xs">#{aid}</span>
+          }
           return (
-            <span className="text-xs">
-              {staff?.display_name || staff?.username || `#${aid}`}
-            </span>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span>{staff.display_name || staff.username}</span>
+              <StatusBadge
+                label={t(roleBadgeLabel(staff.role))}
+                variant={roleBadgeVariant(staff.role)}
+                size="sm"
+                copyable={false}
+              />
+            </div>
           )
         },
         meta: { label: t('Assignee'), mobileHidden: true },

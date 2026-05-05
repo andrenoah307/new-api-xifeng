@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useMemo, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -34,6 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 import { getAdminTickets, getStaffList, type StaffUser } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
@@ -51,9 +53,69 @@ export default function TicketAdminListPage() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const viewerIsAdmin = useIsAdmin()
 
-  const [statusFilter, setStatusFilter] = useState('__all__')
-  const [typeFilter, setTypeFilter] = useState('__all__')
-  const [scope, setScope] = useState(viewerIsAdmin ? 'all' : 'mine')
+  const search = route.useSearch()
+  const routeNavigate = route.useNavigate()
+
+  const scope = search.scope ?? (viewerIsAdmin ? 'all' : 'mine')
+  const statusFilter = search.status || '__all__'
+  const typeFilter = search.type || '__all__'
+  const companyName = search.company_name || ''
+
+  const setScope = useCallback(
+    (val: string) => {
+      routeNavigate({
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          scope: val,
+          page: 1,
+        }),
+      })
+    },
+    [routeNavigate]
+  )
+
+  const setStatusFilter = useCallback(
+    (val: string) => {
+      routeNavigate({
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          status: val === '__all__' ? '' : val,
+          page: 1,
+        }),
+      })
+    },
+    [routeNavigate]
+  )
+
+  const setTypeFilter = useCallback(
+    (val: string) => {
+      routeNavigate({
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          type: val === '__all__' ? '' : val,
+          company_name: '',
+          page: 1,
+        }),
+      })
+    },
+    [routeNavigate]
+  )
+
+  const setCompanyName = useCallback(
+    (val: string) => {
+      routeNavigate({
+        search: (prev: Record<string, unknown>) => ({
+          ...prev,
+          company_name: val,
+          page: 1,
+        }),
+      })
+    },
+    [routeNavigate]
+  )
+
+  const showCompanySearch =
+    typeFilter === '__all__' || typeFilter === 'invoice'
 
   const {
     globalFilter,
@@ -94,9 +156,10 @@ export default function TicketAdminListPage() {
       status: statusFilter === '__all__' ? undefined : statusFilter,
       type: typeFilter === '__all__' ? undefined : typeFilter,
       keyword: keyword || undefined,
+      company_name: companyName || undefined,
       scope,
     }),
-    [pagination, statusFilter, typeFilter, keyword, scope]
+    [pagination, statusFilter, typeFilter, keyword, companyName, scope]
   )
 
   const { data, isLoading } = useQuery({
@@ -152,25 +215,31 @@ export default function TicketAdminListPage() {
       </SectionPageLayout.Description>
       <SectionPageLayout.Content>
         <div className="space-y-3 sm:space-y-4">
+          <Tabs value={scope} onValueChange={setScope}>
+            <TabsList>
+              {viewerIsAdmin && (
+                <TabsTrigger value="all">{t('All Tickets')}</TabsTrigger>
+              )}
+              <TabsTrigger value="mine">{t('My Tickets')}</TabsTrigger>
+              <TabsTrigger value="unassigned">
+                {t('Unassigned')}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           <DataTableToolbar
             table={table}
             searchPlaceholder={t('Search tickets...')}
             additionalSearch={
               <div className="flex flex-wrap items-center gap-2">
-                <Select value={scope} onValueChange={setScope}>
-                  <SelectTrigger className="h-8 w-[130px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {viewerIsAdmin && (
-                      <SelectItem value="all">{t('All Tickets')}</SelectItem>
-                    )}
-                    <SelectItem value="mine">{t('My Tickets')}</SelectItem>
-                    <SelectItem value="unassigned">
-                      {t('Unassigned')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                {showCompanySearch && (
+                  <Input
+                    className="h-8 w-[200px]"
+                    placeholder={t('Invoice title (company)')}
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                  />
+                )}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="h-8 w-[120px]">
                     <SelectValue placeholder={t('Status')} />

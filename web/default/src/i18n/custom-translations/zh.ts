@@ -194,6 +194,7 @@ const zh: Record<string, string> = {
   'Apply for Invoice': '申请发票',
   'Apply for Refund': '申请退款',
   'Search tickets...': '搜索工单…',
+  'Invoice title (company)': '发票抬头（公司名称）',
   'Ticket not found': '工单未找到',
   'Ticket closed': '工单已关闭',
   'Ticket claimed': '工单已认领',
