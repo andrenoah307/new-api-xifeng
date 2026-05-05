@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Space, Tag, Typography } from '@douyinfe/semi-ui';
 // Space 已用于操作按钮组，这里也会用于分配客服单元格中的徽章与 UID 拼接。
 import { timestamp2string } from '../../../helpers';
+import { renderQuota } from '../../../helpers/render';
 import TicketStatusTag from '../../ticket/TicketStatusTag';
 import {
   getTicketPriorityColor,
@@ -78,9 +79,21 @@ export const getTicketsColumns = ({
       render: (value, record) => (
         <div className='flex flex-col'>
           <Text strong>{value || '-'}</Text>
-          <Text type='tertiary' size='small'>
-            {getTicketTypeText(record?.type, t)}
-          </Text>
+          <Space spacing={4}>
+            <Text type='tertiary' size='small'>
+              {getTicketTypeText(record?.type, t)}
+            </Text>
+            {record?.type === 'refund' && record?.refund_quota != null && (
+              <Text type='tertiary' size='small'>
+                {renderQuota(record.refund_quota)}
+              </Text>
+            )}
+            {record?.type === 'invoice' && record?.invoice_money != null && (
+              <Text type='tertiary' size='small'>
+                ¥{record.invoice_money.toFixed(2)}
+              </Text>
+            )}
+          </Space>
         </div>
       ),
     },

@@ -35,7 +35,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
 import { getAdminTickets, getStaffList, type StaffUser } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
@@ -59,7 +58,6 @@ export default function TicketAdminListPage() {
   const scope = search.scope ?? (viewerIsAdmin ? 'all' : 'mine')
   const statusFilter = search.status || '__all__'
   const typeFilter = search.type || '__all__'
-  const companyName = search.company_name || ''
 
   const setScope = useCallback(
     (val: string) => {
@@ -93,29 +91,12 @@ export default function TicketAdminListPage() {
         search: (prev: Record<string, unknown>) => ({
           ...prev,
           type: val === '__all__' ? '' : val,
-          company_name: '',
           page: 1,
         }),
       })
     },
     [routeNavigate]
   )
-
-  const setCompanyName = useCallback(
-    (val: string) => {
-      routeNavigate({
-        search: (prev: Record<string, unknown>) => ({
-          ...prev,
-          company_name: val,
-          page: 1,
-        }),
-      })
-    },
-    [routeNavigate]
-  )
-
-  const showCompanySearch =
-    typeFilter === '__all__' || typeFilter === 'invoice'
 
   const {
     globalFilter,
@@ -156,10 +137,9 @@ export default function TicketAdminListPage() {
       status: statusFilter === '__all__' ? undefined : statusFilter,
       type: typeFilter === '__all__' ? undefined : typeFilter,
       keyword: keyword || undefined,
-      company_name: companyName || undefined,
       scope,
     }),
-    [pagination, statusFilter, typeFilter, keyword, companyName, scope]
+    [pagination, statusFilter, typeFilter, keyword, scope]
   )
 
   const { data, isLoading } = useQuery({
@@ -232,14 +212,6 @@ export default function TicketAdminListPage() {
             searchPlaceholder={t('Search tickets...')}
             additionalSearch={
               <div className="flex flex-wrap items-center gap-2">
-                {showCompanySearch && (
-                  <Input
-                    className="h-8 w-[200px]"
-                    placeholder={t('Invoice title (company)')}
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                  />
-                )}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="h-8 w-[120px]">
                     <SelectValue placeholder={t('Status')} />
