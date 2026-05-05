@@ -58,7 +58,7 @@ export function useTicketAttachments() {
         if (result) {
           setAttachments((prev) => [
             ...prev,
-            { ...result, uid: crypto.randomUUID() },
+            { ...result, uid: `${Date.now()}-${Math.random().toString(36).slice(2)}` },
           ])
         }
       } catch {

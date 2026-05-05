@@ -345,9 +345,7 @@ export async function uploadAttachment(
 ): Promise<TicketAttachment | null> {
   const formData = new FormData()
   formData.append('file', file)
-  const res = await api.post('/api/ticket/attachment', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const res = await api.post('/api/ticket/attachment', formData)
   return res.data?.data ?? null
 }
 
