@@ -105,8 +105,8 @@ export const REFUND_STATUS_CONFIG: Record<
 
 export const PAYEE_TYPE_OPTIONS = [
   { value: 'alipay', label: 'Alipay' },
-  { value: 'wechat', label: 'WeChat Pay' },
-  { value: 'bank', label: 'Bank Transfer' },
+  { value: 'wechat', label: 'WeChat' },
+  { value: 'bank', label: 'Bank Card' },
   { value: 'other', label: 'Other' },
 ]
 

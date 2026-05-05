@@ -435,16 +435,48 @@ const en = {
   'Invoice Application': 'Invoice Application',
   'Invoice ticket submitted': 'Invoice ticket submitted',
 
-  // Create Ticket Dialog enhancements
-  'Current balance': 'Current balance',
-  'Submitting a refund will freeze the corresponding balance until processed.':
-    'Submitting a refund will freeze the corresponding balance until processed.',
-  'Optional, auto-generated if empty': 'Optional, auto-generated if empty',
-  'You can also paste images': 'You can also paste images',
-  'Subject is required': 'Subject is required',
-  'Content is required': 'Content is required',
-  'Amount must be greater than 0': 'Amount must be greater than 0',
-  'Amount exceeds your balance': 'Amount exceeds your balance',
+  // Create Ticket Dialog
+  'Ticket Type': 'Ticket Type',
+  'Ticket Subject': 'Ticket Subject',
+  'Issue Description': 'Issue Description',
+  'Requested Refund Amount': 'Requested Refund Amount',
+  'Contact Info': 'Contact Info',
+  'Refund Reason': 'Refund Reason',
+  'Attachment (Optional)': 'Attachment (Optional)',
+  'High Priority': 'High Priority',
+  'Normal Priority': 'Normal Priority',
+  'Low Priority': 'Low Priority',
+  WeChat: 'WeChat',
+  'Bank Card': 'Bank Card',
+  'Submit Ticket': 'Submit Ticket',
+  'Current available quota': 'Current available quota',
+  'Refund freeze warning':
+    'The submitted amount will be frozen immediately and cannot be used. Remaining available quota will decrease accordingly. If rejected by admin, the quota will be unfrozen and you can reapply; if approved, it will be formally deducted.',
+  'Refund process note':
+    'After submission, admin will contact and verify your refund info. The equivalent quota will be deducted upon completion.',
+  'Subject placeholder general': 'Briefly describe your issue',
+  'Subject placeholder refund':
+    'Optional, will auto-generate "Refund Request" subject',
+  'Content placeholder':
+    'Describe in detail for faster resolution',
+  'Refund amount placeholder': 'Enter the amount you wish to refund',
+  'Payee name placeholder': "Enter payee's real name",
+  'Payee account placeholder': 'Alipay / WeChat account or bank card number',
+  'Bank name placeholder': 'Enter bank name',
+  'Contact placeholder': 'Phone or email for admin to contact you',
+  'Refund reason placeholder': 'Briefly explain the refund reason',
+  'Upload limit hint': 'Max {{n}} files, each under {{mb}} MB, can paste screenshots',
+  'Ticket created, quota frozen': 'Ticket created, quota frozen',
+  'Ticket subject is required': 'Ticket subject is required',
+  'Ticket content is required': 'Ticket content is required',
+  'Refund amount must be greater than 0': 'Refund amount must be greater than 0',
+  'Refund amount cannot exceed available quota':
+    'Refund amount cannot exceed available quota',
+  'Payee name is required': 'Payee name is required',
+  'Payee account is required': 'Payee account is required',
+  'Bank name is required': 'Bank name is required',
+  'Contact info is required': 'Contact info is required',
+  'Please select payee type': 'Please select payee type',
 
   // Invoice Detail new fields
   'Bank Name': 'Bank Name',
