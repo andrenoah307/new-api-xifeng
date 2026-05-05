@@ -76,7 +76,7 @@ export function RoleManagementDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg w-[560px] max-w-[92vw]">
         <DialogHeader>
           <DialogTitle>{t('Manage Role')}</DialogTitle>
         </DialogHeader>
