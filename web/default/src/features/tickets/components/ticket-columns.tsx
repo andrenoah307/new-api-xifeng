@@ -64,6 +64,11 @@ export function useTicketColumns(opts: {
           <div className="min-w-0">
             <div className="truncate text-sm font-medium">
               {row.original.subject}
+              {row.original.type === 'invoice' && row.original.company_name && (
+                <span className="text-muted-foreground ml-1.5 text-xs font-normal">
+                  ({row.original.company_name})
+                </span>
+              )}
             </div>
             <div className="flex items-center">
               <TicketTypeBadge type={row.original.type} />
