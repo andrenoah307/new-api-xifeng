@@ -412,6 +412,73 @@ const en = {
     'Configure ticket system settings',
   'Configure group monitoring parameters':
     'Configure group monitoring parameters',
+
+  // Invoice Ticket Dialog
+  'Apply for Invoice': 'Apply for Invoice',
+  'Select top-up orders and fill in invoice details':
+    'Select top-up orders and fill in invoice details',
+  'Select Top-up Orders': 'Select Top-up Orders',
+  'Trade No.': 'Trade No.',
+  'Payment Method': 'Payment Method',
+  'Completed At': 'Completed At',
+  'No eligible orders': 'No eligible orders',
+  Selected: 'Selected',
+  'Invoice Amount': 'Invoice Amount',
+  'Invoice Details': 'Invoice Details',
+  'Full company name': 'Full company name',
+  'Tax ID': 'Tax ID',
+  'Unified social credit code': 'Unified social credit code',
+  'Invoice Content': 'Invoice Content',
+  'Email to receive invoice': 'Email to receive invoice',
+  'Brief description of purpose': 'Brief description of purpose',
+  'Please select at least one order': 'Please select at least one order',
+  'Invoice Application': 'Invoice Application',
+  'Invoice ticket submitted': 'Invoice ticket submitted',
+
+  // Create Ticket Dialog enhancements
+  'Current balance': 'Current balance',
+  'Submitting a refund will freeze the corresponding balance until processed.':
+    'Submitting a refund will freeze the corresponding balance until processed.',
+  'Optional, auto-generated if empty': 'Optional, auto-generated if empty',
+  'You can also paste images': 'You can also paste images',
+  'Subject is required': 'Subject is required',
+  'Content is required': 'Content is required',
+  'Amount must be greater than 0': 'Amount must be greater than 0',
+  'Amount exceeds your balance': 'Amount exceeds your balance',
+
+  // Invoice Detail new fields
+  'Bank Name': 'Bank Name',
+  'Bank Account': 'Bank Account',
+  'Company Address': 'Company Address',
+  'Company Phone': 'Company Phone',
+  'Tax Number': 'Tax Number',
+
+  // Refund Detail enhancements
+  'This action will be logged': 'This action will be logged',
+  'Payee Summary': 'Payee Summary',
+  'Current user balance': 'Current user balance',
+  'Enter a deduction amount greater than 0':
+    'Enter a deduction amount greater than 0',
+  'Will deduct from balance after unfreeze':
+    'Will deduct from balance after unfreeze',
+  'Deduction exceeds available balance after unfreeze':
+    'Deduction exceeds available balance after unfreeze',
+  'Balance after unfreeze': 'Balance after unfreeze',
+  'Enter the final balance (can be 0)': 'Enter the final balance (can be 0)',
+  'Final balance will be set to': 'Final balance will be set to',
+  'Rejection will unfreeze the quota. The user can reapply.':
+    'Rejection will unfreeze the quota. The user can reapply.',
+  'Rejection reason': 'Rejection reason',
+
+  // Ticket list close
+  'Close Ticket': 'Close Ticket',
+  'Are you sure you want to close this ticket?':
+    'Are you sure you want to close this ticket?',
+  'Ticket closed': 'Ticket closed',
+
+  // Detail page metadata
+  'Assigned to me': 'Assigned to me',
+  'Admin reply...': 'Admin reply...',
 } as const
 
 export default en
