@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
 import { formatTimestampToDate } from '@/lib/format'
+import { formatQuota } from '@/lib/format'
 import { StatusBadge } from '@/components/status-badge'
 import type { Ticket, StaffUser } from '../api'
 import {
@@ -13,6 +14,24 @@ import {
   TicketPriorityBadge,
   TicketTypeBadge,
 } from './ticket-status-badge'
+
+function TicketAmountBadge({ ticket }: { ticket: Ticket }) {
+  if (ticket.type === 'refund' && ticket.refund_quota != null) {
+    return (
+      <span className="text-muted-foreground ml-1.5 text-[11px]">
+        {formatQuota(ticket.refund_quota)}
+      </span>
+    )
+  }
+  if (ticket.type === 'invoice' && ticket.invoice_money != null) {
+    return (
+      <span className="text-muted-foreground ml-1.5 text-[11px]">
+        ¥{ticket.invoice_money.toFixed(2)}
+      </span>
+    )
+  }
+  return null
+}
 
 export function useTicketColumns(opts: {
   admin: boolean
@@ -43,7 +62,10 @@ export function useTicketColumns(opts: {
             <div className="truncate text-sm font-medium">
               {row.original.subject}
             </div>
-            <TicketTypeBadge type={row.original.type} />
+            <div className="flex items-center">
+              <TicketTypeBadge type={row.original.type} />
+              <TicketAmountBadge ticket={row.original} />
+            </div>
           </div>
         ),
         meta: { label: t('Subject'), mobileTitle: true },

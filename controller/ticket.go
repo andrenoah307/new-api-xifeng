@@ -409,10 +409,9 @@ func GetAllTickets(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 
 	opts := model.TicketQueryOptions{
-		Status:      status,
-		Type:        ticketType,
-		Keyword:     c.Query("keyword"),
-		CompanyName: c.Query("company_name"),
+		Status:  status,
+		Type:    ticketType,
+		Keyword: c.Query("keyword"),
 	}
 
 	role := c.GetInt("role")
@@ -448,7 +447,7 @@ func GetAllTickets(c *gin.Context) {
 		}
 	}
 
-	tickets, total, err := model.ListTickets(opts, pageInfo)
+	tickets, total, err := model.ListTicketsWithSummary(opts, pageInfo)
 	if err != nil {
 		common.ApiError(c, err)
 		return
