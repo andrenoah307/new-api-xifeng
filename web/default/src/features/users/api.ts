@@ -75,13 +75,14 @@ export async function deleteUser(id: number): Promise<ApiResponse> {
 }
 
 /**
- * Manage user (promote, demote, enable, disable, delete)
+ * Manage user (promote, demote, enable, disable, delete, set_role)
  */
 export async function manageUser(
   id: number,
-  action: ManageUserAction
+  action: ManageUserAction,
+  value?: number
 ): Promise<ApiResponse<Partial<User>>> {
-  const res = await api.post('/api/user/manage', { id, action })
+  const res = await api.post('/api/user/manage', { id, action, value })
   return res.data
 }
 

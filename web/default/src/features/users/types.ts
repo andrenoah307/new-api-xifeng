@@ -95,6 +95,7 @@ export type ManageUserAction =
   | 'disable'
   | 'delete'
   | 'add_quota'
+  | 'set_role'
 
 export type QuotaAdjustMode = 'add' | 'subtract' | 'override'
 
