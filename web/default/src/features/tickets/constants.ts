@@ -79,7 +79,7 @@ export const INVOICE_STATUS_CONFIG: Record<
   number,
   { labelKey: string; variant: StatusVariant }
 > = {
-  1: { labelKey: 'Pending', variant: 'warning' },
+  1: { labelKey: 'Pending Issuance', variant: 'warning' },
   2: { labelKey: 'Issued', variant: 'success' },
   3: { labelKey: 'Rejected', variant: 'danger' },
 }
