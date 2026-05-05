@@ -157,14 +157,6 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 	return nil
 }
 
-// topUpQueryWindowSeconds 限制普通用户充值记录查询的时间窗口（秒）。
-const topUpQueryWindowSeconds int64 = 30 * 24 * 60 * 60
-
-// topUpQueryCutoff 返回允许查询的最早 create_time（秒级 Unix 时间戳）。
-func topUpQueryCutoff() int64 {
-	return common.GetTimestamp() - topUpQueryWindowSeconds
-}
-
 // searchTopUpCountHardLimit 搜索充值记录时 COUNT 的安全上限，
 // 防止对超大表执行无界 COUNT 触发 DoS。
 const searchTopUpCountHardLimit = 10000
@@ -177,7 +169,7 @@ type TopUpFilter struct {
 	EndTime   int64
 }
 
-// GetUserTopUps 查询某用户的充值记录，强制 30 天时间窗口以防无界扫描 DoS。
+// GetUserTopUps 查询某用户的充值记录（分页 + COUNT 上限防 DoS）。
 func GetUserTopUps(userId int, filter TopUpFilter, pageInfo *common.PageInfo) (topups []*TopUp, total int64, err error) {
 	tx := DB.Begin()
 	if tx.Error != nil {
@@ -190,7 +182,7 @@ func GetUserTopUps(userId int, filter TopUpFilter, pageInfo *common.PageInfo) (t
 	}()
 
 	topups = make([]*TopUp, 0)
-	query := tx.Model(&TopUp{}).Where("user_id = ? AND create_time >= ?", userId, topUpQueryCutoff())
+	query := tx.Model(&TopUp{}).Where("user_id = ?", userId)
 	query, err = applyTopUpQueryFilters(query, filter)
 	if err != nil {
 		tx.Rollback()
