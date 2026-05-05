@@ -11,26 +11,28 @@ export default function TopupHistoryPage() {
   const [invoiceOpen, setInvoiceOpen] = useState(false)
 
   return (
-    <SectionPageLayout>
-      <SectionPageLayout.Title>
-        {t('Top-up History')}
-      </SectionPageLayout.Title>
-      <SectionPageLayout.Description>
-        {t('View top-up and payment records')}
-      </SectionPageLayout.Description>
-      <SectionPageLayout.Actions>
-        <Button variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
-          <FileText className="mr-1.5 size-4" />
-          {t('Apply for Invoice')}
-        </Button>
-      </SectionPageLayout.Actions>
-      <SectionPageLayout.Content>
-        <TopupTable />
-      </SectionPageLayout.Content>
+    <>
+      <SectionPageLayout>
+        <SectionPageLayout.Title>
+          {t('Top-up History')}
+        </SectionPageLayout.Title>
+        <SectionPageLayout.Description>
+          {t('View top-up and payment records')}
+        </SectionPageLayout.Description>
+        <SectionPageLayout.Actions>
+          <Button variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
+            <FileText className="mr-1.5 size-4" />
+            {t('Apply for Invoice')}
+          </Button>
+        </SectionPageLayout.Actions>
+        <SectionPageLayout.Content>
+          <TopupTable />
+        </SectionPageLayout.Content>
+      </SectionPageLayout>
       <CreateInvoiceTicketDialog
         open={invoiceOpen}
         onOpenChange={setInvoiceOpen}
       />
-    </SectionPageLayout>
+    </>
   )
 }
