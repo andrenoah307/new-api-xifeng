@@ -15,6 +15,9 @@ export interface Ticket {
   assignee_id: number
   created_time: number
   updated_time: number
+  refund_quota?: number
+  refund_status?: number
+  invoice_money?: number
 }
 
 export interface TicketMessage {
@@ -229,7 +232,6 @@ export async function getAdminTickets(params: {
   status?: string
   type?: string
   keyword?: string
-  company_name?: string
   scope?: string
 }): Promise<TicketListResponse> {
   const res = await api.get('/api/ticket/admin', { params })

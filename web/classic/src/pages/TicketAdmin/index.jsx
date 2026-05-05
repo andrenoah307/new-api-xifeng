@@ -411,13 +411,11 @@ const TicketAdmin = () => {
   const statusFilter = searchParams.get('status') || '';
   const typeFilter = searchParams.get('type') || '';
   const searchKeyword = searchParams.get('keyword') || '';
-  const companyNameParam = searchParams.get('company_name') || '';
   // scope 控制视角：'' = 全部（仅管理员）/ 'mine' = 分配给我的 / 'unassigned' = 待认领池。
   // 客服默认落到 'mine'，避免打开页面就看到一堆不归自己管的工单。
   const viewerIsAdmin = isAdmin();
   const scopeParam = searchParams.get('scope') || (viewerIsAdmin ? '' : 'mine');
   const [keyword, setKeyword] = useState(searchKeyword);
-  const [companyName, setCompanyName] = useState(companyNameParam);
 
   const updateSearchParams = useCallback(
     (patch) => {
@@ -459,10 +457,6 @@ const TicketAdmin = () => {
     (value) => updateSearchParams({ keyword: value, p: '' }),
     [updateSearchParams],
   );
-  const setCompanyNameFilter = useCallback(
-    (value) => updateSearchParams({ company_name: value, p: '' }),
-    [updateSearchParams],
-  );
   const setScope = useCallback(
     (value) =>
       updateSearchParams({
@@ -476,9 +470,6 @@ const TicketAdmin = () => {
   useEffect(() => {
     setKeyword(searchKeyword);
   }, [searchKeyword]);
-  useEffect(() => {
-    setCompanyName(companyNameParam);
-  }, [companyNameParam]);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -490,7 +481,6 @@ const TicketAdmin = () => {
           status: statusFilter || undefined,
           type: typeFilter || undefined,
           keyword: searchKeyword || undefined,
-          company_name: companyNameParam || undefined,
           scope: scopeParam || undefined,
         },
       });
@@ -506,7 +496,7 @@ const TicketAdmin = () => {
     } finally {
       setLoading(false);
     }
-  }, [activePage, pageSize, searchKeyword, companyNameParam, statusFilter, typeFilter, scopeParam, t]);
+  }, [activePage, pageSize, searchKeyword, statusFilter, typeFilter, scopeParam, t]);
 
   useEffect(() => {
     if (id) return;
@@ -613,17 +603,6 @@ const TicketAdmin = () => {
                 onChange={setKeyword}
                 onEnterPress={() => setSearchKeyword(keyword)}
               />
-              {(typeFilter === '' || typeFilter === 'invoice') && (
-                <Input
-                  value={companyName}
-                  placeholder={t('发票抬头（公司名称）')}
-                  style={{ width: 220 }}
-                  prefix={<IconSearch />}
-                  showClear
-                  onChange={setCompanyName}
-                  onEnterPress={() => setCompanyNameFilter(companyName)}
-                />
-              )}
             </Space>
             <Space wrap>
               <Select
@@ -636,13 +615,7 @@ const TicketAdmin = () => {
                 value={typeFilter}
                 optionList={typeOptions}
                 style={{ width: 160 }}
-                onChange={(value) => {
-                  // 切到非发票类型时清理抬头搜索，避免残留参数不生效造成用户困惑。
-                  if (value && value !== 'invoice' && companyNameParam) {
-                    setCompanyNameFilter('');
-                  }
-                  setTypeFilter(value);
-                }}
+                onChange={setTypeFilter}
               />
             </Space>
           </div>

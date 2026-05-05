@@ -60,11 +60,10 @@ type Ticket struct {
 }
 
 type TicketQueryOptions struct {
-	UserId      int
-	Status      int
-	Type        string
-	Keyword     string
-	CompanyName string // 仅用于发票工单：按抬头（公司名称）模糊搜索；非发票工单会被忽略
+	UserId  int
+	Status  int
+	Type    string
+	Keyword string
 	// AssigneeId 用于客服视角：只返回分配给指定用户的工单；值为 -1 表示"未分配"。
 	// 0 表示不按分配过滤。
 	AssigneeId int
@@ -195,15 +194,6 @@ func CreateTicketWithMessage(params CreateTicketParams) (*Ticket, *TicketMessage
 
 func applyTicketFilters(query *gorm.DB, options TicketQueryOptions) *gorm.DB {
 	ticketType := NormalizeTicketType(options.Type)
-	companyName := strings.TrimSpace(options.CompanyName)
-
-	// 发票抬头搜索只对发票工单生效：如果用户传了 CompanyName 又没指定类型，
-	// 自动加上 type=invoice 并 JOIN ticket_invoices 做 LIKE 匹配，避免在其他类型上误命中。
-	needInvoiceJoin := companyName != "" && (ticketType == "" || ticketType == TicketTypeInvoice)
-	if needInvoiceJoin {
-		query = query.Joins("LEFT JOIN ticket_invoices ON ticket_invoices.ticket_id = tickets.id")
-		ticketType = TicketTypeInvoice
-	}
 
 	if options.UserId > 0 {
 		query = query.Where("tickets.user_id = ?", options.UserId)
@@ -216,7 +206,6 @@ func applyTicketFilters(query *gorm.DB, options TicketQueryOptions) *gorm.DB {
 	} else if len(options.TypeIn) > 0 {
 		query = query.Where("tickets.type IN ?", options.TypeIn)
 	}
-	// 分配过滤：支持"仅某人"、"某人 + 未分配"、"一组人 + 未分配"三种模式。
 	switch {
 	case options.AssigneeId == -1:
 		query = query.Where("tickets.assignee_id = 0")
@@ -229,20 +218,93 @@ func applyTicketFilters(query *gorm.DB, options TicketQueryOptions) *gorm.DB {
 	case len(options.AssigneeIn) > 0:
 		query = query.Where("tickets.assignee_id IN ?", options.AssigneeIn)
 	}
+
 	keyword := strings.TrimSpace(options.Keyword)
 	if keyword != "" {
 		like := "%" + keyword + "%"
-		if ticketId, err := strconv.Atoi(keyword); err == nil {
-			query = query.Where("(tickets.id = ? OR tickets.subject LIKE ? OR tickets.username LIKE ?)", ticketId, like, like)
-		} else {
-			query = query.Where("(tickets.subject LIKE ? OR tickets.username LIKE ?)", like, like)
+		searchInvoice := ticketType == "" || ticketType == TicketTypeInvoice
+		searchRefund := ticketType == "" || ticketType == TicketTypeRefund
+
+		if searchInvoice {
+			query = query.Joins("LEFT JOIN ticket_invoices ON ticket_invoices.ticket_id = tickets.id")
 		}
-	}
-	if needInvoiceJoin {
-		like := "%" + companyName + "%"
-		query = query.Where("ticket_invoices.company_name LIKE ?", like)
+		if searchRefund {
+			query = query.Joins("LEFT JOIN ticket_refunds AS tr_kw ON tr_kw.ticket_id = tickets.id")
+		}
+
+		var orConds []string
+		var orArgs []interface{}
+
+		orConds = append(orConds, "tickets.subject LIKE ?", "tickets.username LIKE ?")
+		orArgs = append(orArgs, like, like)
+
+		if ticketId, err := strconv.Atoi(keyword); err == nil {
+			orConds = append(orConds, "tickets.id = ?")
+			orArgs = append(orArgs, ticketId)
+			if searchRefund {
+				orConds = append(orConds, "tr_kw.refund_quota = ?")
+				orArgs = append(orArgs, ticketId)
+			}
+		}
+		if searchInvoice {
+			orConds = append(orConds, "ticket_invoices.company_name LIKE ?")
+			orArgs = append(orArgs, like)
+		}
+		if searchRefund {
+			orConds = append(orConds, "tr_kw.payee_name LIKE ?")
+			orArgs = append(orArgs, like)
+		}
+
+		query = query.Where("("+strings.Join(orConds, " OR ")+")", orArgs...)
 	}
 	return query
+}
+
+type TicketWithSummary struct {
+	Ticket
+	RefundQuota  *int     `json:"refund_quota,omitempty" gorm:"column:refund_quota"`
+	RefundStatus *int     `json:"refund_status,omitempty" gorm:"column:refund_status"`
+	InvoiceMoney *float64 `json:"invoice_money,omitempty" gorm:"column:invoice_money"`
+}
+
+func ListTicketsWithSummary(options TicketQueryOptions, pageInfo *common.PageInfo) (tickets []*TicketWithSummary, total int64, err error) {
+	tx := DB.Begin()
+	if tx.Error != nil {
+		return nil, 0, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	tickets = make([]*TicketWithSummary, 0)
+	countQuery := applyTicketFilters(tx.Model(&Ticket{}), options)
+	if err = countQuery.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
+
+	dataQuery := applyTicketFilters(tx.Model(&Ticket{}), options)
+	dataQuery = dataQuery.Select(
+		"tickets.*",
+		"tr_sum.refund_quota AS refund_quota",
+		"tr_sum.refund_status AS refund_status",
+		"ti_sum.total_money AS invoice_money",
+	).Joins("LEFT JOIN ticket_refunds AS tr_sum ON tr_sum.ticket_id = tickets.id").
+		Joins("LEFT JOIN ticket_invoices AS ti_sum ON ti_sum.ticket_id = tickets.id")
+
+	if err = dataQuery.Order("tickets.updated_time desc, tickets.id desc").
+		Limit(pageInfo.GetPageSize()).
+		Offset(pageInfo.GetStartIdx()).
+		Find(&tickets).Error; err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
+	if err = tx.Commit().Error; err != nil {
+		return nil, 0, err
+	}
+	return tickets, total, nil
 }
 
 func ListTickets(options TicketQueryOptions, pageInfo *common.PageInfo) (tickets []*Ticket, total int64, err error) {
