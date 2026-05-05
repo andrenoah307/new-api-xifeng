@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import { formatTimestampToDate } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -143,6 +144,29 @@ export default function TicketDetailPage({
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <div className="space-y-6">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-muted-foreground">ID</dt>
+              <dd className="font-mono">#{ticket.id}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Type')}</dt>
+              <dd><TicketTypeBadge type={ticket.type} /></dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Priority')}</dt>
+              <dd><TicketPriorityBadge priority={ticket.priority} /></dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Created')}</dt>
+              <dd>{formatTimestampToDate(ticket.created_time)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Updated')}</dt>
+              <dd>{formatTimestampToDate(ticket.updated_time)}</dd>
+            </div>
+          </dl>
+
           {invoice && (
             <InvoiceDetail
               invoice={invoice}

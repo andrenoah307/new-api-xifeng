@@ -59,6 +59,22 @@ export function InvoiceDetail({
             <dd>{invoice.email || '-'}</dd>
           </div>
           <div>
+            <dt className="text-muted-foreground">{t('Bank Name')}</dt>
+            <dd>{invoice.bank_name || '-'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">{t('Bank Account')}</dt>
+            <dd className="font-mono text-xs">{invoice.bank_account || '-'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">{t('Company Address')}</dt>
+            <dd>{invoice.company_address || '-'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">{t('Company Phone')}</dt>
+            <dd>{invoice.company_phone || '-'}</dd>
+          </div>
+          <div>
             <dt className="text-muted-foreground">{t('Total Amount')}</dt>
             <dd className="font-mono font-medium text-red-600 dark:text-red-400">
               ¥{invoice.total_money.toFixed(2)}
