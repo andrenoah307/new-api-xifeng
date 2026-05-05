@@ -39,14 +39,27 @@ import {
 } from '../../api'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
 
-const schema = z.object({
-  company_name: z.string().min(1),
-  tax_number: z.string().min(1),
-  email: z.string().email(),
-  content: z.string().max(100).optional(),
-})
+const TAX_NUMBER_REGEX = /^[A-Z0-9]{18}$/
 
-type FormValues = z.infer<typeof schema>
+function createSchema(t: (key: string) => string) {
+  return z.object({
+    company_name: z.string().min(1),
+    tax_number: z
+      .string()
+      .min(1)
+      .transform((v) => v.toUpperCase())
+      .pipe(
+        z.string().regex(
+          TAX_NUMBER_REGEX,
+          t('Tax number must be 18 uppercase alphanumeric characters')
+        )
+      ),
+    email: z.string().email(),
+    content: z.string().max(100).optional(),
+  })
+}
+
+type FormValues = z.infer<ReturnType<typeof createSchema>>
 
 interface Props {
   open: boolean
@@ -61,6 +74,7 @@ export function CreateInvoiceTicketDialog({
 }: Props) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const schema = useMemo(() => createSchema(t), [t])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({

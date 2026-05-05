@@ -3,11 +3,14 @@ package model
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
 )
+
+var taxNumberRegex = regexp.MustCompile(`^[A-Z0-9]{18}$`)
 
 const (
 	InvoiceStatusPending  = 1
@@ -231,9 +234,14 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 	if strings.TrimSpace(params.CompanyName) == "" {
 		return nil, nil, nil, nil, ErrTicketInvoiceCompanyEmpty
 	}
-	if strings.TrimSpace(params.TaxNumber) == "" {
+	taxNumber := strings.TrimSpace(params.TaxNumber)
+	if taxNumber == "" {
 		return nil, nil, nil, nil, ErrTicketInvoiceTaxNumberEmpty
 	}
+	if !taxNumberRegex.MatchString(strings.ToUpper(taxNumber)) {
+		return nil, nil, nil, nil, ErrTicketInvoiceTaxNumberFormat
+	}
+	params.TaxNumber = strings.ToUpper(taxNumber)
 	if strings.TrimSpace(params.Email) == "" {
 		return nil, nil, nil, nil, ErrTicketInvoiceEmailEmpty
 	}

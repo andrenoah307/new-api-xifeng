@@ -176,6 +176,8 @@ func handleTicketError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceCompanyEmpty)
 	case errors.Is(err, model.ErrTicketInvoiceTaxNumberEmpty):
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceTaxNumberEmpty)
+	case errors.Is(err, model.ErrTicketInvoiceTaxNumberFormat):
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceTaxNumberFormat)
 	case errors.Is(err, model.ErrTicketInvoiceEmailEmpty):
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceEmailEmpty)
 	case errors.Is(err, model.ErrTicketRefundNotFound):

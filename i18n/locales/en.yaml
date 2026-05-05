@@ -150,6 +150,7 @@ ticket.invoice_order_invalid: "Selected top-up orders are invalid or not eligibl
 ticket.invoice_order_duplicate: "Some selected top-up orders already have a non-rejected invoice request"
 ticket.invoice_company_empty: "Company name cannot be empty"
 ticket.invoice_tax_number_empty: "Tax number cannot be empty"
+ticket.invoice_tax_number_format: "Tax number must be exactly 18 uppercase alphanumeric characters"
 ticket.invoice_email_empty: "Email cannot be empty"
 ticket.refund_not_found: "Refund request not found"
 ticket.refund_status_invalid: "Invalid refund status"
