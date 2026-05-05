@@ -37,8 +37,9 @@ var (
 	ErrTicketInvoiceOrderInvalid   = errors.New("ticket invoice order invalid")
 	ErrTicketInvoiceOrderDuplicate = errors.New("ticket invoice order duplicate")
 	ErrTicketInvoiceCompanyEmpty   = errors.New("ticket invoice company empty")
-	ErrTicketInvoiceTaxNumberEmpty = errors.New("ticket invoice tax number empty")
-	ErrTicketInvoiceEmailEmpty     = errors.New("ticket invoice email empty")
+	ErrTicketInvoiceTaxNumberEmpty   = errors.New("ticket invoice tax number empty")
+	ErrTicketInvoiceTaxNumberFormat = errors.New("ticket invoice tax number format invalid")
+	ErrTicketInvoiceEmailEmpty      = errors.New("ticket invoice email empty")
 )
 
 type Ticket struct {

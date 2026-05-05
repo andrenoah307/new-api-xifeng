@@ -437,6 +437,8 @@ const zh: Record<string, string> = {
   'Full company name': '请输入单位全称',
   'Taxpayer ID': '纳税人识别号',
   'Unified social credit code': '请输入18位统一社会信用代码',
+  'Tax number must be 18 uppercase alphanumeric characters':
+    '税号必须为18位大写字母或数字',
   'Invoice Content': '发票内容',
   'Receiving Email': '接收邮箱',
   'Email to receive invoice': '接收电子发票的邮箱',

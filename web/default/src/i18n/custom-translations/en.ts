@@ -428,6 +428,8 @@ const en = {
   'Full company name': 'Full company name',
   'Taxpayer ID': 'Taxpayer ID',
   'Unified social credit code': 'Unified social credit code',
+  'Tax number must be 18 uppercase alphanumeric characters':
+    'Tax number must be 18 uppercase alphanumeric characters',
   'Invoice Content': 'Invoice Content',
   'Receiving Email': 'Receiving Email',
   'Email to receive invoice': 'Email to receive invoice',
