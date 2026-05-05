@@ -18,6 +18,7 @@ export interface Ticket {
   refund_quota?: number
   refund_status?: number
   invoice_money?: number
+  company_name?: string
 }
 
 export interface TicketMessage {
