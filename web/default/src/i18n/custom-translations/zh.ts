@@ -420,6 +420,73 @@ const zh: Record<string, string> = {
     '配置工单系统设置',
   'Configure group monitoring parameters':
     '配置分组监控参数',
+
+  // Invoice Ticket Dialog
+  'Apply for Invoice': '申请开票',
+  'Select top-up orders and fill in invoice details':
+    '选择充值订单并填写发票信息',
+  'Select Top-up Orders': '选择充值账单',
+  'Trade No.': '交易号',
+  'Payment Method': '支付方式',
+  'Completed At': '充值时间',
+  'No eligible orders': '暂无可开票的充值订单',
+  Selected: '已选择',
+  'Invoice Amount': '开票金额',
+  'Invoice Details': '发票抬头',
+  'Full company name': '请输入单位全称',
+  'Tax ID': '纳税人识别号',
+  'Unified social credit code': '请输入18位统一社会信用代码',
+  'Invoice Content': '发票内容',
+  'Email to receive invoice': '接收电子发票的邮箱',
+  'Brief description of purpose': '请简要说明用途',
+  'Please select at least one order': '请选择至少一个充值订单',
+  'Invoice Application': '发票申请',
+  'Invoice ticket submitted': '发票申请已提交',
+
+  // Create Ticket Dialog enhancements
+  'Current balance': '当前余额',
+  'Submitting a refund will freeze the corresponding balance until processed.':
+    '提交退款申请后，对应金额将被冻结直到处理完成。',
+  'Optional, auto-generated if empty': '可选，留空将自动生成',
+  'You can also paste images': '也可以粘贴图片',
+  'Subject is required': '主题不能为空',
+  'Content is required': '内容不能为空',
+  'Amount must be greater than 0': '金额必须大于 0',
+  'Amount exceeds your balance': '金额超过您的余额',
+
+  // Invoice Detail new fields
+  'Bank Name': '开户行',
+  'Bank Account': '银行账号',
+  'Company Address': '注册地址',
+  'Company Phone': '联系电话',
+  'Tax Number': '纳税人识别号',
+
+  // Refund Detail enhancements
+  'This action will be logged': '本操作将记录日志',
+  'Payee Summary': '收款人摘要',
+  'Current user balance': '用户当前余额',
+  'Enter a deduction amount greater than 0':
+    '请输入大于 0 的扣减金额',
+  'Will deduct from balance after unfreeze':
+    '将从解冻后余额中扣减',
+  'Deduction exceeds available balance after unfreeze':
+    '扣减金额超过用户解冻后的可用余额',
+  'Balance after unfreeze': '解冻后余额',
+  'Enter the final balance (can be 0)': '请输入用户最终余额（可为 0）',
+  'Final balance will be set to': '最终余额将被设置为',
+  'Rejection will unfreeze the quota. The user can reapply.':
+    '驳回后额度将解冻，用户可重新申请。',
+  'Rejection reason': '驳回理由',
+
+  // Ticket list close
+  'Close Ticket': '关闭工单',
+  'Are you sure you want to close this ticket?':
+    '确定要关闭此工单吗？',
+  'Ticket closed': '工单已关闭',
+
+  // Detail page metadata
+  'Assigned to me': '分配给我',
+  'Admin reply...': '管理员回复…',
 }
 
 export default zh

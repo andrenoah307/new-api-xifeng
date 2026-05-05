@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
+import { formatTimestampToDate } from '@/lib/format'
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -34,6 +36,7 @@ import {
 import { ticketQueryKeys } from '../lib/ticket-actions'
 import {
   TicketStatusBadge,
+  TicketPriorityBadge,
   TicketTypeBadge,
 } from './ticket-status-badge'
 import { TicketConversation } from './ticket-conversation'
@@ -219,6 +222,13 @@ export default function TicketAdminDetailPage({
           <span className="truncate">{ticket.subject}</span>
           <TicketStatusBadge status={ticket.status} />
           <TicketTypeBadge type={ticket.type} />
+          {ticket.assignee_id === 0 ? (
+            <StatusBadge label={t('Unassigned')} variant="neutral" copyable={false} />
+          ) : ticket.assignee_id === accountId ? (
+            <StatusBadge label={t('Assigned to me')} variant="success" copyable={false} />
+          ) : (
+            <StatusBadge label={`${t('Processing')} · #${ticket.assignee_id}`} variant="info" copyable={false} />
+          )}
         </div>
       </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
@@ -271,6 +281,33 @@ export default function TicketAdminDetailPage({
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <div className="space-y-6">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-muted-foreground">ID</dt>
+              <dd className="font-mono">#{ticket.id}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Type')}</dt>
+              <dd><TicketTypeBadge type={ticket.type} /></dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Priority')}</dt>
+              <dd><TicketPriorityBadge priority={ticket.priority} /></dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('User')}</dt>
+              <dd>{ticket.username || '-'} <span className="text-muted-foreground">(#{ticket.user_id})</span></dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Created')}</dt>
+              <dd>{formatTimestampToDate(ticket.created_time)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">{t('Updated')}</dt>
+              <dd>{formatTimestampToDate(ticket.updated_time)}</dd>
+            </div>
+          </dl>
+
           {isInvoice && invoiceData?.invoice && (
             <InvoiceDetail
               invoice={invoiceData.invoice}
@@ -299,6 +336,7 @@ export default function TicketAdminDetailPage({
             <TicketReplyBox
               onSubmit={handleReply}
               loading={replyMutation.isPending}
+              placeholder={t('Admin reply...')}
             />
           )}
         </div>

@@ -4,10 +4,12 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { formatTimestampToDate } from '@/lib/format'
 import { formatQuota } from '@/lib/format'
 import { StatusBadge } from '@/components/status-badge'
+import { Button } from '@/components/ui/button'
 import type { Ticket, StaffUser } from '../api'
 import {
   roleBadgeVariant,
   roleBadgeLabel,
+  TICKET_STATUS,
 } from '../constants'
 import {
   TicketStatusBadge,
@@ -37,9 +39,10 @@ export function useTicketColumns(opts: {
   admin: boolean
   showAssignee: boolean
   staffMap: Map<number, StaffUser>
+  onCloseTicket?: (id: number) => void
 }): ColumnDef<Ticket>[] {
   const { t } = useTranslation()
-  const { admin, showAssignee, staffMap } = opts
+  const { admin, showAssignee, staffMap, onCloseTicket } = opts
 
   return useMemo((): ColumnDef<Ticket>[] => {
     const cols: ColumnDef<Ticket>[] = [
@@ -151,6 +154,31 @@ export function useTicketColumns(opts: {
       meta: { label: t('Updated'), mobileHidden: true },
     })
 
+    if (!admin && onCloseTicket) {
+      cols.push({
+        id: 'actions',
+        header: t('Actions'),
+        size: 100,
+        cell: ({ row }) => {
+          if (row.original.status === TICKET_STATUS.CLOSED) return null
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive"
+              onClick={(e) => {
+                e.stopPropagation()
+                onCloseTicket(row.original.id)
+              }}
+            >
+              {t('Close')}
+            </Button>
+          )
+        },
+        meta: { label: t('Actions') },
+      })
+    }
+
     return cols
-  }, [t, admin, showAssignee, staffMap])
+  }, [t, admin, showAssignee, staffMap, onCloseTicket])
 }

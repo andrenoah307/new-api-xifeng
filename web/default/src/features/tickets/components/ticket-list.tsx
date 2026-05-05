@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import {
   flexRender,
@@ -34,7 +34,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getUserTickets } from '../api'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { toast } from 'sonner'
+import { getUserTickets, closeUserTicket } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
   getStatusOptions,
@@ -52,10 +54,12 @@ export default function TicketListPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 640px)')
+  const queryClient = useQueryClient()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState('__all__')
   const [typeFilter, setTypeFilter] = useState('__all__')
+  const [closeTicketId, setCloseTicketId] = useState<number | null>(null)
 
   const {
     pagination,
@@ -89,10 +93,20 @@ export default function TicketListPage() {
   const items = useMemo(() => data?.items ?? [], [data])
   const totalCount = data?.total ?? 0
 
+  const closeMutation = useMutation({
+    mutationFn: closeUserTicket,
+    onSuccess: () => {
+      toast.success(t('Ticket closed'))
+      setCloseTicketId(null)
+      queryClient.invalidateQueries({ queryKey: ticketQueryKeys.userLists() })
+    },
+  })
+
   const columns = useTicketColumns({
     admin: false,
     showAssignee: false,
     staffMap: emptyStaffMap,
+    onCloseTicket: setCloseTicketId,
   })
 
   const table = useReactTable({
@@ -224,6 +238,16 @@ export default function TicketListPage() {
         onCreated={(id) =>
           navigate({ to: '/tickets/$ticketId', params: { ticketId: String(id) } })
         }
+      />
+      <ConfirmDialog
+        open={closeTicketId !== null}
+        onOpenChange={(open) => !open && setCloseTicketId(null)}
+        title={t('Close Ticket')}
+        desc={t('Are you sure you want to close this ticket?')}
+        handleConfirm={() =>
+          closeTicketId && closeMutation.mutate(closeTicketId)
+        }
+        isLoading={closeMutation.isPending}
       />
     </>
   )

@@ -329,6 +329,13 @@ export async function updateInvoiceStatus(
   return res.data?.success ?? false
 }
 
+export async function getUserQuota(
+  userId: number
+): Promise<{ quota: number } | null> {
+  const res = await api.get(`/api/user/${userId}`)
+  return res.data?.data ?? null
+}
+
 // ============================================================================
 // Attachment API
 // ============================================================================
