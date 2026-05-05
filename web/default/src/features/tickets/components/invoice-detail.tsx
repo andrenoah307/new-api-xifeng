@@ -55,7 +55,7 @@ export function InvoiceDetail({
             <dd className="font-mono text-xs">{invoice.tax_number}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Email')}</dt>
+            <dt className="text-muted-foreground">{t('Receiving Email')}</dt>
             <dd>{invoice.email || '-'}</dd>
           </div>
           <div>
@@ -75,7 +75,7 @@ export function InvoiceDetail({
             <dd>{invoice.company_phone || '-'}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Total Amount')}</dt>
+            <dt className="text-muted-foreground">{t('Applied Amount')}</dt>
             <dd className="font-mono font-medium text-red-600 dark:text-red-400">
               ¥{invoice.total_money.toFixed(2)}
             </dd>
@@ -88,18 +88,18 @@ export function InvoiceDetail({
           )}
         </dl>
 
-        {orders.length > 0 && (
-          <div>
-            <h4 className="text-muted-foreground mb-2 text-xs font-medium uppercase">
-              {t('Related Orders')}
-            </h4>
+        <div>
+          <h4 className="text-muted-foreground mb-2 text-xs font-medium uppercase">
+            {t('Related Orders')}
+          </h4>
+          {orders.length > 0 ? (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('Order Number')}</TableHead>
-                    <TableHead>{t('Amount')}</TableHead>
-                    <TableHead>{t('Completed')}</TableHead>
+                    <TableHead>{t('Paid Amount')}</TableHead>
+                    <TableHead>{t('Completion Time')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -119,8 +119,12 @@ export function InvoiceDetail({
                 </TableBody>
               </Table>
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {t('No associated orders')}
+            </p>
+          )}
+        </div>
 
         {!readonly && invoice.invoice_status === 1 && (
           <div className="flex gap-2 pt-2">
@@ -137,7 +141,7 @@ export function InvoiceDetail({
               disabled={loading}
               onClick={() => onStatusChange?.(3)}
             >
-              {t('Reject')}
+              {t('Reject Application')}
             </Button>
           </div>
         )}
