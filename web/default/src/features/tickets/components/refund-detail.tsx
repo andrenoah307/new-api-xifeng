@@ -175,7 +175,7 @@ export function RefundDetail({
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-muted/50 rounded-lg p-3 text-center">
               <div className="text-muted-foreground text-xs">
-                {t('Requested Amount')}
+                {t('Requested Refund Amount')}
               </div>
               <div className="mt-1 font-mono text-sm font-semibold">
                 {formatQuota(refund.refund_quota)}
@@ -206,15 +206,15 @@ export function RefundDetail({
             {refund.payee_bank && (
               <CopyField label={t('Payee Bank')} value={refund.payee_bank} />
             )}
-            <CopyField label={t('Contact')} value={refund.contact} />
-            <CopyField label={t('Reason')} value={refund.reason} />
+            <CopyField label={t('Contact Info')} value={refund.contact} />
+            <CopyField label={t('Refund Reason')} value={refund.reason} />
             <CopyField
-              label={t('Created')}
+              label={t('Submission Time')}
               value={formatTimestampToDate(refund.created_time)}
             />
             {refund.processed_time > 0 && (
               <CopyField
-                label={t('Processed')}
+                label={t('Processed Time')}
                 value={formatTimestampToDate(refund.processed_time)}
               />
             )}
@@ -235,7 +235,7 @@ export function RefundDetail({
                 disabled={loading}
                 onClick={() => setRejectOpen(true)}
               >
-                {t('Reject')}
+                {t('Reject and Unfreeze')}
               </Button>
             </div>
           )}
@@ -264,15 +264,15 @@ export function RefundDetail({
                 {t('Payee Summary')}
               </div>
               <div className="grid grid-cols-2 gap-1">
-                <span className="text-muted-foreground">{t('Name')}:</span>
+                <span className="text-muted-foreground">{t('Payee Name')}:</span>
                 <span>{refund.payee_name || '-'}</span>
-                <span className="text-muted-foreground">{t('Type')}:</span>
+                <span className="text-muted-foreground">{t('Payee Type')}:</span>
                 <span>{t(payeeLabel)}</span>
-                <span className="text-muted-foreground">{t('Account')}:</span>
+                <span className="text-muted-foreground">{t('Payee Account')}:</span>
                 <span>{refund.payee_account || '-'}</span>
                 {refund.payee_bank && (
                   <>
-                    <span className="text-muted-foreground">{t('Bank')}:</span>
+                    <span className="text-muted-foreground">{t('Payee Bank')}:</span>
                     <span>{refund.payee_bank}</span>
                   </>
                 )}
@@ -326,7 +326,7 @@ export function RefundDetail({
               {t('Cancel')}
             </Button>
             <Button onClick={handleResolve} disabled={loading || !isResolveEnabled}>
-              {t('Confirm')}
+              {t('Confirm Refund')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -361,7 +361,7 @@ export function RefundDetail({
               onClick={handleReject}
               disabled={loading}
             >
-              {t('Reject')}
+              {t('Confirm Rejection')}
             </Button>
           </DialogFooter>
         </DialogContent>
