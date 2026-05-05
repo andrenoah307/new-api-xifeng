@@ -77,13 +77,16 @@ export default function TicketAdminDetailPage({
   const isRefund = ticket?.type === 'refund'
 
   const conversationMessages = useMemo(() => {
-    if (!isRefund || messages.length === 0) return messages
+    if (messages.length === 0) return messages
     const first = messages[0]
-    if (first && first.content?.startsWith('退款申请信息')) {
+    if (isRefund && first?.content?.startsWith('退款申请信息')) {
+      return messages.slice(1)
+    }
+    if (isInvoice && first?.content?.startsWith('发票申请信息')) {
       return messages.slice(1)
     }
     return messages
-  }, [messages, isRefund])
+  }, [messages, isRefund, isInvoice])
 
   const { data: invoiceData } = useQuery({
     queryKey: ticketQueryKeys.adminInvoice(ticketId),

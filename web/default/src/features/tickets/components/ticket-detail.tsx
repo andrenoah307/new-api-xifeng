@@ -52,13 +52,16 @@ export default function TicketDetailPage({
   const refund = data?.refund
 
   const conversationMessages = useMemo(() => {
-    if (!refund || messages.length === 0) return messages
+    if (messages.length === 0) return messages
     const first = messages[0]
-    if (first && first.content?.startsWith('退款申请信息')) {
+    if (refund && first?.content?.startsWith('退款申请信息')) {
+      return messages.slice(1)
+    }
+    if (invoice && first?.content?.startsWith('发票申请信息')) {
       return messages.slice(1)
     }
     return messages
-  }, [messages, refund])
+  }, [messages, refund, invoice])
 
   const replyMutation = useMutation({
     mutationFn: ({
