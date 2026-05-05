@@ -1,22 +1,6 @@
-/*
-Copyright (C) 2023-2026 QuantumNous
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as
-published by the Free Software Foundation, either version 3 of the
-License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Shield, User, Users } from 'lucide-react'
+import { Headset, Shield, User, Users } from 'lucide-react'
 
 import type { User as UserType } from './types'
 
@@ -68,6 +52,7 @@ export const getUserStatusOptions = (t: (key: string) => string) => [
 
 export const USER_ROLE = {
   USER: 1,
+  STAFF: 5,
   ADMIN: 10,
   ROOT: 100,
 } as const
@@ -77,6 +62,11 @@ export const USER_ROLES = {
     labelKey: 'User',
     value: USER_ROLE.USER,
     icon: User,
+  },
+  [USER_ROLE.STAFF]: {
+    labelKey: 'Staff',
+    value: USER_ROLE.STAFF,
+    icon: Headset,
   },
   [USER_ROLE.ADMIN]: {
     labelKey: 'Admin',
@@ -92,9 +82,33 @@ export const USER_ROLES = {
 
 export const getUserRoleOptions = (t: (key: string) => string) => [
   { label: t('User'), value: String(USER_ROLE.USER), icon: User },
+  { label: t('Staff'), value: String(USER_ROLE.STAFF), icon: Headset },
   { label: t('Admin'), value: String(USER_ROLE.ADMIN), icon: Users },
   { label: t('Root'), value: String(USER_ROLE.ROOT), icon: Shield },
 ]
+
+export const ROLE_META: Record<number, { labelKey: string; descKey: string; color: string }> = {
+  [USER_ROLE.USER]: {
+    labelKey: 'User',
+    descKey: 'role_desc_user',
+    color: 'blue',
+  },
+  [USER_ROLE.STAFF]: {
+    labelKey: 'Staff',
+    descKey: 'role_desc_staff',
+    color: 'cyan',
+  },
+  [USER_ROLE.ADMIN]: {
+    labelKey: 'Admin',
+    descKey: 'role_desc_admin',
+    color: 'yellow',
+  },
+  [USER_ROLE.ROOT]: {
+    labelKey: 'Root',
+    descKey: 'role_desc_root',
+    color: 'orange',
+  },
+}
 
 // ============================================================================
 // Default Values

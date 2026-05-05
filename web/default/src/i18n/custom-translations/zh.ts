@@ -517,6 +517,32 @@ const zh: Record<string, string> = {
   // Detail page metadata
   'Assigned to me': '分配给我',
   'Admin reply...': '管理员回复…',
+
+  // User Management - Role
+  Staff: '客服',
+  'Manage Role': '管理角色',
+  'Save Role': '保存角色',
+  'Role updated': '角色已更新',
+  'Target Role': '目标角色',
+  'Current role': '当前角色',
+  'Cannot modify Super Admin': '超级管理员无法在此修改',
+  'Super Admin role can only be adjusted in the database.':
+    '超级管理员的角色只能在数据库中手动调整，且不能被任何管理员降级。',
+  'Role change notes': '角色调整说明',
+  role_desc_user: '仅能使用个人中心与普通功能，无任何后台权限。',
+  role_desc_staff: '仅能访问工单后台，根据分配规则处理指派给自己的工单。',
+  role_desc_admin: '可访问除系统设置外的全部后台功能。',
+  role_desc_root: '最高权限，可访问系统设置及全部功能。',
+  role_note_permission:
+    '你只能把用户角色修改为"比你自己低"的级别（超级管理员除外）。',
+  role_note_staff:
+    '设置为"客服"后，该用户可登录后台并只看到工单模块，其它管理功能都会被隐藏。',
+  role_note_immediate:
+    '角色变更立即生效，无需重新登录；用户缓存和其名下令牌缓存都会被清空。',
+
+  // User Management - Filter
+  'Filter by ID, username, name or email...':
+    '支持搜索用户 ID、用户名、显示名称和邮箱地址',
 }
 
 export default zh

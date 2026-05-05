@@ -511,6 +511,36 @@ const en = {
   // Detail page metadata
   'Assigned to me': 'Assigned to me',
   'Admin reply...': 'Admin reply...',
+
+  // User Management - Role
+  Staff: 'Staff',
+  'Manage Role': 'Manage Role',
+  'Save Role': 'Save Role',
+  'Role updated': 'Role updated',
+  'Target Role': 'Target Role',
+  'Current role': 'Current role',
+  'Cannot modify Super Admin': 'Cannot modify Super Admin',
+  'Super Admin role can only be adjusted in the database.':
+    'Super Admin role can only be adjusted in the database.',
+  'Role change notes': 'Role change notes',
+  role_desc_user:
+    'Can only use personal features, no backend access.',
+  role_desc_staff:
+    'Can only access ticket backend to handle assigned tickets.',
+  role_desc_admin:
+    'Can access all backend features except system settings.',
+  role_desc_root:
+    'Highest privilege, can access system settings and all features.',
+  role_note_permission:
+    'You can only set roles lower than your own level (Super Admin excluded).',
+  role_note_staff:
+    'Staff role grants access to the ticket module only; other admin features are hidden.',
+  role_note_immediate:
+    'Role changes take effect immediately without re-login; user and token caches are cleared.',
+
+  // User Management - Filter
+  'Filter by ID, username, name or email...':
+    'Filter by ID, username, name or email...',
 } as const
 
 export default en
