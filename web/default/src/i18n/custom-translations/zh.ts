@@ -533,6 +533,24 @@ const zh: Record<string, string> = {
     '驳回后额度将解冻，用户可重新申请。',
   'Rejection reason': '驳回理由',
 
+  // Commission
+  'View Commission Records': '查看返佣记录',
+  'Commission Records': '返佣记录',
+  Collapse: '收起',
+  'No commission records': '暂无返佣记录',
+  'Top-Up Amount': '充值金额',
+  Rate: '比例',
+  Commission: '返佣',
+  Source: '来源',
+  Manual: '手动充值',
+  Online: '在线支付',
+  'Top-Up Commission Rate (%)': '充值返佣比例（%）',
+  'Percentage of top-up amount rewarded to the inviter as commission. Set to 0 to disable.':
+    '被邀请者充值时，邀请者获得的返佣百分比。设为 0 则关闭。',
+  'Manual Top-Up Commission': '手动充值返佣',
+  'When enabled, admin manual top-ups also trigger commission for the inviter.':
+    '开启后，管理员手动充值也会触发邀请者返佣。',
+
   // Ticket list close
   'Close Ticket': '关闭工单',
   'Are you sure you want to close this ticket?':
