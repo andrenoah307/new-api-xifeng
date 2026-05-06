@@ -258,3 +258,20 @@ export interface BillingHistoryResponse {
 export interface CompleteOrderRequest {
   trade_no: string
 }
+
+export interface CommissionRecord {
+  id: number
+  user_id: number
+  inviter_id: number
+  topup_id: number
+  topup_money: number
+  commission_rate: number
+  commission_quota: number
+  is_manual: boolean
+  created_at: number
+}
+
+export interface CommissionRecordsResponse {
+  records: CommissionRecord[]
+  total: number
+}

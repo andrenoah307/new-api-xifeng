@@ -25,6 +25,8 @@ const quotaSchema = z.object({
   PreConsumedQuota: z.coerce.number().min(0),
   QuotaForInviter: z.coerce.number().min(0),
   QuotaForInvitee: z.coerce.number().min(0),
+  TopUpCommissionRate: z.coerce.number().min(0).max(100),
+  TopUpCommissionManualEnabled: z.boolean(),
   TopUpLink: z.string().url().optional().or(z.literal('')),
   'general_setting.docs_link': z.string().url().optional().or(z.literal('')),
   'quota_setting.enable_free_model_pre_consume': z.boolean(),
@@ -162,6 +164,59 @@ export function QuotaSettingsSection({
                   {t('Quota given to invited users')}
                 </FormDescription>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='TopUpCommissionRate'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Top-Up Commission Rate (%)')}</FormLabel>
+                <FormControl>
+                  <Input
+                    type='number'
+                    step='0.1'
+                    value={field.value as number}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'Percentage of top-up amount rewarded to the inviter as commission. Set to 0 to disable.'
+                  )}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='TopUpCommissionManualEnabled'
+            render={({ field }) => (
+              <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
+                <div className='space-y-0.5'>
+                  <FormLabel className='text-base'>
+                    {t('Manual Top-Up Commission')}
+                  </FormLabel>
+                  <FormDescription>
+                    {t(
+                      'When enabled, admin manual top-ups also trigger commission for the inviter.'
+                    )}
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={updateOption.isPending}
+                  />
+                </FormControl>
               </FormItem>
             )}
           />

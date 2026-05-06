@@ -524,6 +524,24 @@ const en = {
     'Rejection will unfreeze the quota. The user can reapply.',
   'Rejection reason': 'Rejection reason',
 
+  // Commission
+  'View Commission Records': 'View Commission Records',
+  'Commission Records': 'Commission Records',
+  Collapse: 'Collapse',
+  'No commission records': 'No commission records',
+  'Top-Up Amount': 'Top-Up Amount',
+  Rate: 'Rate',
+  Commission: 'Commission',
+  Source: 'Source',
+  Manual: 'Manual',
+  Online: 'Online',
+  'Top-Up Commission Rate (%)': 'Top-Up Commission Rate (%)',
+  'Percentage of top-up amount rewarded to the inviter as commission. Set to 0 to disable.':
+    'Percentage of top-up amount rewarded to the inviter as commission. Set to 0 to disable.',
+  'Manual Top-Up Commission': 'Manual Top-Up Commission',
+  'When enabled, admin manual top-ups also trigger commission for the inviter.':
+    'When enabled, admin manual top-ups also trigger commission for the inviter.',
+
   // Ticket list close
   'Close Ticket': 'Close Ticket',
   'Are you sure you want to close this ticket?':

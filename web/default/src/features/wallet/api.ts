@@ -20,6 +20,7 @@ import type {
   WaffoPaymentResponse,
   WaffoPancakePaymentRequest,
   WaffoPancakePaymentResponse,
+  CommissionRecordsResponse,
 } from './types'
 
 // ============================================================================
@@ -213,5 +214,17 @@ export async function completeOrder(
   request: CompleteOrderRequest
 ): Promise<ApiResponse> {
   const res = await api.post('/api/user/topup/complete', request)
+  return res.data
+}
+
+export async function getMyCommissionRecords(
+  page: number,
+  pageSize: number
+): Promise<ApiResponse<CommissionRecordsResponse>> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    page_size: pageSize.toString(),
+  })
+  const res = await api.get(`/api/user/commission_records?${params.toString()}`)
   return res.data
 }
