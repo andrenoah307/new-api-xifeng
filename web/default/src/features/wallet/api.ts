@@ -225,6 +225,6 @@ export async function getMyCommissionRecords(
     page: page.toString(),
     page_size: pageSize.toString(),
   })
-  const res = await api.get(`/api/user/commission_records?${params.toString()}`)
+  const res = await api.get(`/api/user/commission_records/self?${params.toString()}`)
   return res.data
 }
