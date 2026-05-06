@@ -25,6 +25,7 @@ import { useSystemConfig } from '@/hooks/use-system-config'
 import { getSelf } from '@/lib/api'
 
 import { AffiliateRewardsCard } from './components/affiliate-rewards-card'
+import { CommissionRecordsTable } from './components/commission-records-table'
 import { BillingHistoryDialog } from './components/dialogs/billing-history-dialog'
 import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
@@ -325,6 +326,7 @@ export function Wallet(props: WalletProps) {
               }
               loading={affiliateLoading}
             />
+            <CommissionRecordsTable />
           </div>
         </SectionPageLayout.Content>
       </SectionPageLayout>
