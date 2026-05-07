@@ -306,6 +306,7 @@ func migrateDB() error {
 		&ChannelMonitoringStat{},
 		&GroupMonitoringStat{},
 		&MonitoringHistory{},
+		&CommissionRecord{},
 	)
 	if err != nil {
 		return err
