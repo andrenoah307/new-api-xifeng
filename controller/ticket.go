@@ -304,7 +304,7 @@ func GetUserTickets(c *gin.Context) {
 	status, _ := strconv.Atoi(c.Query("status"))
 	pageInfo := common.GetPageQuery(c)
 
-	tickets, total, err := model.ListTickets(model.TicketQueryOptions{
+	tickets, total, err := model.ListTicketsWithSummary(model.TicketQueryOptions{
 		UserId: c.GetInt("id"),
 		Status: status,
 		Type:   ticketType,
