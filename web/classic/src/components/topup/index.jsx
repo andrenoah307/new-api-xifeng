@@ -39,6 +39,7 @@ import InvitationCard from './InvitationCard';
 import InvitationCodeCard from '../invitation/InvitationCodeCard';
 import TransferModal from './modals/TransferModal';
 import PaymentConfirmModal from './modals/PaymentConfirmModal';
+import CommissionRecordsCard from './CommissionRecordsCard';
 
 // Reject non-navigable schemes (e.g. javascript:, data:) and relative URLs.
 // Only http / https are allowed for backend-provided redirect targets.
@@ -1020,6 +1021,7 @@ const TopUp = () => {
             complianceConfirmed={topupInfo.payment_compliance_confirmed !== false}
           />
           {showInvitationCodeCard && <InvitationCodeCard />}
+          <CommissionRecordsCard t={t} />
         </div>
       </div>
     </div>
