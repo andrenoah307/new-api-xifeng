@@ -26,6 +26,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [ticketType, setTicketType] = useState('general');
   const [payeeType, setPayeeType] = useState('alipay');
   const [userQuota, setUserQuota] = useState(0);
+  const [maxRefundableQuota, setMaxRefundableQuota] = useState(0);
   const [quotaLoading, setQuotaLoading] = useState(false);
   const formApiRef = useRef(null);
   const {
@@ -45,6 +46,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
       const res = await API.get('/api/user/self');
       if (res.data?.success) {
         setUserQuota(Number(res.data?.data?.quota || 0));
+        setMaxRefundableQuota(Number(res.data?.data?.max_refundable_quota ?? 0));
       }
     } catch (error) {
       // silently ignore; quota display is informational
@@ -93,8 +95,8 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
           setLoading(false);
           return;
         }
-        if (refundQuota > userQuota) {
-          showError(t('申请退款金额不能超过当前可用额度'));
+        if (refundQuota > maxRefundableQuota) {
+          showError(t('申请退款金额不能超过最大可退额度'));
           setLoading(false);
           return;
         }
@@ -232,6 +234,18 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
               className='!mb-3'
             />
             <Banner
+              type='info'
+              closeIcon={null}
+              description={
+                quotaLoading
+                  ? t('加载中...')
+                  : `${t('最大可退额度')}：${renderQuotaWithAmount(
+                      Number(quotaToDisplayAmount(maxRefundableQuota).toFixed(6)),
+                    )}`
+              }
+              className='!mb-3'
+            />
+            <Banner
               type='warning'
               closeIcon={null}
               description={t(
@@ -275,7 +289,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
               precision={6}
               step={0.000001}
               min={0}
-              max={Number(quotaToDisplayAmount(userQuota).toFixed(6))}
+              max={Number(quotaToDisplayAmount(maxRefundableQuota).toFixed(6))}
               style={{ width: '100%' }}
               rules={[
                 { required: true, message: t('申请退款金额必须大于 0') },
@@ -283,10 +297,10 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
                   validator: (_, value) => {
                     const num = Number(value);
                     if (!Number.isFinite(num) || num <= 0) return false;
-                    if (displayAmountToQuota(num) > userQuota) return false;
+                    if (displayAmountToQuota(num) > maxRefundableQuota) return false;
                     return true;
                   },
-                  message: t('申请退款金额不能超过当前可用额度'),
+                  message: t('申请退款金额不能超过最大可退额度'),
                 },
               ]}
             />

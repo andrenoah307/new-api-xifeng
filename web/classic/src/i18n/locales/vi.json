@@ -5213,6 +5213,10 @@
     "暂无返佣记录": "Không có hoa hồng",
     "充值金额": "Số tiền nạp",
     "返佣比例": "Tỷ lệ",
-    "返佣金额": "Hoa hồng"
+    "返佣金额": "Hoa hồng",
+    "冷却中": "Đang chờ",
+    "可划转": "Có thể chuyển",
+    "最大可退额度": "Hạn ngạch hoàn trả tối đa",
+    "申请退款金额不能超过最大可退额度": "Số tiền hoàn trả không được vượt quá hạn ngạch hoàn trả tối đa"
   }
 }

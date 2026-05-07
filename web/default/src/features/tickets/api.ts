@@ -218,6 +218,7 @@ export async function getEligibleInvoiceOrders(): Promise<
 
 export async function getCurrentUserQuota(): Promise<{
   quota: number
+  max_refundable_quota: number
 } | null> {
   const res = await api.get('/api/user/self')
   return res.data?.data ?? null

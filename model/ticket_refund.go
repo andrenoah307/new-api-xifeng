@@ -169,14 +169,17 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 		return nil, nil, nil, ErrTicketRefundContactEmpty
 	}
 
-	// 预检用户当前可用余额。直接读 DB，确保不被缓存/批量更新延迟误导。
+	maxRefundable, err := GetUserMaxRefundableQuota(params.UserId)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if params.RefundQuota > maxRefundable {
+		return nil, nil, nil, ErrTicketRefundQuotaExceed
+	}
 	var userQuota int
 	if err := DB.Model(&User{}).Where("id = ?", params.UserId).
 		Select("quota").Find(&userQuota).Error; err != nil {
 		return nil, nil, nil, err
-	}
-	if params.RefundQuota > userQuota {
-		return nil, nil, nil, ErrTicketRefundQuotaExceed
 	}
 
 	// 先扣除余额（db=true 跳过 BatchUpdate，立即落库）。
@@ -203,7 +206,7 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 		refund  *TicketRefund
 		message *TicketMessage
 	)
-	err := DB.Transaction(func(tx *gorm.DB) error {
+	err = DB.Transaction(func(tx *gorm.DB) error {
 		subject := strings.TrimSpace(params.Subject)
 		if subject == "" {
 			subject = fmt.Sprintf("退款申请（%s）", logger.LogQuota(params.RefundQuota))
@@ -279,6 +282,43 @@ func SumUserPendingRefundQuota(userId int) (int64, error) {
 		Select("COALESCE(SUM(refund_quota), 0)").
 		Scan(&total).Error
 	return total, err
+}
+
+func GetUserTotalRefundedQuota(userId int) (int64, error) {
+	var total int64
+	err := DB.Model(&TicketRefund{}).
+		Where("user_id = ? AND refund_status = ?", userId, RefundStatusRefunded).
+		Select("COALESCE(SUM(refund_quota), 0)").
+		Scan(&total).Error
+	return total, err
+}
+
+func GetUserMaxRefundableQuota(userId int) (int, error) {
+	totalTopUp, err := GetUserTotalTopUpQuota(userId)
+	if err != nil {
+		return 0, err
+	}
+	totalRefunded, err := GetUserTotalRefundedQuota(userId)
+	if err != nil {
+		return 0, err
+	}
+	pendingRefund, err := SumUserPendingRefundQuota(userId)
+	if err != nil {
+		return 0, err
+	}
+	var userQuota int
+	if err := DB.Model(&User{}).Where("id = ?", userId).
+		Select("quota").Find(&userQuota).Error; err != nil {
+		return 0, err
+	}
+	cap := totalTopUp - totalRefunded - pendingRefund
+	if cap < 0 {
+		cap = 0
+	}
+	if int64(userQuota) < cap {
+		return userQuota, nil
+	}
+	return int(cap), nil
 }
 
 func GetTicketRefundByTicketId(ticketId int) (*TicketRefund, error) {

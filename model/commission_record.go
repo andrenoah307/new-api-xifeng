@@ -3,10 +3,16 @@ package model
 import (
 	"math"
 	"strconv"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 
 	"gorm.io/gorm"
+)
+
+const (
+	CommissionTypeTopUp  = "topup"
+	CommissionTypeInvite = "invite"
 )
 
 type CommissionRecord struct {
@@ -18,6 +24,7 @@ type CommissionRecord struct {
 	CommissionRate  float64 `json:"commission_rate"`
 	CommissionQuota int     `json:"commission_quota"`
 	IsManual        bool    `json:"is_manual" gorm:"default:false"`
+	Type            string  `json:"type" gorm:"type:varchar(20);default:'topup';index"`
 	CreatedAt       int64   `json:"created_at" gorm:"autoCreateTime"`
 }
 
@@ -52,6 +59,7 @@ func GrantTopUpCommission(topUp *TopUp, isManual bool) {
 		CommissionRate:  rate,
 		CommissionQuota: commissionQuota,
 		IsManual:        isManual,
+		Type:            CommissionTypeTopUp,
 	}
 
 	err = DB.Transaction(func(tx *gorm.DB) error {
@@ -94,4 +102,50 @@ func GetAllCommissionRecords(page int, pageSize int) ([]*CommissionRecord, int64
 
 	err := query.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records).Error
 	return records, total, err
+}
+
+func GetRecentCommissionQuota(inviterId int, commissionType string, cooldownHours int) (int64, error) {
+	if cooldownHours <= 0 {
+		return 0, nil
+	}
+	cutoff := time.Now().Add(-time.Duration(cooldownHours) * time.Hour).Unix()
+	var total int64
+	query := DB.Model(&CommissionRecord{}).
+		Where("inviter_id = ? AND created_at >= ?", inviterId, cutoff).
+		Select("COALESCE(SUM(commission_quota), 0)")
+	if commissionType != "" {
+		query = query.Where("type = ?", commissionType)
+	}
+	err := query.Scan(&total).Error
+	return total, err
+}
+
+func GetTransferableAffQuota(userId int, affQuota int) (int, error) {
+	recentTopUp, err := GetRecentCommissionQuota(userId, CommissionTypeTopUp, common.AffTransferCooldownHours)
+	if err != nil {
+		return 0, err
+	}
+	recentInvite, err := GetRecentCommissionQuota(userId, CommissionTypeInvite, common.InviteRewardCooldownHours)
+	if err != nil {
+		return 0, err
+	}
+	transferable := int64(affQuota) - recentTopUp - recentInvite
+	if transferable < 0 {
+		transferable = 0
+	}
+	return int(transferable), nil
+}
+
+func GrantInviteCommission(inviterId int, inviteeId int, quota int) error {
+	record := &CommissionRecord{
+		UserId:          inviteeId,
+		InviterId:       inviterId,
+		TopUpId:         -inviteeId,
+		TopUpMoney:      0,
+		CommissionRate:  0,
+		CommissionQuota: quota,
+		IsManual:        false,
+		Type:            CommissionTypeInvite,
+	}
+	return DB.Create(record).Error
 }
