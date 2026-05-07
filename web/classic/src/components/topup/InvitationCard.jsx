@@ -81,8 +81,8 @@ const InvitationCard = ({
                     theme='solid'
                     size='small'
                     disabled={
-                      !userState?.user?.aff_quota ||
-                      userState?.user?.aff_quota <= 0
+                      !userState?.user?.transferable_aff_quota ||
+                      userState?.user?.transferable_aff_quota <= 0
                     }
                     onClick={() => setOpenTransfer(true)}
                     className='!rounded-lg'
@@ -93,14 +93,14 @@ const InvitationCard = ({
                 </div>
 
                 {/* 统计数据 */}
-                <div className='grid grid-cols-3 gap-6 mt-4'>
-                  {/* 待使用收益 */}
+                <div className='grid grid-cols-4 gap-6 mt-4'>
+                  {/* 可划转 */}
                   <div className='text-center'>
                     <div
                       className='text-base sm:text-2xl font-bold mb-2'
                       style={{ color: 'white' }}
                     >
-                      {renderQuota(userState?.user?.aff_quota || 0)}
+                      {renderQuota(userState?.user?.transferable_aff_quota || 0)}
                     </div>
                     <div className='flex items-center justify-center text-sm'>
                       <TrendingUp
@@ -114,7 +114,32 @@ const InvitationCard = ({
                           fontSize: '12px',
                         }}
                       >
-                        {t('待使用收益')}
+                        {t('可划转')}
+                      </Text>
+                    </div>
+                  </div>
+
+                  {/* 冷却中 */}
+                  <div className='text-center'>
+                    <div
+                      className='text-base sm:text-2xl font-bold mb-2'
+                      style={{ color: 'white' }}
+                    >
+                      {renderQuota((userState?.user?.aff_quota || 0) - (userState?.user?.transferable_aff_quota || 0))}
+                    </div>
+                    <div className='flex items-center justify-center text-sm'>
+                      <TrendingUp
+                        size={14}
+                        className='mr-1'
+                        style={{ color: 'rgba(255,255,255,0.8)' }}
+                      />
+                      <Text
+                        style={{
+                          color: 'rgba(255,255,255,0.8)',
+                          fontSize: '12px',
+                        }}
+                      >
+                        {t('冷却中')}
                       </Text>
                     </div>
                   </div>

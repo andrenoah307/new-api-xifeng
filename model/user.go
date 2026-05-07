@@ -387,7 +387,7 @@ func HardDeleteUserById(id int) error {
 	return err
 }
 
-func inviteUser(inviterId int) (err error) {
+func inviteUser(inviterId int, inviteeId int) (err error) {
 	user, err := GetUserById(inviterId, true)
 	if err != nil {
 		return err
@@ -395,43 +395,47 @@ func inviteUser(inviterId int) (err error) {
 	user.AffCount++
 	user.AffQuota += common.QuotaForInviter
 	user.AffHistoryQuota += common.QuotaForInviter
-	return DB.Save(user).Error
+	if err := DB.Save(user).Error; err != nil {
+		return err
+	}
+	return GrantInviteCommission(inviterId, inviteeId, common.QuotaForInviter)
 }
 
 func (user *User) TransferAffQuotaToQuota(quota int) error {
-	// 检查quota是否小于最小额度
 	if float64(quota) < common.QuotaPerUnit {
 		return fmt.Errorf("转移额度最小为%s！", logger.LogQuota(int(common.QuotaPerUnit)))
 	}
 
-	// 开始数据库事务
+	transferable, err := GetTransferableAffQuota(user.Id, user.AffQuota)
+	if err != nil {
+		return fmt.Errorf("计算可划转额度失败：%v", err)
+	}
+	if quota > transferable {
+		return fmt.Errorf("可划转额度不足，当前可划转 %s", logger.LogQuota(transferable))
+	}
+
 	tx := DB.Begin()
 	if tx.Error != nil {
 		return tx.Error
 	}
-	defer tx.Rollback() // 确保在函数退出时事务能回滚
+	defer tx.Rollback()
 
-	// 加锁查询用户以确保数据一致性
-	err := tx.Set("gorm:query_option", "FOR UPDATE").First(&user, user.Id).Error
+	err = tx.Set("gorm:query_option", "FOR UPDATE").First(&user, user.Id).Error
 	if err != nil {
 		return err
 	}
 
-	// 再次检查用户的AffQuota是否足够
 	if user.AffQuota < quota {
 		return errors.New("邀请额度不足！")
 	}
 
-	// 更新用户额度
 	user.AffQuota -= quota
 	user.Quota += quota
 
-	// 保存用户状态
 	if err := tx.Save(user).Error; err != nil {
 		return err
 	}
 
-	// 提交事务
 	return tx.Commit().Error
 }
 
@@ -486,9 +490,8 @@ func (user *User) Insert(inviterId int) error {
 			RecordLog(user.Id, LogTypeSystem, fmt.Sprintf("使用邀请码赠送 %s", logger.LogQuota(common.QuotaForInvitee)))
 		}
 		if common.QuotaForInviter > 0 {
-			//_ = IncreaseUserQuota(inviterId, common.QuotaForInviter)
 			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
+			_ = inviteUser(inviterId, user.Id)
 		}
 	}
 	return nil
@@ -551,7 +554,7 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 		}
 		if common.QuotaForInviter > 0 {
 			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
-			_ = inviteUser(inviterId)
+			_ = inviteUser(inviterId, user.Id)
 		}
 	}
 }
