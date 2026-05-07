@@ -38,6 +38,8 @@ export default function SettingsCreditLimit(props) {
     QuotaForInvitee: '',
     TopUpCommissionRate: '',
     TopUpCommissionManualEnabled: false,
+    AffTransferCooldownHours: '',
+    InviteRewardCooldownHours: '',
     'quota_setting.enable_free_model_pre_consume': true,
   });
   const refForm = useRef();
@@ -197,6 +199,42 @@ export default function SettingsCreditLimit(props) {
                     setInputs({
                       ...inputs,
                       TopUpCommissionManualEnabled: value,
+                    })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('充值返佣冷却时间（小时）')}
+                  field={'AffTransferCooldownHours'}
+                  step={1}
+                  min={0}
+                  suffix={t('小时')}
+                  extraText={t('充值返利在此时间后才可划转到余额，设为 0 关闭冷却')}
+                  placeholder={'72'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      AffTransferCooldownHours: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('邀请奖励冷却时间（小时）')}
+                  field={'InviteRewardCooldownHours'}
+                  step={1}
+                  min={0}
+                  suffix={t('小时')}
+                  extraText={t('邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却')}
+                  placeholder={'72'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      InviteRewardCooldownHours: String(value),
                     })
                   }
                 />

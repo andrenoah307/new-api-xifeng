@@ -28,6 +28,8 @@ const quotaSchema = z.object({
   QuotaForInvitee: z.coerce.number().min(0),
   TopUpCommissionRate: z.coerce.number().min(0).max(100),
   TopUpCommissionManualEnabled: z.boolean(),
+  AffTransferCooldownHours: z.coerce.number().min(0).int(),
+  InviteRewardCooldownHours: z.coerce.number().min(0).int(),
   TopUpLink: z.string(),
   general_setting: z.object({
     docs_link: z.string(),
@@ -229,6 +231,64 @@ export function QuotaSettingsSection({
                     disabled={updateOption.isPending}
                   />
                 </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='AffTransferCooldownHours'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  {t('Top-Up Commission Cooldown (hours)')}
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    type='number'
+                    step={1}
+                    value={field.value as number}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'Hours before top-up commissions become transferable. Set to 0 to disable cooldown.'
+                  )}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='InviteRewardCooldownHours'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  {t('Invite Reward Cooldown (hours)')}
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    type='number'
+                    step={1}
+                    value={field.value as number}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'Hours before invite registration rewards become transferable. Set to 0 to disable cooldown.'
+                  )}
+                </FormDescription>
+                <FormMessage />
               </FormItem>
             )}
           />
