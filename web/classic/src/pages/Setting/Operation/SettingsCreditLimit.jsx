@@ -36,6 +36,8 @@ export default function SettingsCreditLimit(props) {
     PreConsumedQuota: '',
     QuotaForInviter: '',
     QuotaForInvitee: '',
+    TopUpCommissionRate: '',
+    TopUpCommissionManualEnabled: false,
     'quota_setting.enable_free_model_pre_consume': true,
   });
   const refForm = useRef();
@@ -162,6 +164,39 @@ export default function SettingsCreditLimit(props) {
                     setInputs({
                       ...inputs,
                       QuotaForInvitee: String(value),
+                    })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('充值返佣比例 (%)')}
+                  field={'TopUpCommissionRate'}
+                  step={0.1}
+                  min={0}
+                  max={100}
+                  suffix={'%'}
+                  extraText={t('被邀请者充值时，邀请者获得的返佣百分比，设为 0 则关闭')}
+                  placeholder={'0'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      TopUpCommissionRate: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  label={t('管理员手动充值返佣')}
+                  field={'TopUpCommissionManualEnabled'}
+                  extraText={t('开启后，管理员手动充值也会触发邀请者返佣')}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      TopUpCommissionManualEnabled: value,
                     })
                   }
                 />
