@@ -102,7 +102,6 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 	}
 
 	if now-state.WindowStart > int64(cfg.ObservationWindowSeconds) {
-		state.Consecutive = 0
 		state.Violations = 0
 		state.TotalRequests = 0
 		state.WindowStart = now
@@ -193,20 +192,15 @@ func StartPressureCoolingRecovery() {
 
 func pressureCoolingRecoveryLoop() {
 	for {
-		cfg := operation_setting.GetPressureCoolingSetting()
-		interval := cfg.RecoveryCheckIntervalSeconds
+		globalCfg := operation_setting.GetPressureCoolingSetting()
+		interval := globalCfg.RecoveryCheckIntervalSeconds
 		if interval <= 0 {
 			interval = 30
 		}
 		time.Sleep(time.Duration(interval) * time.Second)
 
-		if !cfg.Enabled {
-			continue
-		}
-
 		states := listCoolingChannelStates()
 		now := time.Now().Unix()
-		stateTTL := cfg.MaxCooldownSeconds * 3
 
 		for channelId, state := range states {
 			if state.State != "cool" {
@@ -215,6 +209,19 @@ func pressureCoolingRecoveryLoop() {
 
 			ch, err := model.CacheGetChannel(channelId)
 			if err != nil || ch == nil {
+				deletePressureCoolingState(channelId)
+				continue
+			}
+
+			chSetting := ch.GetSetting()
+			cfg := resolvePressureCoolingConfig(chSetting.PressureCooling)
+			stateTTL := cfg.MaxCooldownSeconds * 3
+			if stateTTL < cfg.ObservationWindowSeconds*3 {
+				stateTTL = cfg.ObservationWindowSeconds * 3
+			}
+
+			if !cfg.Enabled {
+				model.UpdateChannelStatus(channelId, "", common.ChannelStatusEnabled, "压力冷却已禁用，自动恢复")
 				deletePressureCoolingState(channelId)
 				continue
 			}
