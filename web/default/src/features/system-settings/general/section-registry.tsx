@@ -46,6 +46,8 @@ const GENERAL_SECTIONS = [
           QuotaForInvitee: settings.QuotaForInvitee,
           TopUpCommissionRate: settings.TopUpCommissionRate,
           TopUpCommissionManualEnabled: settings.TopUpCommissionManualEnabled,
+          AffTransferCooldownHours: settings.AffTransferCooldownHours,
+          InviteRewardCooldownHours: settings.InviteRewardCooldownHours,
           TopUpLink: settings.TopUpLink,
           'general_setting.docs_link': settings['general_setting.docs_link'],
           'quota_setting.enable_free_model_pre_consume':

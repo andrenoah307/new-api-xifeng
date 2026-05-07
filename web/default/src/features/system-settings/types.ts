@@ -44,6 +44,8 @@ export type GeneralSettings = {
   QuotaForInvitee: number
   TopUpCommissionRate: number
   TopUpCommissionManualEnabled: boolean
+  AffTransferCooldownHours: number
+  InviteRewardCooldownHours: number
   TopUpLink: string
   'general_setting.docs_link': string
   'quota_setting.enable_free_model_pre_consume': boolean
