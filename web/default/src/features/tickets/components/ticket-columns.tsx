@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
 import { formatTimestampToDate } from '@/lib/format'
-import { formatQuota } from '@/lib/format'
+import { getCurrencyDisplay } from '@/lib/currency'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import type { Ticket, StaffUser } from '../api'
@@ -17,11 +17,21 @@ import {
   TicketTypeBadge,
 } from './ticket-status-badge'
 
+function formatQuotaAsMoney(quota: number): string {
+  const { config, meta } = getCurrencyDisplay()
+  if (meta.kind === 'tokens') {
+    return quota.toLocaleString()
+  }
+  const amountUSD = quota / config.quotaPerUnit
+  const value = amountUSD * meta.exchangeRate
+  return `${meta.symbol}${value.toFixed(2)}`
+}
+
 function TicketAmountBadge({ ticket }: { ticket: Ticket }) {
   if (ticket.type === 'refund' && ticket.refund_quota != null) {
     return (
       <span className="text-muted-foreground ml-1.5 text-[11px]">
-        {formatQuota(ticket.refund_quota)}
+        {formatQuotaAsMoney(ticket.refund_quota)}
       </span>
     )
   }
