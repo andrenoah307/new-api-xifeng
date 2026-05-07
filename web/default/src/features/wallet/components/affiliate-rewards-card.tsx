@@ -37,7 +37,7 @@ export function AffiliateRewardsCard({
     )
   }
 
-  const hasRewards = (user?.aff_quota ?? 0) > 0
+  const hasRewards = (user?.transferable_aff_quota ?? 0) > 0
 
   return (
     <Card className='bg-muted/20 py-0'>
@@ -58,9 +58,10 @@ export function AffiliateRewardsCard({
           </div>
         </div>
 
-        <div className='grid grid-cols-3 gap-1.5 text-center'>
+        <div className='grid grid-cols-4 gap-1.5 text-center'>
           {[
-            [t('Pending'), formatQuota(user?.aff_quota ?? 0)],
+            [t('Transferable'), formatQuota(user?.transferable_aff_quota ?? 0)],
+            [t('Locked'), formatQuota((user?.aff_quota ?? 0) - (user?.transferable_aff_quota ?? 0))],
             [t('Total Earned'), formatQuota(user?.aff_history_quota ?? 0)],
             [t('Invites'), String(user?.aff_count ?? 0)],
           ].map(([label, value]) => (

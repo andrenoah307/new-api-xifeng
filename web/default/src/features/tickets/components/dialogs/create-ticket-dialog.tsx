@@ -95,6 +95,10 @@ export function CreateTicketDialog({
     ? quotaUnitsToDollars(userQuota.quota)
     : null
 
+  const maxRefundDollars = userQuota?.max_refundable_quota != null
+    ? quotaUnitsToDollars(userQuota.max_refundable_quota)
+    : null
+
   const form = useForm<FormValues>({
     resolver: zodResolver(generalSchema) as Resolver<FormValues>,
     defaultValues: {
@@ -177,7 +181,7 @@ export function CreateTicketDialog({
           form.setError('refund_amount', { message: t('Refund amount must be greater than 0') })
           return
         }
-        if (balanceDollars != null && amount > balanceDollars) {
+        if (maxRefundDollars != null && amount > maxRefundDollars) {
           form.setError('refund_amount', { message: t('Refund amount cannot exceed available quota') })
           return
         }
@@ -215,7 +219,7 @@ export function CreateTicketDialog({
         })
       }
     },
-    [ticketType, createGeneral, createRefund, t, attachmentIds, balanceDollars, form, payeeType]
+    [ticketType, createGeneral, createRefund, t, attachmentIds, maxRefundDollars, form, payeeType]
   )
 
   const handleFileInput = useCallback(
@@ -262,10 +266,15 @@ export function CreateTicketDialog({
 
             {ticketType === 'refund' && (
               <Alert>
-                <AlertDescription>
+                <AlertDescription className="space-y-1">
                   {quotaLoading
                     ? t('Loading...')
-                    : `${t('Current available quota')}：${formatQuota(userQuota?.quota ?? 0)}`}
+                    : (
+                      <>
+                        <div>{t('Current available quota')}：{formatQuota(userQuota?.quota ?? 0)}</div>
+                        <div>{t('Max Refundable')}：{formatQuota(userQuota?.max_refundable_quota ?? 0)}</div>
+                      </>
+                    )}
                 </AlertDescription>
               </Alert>
             )}

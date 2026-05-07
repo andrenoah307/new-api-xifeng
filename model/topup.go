@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -545,4 +546,16 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 	}
 
 	return nil
+}
+
+func GetUserTotalTopUpQuota(userId int) (int64, error) {
+	var totalMoney float64
+	err := DB.Model(&TopUp{}).
+		Where("user_id = ? AND status = ?", userId, common.TopUpStatusSuccess).
+		Select("COALESCE(SUM(money), 0)").
+		Scan(&totalMoney).Error
+	if err != nil {
+		return 0, err
+	}
+	return int64(math.Round(totalMoney * common.QuotaPerUnit)), nil
 }

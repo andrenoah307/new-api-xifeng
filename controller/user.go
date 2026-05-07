@@ -409,36 +409,38 @@ func GetSelf(c *gin.Context) {
 	// 获取用户设置并提取sidebar_modules
 	userSetting := user.GetSetting()
 
-	// 构建响应数据，包含用户信息和权限
+	transferableAffQuota, _ := model.GetTransferableAffQuota(user.Id, user.AffQuota)
+	maxRefundableQuota, _ := model.GetUserMaxRefundableQuota(user.Id)
+
 	responseData := map[string]interface{}{
-		"id":                user.Id,
-		"username":          user.Username,
-		"display_name":      user.DisplayName,
-		"role":              user.Role,
-		"status":            user.Status,
-		"email":             user.Email,
-		"github_id":         user.GitHubId,
-		"discord_id":        user.DiscordId,
-		"oidc_id":           user.OidcId,
-		"wechat_id":         user.WeChatId,
-		"telegram_id":       user.TelegramId,
-		"group":             user.Group,
-		"quota":             user.Quota,
-		"used_quota":        user.UsedQuota,
-		"request_count":     user.RequestCount,
-		"aff_code":          user.AffCode,
-		"aff_count":         user.AffCount,
-		"aff_quota":         user.AffQuota,
-		"aff_history_quota": user.AffHistoryQuota,
-		"inviter_id":        user.InviterId,
-		"linux_do_id":       user.LinuxDOId,
-		"setting":           user.Setting,
-		"stripe_customer":   user.StripeCustomer,
-		"sidebar_modules":   userSetting.SidebarModules, // 正确提取sidebar_modules字段
-		"permissions":       permissions,                // 新增权限字段
-		// risk_warning_pending: vague-on-purpose flag for the login warning
-		// modal. We never expose the timestamp or the underlying rule.
-		"risk_warning_pending": user.RiskWarningPendingAt > 0,
+		"id":                     user.Id,
+		"username":               user.Username,
+		"display_name":           user.DisplayName,
+		"role":                   user.Role,
+		"status":                 user.Status,
+		"email":                  user.Email,
+		"github_id":              user.GitHubId,
+		"discord_id":             user.DiscordId,
+		"oidc_id":                user.OidcId,
+		"wechat_id":              user.WeChatId,
+		"telegram_id":            user.TelegramId,
+		"group":                  user.Group,
+		"quota":                  user.Quota,
+		"used_quota":             user.UsedQuota,
+		"request_count":          user.RequestCount,
+		"aff_code":               user.AffCode,
+		"aff_count":              user.AffCount,
+		"aff_quota":              user.AffQuota,
+		"aff_history_quota":      user.AffHistoryQuota,
+		"transferable_aff_quota": transferableAffQuota,
+		"max_refundable_quota":   maxRefundableQuota,
+		"inviter_id":             user.InviterId,
+		"linux_do_id":            user.LinuxDOId,
+		"setting":                user.Setting,
+		"stripe_customer":        user.StripeCustomer,
+		"sidebar_modules":        userSetting.SidebarModules,
+		"permissions":            permissions,
+		"risk_warning_pending":   user.RiskWarningPendingAt > 0,
 	}
 
 	c.JSON(http.StatusOK, gin.H{

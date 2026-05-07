@@ -207,6 +207,8 @@ export interface UserWalletData {
   request_count: number
   /** Affiliate quota (pending rewards) */
   aff_quota: number
+  /** Transferable affiliate quota (past cooldown period) */
+  transferable_aff_quota: number
   /** Total affiliate quota earned (historical) */
   aff_history_quota: number
   /** Number of successful affiliate invites */
