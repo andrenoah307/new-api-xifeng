@@ -5217,6 +5217,10 @@
     "冷却中": "Đang chờ",
     "可划转": "Có thể chuyển",
     "最大可退额度": "Hạn ngạch hoàn trả tối đa",
-    "申请退款金额不能超过最大可退额度": "Số tiền hoàn trả không được vượt quá hạn ngạch hoàn trả tối đa"
+    "申请退款金额不能超过最大可退额度": "Số tiền hoàn trả không được vượt quá hạn ngạch hoàn trả tối đa",
+    "充值返佣冷却时间（小时）": "Thời gian chờ hoa hồng nạp tiền (giờ)",
+    "充值返利在此时间后才可划转到余额，设为 0 关闭冷却": "Hoa hồng có thể chuyển sang số dư sau khoảng thời gian này. Đặt 0 để tắt.",
+    "邀请奖励冷却时间（小时）": "Thời gian chờ phần thưởng giới thiệu (giờ)",
+    "邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却": "Phần thưởng đăng ký giới thiệu có thể chuyển sang số dư sau khoảng thời gian này. Đặt 0 để tắt."
   }
 }
