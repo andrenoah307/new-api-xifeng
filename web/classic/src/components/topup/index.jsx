@@ -39,6 +39,7 @@ import InvitationCard from './InvitationCard';
 import InvitationCodeCard from '../invitation/InvitationCodeCard';
 import TransferModal from './modals/TransferModal';
 import PaymentConfirmModal from './modals/PaymentConfirmModal';
+import CommissionRecordsCard from './CommissionRecordsCard';
 
 const TopUp = () => {
   const { t } = useTranslation();
@@ -987,6 +988,7 @@ const TopUp = () => {
             handleAffLinkClick={handleAffLinkClick}
           />
           {showInvitationCodeCard && <InvitationCodeCard />}
+          <CommissionRecordsCard t={t} />
         </div>
       </div>
     </div>

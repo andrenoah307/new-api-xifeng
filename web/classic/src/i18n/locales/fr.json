@@ -4657,6 +4657,17 @@
         "充值返佣比例 (%)": "Taux de commission sur recharge (%)",
         "被邀请者充值时，邀请者获得的返佣百分比，设为 0 则关闭": "Pourcentage du montant de recharge reversé au parrain. Mettre à 0 pour désactiver.",
         "管理员手动充值返佣": "Commission sur recharge manuelle",
-        "开启后，管理员手动充值也会触发邀请者返佣": "Si activé, les recharges manuelles par l'admin déclenchent aussi la commission pour le parrain."
+        "开启后，管理员手动充值也会触发邀请者返佣": "Si activé, les recharges manuelles par l'admin déclenchent aussi la commission pour le parrain.",
+        "返佣记录": "Historique des commissions",
+        "查看返佣记录": "Voir les commissions",
+        "暂无返佣记录": "Aucune commission",
+        "充值金额": "Montant rechargé",
+        "返佣比例": "Taux",
+        "返佣金额": "Commission",
+        "来源": "Source",
+        "手动": "Manuel",
+        "在线": "En ligne",
+        "收起": "Réduire",
+        "请求失败": "Échec de la requête"
     }
 }
