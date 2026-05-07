@@ -4778,6 +4778,17 @@
         "充值返佣比例 (%)": "Top-Up Commission Rate (%)",
         "被邀请者充值时，邀请者获得的返佣百分比，设为 0 则关闭": "Percentage of top-up amount rewarded to the inviter as commission. Set to 0 to disable.",
         "管理员手动充值返佣": "Manual Top-Up Commission",
-        "开启后，管理员手动充值也会触发邀请者返佣": "When enabled, admin manual top-ups also trigger commission for the inviter."
+        "开启后，管理员手动充值也会触发邀请者返佣": "When enabled, admin manual top-ups also trigger commission for the inviter.",
+        "返佣记录": "Commission Records",
+        "查看返佣记录": "View Commission Records",
+        "暂无返佣记录": "No commission records",
+        "充值金额": "Top-Up Amount",
+        "返佣比例": "Rate",
+        "返佣金额": "Commission",
+        "来源": "Source",
+        "手动": "Manual",
+        "在线": "Online",
+        "收起": "Collapse",
+        "请求失败": "Request failed"
     }
 }

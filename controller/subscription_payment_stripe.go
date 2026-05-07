@@ -9,8 +9,8 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
-	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
@@ -111,8 +111,8 @@ func genStripeSubscriptionLink(referenceId string, customerId string, email stri
 
 	params := &stripe.CheckoutSessionParams{
 		ClientReferenceID: stripe.String(referenceId),
-		SuccessURL:        stripe.String(system_setting.ServerAddress + "/console/topup"),
-		CancelURL:         stripe.String(system_setting.ServerAddress + "/console/topup"),
+		SuccessURL:        stripe.String(service.GetPaymentReturnURL("wallet", "")),
+		CancelURL:         stripe.String(service.GetPaymentReturnURL("wallet", "")),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				Price:    stripe.String(priceId),

@@ -5169,6 +5169,17 @@
         "充值返佣比例 (%)": "Tỷ lệ hoa hồng nạp tiền (%)",
         "被邀请者充值时，邀请者获得的返佣百分比，设为 0 则关闭": "Phần trăm số tiền nạp được thưởng cho người giới thiệu dưới dạng hoa hồng. Đặt 0 để tắt.",
         "管理员手动充值返佣": "Hoa hồng nạp tiền thủ công",
-        "开启后，管理员手动充值也会触发邀请者返佣": "Khi bật, việc nạp tiền thủ công của admin cũng kích hoạt hoa hồng cho người giới thiệu."
+        "开启后，管理员手动充值也会触发邀请者返佣": "Khi bật, việc nạp tiền thủ công của admin cũng kích hoạt hoa hồng cho người giới thiệu.",
+        "返佣记录": "Lịch sử hoa hồng",
+        "查看返佣记录": "Xem hoa hồng",
+        "暂无返佣记录": "Không có hoa hồng",
+        "充值金额": "Số tiền nạp",
+        "返佣比例": "Tỷ lệ",
+        "返佣金额": "Hoa hồng",
+        "来源": "Nguồn",
+        "手动": "Thủ công",
+        "在线": "Trực tuyến",
+        "收起": "Thu gọn",
+        "请求失败": "Yêu cầu thất bại"
     }
 }
