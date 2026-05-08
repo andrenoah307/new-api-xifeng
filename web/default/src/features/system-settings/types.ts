@@ -163,6 +163,7 @@ export type BillingSettings = {
   TopUpCommissionManualEnabled: boolean
   AffTransferCooldownHours: number
   InviteRewardCooldownHours: number
+  MinTransferAmount: number
   TopUpLink: string
   'general_setting.docs_link': string
   'quota_setting.enable_free_model_pre_consume': boolean

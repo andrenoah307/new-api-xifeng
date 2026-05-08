@@ -14,6 +14,7 @@ const defaultBillingSettings: BillingSettings = {
   TopUpCommissionManualEnabled: false,
   AffTransferCooldownHours: 0,
   InviteRewardCooldownHours: 0,
+  MinTransferAmount: 0,
   TopUpLink: '',
   'general_setting.docs_link': '',
   'quota_setting.enable_free_model_pre_consume': true,

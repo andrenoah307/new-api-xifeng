@@ -139,6 +139,7 @@ var TopUpCommissionRate float64 = 0
 var TopUpCommissionManualEnabled = false
 var AffTransferCooldownHours = 72
 var InviteRewardCooldownHours = 72
+var MinTransferAmount float64 = 1.0
 var ChannelDisableThreshold = 5.0
 var AutomaticDisableChannelEnabled = false
 var AutomaticEnableChannelEnabled = false

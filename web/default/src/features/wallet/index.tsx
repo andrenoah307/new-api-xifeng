@@ -328,6 +328,7 @@ export function Wallet(props: WalletProps) {
         onConfirm={handleTransfer}
         availableQuota={user?.transferable_aff_quota ?? 0}
         transferring={transferring}
+        minTransferAmount={Number(status?.min_transfer_amount) || 1}
       />
 
       <BillingHistoryDialog
