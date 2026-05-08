@@ -40,6 +40,7 @@ export default function SettingsCreditLimit(props) {
     TopUpCommissionManualEnabled: false,
     AffTransferCooldownHours: '',
     InviteRewardCooldownHours: '',
+    MinTransferAmount: '',
     'quota_setting.enable_free_model_pre_consume': true,
   });
   const refForm = useRef();
@@ -235,6 +236,22 @@ export default function SettingsCreditLimit(props) {
                     setInputs({
                       ...inputs,
                       InviteRewardCooldownHours: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('最低划转金额')}
+                  field={'MinTransferAmount'}
+                  step={0.01}
+                  min={0}
+                  extraText={t('划转邀请奖励到余额的最低金额（货币单位），设为 0 无限制')}
+                  placeholder={'1.00'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      MinTransferAmount: String(value),
                     })
                   }
                 />

@@ -27,6 +27,7 @@ const defaultGeneralSettings: GeneralSettings = {
   TopUpCommissionManualEnabled: false,
   AffTransferCooldownHours: 72,
   InviteRewardCooldownHours: 72,
+  MinTransferAmount: 1,
   TopUpLink: '',
   'general_setting.docs_link': '',
   'quota_setting.enable_free_model_pre_consume': true,

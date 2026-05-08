@@ -29,6 +29,7 @@ const quotaSchema = z.object({
   TopUpCommissionManualEnabled: z.boolean(),
   AffTransferCooldownHours: z.coerce.number().min(0).int(),
   InviteRewardCooldownHours: z.coerce.number().min(0).int(),
+  MinTransferAmount: z.coerce.number().min(0),
   TopUpLink: z.string().url().optional().or(z.literal('')),
   'general_setting.docs_link': z.string().url().optional().or(z.literal('')),
   'quota_setting.enable_free_model_pre_consume': z.boolean(),
@@ -274,6 +275,35 @@ export function QuotaSettingsSection({
                 <FormDescription>
                   {t(
                     'Hours before invite registration rewards become transferable. Set to 0 to disable cooldown.'
+                  )}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='MinTransferAmount'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  {t('Minimum Transfer Amount')}
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    type='number'
+                    step={0.01}
+                    value={field.value as number}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'Minimum amount (in currency units) required for affiliate reward transfers. Set to 0 for no minimum.'
                   )}
                 </FormDescription>
                 <FormMessage />

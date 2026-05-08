@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { formatQuota } from '@/lib/format'
+import {
+  formatQuota,
+  parseQuotaFromDollars,
+  quotaUnitsToDollars,
+} from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -13,7 +17,6 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { QUOTA_PER_DOLLAR } from '../../constants'
 
 interface TransferDialogProps {
   open: boolean
@@ -21,6 +24,7 @@ interface TransferDialogProps {
   onConfirm: (amount: number) => Promise<boolean>
   availableQuota: number
   transferring: boolean
+  minTransferAmount?: number
 }
 
 export function TransferDialog({
@@ -29,19 +33,23 @@ export function TransferDialog({
   onConfirm,
   availableQuota,
   transferring,
+  minTransferAmount = 1,
 }: TransferDialogProps) {
   const { t } = useTranslation()
-  const [amount, setAmount] = useState(QUOTA_PER_DOLLAR)
+  const [displayAmount, setDisplayAmount] = useState(minTransferAmount)
 
   useEffect(() => {
     if (open) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAmount(QUOTA_PER_DOLLAR)
+      setDisplayAmount(minTransferAmount)
     }
-  }, [open])
+  }, [open, minTransferAmount])
+
+  const availableDisplayAmount = quotaUnitsToDollars(availableQuota)
 
   const handleConfirm = async () => {
-    const success = await onConfirm(amount)
+    const quotaAmount = parseQuotaFromDollars(displayAmount)
+    const success = await onConfirm(quotaAmount)
     if (success) {
       onOpenChange(false)
     }
@@ -79,15 +87,15 @@ export function TransferDialog({
             <Input
               id='transfer-amount'
               type='number'
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              min={QUOTA_PER_DOLLAR}
-              max={availableQuota}
-              step={QUOTA_PER_DOLLAR}
+              value={displayAmount}
+              onChange={(e) => setDisplayAmount(Number(e.target.value))}
+              min={minTransferAmount}
+              max={availableDisplayAmount}
+              step={0.01}
               className='font-mono text-lg'
             />
             <p className='text-muted-foreground text-xs'>
-              {t('Minimum:')} {formatQuota(QUOTA_PER_DOLLAR)}
+              {t('Minimum:')} {formatQuota(parseQuotaFromDollars(minTransferAmount))}
             </p>
           </div>
         </div>

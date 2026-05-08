@@ -29,6 +29,7 @@ import {
   copy,
   getQuotaPerUnit,
 } from '../../helpers';
+import { quotaToDisplayAmount, displayAmountToQuota } from '../../helpers/quota';
 import { Modal, Toast } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 import { UserContext } from '../../context/User';
@@ -711,13 +712,21 @@ const TopUp = () => {
   };
 
   // 划转邀请额度
+  const getMinTransferAmount = () => {
+    const raw = parseFloat(localStorage.getItem('min_transfer_amount') || '1');
+    return Number.isFinite(raw) && raw > 0 ? raw : 1;
+  };
+
   const transfer = async () => {
-    if (transferAmount < getQuotaPerUnit()) {
-      showError(t('划转金额最低为') + ' ' + renderQuota(getQuotaPerUnit()));
+    const minAmount = getMinTransferAmount();
+    const quotaAmount = displayAmountToQuota(transferAmount);
+    const minQuota = displayAmountToQuota(minAmount);
+    if (quotaAmount < minQuota) {
+      showError(t('划转金额最低为') + ' ' + renderQuota(minQuota));
       return;
     }
     const res = await API.post(`/api/user/aff_transfer`, {
-      quota: transferAmount,
+      quota: quotaAmount,
     });
     const { success, message } = res.data;
     if (success) {
@@ -747,7 +756,7 @@ const TopUp = () => {
   useEffect(() => {
     // 始终获取最新用户数据，确保余额等统计信息准确
     getUserQuota().then();
-    setTransferAmount(getQuotaPerUnit());
+    setTransferAmount(getMinTransferAmount());
   }, []);
 
   useEffect(() => {
@@ -883,9 +892,10 @@ const TopUp = () => {
         handleTransferCancel={handleTransferCancel}
         userState={userState}
         renderQuota={renderQuota}
-        getQuotaPerUnit={getQuotaPerUnit}
+        minTransferAmount={getMinTransferAmount()}
         transferAmount={transferAmount}
         setTransferAmount={setTransferAmount}
+        quotaToDisplayAmount={quotaToDisplayAmount}
       />
 
       {/* 充值确认模态框 */}
