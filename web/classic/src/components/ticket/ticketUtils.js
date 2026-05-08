@@ -130,6 +130,8 @@ export const getRefundStatusText = (status, t) => {
       return t('已退款');
     case 3:
       return t('已驳回');
+    case 4:
+      return t('已取消');
     default:
       return t('未知状态');
   }
@@ -143,6 +145,8 @@ export const getRefundStatusColor = (status) => {
       return 'green';
     case 3:
       return 'red';
+    case 4:
+      return 'grey';
     default:
       return 'grey';
   }

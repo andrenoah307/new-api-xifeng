@@ -4677,5 +4677,7 @@
         "在线": "En ligne",
         "收起": "Réduire",
         "请求失败": "Échec de la requête"
-    }
+    },
+  "已取消": "Annulé",
+  "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？": "La fermeture du ticket de remboursement dégelera le quota gelé. Êtes-vous sûr ?"
 }

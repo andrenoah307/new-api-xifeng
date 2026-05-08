@@ -4798,5 +4798,7 @@
         "在线": "Online",
         "收起": "Collapse",
         "请求失败": "Request failed"
-    }
+    },
+  "已取消": "Cancelled",
+  "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？": "Closing the refund ticket will unfreeze the frozen refund quota. Are you sure?"
 }

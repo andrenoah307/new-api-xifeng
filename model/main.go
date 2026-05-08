@@ -320,6 +320,9 @@ func migrateDB() error {
 			return err
 		}
 	}
+
+	backfillTopUpQuotaGranted()
+
 	return nil
 }
 
@@ -773,4 +776,35 @@ func PingDB() error {
 	lastPingTime = time.Now()
 	common.SysLog("Database pinged successfully")
 	return nil
+}
+
+func backfillTopUpQuotaGranted() {
+	var count int64
+	DB.Model(&TopUp{}).
+		Where("status = ? AND quota_granted = 0", common.TopUpStatusSuccess).
+		Count(&count)
+	if count == 0 {
+		return
+	}
+	common.SysLog(fmt.Sprintf("backfilling quota_granted for %d top_up records", count))
+
+	qpu := int64(common.QuotaPerUnit)
+
+	// Stripe: quota_granted = ROUND(money * QuotaPerUnit)
+	DB.Model(&TopUp{}).
+		Where("status = ? AND quota_granted = 0 AND payment_provider = ?", common.TopUpStatusSuccess, PaymentProviderStripe).
+		Update("quota_granted", gorm.Expr("ROUND(money * ?)", qpu))
+
+	// Creem: quota_granted = amount (raw integer, not multiplied)
+	DB.Model(&TopUp{}).
+		Where("status = ? AND quota_granted = 0 AND payment_provider = ?", common.TopUpStatusSuccess, PaymentProviderCreem).
+		Update("quota_granted", gorm.Expr("amount"))
+
+	// All others (Epay, Waffo, WaffoPancake, etc.): quota_granted = amount * QuotaPerUnit
+	DB.Model(&TopUp{}).
+		Where("status = ? AND quota_granted = 0 AND payment_provider NOT IN (?, ?)",
+			common.TopUpStatusSuccess, PaymentProviderStripe, PaymentProviderCreem).
+		Update("quota_granted", gorm.Expr("amount * ?", qpu))
+
+	common.SysLog("backfill quota_granted completed")
 }

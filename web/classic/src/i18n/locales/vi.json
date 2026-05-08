@@ -5189,5 +5189,7 @@
         "在线": "Trực tuyến",
         "收起": "Thu gọn",
         "请求失败": "Yêu cầu thất bại"
-    }
+    },
+  "已取消": "Đã hủy",
+  "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？": "Đóng phiếu hoàn tiền sẽ giải phóng số dư đã đóng băng. Bạn có chắc không?"
 }
