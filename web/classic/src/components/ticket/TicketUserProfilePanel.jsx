@@ -135,6 +135,12 @@ const TicketUserProfilePanel = ({ ticketId, username, userId, t }) => {
         render: (v) => v || '-',
       },
       {
+        title: t('分组'),
+        dataIndex: 'group',
+        key: 'group',
+        render: (v) => v || '-',
+      },
+      {
         title: t('消耗'),
         dataIndex: 'quota',
         key: 'quota',
