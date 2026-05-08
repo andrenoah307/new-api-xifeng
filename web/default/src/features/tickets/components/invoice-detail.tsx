@@ -98,6 +98,7 @@ export function InvoiceDetail({
                 <TableHeader>
                   <TableRow>
                     <TableHead>{t('Order Number')}</TableHead>
+                    <TableHead>{t('Creation Time')}</TableHead>
                     <TableHead>{t('Paid Amount')}</TableHead>
                     <TableHead>{t('Completion Time')}</TableHead>
                   </TableRow>
@@ -107,6 +108,9 @@ export function InvoiceDetail({
                     <TableRow key={o.id}>
                       <TableCell className="font-mono text-xs">
                         {o.trade_no}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {formatTimestampToDate(o.create_time)}
                       </TableCell>
                       <TableCell className="font-mono text-xs">
                         ¥{o.money.toFixed(2)}

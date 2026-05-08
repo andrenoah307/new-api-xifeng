@@ -472,6 +472,7 @@ const en = {
   'Bank Card': 'Bank Card',
   'Submit Ticket': 'Submit Ticket',
   'Current available quota': 'Current available quota',
+  'Creation Time': 'Creation Time',
   'Unable to verify refundable quota, please try again':
     'Unable to verify refundable quota, please try again',
   'Refund freeze warning':
