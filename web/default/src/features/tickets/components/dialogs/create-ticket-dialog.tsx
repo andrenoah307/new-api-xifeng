@@ -181,7 +181,11 @@ export function CreateTicketDialog({
           form.setError('refund_amount', { message: t('Refund amount must be greater than 0') })
           return
         }
-        if (maxRefundDollars != null && amount > maxRefundDollars) {
+        if (maxRefundDollars == null) {
+          form.setError('refund_amount', { message: t('Unable to verify refundable quota, please try again') })
+          return
+        }
+        if (amount > maxRefundDollars) {
           form.setError('refund_amount', { message: t('Refund amount cannot exceed available quota') })
           return
         }
@@ -356,6 +360,7 @@ export function CreateTicketDialog({
                           type="number"
                           step="any"
                           min={0}
+                          max={maxRefundDollars ?? undefined}
                           {...field}
                           placeholder={t('Refund amount placeholder')}
                         />
@@ -583,7 +588,7 @@ export function CreateTicketDialog({
             )}
 
             <DialogFooter>
-              <Button type="submit" disabled={isPending}>
+              <Button type="submit" disabled={isPending || (ticketType === 'refund' && (quotaLoading || maxRefundDollars == null))}>
                 {isPending ? t('Submitting...') : t('Submit Ticket')}
               </Button>
             </DialogFooter>
