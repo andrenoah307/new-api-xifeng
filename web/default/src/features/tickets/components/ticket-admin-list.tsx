@@ -209,7 +209,7 @@ export default function TicketAdminListPage() {
 
           <DataTableToolbar
             table={table}
-            searchPlaceholder={t('Search by subject, username, ID or company name...')}
+            searchPlaceholder={t('Search by subject, username, ID, company name or payee...')}
             additionalSearch={
               <div className="flex flex-wrap items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>

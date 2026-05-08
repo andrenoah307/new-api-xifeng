@@ -596,7 +596,7 @@ const TicketAdmin = () => {
             <Space wrap>
               <Input
                 value={keyword}
-                placeholder={t('搜索工单主题、用户名或 ID')}
+                placeholder={t('搜索主题、用户名、ID、公司名或收款人')}
                 style={{ width: 280 }}
                 prefix={<IconSearch />}
                 showClear
