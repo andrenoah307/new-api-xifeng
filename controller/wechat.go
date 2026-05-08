@@ -99,6 +99,11 @@ func WeChatAuth(c *gin.Context) {
 			user.Role = common.RoleCommonUser
 			user.Status = common.UserStatusEnabled
 			inviterId := 0
+			session := sessions.Default(c)
+			affCode := session.Get("aff")
+			if affCode != nil {
+				inviterId, _ = model.GetUserIdByAffCode(affCode.(string))
+			}
 			err := model.DB.Transaction(func(tx *gorm.DB) error {
 				var invitationCode *model.InvitationCode
 				if common.InvitationCodeOAuthRequired || invitationCodeValue != "" {
