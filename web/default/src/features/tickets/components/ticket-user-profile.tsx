@@ -164,6 +164,9 @@ function ProfileContent({
                   <th className="px-2 py-1.5 text-left font-medium">
                     {t('Token')}
                   </th>
+                  <th className="px-2 py-1.5 text-left font-medium">
+                    {t('Group')}
+                  </th>
                   <th className="px-2 py-1.5 text-right font-medium">
                     {t('Quota')}
                   </th>
@@ -183,6 +186,9 @@ function ProfileContent({
                     </td>
                     <td className="max-w-[100px] truncate px-2 py-1.5">
                       {log.token_name}
+                    </td>
+                    <td className="max-w-[80px] truncate px-2 py-1.5">
+                      {log.group || '-'}
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono">
                       {formatQuota(log.quota)}
