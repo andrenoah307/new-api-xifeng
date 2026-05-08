@@ -4831,6 +4831,7 @@
     "充值返佣冷却时间（小时）": "Top-Up Commission Cooldown (hours)",
     "充值返利在此时间后才可划转到余额，设为 0 关闭冷却": "Commissions become transferable after this period. Set to 0 to disable cooldown.",
     "邀请奖励冷却时间（小时）": "Invite Reward Cooldown (hours)",
-    "邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却": "Invite registration rewards become transferable after this period. Set to 0 to disable cooldown."
+    "邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却": "Invite registration rewards become transferable after this period. Set to 0 to disable cooldown.",
+    "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？": "Closing the refund ticket will unfreeze the frozen refund quota. Are you sure?"
   }
 }

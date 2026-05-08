@@ -92,6 +92,7 @@ export const REFUND_STATUS = {
   PENDING: 1,
   REFUNDED: 2,
   REJECTED: 3,
+  CANCELLED: 4,
 } as const
 
 export const REFUND_STATUS_CONFIG: Record<
@@ -101,6 +102,7 @@ export const REFUND_STATUS_CONFIG: Record<
   1: { labelKey: 'Pending Review', variant: 'warning' },
   2: { labelKey: 'Refunded', variant: 'success' },
   3: { labelKey: 'Rejected', variant: 'danger' },
+  4: { labelKey: 'Cancelled', variant: 'neutral' },
 }
 
 export const PAYEE_TYPE_OPTIONS = [

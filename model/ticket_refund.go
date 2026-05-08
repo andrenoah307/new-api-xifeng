@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	RefundStatusPending  = 1 // 待审核（冻结中）
-	RefundStatusRefunded = 2 // 已退款
-	RefundStatusRejected = 3 // 已驳回
+	RefundStatusPending   = 1 // 待审核（冻结中）
+	RefundStatusRefunded  = 2 // 已退款
+	RefundStatusRejected  = 3 // 已驳回
+	RefundStatusCancelled = 4 // 用户主动取消（关闭退款工单）
 )
 
 const (
@@ -613,5 +614,56 @@ func compensateAccountChange(
 		}
 		return nil
 	}
+	return nil
+}
+
+// CancelPendingRefund 取消指定工单的待审核退款，将冻结额度退还给用户。
+// 仅当 refund_status == RefundStatusPending 时生效；CAS 保证幂等，并发安全。
+// 设计用于用户主动关闭退款工单或管理员关闭退款工单场景。
+func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) error {
+	var refund TicketRefund
+	if err := tx.Where("ticket_id = ? AND refund_status = ?", ticketId, RefundStatusPending).
+		First(&refund).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	now := common.GetTimestamp()
+	res := tx.Model(&TicketRefund{}).
+		Where("id = ? AND refund_status = ?", refund.Id, RefundStatusPending).
+		Updates(map[string]interface{}{
+			"refund_status":  RefundStatusCancelled,
+			"frozen_quota":   0,
+			"processed_time": now,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil
+	}
+
+	if refund.FrozenQuota > 0 {
+		if err := IncreaseUserQuota(userId, refund.FrozenQuota, true); err != nil {
+			if rErr := tx.Model(&TicketRefund{}).Where("id = ?", refund.Id).
+				Updates(map[string]interface{}{
+					"refund_status":  RefundStatusPending,
+					"frozen_quota":   refund.FrozenQuota,
+					"processed_time": 0,
+				}).Error; rErr != nil {
+				common.SysError(fmt.Sprintf(
+					"cancel refund unfreeze failed and rollback also failed: user=%d, ticket=%d, frozen=%d, err=%v, rollback_err=%v",
+					userId, ticketId, refund.FrozenQuota, err, rErr))
+			}
+			return err
+		}
+		_ = InvalidateUserCache(userId)
+		RecordLog(userId, LogTypeSystem,
+			fmt.Sprintf("退款工单已取消，退还冻结额度 %s（工单 #%d）",
+				logger.LogQuota(refund.FrozenQuota), ticketId))
+	}
+
 	return nil
 }

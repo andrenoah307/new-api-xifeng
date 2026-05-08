@@ -4709,6 +4709,7 @@
     "充值返佣冷却时间（小时）": "Délai de refroidissement des commissions (heures)",
     "充值返利在此时间后才可划转到余额，设为 0 关闭冷却": "Les commissions deviennent transférables après cette période. Mettre à 0 pour désactiver.",
     "邀请奖励冷却时间（小时）": "Délai de refroidissement des récompenses d'invitation (heures)",
-    "邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却": "Les récompenses d'inscription par invitation deviennent transférables après cette période. Mettre à 0 pour désactiver."
+    "邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却": "Les récompenses d'inscription par invitation deviennent transférables après cette période. Mettre à 0 pour désactiver.",
+    "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？": "La fermeture du ticket de remboursement dégelera le quota gelé. Êtes-vous sûr ?"
   }
 }

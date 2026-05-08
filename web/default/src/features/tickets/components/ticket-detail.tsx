@@ -200,7 +200,9 @@ export default function TicketDetailPage({
       open={closeOpen}
       onOpenChange={setCloseOpen}
       title={t('Close Ticket')}
-      desc={t('Are you sure you want to close this ticket?')}
+      desc={ticket.type === 'refund'
+        ? t('Closing will unfreeze the frozen refund quota. Are you sure?')
+        : t('Are you sure you want to close this ticket?')}
       handleConfirm={() => closeMutation.mutate()}
       isLoading={closeMutation.isPending}
     />

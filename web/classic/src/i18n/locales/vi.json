@@ -5221,6 +5221,7 @@
     "充值返佣冷却时间（小时）": "Thời gian chờ hoa hồng nạp tiền (giờ)",
     "充值返利在此时间后才可划转到余额，设为 0 关闭冷却": "Hoa hồng có thể chuyển sang số dư sau khoảng thời gian này. Đặt 0 để tắt.",
     "邀请奖励冷却时间（小时）": "Thời gian chờ phần thưởng giới thiệu (giờ)",
-    "邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却": "Phần thưởng đăng ký giới thiệu có thể chuyển sang số dư sau khoảng thời gian này. Đặt 0 để tắt."
+    "邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却": "Phần thưởng đăng ký giới thiệu có thể chuyển sang số dư sau khoảng thời gian này. Đặt 0 để tắt.",
+    "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？": "Đóng phiếu hoàn tiền sẽ giải phóng số dư đã đóng băng. Bạn có chắc không?"
   }
 }

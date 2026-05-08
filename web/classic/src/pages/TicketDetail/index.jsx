@@ -99,9 +99,12 @@ const TicketDetail = () => {
   };
 
   const handleCloseTicket = () => {
+    const isRefund = ticket?.type === 'refund';
     Modal.confirm({
       title: t('确认关闭工单'),
-      content: t('关闭后仍可查看历史消息，如需继续处理可联系管理员重新打开。'),
+      content: isRefund
+        ? t('关闭退款工单将解冻已冻结的退款额度，确认关闭吗？')
+        : t('关闭后仍可查看历史消息，如需继续处理可联系管理员重新打开。'),
       centered: true,
       onOk: async () => {
         try {
