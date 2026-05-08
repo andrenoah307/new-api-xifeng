@@ -2204,7 +2204,7 @@
         "搜索名称、邀请码、创建者或所有者": "Search by name, code, creator, or owner",
         "搜索失败": "Search failed",
         "搜索字段名 / 中文说明": "Search field name / description",
-        "搜索工单主题、用户名或 ID": "Search ticket subject, username, or ID",
+        "搜索主题、用户名、ID、公司名或收款人": "Search by subject, username, ID, company name or payee",
         "搜索无结果": "No results found",
         "搜索日志内容": "Search log content",
         "搜索条件": "Search Conditions",
