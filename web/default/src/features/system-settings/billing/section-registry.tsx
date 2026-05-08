@@ -66,6 +66,7 @@ const BILLING_SECTIONS = [
           TopUpCommissionManualEnabled: settings.TopUpCommissionManualEnabled,
           AffTransferCooldownHours: settings.AffTransferCooldownHours,
           InviteRewardCooldownHours: settings.InviteRewardCooldownHours,
+          MinTransferAmount: settings.MinTransferAmount,
           TopUpLink: settings.TopUpLink,
           general_setting: {
             docs_link: settings['general_setting.docs_link'],

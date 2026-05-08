@@ -23,6 +23,7 @@ export function setStatusData(data) {
   localStorage.setItem('logo', data.logo);
   localStorage.setItem('footer_html', data.footer_html);
   localStorage.setItem('quota_per_unit', data.quota_per_unit);
+  localStorage.setItem('min_transfer_amount', data.min_transfer_amount ?? 1);
   // 兼容：保留旧字段，同时写入新的额度展示类型
   localStorage.setItem('display_in_currency', data.display_in_currency);
   localStorage.setItem('quota_display_type', data.quota_display_type || 'USD');

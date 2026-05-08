@@ -28,10 +28,13 @@ const TransferModal = ({
   handleTransferCancel,
   userState,
   renderQuota,
-  getQuotaPerUnit,
+  minTransferAmount,
   transferAmount,
   setTransferAmount,
+  quotaToDisplayAmount,
 }) => {
+  const availableDisplay = quotaToDisplayAmount(userState?.user?.transferable_aff_quota || 0);
+
   return (
     <Modal
       title={
@@ -59,11 +62,12 @@ const TransferModal = ({
         </div>
         <div>
           <Typography.Text strong className='block mb-2'>
-            {t('划转额度')} · {t('最低') + renderQuota(getQuotaPerUnit())}
+            {t('划转额度')} · {t('最低') + renderQuota(minTransferAmount * (parseFloat(localStorage.getItem('quota_per_unit')) || 500000))}
           </Typography.Text>
           <InputNumber
-            min={getQuotaPerUnit()}
-            max={userState?.user?.transferable_aff_quota || 0}
+            min={minTransferAmount}
+            max={availableDisplay}
+            step={0.01}
             value={transferAmount}
             onChange={(value) => setTransferAmount(value)}
             className='w-full !rounded-lg'
