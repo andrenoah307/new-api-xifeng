@@ -59,6 +59,7 @@ export interface TicketInvoiceOrder {
   id: number
   trade_no: string
   money: number
+  create_time: number
   complete_time: number
   payment_method: string
 }

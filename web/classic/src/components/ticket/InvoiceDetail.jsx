@@ -59,6 +59,13 @@ const InvoiceDetail = ({
         key: 'trade_no',
       },
       {
+        title: t('创建时间'),
+        dataIndex: 'create_time',
+        key: 'create_time',
+        width: 180,
+        render: (value) => (value ? timestamp2string(value) : '-'),
+      },
+      {
         title: t('金额'),
         dataIndex: 'money',
         key: 'money',
