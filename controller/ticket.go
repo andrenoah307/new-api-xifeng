@@ -747,9 +747,24 @@ func CreateRefundTicket(c *gin.Context) {
 		return
 	}
 
+	if req.RefundQuota <= 0 {
+		common.ApiErrorI18n(c, i18n.MsgTicketRefundQuotaInvalid)
+		return
+	}
+
 	currentUser, err := getTicketCurrentUser(c)
 	if err != nil {
 		common.ApiError(c, err)
+		return
+	}
+
+	maxRefundable, err := model.GetUserMaxRefundableQuota(currentUser.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if req.RefundQuota > maxRefundable {
+		common.ApiErrorI18n(c, i18n.MsgTicketRefundQuotaExceed)
 		return
 	}
 
