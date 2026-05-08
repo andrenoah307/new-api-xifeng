@@ -95,6 +95,11 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
           setLoading(false);
           return;
         }
+        if (maxRefundableQuota <= 0) {
+          showError(t('无法获取最大可退额度，请刷新后重试'));
+          setLoading(false);
+          return;
+        }
         if (refundQuota > maxRefundableQuota) {
           showError(t('申请退款金额不能超过最大可退额度'));
           setLoading(false);
