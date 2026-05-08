@@ -260,6 +260,9 @@ func GetAllUsers(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	for _, u := range users {
+		u.AffCount = model.GetInviteCount(u.Id)
+	}
 
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(users)
@@ -276,6 +279,9 @@ func SearchUsers(c *gin.Context) {
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	for _, u := range users {
+		u.AffCount = model.GetInviteCount(u.Id)
 	}
 
 	pageInfo.SetTotal(int(total))
@@ -300,6 +306,7 @@ func GetUser(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserNoPermissionSameLevel)
 		return
 	}
+	user.AffCount = model.GetInviteCount(user.Id)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -429,7 +436,7 @@ func GetSelf(c *gin.Context) {
 		"used_quota":             user.UsedQuota,
 		"request_count":          user.RequestCount,
 		"aff_code":               user.AffCode,
-		"aff_count":              user.AffCount,
+		"aff_count":              model.GetInviteCount(user.Id),
 		"aff_quota":              user.AffQuota,
 		"aff_history_quota":      user.AffHistoryQuota,
 		"transferable_aff_quota": transferableAffQuota,

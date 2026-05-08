@@ -400,6 +400,7 @@ func inviteUser(inviterId int, inviteeId int) error {
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("inviter user %d not found", inviterId)
 	}
+	InvalidateInviteCount(inviterId)
 	if common.QuotaForInviter > 0 {
 		return GrantInviteCommission(inviterId, inviteeId, common.QuotaForInviter)
 	}
