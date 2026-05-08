@@ -107,6 +107,7 @@ export interface UserProfile {
     created_at: number
     model_name: string
     token_name: string
+    group: string
     quota: number
     prompt_tokens: number
     completion_tokens: number
