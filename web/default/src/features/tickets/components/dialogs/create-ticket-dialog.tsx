@@ -275,8 +275,8 @@ export function CreateTicketDialog({
                     ? t('Loading...')
                     : (
                       <>
-                        <div>{t('Current available quota')}：{formatQuota(userQuota?.quota ?? 0)}</div>
-                        <div>{t('Max Refundable')}：{formatQuota(userQuota?.max_refundable_quota ?? 0)}</div>
+                        <div>{t('Current available quota')}: {formatQuota(userQuota?.quota ?? 0)}</div>
+                        <div>{t('Max Refundable')}: {formatQuota(userQuota?.max_refundable_quota ?? 0)}</div>
                       </>
                     )}
                 </AlertDescription>

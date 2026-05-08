@@ -175,7 +175,7 @@ func InitOptionMap() {
 	common.OptionMap["TopUpCommissionManualEnabled"] = strconv.FormatBool(common.TopUpCommissionManualEnabled)
 	common.OptionMap["AffTransferCooldownHours"] = strconv.Itoa(common.AffTransferCooldownHours)
 	common.OptionMap["InviteRewardCooldownHours"] = strconv.Itoa(common.InviteRewardCooldownHours)
-	common.OptionMap["MinTransferAmount"] = strconv.FormatFloat(common.MinTransferAmount, 'f', 2, 64)
+	common.OptionMap["MinTransferAmount"] = strconv.FormatFloat(common.MinTransferAmount, 'f', -1, 64)
 	common.OptionMap["QuotaRemindThreshold"] = strconv.Itoa(common.QuotaRemindThreshold)
 	common.OptionMap["PreConsumedQuota"] = strconv.Itoa(common.PreConsumedQuota)
 	common.OptionMap["ModelRequestRateLimitCount"] = strconv.Itoa(setting.ModelRequestRateLimitCount)

@@ -483,6 +483,8 @@ const zh: Record<string, string> = {
   'Bank Card': '银行卡',
   'Submit Ticket': '提交工单',
   'Current available quota': '当前可用额度',
+  'Unable to verify refundable quota, please try again':
+    '无法获取最大可退额度，请刷新后重试',
   'Refund freeze warning':
     '提交后所申请的金额将立即被冻结，期间无法使用，且剩余可用额度会相应减少。管理员驳回后额度会解冻并可重新申请；通过后将正式扣除。',
   'Refund process note':
