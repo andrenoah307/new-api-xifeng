@@ -307,17 +307,29 @@ func GetUserMaxRefundableQuota(userId int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	var userQuota int
+	var userInfo struct {
+		Quota      int
+		AffHistory int `gorm:"column:aff_history"`
+		AffQuota   int `gorm:"column:aff_quota"`
+	}
 	if err := DB.Model(&User{}).Where("id = ?", userId).
-		Select("quota").Find(&userQuota).Error; err != nil {
+		Select("quota, aff_history, aff_quota").Find(&userInfo).Error; err != nil {
 		return 0, err
 	}
 	cap := totalTopUp - totalRefunded - pendingRefund
 	if cap < 0 {
 		cap = 0
 	}
-	if int64(userQuota) < cap {
-		return userQuota, nil
+	affTransferred := int64(userInfo.AffHistory - userInfo.AffQuota)
+	if affTransferred < 0 {
+		affTransferred = 0
+	}
+	adjustedQuota := int64(userInfo.Quota) - affTransferred
+	if adjustedQuota < 0 {
+		adjustedQuota = 0
+	}
+	if adjustedQuota < cap {
+		return int(adjustedQuota), nil
 	}
 	return int(cap), nil
 }

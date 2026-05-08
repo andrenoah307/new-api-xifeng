@@ -472,6 +472,8 @@ const en = {
   'Bank Card': 'Bank Card',
   'Submit Ticket': 'Submit Ticket',
   'Current available quota': 'Current available quota',
+  'Unable to verify refundable quota, please try again':
+    'Unable to verify refundable quota, please try again',
   'Refund freeze warning':
     'The submitted amount will be frozen immediately and cannot be used. Remaining available quota will decrease accordingly. If rejected by admin, the quota will be unfrozen and you can reapply; if approved, it will be formally deducted.',
   'Refund process note':

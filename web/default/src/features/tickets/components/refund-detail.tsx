@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { StatusBadge } from '@/components/status-badge'
 import { CopyButton } from '@/components/copy-button'
-import { formatTimestampToDate, formatQuota } from '@/lib/format'
+import { formatTimestampToDate, formatQuota, parseQuotaFromDollars } from '@/lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -56,7 +56,7 @@ function parseQuotaInput(str: string): number | null {
   if (trimmed === '') return null
   const num = Number(trimmed)
   if (!Number.isFinite(num) || num < 0) return null
-  return Math.round(num * 500000)
+  return parseQuotaFromDollars(num)
 }
 
 export function RefundDetail({
