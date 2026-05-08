@@ -3,7 +3,6 @@ package model
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -17,6 +16,7 @@ type TopUp struct {
 	UserId          int     `json:"user_id" gorm:"index"`
 	Amount          int64   `json:"amount"`
 	Money           float64 `json:"money"`
+	QuotaGranted    int64   `json:"quota_granted" gorm:"default:0"`
 	TradeNo         string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
 	PaymentMethod   string  `json:"payment_method" gorm:"type:varchar(50)"`
 	PaymentProvider string  `json:"payment_provider" gorm:"type:varchar(50);default:''"`
@@ -134,12 +134,9 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
-		err = tx.Save(topUp).Error
-		if err != nil {
-			return err
-		}
-
 		quota = topUp.Money * common.QuotaPerUnit
+		topUp.QuotaGranted = int64(quota)
+		err = tx.Save(topUp).Error
 		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(map[string]interface{}{"stripe_customer": customerId, "quota": gorm.Expr("quota + ?", quota)}).Error
 		if err != nil {
 			return err
@@ -319,6 +316,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		// 标记完成
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
+		topUp.QuotaGranted = int64(quotaToAdd)
 		if err := tx.Save(topUp).Error; err != nil {
 			return err
 		}
@@ -375,13 +373,11 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
-		err = tx.Save(topUp).Error
-		if err != nil {
-			return err
-		}
 
 		// Creem 直接使用 Amount 作为充值额度（整数）
 		quota = topUp.Amount
+		topUp.QuotaGranted = quota
+		err = tx.Save(topUp).Error
 
 		// 构建更新字段，优先使用邮箱，如果邮箱为空则使用用户名
 		updateFields := map[string]interface{}{
@@ -462,6 +458,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
+		topUp.QuotaGranted = int64(quotaToAdd)
 		if err := tx.Save(topUp).Error; err != nil {
 			return err
 		}
@@ -524,6 +521,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
+		topUp.QuotaGranted = int64(quotaToAdd)
 		if err := tx.Save(topUp).Error; err != nil {
 			return err
 		}
@@ -549,13 +547,13 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 }
 
 func GetUserTotalTopUpQuota(userId int) (int64, error) {
-	var totalMoney float64
+	var total int64
 	err := DB.Model(&TopUp{}).
 		Where("user_id = ? AND status = ?", userId, common.TopUpStatusSuccess).
-		Select("COALESCE(SUM(money), 0)").
-		Scan(&totalMoney).Error
+		Select("COALESCE(SUM(quota_granted), 0)").
+		Scan(&total).Error
 	if err != nil {
 		return 0, err
 	}
-	return int64(math.Round(totalMoney * common.QuotaPerUnit)), nil
+	return total, nil
 }

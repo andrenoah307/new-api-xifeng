@@ -243,7 +243,9 @@ export default function TicketListPage() {
         open={closeTicketId !== null}
         onOpenChange={(open) => !open && setCloseTicketId(null)}
         title={t('Close Ticket')}
-        desc={t('Are you sure you want to close this ticket?')}
+        desc={items.find((t) => t.id === closeTicketId)?.type === 'refund'
+          ? t('Closing will unfreeze the frozen refund quota. Are you sure?')
+          : t('Are you sure you want to close this ticket?')}
         handleConfirm={() =>
           closeTicketId && closeMutation.mutate(closeTicketId)
         }
