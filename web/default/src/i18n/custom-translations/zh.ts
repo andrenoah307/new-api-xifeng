@@ -483,6 +483,7 @@ const zh: Record<string, string> = {
   'Bank Card': '银行卡',
   'Submit Ticket': '提交工单',
   'Current available quota': '当前可用额度',
+  'Creation Time': '创建时间',
   'Unable to verify refundable quota, please try again':
     '无法获取最大可退额度，请刷新后重试',
   'Refund freeze warning':
