@@ -207,6 +207,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			ticketAdminRoute.GET("/", controller.GetAllTickets)
 			ticketAdminRoute.GET("/staff", controller.ListTicketStaff)
+			ticketAdminRoute.GET("/invoice/export-list", controller.GetInvoiceExportList)
 			ticketAdminRoute.GET("/:id", controller.GetTicket)
 			ticketAdminRoute.GET("/:id/user-profile", controller.GetTicketUserProfile)
 			ticketAdminRoute.POST("/:id/message", controller.CreateAdminTicketMessage)

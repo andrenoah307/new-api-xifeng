@@ -519,7 +519,6 @@ const zh: Record<string, string> = {
   'Bank Account': '银行账号',
   'Company Address': '注册地址',
   'Company Phone': '联系电话',
-  'Tax Number': '纳税人识别号',
 
   // Refund Detail enhancements
   'This action will be logged': '本操作将记录日志',
@@ -556,12 +555,6 @@ const zh: Record<string, string> = {
   'When enabled, admin manual top-ups also trigger commission for the inviter.':
     '开启后，管理员手动充值也会触发邀请者返佣。',
 
-  // Ticket list close
-  'Close Ticket': '关闭工单',
-  'Are you sure you want to close this ticket?':
-    '确定要关闭此工单吗？',
-  'Ticket closed': '工单已关闭',
-
   // Detail page metadata
   'Assigned to me': '分配给我',
   'Admin reply...': '管理员回复…',
@@ -591,6 +584,18 @@ const zh: Record<string, string> = {
   // User Management - Filter
   'Filter by ID, username, name or email...':
     '支持搜索用户 ID、用户名、显示名称和邮箱地址',
+
+  // Export Invoice Dialog
+  'Export Invoice': '导出发票',
+  'Export Invoice List': '导出发票列表',
+  Export: '导出',
+  'Taxable Service Name': '应税服务名称',
+  'Please select at least one invoice': '请至少选择一张发票',
+  'Please enter taxable service name': '请输入应税服务名称',
+  'Selected {{count}} invoices': '已选择 {{count}} 张发票',
+  'Exported {{count}} invoices': '已导出 {{count}} 张发票',
+  'Search by company name...': '搜索公司名称...',
+  'No data': '暂无数据',
 }
 
 export default zh
