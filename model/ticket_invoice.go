@@ -425,3 +425,67 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 	}
 	return &invoice, &ticket, prevStatus, nil
 }
+
+type InvoiceExportItem struct {
+	TicketId      int     `json:"ticket_id" gorm:"column:ticket_id"`
+	CompanyName   string  `json:"company_name" gorm:"column:company_name"`
+	TaxNumber     string  `json:"tax_number" gorm:"column:tax_number"`
+	Email         string  `json:"email" gorm:"column:email"`
+	TotalMoney    float64 `json:"total_money" gorm:"column:total_money"`
+	TopUpOrderIds string  `json:"-" gorm:"column:topup_order_ids"`
+	OrderCount    int     `json:"order_count" gorm:"-"`
+	InvoiceStatus int     `json:"invoice_status" gorm:"column:invoice_status"`
+	CreatedTime   int64   `json:"created_time" gorm:"column:created_time"`
+}
+
+type InvoiceExportFilter struct {
+	Keyword       string
+	InvoiceStatus int
+	StartTime     int64
+	EndTime       int64
+}
+
+func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo) ([]*InvoiceExportItem, int64, error) {
+	var total int64
+	items := make([]*InvoiceExportItem, 0)
+
+	query := DB.Table("tickets t").
+		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.topup_order_ids, ti.invoice_status, t.created_time").
+		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
+		Where("t.type = ? AND t.deleted_at IS NULL", TicketTypeInvoice)
+
+	if filter.InvoiceStatus > 0 {
+		query = query.Where("ti.invoice_status = ?", filter.InvoiceStatus)
+	}
+	if filter.Keyword != "" {
+		pattern, err := sanitizeLikePattern(filter.Keyword)
+		if err != nil {
+			return nil, 0, err
+		}
+		query = query.Where("ti.company_name LIKE ? ESCAPE '!'", pattern)
+	}
+	if filter.StartTime > 0 {
+		query = query.Where("t.created_time >= ?", filter.StartTime)
+	}
+	if filter.EndTime > 0 {
+		query = query.Where("t.created_time <= ?", filter.EndTime)
+	}
+
+	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := query.Order("t.id DESC").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+
+	for _, item := range items {
+		var orderIds []int
+		if strings.TrimSpace(item.TopUpOrderIds) != "" {
+			_ = common.UnmarshalJsonStr(item.TopUpOrderIds, &orderIds)
+		}
+		item.OrderCount = len(orderIds)
+	}
+
+	return items, total, nil
+}

@@ -1,0 +1,342 @@
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  Button,
+  Checkbox,
+  Input,
+  Modal,
+  Select,
+  Table,
+  Typography,
+} from '@douyinfe/semi-ui';
+import { IconDownload } from '@douyinfe/semi-icons';
+import { useTranslation } from 'react-i18next';
+import { API, showError, showSuccess } from '../../helpers';
+import { timestamp2string } from '../../helpers';
+
+const PAGE_SIZE = 20;
+
+const INVOICE_STATUS_OPTIONS = [
+  { value: 0, label: '全部' },
+  { value: 1, label: '待开具' },
+  { value: 2, label: '已开具' },
+  { value: 3, label: '已驳回' },
+];
+
+function csvField(value) {
+  const s = String(value ?? '');
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function generateInvoiceCSV(items, serviceName) {
+  const BOM = '﻿';
+  const headers = ['电子邮箱', '数量', '单价', '金额合计', '公司信息', '应税服务名称'];
+  const lines = [headers.map(csvField).join(',')];
+  for (const item of items) {
+    const companyInfo = item.tax_number
+      ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
+      : item.company_name;
+    const unitPrice =
+      item.order_count > 0
+        ? (item.total_money / item.order_count).toFixed(2)
+        : '0.00';
+    const row = [
+      item.email,
+      item.order_count,
+      unitPrice,
+      item.total_money.toFixed(2),
+      companyInfo,
+      serviceName,
+    ];
+    lines.push(row.map(csvField).join(','));
+  }
+  return BOM + lines.join('\r\n');
+}
+
+function downloadCSV(csv, filename) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const statusLabel = (s, t) => {
+  switch (s) {
+    case 1: return t('待开具');
+    case 2: return t('已开具');
+    case 3: return t('已驳回');
+    default: return '-';
+  }
+};
+
+export default function ExportInvoiceDialog({ visible, onClose }) {
+  const { t } = useTranslation();
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [items, setItems] = useState([]);
+  const [statusFilter, setStatusFilter] = useState(0);
+  const [keyword, setKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [serviceName, setServiceName] = useState('');
+  const [selected, setSelected] = useState(new Map());
+
+  const fetchData = useCallback(
+    async (p, kw, status) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.set('p', String(p - 1));
+        params.set('page_size', String(PAGE_SIZE));
+        if (kw) params.set('keyword', kw);
+        if (status > 0) params.set('invoice_status', String(status));
+        const res = await API.get(`/api/ticket/admin/invoice/export-list?${params}`);
+        if (res.data?.success) {
+          const data = res.data.data;
+          setItems(data?.items ?? []);
+          setTotal(data?.total ?? 0);
+        } else {
+          showError(res.data?.message || 'Failed to load');
+        }
+      } catch {
+        showError(t('请求失败'));
+      }
+      setLoading(false);
+    },
+    [t],
+  );
+
+  const handleOpen = useCallback(() => {
+    setPage(1);
+    setStatusFilter(0);
+    setKeyword('');
+    setSearchKeyword('');
+    setSelected(new Map());
+    setServiceName('');
+    fetchData(1, '', 0);
+  }, [fetchData]);
+
+  const handleSearch = useCallback(() => {
+    setSearchKeyword(keyword);
+    setPage(1);
+    fetchData(1, keyword, statusFilter);
+  }, [keyword, statusFilter, fetchData]);
+
+  const handleStatusChange = useCallback(
+    (v) => {
+      setStatusFilter(v);
+      setPage(1);
+      fetchData(1, searchKeyword, v);
+    },
+    [searchKeyword, fetchData],
+  );
+
+  const handlePageChange = useCallback(
+    (p) => {
+      setPage(p);
+      fetchData(p, searchKeyword, statusFilter);
+    },
+    [searchKeyword, statusFilter, fetchData],
+  );
+
+  const toggleItem = useCallback((item) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(item.ticket_id)) {
+        next.delete(item.ticket_id);
+      } else {
+        next.set(item.ticket_id, item);
+      }
+      return next;
+    });
+  }, []);
+
+  const allOnPageSelected =
+    items.length > 0 && items.every((i) => selected.has(i.ticket_id));
+
+  const toggleAll = useCallback(() => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (items.every((i) => prev.has(i.ticket_id))) {
+        for (const i of items) next.delete(i.ticket_id);
+      } else {
+        for (const i of items) next.set(i.ticket_id, i);
+      }
+      return next;
+    });
+  }, [items]);
+
+  const handleExport = useCallback(() => {
+    if (selected.size === 0) {
+      showError(t('请至少选择一张发票'));
+      return;
+    }
+    if (!serviceName.trim()) {
+      showError(t('请输入应税服务名称'));
+      return;
+    }
+    const csv = generateInvoiceCSV(
+      Array.from(selected.values()),
+      serviceName.trim(),
+    );
+    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    downloadCSV(csv, `发票登记_${date}.csv`);
+    showSuccess(t('已导出 {{count}} 张发票', { count: selected.size }));
+  }, [selected, serviceName, t]);
+
+  const columns = useMemo(
+    () => [
+      {
+        title: (
+          <Checkbox checked={allOnPageSelected} onChange={toggleAll} />
+        ),
+        dataIndex: '_select',
+        width: 48,
+        render: (_, record) => (
+          <Checkbox
+            checked={selected.has(record.ticket_id)}
+            onChange={() => toggleItem(record)}
+          />
+        ),
+      },
+      {
+        title: 'ID',
+        dataIndex: 'ticket_id',
+        width: 70,
+        render: (v) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>#{v}</span>,
+      },
+      {
+        title: t('公司名称'),
+        dataIndex: 'company_name',
+        ellipsis: true,
+        width: 160,
+      },
+      {
+        title: t('邮箱'),
+        dataIndex: 'email',
+        ellipsis: true,
+        width: 160,
+      },
+      {
+        title: t('金额'),
+        dataIndex: 'total_money',
+        width: 100,
+        align: 'right',
+        render: (v) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>¥{v.toFixed(2)}</span>,
+      },
+      {
+        title: t('订单数'),
+        dataIndex: 'order_count',
+        width: 70,
+        align: 'center',
+      },
+      {
+        title: t('状态'),
+        dataIndex: 'invoice_status',
+        width: 80,
+        render: (v) => statusLabel(v, t),
+      },
+      {
+        title: t('创建时间'),
+        dataIndex: 'created_time',
+        width: 120,
+        render: (v) => (
+          <Typography.Text type='tertiary' size='small'>
+            {timestamp2string(v)}
+          </Typography.Text>
+        ),
+      },
+    ],
+    [t, allOnPageSelected, toggleAll, selected, toggleItem],
+  );
+
+  const statusOpts = useMemo(
+    () =>
+      INVOICE_STATUS_OPTIONS.map((o) => ({
+        value: o.value,
+        label: t(o.label),
+      })),
+    [t],
+  );
+
+  return (
+    <Modal
+      title={t('导出发票列表')}
+      visible={visible}
+      onCancel={onClose}
+      centered
+      width={860}
+      style={{ maxWidth: '92vw' }}
+      bodyStyle={{
+        maxHeight: 'calc(80vh - 120px)',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+      }}
+      footer={
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Typography.Text type='tertiary' size='small'>
+              {t('已选择 {{count}} 张发票', { count: selected.size })}
+            </Typography.Text>
+            <Input
+              placeholder={t('应税服务名称')}
+              value={serviceName}
+              onChange={setServiceName}
+              style={{ width: 180, height: 32 }}
+            />
+          </div>
+          <Button
+            icon={<IconDownload />}
+            theme='solid'
+            onClick={handleExport}
+            disabled={selected.size === 0 || !serviceName.trim()}
+          >
+            {t('导出')}
+          </Button>
+        </div>
+      }
+      afterOpen={handleOpen}
+    >
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Input
+          placeholder={t('搜索公司名称...')}
+          value={keyword}
+          onChange={setKeyword}
+          onEnterPress={handleSearch}
+          style={{ width: 200, height: 32 }}
+          showClear
+        />
+        <Select
+          value={statusFilter}
+          optionList={statusOpts}
+          onChange={handleStatusChange}
+          style={{ width: 130 }}
+          getPopupContainer={() => document.body}
+        />
+      </div>
+      <Table
+        columns={columns}
+        dataSource={items}
+        rowKey='ticket_id'
+        loading={loading}
+        pagination={
+          total > PAGE_SIZE
+            ? {
+                currentPage: page,
+                pageSize: PAGE_SIZE,
+                total,
+                onPageChange: handlePageChange,
+              }
+            : false
+        }
+        size='small'
+        empty={<Typography.Text type='tertiary'>{t('暂无数据')}</Typography.Text>}
+      />
+    </Modal>
+  );
+}

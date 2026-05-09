@@ -510,7 +510,6 @@ const en = {
   'Bank Account': 'Bank Account',
   'Company Address': 'Company Address',
   'Company Phone': 'Company Phone',
-  'Tax Number': 'Tax Number',
 
   // Refund Detail enhancements
   'This action will be logged': 'This action will be logged',
@@ -547,12 +546,6 @@ const en = {
   'When enabled, admin manual top-ups also trigger commission for the inviter.':
     'When enabled, admin manual top-ups also trigger commission for the inviter.',
 
-  // Ticket list close
-  'Close Ticket': 'Close Ticket',
-  'Are you sure you want to close this ticket?':
-    'Are you sure you want to close this ticket?',
-  'Ticket closed': 'Ticket closed',
-
   // Detail page metadata
   'Assigned to me': 'Assigned to me',
   'Admin reply...': 'Admin reply...',
@@ -586,6 +579,18 @@ const en = {
   // User Management - Filter
   'Filter by ID, username, name or email...':
     'Filter by ID, username, name or email...',
+
+  // Export Invoice Dialog
+  'Export Invoice': 'Export Invoice',
+  'Export Invoice List': 'Export Invoice List',
+  Export: 'Export',
+  'Taxable Service Name': 'Taxable Service Name',
+  'Please select at least one invoice': 'Please select at least one invoice',
+  'Please enter taxable service name': 'Please enter taxable service name',
+  'Selected {{count}} invoices': 'Selected {{count}} invoices',
+  'Exported {{count}} invoices': 'Exported {{count}} invoices',
+  'Search by company name...': 'Search by company name...',
+  'No data': 'No data',
 } as const
 
 export default en

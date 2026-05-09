@@ -5223,6 +5223,18 @@
     "邀请奖励冷却时间（小时）": "Thời gian chờ phần thưởng giới thiệu (giờ)",
     "邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却": "Phần thưởng đăng ký giới thiệu có thể chuyển sang số dư sau khoảng thời gian này. Đặt 0 để tắt.",
     "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？": "Đóng phiếu hoàn tiền sẽ giải phóng số dư đã đóng băng. Bạn có chắc không?",
-    "搜索订单号/用户名/用户ID": "Tìm kiếm theo mã đơn hàng, tên người dùng hoặc ID"
+    "搜索订单号/用户名/用户ID": "Tìm kiếm theo mã đơn hàng, tên người dùng hoặc ID",
+    "Codex 授权": "Xác thực Codex",
+    "已打开授权页面": "Đã mở trang xác thực",
+    "已生成授权凭据": "Đã tạo thông tin xác thực",
+    "搜索主题、用户名、ID、公司名或收款人": "Tìm theo chủ đề, tên người dùng, ID, công ty hoặc người nhận",
+    "导出发票": "Xuất hóa đơn",
+    "导出发票列表": "Danh sách xuất hóa đơn",
+    "已导出 {{count}} 张发票": "Đã xuất {{count}} hóa đơn",
+    "已选择 {{count}} 张发票": "Đã chọn {{count}} hóa đơn",
+    "应税服务名称": "Tên dịch vụ chịu thuế",
+    "搜索公司名称...": "Tìm theo tên công ty...",
+    "请至少选择一张发票": "Vui lòng chọn ít nhất một hóa đơn",
+    "请输入应税服务名称": "Vui lòng nhập tên dịch vụ chịu thuế"
   }
 }

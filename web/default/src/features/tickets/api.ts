@@ -361,3 +361,30 @@ export async function deleteAttachment(id: number): Promise<boolean> {
 export function getAttachmentUrl(id: number, inline = false): string {
   return `/api/ticket/attachment/${id}${inline ? '?inline=1' : ''}`
 }
+
+export interface InvoiceExportItem {
+  ticket_id: number
+  company_name: string
+  tax_number: string
+  email: string
+  total_money: number
+  order_count: number
+  invoice_status: number
+  created_time: number
+}
+
+export interface InvoiceExportListParams {
+  p: number
+  page_size: number
+  keyword?: string
+  invoice_status?: number
+  start_time?: number
+  end_time?: number
+}
+
+export async function getInvoiceExportList(
+  params: InvoiceExportListParams
+): Promise<{ items: InvoiceExportItem[]; total: number }> {
+  const res = await api.get('/api/ticket/admin/invoice/export-list', { params })
+  return res.data?.data ?? { items: [], total: 0 }
+}
