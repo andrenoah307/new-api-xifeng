@@ -432,7 +432,7 @@ type InvoiceExportItem struct {
 	TaxNumber     string  `json:"tax_number" gorm:"column:tax_number"`
 	Email         string  `json:"email" gorm:"column:email"`
 	TotalMoney    float64 `json:"total_money" gorm:"column:total_money"`
-	TopUpOrderIds string  `json:"-" gorm:"column:topup_order_ids"`
+	TopUpOrderIds string  `json:"-" gorm:"column:top_up_order_ids"`
 	OrderCount    int     `json:"order_count" gorm:"-"`
 	InvoiceStatus int     `json:"invoice_status" gorm:"column:invoice_status"`
 	CreatedTime   int64   `json:"created_time" gorm:"column:created_time"`
@@ -450,7 +450,7 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	items := make([]*InvoiceExportItem, 0)
 
 	query := DB.Table("tickets t").
-		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.topup_order_ids, ti.invoice_status, t.created_time").
+		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, ti.invoice_status, t.created_time").
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
 		Where("t.type = ? AND t.deleted_at IS NULL", TicketTypeInvoice)
 
