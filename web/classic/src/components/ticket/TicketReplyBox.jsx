@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Button,
   Card,
@@ -26,6 +26,7 @@ const TicketReplyBox = ({
   t,
 }) => {
   const [content, setContent] = useState('');
+  const submittingRef = useRef(false);
   const {
     config,
     attachments,
@@ -39,12 +40,17 @@ const TicketReplyBox = ({
   const canReply = !disabled && (content.trim() || attachments.length > 0);
 
   const handleSubmit = async () => {
-    if (!canReply || loading || uploading) return;
-    const ids = attachments.map((a) => a.id);
-    const ok = await onSubmit?.(content.trim(), ids);
-    if (ok) {
-      setContent('');
-      reset();
+    if (!canReply || loading || uploading || submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      const ids = attachments.map((a) => a.id);
+      const ok = await onSubmit?.(content.trim(), ids);
+      if (ok) {
+        setContent('');
+        reset();
+      }
+    } finally {
+      submittingRef.current = false;
     }
   };
 
