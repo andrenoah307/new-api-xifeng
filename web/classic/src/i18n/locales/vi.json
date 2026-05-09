@@ -2163,6 +2163,7 @@
         "搜索规则（描述 / 类型 / 路径 / 来源 / 目标）": "",
         "搜索规则（类型 / 路径 / 来源 / 目标）": "Tìm kiếm quy tắc (loại / đường dẫn / nguồn / đích)",
         "搜索订单号": "",
+        "搜索订单号/用户名/用户ID": "Tìm kiếm theo mã đơn hàng, tên người dùng hoặc ID",
         "搜索部署名称": "Search deployment name",
         "操作": "Hành động",
         "操作失败": "Thao tác thất bại",

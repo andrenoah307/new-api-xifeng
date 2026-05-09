@@ -217,7 +217,20 @@ const TopupHistoryPage = () => {
   const userIsAdmin = useMemo(() => isAdmin(), []);
 
   const columns = useMemo(() => {
-    const baseColumns = [
+    const baseColumns = [];
+
+    if (userIsAdmin) {
+      baseColumns.push({
+        title: t('用户'),
+        dataIndex: 'username',
+        key: 'user',
+        render: (username, record) => (
+          <Text>{username ? `${username} (${record.user_id})` : String(record.user_id ?? '-')}</Text>
+        ),
+      });
+    }
+
+    baseColumns.push(
       {
         title: t('订单号'),
         dataIndex: 'trade_no',
@@ -261,8 +274,8 @@ const TopupHistoryPage = () => {
         dataIndex: 'status',
         key: 'status',
         render: renderStatusBadge,
-      },
-    ];
+      }
+    );
 
     // 管理员才显示操作列
     if (userIsAdmin) {
@@ -327,7 +340,7 @@ const TopupHistoryPage = () => {
         />
         <Input
           prefix={<IconSearch />}
-          placeholder={t('搜索订单号')}
+          placeholder={t(userIsAdmin ? '搜索订单号/用户名/用户ID' : '搜索订单号')}
           value={keyword}
           onChange={handleKeywordChange}
           showClear

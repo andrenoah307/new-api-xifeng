@@ -450,7 +450,7 @@ func GetAllTopUps(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	filter := parseTopUpFilter(c)
 
-	topups, total, err := model.GetAllTopUps(filter, pageInfo)
+	topups, total, err := model.GetAllTopUpsWithUsername(filter, pageInfo)
 	if err != nil {
 		common.ApiError(c, err)
 		return
