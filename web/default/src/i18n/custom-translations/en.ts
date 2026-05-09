@@ -589,7 +589,8 @@ const en = {
   'Please enter taxable service name': 'Please enter taxable service name',
   'Selected {{count}} invoices': 'Selected {{count}} invoices',
   'Exported {{count}} invoices': 'Exported {{count}} invoices',
-  'Search by company name...': 'Search by company name...',
+  'Search by company name, email or amount...':
+    'Search by company name, email or amount...',
   'No data': 'No data',
 } as const
 

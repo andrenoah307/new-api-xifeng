@@ -242,7 +242,7 @@ export function ExportInvoiceDialog({
 
         <div className="flex flex-wrap items-center gap-2 py-2">
           <Input
-            placeholder={t('Search by company name...')}
+            placeholder={t('Search by company name, email or amount...')}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}

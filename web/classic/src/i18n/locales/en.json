@@ -4845,6 +4845,7 @@
     "应税服务名称": "Taxable Service Name",
     "搜索公司名称...": "Search by company name...",
     "请至少选择一张发票": "Please select at least one invoice",
-    "请输入应税服务名称": "Please enter taxable service name"
+    "请输入应税服务名称": "Please enter taxable service name",
+    "搜索公司名称、邮箱或金额...": "Search by company name, email or amount..."
   }
 }
