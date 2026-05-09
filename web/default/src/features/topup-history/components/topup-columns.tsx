@@ -22,14 +22,17 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
     if (admin) {
       cols.push({
         accessorKey: 'user_id',
-        header: t('User ID'),
-        cell: ({ row }) => (
-          <span className="font-mono text-xs">
-            {row.original.user_id ?? '-'}
-          </span>
-        ),
-        size: 80,
-        meta: { label: t('User ID'), mobileHidden: true },
+        header: t('User'),
+        cell: ({ row }) => {
+          const { username, user_id } = row.original
+          return (
+            <span className="font-mono text-xs">
+              {username ? `${username} (${user_id})` : String(user_id ?? '-')}
+            </span>
+          )
+        },
+        size: 140,
+        meta: { label: t('User'), mobileHidden: true },
       })
     }
 

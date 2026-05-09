@@ -304,6 +304,8 @@ const zh: Record<string, string> = {
   'Are you sure you want to mark this order as successful and credit the user?':
     '是否将该订单标记为成功并为用户入账？',
   'Search by order number...': '搜索订单号…',
+  'Search by order number, username or user ID...':
+    '搜索订单号/用户名/用户ID…',
   Success: '成功',
   Pending: '待支付',
   Failed: '失败',

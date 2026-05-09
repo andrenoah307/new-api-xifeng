@@ -292,6 +292,8 @@ const en = {
   'Are you sure you want to mark this order as successful and credit the user?':
     'Are you sure you want to mark this order as successful and credit the user?',
   'Search by order number...': 'Search by order number...',
+  'Search by order number, username or user ID...':
+    'Search by order number, username or user ID...',
   Success: 'Success',
   Pending: 'Pending',
   Failed: 'Failed',
