@@ -32,6 +32,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table'
+import { CompactDateTimeRangePicker } from '@/features/usage-logs/components/compact-date-time-range-picker'
 import { formatTimestampToDate } from '@/lib/format'
 import { toast } from 'sonner'
 import {
@@ -79,14 +80,10 @@ function generateInvoiceCSV(
     const companyInfo = item.tax_number
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
       : item.company_name
-    const unitPrice =
-      item.order_count > 0
-        ? (item.total_money / item.order_count).toFixed(2)
-        : '0.00'
     const row = [
       item.email,
-      item.order_count,
-      unitPrice,
+      '',
+      '',
       item.total_money.toFixed(2),
       companyInfo,
       serviceName,
@@ -121,6 +118,10 @@ export function ExportInvoiceDialog({
   const [keyword, setKeyword] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [serviceName, setServiceName] = useState('')
+  const [dateRange, setDateRange] = useState<{
+    start?: Date
+    end?: Date
+  }>({})
   const [selected, setSelected] = useState<Map<number, InvoiceExportItem>>(
     new Map()
   )
@@ -132,8 +133,14 @@ export function ExportInvoiceDialog({
       keyword: searchKeyword || undefined,
       invoice_status:
         statusFilter !== '0' ? Number(statusFilter) : undefined,
+      start_time: dateRange.start
+        ? Math.floor(dateRange.start.getTime() / 1000)
+        : undefined,
+      end_time: dateRange.end
+        ? Math.floor(dateRange.end.getTime() / 1000)
+        : undefined,
     }),
-    [page, searchKeyword, statusFilter]
+    [page, searchKeyword, statusFilter, dateRange]
   )
 
   const { data, isLoading } = useQuery({
@@ -181,6 +188,30 @@ export function ExportInvoiceDialog({
     setStatusFilter(v)
     setPage(1)
   }, [])
+
+  const handleDateChange = useCallback(
+    (range: { start?: Date; end?: Date }) => {
+      setDateRange(range)
+      setPage(1)
+    },
+    []
+  )
+
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        setPage(1)
+        setStatusFilter('0')
+        setKeyword('')
+        setSearchKeyword('')
+        setServiceName('')
+        setDateRange({})
+        setSelected(new Map())
+      }
+      onOpenChange(nextOpen)
+    },
+    [onOpenChange]
+  )
 
   const handleExport = useCallback(() => {
     if (selected.size === 0) {
@@ -234,7 +265,7 @@ export function ExportInvoiceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t('Export Invoice List')}</DialogTitle>
@@ -260,6 +291,12 @@ export function ExportInvoiceDialog({
               ))}
             </SelectContent>
           </Select>
+          <CompactDateTimeRangePicker
+            start={dateRange.start}
+            end={dateRange.end}
+            onChange={handleDateChange}
+            className="w-auto"
+          />
         </div>
 
         <div className="rounded-md border">
