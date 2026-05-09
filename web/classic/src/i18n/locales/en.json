@@ -4806,7 +4806,7 @@
   "已驳回": "Rejected",
   "应税服务名称": "Taxable Service Name",
   "待开具": "Pending Issuance",
-  "搜索公司名称...": "Search by company name...",
+  "搜索公司名称、邮箱或金额...": "Search by company name, email or amount...",
   "请至少选择一张发票": "Please select at least one invoice",
   "请输入应税服务名称": "Please enter taxable service name"
 }

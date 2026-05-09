@@ -594,7 +594,7 @@ const zh: Record<string, string> = {
   'Please enter taxable service name': '请输入应税服务名称',
   'Selected {{count}} invoices': '已选择 {{count}} 张发票',
   'Exported {{count}} invoices': '已导出 {{count}} 张发票',
-  'Search by company name...': '搜索公司名称...',
+  'Search by company name, email or amount...': '搜索公司名称、邮箱或金额...',
   'No data': '暂无数据',
 }
 
