@@ -12,7 +12,7 @@ import {
   Tag,
   Typography,
 } from '@douyinfe/semi-ui';
-import { IconSearch } from '@douyinfe/semi-icons';
+import { IconSearch, IconDownload } from '@douyinfe/semi-icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { API, isAdmin, showError, showSuccess, timestamp2string } from '../../helpers';
@@ -33,6 +33,7 @@ import {
   getTicketTypeOptions,
   getTicketTypeText,
 } from '../../components/ticket/ticketUtils';
+import ExportInvoiceDialog from '../../components/ticket/ExportInvoiceDialog';
 
 const { Title, Text } = Typography;
 
@@ -420,6 +421,7 @@ const TicketAdmin = () => {
   const viewerIsAdmin = isAdmin();
   const scopeParam = searchParams.get('scope') || (viewerIsAdmin ? '' : 'mine');
   const [keyword, setKeyword] = useState(searchKeyword);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const updateSearchParams = useCallback(
     (patch) => {
@@ -621,10 +623,20 @@ const TicketAdmin = () => {
                 style={{ width: 160 }}
                 onChange={setTypeFilter}
               />
+              <Button
+                icon={<IconDownload />}
+                onClick={() => setExportOpen(true)}
+              >
+                {t('导出发票')}
+              </Button>
             </Space>
           </div>
         </div>
       }
+    />
+    <ExportInvoiceDialog
+      visible={exportOpen}
+      onClose={() => setExportOpen(false)}
     />
     </div>
   );

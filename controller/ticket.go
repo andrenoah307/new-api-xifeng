@@ -1009,3 +1009,29 @@ func UpdateInvoiceStatus(c *gin.Context) {
 		"ticket":  ticket,
 	})
 }
+
+func GetInvoiceExportList(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	filter := model.InvoiceExportFilter{
+		Keyword: c.Query("keyword"),
+	}
+	if v, err := strconv.Atoi(c.Query("invoice_status")); err == nil {
+		filter.InvoiceStatus = v
+	}
+	if v, err := strconv.ParseInt(c.Query("start_time"), 10, 64); err == nil {
+		filter.StartTime = v
+	}
+	if v, err := strconv.ParseInt(c.Query("end_time"), 10, 64); err == nil {
+		filter.EndTime = v
+	}
+
+	items, total, err := model.ListInvoicesForExport(filter, pageInfo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(items)
+	common.ApiSuccess(c, pageInfo)
+}

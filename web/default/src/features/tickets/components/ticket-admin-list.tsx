@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback } from 'react'
+import { useMemo, useEffect, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -35,6 +35,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Button } from '@/components/ui/button'
+import { Download } from 'lucide-react'
+import { ExportInvoiceDialog } from './dialogs/export-invoice-dialog'
 import { getAdminTickets, getStaffList, type StaffUser } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
@@ -55,6 +58,8 @@ export default function TicketAdminListPage() {
   const search = route.useSearch()
   const routeNavigate = route.useNavigate()
 
+  const [exportOpen, setExportOpen] = useState(false)
+
   const scope = search.scope ?? (viewerIsAdmin ? 'all' : 'mine')
   const statusFilter = search.status || '__all__'
   const typeFilter = search.type || '__all__'
@@ -64,7 +69,7 @@ export default function TicketAdminListPage() {
       routeNavigate({
         search: (prev: Record<string, unknown>) => ({
           ...prev,
-          scope: val,
+          scope: val as 'all' | 'mine' | 'unassigned',
           page: 1,
         }),
       })
@@ -186,6 +191,7 @@ export default function TicketAdminListPage() {
   )
 
   return (
+    <>
     <SectionPageLayout>
       <SectionPageLayout.Title>
         {t('Ticket Admin')}
@@ -238,6 +244,14 @@ export default function TicketAdminListPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setExportOpen(true)}
+                >
+                  <Download className="mr-1.5 h-4 w-4" />
+                  {t('Export Invoice')}
+                </Button>
               </div>
             }
           />
@@ -302,5 +316,7 @@ export default function TicketAdminListPage() {
         </PageFooterPortal>
       </SectionPageLayout.Content>
     </SectionPageLayout>
+      <ExportInvoiceDialog open={exportOpen} onOpenChange={setExportOpen} />
+    </>
   )
 }
