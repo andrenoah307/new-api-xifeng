@@ -182,7 +182,7 @@ export function TopupTable() {
       <div className="space-y-3 sm:space-y-4">
         <DataTableToolbar
           table={table}
-          searchPlaceholder={t('Search by order number...')}
+          searchPlaceholder={t(admin ? 'Search by order number, username or user ID...' : 'Search by order number...')}
           additionalSearch={
             <div className="flex flex-wrap items-center gap-2">
               <Select value={statusFilter} onValueChange={setStatusFilter}>

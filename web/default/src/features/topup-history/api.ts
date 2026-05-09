@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 export interface TopupRecord {
   id: number
   user_id: number
+  username?: string
   trade_no: string
   payment_method: string
   amount: number

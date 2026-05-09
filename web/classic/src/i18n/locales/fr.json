@@ -2193,6 +2193,7 @@
         "搜索规则（描述 / 类型 / 路径 / 来源 / 目标）": "",
         "搜索规则（类型 / 路径 / 来源 / 目标）": "Rechercher des règles (type / chemin / source / cible)",
         "搜索订单号": "",
+        "搜索订单号/用户名/用户ID": "Rechercher par numéro de commande, nom d'utilisateur ou ID",
         "搜索部署名称": "Search deployment name",
         "操作": "Actions",
         "操作失败": "Opération échouée",

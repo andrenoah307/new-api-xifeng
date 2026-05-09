@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -23,6 +24,11 @@ type TopUp struct {
 	CreateTime      int64   `json:"create_time"`
 	CompleteTime    int64   `json:"complete_time"`
 	Status          string  `json:"status"`
+}
+
+type TopUpWithUsername struct {
+	TopUp
+	Username *string `json:"username,omitempty" gorm:"column:username"`
 }
 
 const (
@@ -242,6 +248,88 @@ func GetAllTopUps(filter TopUpFilter, pageInfo *common.PageInfo) (topups []*TopU
 		return nil, 0, err
 	}
 	return topups, total, nil
+}
+
+// GetAllTopUpsWithUsername 管理员获取充值记录，LEFT JOIN users 取 username
+func GetAllTopUpsWithUsername(filter TopUpFilter, pageInfo *common.PageInfo) (topups []*TopUpWithUsername, total int64, err error) {
+	tx := DB.Begin()
+	if tx.Error != nil {
+		return nil, 0, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	topups = make([]*TopUpWithUsername, 0)
+	needJoin := filter.Keyword != "" && !isNumericString(filter.Keyword)
+
+	countQuery := tx.Model(&TopUp{})
+	if needJoin {
+		countQuery = countQuery.Joins("LEFT JOIN users ON users.id = top_ups.user_id")
+	}
+	countQuery, err = applyTopUpAdminFilters(countQuery, filter)
+	if err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
+
+	if err = countQuery.Session(&gorm.Session{}).Limit(searchTopUpCountHardLimit).Count(&total).Error; err != nil {
+		tx.Rollback()
+		common.SysError("failed to count topups: " + err.Error())
+		return nil, 0, errors.New("查询充值记录失败")
+	}
+
+	dataQuery := tx.Model(&TopUp{}).
+		Select("top_ups.*, users.username AS username").
+		Joins("LEFT JOIN users ON users.id = top_ups.user_id")
+	dataQuery, err = applyTopUpAdminFilters(dataQuery, filter)
+	if err != nil {
+		tx.Rollback()
+		return nil, 0, err
+	}
+
+	if err = dataQuery.Order("top_ups.id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error; err != nil {
+		tx.Rollback()
+		common.SysError("failed to query topups: " + err.Error())
+		return nil, 0, errors.New("查询充值记录失败")
+	}
+
+	if err = tx.Commit().Error; err != nil {
+		return nil, 0, err
+	}
+	return topups, total, nil
+}
+
+func isNumericString(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
+}
+
+// applyTopUpAdminFilters 管理员查询：keyword 搜索 trade_no / user_id / username
+func applyTopUpAdminFilters(query *gorm.DB, filter TopUpFilter) (*gorm.DB, error) {
+	if filter.Keyword != "" {
+		pattern, err := sanitizeLikePattern(filter.Keyword)
+		if err != nil {
+			return query, err
+		}
+		if uid, parseErr := strconv.Atoi(filter.Keyword); parseErr == nil {
+			query = query.Where("(top_ups.trade_no LIKE ? ESCAPE '!' OR top_ups.user_id = ?)", pattern, uid)
+		} else {
+			query = query.Where("(top_ups.trade_no LIKE ? ESCAPE '!' OR users.username LIKE ? ESCAPE '!')", pattern, pattern)
+		}
+	}
+	if filter.Status != "" {
+		query = query.Where("top_ups.status = ?", filter.Status)
+	}
+	if filter.StartTime > 0 {
+		query = query.Where("top_ups.create_time >= ?", filter.StartTime)
+	}
+	if filter.EndTime > 0 {
+		query = query.Where("top_ups.create_time <= ?", filter.EndTime)
+	}
+	return query, nil
 }
 
 // applyTopUpQueryFilters applies keyword / status / time range filters to a GORM query.
