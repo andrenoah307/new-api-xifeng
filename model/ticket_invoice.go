@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -462,7 +463,15 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 		if err != nil {
 			return nil, 0, err
 		}
-		query = query.Where("ti.company_name LIKE ? ESCAPE '!'", pattern)
+		keywordScope := func(db *gorm.DB) *gorm.DB {
+			sub := db.Where("ti.company_name LIKE ? ESCAPE '!'", pattern).
+				Or("ti.email LIKE ? ESCAPE '!'", pattern)
+			if amount, parseErr := strconv.ParseFloat(filter.Keyword, 64); parseErr == nil {
+				sub = sub.Or("ti.total_money = ?", amount)
+			}
+			return sub
+		}
+		query = query.Where(keywordScope)
 	}
 	if filter.StartTime > 0 {
 		query = query.Where("t.created_time >= ?", filter.StartTime)

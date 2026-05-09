@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Button,
   Checkbox,
@@ -111,15 +111,17 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
     [t],
   );
 
-  const handleOpen = useCallback(() => {
-    setPage(1);
-    setStatusFilter(0);
-    setKeyword('');
-    setSearchKeyword('');
-    setSelected(new Map());
-    setServiceName('');
-    fetchData(1, '', 0);
-  }, [fetchData]);
+  useEffect(() => {
+    if (visible) {
+      setPage(1);
+      setStatusFilter(0);
+      setKeyword('');
+      setSearchKeyword('');
+      setSelected(new Map());
+      setServiceName('');
+      fetchData(1, '', 0);
+    }
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = useCallback(() => {
     setSearchKeyword(keyword);
@@ -300,11 +302,10 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
           </Button>
         </div>
       }
-      afterOpen={handleOpen}
     >
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <Input
-          placeholder={t('搜索公司名称...')}
+          placeholder={t('搜索公司名称、邮箱或金额...')}
           value={keyword}
           onChange={setKeyword}
           onEnterPress={handleSearch}

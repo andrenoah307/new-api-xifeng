@@ -4685,7 +4685,7 @@
   "已驳回": "Rejetée",
   "应税服务名称": "Nom du service taxable",
   "待开具": "En attente d'émission",
-  "搜索公司名称...": "Rechercher par nom d'entreprise...",
+  "搜索公司名称、邮箱或金额...": "Rechercher par nom, e-mail ou montant...",
   "请至少选择一张发票": "Veuillez sélectionner au moins une facture",
   "请输入应税服务名称": "Veuillez entrer le nom du service taxable"
 }
