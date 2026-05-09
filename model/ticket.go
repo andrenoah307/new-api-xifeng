@@ -40,6 +40,7 @@ var (
 	ErrTicketInvoiceTaxNumberEmpty   = errors.New("ticket invoice tax number empty")
 	ErrTicketInvoiceTaxNumberFormat = errors.New("ticket invoice tax number format invalid")
 	ErrTicketInvoiceEmailEmpty      = errors.New("ticket invoice email empty")
+	ErrTicketMessageDuplicate       = errors.New("duplicate message")
 )
 
 type Ticket struct {
@@ -443,6 +444,15 @@ func AddTicketMessage(ticketId int, userId int, username string, role int, conte
 			return ErrTicketClosed
 		}
 		prevStatus = ticket.Status
+
+		var dupCount int64
+		if err := tx.Model(&TicketMessage{}).
+			Where("ticket_id = ? AND user_id = ? AND content = ? AND created_time > ?",
+				ticketId, userId, content, now-10).
+			Count(&dupCount).Error; err == nil && dupCount > 0 {
+			return ErrTicketMessageDuplicate
+		}
+
 		if err := tx.Create(message).Error; err != nil {
 			return err
 		}

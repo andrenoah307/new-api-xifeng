@@ -56,6 +56,7 @@ const AdminTicketDetail = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [replying, setReplying] = useState(false);
   const [ticket, setTicket] = useState(null);
   const [messages, setMessages] = useState([]);
   const [invoice, setInvoice] = useState(null);
@@ -146,6 +147,7 @@ const AdminTicketDetail = () => {
   }, [ticket, t]);
 
   const handleReply = async (content, attachmentIds = []) => {
+    setReplying(true);
     try {
       const res = await API.post(`/api/ticket/admin/${id}/message`, {
         content,
@@ -159,6 +161,8 @@ const AdminTicketDetail = () => {
       showError(res.data?.message || t('回复发送失败'));
     } catch (error) {
       showError(t('请求失败'));
+    } finally {
+      setReplying(false);
     }
     return false;
   };
@@ -386,7 +390,7 @@ const AdminTicketDetail = () => {
       <TicketReplyBox
         title={t('管理员回复')}
         disabled={!canReplyTicket(ticket)}
-        loading={saving}
+        loading={saving || replying}
         onSubmit={handleReply}
         t={t}
       />

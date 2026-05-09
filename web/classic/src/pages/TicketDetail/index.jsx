@@ -29,6 +29,7 @@ const TicketDetail = () => {
   const [invoice, setInvoice] = useState(null);
   const [invoiceOrders, setInvoiceOrders] = useState([]);
   const [refund, setRefund] = useState(null);
+  const [sending, setSending] = useState(false);
 
   const loadDetail = useCallback(async () => {
     if (!id) return;
@@ -81,6 +82,7 @@ const TicketDetail = () => {
   }, [ticket, t]);
 
   const handleReply = async (content, attachmentIds = []) => {
+    setSending(true);
     try {
       const res = await API.post(`/api/ticket/self/${id}/message`, {
         content,
@@ -94,6 +96,8 @@ const TicketDetail = () => {
       showError(res.data?.message || t('回复发送失败'));
     } catch (error) {
       showError(t('请求失败'));
+    } finally {
+      setSending(false);
     }
     return false;
   };
@@ -196,7 +200,7 @@ const TicketDetail = () => {
 
       <TicketReplyBox
         disabled={!canReplyTicket(ticket)}
-        loading={loading}
+        loading={loading || sending}
         onSubmit={handleReply}
         t={t}
       />

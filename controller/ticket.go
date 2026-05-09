@@ -372,6 +372,10 @@ func CreateUserTicketMessage(c *gin.Context) {
 		req.AttachmentIds,
 	)
 	if err != nil {
+		if errors.Is(err, model.ErrTicketMessageDuplicate) {
+			common.ApiSuccess(c, gin.H{"ticket": nil, "message": nil, "deduplicated": true})
+			return
+		}
 		handleTicketError(c, err)
 		return
 	}
@@ -607,6 +611,10 @@ func CreateAdminTicketMessage(c *gin.Context) {
 		req.AttachmentIds,
 	)
 	if err != nil {
+		if errors.Is(err, model.ErrTicketMessageDuplicate) {
+			common.ApiSuccess(c, gin.H{"ticket": nil, "message": nil, "deduplicated": true})
+			return
+		}
 		handleTicketError(c, err)
 		return
 	}
