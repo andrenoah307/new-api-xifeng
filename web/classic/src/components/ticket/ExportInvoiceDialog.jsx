@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Button,
   Checkbox,
+  DatePicker,
   Input,
   Modal,
   Select,
@@ -38,14 +39,10 @@ function generateInvoiceCSV(items, serviceName) {
     const companyInfo = item.tax_number
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
       : item.company_name;
-    const unitPrice =
-      item.order_count > 0
-        ? (item.total_money / item.order_count).toFixed(2)
-        : '0.00';
     const row = [
       item.email,
-      item.order_count,
-      unitPrice,
+      '',
+      '',
       item.total_money.toFixed(2),
       companyInfo,
       serviceName,
@@ -84,10 +81,11 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
   const [keyword, setKeyword] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [serviceName, setServiceName] = useState('');
+  const [dateRange, setDateRange] = useState([null, null]);
   const [selected, setSelected] = useState(new Map());
 
   const fetchData = useCallback(
-    async (p, kw, status) => {
+    async (p, kw, status, dates) => {
       setLoading(true);
       try {
         const params = new URLSearchParams();
@@ -95,6 +93,8 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
         params.set('page_size', String(PAGE_SIZE));
         if (kw) params.set('keyword', kw);
         if (status > 0) params.set('invoice_status', String(status));
+        if (dates && dates[0]) params.set('start_time', String(Math.floor(dates[0] / 1000)));
+        if (dates && dates[1]) params.set('end_time', String(Math.floor(dates[1] / 1000)));
         const res = await API.get(`/api/ticket/admin/invoice/export-list?${params}`);
         if (res.data?.success) {
           const data = res.data.data;
@@ -119,31 +119,42 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
       setSearchKeyword('');
       setSelected(new Map());
       setServiceName('');
-      fetchData(1, '', 0);
+      setDateRange([null, null]);
+      fetchData(1, '', 0, [null, null]);
     }
   }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = useCallback(() => {
     setSearchKeyword(keyword);
     setPage(1);
-    fetchData(1, keyword, statusFilter);
-  }, [keyword, statusFilter, fetchData]);
+    fetchData(1, keyword, statusFilter, dateRange);
+  }, [keyword, statusFilter, dateRange, fetchData]);
 
   const handleStatusChange = useCallback(
     (v) => {
       setStatusFilter(v);
       setPage(1);
-      fetchData(1, searchKeyword, v);
+      fetchData(1, searchKeyword, v, dateRange);
     },
-    [searchKeyword, fetchData],
+    [searchKeyword, dateRange, fetchData],
+  );
+
+  const handleDateRangeChange = useCallback(
+    (dates) => {
+      const next = dates && dates.length === 2 ? dates : [null, null];
+      setDateRange(next);
+      setPage(1);
+      fetchData(1, searchKeyword, statusFilter, next);
+    },
+    [searchKeyword, statusFilter, fetchData],
   );
 
   const handlePageChange = useCallback(
     (p) => {
       setPage(p);
-      fetchData(p, searchKeyword, statusFilter);
+      fetchData(p, searchKeyword, statusFilter, dateRange);
     },
-    [searchKeyword, statusFilter, fetchData],
+    [searchKeyword, statusFilter, dateRange, fetchData],
   );
 
   const toggleItem = useCallback((item) => {
@@ -257,6 +268,29 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
     [t, allOnPageSelected, toggleAll, selected, toggleItem],
   );
 
+  const datePresets = useMemo(() => [
+    {
+      text: t('今天'),
+      start: (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })(),
+      end: new Date(),
+    },
+    {
+      text: t('近 7 天'),
+      start: (() => { const d = new Date(); d.setDate(d.getDate() - 6); d.setHours(0,0,0,0); return d; })(),
+      end: new Date(),
+    },
+    {
+      text: t('近 30 天'),
+      start: (() => { const d = new Date(); d.setDate(d.getDate() - 29); d.setHours(0,0,0,0); return d; })(),
+      end: new Date(),
+    },
+    {
+      text: t('本月'),
+      start: (() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; })(),
+      end: new Date(),
+    },
+  ], [t]);
+
   const statusOpts = useMemo(
     () =>
       INVOICE_STATUS_OPTIONS.map((o) => ({
@@ -317,6 +351,16 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
           optionList={statusOpts}
           onChange={handleStatusChange}
           style={{ width: 130 }}
+          getPopupContainer={() => document.body}
+        />
+        <DatePicker
+          type='dateTimeRange'
+          value={dateRange[0] ? dateRange : undefined}
+          onChange={handleDateRangeChange}
+          placeholder={[t('开始时间'), t('结束时间')]}
+          style={{ width: 380 }}
+          showClear
+          presets={datePresets}
           getPopupContainer={() => document.body}
         />
       </div>
