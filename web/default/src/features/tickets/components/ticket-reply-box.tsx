@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Paperclip, Send, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -31,14 +31,21 @@ export function TicketReplyBox({
     reset,
   } = useTicketAttachments()
 
+  const submittingRef = useRef(false)
+
   const canSubmit =
     !disabled && !loading && (content.trim().length > 0 || attachments.length > 0)
 
   const handleSubmit = useCallback(async () => {
-    if (!canSubmit) return
-    await onSubmit(content.trim(), attachmentIds)
-    setContent('')
-    reset()
+    if (!canSubmit || submittingRef.current) return
+    submittingRef.current = true
+    try {
+      await onSubmit(content.trim(), attachmentIds)
+      setContent('')
+      reset()
+    } finally {
+      submittingRef.current = false
+    }
   }, [canSubmit, content, attachmentIds, onSubmit, reset])
 
   const handleFileInput = useCallback(
