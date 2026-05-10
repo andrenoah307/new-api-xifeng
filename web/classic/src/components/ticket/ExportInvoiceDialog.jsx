@@ -127,6 +127,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
   const handleSearch = useCallback(() => {
     setSearchKeyword(keyword);
     setPage(1);
+    setSelected(new Map());
     fetchData(1, keyword, statusFilter, dateRange);
   }, [keyword, statusFilter, dateRange, fetchData]);
 
@@ -134,6 +135,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
     (v) => {
       setStatusFilter(v);
       setPage(1);
+      setSelected(new Map());
       fetchData(1, searchKeyword, v, dateRange);
     },
     [searchKeyword, dateRange, fetchData],
@@ -144,6 +146,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
       const next = dates && dates.length === 2 ? dates : [null, null];
       setDateRange(next);
       setPage(1);
+      setSelected(new Map());
       fetchData(1, searchKeyword, statusFilter, next);
     },
     [searchKeyword, statusFilter, fetchData],
