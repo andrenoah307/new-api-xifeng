@@ -182,17 +182,20 @@ export function ExportInvoiceDialog({
   const handleSearch = useCallback(() => {
     setSearchKeyword(keyword)
     setPage(1)
+    setSelected(new Map())
   }, [keyword])
 
   const handleStatusChange = useCallback((v: string) => {
     setStatusFilter(v)
     setPage(1)
+    setSelected(new Map())
   }, [])
 
   const handleDateChange = useCallback(
     (range: { start?: Date; end?: Date }) => {
       setDateRange(range)
       setPage(1)
+      setSelected(new Map())
     },
     []
   )
