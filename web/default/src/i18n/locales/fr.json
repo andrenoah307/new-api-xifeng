@@ -4352,6 +4352,7 @@
     "This model has both fixed-price and token-price settings. Saving the current mode will rewrite the conflicting fields.": "Ce modèle possède à la fois un prix fixe et des prix par token. L’enregistrement du mode actuel réécrira les champs en conflit.",
     "This model is not available in any group, or no group pricing information is configured.": "Ce modèle n'est disponible dans aucun groupe, ou aucune information de tarification de groupe n'est configurée.",
     "This month": "Ce mois-ci",
+    "This month earned": "Obtenu ce mois-ci",
     "This page has not been created yet.": "Cette page n'a pas encore été créée.",
     "This plan does not allow balance redemption": "Ce forfait ne permet pas le paiement avec le solde",
     "This project must be used in compliance with the": "Ce projet doit être utilisé conformément aux",

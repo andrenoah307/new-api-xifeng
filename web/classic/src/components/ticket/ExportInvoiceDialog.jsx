@@ -283,6 +283,11 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
       end: new Date(),
     },
     {
+      text: t('本周'),
+      start: (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d; })(),
+      end: new Date(),
+    },
+    {
       text: t('近 30 天'),
       start: (() => { const d = new Date(); d.setDate(d.getDate() - 29); d.setHours(0,0,0,0); return d; })(),
       end: new Date(),

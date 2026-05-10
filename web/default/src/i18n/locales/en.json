@@ -4355,6 +4355,7 @@
     "This model has both fixed-price and token-price settings. Saving the current mode will rewrite the conflicting fields.": "This model has both fixed-price and token-price settings. Saving the current mode will rewrite the conflicting fields.",
     "This model is not available in any group, or no group pricing information is configured.": "This model is not available in any group, or no group pricing information is configured.",
     "This month": "This month",
+    "This month earned": "This month earned",
     "This page has not been created yet.": "This page has not been created yet.",
     "This plan does not allow balance redemption": "This plan does not allow balance redemption",
     "This project must be used in compliance with the": "This project must be used in compliance with the",
