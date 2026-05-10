@@ -3864,6 +3864,7 @@
     "This model has both fixed-price and token-price settings. Saving the current mode will rewrite the conflicting fields.": "This model has both fixed-price and token-price settings. Saving the current mode will rewrite the conflicting fields.",
     "This model is not available in any group, or no group pricing information is configured.": "This model is not available in any group, or no group pricing information is configured.",
     "This month": "This month",
+    "This month earned": "This month earned",
     "This page has not been created yet.": "This page has not been created yet.",
     "This project must be used in compliance with the": "This project must be used in compliance with the",
     "This record was written by a pre-upgrade instance and lacks audit info. Upgrade the instance to record server IP, callback IP, payment method and system version.": "This record was written by a pre-upgrade instance and lacks audit info. Upgrade the instance to record server IP, callback IP, payment method and system version.",

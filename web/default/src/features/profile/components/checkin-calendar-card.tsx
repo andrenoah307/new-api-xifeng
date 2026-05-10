@@ -332,7 +332,7 @@ export function CheckinCalendarCard({
                   {formatQuotaWithCurrency(monthlyQuota, { digitsLarge: 0 })}
                 </div>
                 <div className='text-muted-foreground mt-0.5 text-[10px] font-medium sm:mt-1 sm:text-xs'>
-                  {t('This month')}
+                  {t('This month earned')}
                 </div>
               </div>
               <div className='bg-card p-3 text-center sm:p-5'>
