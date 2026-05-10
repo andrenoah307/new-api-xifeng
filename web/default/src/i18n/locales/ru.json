@@ -3454,6 +3454,7 @@
     "This model has both fixed price and ratio billing conflicts": "Эта модель имеет конфликты как фиксированной цены, так и пропорциональной тарификации",
     "This model is not available in any group, or no group pricing information is configured.": "Эта модель недоступна ни в одной группе, или информация о ценах для групп не настроена.",
     "This month": "В этом месяце",
+    "This month earned": "Получено за месяц",
     "This page has not been created yet.": "Эта страница еще не создана.",
     "This project must be used in compliance with the": "Этот проект должен использоваться в соответствии с",
     "This record was written by a pre-upgrade instance and lacks audit info. Upgrade the instance to record server IP, callback IP, payment method and system version.": "Запись создана экземпляром до обновления и не содержит сведений аудита. Обновите экземпляр, чтобы фиксировать IP сервера, IP callback, способ оплаты и версию ОС.",
