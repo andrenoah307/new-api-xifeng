@@ -68,6 +68,7 @@ const TopupHistoryPage = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [keyword, setKeyword] = useState('');
+  const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateRange, setDateRange] = useState([null, null]);
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
@@ -81,7 +82,7 @@ const TopupHistoryPage = () => {
         p: currentPage,
         page_size: currentPageSize,
       });
-      if (keyword) params.set('keyword', keyword);
+      if (debouncedKeyword) params.set('keyword', debouncedKeyword);
       if (statusFilter) params.set('status', statusFilter);
       if (dateRange[0]) params.set('start_time', Math.floor(dateRange[0] / 1000));
       if (dateRange[1]) params.set('end_time', Math.floor(dateRange[1] / 1000));
@@ -102,8 +103,13 @@ const TopupHistoryPage = () => {
   };
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedKeyword(keyword), 1000);
+    return () => clearTimeout(timer);
+  }, [keyword]);
+
+  useEffect(() => {
     loadTopups(page, pageSize);
-  }, [page, pageSize, keyword, statusFilter, dateRange]);
+  }, [page, pageSize, debouncedKeyword, statusFilter, dateRange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePageChange = (currentPage) => {
     setPage(currentPage);
@@ -116,7 +122,6 @@ const TopupHistoryPage = () => {
 
   const handleKeywordChange = (value) => {
     setKeyword(value);
-    setPage(1);
   };
 
   const handleStatusChange = (value) => {

@@ -8,7 +8,7 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useMediaQuery } from '@/hooks'
+import { useMediaQuery, useDebounce } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { useIsAdmin } from '@/hooks/use-admin'
 import {
@@ -79,12 +79,13 @@ export function TopupTable() {
   })
 
   const keyword = globalFilter?.trim() || ''
+  const debouncedKeyword = useDebounce(keyword, 1000)
 
   const queryParams = useMemo(
     () => ({
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
-      keyword: keyword || undefined,
+      keyword: debouncedKeyword || undefined,
       status: statusFilter === '__all__' ? undefined : statusFilter,
       start_time: dateStart
         ? Math.floor(dateStart.getTime() / 1000)
@@ -93,7 +94,7 @@ export function TopupTable() {
         ? Math.floor(dateEnd.getTime() / 1000)
         : undefined,
     }),
-    [pagination, keyword, statusFilter, dateStart, dateEnd]
+    [pagination, debouncedKeyword, statusFilter, dateStart, dateEnd]
   )
 
   const { data, isLoading } = useQuery({
