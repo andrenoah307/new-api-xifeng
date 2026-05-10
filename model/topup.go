@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -313,6 +314,9 @@ func applyTopUpAdminFilters(query *gorm.DB, filter TopUpFilter) (*gorm.DB, error
 		pattern, err := sanitizeLikePattern(filter.Keyword)
 		if err != nil {
 			return query, err
+		}
+		if !strings.Contains(pattern, "%") {
+			pattern = "%" + pattern + "%"
 		}
 		if uid, parseErr := strconv.Atoi(filter.Keyword); parseErr == nil {
 			query = query.Where("(top_ups.trade_no LIKE ? ESCAPE '!' OR top_ups.user_id = ?)", pattern, uid)
