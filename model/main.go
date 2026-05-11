@@ -368,6 +368,13 @@ func migrateDBFast() error {
 		{&RiskRule{}, "RiskRule"},
 		{&RiskSubjectSnapshot{}, "RiskSubjectSnapshot"},
 		{&RiskIncident{}, "RiskIncident"},
+		{&EnforcementIncident{}, "EnforcementIncident"},
+		{&ModerationIncident{}, "ModerationIncident"},
+		{&ModerationRule{}, "ModerationRule"},
+		{&ChannelMonitoringStat{}, "ChannelMonitoringStat"},
+		{&GroupMonitoringStat{}, "GroupMonitoringStat"},
+		{&MonitoringHistory{}, "MonitoringHistory"},
+		{&TicketAttachment{}, "TicketAttachment"},
 		{&PerfMetric{}, "PerfMetric"},
 		{&CommissionRecord{}, "CommissionRecord"},
 	}
