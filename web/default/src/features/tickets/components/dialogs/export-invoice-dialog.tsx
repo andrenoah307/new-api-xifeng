@@ -39,12 +39,14 @@ import {
   getInvoiceExportList,
   type InvoiceExportItem,
 } from '../../api'
+import { TICKET_STATUS_CONFIG } from '../../constants'
 
-const INVOICE_STATUS_OPTIONS = [
+const TICKET_STATUS_OPTIONS = [
   { value: '0', label: 'All' },
-  { value: '1', label: 'Pending Issuance' },
-  { value: '2', label: 'Issued' },
-  { value: '3', label: 'Rejected' },
+  { value: '1', label: 'Pending' },
+  { value: '2', label: 'Processing' },
+  { value: '3', label: 'Resolved' },
+  { value: '4', label: 'Closed' },
 ]
 
 const PAGE_SIZE = 20
@@ -128,10 +130,10 @@ export function ExportInvoiceDialog({
 
   const queryParams = useMemo(
     () => ({
-      p: page - 1,
+      p: page,
       page_size: PAGE_SIZE,
       keyword: searchKeyword || undefined,
-      invoice_status:
+      status:
         statusFilter !== '0' ? Number(statusFilter) : undefined,
       start_time: dateRange.start
         ? Math.floor(dateRange.start.getTime() / 1000)
@@ -255,16 +257,8 @@ export function ExportInvoiceDialog({
   })
 
   const statusLabel = (s: number) => {
-    switch (s) {
-      case 1:
-        return t('Pending Issuance')
-      case 2:
-        return t('Issued')
-      case 3:
-        return t('Rejected')
-      default:
-        return '-'
-    }
+    const config = TICKET_STATUS_CONFIG[s]
+    return config ? t(config.labelKey) : '-'
   }
 
   return (
@@ -284,10 +278,10 @@ export function ExportInvoiceDialog({
           />
           <Select value={statusFilter} onValueChange={handleStatusChange}>
             <SelectTrigger className="h-8 w-[130px]">
-              <SelectValue placeholder={t('Invoice Status')} />
+              <SelectValue placeholder={t('Status')} />
             </SelectTrigger>
             <SelectContent>
-              {INVOICE_STATUS_OPTIONS.map((o) => (
+              {TICKET_STATUS_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {t(o.label)}
                 </SelectItem>
@@ -363,7 +357,7 @@ export function ExportInvoiceDialog({
                       {item.order_count}
                     </TableCell>
                     <TableCell className="text-xs">
-                      {statusLabel(item.invoice_status)}
+                      {statusLabel(item.status)}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {formatTimestampToDate(item.created_time)}

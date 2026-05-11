@@ -1015,8 +1015,8 @@ func GetInvoiceExportList(c *gin.Context) {
 	filter := model.InvoiceExportFilter{
 		Keyword: c.Query("keyword"),
 	}
-	if v, err := strconv.Atoi(c.Query("invoice_status")); err == nil {
-		filter.InvoiceStatus = v
+	if v, err := strconv.Atoi(c.Query("status")); err == nil {
+		filter.TicketStatus = v
 	}
 	if v, err := strconv.ParseInt(c.Query("start_time"), 10, 64); err == nil {
 		filter.StartTime = v

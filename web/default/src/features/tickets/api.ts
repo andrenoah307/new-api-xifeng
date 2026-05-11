@@ -369,7 +369,7 @@ export interface InvoiceExportItem {
   email: string
   total_money: number
   order_count: number
-  invoice_status: number
+  status: number
   created_time: number
 }
 
@@ -377,7 +377,7 @@ export interface InvoiceExportListParams {
   p: number
   page_size: number
   keyword?: string
-  invoice_status?: number
+  status?: number
   start_time?: number
   end_time?: number
 }
