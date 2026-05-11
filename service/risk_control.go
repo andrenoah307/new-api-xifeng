@@ -1322,12 +1322,6 @@ func cleanupExpiredRiskData(now int64) error {
 	return model.DeleteExpiredRiskIncidents(cutoff)
 }
 
-func minInt(a int, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
 
 func AppendRiskAuditToOther(other map[string]interface{}, audit *types.RiskAudit) {
 	if other == nil || audit == nil {
