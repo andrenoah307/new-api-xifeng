@@ -34,13 +34,14 @@ function csvField(value) {
 
 function generateInvoiceCSV(items, serviceName) {
   const BOM = '﻿';
-  const headers = ['电子邮箱', '数量', '单价', '金额合计', '公司信息', '应税服务名称'];
+  const headers = ['工单ID', '电子邮箱', '数量', '单价', '金额合计', '公司信息', '应税服务名称'];
   const lines = [headers.map(csvField).join(',')];
   for (const item of items) {
     const companyInfo = item.tax_number
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
       : item.company_name;
     const row = [
+      item.ticket_id,
       item.email,
       '',
       '',

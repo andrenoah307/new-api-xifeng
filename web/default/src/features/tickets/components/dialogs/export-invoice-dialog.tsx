@@ -70,6 +70,7 @@ function generateInvoiceCSV(
 ): string {
   const BOM = '﻿'
   const headers = [
+    '工单ID',
     '电子邮箱',
     '数量',
     '单价',
@@ -83,6 +84,7 @@ function generateInvoiceCSV(
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
       : item.company_name
     const row = [
+      item.ticket_id,
       item.email,
       '',
       '',
