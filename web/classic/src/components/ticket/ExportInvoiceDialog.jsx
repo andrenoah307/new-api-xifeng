@@ -16,11 +16,12 @@ import { timestamp2string } from '../../helpers';
 
 const PAGE_SIZE = 20;
 
-const INVOICE_STATUS_OPTIONS = [
+const TICKET_STATUS_OPTIONS = [
   { value: 0, label: '全部' },
-  { value: 1, label: '待开具' },
-  { value: 2, label: '已开具' },
-  { value: 3, label: '已驳回' },
+  { value: 1, label: '待处理' },
+  { value: 2, label: '处理中' },
+  { value: 3, label: '已解决' },
+  { value: 4, label: '已关闭' },
 ];
 
 function csvField(value) {
@@ -64,9 +65,10 @@ function downloadCSV(csv, filename) {
 
 const statusLabel = (s, t) => {
   switch (s) {
-    case 1: return t('待开具');
-    case 2: return t('已开具');
-    case 3: return t('已驳回');
+    case 1: return t('待处理');
+    case 2: return t('处理中');
+    case 3: return t('已解决');
+    case 4: return t('已关闭');
     default: return '-';
   }
 };
@@ -89,10 +91,10 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
       setLoading(true);
       try {
         const params = new URLSearchParams();
-        params.set('p', String(p - 1));
+        params.set('p', String(p));
         params.set('page_size', String(PAGE_SIZE));
         if (kw) params.set('keyword', kw);
-        if (status > 0) params.set('invoice_status', String(status));
+        if (status > 0) params.set('status', String(status));
         if (dates && dates[0]) params.set('start_time', String(Math.floor(dates[0] / 1000)));
         if (dates && dates[1]) params.set('end_time', String(Math.floor(dates[1] / 1000)));
         const res = await API.get(`/api/ticket/admin/invoice/export-list?${params}`);
@@ -253,7 +255,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
       },
       {
         title: t('状态'),
-        dataIndex: 'invoice_status',
+        dataIndex: 'status',
         width: 80,
         render: (v) => statusLabel(v, t),
       },
@@ -301,7 +303,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
 
   const statusOpts = useMemo(
     () =>
-      INVOICE_STATUS_OPTIONS.map((o) => ({
+      TICKET_STATUS_OPTIONS.map((o) => ({
         value: o.value,
         label: t(o.label),
       })),

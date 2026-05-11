@@ -435,15 +435,15 @@ type InvoiceExportItem struct {
 	TotalMoney    float64 `json:"total_money" gorm:"column:total_money"`
 	TopUpOrderIds string  `json:"-" gorm:"column:top_up_order_ids"`
 	OrderCount    int     `json:"order_count" gorm:"-"`
-	InvoiceStatus int     `json:"invoice_status" gorm:"column:invoice_status"`
+	Status        int     `json:"status" gorm:"column:status"`
 	CreatedTime   int64   `json:"created_time" gorm:"column:created_time"`
 }
 
 type InvoiceExportFilter struct {
-	Keyword       string
-	InvoiceStatus int
-	StartTime     int64
-	EndTime       int64
+	Keyword      string
+	TicketStatus int
+	StartTime    int64
+	EndTime      int64
 }
 
 func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo) ([]*InvoiceExportItem, int64, error) {
@@ -451,12 +451,12 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	items := make([]*InvoiceExportItem, 0)
 
 	query := DB.Table("tickets t").
-		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, ti.invoice_status, t.created_time").
+		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time").
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
 		Where("t.type = ? AND t.deleted_at IS NULL", TicketTypeInvoice)
 
-	if filter.InvoiceStatus > 0 {
-		query = query.Where("ti.invoice_status = ?", filter.InvoiceStatus)
+	if filter.TicketStatus > 0 {
+		query = query.Where("t.status = ?", filter.TicketStatus)
 	}
 	if filter.Keyword != "" {
 		pattern, err := sanitizeLikePattern(filter.Keyword)
