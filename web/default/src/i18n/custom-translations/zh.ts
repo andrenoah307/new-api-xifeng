@@ -589,6 +589,7 @@ const zh: Record<string, string> = {
   'Export Invoice': '导出发票',
   'Export Invoice List': '导出发票列表',
   Export: '导出',
+  Orders: '订单数',
   'Taxable Service Name': '应税服务名称',
   'Please select at least one invoice': '请至少选择一张发票',
   'Please enter taxable service name': '请输入应税服务名称',
