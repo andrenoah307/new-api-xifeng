@@ -584,6 +584,7 @@ const en = {
   'Export Invoice': 'Export Invoice',
   'Export Invoice List': 'Export Invoice List',
   Export: 'Export',
+  Orders: 'Orders',
   'Taxable Service Name': 'Taxable Service Name',
   'Please select at least one invoice': 'Please select at least one invoice',
   'Please enter taxable service name': 'Please enter taxable service name',
