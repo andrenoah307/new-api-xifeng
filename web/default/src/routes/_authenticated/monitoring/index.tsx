@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { AppHeader, Main } from '@/components/layout'
+import { Main } from '@/components/layout'
 import MonitoringDashboard from '@/features/monitoring'
 
 export const Route = createFileRoute('/_authenticated/monitoring/')({
@@ -8,11 +8,8 @@ export const Route = createFileRoute('/_authenticated/monitoring/')({
 
 function MonitoringPage() {
   return (
-    <>
-      <AppHeader />
-      <Main className="p-0">
-        <MonitoringDashboard />
-      </Main>
-    </>
+    <Main className="p-0">
+      <MonitoringDashboard />
+    </Main>
   )
 }
