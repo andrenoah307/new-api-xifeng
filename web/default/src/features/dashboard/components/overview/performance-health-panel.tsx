@@ -103,8 +103,7 @@ export function PerformanceHealthPanel() {
         </span>
       </div>
 
-      <div className='grid gap-3 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_14rem]'>
-        {/* KPI metrics */}
+      <div className='space-y-3 p-4 sm:p-5'>
         <div className='grid grid-cols-3 gap-2'>
           <MetricCell
             icon={HeartPulse}
@@ -127,23 +126,18 @@ export function PerformanceHealthPanel() {
           />
         </div>
 
-        {/* Top models */}
-        <div className='flex flex-col'>
-          <span className='text-muted-foreground mb-1 text-[11px] font-medium'>
-            {t('Top models by traffic')}
-          </span>
-          {loading ? (
-            <div className='space-y-1'>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className='h-5 w-full rounded' />
-              ))}
-            </div>
-          ) : !hasData ? (
-            <span className='text-muted-foreground/60 text-xs'>
-              {t('No performance data available')}
+        {loading ? (
+          <div className='space-y-1'>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className='h-5 w-full rounded' />
+            ))}
+          </div>
+        ) : hasData && (
+          <div>
+            <span className='text-muted-foreground mb-1 block text-[11px] font-medium'>
+              {t('Top models by traffic')}
             </span>
-          ) : (
-            <div className='space-y-0.5'>
+            <div className='grid grid-cols-1 gap-x-4 sm:grid-cols-2'>
               {topModels.map((model) => (
                 <div
                   key={model.model_name}
@@ -169,8 +163,8 @@ export function PerformanceHealthPanel() {
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </section>
   )
