@@ -96,16 +96,6 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     return false; // 默认不需要登录
   }, [headerNavModules]);
 
-  // 获取排行榜权限配置
-  const rankingsRequireAuth = useMemo(() => {
-    if (headerNavModules?.rankings) {
-      return typeof headerNavModules.rankings === 'object'
-        ? headerNavModules.rankings.requireAuth
-        : false;
-    }
-    return false;
-  }, [headerNavModules]);
-
   const isConsoleRoute = location.pathname.startsWith('/console');
 
   const theme = useTheme();
@@ -256,7 +246,6 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     drawerOpen,
     headerNavModules,
     pricingRequireAuth,
-    rankingsRequireAuth,
 
     // Actions
     logout,
