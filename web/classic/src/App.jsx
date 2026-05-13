@@ -95,23 +95,6 @@ function App() {
     return false; // 默认不需要登录
   }, [statusState?.status?.HeaderNavModules]);
 
-  // 获取排行榜权限配置
-  const rankingsRequireAuth = useMemo(() => {
-    const headerNavModulesConfig = statusState?.status?.HeaderNavModules;
-    if (headerNavModulesConfig) {
-      try {
-        const modules = JSON.parse(headerNavModulesConfig);
-        if (typeof modules.rankings === 'boolean') {
-          return false;
-        }
-        return modules.rankings?.requireAuth === true;
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  }, [statusState?.status?.HeaderNavModules]);
-
   return (
     <SetupCheck>
       <Routes>
@@ -436,20 +419,14 @@ function App() {
         <Route
           path='/rankings'
           element={
-            rankingsRequireAuth ? (
-              <PrivateRoute>
-                <Suspense
-                  fallback={<Loading></Loading>}
-                  key={location.pathname}
-                >
-                  <Rankings />
-                </Suspense>
-              </PrivateRoute>
-            ) : (
-              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+            <AdminRoute>
+              <Suspense
+                fallback={<Loading></Loading>}
+                key={location.pathname}
+              >
                 <Rankings />
               </Suspense>
-            )
+            </AdminRoute>
           }
         />
         <Route

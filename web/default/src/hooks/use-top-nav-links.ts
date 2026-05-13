@@ -120,11 +120,13 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('Model Square'), href: '/pricing', disabled })
   }
 
-  // Rankings
+  // Rankings (admin only)
   const rankings = modules?.rankings
   if (rankings && typeof rankings === 'object' && rankings.enabled) {
-    const disabled = rankings.requireAuth && !isAuthed
-    links.push({ title: t('Rankings'), href: '/rankings', disabled })
+    const isAdmin = auth?.user && auth.user.role >= 10
+    if (isAdmin) {
+      links.push({ title: t('Rankings'), href: '/rankings' })
+    }
   }
 
   // Group Monitoring
