@@ -39,6 +39,7 @@ import {
   loadSortMode,
   saveSortMode,
   rateAccentColor,
+  computeRateFromHistory,
 } from '../constants'
 import GroupStatusCard from './group-status-card'
 import GroupDetailPanel from './group-detail-panel'
@@ -270,7 +271,13 @@ export default function MonitoringDashboard() {
     (g) => (g.total_channels ?? 0) === 0 && (g.availability_rate == null || g.availability_rate < 0)
   ).length
   const offlineCount = groups.length - onlineCount - noDataCount
-  const avgAvail = avgAvailability(groups)
+  const avgAvail = useMemo(() => {
+    const rates = groups
+      .map((g) => computeRateFromHistory(g.history, 'availability_rate'))
+      .filter((r): r is number => r != null)
+    if (rates.length === 0) return avgAvailability(groups)
+    return rates.reduce((s, v) => s + v, 0) / rates.length
+  }, [groups])
 
   const loading = groupsLoading && groups.length === 0
 

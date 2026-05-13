@@ -127,6 +127,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 		BucketTs int64
 	}
 	groupBucketFRT := make(map[groupBucketKey]*bucketData)
+	groupBucketCache := make(map[groupBucketKey]*bucketData)
 
 	for {
 		keys, nextCursor, err := common.RDB.Scan(ctx, cursor, "gm:b:*", 200).Result()
@@ -172,6 +173,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 					groupBucketFRT[gbk] = gbAgg
 				}
 				gbAgg.Total += bd.Total
+				gbAgg.Success += bd.Success
 				gbAgg.FRTSumMs += bd.FRTSumMs
 				gbAgg.FRTCount += bd.FRTCount
 			}
@@ -184,6 +186,15 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 				}
 				agg.CacheTokens += bd.CacheTokens
 				agg.PromptTokens += bd.PromptTokens
+
+				gcbk := groupBucketKey{Group: group, BucketTs: bucketTs}
+				gcAgg, ok := groupBucketCache[gcbk]
+				if !ok {
+					gcAgg = &bucketData{}
+					groupBucketCache[gcbk] = gcAgg
+				}
+				gcAgg.CacheTokens += bd.CacheTokens
+				gcAgg.PromptTokens += bd.PromptTokens
 			}
 
 			if bucketTs > channelLatestBucket[ck] {
@@ -328,7 +339,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 			common.SysError("group monitoring: upsert group stat error: " + err.Error())
 		}
 
-		// Find the latest bucket for this group to get per-interval FRT
+		// Find the latest bucket for this group to get per-interval metrics
 		var latestBucketTs int64
 		for gbk := range groupBucketFRT {
 			if gbk.Group == groupName && gbk.BucketTs > latestBucketTs {
@@ -337,19 +348,41 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 		}
 		intervalFRT := 0
 		intervalReqCount := 0
+		intervalAvailRate := -1.0
 		if latestBucketTs > 0 {
 			if gbData, ok := groupBucketFRT[groupBucketKey{Group: groupName, BucketTs: latestBucketTs}]; ok {
 				intervalReqCount = int(gbData.Total)
 				if gbData.FRTCount > 0 {
 					intervalFRT = int(gbData.FRTSumMs / gbData.FRTCount)
 				}
+				if gbData.Total > 0 {
+					intervalAvailRate = float64(gbData.Success) / float64(gbData.Total) * 100
+				}
+			}
+		}
+
+		intervalCacheHitRate := -1.0
+		var latestCacheBucketTs int64
+		for gcbk := range groupBucketCache {
+			if gcbk.Group == groupName && gcbk.BucketTs > latestCacheBucketTs {
+				latestCacheBucketTs = gcbk.BucketTs
+			}
+		}
+		if latestCacheBucketTs > 0 {
+			if gcData, ok := groupBucketCache[groupBucketKey{Group: groupName, BucketTs: latestCacheBucketTs}]; ok {
+				if gcData.PromptTokens > 0 {
+					intervalCacheHitRate = float64(gcData.CacheTokens) / float64(gcData.PromptTokens) * 100
+					if intervalCacheHitRate > 100 {
+						intervalCacheHitRate = 100
+					}
+				}
 			}
 		}
 
 		_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
 			GroupName:        groupName,
-			AvailabilityRate: stat.AvailabilityRate,
-			CacheHitRate:     stat.CacheHitRate,
+			AvailabilityRate: intervalAvailRate,
+			CacheHitRate:     intervalCacheHitRate,
 			AvgFRT:           intervalFRT,
 			RequestCount:     intervalReqCount,
 			RecordedAt:       (now / bucketSec) * bucketSec,

@@ -13,6 +13,7 @@ import {
   formatClock,
   isGroupOnline,
   rateAccentColor,
+  computeRateFromHistory,
 } from '../constants'
 import StatusTimeline from './status-timeline'
 
@@ -30,14 +31,18 @@ const GroupStatusCard = memo(function GroupStatusCard({
   const online = isGroupOnline(group)
   const noData =
     (group.total_channels ?? 0) === 0 && (group.availability_rate == null || group.availability_rate < 0)
-  const availRate =
+  const historyAvail = computeRateFromHistory(group.history, 'availability_rate')
+  const availRate = historyAvail ?? (
     group.availability_rate != null && group.availability_rate >= 0
       ? group.availability_rate
       : null
-  const cacheRate =
+  )
+  const historyCacheRate = computeRateFromHistory(group.history, 'cache_hit_rate')
+  const cacheRate = historyCacheRate ?? (
     group.cache_hit_rate != null && group.cache_hit_rate >= 0
       ? group.cache_hit_rate
       : null
+  )
   const showCache = cacheRate != null && cacheRate >= 3
   const frt = group.avg_frt ?? group.first_response_time
 

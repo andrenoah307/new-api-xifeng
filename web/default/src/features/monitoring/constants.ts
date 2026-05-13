@@ -60,6 +60,28 @@ export function avgAvailability(
   return valid.reduce((s, v) => s + v, 0) / valid.length
 }
 
+export function computeRateFromHistory(
+  history:
+    | {
+        request_count?: number | null
+        availability_rate?: number | null
+        cache_hit_rate?: number | null
+      }[]
+    | undefined,
+  field: 'availability_rate' | 'cache_hit_rate'
+): number | null {
+  if (!history || history.length === 0) return null
+  const valid = history.filter(
+    (h) =>
+      h.request_count != null &&
+      h.request_count > 0 &&
+      h[field] != null &&
+      (h[field] as number) >= 0
+  )
+  if (valid.length === 0) return null
+  return valid.reduce((s, h) => s + (h[field] as number), 0) / valid.length
+}
+
 export type SortMode = 'status' | 'name' | 'availability'
 
 export function compareGroups<
