@@ -2585,7 +2585,7 @@
     "本地数据存储": "Lưu trữ dữ liệu cục bộ",
     "本地磁盘": "",
     "本地计费": "Local billing",
-    "本月": "",
+    "本月": "Tháng này",
     "本月获得": "Tháng này",
     "本设备内置": "Thiết bị tích hợp",
     "本设备：手机指纹/面容，外接：USB安全密钥": "Tích hợp: vân tay/khuôn mặt điện thoại, Bên ngoài: khóa bảo mật USB",
@@ -5236,6 +5236,16 @@
     "搜索公司名称...": "Tìm theo tên công ty...",
     "请至少选择一张发票": "Vui lòng chọn ít nhất một hóa đơn",
     "请输入应税服务名称": "Vui lòng nhập tên dịch vụ chịu thuế",
-    "搜索公司名称、邮箱或金额...": "Tìm theo tên, email hoặc số tiền..."
+    "搜索公司名称、邮箱或金额...": "Tìm theo tên, email hoặc số tiền...",
+    "排行榜": "Bảng xếp hạng",
+    "热门模型": "Mô hình phổ biến",
+    "LLM 排行榜": "Bảng xếp hạng LLM",
+    "市场份额": "Thị phần",
+    "上升趋势": "Xu hướng tăng",
+    "下降趋势": "Xu hướng giảm",
+    "今日": "Hôm nay",
+    "本年": "Năm nay",
+    "按模型作者": "Theo tác giả mô hình",
+    "合计": "Tổng:"
   }
 }

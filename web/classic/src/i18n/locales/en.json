@@ -2656,7 +2656,7 @@
     "本地数据存储": "Local data storage",
     "本地磁盘": "",
     "本地计费": "Local billing",
-    "本月": "",
+    "本月": "This Month",
     "本月获得": "This month",
     "本设备内置": "Built-in device",
     "本设备：手机指纹/面容，外接：USB安全密钥": "Built-in: phone fingerprint/face, External: USB security key",
@@ -4846,6 +4846,16 @@
     "搜索公司名称...": "Search by company name...",
     "请至少选择一张发票": "Please select at least one invoice",
     "请输入应税服务名称": "Please enter taxable service name",
-    "搜索公司名称、邮箱或金额...": "Search by company name, email or amount..."
+    "搜索公司名称、邮箱或金额...": "Search by company name, email or amount...",
+    "排行榜": "Rankings",
+    "热门模型": "Top Models",
+    "LLM 排行榜": "LLM Leaderboard",
+    "市场份额": "Market Share",
+    "上升趋势": "Trending up",
+    "下降趋势": "Trending down",
+    "今日": "Today",
+    "本年": "This Year",
+    "按模型作者": "By model author",
+    "合计": "Total:"
   }
 }

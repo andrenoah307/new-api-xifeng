@@ -2615,7 +2615,7 @@
     "本地数据存储": "Stockage de données locales",
     "本地磁盘": "",
     "本地计费": "Facturation locale",
-    "本月": "",
+    "本月": "Ce mois-ci",
     "本月获得": "Ce mois-ci",
     "本设备内置": "Intégré à cet appareil",
     "本设备：手机指纹/面容，外接：USB安全密钥": "Intégré : empreinte digitale/visage du téléphone, Externe : clé de sécurité USB",
@@ -4724,6 +4724,16 @@
     "搜索公司名称...": "Rechercher par nom d'entreprise...",
     "请至少选择一张发票": "Veuillez sélectionner au moins une facture",
     "请输入应税服务名称": "Veuillez entrer le nom du service taxable",
-    "搜索公司名称、邮箱或金额...": "Rechercher par nom, e-mail ou montant..."
+    "搜索公司名称、邮箱或金额...": "Rechercher par nom, e-mail ou montant...",
+    "排行榜": "Classements",
+    "热门模型": "Modèles populaires",
+    "LLM 排行榜": "Classement LLM",
+    "市场份额": "Part de marché",
+    "上升趋势": "Tendance haussière",
+    "下降趋势": "Tendance baissière",
+    "今日": "Aujourd'hui",
+    "本年": "Cette année",
+    "按模型作者": "Par auteur de modèle",
+    "合计": "Total :"
   }
 }
