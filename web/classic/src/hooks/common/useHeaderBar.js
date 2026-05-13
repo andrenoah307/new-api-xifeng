@@ -67,7 +67,9 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
             requireAuth: false,
           };
         }
-        if (typeof modules.rankings === 'boolean') {
+        if (modules.rankings === undefined) {
+          modules.rankings = { enabled: true, requireAuth: false };
+        } else if (typeof modules.rankings === 'boolean') {
           modules.rankings = {
             enabled: modules.rankings,
             requireAuth: false,

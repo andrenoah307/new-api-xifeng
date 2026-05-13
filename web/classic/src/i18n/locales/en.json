@@ -2781,6 +2781,7 @@
     "模型图标": "Model icon",
     "模型定价设置": "Model Pricing",
     "模型定价，需要登录访问": "Model pricing, requires login to access",
+    "模型用量排名，仅管理员可见": "Model usage rankings, admin only",
     "模型广场": "Model Marketplace",
     "模型拉取失败: {{error}}": "Failed to pull model: {{error}}",
     "模型排行": "Model ranking",

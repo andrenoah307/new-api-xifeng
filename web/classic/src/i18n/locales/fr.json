@@ -2737,6 +2737,7 @@
     "模型图标": "Icône du modèle",
     "模型定价设置": "Model Pricing",
     "模型定价，需要登录访问": "Tarification du modèle, nécessite une connexion pour y accéder",
+    "模型用量排名，仅管理员可见": "Classement d'utilisation des modèles, réservé aux administrateurs",
     "模型广场": "Marché des modèles",
     "模型拉取失败: {{error}}": "Failed to pull model: {{error}}",
     "模型排行": "Classement des modèles",

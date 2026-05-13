@@ -2714,6 +2714,7 @@
     "模型图标": "Biểu tượng mô hình",
     "模型定价设置": "Model Pricing",
     "模型定价，需要登录访问": "Định giá mô hình, yêu cầu đăng nhập để truy cập",
+    "模型用量排名，仅管理员可见": "Bảng xếp hạng sử dụng mô hình, chỉ quản trị viên",
     "模型广场": "Thị trường mô hình",
     "模型库": "Thư viện mô hình",
     "模型拉取失败: {{error}}": "Failed to pull model: {{error}}",
