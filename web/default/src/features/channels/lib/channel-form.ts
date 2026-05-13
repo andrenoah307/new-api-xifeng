@@ -404,33 +404,26 @@ export function transformFormDataToCreatePayload(formData: ChannelFormValues): {
   const channel: Partial<Channel> = {
     name: formData.name,
     type: formData.type,
-    base_url: formData.base_url || null,
+    base_url: formData.base_url ?? null,
     key: formData.key,
-    openai_organization: formData.openai_organization || null,
+    openai_organization: formData.openai_organization ?? null,
     models: formData.models,
     group: formatGroups(formData.group),
-    model_mapping: formData.model_mapping || null,
-    priority: formData.priority || null,
-    weight: formData.weight || null,
-    test_model: formData.test_model || null,
+    model_mapping: formData.model_mapping ?? null,
+    priority: formData.priority ?? null,
+    weight: formData.weight ?? null,
+    test_model: formData.test_model ?? null,
     auto_ban: formData.auto_ban ?? 1,
     status: formData.status,
-    status_code_mapping: formData.status_code_mapping || null,
-    tag: formData.tag || null,
-    remark: formData.remark || '',
+    status_code_mapping: formData.status_code_mapping ?? null,
+    tag: formData.tag ?? null,
+    remark: formData.remark ?? '',
     setting: buildSettingJSON(formData),
-    param_override: formData.param_override || null,
-    header_override: formData.header_override || null,
+    param_override: formData.param_override ?? null,
+    header_override: formData.header_override ?? null,
     settings: buildSettingsJSON(formData),
-    other: formData.other || '',
+    other: formData.other ?? '',
   }
-
-  // Clean up empty strings to null for optional fields
-  Object.keys(channel).forEach((key) => {
-    if (channel[key as keyof typeof channel] === '') {
-      ;(channel as Record<string, unknown>)[key] = null
-    }
-  })
 
   return {
     mode,
@@ -453,37 +446,30 @@ export function transformFormDataToUpdatePayload(
     id: channelId,
     name: formData.name,
     type: formData.type,
-    base_url: formData.base_url || null,
-    openai_organization: formData.openai_organization || null,
+    base_url: formData.base_url ?? null,
+    openai_organization: formData.openai_organization ?? null,
     models: formData.models,
     group: formatGroups(formData.group),
-    model_mapping: formData.model_mapping || null,
-    priority: formData.priority || null,
-    weight: formData.weight || null,
-    test_model: formData.test_model || null,
+    model_mapping: formData.model_mapping ?? null,
+    priority: formData.priority ?? null,
+    weight: formData.weight ?? null,
+    test_model: formData.test_model ?? null,
     auto_ban: formData.auto_ban ?? 1,
     status: formData.status,
-    status_code_mapping: formData.status_code_mapping || null,
-    tag: formData.tag || null,
-    remark: formData.remark || '',
+    status_code_mapping: formData.status_code_mapping ?? null,
+    tag: formData.tag ?? null,
+    remark: formData.remark ?? '',
     setting: buildSettingJSON(formData),
-    param_override: formData.param_override || null,
-    header_override: formData.header_override || null,
+    param_override: formData.param_override ?? null,
+    header_override: formData.header_override ?? null,
     settings: buildSettingsJSON(formData),
-    other: formData.other || '',
+    other: formData.other ?? '',
   }
 
   // Only include key if it was changed (not empty)
   if (formData.key && formData.key.trim()) {
     payload.key = formData.key
   }
-
-  // Clean up empty strings to null for optional fields
-  Object.keys(payload).forEach((key) => {
-    if (payload[key as keyof typeof payload] === '') {
-      ;(payload as Record<string, unknown>)[key] = null
-    }
-  })
 
   return payload
 }

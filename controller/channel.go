@@ -682,6 +682,7 @@ func AddChannel(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	model.InitChannelCache()
 	service.ResetProxyClientCache()
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
