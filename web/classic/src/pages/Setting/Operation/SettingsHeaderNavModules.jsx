@@ -46,6 +46,10 @@ export default function SettingsHeaderNavModules(props) {
       enabled: true,
       requireAuth: false,
     },
+    rankings: {
+      enabled: true,
+      requireAuth: false,
+    },
     monitoring: true,
     docs: true,
     about: true,
@@ -55,8 +59,7 @@ export default function SettingsHeaderNavModules(props) {
   function handleHeaderNavModuleChange(moduleKey) {
     return (checked) => {
       const newModules = { ...headerNavModules };
-      if (moduleKey === 'pricing') {
-        // 对于pricing模块，只更新enabled属性
+      if (moduleKey === 'pricing' || moduleKey === 'rankings') {
         newModules[moduleKey] = {
           ...newModules[moduleKey],
           enabled: checked,
@@ -84,6 +87,10 @@ export default function SettingsHeaderNavModules(props) {
       home: true,
       console: true,
       pricing: {
+        enabled: true,
+        requireAuth: false,
+      },
+      rankings: {
         enabled: true,
         requireAuth: false,
       },
@@ -142,6 +149,14 @@ export default function SettingsHeaderNavModules(props) {
             requireAuth: false,
           };
         }
+        if (modules.rankings === undefined) {
+          modules.rankings = { enabled: true, requireAuth: false };
+        } else if (typeof modules.rankings === 'boolean') {
+          modules.rankings = {
+            enabled: modules.rankings,
+            requireAuth: false,
+          };
+        }
         if (modules.monitoring === undefined) {
           modules.monitoring = true;
         }
@@ -152,6 +167,10 @@ export default function SettingsHeaderNavModules(props) {
           home: true,
           console: true,
           pricing: {
+            enabled: true,
+            requireAuth: false,
+          },
+          rankings: {
             enabled: true,
             requireAuth: false,
           },
@@ -181,6 +200,11 @@ export default function SettingsHeaderNavModules(props) {
       title: t('模型广场'),
       description: t('模型定价，需要登录访问'),
       hasSubConfig: true, // 标识该模块有子配置
+    },
+    {
+      key: 'rankings',
+      title: t('排行榜'),
+      description: t('模型用量排名，仅管理员可见'),
     },
     {
       key: 'monitoring',
@@ -254,7 +278,7 @@ export default function SettingsHeaderNavModules(props) {
                   <div style={{ marginLeft: '16px' }}>
                     <Switch
                       checked={
-                        module.key === 'pricing'
+                        module.key === 'pricing' || module.key === 'rankings'
                           ? headerNavModules[module.key]?.enabled
                           : headerNavModules[module.key]
                       }
