@@ -67,6 +67,12 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
             requireAuth: false,
           };
         }
+        if (typeof modules.rankings === 'boolean') {
+          modules.rankings = {
+            enabled: modules.rankings,
+            requireAuth: false,
+          };
+        }
         if (modules.monitoring === undefined) {
           modules.monitoring = true;
         }
@@ -88,6 +94,16 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
         : false; // 默认不需要登录
     }
     return false; // 默认不需要登录
+  }, [headerNavModules]);
+
+  // 获取排行榜权限配置
+  const rankingsRequireAuth = useMemo(() => {
+    if (headerNavModules?.rankings) {
+      return typeof headerNavModules.rankings === 'object'
+        ? headerNavModules.rankings.requireAuth
+        : false;
+    }
+    return false;
   }, [headerNavModules]);
 
   const isConsoleRoute = location.pathname.startsWith('/console');
@@ -240,6 +256,7 @@ export const useHeaderBar = ({ onMobileMenuToggle, drawerOpen }) => {
     drawerOpen,
     headerNavModules,
     pricingRequireAuth,
+    rankingsRequireAuth,
 
     // Actions
     logout,
