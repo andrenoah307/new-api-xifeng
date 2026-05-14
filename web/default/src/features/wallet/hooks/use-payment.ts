@@ -59,7 +59,7 @@ export function usePayment() {
 
   // Process payment
   const processPayment = useCallback(
-    async (topupAmount: number, paymentType: string) => {
+    async (topupAmount: number, paymentType: string, discountCode?: string) => {
       try {
         setProcessing(true)
 
@@ -70,10 +70,12 @@ export function usePayment() {
           ? await requestStripePayment({
               amount,
               payment_method: 'stripe',
+              ...(discountCode ? { discount_code: discountCode } : {}),
             })
           : await requestPayment({
               amount,
               payment_method: paymentType,
+              ...(discountCode ? { discount_code: discountCode } : {}),
             })
 
         if (!isApiSuccess(response)) {

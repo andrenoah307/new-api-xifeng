@@ -308,6 +308,8 @@ func migrateDB() error {
 		&MonitoringHistory{},
 		&PerfMetric{},
 		&CommissionRecord{},
+		&DiscountCode{},
+		&DiscountCodeUsage{},
 	)
 	if err != nil {
 		return err

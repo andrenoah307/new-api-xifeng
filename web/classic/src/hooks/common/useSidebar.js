@@ -53,6 +53,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     risk: true,
     deployment: true,
     redemption: true,
+    discount_code: true,
     invitation_code: true,
     user: true,
     subscription: true,

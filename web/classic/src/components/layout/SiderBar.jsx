@@ -35,6 +35,7 @@ const routerMap = {
   channel: '/console/channel',
   token: '/console/token',
   redemption: '/console/redemption',
+  discount_code: '/console/discount_code',
   invitation_code: '/console/invitation_code',
   topup: '/console/topup',
   topup_history: '/console/topup_history',
@@ -209,6 +210,12 @@ const SiderBar = ({ onNavigate = () => { } }) => {
         text: t('兑换码管理'),
         itemKey: 'redemption',
         to: '/redemption',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('折扣码管理'),
+        itemKey: 'discount_code',
+        to: '/console/discount_code',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

@@ -19,7 +19,8 @@ import (
 )
 
 type WaffoPancakePayRequest struct {
-	Amount int64 `json:"amount"`
+	Amount       int64  `json:"amount"`
+	DiscountCode string `json:"discount_code"`
 }
 
 func RequestWaffoPancakeAmount(c *gin.Context) {
@@ -156,6 +157,21 @@ func RequestWaffoPancakePay(c *gin.Context) {
 		return
 	}
 
+	var discountCodeId int
+	if req.DiscountCode != "" {
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		discountCodeId = dc.Id
+		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
+		if payMoney < 0.01 {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣后充值金额过低"})
+			return
+		}
+	}
+
 	tradeNo := fmt.Sprintf("WAFFO_PANCAKE-%d-%d-%s", id, time.Now().UnixMilli(), randstr.String(6))
 	topUp := &model.TopUp{
 		UserId:          id,
@@ -166,6 +182,7 @@ func RequestWaffoPancakePay(c *gin.Context) {
 		PaymentProvider: model.PaymentProviderWaffoPancake,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
+		DiscountCodeId:  discountCodeId,
 	}
 	if err := topUp.Insert(); err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Waffo Pancake 创建充值订单失败 user_id=%d trade_no=%s amount=%d error=%q", id, tradeNo, req.Amount, err.Error()))

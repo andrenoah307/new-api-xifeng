@@ -7,6 +7,7 @@ import {
   Box,
   Users,
   Ticket,
+  TicketPercent,
   User,
   Command,
   Radio,
@@ -125,6 +126,11 @@ export function useSidebarData(): SidebarData {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
+          },
+          {
+            title: t('Discount Codes'),
+            url: '/discount-codes',
+            icon: TicketPercent,
           },
           {
             title: t('Subscription Management'),

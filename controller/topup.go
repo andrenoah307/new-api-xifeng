@@ -117,6 +117,7 @@ func GetTopUpInfo(c *gin.Context) {
 type EpayRequest struct {
 	Amount        int64  `json:"amount"`
 	PaymentMethod string `json:"payment_method"`
+	DiscountCode  string `json:"discount_code"`
 }
 
 type AmountRequest struct {
@@ -201,6 +202,21 @@ func RequestEpay(c *gin.Context) {
 		return
 	}
 
+	var discountCodeId int
+	if req.DiscountCode != "" {
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		discountCodeId = dc.Id
+		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
+		if payMoney < 0.01 {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣后充值金额过低"})
+			return
+		}
+	}
+
 	if !operation_setting.ContainsPayMethod(req.PaymentMethod) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "支付方式不存在"})
 		return
@@ -245,6 +261,7 @@ func RequestEpay(c *gin.Context) {
 		PaymentProvider: model.PaymentProviderEpay,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
+		DiscountCodeId:  discountCodeId,
 	}
 	err = topUp.Insert()
 	if err != nil {
@@ -397,6 +414,7 @@ func EpayNotify(c *gin.Context) {
 			model.RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%f", logger.LogQuota(quotaToAdd), topUp.Money), c.ClientIP(), topUp.PaymentMethod, "epay")
 			service.NotifyTopUpSuccess(topUp)
 			model.GrantTopUpCommission(topUp, false)
+			model.ProcessDiscountCodeBonus(topUp)
 		}
 	} else {
 		logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 webhook 忽略事件 trade_no=%s callback_type=%s trade_status=%s client_ip=%s verify_info=%q", verifyInfo.ServiceTradeNo, verifyInfo.Type, verifyInfo.TradeStatus, c.ClientIP(), common.GetJsonString(verifyInfo)))

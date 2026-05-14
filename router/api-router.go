@@ -106,6 +106,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/waffo/pay", middleware.CriticalRateLimit(), controller.RequestWaffoPay)
 				//selfRoute.POST("/waffo-pancake/amount", controller.RequestWaffoPancakeAmount)
 				//selfRoute.POST("/waffo-pancake/pay", middleware.CriticalRateLimit(), controller.RequestWaffoPancakePay)
+				selfRoute.POST("/discount_code/validate", controller.ValidateUserDiscountCode)
 				selfRoute.POST("/aff_transfer", controller.TransferAffQuota)
 				selfRoute.GET("/commission_records/self", controller.GetMyCommissionRecords)
 				selfRoute.PUT("/setting", controller.UpdateUserSetting)
@@ -413,6 +414,16 @@ func SetApiRouter(router *gin.Engine) {
 			invitationCodeRoute.PUT("/", controller.UpdateInvitationCode)
 			invitationCodeRoute.DELETE("/invalid", controller.DeleteInvalidInvitationCodes)
 			invitationCodeRoute.DELETE("/:id", controller.DeleteInvitationCode)
+		}
+		discountCodeRoute := apiRouter.Group("/discount_code")
+		discountCodeRoute.Use(middleware.AdminAuth())
+		{
+			discountCodeRoute.GET("/", controller.GetAllDiscountCodes)
+			discountCodeRoute.GET("/search", controller.SearchDiscountCodes)
+			discountCodeRoute.GET("/:id", controller.GetDiscountCode)
+			discountCodeRoute.POST("/", controller.AddDiscountCode)
+			discountCodeRoute.PUT("/", controller.UpdateDiscountCode)
+			discountCodeRoute.DELETE("/:id", controller.DeleteDiscountCode)
 		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)
