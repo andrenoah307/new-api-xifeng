@@ -90,7 +90,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	defer func() {
 		if newAPIError != nil {
 			logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.Error()))
-			newAPIError.SetMessage(common.MessageWithRequestId(newAPIError.Error(), requestId))
+			newAPIError.SetMessage(common.MessageWithRequestId(common.StripProxyIdSuffixes(newAPIError.Error()), requestId))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
@@ -416,10 +416,11 @@ func getErrorFilterMatchInput(apiErr *types.NewAPIError) (statusCode int, errorC
 		return 0, "", ""
 	}
 	oaiErr := apiErr.ToOpenAIError()
+	msg := common.StripProxyIdSuffixes(oaiErr.Message)
 	if oaiErr.Code == nil {
-		return apiErr.StatusCode, "", oaiErr.Message
+		return apiErr.StatusCode, "", msg
 	}
-	return apiErr.StatusCode, fmt.Sprintf("%v", oaiErr.Code), oaiErr.Message
+	return apiErr.StatusCode, fmt.Sprintf("%v", oaiErr.Code), msg
 }
 
 func applyChannelErrorFilter(apiErr *types.NewAPIError, rules []dto.ErrorFilterRule, statusCode int, errorCode string, message string) {
@@ -532,7 +533,7 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 			startTime = time.Now()
 		}
 		useTimeSeconds := int(time.Since(startTime).Seconds())
-		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, err.MaskSensitiveErrorWithStatusCode(), tokenId, useTimeSeconds, common.GetContextKeyBool(c, constant.ContextKeyIsStream), userGroup, other)
+		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, common.StripProxyIdSuffixes(err.MaskSensitiveErrorWithStatusCode()), tokenId, useTimeSeconds, common.GetContextKeyBool(c, constant.ContextKeyIsStream), userGroup, other)
 	}
 
 }

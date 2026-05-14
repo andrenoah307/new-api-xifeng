@@ -1122,3 +1122,19 @@ export const resetPricingFilters = ({
   setFilterTag?.(DEFAULT_PRICING_FILTERS.filterTag);
   setCurrentPage?.(DEFAULT_PRICING_FILTERS.currentPage);
 };
+
+const PROXY_ID_PATTERNS = [
+  /\s*\(request id: [^)]*\)/g,
+  /\s*\(request_ori_id: [^)]*\)/g,
+  /\s*（traceid: [^）]*）/g,
+];
+
+export function stripProxyIdSuffixes(msg) {
+  if (!msg) return msg;
+  let result = msg;
+  for (const pattern of PROXY_ID_PATTERNS) {
+    result = result.replace(pattern, '');
+  }
+  return result.trimEnd();
+}
+

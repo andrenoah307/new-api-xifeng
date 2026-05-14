@@ -273,3 +273,18 @@ export async function fetchLogsByCategory(
     ? await getAllTaskLogs(paramsWithFilter as GetTaskLogsParams)
     : await getUserTaskLogs(paramsWithFilter as GetTaskLogsParams)
 }
+
+const PROXY_ID_PATTERNS = [
+  /\s*\(request id: [^)]*\)/g,
+  /\s*\(request_ori_id: [^)]*\)/g,
+  /\s*（traceid: [^）]*）/g,
+]
+
+export function stripProxyIdSuffixes(msg: string | null | undefined): string {
+  if (!msg) return msg ?? ''
+  let result = msg
+  for (const pattern of PROXY_ID_PATTERNS) {
+    result = result.replace(pattern, '')
+  }
+  return result.trimEnd()
+}
