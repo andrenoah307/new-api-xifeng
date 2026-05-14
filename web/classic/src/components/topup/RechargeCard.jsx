@@ -34,6 +34,7 @@ import {
   Tag,
   Tabs,
   TabPane,
+  Input,
 } from '@douyinfe/semi-ui';
 import { SiAlipay, SiWechat, SiStripe } from 'react-icons/si';
 import {
@@ -48,6 +49,7 @@ import { IconGift } from '@douyinfe/semi-icons';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { useActualTheme } from '../../context/Theme';
 import { getCurrencyConfig } from '../../helpers/render';
+import { API, showError } from '../../helpers';
 import SubscriptionPlansCard from './SubscriptionPlansCard';
 
 const { Text } = Typography;
@@ -97,6 +99,7 @@ const RechargeCard = ({
   allSubscriptions = [],
   reloadSubscriptionSelf,
   enableRedemption = true,
+  discountCodeRef,
 }) => {
   const onlineFormApiRef = useRef(null);
   const redeemFormApiRef = useRef(null);
@@ -107,6 +110,49 @@ const RechargeCard = ({
   const shouldShowSubscription =
     !subscriptionLoading && subscriptionPlans.length > 0;
   const regularPayMethods = payMethods || [];
+
+  // Discount code state
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountCodeInfo, setDiscountCodeInfo] = useState(null);
+  const [validatingDiscountCode, setValidatingDiscountCode] = useState(false);
+
+  // Reset discount code state when amount or payment method changes
+  useEffect(() => {
+    setDiscountCodeInfo(null);
+    setDiscountCode('');
+    if (discountCodeRef) discountCodeRef.current = '';
+  }, [topUpCount, payWay]);
+
+  // Sync validated discount code to parent ref
+  useEffect(() => {
+    if (discountCodeRef) {
+      discountCodeRef.current = discountCodeInfo ? discountCode.trim() : '';
+    }
+  }, [discountCodeInfo]);
+
+  const validateDiscountCode = async () => {
+    if (!discountCode.trim()) {
+      showError(t('请输入折扣码'));
+      return;
+    }
+    setValidatingDiscountCode(true);
+    try {
+      const res = await API.post('/api/user/discount_code/validate', {
+        code: discountCode.trim(),
+      });
+      const { success, message, data } = res.data;
+      if (success) {
+        setDiscountCodeInfo(data);
+      } else {
+        setDiscountCodeInfo(null);
+        showError(message || t('折扣码无效'));
+      }
+    } catch (error) {
+      setDiscountCodeInfo(null);
+      showError(error.message || t('验证失败'));
+    }
+    setValidatingDiscountCode(false);
+  };
 
   useEffect(() => {
     if (initialTabSetRef.current) return;
@@ -532,6 +578,66 @@ const RechargeCard = ({
                         </Card>
                       );
                     })}
+                  </div>
+                </Form.Slot>
+              )}
+
+              {/* 折扣码输入区域 */}
+              {(enableOnlineTopUp ||
+                enableStripeTopUp ||
+                enableWaffoTopUp ||
+                enableWaffoPancakeTopUp) && (
+                <Form.Slot label={t('折扣码')}>
+                  <div className='space-y-2'>
+                    <div className='flex items-center gap-2'>
+                      <Input
+                        placeholder={t('输入折扣码享受折扣')}
+                        value={discountCode}
+                        onChange={(val) => setDiscountCode(val)}
+                        onEnterPress={validateDiscountCode}
+                        showClear
+                        onClear={() => {
+                          setDiscountCode('');
+                          setDiscountCodeInfo(null);
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                      <Button
+                        onClick={validateDiscountCode}
+                        loading={validatingDiscountCode}
+                        disabled={!discountCode.trim()}
+                      >
+                        {t('验证')}
+                      </Button>
+                    </div>
+                    {discountCodeInfo && (
+                      <Banner
+                        type='success'
+                        description={
+                          t('折扣码有效') +
+                          ', ' +
+                          t('折扣率') +
+                          ': ' +
+                          discountCodeInfo.discount_rate +
+                          '%' +
+                          ' (' +
+                          t('实付') +
+                          ' ' +
+                          discountCodeInfo.discount_rate +
+                          '%)'
+                        }
+                        className='!rounded-lg'
+                        closeIcon={null}
+                      />
+                    )}
+                    {enableCreemTopUp && (
+                      <Banner
+                        type='info'
+                        description={t('该支付方式不支持折扣码')}
+                        className='!rounded-lg'
+                        closeIcon={null}
+                      />
+                    )}
                   </div>
                 </Form.Slot>
               )}

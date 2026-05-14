@@ -42,6 +42,7 @@ import {
   useCreemPayment,
   useWaffoPayment,
   useWaffoPancakePayment,
+  useDiscountCode,
 } from './hooks'
 import {
   getDefaultPaymentType,
@@ -105,6 +106,14 @@ export function Wallet(props: WalletProps) {
   const { processWaffoPayment } = useWaffoPayment()
   const { processing: pancakeProcessing, processWaffoPancakePayment } =
     useWaffoPancakePayment()
+  const {
+    discountCode: discountCodeInput,
+    setDiscountCode: setDiscountCodeInput,
+    discountInfo,
+    isValidating: discountValidating,
+    validateDiscountCode: handleValidateDiscount,
+    clearDiscountCode,
+  } = useDiscountCode()
 
   // Fetch and refresh user data
   const fetchUser = useCallback(async () => {
@@ -161,6 +170,7 @@ export function Wallet(props: WalletProps) {
   const handleTopupAmountChange = (amount: number) => {
     setTopupAmount(amount)
     setSelectedPreset(null)
+    clearDiscountCode()
     calculatePaymentAmount(amount, getCurrentPaymentType())
   }
 
@@ -189,12 +199,14 @@ export function Wallet(props: WalletProps) {
     if (!selectedPaymentMethod) return
 
     const isPancake = isWaffoPancakePayment(selectedPaymentMethod.type)
+    const activeDiscountCode = discountInfo?.code
     const success = isPancake
       ? await processWaffoPancakePayment(topupAmount)
-      : await processPayment(topupAmount, selectedPaymentMethod.type)
+      : await processPayment(topupAmount, selectedPaymentMethod.type, activeDiscountCode)
 
     if (success) {
       setConfirmDialogOpen(false)
+      clearDiscountCode()
       await fetchUser()
     }
   }
@@ -306,6 +318,12 @@ export function Wallet(props: WalletProps) {
                   enableWaffoPancakeTopup={
                     topupInfo?.enable_waffo_pancake_topup
                   }
+                  discountCode={discountCodeInput}
+                  onDiscountCodeChange={setDiscountCodeInput}
+                  onValidateDiscountCode={handleValidateDiscount}
+                  discountValidating={discountValidating}
+                  discountInfo={discountInfo}
+                  selectedPaymentMethodType={selectedPaymentMethod?.type}
                 />
               </div>
 

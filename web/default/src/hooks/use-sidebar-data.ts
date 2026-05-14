@@ -30,6 +30,7 @@ import {
   ServerCog,
   Settings,
   Ticket,
+  TicketPercent,
   User,
   Users,
   Wallet,
@@ -142,6 +143,11 @@ export function useSidebarData(): SidebarData {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,
+          },
+          {
+            title: t('Discount Codes'),
+            url: '/discount-codes',
+            icon: TicketPercent,
           },
           {
             title: t('Subscriptions'),

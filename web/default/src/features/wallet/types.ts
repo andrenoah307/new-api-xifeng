@@ -184,6 +184,8 @@ export interface PaymentRequest {
   amount: number
   /** Payment method identifier */
   payment_method: string
+  /** Optional discount code */
+  discount_code?: string
 }
 
 /**

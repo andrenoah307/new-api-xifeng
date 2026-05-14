@@ -83,6 +83,7 @@ import {
   Server,
   CalendarClock,
   Activity,
+  BadgePercent,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -148,6 +149,8 @@ export function getLucideIcon(key, selected = false) {
       return <Layers {...commonProps} color={iconColor} />;
     case 'redemption':
       return <Gift {...commonProps} color={iconColor} />;
+    case 'discount_code':
+      return <BadgePercent {...commonProps} color={iconColor} />;
     case 'invitation_code':
       return <Ticket {...commonProps} color={iconColor} />;
     case 'user':

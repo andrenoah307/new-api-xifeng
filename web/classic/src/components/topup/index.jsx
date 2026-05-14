@@ -105,6 +105,7 @@ const TopUp = () => {
   const [payMethods, setPayMethods] = useState([]);
 
   const affFetchedRef = useRef(false);
+  const discountCodeRef = useRef('');
 
   // 邀请相关状态
   const [affLink, setAffLink] = useState('');
@@ -302,12 +303,14 @@ const TopUp = () => {
         res = await API.post('/api/user/stripe/pay', {
           amount: parseInt(topUpCount),
           payment_method: 'stripe',
+          discount_code: discountCodeRef.current || undefined,
         });
       } else {
         // 普通支付请求
         res = await API.post('/api/user/pay', {
           amount: parseInt(topUpCount),
           payment_method: payWay,
+          discount_code: discountCodeRef.current || undefined,
         });
       }
 
@@ -1019,6 +1022,7 @@ const TopUp = () => {
           allSubscriptions={allSubscriptions}
           reloadSubscriptionSelf={getSubscriptionSelf}
           enableRedemption={topupInfo.enable_redemption !== false}
+          discountCodeRef={discountCodeRef}
         />
         <div className='flex flex-col gap-6'>
           <InvitationCard

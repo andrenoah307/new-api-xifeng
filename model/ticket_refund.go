@@ -295,7 +295,11 @@ func GetUserTotalRefundedQuota(userId int) (int64, error) {
 }
 
 func GetUserMaxRefundableQuota(userId int) (int, error) {
-	totalTopUp, err := GetUserTotalTopUpQuota(userId)
+	totalTopUp, err := GetUserPaymentTopUpQuota(userId)
+	if err != nil {
+		return 0, err
+	}
+	bonusQuota, err := GetUserBonusTopUpQuota(userId)
 	if err != nil {
 		return 0, err
 	}
@@ -324,7 +328,7 @@ func GetUserMaxRefundableQuota(userId int) (int, error) {
 	if affTransferred < 0 {
 		affTransferred = 0
 	}
-	adjustedQuota := int64(userInfo.Quota) - affTransferred
+	adjustedQuota := int64(userInfo.Quota) - affTransferred - bonusQuota
 	if adjustedQuota < 0 {
 		adjustedQuota = 0
 	}

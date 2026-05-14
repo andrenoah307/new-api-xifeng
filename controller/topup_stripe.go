@@ -38,6 +38,8 @@ type StripePayRequest struct {
 	// CancelURL is the optional custom URL to redirect when payment is canceled.
 	// If empty, defaults to the server's console topup page.
 	CancelURL string `json:"cancel_url,omitempty"`
+	// DiscountCode is the optional discount code for this payment.
+	DiscountCode string `json:"discount_code,omitempty"`
 }
 
 type StripeAdaptor struct {
@@ -90,6 +92,17 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	user, _ := model.GetUserById(id, false)
 	chargedMoney := GetChargedAmount(float64(req.Amount), *user)
 
+	var discountCodeId int
+	if req.DiscountCode != "" {
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		discountCodeId = dc.Id
+		chargedMoney = chargedMoney * float64(dc.DiscountRate) / 100.0
+	}
+
 	reference := fmt.Sprintf("new-api-ref-%d-%d-%s", user.Id, time.Now().UnixMilli(), randstr.String(4))
 	referenceId := "ref_" + common.Sha1([]byte(reference))
 
@@ -109,6 +122,7 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 		PaymentProvider: model.PaymentProviderStripe,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
+		DiscountCodeId:  discountCodeId,
 	}
 	err = topUp.Insert()
 	if err != nil {
