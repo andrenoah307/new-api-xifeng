@@ -60,6 +60,7 @@ import {
   isTimingLogType,
   getLogTypeConfig,
   isPerCallBilling,
+  stripProxyIdSuffixes,
 } from '../../lib/utils'
 import type { LogOtherData } from '../../types'
 import { DetailsDialog } from '../dialogs/details-dialog'
@@ -849,7 +850,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                 </span>
               ) : log.content ? (
                 <span className='text-muted-foreground truncate group-hover:underline'>
-                  {log.content}
+                  {stripProxyIdSuffixes(log.content)}
                 </span>
               ) : (
                 <span className='text-muted-foreground/40'>—</span>
