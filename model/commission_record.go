@@ -38,6 +38,9 @@ func GrantTopUpCommission(topUp *TopUp, isManual bool) {
 	if topUp == nil || topUp.UserId == 0 {
 		return
 	}
+	if topUp.Source == "discount_bonus" {
+		return
+	}
 
 	user, err := GetUserById(topUp.UserId, false)
 	if err != nil || user == nil || user.InviterId == 0 {

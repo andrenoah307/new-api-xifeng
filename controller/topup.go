@@ -396,9 +396,13 @@ func EpayNotify(c *gin.Context) {
 				topUp.PaymentMethod = verifyInfo.Type
 			}
 			topUp.Status = common.TopUpStatusSuccess
-			dAmount := decimal.NewFromInt(int64(topUp.Amount))
 			dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
-			quotaToAdd := int(dAmount.Mul(dQuotaPerUnit).IntPart())
+			var quotaToAdd int
+			if topUp.DiscountCodeId > 0 {
+				quotaToAdd = int(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).IntPart())
+			} else {
+				quotaToAdd = int(decimal.NewFromInt(int64(topUp.Amount)).Mul(dQuotaPerUnit).IntPart())
+			}
 			topUp.QuotaGranted = int64(quotaToAdd)
 			err := topUp.Update()
 			if err != nil {
