@@ -81,3 +81,11 @@ export async function validateDiscountCode(
   const res = await api.post('/api/user/discount_code/validate', { code })
   return res.data
 }
+
+// Cleanup pending orders for a discount code (admin)
+export async function cleanupDiscountCodeOrders(
+  id: number
+): Promise<ApiResponse<number>> {
+  const res = await api.post(`/api/discount_code/${id}/cleanup`)
+  return res.data
+}

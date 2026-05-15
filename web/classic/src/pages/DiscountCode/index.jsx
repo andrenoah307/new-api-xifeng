@@ -140,6 +140,23 @@ const DiscountCode = () => {
     setLoading(false);
   };
 
+  const handleCleanup = async (record) => {
+    setLoading(true);
+    try {
+      const res = await API.post(`/api/discount_code/${record.id}/cleanup`);
+      const { success, message, data } = res.data;
+      if (success) {
+        showSuccess(t('已清理 {{count}} 笔未付款订单', { count: data || 0 }));
+        await refresh();
+      } else {
+        showError(message);
+      }
+    } catch (error) {
+      showError(error.message);
+    }
+    setLoading(false);
+  };
+
   const refresh = async () => {
     if (searchKeyword) {
       await searchData(searchKeyword);
@@ -264,7 +281,7 @@ const DiscountCode = () => {
         title: t('操作'),
         dataIndex: 'operate',
         fixed: 'right',
-        width: 200,
+        width: 280,
         render: (_, record) => (
           <Space>
             <Button
@@ -282,6 +299,15 @@ const DiscountCode = () => {
               checked={record.status === 1}
               onChange={() => handleToggleStatus(record)}
             />
+            <Popconfirm
+              title={t('确认清理该折扣码关联的所有未付款订单？')}
+              onConfirm={() => handleCleanup(record)}
+              position='left'
+            >
+              <Button type='tertiary' size='small'>
+                {t('清理未付款')}
+              </Button>
+            </Popconfirm>
             <Popconfirm
               title={t('确定是否要删除此折扣码？')}
               onConfirm={() => handleDelete(record.id)}

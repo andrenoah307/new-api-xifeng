@@ -123,7 +123,7 @@ func (dc *DiscountCode) Insert() error {
 
 func (dc *DiscountCode) Update() error {
 	return DB.Model(dc).Select(
-		"name", "status", "discount_rate", "start_time", "end_time",
+		"code", "name", "status", "discount_rate", "start_time", "end_time",
 		"max_uses_total", "max_uses_per_user",
 	).Updates(dc).Error
 }
@@ -169,8 +169,11 @@ func ValidateDiscountCode(code string, userId int) (*DiscountCode, error) {
 		return nil, errors.New("该折扣码已过期")
 	}
 
-	if dc.MaxUsesTotal > 0 && dc.UsedCount >= dc.MaxUsesTotal {
-		return nil, errors.New("该折扣码使用次数已达上限")
+	if dc.MaxUsesTotal > 0 {
+		pendingTotal, _ := GetPendingDiscountCodeTotalCount(dc.Id)
+		if int64(dc.UsedCount)+pendingTotal >= int64(dc.MaxUsesTotal) {
+			return nil, errors.New("该折扣码使用次数已达上限")
+		}
 	}
 
 	if dc.MaxUsesPerUser > 0 {
@@ -178,7 +181,8 @@ func ValidateDiscountCode(code string, userId int) (*DiscountCode, error) {
 		if err != nil {
 			return nil, errors.New("查询使用记录失败")
 		}
-		if userCount >= int64(dc.MaxUsesPerUser) {
+		pendingCount, _ := GetPendingDiscountCodeUserCount(dc.Id, userId)
+		if userCount+pendingCount >= int64(dc.MaxUsesPerUser) {
 			return nil, errors.New("您已达到该折扣码的使用次数上限")
 		}
 	}
@@ -190,4 +194,31 @@ func ValidateDiscountCode(code string, userId int) (*DiscountCode, error) {
 func IncrementDiscountCodeUsedCount(tx *gorm.DB, discountCodeId int) error {
 	return tx.Model(&DiscountCode{}).Where("id = ?", discountCodeId).
 		Update("used_count", gorm.Expr("used_count + 1")).Error
+}
+
+func GetPendingDiscountCodeUserCount(discountCodeId int, userId int) (int64, error) {
+	var count int64
+	err := DB.Model(&TopUp{}).
+		Where("discount_code_id = ? AND user_id = ? AND status = ?",
+			discountCodeId, userId, common.TopUpStatusPending).
+		Count(&count).Error
+	return count, err
+}
+
+func GetPendingDiscountCodeTotalCount(discountCodeId int) (int64, error) {
+	var count int64
+	err := DB.Model(&TopUp{}).
+		Where("discount_code_id = ? AND status = ?",
+			discountCodeId, common.TopUpStatusPending).
+		Count(&count).Error
+	return count, err
+}
+
+func CleanupPendingOrdersByDiscountCode(discountCodeId int, thresholdSeconds int64) (int64, error) {
+	cutoff := common.GetTimestamp() - thresholdSeconds
+	result := DB.Model(&TopUp{}).
+		Where("discount_code_id = ? AND status = ? AND create_time < ?",
+			discountCodeId, common.TopUpStatusPending, cutoff).
+		Update("status", common.TopUpStatusFailed)
+	return result.RowsAffected, result.Error
 }

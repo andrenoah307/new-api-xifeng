@@ -252,13 +252,12 @@ export function DiscountCodesMutateDrawer({
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder={t('Leave blank to auto-generate')}
-                      disabled={isUpdate}
+                      placeholder={isUpdate ? t('Leave blank to keep current') : t('Leave blank to auto-generate')}
                     />
                   </FormControl>
                   <FormDescription>
                     {isUpdate
-                      ? t('Code cannot be changed after creation')
+                      ? t('Leave blank to keep current code')
                       : t('Leave blank to auto-generate')}
                   </FormDescription>
                   <FormMessage />

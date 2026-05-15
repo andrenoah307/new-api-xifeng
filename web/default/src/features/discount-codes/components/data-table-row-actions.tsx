@@ -4,6 +4,7 @@ import {
   Edit,
   Power,
   PowerOff,
+  Eraser,
   MoreHorizontal as DotsHorizontalIcon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -17,7 +18,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { updateDiscountCodeStatus } from '../api'
+import { updateDiscountCodeStatus, cleanupDiscountCodeOrders } from '../api'
 import { DISCOUNT_CODE_STATUS, SUCCESS_MESSAGES } from '../constants'
 import { discountCodeSchema } from '../types'
 import { useDiscountCodes } from './discount-codes-provider'
@@ -45,6 +46,18 @@ export function DataTableRowActions<TData>({
         ? t(SUCCESS_MESSAGES.DISCOUNT_CODE_DISABLED)
         : t(SUCCESS_MESSAGES.DISCOUNT_CODE_ENABLED)
       toast.success(message)
+      triggerRefresh()
+    }
+  }
+
+  const handleCleanup = async () => {
+    if (!confirm(t('Confirm cleanup all unpaid orders for this discount code? (Pending orders older than 30 seconds will be closed)'))) {
+      return
+    }
+    const result = await cleanupDiscountCodeOrders(discountCode.id)
+    if (result.success) {
+      const count = result.data ?? 0
+      toast.success(t('Cleaned up {{count}} unpaid orders', { count }))
       triggerRefresh()
     }
   }
@@ -90,6 +103,12 @@ export function DataTableRowActions<TData>({
               </DropdownMenuShortcut>
             </>
           )}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleCleanup}>
+          {t('Cleanup Unpaid')}
+          <DropdownMenuShortcut>
+            <Eraser size={16} />
+          </DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

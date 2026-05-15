@@ -159,6 +159,14 @@ func UpdateDiscountCode(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": "结束时间不能早于当前时间"})
 			return
 		}
+		if dc.Code != "" && dc.Code != cleanDC.Code {
+			existing, _ := model.GetDiscountCodeByCode(dc.Code)
+			if existing != nil && existing.Id != cleanDC.Id {
+				c.JSON(http.StatusOK, gin.H{"success": false, "message": "折扣码已存在"})
+				return
+			}
+			cleanDC.Code = dc.Code
+		}
 		cleanDC.Name = dc.Name
 		cleanDC.DiscountRate = dc.DiscountRate
 		cleanDC.StartTime = dc.StartTime
@@ -202,5 +210,23 @@ func ValidateUserDiscountCode(c *gin.Context) {
 			"discount_rate": dc.DiscountRate,
 			"code":          dc.Code,
 		},
+	})
+}
+
+func CleanupDiscountCodePendingOrders(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	if id == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "无效的折扣码ID"})
+		return
+	}
+	cleaned, err := model.CleanupPendingOrdersByDiscountCode(id, 30)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    cleaned,
 	})
 }
