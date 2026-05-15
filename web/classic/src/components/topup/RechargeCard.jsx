@@ -101,7 +101,6 @@ const RechargeCard = ({
   enableRedemption = true,
   discountCodeRef,
   discountCodeInfoRef,
-  getAmount,
   requestAmountByPayment,
 }) => {
   const onlineFormApiRef = useRef(null);
