@@ -424,6 +424,7 @@ func SetApiRouter(router *gin.Engine) {
 			discountCodeRoute.POST("/", controller.AddDiscountCode)
 			discountCodeRoute.PUT("/", controller.UpdateDiscountCode)
 			discountCodeRoute.DELETE("/:id", controller.DeleteDiscountCode)
+			discountCodeRoute.POST("/:id/cleanup", controller.CleanupDiscountCodePendingOrders)
 		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)
