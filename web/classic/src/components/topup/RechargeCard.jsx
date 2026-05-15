@@ -99,7 +99,6 @@ const RechargeCard = ({
   reloadSubscriptionSelf,
   discountCodeRef,
   discountCodeInfoRef,
-  getAmount,
   requestAmountByPayment,
 }) => {
   const onlineFormApiRef = useRef(null);
