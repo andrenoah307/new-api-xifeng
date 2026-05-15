@@ -121,6 +121,14 @@ func RequestWaffoAmount(c *gin.Context) {
 	}
 
 	payMoney := getWaffoPayMoney(float64(req.Amount), group)
+	if req.DiscountCode != "" {
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, c.GetInt("id"))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
+	}
 	if payMoney <= 0.01 {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "充值金额过低"})
 		return

@@ -167,6 +167,8 @@ export interface WaffoPaymentRequest {
   amount: number
   /** Optional server-side Waffo payment method index */
   pay_method_index?: number
+  /** Optional discount code */
+  discount_code?: string
 }
 
 /**
@@ -175,6 +177,8 @@ export interface WaffoPaymentRequest {
 export interface WaffoPancakePaymentRequest {
   /** Topup amount */
   amount: number
+  /** Optional discount code */
+  discount_code?: string
 }
 
 /**
@@ -183,6 +187,8 @@ export interface WaffoPancakePaymentRequest {
 export interface AmountRequest {
   /** Topup amount to calculate */
   amount: number
+  /** Optional discount code */
+  discount_code?: string
 }
 
 /**
