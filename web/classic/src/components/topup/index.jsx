@@ -106,6 +106,7 @@ const TopUp = () => {
 
   const affFetchedRef = useRef(false);
   const discountCodeRef = useRef('');
+  const discountCodeInfoRef = useRef(null);
 
   // 邀请相关状态
   const [affLink, setAffLink] = useState('');
@@ -414,6 +415,7 @@ const TopUp = () => {
       setPaymentLoading(true);
       const requestBody = {
         amount: parseInt(topUpCount),
+        discount_code: discountCodeRef.current || undefined,
       };
       if (payMethodIndex != null) {
         requestBody.pay_method_index = payMethodIndex;
@@ -444,6 +446,7 @@ const TopUp = () => {
     try {
       const res = await API.post('/api/user/waffo/amount', {
         amount: parseInt(value),
+        discount_code: discountCodeRef.current || undefined,
       });
       if (res !== undefined) {
         const { message, data } = res.data;
@@ -474,6 +477,7 @@ const TopUp = () => {
     try {
       const res = await API.post('/api/user/waffo-pancake/pay', {
         amount: parseInt(topUpCount),
+        discount_code: discountCodeRef.current || undefined,
       });
       if (res !== undefined) {
         const { message, data } = res.data;
@@ -511,6 +515,7 @@ const TopUp = () => {
     try {
       const res = await API.post('/api/user/waffo-pancake/amount', {
         amount: parseInt(value),
+        discount_code: discountCodeRef.current || undefined,
       });
       if (res !== undefined) {
         const { message, data } = res.data;
@@ -828,6 +833,7 @@ const TopUp = () => {
     try {
       const res = await API.post('/api/user/amount', {
         amount: parseFloat(value),
+        discount_code: discountCodeRef.current || undefined,
       });
       if (res !== undefined) {
         const { message, data } = res.data;
@@ -854,6 +860,7 @@ const TopUp = () => {
     try {
       const res = await API.post('/api/user/stripe/amount', {
         amount: parseFloat(value),
+        discount_code: discountCodeRef.current || undefined,
       });
       if (res !== undefined) {
         const { message, data } = res.data;
@@ -944,7 +951,14 @@ const TopUp = () => {
         payWay={payWay}
         payMethods={confirmPayMethods}
         amountNumber={amount}
-        discountRate={topupInfo?.discount?.[topUpCount] || 1.0}
+        discountRate={(() => {
+          const presetDiscount = topupInfo?.discount?.[topUpCount] || 1.0;
+          const dcInfo = discountCodeInfoRef.current;
+          if (dcInfo && dcInfo.discount_rate) {
+            return presetDiscount * (dcInfo.discount_rate / 100);
+          }
+          return presetDiscount;
+        })()}
       />
 
       {/* Creem 充值确认模态框 */}
@@ -1023,6 +1037,8 @@ const TopUp = () => {
           reloadSubscriptionSelf={getSubscriptionSelf}
           enableRedemption={topupInfo.enable_redemption !== false}
           discountCodeRef={discountCodeRef}
+          discountCodeInfoRef={discountCodeInfoRef}
+          requestAmountByPayment={requestAmountByPayment}
         />
         <div className='flex flex-col gap-6'>
           <InvitationCard

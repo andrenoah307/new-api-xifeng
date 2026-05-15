@@ -100,6 +100,9 @@ const RechargeCard = ({
   reloadSubscriptionSelf,
   enableRedemption = true,
   discountCodeRef,
+  discountCodeInfoRef,
+  getAmount,
+  requestAmountByPayment,
 }) => {
   const onlineFormApiRef = useRef(null);
   const redeemFormApiRef = useRef(null);
@@ -121,12 +124,19 @@ const RechargeCard = ({
     setDiscountCodeInfo(null);
     setDiscountCode('');
     if (discountCodeRef) discountCodeRef.current = '';
+    if (discountCodeInfoRef) discountCodeInfoRef.current = null;
   }, [topUpCount, payWay]);
 
-  // Sync validated discount code to parent ref
+  // Sync validated discount code to parent ref and recalculate amount
   useEffect(() => {
     if (discountCodeRef) {
       discountCodeRef.current = discountCodeInfo ? discountCode.trim() : '';
+    }
+    if (discountCodeInfoRef) {
+      discountCodeInfoRef.current = discountCodeInfo;
+    }
+    if (requestAmountByPayment) {
+      requestAmountByPayment(payWay);
     }
   }, [discountCodeInfo]);
 
