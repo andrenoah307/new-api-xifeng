@@ -126,6 +126,13 @@ func CleanupOldMonitoringHistory(beforeTime int64) error {
 	return DB.Where("recorded_at < ?", beforeTime).Delete(&MonitoringHistory{}).Error
 }
 
+func DeleteMonitoringHistoryByGroups(names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	return DB.Where("group_name IN ?", names).Delete(&MonitoringHistory{}).Error
+}
+
 func DeleteAllMonitoringDataForGroup(groupName string) (int64, error) {
 	var total int64
 	tx := DB.Where("group_name = ?", groupName).Delete(&ChannelMonitoringStat{})

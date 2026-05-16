@@ -6,6 +6,7 @@ import {
   Row,
   Spin,
   Select,
+  Switch,
   TagInput,
   Typography,
 } from '@douyinfe/semi-ui';
@@ -27,6 +28,7 @@ export default function SettingsGroupMonitoring(props) {
   const [availableGroups, setAvailableGroups] = useState([]);
 
   const [inputs, setInputs] = useState({
+    'group_monitoring_setting.enabled': true,
     'group_monitoring_setting.monitoring_groups': '',
     'group_monitoring_setting.group_display_order': '',
     'group_monitoring_setting.availability_period_minutes': 60,
@@ -89,7 +91,13 @@ export default function SettingsGroupMonitoring(props) {
     const currentInputs = {};
     for (let key in inputs) {
       if (props.options && props.options[key] !== undefined) {
-        currentInputs[key] = props.options[key];
+        const raw = props.options[key];
+        if (key === 'group_monitoring_setting.enabled') {
+          currentInputs[key] =
+            raw === true || raw === 'true' || raw === '1' || raw === 1;
+        } else {
+          currentInputs[key] = raw;
+        }
       } else {
         currentInputs[key] = inputs[key];
       }
@@ -196,6 +204,34 @@ export default function SettingsGroupMonitoring(props) {
         style={{ marginBottom: 15 }}
       >
         <Form.Section text={t('分组监控设置')}>
+          {/* Master enable switch */}
+          <Row gutter={16}>
+            <Col xs={24}>
+              <div
+                style={{
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Switch
+                  checked={!!inputs['group_monitoring_setting.enabled']}
+                  onChange={(checked) =>
+                    setInputs({
+                      ...inputs,
+                      'group_monitoring_setting.enabled': checked,
+                    })
+                  }
+                />
+                <Text strong>{t('启用分组监控')}</Text>
+                <Text type='tertiary' size='small'>
+                  {t('关闭后停止后台聚合与数据采集，已生成的历史数据保留')}
+                </Text>
+              </div>
+            </Col>
+          </Row>
           {/* Monitoring groups selector */}
           <Row gutter={16}>
             <Col xs={24} sm={16}>

@@ -17,7 +17,10 @@ import (
 
 var (
 	aggregationRunning int32
-	triggerCh          = make(chan struct{}, 1)
+	// triggerCh signals a manual refresh. The bool indicates whether to
+	// rebuild history from raw buckets (true) or run a normal incremental
+	// aggregation cycle (false).
+	triggerCh = make(chan bool, 1)
 )
 
 func StartGroupMonitoringAggregation() {
@@ -32,7 +35,7 @@ func StartGroupMonitoringAggregation() {
 }
 
 func monitoringLoop() {
-	runAggregationCycle()
+	runAggregationCycle(false)
 
 	cfg := operation_setting.GetGroupMonitoringSetting()
 	interval := cfg.AggregationIntervalMinutes
@@ -46,22 +49,60 @@ func monitoringLoop() {
 		select {
 		case <-ticker.C:
 			refreshMonitoredGroupsCache()
-			runAggregationCycle()
-		case <-triggerCh:
+			runAggregationCycle(false)
+		case rebuild := <-triggerCh:
 			refreshMonitoredGroupsCache()
-			runAggregationCycle()
+			runAggregationCycle(rebuild)
 		}
 	}
 }
 
 func TriggerAggregationRefresh() bool {
+	return enqueueTrigger(false)
+}
+
+func enqueueTrigger(rebuild bool) bool {
 	if !atomic.CompareAndSwapInt32(&aggregationRunning, 0, 1) {
 		return false
 	}
 	atomic.StoreInt32(&aggregationRunning, 0)
 	select {
-	case triggerCh <- struct{}{}:
+	case triggerCh <- rebuild:
 	default:
+	}
+	return true
+}
+
+// RebuildAggregationFromBuckets runs a full rebuild SYNCHRONOUSLY: existing
+// history rows for the monitored groups are deleted and re-derived per
+// bucket from raw Redis (or DB-fallback) data, then the call returns. The
+// HTTP caller blocks until the new data is available, so a subsequent GET
+// on /groups sees the rebuilt state. Returns false if another aggregation
+// is already running.
+func RebuildAggregationFromBuckets() bool {
+	if !atomic.CompareAndSwapInt32(&aggregationRunning, 0, 1) {
+		return false
+	}
+	defer atomic.StoreInt32(&aggregationRunning, 0)
+
+	cfg := operation_setting.GetGroupMonitoringSetting()
+	if !cfg.Enabled {
+		return true
+	}
+	if len(cfg.MonitoringGroups) == 0 {
+		return true
+	}
+
+	refreshMonitoredGroupsCache()
+
+	if err := model.DeleteMonitoringHistoryByGroups(cfg.MonitoringGroups); err != nil {
+		common.SysError("group monitoring rebuild: delete history error: " + err.Error())
+	}
+
+	if common.RedisEnabled {
+		runRedisAggregation(cfg, true)
+	} else {
+		runDBFallbackAggregation(cfg, true)
 	}
 	return true
 }
@@ -82,25 +123,34 @@ type channelKey struct {
 	ChannelId int
 }
 
-func runAggregationCycle() {
+func runAggregationCycle(rebuild bool) {
 	if !atomic.CompareAndSwapInt32(&aggregationRunning, 0, 1) {
 		return
 	}
 	defer atomic.StoreInt32(&aggregationRunning, 0)
 
 	cfg := operation_setting.GetGroupMonitoringSetting()
+	if !cfg.Enabled {
+		return
+	}
 	if len(cfg.MonitoringGroups) == 0 {
 		return
 	}
 
+	if rebuild {
+		if err := model.DeleteMonitoringHistoryByGroups(cfg.MonitoringGroups); err != nil {
+			common.SysError("group monitoring rebuild: delete history error: " + err.Error())
+		}
+	}
+
 	if common.RedisEnabled {
-		runRedisAggregation(cfg)
+		runRedisAggregation(cfg, rebuild)
 	} else {
-		runDBFallbackAggregation(cfg)
+		runDBFallbackAggregation(cfg, rebuild)
 	}
 }
 
-func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
+func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild bool) {
 	now := time.Now().Unix()
 	bucketSec := int64(cfg.AggregationIntervalMinutes * 60)
 	if bucketSec <= 0 {
@@ -339,7 +389,54 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 			common.SysError("group monitoring: upsert group stat error: " + err.Error())
 		}
 
-		// Find the latest bucket for this group to get per-interval metrics
+		if rebuild {
+			// Rebuild mode: fill every expected segment in the availability
+			// window with one history row, even if Redis has no data for
+			// that slot (then availability_rate stays -1 as "no data").
+			// Segment count = AvailabilityPeriodMinutes / AggregationIntervalMinutes,
+			// timestamps step back from the current aligned bucket.
+			segmentCount := int64(cfg.AvailabilityPeriodMinutes) * 60 / bucketSec
+			if segmentCount <= 0 {
+				segmentCount = 1
+			}
+			nowAligned := (now / bucketSec) * bucketSec
+			for i := int64(0); i < segmentCount; i++ {
+				bucketTs := nowAligned - i*bucketSec
+				availRate := -1.0
+				reqCount := 0
+				frt := 0
+				if gbData, ok := groupBucketFRT[groupBucketKey{Group: groupName, BucketTs: bucketTs}]; ok {
+					reqCount = int(gbData.Total)
+					if gbData.FRTCount > 0 {
+						frt = int(gbData.FRTSumMs / gbData.FRTCount)
+					}
+					if gbData.Total > 0 {
+						availRate = float64(gbData.Success) / float64(gbData.Total) * 100
+					}
+				}
+				cacheRate := -1.0
+				if gcData, ok := groupBucketCache[groupBucketKey{Group: groupName, BucketTs: bucketTs}]; ok {
+					if gcData.PromptTokens > 0 {
+						cacheRate = float64(gcData.CacheTokens) / float64(gcData.PromptTokens) * 100
+						if cacheRate > 100 {
+							cacheRate = 100
+						}
+					}
+				}
+				_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
+					GroupName:        groupName,
+					AvailabilityRate: availRate,
+					CacheHitRate:     cacheRate,
+					AvgFRT:           frt,
+					RequestCount:     reqCount,
+					RecordedAt:       bucketTs,
+				})
+			}
+			continue
+		}
+
+		// Normal incremental mode: write a single history row at the current
+		// aligned timestamp using the most recent bucket's data.
 		var latestBucketTs int64
 		for gbk := range groupBucketFRT {
 			if gbk.Group == groupName && gbk.BucketTs > latestBucketTs {
@@ -393,7 +490,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting) {
 	_ = model.CleanupOldMonitoringHistory(cleanupThreshold)
 }
 
-func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting) {
+func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild bool) {
 	now := time.Now().Unix()
 	intervalSec := int64(cfg.AggregationIntervalMinutes * 60)
 	if intervalSec <= 0 {
@@ -503,6 +600,41 @@ func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting) {
 		stat.CacheHitRate = -1
 
 		_ = model.UpsertGroupMonitoringStat(stat)
+
+		if rebuild {
+			// DB fallback rebuild: fill every expected segment in the window
+			// with a placeholder row (availability_rate = -1) and put the
+			// aggregated value at the most recent slot. The logs table doesn't
+			// expose per-segment counters, so older slots cannot be back-filled
+			// with accurate data — show them as "no data" rather than fake it.
+			segmentCount := int64(cfg.AvailabilityPeriodMinutes) * 60 / intervalSec
+			if segmentCount <= 0 {
+				segmentCount = 1
+			}
+			for i := int64(0); i < segmentCount; i++ {
+				bucketTs := alignedAt - i*intervalSec
+				if i == 0 {
+					_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
+						GroupName:        groupName,
+						AvailabilityRate: stat.AvailabilityRate,
+						CacheHitRate:     stat.CacheHitRate,
+						AvgFRT:           stat.AvgFRT,
+						RecordedAt:       bucketTs,
+					})
+					continue
+				}
+				_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
+					GroupName:        groupName,
+					AvailabilityRate: -1,
+					CacheHitRate:     -1,
+					AvgFRT:           0,
+					RequestCount:     0,
+					RecordedAt:       bucketTs,
+				})
+			}
+			continue
+		}
+
 		_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
 			GroupName:        groupName,
 			AvailabilityRate: stat.AvailabilityRate,

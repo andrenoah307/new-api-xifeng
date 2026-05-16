@@ -77,7 +77,10 @@ const PageLayout = () => {
   const isConsoleRoute = location.pathname.startsWith('/console');
   // Top-level dashboards reached from the global header nav don't need the
   // console sidebar — they read better as standalone, full-width pages.
-  const standaloneConsoleRoutes = ['/console/monitoring'];
+  // Note: /console/monitoring is intentionally NOT standalone — accessed from
+  // the console sidebar, it should remain embedded with the sidebar visible.
+  // The standalone version is served from the top-level /monitoring route.
+  const standaloneConsoleRoutes = [];
   const showSider =
     isConsoleRoute &&
     !standaloneConsoleRoutes.includes(location.pathname) &&

@@ -5,6 +5,7 @@ import (
 )
 
 type GroupMonitoringSetting struct {
+	Enabled                        bool     `json:"enabled"`
 	MonitoringGroups               []string `json:"monitoring_groups"`
 	AvailabilityPeriodMinutes      int      `json:"availability_period_minutes"`
 	CacheHitPeriodMinutes          int      `json:"cache_hit_period_minutes"`
@@ -18,9 +19,10 @@ type GroupMonitoringSetting struct {
 }
 
 var groupMonitoringSetting = GroupMonitoringSetting{
+	Enabled:                        true,
 	MonitoringGroups:               []string{},
 	AvailabilityPeriodMinutes:      60,
-	CacheHitPeriodMinutes:         60,
+	CacheHitPeriodMinutes:          60,
 	AvailabilityExcludeModels:      []string{},
 	CacheHitExcludeModels:          []string{},
 	AvailabilityExcludeKeywords:    []string{},
