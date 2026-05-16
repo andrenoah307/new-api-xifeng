@@ -36,18 +36,33 @@ const { Text } = Typography;
 
 function rateColor(rate) {
   if (rate == null || rate < 0) return 'var(--semi-color-text-2)';
-  if (rate >= 99) return 'var(--semi-color-success)';
-  if (rate >= 95) return 'var(--semi-color-success-light-active)';
-  if (rate >= 80) return 'var(--semi-color-warning)';
+  if (rate >= 95) return 'var(--semi-color-success)';
+  if (rate >= 90) return 'var(--semi-color-success-light-active)';
+  if (rate >= 85) return 'var(--semi-color-warning)';
+  if (rate >= 80) return 'var(--semi-color-warning-active)';
   return 'var(--semi-color-danger)';
 }
 
 function rateTagColor(rate) {
   if (rate == null) return 'grey';
-  if (rate >= 99) return 'green';
-  if (rate >= 95) return 'lime';
-  if (rate >= 80) return 'yellow';
+  if (rate >= 95) return 'green';
+  if (rate >= 90) return 'lime';
+  if (rate >= 85) return 'yellow';
+  if (rate >= 80) return 'amber';
   return 'red';
+}
+
+function computeRateFromHistory(history, field) {
+  if (!Array.isArray(history) || history.length === 0) return null;
+  const valid = history.filter(
+    (h) =>
+      h.request_count != null &&
+      h.request_count > 0 &&
+      h[field] != null &&
+      h[field] >= 0,
+  );
+  if (valid.length === 0) return null;
+  return valid.reduce((s, h) => s + h[field], 0) / valid.length;
 }
 
 function formatFRT(ms) {
@@ -123,10 +138,12 @@ const GroupDetailPanel = memo(({ visible, group, onClose }) => {
     group?.availability_rate != null && group.availability_rate >= 0
       ? group.availability_rate
       : null;
+  const historyCacheRate = computeRateFromHistory(history, 'cache_hit_rate');
   const cacheRate =
-    group?.cache_hit_rate != null && group.cache_hit_rate >= 0
+    historyCacheRate ??
+    (group?.cache_hit_rate != null && group.cache_hit_rate >= 0
       ? group.cache_hit_rate
-      : null;
+      : null);
   const showCache = cacheRate != null && cacheRate >= 3;
 
   const channelColumns = useMemo(

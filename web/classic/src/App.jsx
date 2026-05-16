@@ -181,6 +181,14 @@ function App() {
           }
         />
         <Route
+          path='/monitoring'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <GroupMonitoring />
+            </Suspense>
+          }
+        />
+        <Route
           path='/console/redemption'
           element={
             <AdminRoute>
