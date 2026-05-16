@@ -147,7 +147,14 @@ func GetAdminMonitoringGroupHistory(c *gin.Context) {
 }
 
 func RefreshMonitoringData(c *gin.Context) {
-	ok := service.TriggerAggregationRefresh()
+	if !operation_setting.GetGroupMonitoringSetting().Enabled {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "分组监控已关闭，无法刷新",
+		})
+		return
+	}
+	ok := service.RebuildAggregationFromBuckets()
 	if !ok {
 		c.JSON(http.StatusTooManyRequests, gin.H{
 			"success": false,
@@ -156,9 +163,9 @@ func RefreshMonitoringData(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusAccepted, gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "刷新已触发，数据将在几秒后更新",
+		"message": "刷新成功，历史数据已按段重建",
 	})
 }
 
@@ -285,8 +292,6 @@ func desensitizeGroupStat(stat *model.GroupMonitoringStat) gin.H {
 		"avg_response_time": stat.AvgResponseTime,
 		"avg_frt":           stat.AvgFRT,
 		"is_online":         stat.OnlineChannels > 0,
-		"online_channels":   stat.OnlineChannels,
-		"total_channels":    stat.TotalChannels,
 		"group_ratio":       stat.GroupRatio,
 		"last_test_model":   stat.LastTestModel,
 		"updated_at":        stat.UpdatedAt,

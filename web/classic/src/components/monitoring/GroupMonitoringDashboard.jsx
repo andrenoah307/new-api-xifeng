@@ -21,12 +21,11 @@ import React, {
   memo,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
-import { Button, Input, Select, Skeleton, Typography } from '@douyinfe/semi-ui';
-import { Activity, RefreshCw, Search, X } from 'lucide-react';
+import { Button, Skeleton, Typography } from '@douyinfe/semi-ui';
+import { Activity, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess, isAdmin } from '../../helpers';
 import GroupStatusCard from './GroupStatusCard';
@@ -35,31 +34,6 @@ import GroupDetailPanel from './GroupDetailPanel';
 const { Text } = Typography;
 
 const POLL_INTERVAL_MS = 60 * 1000;
-const SORT_KEY = 'monitoring-sort-mode';
-
-const SORT_OPTIONS = [
-  { value: 'status', labelKey: '按状态' },
-  { value: 'name', labelKey: '按名称' },
-  { value: 'availability', labelKey: '按可用率' },
-];
-
-function compareGroups(a, b, mode) {
-  const aOnline = a.is_online ?? (a.online_channels > 0);
-  const bOnline = b.is_online ?? (b.online_channels > 0);
-  switch (mode) {
-    case 'name':
-      return (a.group_name || '').localeCompare(b.group_name || '');
-    case 'availability': {
-      const ar = a.availability_rate ?? -1;
-      const br = b.availability_rate ?? -1;
-      return ar - br;
-    }
-    case 'status':
-    default:
-      if (aOnline !== bOnline) return aOnline ? 1 : -1;
-      return (a.availability_rate ?? 100) - (b.availability_rate ?? 100);
-  }
-}
 
 function avgAvailability(groups) {
   const valid = groups
@@ -111,9 +85,10 @@ const RefreshButton = memo(({ admin, refreshing, onRefresh, lastUpdated, t }) =>
 
 function rateAccent(rate) {
   if (rate == null || rate < 0) return 'var(--semi-color-text-2)';
-  if (rate >= 99) return 'var(--semi-color-success)';
-  if (rate >= 95) return 'var(--semi-color-success-light-active)';
-  if (rate >= 80) return 'var(--semi-color-warning)';
+  if (rate >= 95) return 'var(--semi-color-success)';
+  if (rate >= 90) return 'var(--semi-color-success-light-active)';
+  if (rate >= 85) return 'var(--semi-color-warning)';
+  if (rate >= 80) return 'var(--semi-color-warning-active)';
   return 'var(--semi-color-danger)';
 }
 
@@ -125,14 +100,6 @@ const GroupMonitoringDashboard = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [detailVisible, setDetailVisible] = useState(false);
-  const [keyword, setKeyword] = useState('');
-  const [sortMode, setSortMode] = useState(() => {
-    try {
-      return localStorage.getItem(SORT_KEY) || 'status';
-    } catch {
-      return 'status';
-    }
-  });
   const pollTimerRef = useRef(null);
   const initialLoad = useRef(true);
 
@@ -232,30 +199,14 @@ const GroupMonitoringDashboard = () => {
     }
   };
 
-  const handleSort = (val) => {
-    setSortMode(val);
-    try {
-      localStorage.setItem(SORT_KEY, val);
-    } catch {
-      /* noop */
-    }
-  };
-
   const handleCardClick = useCallback((group) => {
     if (!admin) return;
     setSelectedGroup(group);
     setDetailVisible(true);
   }, [admin]);
 
-  const visible = useMemo(() => {
-    const kw = keyword.trim().toLowerCase();
-    const filtered = kw
-      ? groups.filter((g) =>
-          (g.group_name || '').toLowerCase().includes(kw),
-        )
-      : groups;
-    return [...filtered].sort((a, b) => compareGroups(a, b, sortMode));
-  }, [groups, keyword, sortMode]);
+  // Render in the order returned by the backend (admin-configured GroupDisplayOrder).
+  const visible = groups;
 
   const onlineCount = groups.filter(
     (g) => g.is_online ?? (g.total_channels === 0 || g.online_channels > 0),
@@ -320,27 +271,6 @@ const GroupMonitoringDashboard = () => {
           </div>
 
           <div className='flex flex-wrap items-center gap-2'>
-            <Input
-              prefix={<Search size={14} />}
-              placeholder={t('搜索分组')}
-              value={keyword}
-              onChange={setKeyword}
-              showClear
-              size='default'
-              style={{ width: 200 }}
-            />
-            <Select
-              value={sortMode}
-              onChange={handleSort}
-              size='default'
-              style={{ width: 130 }}
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <Select.Option key={opt.value} value={opt.value}>
-                  {t(opt.labelKey)}
-                </Select.Option>
-              ))}
-            </Select>
             <RefreshButton
               admin={admin}
               refreshing={refreshing}
@@ -372,11 +302,6 @@ const GroupMonitoringDashboard = () => {
             icon={<Activity size={32} className='opacity-40' />}
             title={t('暂无监控分组')}
             desc={t('请在系统设置 — 分组监控中配置')}
-          />
-        ) : visible.length === 0 ? (
-          <EmptyState
-            icon={<X size={32} className='opacity-40' />}
-            title={t('未找到匹配 "{{kw}}" 的分组', { kw: keyword })}
           />
         ) : (
           <div className='grid grid-cols-1 gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'>

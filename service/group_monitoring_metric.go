@@ -46,6 +46,9 @@ func RecordMonitoringMetric(group string, channelId int, isSuccess bool, promptT
 	}
 
 	cfg := operation_setting.GetGroupMonitoringSetting()
+	if !cfg.Enabled {
+		return
+	}
 
 	excludeAvail := false
 	excludeCache := false

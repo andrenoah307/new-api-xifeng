@@ -59,7 +59,7 @@ export const useNavigation = (t, docsLink, headerNavModules, userState) => {
       {
         text: t('分组监控'),
         itemKey: 'monitoring',
-        to: '/console/monitoring',
+        to: '/monitoring',
       },
       ...(docsLink
         ? [
