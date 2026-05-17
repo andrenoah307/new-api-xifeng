@@ -697,7 +697,7 @@ export function ChannelMutateDrawer({
     try {
       const res = await getChannelKey(channelId)
       if (!res.success) {
-        throw new Error(res.message || 'Failed to fetch channel key')
+        throw new Error(res.message || t('Failed to fetch channel key'))
       }
 
       const keyValue = res.data?.key ?? ''
@@ -732,7 +732,7 @@ export function ChannelMutateDrawer({
     try {
       const res = await refreshCodexCredential(channelId)
       if (!res.success) {
-        throw new Error(res.message || 'Failed to refresh credential')
+        throw new Error(res.message || t('Failed to refresh credential'))
       }
       toast.success(t('Credential refreshed'))
       queryClient.invalidateQueries({
