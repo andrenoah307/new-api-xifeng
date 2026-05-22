@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { UseFormReturn } from 'react-hook-form'
-import { Plus, X } from 'lucide-react'
+import { AlertTriangle, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -44,6 +44,14 @@ function parse(val: string | undefined): FilterRule[] {
   } catch {
     return []
   }
+}
+
+function hasCondition(rule: FilterRule): boolean {
+  return (
+    rule.status_codes.length > 0 ||
+    rule.message_contains.length > 0 ||
+    rule.error_codes.length > 0
+  )
 }
 
 interface Props {
@@ -98,7 +106,7 @@ export function ErrorFilterRulesEditor({ form }: Props) {
           >
             <X className="h-3.5 w-3.5" />
           </Button>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div className="space-y-1">
               <Label className="text-xs">{t('Status Codes')}</Label>
               <Input
@@ -114,6 +122,24 @@ export function ErrorFilterRulesEditor({ form }: Props) {
                   )
                 }
                 placeholder="400, 500"
+                className="h-7 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('Error Codes')}</Label>
+              <Input
+                value={rule.error_codes.join(', ')}
+                onChange={(e) =>
+                  updateRule(
+                    i,
+                    'error_codes',
+                    e.target.value
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                  )
+                }
+                placeholder="rate_limit_exceeded"
                 className="h-7 text-xs"
               />
             </div>
@@ -151,6 +177,12 @@ export function ErrorFilterRulesEditor({ form }: Props) {
               </Select>
             </div>
           </div>
+          {!hasCondition(rule) && (
+            <div className="text-warning flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs">
+              <AlertTriangle className="h-3 w-3" />
+              {t('No conditions set — this rule will not match any errors')}
+            </div>
+          )}
           {rule.action === 'rewrite' && (
             <div className="space-y-1">
               <Label className="text-xs">{t('Rewrite Message')}</Label>
