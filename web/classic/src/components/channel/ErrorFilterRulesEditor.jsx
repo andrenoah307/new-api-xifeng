@@ -47,11 +47,18 @@ import {
   IconRefresh,
   IconHistory,
 } from '@douyinfe/semi-icons';
-import { API, timestamp2string } from '../../helpers';
+import { API, timestamp2string, stripProxyIdSuffixes } from '../../helpers';
 
 const { Text } = Typography;
 
 const ERROR_FILTER_ACTIONS = new Set(['retry', 'rewrite', 'replace']);
+
+const stripErrorContentPrefix = (content) => {
+  if (!content) return '';
+  let msg = content.replace(/^status_code=\d+,\s*/, '');
+  msg = stripProxyIdSuffixes(msg);
+  return msg.trim();
+};
 
 const createEmptyRule = () => ({
   status_codes: [],
@@ -218,7 +225,7 @@ const RecentErrorsModal = ({ visible, onClose, channelId, onApply, t }) => {
       new Set(selected.map((e) => e.errorCode).filter(Boolean)),
     );
     const messages = Array.from(
-      new Set(selected.map((e) => e.content).filter(Boolean)),
+      new Set(selected.map((e) => stripErrorContentPrefix(e.content)).filter(Boolean)),
     );
     onApply({ status_codes: statusCodes, error_codes: errorCodes, messages });
     onClose();
@@ -334,7 +341,7 @@ const RecentErrorsModal = ({ visible, onClose, channelId, onApply, t }) => {
                           wordBreak: 'break-word',
                         }}
                       >
-                        {err.content || <Text type='tertiary'>{t('（无消息内容）')}</Text>}
+                        {stripErrorContentPrefix(err.content) || <Text type='tertiary'>{t('（无消息内容）')}</Text>}
                       </Text>
                     </div>
                   </div>
