@@ -51,6 +51,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     channel: true,
     models: true,
     risk: true,
+    auto_group: true,
     deployment: true,
     redemption: true,
     discount_code: true,

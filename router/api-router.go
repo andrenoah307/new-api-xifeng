@@ -309,6 +309,19 @@ func SetApiRouter(router *gin.Engine) {
 			riskRoute.POST("/enforcement/users/:id/unban", controller.UnbanEnforcementUser)
 			riskRoute.POST("/enforcement/test_email", controller.SendEnforcementTestEmail)
 		}
+		autoGroupRoute := apiRouter.Group("/auto_group")
+		autoGroupRoute.Use(middleware.AdminAuth())
+		{
+			autoGroupRoute.GET("/rules", controller.GetAutoGroupRules)
+			autoGroupRoute.GET("/rules/:id", controller.GetAutoGroupRule)
+			autoGroupRoute.POST("/rules", controller.CreateAutoGroupRule)
+			autoGroupRoute.PUT("/rules/:id", controller.UpdateAutoGroupRule)
+			autoGroupRoute.DELETE("/rules/:id", controller.DeleteAutoGroupRule)
+			autoGroupRoute.GET("/enrollments", controller.GetAutoGroupEnrollments)
+			autoGroupRoute.POST("/enrollments", controller.CreateAutoGroupEnrollment)
+			autoGroupRoute.DELETE("/enrollments/:id", controller.DeleteAutoGroupEnrollment)
+			autoGroupRoute.POST("/sweep", controller.TriggerAutoGroupSweep)
+		}
 		monitoringAdminRoute := apiRouter.Group("/monitoring/admin")
 		monitoringAdminRoute.Use(middleware.AdminAuth())
 		{

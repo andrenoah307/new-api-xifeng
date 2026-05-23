@@ -84,6 +84,7 @@ import {
   CalendarClock,
   Activity,
   BadgePercent,
+  Users2,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -168,6 +169,8 @@ export function getLucideIcon(key, selected = false) {
       return <Settings {...commonProps} color={iconColor} />;
     case 'monitoring':
       return <Activity {...commonProps} color={iconColor} />;
+    case 'auto_group':
+      return <Users2 {...commonProps} color={iconColor} />;
     default:
       return <CircleUser {...commonProps} color={iconColor} />;
   }

@@ -3,6 +3,7 @@ import {
   Activity,
   Ticket,
   UserPlus,
+  Users2,
   History,
   HeadsetIcon,
 } from 'lucide-react'
@@ -26,6 +27,11 @@ export function getCustomAdminItems(t: TFunction): NavItem[] {
       title: t('Invitation Codes'),
       url: '/invitation-codes',
       icon: UserPlus,
+    },
+    {
+      title: t('Auto Group'),
+      url: '/auto-group',
+      icon: Users2,
     },
   ]
 }

@@ -386,6 +386,14 @@ func CountUserSubscriptionsByPlan(userId int, planId int) (int64, error) {
 	return count, nil
 }
 
+func HasActiveSubscriptionWithUpgrade(userId int) (bool, error) {
+	var count int64
+	err := DB.Model(&UserSubscription{}).
+		Where("user_id = ? AND status = ? AND upgrade_group != ''", userId, "active").
+		Count(&count).Error
+	return count > 0, err
+}
+
 func getUserGroupByIdTx(tx *gorm.DB, userId int) (string, error) {
 	if userId <= 0 {
 		return "", errors.New("invalid userId")
