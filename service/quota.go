@@ -448,6 +448,8 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 		}
 	}
 
+	NotifyAutoGroupEvaluation(relayInfo.UserId)
+
 	return nil
 }
 

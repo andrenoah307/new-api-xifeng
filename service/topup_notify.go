@@ -106,10 +106,14 @@ func NotifyTopUpSuccessByTradeNo(tradeNo string) {
 	if tradeNo == "" {
 		return
 	}
+	topUp := model.GetTopUpByTradeNo(tradeNo)
+	if topUp != nil {
+		NotifyAutoGroupEvaluation(topUp.UserId)
+	}
 	if !common.PaymentNotifyUserEnabled && !common.PaymentNotifyAdminEnabled {
 		return
 	}
-	NotifyTopUpSuccess(model.GetTopUpByTradeNo(tradeNo))
+	NotifyTopUpSuccess(topUp)
 }
 
 // NotifyTopUpSuccess 异步在支付成功后发送邮件（用户 / 管理员 两条通路各自可开关）
