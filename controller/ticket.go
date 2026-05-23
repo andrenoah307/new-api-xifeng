@@ -398,6 +398,9 @@ func CloseUserTicket(c *gin.Context) {
 		handleTicketError(c, err)
 		return
 	}
+	if ticket.Type == model.TicketTypeRefund {
+		service.NotifyAutoGroupEvaluation(ticket.UserId)
+	}
 	common.ApiSuccess(c, ticket)
 }
 
@@ -661,6 +664,9 @@ func UpdateTicketStatus(c *gin.Context) {
 	if req.Status != nil {
 		service.NotifyIfTicketStatusChanged(ticket, prevStatus, service.TicketStatusReasonGeneric)
 	}
+	if existing.Type == model.TicketTypeRefund && req.Status != nil {
+		service.NotifyAutoGroupEvaluation(existing.UserId)
+	}
 	common.ApiSuccess(c, ticket)
 }
 
@@ -799,6 +805,7 @@ func CreateRefundTicket(c *gin.Context) {
 		ticket = refreshed
 	}
 	service.NotifyTicketCreatedToAdmin(ticket, message)
+	service.NotifyAutoGroupEvaluation(currentUser.Id)
 	common.ApiSuccess(c, gin.H{
 		"ticket":  ticket,
 		"refund":  refund,
@@ -874,6 +881,10 @@ func UpdateRefundStatus(c *gin.Context) {
 		reason = service.TicketStatusReasonRefundRejected
 	}
 	service.NotifyIfTicketStatusChanged(ticket, prevStatus, reason)
+
+	if refund != nil {
+		service.NotifyAutoGroupEvaluation(refund.UserId)
+	}
 
 	common.ApiSuccess(c, gin.H{
 		"refund": refund,

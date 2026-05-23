@@ -52,6 +52,7 @@ import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
 import Subscription from './pages/Subscription';
 import RiskCenter from './pages/Risk';
+import AutoGroup from './pages/AutoGroup';
 import GroupMonitoring from './pages/GroupMonitoring';
 import Rankings from './pages/Rankings';
 import OAuth2Callback from './components/auth/OAuth2Callback';
@@ -169,6 +170,14 @@ function App() {
           element={
             <AdminRoute>
               <RiskCenter />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/auto_group'
+          element={
+            <AdminRoute>
+              <AutoGroup />
             </AdminRoute>
           }
         />

@@ -42,6 +42,7 @@ const routerMap = {
   ticket: '/console/ticket',
   user: '/console/user',
   risk: '/console/risk',
+  auto_group: '/console/auto_group',
   monitoring: '/console/monitoring',
   subscription: '/console/subscription',
   ticket_admin: '/console/ticket_admin',
@@ -198,6 +199,12 @@ const SiderBar = ({ onNavigate = () => { } }) => {
         text: t('风控中心'),
         itemKey: 'risk',
         to: '/console/risk',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('Auto Group'),
+        itemKey: 'auto_group',
+        to: '/console/auto_group',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
