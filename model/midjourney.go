@@ -1,5 +1,11 @@
 package model
 
+import (
+	"gorm.io/gorm"
+)
+
+const searchMjCountHardLimit = 10000
+
 type Midjourney struct {
 	Id          int    `json:"id"`
 	Code        int    `json:"code"`
@@ -211,7 +217,7 @@ func CountAllTasks(queryParams TaskQueryParams) int64 {
 	if queryParams.EndTimestamp != "" {
 		query = query.Where("submit_time <= ?", queryParams.EndTimestamp)
 	}
-	_ = query.Count(&total).Error
+	_ = query.Session(&gorm.Session{}).Limit(searchMjCountHardLimit).Count(&total).Error
 	return total
 }
 
@@ -228,6 +234,6 @@ func CountAllUserTask(userId int, queryParams TaskQueryParams) int64 {
 	if queryParams.EndTimestamp != "" {
 		query = query.Where("submit_time <= ?", queryParams.EndTimestamp)
 	}
-	_ = query.Count(&total).Error
+	_ = query.Session(&gorm.Session{}).Limit(searchMjCountHardLimit).Count(&total).Error
 	return total
 }

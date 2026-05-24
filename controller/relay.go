@@ -89,8 +89,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	defer func() {
 		if newAPIError != nil {
-			logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(common.StripProxyIdSuffixes(newAPIError.Error()))))
-			newAPIError.SetMessage(common.MessageWithRequestId(common.StripProxyIdSuffixes(newAPIError.Error()), requestId))
+			errMsg := newAPIError.Error()
+			if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok && channelSetting.StripRequestId {
+				errMsg = common.StripLocalRequestId(errMsg)
+			}
+			logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(errMsg)))
+			newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
@@ -534,7 +538,11 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 			startTime = time.Now()
 		}
 		useTimeSeconds := int(time.Since(startTime).Seconds())
-		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, common.StripProxyIdSuffixes(err.MaskSensitiveErrorWithStatusCode()), tokenId, useTimeSeconds, common.GetContextKeyBool(c, constant.ContextKeyIsStream), userGroup, other)
+		errorContent := err.MaskSensitiveErrorWithStatusCode()
+		if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok && channelSetting.StripRequestId {
+			errorContent = common.StripLocalRequestId(errorContent)
+		}
+		model.RecordErrorLog(c, userId, channelId, modelName, tokenName, errorContent, tokenId, useTimeSeconds, common.GetContextKeyBool(c, constant.ContextKeyIsStream), userGroup, other)
 	}
 
 }

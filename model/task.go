@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	commonRelay "github.com/QuantumNous/new-api/relay/common"
+	"gorm.io/gorm"
 )
 
 type TaskStatus string
@@ -462,6 +463,8 @@ type TaskQuotaUsage struct {
 	Count float64 `json:"count"`
 }
 
+const searchTaskCountHardLimit = 10000
+
 // TaskCountAllTasks returns total tasks that match the given query params (admin usage)
 func TaskCountAllTasks(queryParams SyncTaskQueryParams) int64 {
 	var total int64
@@ -493,7 +496,7 @@ func TaskCountAllTasks(queryParams SyncTaskQueryParams) int64 {
 	if queryParams.EndTimestamp != 0 {
 		query = query.Where("submit_time <= ?", queryParams.EndTimestamp)
 	}
-	_ = query.Count(&total).Error
+	_ = query.Session(&gorm.Session{}).Limit(searchTaskCountHardLimit).Count(&total).Error
 	return total
 }
 
@@ -519,7 +522,7 @@ func TaskCountAllUserTask(userId int, queryParams SyncTaskQueryParams) int64 {
 	if queryParams.EndTimestamp != 0 {
 		query = query.Where("submit_time <= ?", queryParams.EndTimestamp)
 	}
-	_ = query.Count(&total).Error
+	_ = query.Session(&gorm.Session{}).Limit(searchTaskCountHardLimit).Count(&total).Error
 	return total
 }
 func (t *Task) ToOpenAIVideo() *dto.OpenAIVideo {

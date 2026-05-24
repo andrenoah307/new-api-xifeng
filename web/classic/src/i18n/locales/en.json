@@ -4939,6 +4939,8 @@
   "近 N 小时充值 (USD)": "Recent N Hours Top-up (USD)",
   "昨日充值 (USD)": "Yesterday's Top-up (USD)",
   "累计请求数": "Total Request Count",
-  "近 N 小时请求数": "Recent N Hours Request Count"
+  "近 N 小时请求数": "Recent N Hours Request Count",
+  "移除响应中的 Request ID": "Strip Request ID from Responses",
+  "开启后将从错误响应中移除 (request id: ...) 信息": "When enabled, removes (request id: ...) from error responses"
   }
 }
