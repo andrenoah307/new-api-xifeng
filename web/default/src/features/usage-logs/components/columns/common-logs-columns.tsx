@@ -660,6 +660,14 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                 )}
               </div>
             )}
+            {completionTokens > 0 && log.use_time > 0 && (
+              <span className='text-muted-foreground/60 text-[11px]'>
+                {Math.round(completionTokens / log.use_time) < 1
+                  ? '< 1'
+                  : Math.round(completionTokens / log.use_time)}{' '}
+                token/s
+              </span>
+            )}
           </div>
         )
       },
