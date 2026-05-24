@@ -52,6 +52,9 @@ const ru: Record<string, string> = {
   'Operation failed': 'Ошибка операции',
   Save: 'Сохранить',
   'Saving...': 'Сохранение...',
+
+  // Auto Group
+  'Auto Group': 'Автогруппы',
 }
 
 export default ru

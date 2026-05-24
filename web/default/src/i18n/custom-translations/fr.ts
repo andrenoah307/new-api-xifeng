@@ -52,6 +52,9 @@ const fr: Record<string, string> = {
   'Operation failed': "Échec de l'opération",
   Save: 'Enregistrer',
   'Saving...': 'Enregistrement...',
+
+  // Auto Group
+  'Auto Group': 'Groupes automatiques',
 }
 
 export default fr

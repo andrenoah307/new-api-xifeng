@@ -202,7 +202,7 @@ const SiderBar = ({ onNavigate = () => { } }) => {
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
-        text: t('Auto Group'),
+        text: t('自动分组'),
         itemKey: 'auto_group',
         to: '/console/auto_group',
         className: isAdmin() ? '' : 'tableHiddle',
