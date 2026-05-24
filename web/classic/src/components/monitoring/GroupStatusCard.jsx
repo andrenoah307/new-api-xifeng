@@ -44,7 +44,9 @@ function computeRateFromHistory(history, field) {
       h[field] >= 0,
   );
   if (valid.length === 0) return null;
-  return valid.reduce((s, h) => s + h[field], 0) / valid.length;
+  const totalRequests = valid.reduce((s, h) => s + h.request_count, 0);
+  if (totalRequests === 0) return null;
+  return valid.reduce((s, h) => s + h[field] * h.request_count, 0) / totalRequests;
 }
 
 function formatFRT(ms) {
