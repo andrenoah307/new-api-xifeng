@@ -28,6 +28,7 @@ import {
 } from '@tanstack/react-table'
 import { Check, Copy, Info, Loader2, Settings } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
@@ -302,11 +303,12 @@ export function ChannelTestDialog({
   }, [])
 
   const testSingleModel = useCallback(
-    async (model: string) => {
+    async (model: string, silent = false): Promise<TestResult | undefined> => {
       if (!currentRow) return
 
       markModelTesting(model, true)
       updateTestResult(model, { status: 'testing' })
+      let finalResult: TestResult | undefined
 
       try {
         await handleTestChannel(
@@ -315,24 +317,28 @@ export function ChannelTestDialog({
             testModel: model,
             endpointType: endpointType === 'auto' ? undefined : endpointType,
             stream: isStreamTest || undefined,
+            silent,
           },
           (success, responseTime, error, errorCode) => {
-            updateTestResult(model, {
+            finalResult = {
               status: success ? 'success' : 'error',
               responseTime,
               error,
               errorCode,
-            })
+            }
+            updateTestResult(model, finalResult)
           }
         )
       } catch (error: unknown) {
-        updateTestResult(model, {
+        finalResult = {
           status: 'error',
           error: error instanceof Error ? error.message : t('Test failed'),
-        })
+        }
+        updateTestResult(model, finalResult)
       } finally {
         markModelTesting(model, false)
       }
+      return finalResult
     },
     [
       currentRow,
@@ -350,15 +356,41 @@ export function ChannelTestDialog({
 
       setIsBatchTesting(true)
       try {
-        await Promise.allSettled(
-          modelsToTest.map((modelName) => testSingleModel(modelName))
+        const settled = await Promise.allSettled(
+          modelsToTest.map((modelName) => testSingleModel(modelName, true))
         )
+        const results = settled
+          .map((result) =>
+            result.status === 'fulfilled' ? result.value : undefined
+          )
+          .filter((result): result is TestResult => Boolean(result))
+        const successCount = results.filter(
+          (result) => result.status === 'success'
+        ).length
+        const failedCount = modelsToTest.length - successCount
+        if (failedCount > 0) {
+          toast.error(
+            t(
+              'Batch test completed: {{success}} succeeded, {{failed}} failed',
+              {
+                success: successCount,
+                failed: failedCount,
+              }
+            )
+          )
+        } else {
+          toast.success(
+            t('Batch test completed: {{count}} succeeded', {
+              count: successCount,
+            })
+          )
+        }
       } finally {
         setIsBatchTesting(false)
         setRowSelection({})
       }
     },
-    [testSingleModel]
+    [t, testSingleModel]
   )
 
   const handleClose = () => {

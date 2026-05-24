@@ -328,7 +328,7 @@ export function SubscriptionsMutateDrawer({
                   name='total_amount'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('Total Quota')}</FormLabel>
+                      <FormLabel>{t('Received amount')}</FormLabel>
                       <FormControl>
                         <Input
                           {...field}
@@ -340,7 +340,9 @@ export function SubscriptionsMutateDrawer({
                         />
                       </FormControl>
                       <FormDescription>
-                        {t('0 means unlimited')}
+                        {t(
+                          '0 means unlimited. The value is converted to quota units when saved.'
+                        )}
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

@@ -616,7 +616,7 @@ export function ApiKeysMutateDrawer({
           </SheetClose>
           <Button
             type='button'
-            onClick={form.handleSubmit(onSubmit)}
+            onClick={form.handleSubmit(onSubmit, onInvalid)}
             disabled={isSubmitting}
             className='w-full sm:w-auto'
           >
