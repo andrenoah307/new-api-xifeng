@@ -44,14 +44,14 @@ const { Text } = Typography;
 // ---------------------------------------------------------------------------
 
 const METRICS = [
-  { key: 'total_spend', label: 'Total Spend (USD)', needsParam: false },
-  { key: 'recent_spend', label: 'Recent N Hours Spend (USD)', needsParam: true },
-  { key: 'yesterday_spend', label: "Yesterday's Spend (USD)", needsParam: false },
-  { key: 'total_topup', label: 'Net Top-up (USD)', needsParam: false },
-  { key: 'recent_topup', label: 'Recent N Hours Top-up (USD)', needsParam: true },
-  { key: 'yesterday_topup', label: "Yesterday's Top-up (USD)", needsParam: false },
-  { key: 'total_request_count', label: 'Total Request Count', needsParam: false },
-  { key: 'recent_request_count', label: 'Recent N Hours Request Count', needsParam: true },
+  { key: 'total_spend', label: '累计消费 (USD)', needsParam: false },
+  { key: 'recent_spend', label: '近 N 小时消费 (USD)', needsParam: true },
+  { key: 'yesterday_spend', label: '昨日消费 (USD)', needsParam: false },
+  { key: 'total_topup', label: '净充值额 (USD)', needsParam: false },
+  { key: 'recent_topup', label: '近 N 小时充值 (USD)', needsParam: true },
+  { key: 'yesterday_topup', label: '昨日充值 (USD)', needsParam: false },
+  { key: 'total_request_count', label: '累计请求数', needsParam: false },
+  { key: 'recent_request_count', label: '近 N 小时请求数', needsParam: true },
 ];
 
 const METRIC_OPTIONS = METRICS.map((m) => ({ label: m.label, value: m.key }));
@@ -172,16 +172,16 @@ const AutoGroup = () => {
         page_size: String(PAGE_SIZE),
       });
       if (rulesKeyword) params.set('keyword', rulesKeyword);
-      const res = await API.get(`/api/auto_group_rule/?${params.toString()}`);
+      const res = await API.get(`/api/auto_group/rules?${params.toString()}`);
       const { success, message, data } = res.data;
       if (success) {
         setRules(data.items || []);
         setRulesTotal(data.total || 0);
       } else {
-        showError(message || t('Failed to load rules'));
+        showError(message || t('加载规则失败'));
       }
     } catch (e) {
-      showError(t('Failed to load rules'));
+      showError(t('加载规则失败'));
     } finally {
       setRulesLoading(false);
     }
@@ -195,16 +195,16 @@ const AutoGroup = () => {
         page_size: String(PAGE_SIZE),
       });
       if (enrollmentsKeyword) params.set('keyword', enrollmentsKeyword);
-      const res = await API.get(`/api/auto_group_enrollment/?${params.toString()}`);
+      const res = await API.get(`/api/auto_group/enrollments?${params.toString()}`);
       const { success, message, data } = res.data;
       if (success) {
         setEnrollments(data.items || []);
         setEnrollmentsTotal(data.total || 0);
       } else {
-        showError(message || t('Failed to load enrollments'));
+        showError(message || t('加载纳入记录失败'));
       }
     } catch {
-      showError(t('Failed to load enrollments'));
+      showError(t('加载纳入记录失败'));
     } finally {
       setEnrollmentsLoading(false);
     }
@@ -251,13 +251,13 @@ const AutoGroup = () => {
 
   const submitRule = async () => {
     if (!ruleForm.name.trim()) {
-      return showError(t('Rule name is required'));
+      return showError(t('请输入规则名称'));
     }
     if (!ruleForm.target_group) {
-      return showError(t('Target group is required'));
+      return showError(t('请选择目标分组'));
     }
     if (!ruleForm.conditions.length) {
-      return showError(t('At least one condition is required'));
+      return showError(t('至少需要一个条件'));
     }
 
     setRuleSubmitting(true);
@@ -269,21 +269,21 @@ const AutoGroup = () => {
 
       let res;
       if (ruleForm.id) {
-        res = await API.put('/api/auto_group_rule/', payload);
+        res = await API.put(`/api/auto_group/rules/${payload.id}`, payload);
       } else {
-        res = await API.post('/api/auto_group_rule/', payload);
+        res = await API.post('/api/auto_group/rules', payload);
       }
 
       const { success, message } = res.data;
       if (success) {
-        showSuccess(ruleForm.id ? t('Rule updated successfully') : t('Rule created successfully'));
+        showSuccess(ruleForm.id ? t('规则更新成功') : t('规则创建成功'));
         setRuleSheetVisible(false);
         loadRules();
       } else {
-        showError(message || t('Failed to save rule'));
+        showError(message || t('保存规则失败'));
       }
     } catch {
-      showError(t('Failed to save rule'));
+      showError(t('保存规则失败'));
     } finally {
       setRuleSubmitting(false);
     }
@@ -291,20 +291,20 @@ const AutoGroup = () => {
 
   const deleteRule = (id) => {
     Modal.confirm({
-      title: t('Confirm Delete'),
-      content: t('Are you sure you want to delete this rule?'),
+      title: t('确认删除'),
+      content: t('确定要删除此规则吗？'),
       centered: true,
       onOk: async () => {
         try {
-          const res = await API.delete(`/api/auto_group_rule/${id}`);
+          const res = await API.delete(`/api/auto_group/rules/${id}`);
           if (res.data.success) {
-            showSuccess(t('Rule deleted successfully'));
+            showSuccess(t('规则删除成功'));
             loadRules();
           } else {
-            showError(res.data.message || t('Failed to delete rule'));
+            showError(res.data.message || t('删除规则失败'));
           }
         } catch {
-          showError(t('Failed to delete rule'));
+          showError(t('删除规则失败'));
         }
       },
     });
@@ -320,17 +320,17 @@ const AutoGroup = () => {
             ? record.conditions
             : JSON.stringify(record.conditions),
       };
-      const res = await API.put('/api/auto_group_rule/', payload);
+      const res = await API.put(`/api/auto_group/rules/${payload.id}`, payload);
       if (res.data.success) {
         showSuccess(
-          record.enabled ? t('Rule disabled successfully') : t('Rule enabled successfully'),
+          record.enabled ? t('规则已禁用') : t('规则已启用'),
         );
         loadRules();
       } else {
-        showError(res.data.message || t('Failed to update rule'));
+        showError(res.data.message || t('更新规则失败'));
       }
     } catch {
-      showError(t('Failed to update rule'));
+      showError(t('更新规则失败'));
     }
   };
 
@@ -340,29 +340,29 @@ const AutoGroup = () => {
 
   const submitEnroll = async () => {
     const raw = enrollUserIds.trim();
-    if (!raw) return showError(t('Please enter user IDs'));
+    if (!raw) return showError(t('请输入用户 ID'));
     const ids = raw
       .split(/[\s,]+/)
       .map((s) => parseInt(s, 10))
       .filter((n) => !isNaN(n) && n > 0);
-    if (!ids.length) return showError(t('No valid user IDs'));
+    if (!ids.length) return showError(t('没有有效的用户 ID'));
 
     setEnrollSubmitting(true);
     try {
-      const res = await API.post('/api/auto_group_enrollment/', { user_ids: ids });
+      const res = await API.post('/api/auto_group/enrollments', { user_ids: ids });
       const { success, message, data } = res.data;
       if (success) {
         showSuccess(
-          t('Enrolled {{count}} user(s)', { count: data?.count ?? ids.length }),
+          t('已纳入 {{count}} 个用户', { count: data?.count ?? ids.length }),
         );
         setEnrollVisible(false);
         setEnrollUserIds('');
         loadEnrollments();
       } else {
-        showError(message || t('Failed to enroll users'));
+        showError(message || t('纳入用户失败'));
       }
     } catch {
-      showError(t('Failed to enroll users'));
+      showError(t('纳入用户失败'));
     } finally {
       setEnrollSubmitting(false);
     }
@@ -370,22 +370,22 @@ const AutoGroup = () => {
 
   const unenroll = (record) => {
     Modal.confirm({
-      title: t('Confirm Unenroll'),
-      content: t('Unenroll user {{name}}? Their group will revert to the original group.', {
+      title: t('确认取消纳入'),
+      content: t('确定取消纳入用户 {{name}} 吗？其分组将恢复为原始分组。', {
         name: record.display_name || record.username || record.user_id,
       }),
       centered: true,
       onOk: async () => {
         try {
-          const res = await API.delete(`/api/auto_group_enrollment/${record.id}`);
+          const res = await API.delete(`/api/auto_group/enrollments/${record.id}`);
           if (res.data.success) {
-            showSuccess(t('User unenrolled successfully'));
+            showSuccess(t('已取消纳入'));
             loadEnrollments();
           } else {
-            showError(res.data.message || t('Failed to unenroll user'));
+            showError(res.data.message || t('取消纳入失败'));
           }
         } catch {
-          showError(t('Failed to unenroll user'));
+          showError(t('取消纳入失败'));
         }
       },
     });
@@ -394,15 +394,15 @@ const AutoGroup = () => {
   const triggerSweep = async () => {
     setSweeping(true);
     try {
-      const res = await API.post('/api/auto_group_enrollment/sweep');
+      const res = await API.post('/api/auto_group/sweep');
       if (res.data.success) {
-        showSuccess(t('Sweep triggered successfully'));
+        showSuccess(t('扫描已触发'));
         loadEnrollments();
       } else {
-        showError(res.data.message || t('Failed to trigger sweep'));
+        showError(res.data.message || t('触发扫描失败'));
       }
     } catch {
-      showError(t('Failed to trigger sweep'));
+      showError(t('触发扫描失败'));
     } finally {
       setSweeping(false);
     }
@@ -445,31 +445,31 @@ const AutoGroup = () => {
 
   const rulesColumns = [
     { title: 'ID', dataIndex: 'id', width: 60 },
-    { title: t('Name'), dataIndex: 'name', width: 160 },
+    { title: t('名称'), dataIndex: 'name', width: 160 },
     {
-      title: t('Priority'),
+      title: t('优先级'),
       dataIndex: 'priority',
       width: 80,
       render: (val) => <Tag>{val}</Tag>,
     },
     {
-      title: t('Target Group'),
+      title: t('目标分组'),
       dataIndex: 'target_group',
       width: 120,
       render: (val) => <Tag color="blue">{val || '-'}</Tag>,
     },
     {
-      title: t('Match Mode'),
+      title: t('匹配模式'),
       dataIndex: 'match_mode',
       width: 100,
       render: (val) => (
         <Tag color={val === 'all' ? 'green' : 'orange'}>
-          {val === 'all' ? t('All') : t('Any')}
+          {val === 'all' ? t('全部') : t('任一')}
         </Tag>
       ),
     },
     {
-      title: t('Conditions'),
+      title: t('条件'),
       dataIndex: 'conditions',
       render: (val) => (
         <Text ellipsis={{ showTooltip: true }} style={{ maxWidth: 300 }}>
@@ -478,7 +478,7 @@ const AutoGroup = () => {
       ),
     },
     {
-      title: t('Enabled'),
+      title: t('启用'),
       dataIndex: 'enabled',
       width: 80,
       render: (val, record) => (
@@ -490,21 +490,21 @@ const AutoGroup = () => {
       ),
     },
     {
-      title: t('Created At'),
+      title: t('创建时间'),
       dataIndex: 'created_at',
       width: 170,
       render: (val) => (val ? timestamp2string(val) : '-'),
     },
     {
-      title: t('Actions'),
+      title: t('操作'),
       width: 140,
       render: (_, record) => (
         <Space>
           <Button size="small" theme="light" onClick={() => openEditRule(record)}>
-            {t('Edit')}
+            {t('编辑')}
           </Button>
           <Button size="small" type="danger" theme="light" onClick={() => deleteRule(record.id)}>
-            {t('Delete')}
+            {t('删除')}
           </Button>
         </Space>
       ),
@@ -518,7 +518,7 @@ const AutoGroup = () => {
   const enrollmentsColumns = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     {
-      title: t('User'),
+      title: t('用户'),
       width: 160,
       render: (_, record) => (
         <span>
@@ -530,35 +530,35 @@ const AutoGroup = () => {
       ),
     },
     {
-      title: t('Original Group'),
+      title: t('原始分组'),
       dataIndex: 'original_group',
       width: 120,
       render: (val) => <Tag>{val || '-'}</Tag>,
     },
     {
-      title: t('Current Group'),
+      title: t('当前分组'),
       dataIndex: 'current_group',
       width: 120,
       render: (val) => <Tag color="blue">{val || '-'}</Tag>,
     },
     {
-      title: t('Rule ID'),
+      title: t('规则 ID'),
       dataIndex: 'current_rule_id',
       width: 80,
       render: (val) => (val ? <Tag>{val}</Tag> : '-'),
     },
     {
-      title: t('Enrolled At'),
+      title: t('纳入时间'),
       dataIndex: 'enrolled_at',
       width: 170,
       render: (val) => (val ? timestamp2string(val) : '-'),
     },
     {
-      title: t('Actions'),
+      title: t('操作'),
       width: 100,
       render: (_, record) => (
         <Button size="small" type="danger" theme="light" onClick={() => unenroll(record)}>
-          {t('Unenroll')}
+          {t('取消纳入')}
         </Button>
       ),
     },
@@ -572,10 +572,10 @@ const AutoGroup = () => {
     <div className="mt-[60px] px-2">
       <Tabs activeKey={activeTab} onChange={setActiveTab}>
         {/* ===================== Rules Tab ===================== */}
-        <TabPane tab={t('Rules')} itemKey="rules">
+        <TabPane tab={t('规则')} itemKey="rules">
           <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Input
-              placeholder={t('Search rules...')}
+              placeholder={t('搜索规则...')}
               value={rulesKeyword}
               onChange={(val) => {
                 setRulesKeyword(val);
@@ -585,7 +585,7 @@ const AutoGroup = () => {
               showClear
             />
             <Button theme="solid" onClick={openCreateRule}>
-              {t('Create Rule')}
+              {t('创建规则')}
             </Button>
           </div>
           <Table
@@ -600,15 +600,15 @@ const AutoGroup = () => {
               onPageChange: setRulesPage,
               showSizeChanger: false,
             }}
-            empty={<Empty description={t('No rules')} />}
+            empty={<Empty description={t('暂无规则')} />}
           />
         </TabPane>
 
         {/* ===================== Enrollments Tab ===================== */}
-        <TabPane tab={t('Enrollments')} itemKey="enrollments">
+        <TabPane tab={t('纳入记录')} itemKey="enrollments">
           <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Input
-              placeholder={t('Search enrollments...')}
+              placeholder={t('搜索纳入记录...')}
               value={enrollmentsKeyword}
               onChange={(val) => {
                 setEnrollmentsKeyword(val);
@@ -618,10 +618,10 @@ const AutoGroup = () => {
               showClear
             />
             <Button theme="solid" onClick={() => setEnrollVisible(true)}>
-              {t('Enroll Users')}
+              {t('纳入用户')}
             </Button>
             <Button loading={sweeping} onClick={triggerSweep}>
-              {t('Trigger Sweep')}
+              {t('触发扫描')}
             </Button>
           </div>
           <Table
@@ -636,14 +636,14 @@ const AutoGroup = () => {
               onPageChange: setEnrollmentsPage,
               showSizeChanger: false,
             }}
-            empty={<Empty description={t('No enrollments')} />}
+            empty={<Empty description={t('暂无纳入记录')} />}
           />
         </TabPane>
       </Tabs>
 
       {/* ===================== Rule Editor SideSheet ===================== */}
       <SideSheet
-        title={ruleForm.id ? t('Edit Rule') : t('Create Rule')}
+        title={ruleForm.id ? t('编辑规则') : t('创建规则')}
         visible={ruleSheetVisible}
         onCancel={() => setRuleSheetVisible(false)}
         width={560}
@@ -655,9 +655,9 @@ const AutoGroup = () => {
         }}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => setRuleSheetVisible(false)}>{t('Cancel')}</Button>
+            <Button onClick={() => setRuleSheetVisible(false)}>{t('取消')}</Button>
             <Button theme="solid" loading={ruleSubmitting} onClick={submitRule}>
-              {ruleForm.id ? t('Update') : t('Create')}
+              {ruleForm.id ? t('更新') : t('创建')}
             </Button>
           </div>
         }
@@ -666,37 +666,37 @@ const AutoGroup = () => {
           {/* Name */}
           <div>
             <Text strong style={{ marginBottom: 4, display: 'block' }}>
-              {t('Rule Name')}
+              {t('规则名称')}
             </Text>
             <Input
               value={ruleForm.name}
               onChange={(val) => updateField('name', val)}
-              placeholder={t('Enter rule name')}
+              placeholder={t('输入规则名称')}
             />
           </div>
 
           {/* Description */}
           <div>
             <Text strong style={{ marginBottom: 4, display: 'block' }}>
-              {t('Description')}
+              {t('描述')}
             </Text>
             <Input
               value={ruleForm.description}
               onChange={(val) => updateField('description', val)}
-              placeholder={t('Optional description')}
+              placeholder={t('可选描述')}
             />
           </div>
 
           {/* Target Group */}
           <div>
             <Text strong style={{ marginBottom: 4, display: 'block' }}>
-              {t('Target Group')}
+              {t('目标分组')}
             </Text>
             <Select
               value={ruleForm.target_group}
               onChange={(val) => updateField('target_group', val)}
               optionList={groupOptions}
-              placeholder={t('Select target group')}
+              placeholder={t('选择目标分组')}
               style={{ width: '100%' }}
               filter
               getPopupContainer={() => document.body}
@@ -707,7 +707,7 @@ const AutoGroup = () => {
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <div style={{ flex: 1 }}>
               <Text strong style={{ marginBottom: 4, display: 'block' }}>
-                {t('Priority')}
+                {t('优先级')}
               </Text>
               <InputNumber
                 value={ruleForm.priority}
@@ -719,7 +719,7 @@ const AutoGroup = () => {
             </div>
             <div>
               <Text strong style={{ marginBottom: 4, display: 'block' }}>
-                {t('Enabled')}
+                {t('启用')}
               </Text>
               <Switch
                 checked={ruleForm.enabled}
@@ -731,14 +731,14 @@ const AutoGroup = () => {
           {/* Match Mode */}
           <div>
             <Text strong style={{ marginBottom: 4, display: 'block' }}>
-              {t('Match Mode')}
+              {t('匹配模式')}
             </Text>
             <Select
               value={ruleForm.match_mode}
               onChange={(val) => updateField('match_mode', val)}
               optionList={[
-                { label: t('All conditions must match'), value: 'all' },
-                { label: t('Any condition matches'), value: 'any' },
+                { label: t('所有条件都需满足'), value: 'all' },
+                { label: t('任一条件满足'), value: 'any' },
               ]}
               style={{ width: '100%' }}
               getPopupContainer={() => document.body}
@@ -748,13 +748,13 @@ const AutoGroup = () => {
           {/* Conditions */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <Text strong>{t('Conditions')}</Text>
+              <Text strong>{t('条件')}</Text>
               <Button size="small" theme="light" onClick={addCondition}>
-                {t('Add Condition')}
+                {t('添加条件')}
               </Button>
             </div>
             {ruleForm.conditions.length === 0 && (
-              <Empty description={t('No conditions added')} style={{ padding: 16 }} />
+              <Empty description={t('暂无条件')} style={{ padding: 16 }} />
             )}
             {ruleForm.conditions.map((condition, index) => {
               const metricConfig = METRIC_MAP[condition.metric];
@@ -797,7 +797,7 @@ const AutoGroup = () => {
                       value={condition.param}
                       onChange={(val) => updateCondition(index, 'param', val)}
                       min={1}
-                      placeholder={t('Hours')}
+                      placeholder={t('小时')}
                       style={{ width: 90 }}
                       suffix="h"
                     />
@@ -809,7 +809,7 @@ const AutoGroup = () => {
                     onClick={() => removeCondition(index)}
                     disabled={ruleForm.conditions.length <= 1}
                   >
-                    {t('Remove')}
+                    {t('移除')}
                   </Button>
                 </div>
               );
@@ -820,15 +820,15 @@ const AutoGroup = () => {
 
       {/* ===================== Enroll Users Modal ===================== */}
       <Modal
-        title={t('Enroll Users')}
+        title={t('纳入用户')}
         visible={enrollVisible}
         onCancel={() => {
           setEnrollVisible(false);
           setEnrollUserIds('');
         }}
         onOk={submitEnroll}
-        okText={t('Enroll')}
-        cancelText={t('Cancel')}
+        okText={t('纳入')}
+        cancelText={t('取消')}
         confirmLoading={enrollSubmitting}
         centered
         bodyStyle={{
@@ -838,12 +838,12 @@ const AutoGroup = () => {
         }}
       >
         <div style={{ marginBottom: 8 }}>
-          <Text>{t('Enter user IDs separated by commas or spaces:')}</Text>
+          <Text>{t('请输入用户 ID，以逗号或空格分隔：')}</Text>
         </div>
         <Input
           value={enrollUserIds}
           onChange={setEnrollUserIds}
-          placeholder={t('e.g. 1, 2, 3')}
+          placeholder={t('例如 1, 2, 3')}
         />
       </Modal>
     </div>

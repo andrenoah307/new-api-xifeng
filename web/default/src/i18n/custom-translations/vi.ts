@@ -52,6 +52,9 @@ const vi: Record<string, string> = {
   'Operation failed': 'Thao tác thất bại',
   Save: 'Lưu',
   'Saving...': 'Đang lưu...',
+
+  // Auto Group
+  'Auto Group': 'Nhóm tự động',
 }
 
 export default vi
