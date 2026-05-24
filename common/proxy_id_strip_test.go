@@ -74,3 +74,35 @@ func TestStripProxyIdSuffixes(t *testing.T) {
 		})
 	}
 }
+
+func TestStripLocalRequestId(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "strips only request id",
+			input:    "error msg (request_ori_id: abc123) (request id: def456)",
+			expected: "error msg (request_ori_id: abc123)",
+		},
+		{
+			name:     "preserves traceid",
+			input:    "error msg （traceid: xyz789） (request id: def456)",
+			expected: "error msg （traceid: xyz789）",
+		},
+		{
+			name:     "no request id present",
+			input:    "error msg (request_ori_id: abc123)",
+			expected: "error msg (request_ori_id: abc123)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := StripLocalRequestId(tt.input)
+			if result != tt.expected {
+				t.Errorf("StripLocalRequestId(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}

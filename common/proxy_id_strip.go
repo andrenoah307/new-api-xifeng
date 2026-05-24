@@ -22,3 +22,8 @@ func StripProxyIdSuffixes(msg string) string {
 	}
 	return strings.TrimRight(msg, " ")
 }
+
+func StripLocalRequestId(msg string) string {
+	msg = proxyIdPatterns[0].regex.ReplaceAllString(msg, "")
+	return strings.TrimRight(msg, " ")
+}
