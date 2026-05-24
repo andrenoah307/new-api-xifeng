@@ -148,6 +148,11 @@ export type DataTablePageProps<TData> = {
   showPagination?: boolean
 
   /**
+   * Raw total row count from the API. Used by pagination to detect capped totals.
+   */
+  totalRows?: number
+
+  /**
    * Render pagination via `PageFooterPortal` (sticks to page footer).
    * Defaults to `true`. Set `false` to render inline below the table.
    */
@@ -221,11 +226,11 @@ export function DataTablePage<TData>(props: DataTablePageProps<TData>) {
       {props.showPagination !== false &&
         (props.paginationInFooter !== false ? (
           <PageFooterPortal>
-            <DataTablePagination table={props.table} />
+            <DataTablePagination table={props.table} totalRows={props.totalRows} />
           </PageFooterPortal>
         ) : (
           <div className='pt-2'>
-            <DataTablePagination table={props.table} />
+            <DataTablePagination table={props.table} totalRows={props.totalRows} />
           </div>
         ))}
     </>

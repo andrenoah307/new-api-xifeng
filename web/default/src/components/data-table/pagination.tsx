@@ -19,15 +19,19 @@ import {
 
 type DataTablePaginationProps<TData> = {
   table: Table<TData>
+  totalRows?: number
 }
 
 export function DataTablePagination<TData>({
   table,
+  totalRows,
 }: DataTablePaginationProps<TData>) {
   const { t } = useTranslation()
   const currentPage = table.getState().pagination.pageIndex + 1
   const totalPages = table.getPageCount()
   const pageNumbers = getPageNumbers(currentPage, totalPages)
+  const isCapped = totalRows != null && totalRows > 0 && totalRows % 1000 === 0
+  const displayTotal = isCapped ? `${totalPages}+` : String(totalPages)
 
   return (
     <div
@@ -41,7 +45,7 @@ export function DataTablePagination<TData>({
         <div className='flex min-w-0 items-center text-xs font-medium whitespace-nowrap sm:min-w-[130px] sm:text-sm @2xl/content:hidden'>
           {t('Page {{current}} of {{total}}', {
             current: currentPage,
-            total: totalPages,
+            total: displayTotal,
           })}
         </div>
         <div className='flex items-center gap-2 @max-2xl/content:flex-row-reverse'>
@@ -80,7 +84,7 @@ export function DataTablePagination<TData>({
         <div className='flex min-w-[130px] items-center text-sm font-medium whitespace-nowrap @max-3xl/content:hidden'>
           {t('Page {{current}} of {{total}}', {
             current: currentPage,
-            total: totalPages,
+            total: displayTotal,
           })}
         </div>
         <div className='flex items-center space-x-1.5 sm:space-x-2'>

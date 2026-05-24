@@ -440,13 +440,13 @@ func SetApiRouter(router *gin.Engine) {
 			discountCodeRoute.POST("/:id/cleanup", controller.CleanupDiscountCodePendingOrders)
 		}
 		logRoute := apiRouter.Group("/log")
-		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)
+		logRoute.GET("/", middleware.AdminAuth(), middleware.LogQueryRateLimit(), controller.GetAllLogs)
 		logRoute.DELETE("/", middleware.AdminAuth(), controller.DeleteHistoryLogs)
-		logRoute.GET("/stat", middleware.AdminAuth(), controller.GetLogsStat)
-		logRoute.GET("/self/stat", middleware.UserAuth(), controller.GetLogsSelfStat)
+		logRoute.GET("/stat", middleware.AdminAuth(), middleware.LogQueryRateLimit(), controller.GetLogsStat)
+		logRoute.GET("/self/stat", middleware.UserAuth(), middleware.LogQueryRateLimit(), controller.GetLogsSelfStat)
 		logRoute.GET("/channel_affinity_usage_cache", middleware.AdminAuth(), controller.GetChannelAffinityUsageCacheStats)
 		logRoute.GET("/search", middleware.AdminAuth(), controller.SearchAllLogs)
-		logRoute.GET("/self", middleware.UserAuth(), controller.GetUserLogs)
+		logRoute.GET("/self", middleware.UserAuth(), middleware.LogQueryRateLimit(), controller.GetUserLogs)
 		logRoute.GET("/self/search", middleware.UserAuth(), middleware.SearchRateLimit(), controller.SearchUserLogs)
 
 		dataRoute := apiRouter.Group("/data")

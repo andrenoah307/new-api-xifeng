@@ -961,7 +961,7 @@ func GetTicketUserProfile(c *gin.Context) {
 
 	recentLogs, _, logErr := model.GetUserLogs(
 		user.Id, model.LogTypeConsume, 0, 0, "", "",
-		0, ticketUserRecentLogLimit, "", "",
+		0, ticketUserRecentLogLimit, "", "", 1,
 	)
 	if logErr != nil {
 		common.SysLog(fmt.Sprintf("ticket user profile: failed to fetch recent logs for user %d: %s", user.Id, logErr.Error()))

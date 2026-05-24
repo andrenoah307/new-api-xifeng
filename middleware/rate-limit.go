@@ -204,3 +204,10 @@ func SearchRateLimit() func(c *gin.Context) {
 	}
 	return userRateLimitFactory(common.SearchRateLimitNum, common.SearchRateLimitDuration, "SR")
 }
+
+func LogQueryRateLimit() func(c *gin.Context) {
+	if !common.LogQueryRateLimitEnable {
+		return defNext
+	}
+	return userRateLimitFactory(common.LogQueryRateLimitNum, common.LogQueryRateLimitDuration, "LQ")
+}
