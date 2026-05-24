@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Button } from '@douyinfe/semi-ui';
+import { Button, Form, Select as SemiSelect } from '@douyinfe/semi-ui';
 import { RefreshCw, Search } from 'lucide-react';
 
 const DashboardHeader = ({
@@ -28,6 +28,12 @@ const DashboardHeader = ({
   refresh,
   loading,
   t,
+  isAdminUser,
+  inputs,
+  dataExportDefaultTime,
+  timeOptions,
+  handleInputChange,
+  handleSearchConfirm,
 }) => {
   const ICON_BUTTON_CLASS = 'text-white hover:bg-opacity-80 !rounded-full';
 
@@ -40,12 +46,46 @@ const DashboardHeader = ({
         {getGreeting}
       </h2>
       <div className='flex gap-3'>
-        <Button
-          type='tertiary'
-          icon={<Search size={16} />}
-          onClick={showSearchModal}
-          className={`bg-green-500 hover:bg-green-600 ${ICON_BUTTON_CLASS}`}
-        />
+        {isAdminUser ? (
+          <Button
+            type='tertiary'
+            icon={<Search size={16} />}
+            onClick={showSearchModal}
+            className={`bg-green-500 hover:bg-green-600 ${ICON_BUTTON_CLASS}`}
+          />
+        ) : (
+          <div className='flex items-center gap-2 flex-wrap'>
+            <Form.DatePicker
+              type='dateTime'
+              density='compact'
+              value={inputs.start_timestamp}
+              onChange={(value) => handleInputChange(value, 'start_timestamp')}
+              placeholder={t('起始时间')}
+              style={{ width: 175 }}
+            />
+            <Form.DatePicker
+              type='dateTime'
+              density='compact'
+              value={inputs.end_timestamp}
+              onChange={(value) => handleInputChange(value, 'end_timestamp')}
+              placeholder={t('结束时间')}
+              style={{ width: 175 }}
+            />
+            <SemiSelect
+              value={dataExportDefaultTime}
+              optionList={timeOptions}
+              onChange={(value) => handleInputChange(value, 'data_export_default_time')}
+              style={{ width: 110 }}
+              size='small'
+            />
+            <Button
+              type='tertiary'
+              icon={<Search size={16} />}
+              onClick={handleSearchConfirm}
+              className={`bg-green-500 hover:bg-green-600 ${ICON_BUTTON_CLASS}`}
+            />
+          </div>
+        )}
         <Button
           type='tertiary'
           icon={<RefreshCw size={16} />}
