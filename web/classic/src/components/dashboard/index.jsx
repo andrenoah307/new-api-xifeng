@@ -160,6 +160,12 @@ const Dashboard = () => {
         refresh={handleRefresh}
         loading={dashboardData.loading}
         t={dashboardData.t}
+        isAdminUser={dashboardData.isAdminUser}
+        inputs={dashboardData.inputs}
+        dataExportDefaultTime={dashboardData.dataExportDefaultTime}
+        timeOptions={dashboardData.timeOptions}
+        handleInputChange={dashboardData.handleInputChange}
+        handleSearchConfirm={handleSearchConfirm}
       />
 
       {/* Vague risk-warning modal — shown once per fresh enforce decision. */}
