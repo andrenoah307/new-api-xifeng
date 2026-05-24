@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -105,6 +106,9 @@ func GetLogsStat(c *gin.Context) {
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	if startTimestamp == 0 {
+		startTimestamp = time.Now().AddDate(0, 0, -30).Unix()
+	}
 	tokenName := c.Query("token_name")
 	username := c.Query("username")
 	modelName := c.Query("model_name")
@@ -133,6 +137,9 @@ func GetLogsSelfStat(c *gin.Context) {
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	if startTimestamp == 0 {
+		startTimestamp = time.Now().AddDate(0, 0, -30).Unix()
+	}
 	tokenName := c.Query("token_name")
 	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
