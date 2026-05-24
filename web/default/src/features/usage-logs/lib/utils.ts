@@ -146,14 +146,16 @@ export function buildBaseParams(config: {
   pageSize: number
   searchParams: Record<string, unknown>
   useMilliseconds?: boolean
+  totalCount?: number
 }): {
   p: number
   page_size: number
   channel_id?: string
   start_timestamp?: number
   end_timestamp?: number
+  total_count?: number
 } {
-  const { page, pageSize, searchParams, useMilliseconds = false } = config
+  const { page, pageSize, searchParams, useMilliseconds = false, totalCount } = config
 
   return {
     p: page,
@@ -164,6 +166,9 @@ export function buildBaseParams(config: {
         }
       : {}),
     ...buildTimeRangeParams(searchParams, useMilliseconds),
+    ...(totalCount && totalCount > 0 && Number.isFinite(totalCount)
+      ? { total_count: totalCount }
+      : {}),
   }
 }
 
@@ -176,8 +181,9 @@ export function buildApiParams(config: {
   searchParams: Record<string, unknown>
   columnFilters?: Array<{ id: string; value: unknown }>
   isAdmin: boolean
+  totalCount?: number
 }): GetLogsParams {
-  const { page, pageSize, searchParams, columnFilters = [], isAdmin } = config
+  const { page, pageSize, searchParams, columnFilters = [], isAdmin, totalCount } = config
 
   // Helper to process type parameter (single value from array)
   const processType = (value: unknown): number | undefined => {
@@ -216,6 +222,9 @@ export function buildApiParams(config: {
       ? { upstream_request_id: String(searchParams.upstreamRequestId) }
       : {}),
     ...buildTimeRangeParams(searchParams, false),
+    ...(totalCount && totalCount > 0 && Number.isFinite(totalCount)
+      ? { total_count: totalCount }
+      : {}),
   }
 
   // Override with column filters if present
@@ -259,7 +268,7 @@ export function buildApiParams(config: {
 export async function fetchLogsByCategory(
   config: FetchLogsConfig
 ): Promise<GetLogsResponse> {
-  const { logCategory, isAdmin, page, pageSize, searchParams, columnFilters } =
+  const { logCategory, isAdmin, page, pageSize, searchParams, columnFilters, totalCount } =
     config
 
   if (logCategory === 'common') {
@@ -269,6 +278,7 @@ export async function fetchLogsByCategory(
       searchParams,
       columnFilters,
       isAdmin,
+      totalCount,
     })
     return isAdmin ? await getAllLogs(params) : await getUserLogs(params)
   }
@@ -279,6 +289,7 @@ export async function fetchLogsByCategory(
     pageSize,
     searchParams,
     useMilliseconds: logCategory === 'drawing',
+    totalCount,
   })
 
   const paramsWithFilter = {

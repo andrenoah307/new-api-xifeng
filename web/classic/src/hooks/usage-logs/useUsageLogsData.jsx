@@ -726,7 +726,7 @@ export const useLogsData = () => {
   };
 
   // Load logs function
-  const loadLogs = async (startIdx, pageSize, customLogType = null) => {
+  const loadLogs = async (startIdx, pageSize, customLogType = null, skipCount = false) => {
     setLoading(true);
 
     let url = '';
@@ -756,6 +756,9 @@ export const useLogsData = () => {
     } else {
       url = `/api/log/self/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&request_id=${request_id}`;
     }
+    if (skipCount && logCount > 0 && Number.isFinite(logCount)) {
+      url += `&total_count=${logCount}`;
+    }
     url = encodeURI(url);
     const res = await API.get(url);
     const { success, message, data } = res.data;
@@ -775,7 +778,7 @@ export const useLogsData = () => {
   // Page handlers
   const handlePageChange = (page) => {
     setActivePage(page);
-    loadLogs(page, pageSize).then((r) => {});
+    loadLogs(page, pageSize, null, true).then((r) => {});
   };
 
   const handlePageSizeChange = async (size) => {

@@ -276,6 +276,14 @@ var (
 	SearchRateLimitEnable         = true
 	SearchRateLimitNum            = 10
 	SearchRateLimitDuration int64 = 60
+
+	// Log query count cap — limits COUNT(*) scan to this many rows for performance.
+	// Configurable via LOG_SEARCH_COUNT_LIMIT env var.
+	LogSearchCountLimit = 1000
+
+	LogQueryRateLimitEnable         = true
+	LogQueryRateLimitNum            = 20
+	LogQueryRateLimitDuration int64 = 60
 )
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute
