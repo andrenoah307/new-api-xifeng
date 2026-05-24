@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import {
@@ -42,6 +42,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const isAdmin = useIsAdmin()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
+
+  const lastTotalRef = useRef(0)
+  const lastFiltersRef = useRef('')
 
   const {
     columnFilters,
@@ -88,6 +91,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       t,
     ],
     queryFn: async () => {
+      const currentFilters = JSON.stringify({ searchParams, columnFilters, logCategory })
+      const totalCount = currentFilters === lastFiltersRef.current ? lastTotalRef.current : 0
+
       const result = await fetchLogsByCategory({
         logCategory,
         isAdmin,
@@ -95,6 +101,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
         pageSize: pagination.pageSize,
         searchParams,
         columnFilters,
+        totalCount,
       })
 
       if (!result?.success) {
@@ -115,6 +122,13 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const logs = data?.items || []
   const columns = useColumnsByCategory(logCategory, isAdmin)
   const isLoadingData = isLoading || (isFetching && !data)
+
+  useEffect(() => {
+    if (data?.total != null) {
+      lastTotalRef.current = data.total
+      lastFiltersRef.current = JSON.stringify({ searchParams, columnFilters, logCategory })
+    }
+  }, [data?.total, searchParams, columnFilters, logCategory])
 
   const table = useReactTable({
     data: logs as Record<string, unknown>[],
@@ -149,6 +163,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       columns={columns as ColumnDef<Record<string, unknown>>[]}
       isLoading={isLoadingData}
       isFetching={isFetching}
+      totalRows={data?.total}
       emptyTitle={t('No Logs Found')}
       emptyDescription={t(
         'No usage logs available. Logs will appear here once API calls are made.'

@@ -249,6 +249,7 @@ export interface GetLogsParams {
   channel?: number
   group?: string
   request_id?: string
+  total_count?: number
 }
 
 export interface GetLogsResponse {
@@ -291,6 +292,7 @@ export interface GetMidjourneyLogsParams {
   mj_id?: string
   start_timestamp?: number
   end_timestamp?: number
+  total_count?: number
 }
 
 // ============================================================================
@@ -304,6 +306,7 @@ export interface GetTaskLogsParams {
   task_id?: string
   start_timestamp?: number
   end_timestamp?: number
+  total_count?: number
 }
 
 // ============================================================================
@@ -320,6 +323,7 @@ export interface FetchLogsConfig {
   pageSize: number
   searchParams: Record<string, unknown>
   columnFilters: Array<{ id: string; value: unknown }>
+  totalCount?: number
 }
 
 // ============================================================================

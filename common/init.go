@@ -131,6 +131,12 @@ func InitEnv() {
 	SearchRateLimitEnable = GetEnvOrDefaultBool("SEARCH_RATE_LIMIT_ENABLE", true)
 	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
 	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
+
+	LogQueryRateLimitEnable = GetEnvOrDefaultBool("LOG_QUERY_RATE_LIMIT_ENABLE", true)
+	LogQueryRateLimitNum = GetEnvOrDefault("LOG_QUERY_RATE_LIMIT", 20)
+	LogQueryRateLimitDuration = int64(GetEnvOrDefault("LOG_QUERY_RATE_LIMIT_DURATION", 60))
+
+	LogSearchCountLimit = GetEnvOrDefault("LOG_SEARCH_COUNT_LIMIT", 1000)
 	initConstantEnv()
 }
 
