@@ -23,33 +23,33 @@ export async function getRules(
     page_size: String(page_size),
   })
   if (keyword) qs.set('keyword', keyword)
-  const res = await api.get(`/api/auto_group_rule/?${qs.toString()}`)
+  const res = await api.get(`/api/auto_group/rules?${qs.toString()}`)
   return res.data
 }
 
 export async function getRule(
   id: number
 ): Promise<ApiResponse<AutoGroupRule>> {
-  const res = await api.get(`/api/auto_group_rule/${id}`)
+  const res = await api.get(`/api/auto_group/rules/${id}`)
   return res.data
 }
 
 export async function createRule(
   data: RuleFormData
 ): Promise<ApiResponse<AutoGroupRule>> {
-  const res = await api.post('/api/auto_group_rule/', data)
+  const res = await api.post('/api/auto_group/rules', data)
   return res.data
 }
 
 export async function updateRule(
   data: RuleFormData & { id: number }
 ): Promise<ApiResponse<AutoGroupRule>> {
-  const res = await api.put('/api/auto_group_rule/', data)
+  const res = await api.put(`/api/auto_group/rules/${data.id}`, data)
   return res.data
 }
 
 export async function deleteRule(id: number): Promise<ApiResponse> {
-  const res = await api.delete(`/api/auto_group_rule/${id}`)
+  const res = await api.delete(`/api/auto_group/rules/${id}`)
   return res.data
 }
 
@@ -66,14 +66,14 @@ export async function getEnrollments(
     page_size: String(page_size),
   })
   if (keyword) qs.set('keyword', keyword)
-  const res = await api.get(`/api/auto_group_enrollment/?${qs.toString()}`)
+  const res = await api.get(`/api/auto_group/enrollments?${qs.toString()}`)
   return res.data
 }
 
 export async function enrollUsers(
   userIds: number[]
 ): Promise<ApiResponse<{ created: number; count: number; errors?: string[] }>> {
-  const res = await api.post('/api/auto_group_enrollment/', {
+  const res = await api.post('/api/auto_group/enrollments', {
     user_ids: userIds,
   })
   return res.data
@@ -82,7 +82,7 @@ export async function enrollUsers(
 export async function unenrollUser(
   id: number
 ): Promise<ApiResponse<AutoGroupEnrollment>> {
-  const res = await api.delete(`/api/auto_group_enrollment/${id}`)
+  const res = await api.delete(`/api/auto_group/enrollments/${id}`)
   return res.data
 }
 
@@ -91,6 +91,6 @@ export async function unenrollUser(
 // ============================================================================
 
 export async function triggerSweep(): Promise<ApiResponse> {
-  const res = await api.post('/api/auto_group_enrollment/sweep')
+  const res = await api.post('/api/auto_group/sweep')
   return res.data
 }

@@ -52,6 +52,9 @@ const ja: Record<string, string> = {
   'Operation failed': '操作失敗',
   Save: '保存',
   'Saving...': '保存中...',
+
+  // Auto Group
+  'Auto Group': '自動グループ',
 }
 
 export default ja
