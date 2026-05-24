@@ -445,7 +445,7 @@ export default function SettingsGroupMonitoring(props) {
                     setInputs({
                       ...inputs,
                       'group_monitoring_setting.availability_exclude_status_codes':
-                        arrayToString(val),
+                        JSON.stringify(val.map(v => parseInt(v, 10) || 0).filter(n => n > 0)),
                     })
                   }
                   placeholder={t('输入状态码后回车，如 400、503')}

@@ -79,7 +79,13 @@ export function computeRateFromHistory(
       (h[field] as number) >= 0
   )
   if (valid.length === 0) return null
-  return valid.reduce((s, h) => s + (h[field] as number), 0) / valid.length
+  const totalRequests = valid.reduce((s, h) => s + (h.request_count as number), 0)
+  if (totalRequests === 0) return null
+  const weightedSum = valid.reduce(
+    (s, h) => s + (h[field] as number) * (h.request_count as number),
+    0
+  )
+  return weightedSum / totalRequests
 }
 
 export type SortMode = 'status' | 'name' | 'availability'

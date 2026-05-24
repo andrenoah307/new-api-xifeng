@@ -124,7 +124,7 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
         },
         {
           key: PREFIX + 'availability_exclude_status_codes',
-          value: JSON.stringify(excludeStatusCodes),
+          value: JSON.stringify(excludeStatusCodes.map(s => parseInt(s, 10) || 0).filter(n => n > 0)),
         },
         {
           key: PREFIX + 'cache_tokens_separate_groups',

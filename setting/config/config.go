@@ -263,7 +263,23 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 			field.Set(fresh.Elem())
 		case reflect.Slice, reflect.Struct:
 			err := json.Unmarshal([]byte(strValue), field.Addr().Interface())
-			if err != nil {
+			if err != nil && field.Kind() == reflect.Slice {
+				elemKind := field.Type().Elem().Kind()
+				if elemKind >= reflect.Int && elemKind <= reflect.Int64 {
+					var strSlice []string
+					if json.Unmarshal([]byte(strValue), &strSlice) == nil && len(strSlice) > 0 {
+						result := reflect.MakeSlice(field.Type(), 0, len(strSlice))
+						for _, s := range strSlice {
+							if iv, parseErr := strconv.ParseInt(strings.TrimSpace(s), 10, 64); parseErr == nil {
+								result = reflect.Append(result, reflect.ValueOf(iv).Convert(field.Type().Elem()))
+							}
+						}
+						if result.Len() > 0 {
+							field.Set(result)
+						}
+					}
+				}
+			} else if err != nil {
 				continue
 			}
 		}
