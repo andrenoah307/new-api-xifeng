@@ -1,5 +1,6 @@
 import { parseCurrencyDisplayType } from '@/lib/currency'
 import { CheckinSettingsSection } from '../general/checkin-settings-section'
+import { DiscountCodeSettingsSection } from './discount-code-settings-section'
 import { PricingSection } from '../general/pricing-section'
 import { QuotaSettingsSection } from '../general/quota-settings-section'
 import { PaymentSettingsSection } from '../integrations/payment-settings-section'
@@ -187,6 +188,18 @@ const BILLING_SECTIONS = [
           enabled: settings['checkin_setting.enabled'],
           minQuota: settings['checkin_setting.min_quota'],
           maxQuota: settings['checkin_setting.max_quota'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'discount-code',
+    titleKey: 'Discount Code',
+    descriptionKey: 'Configure discount code feature for user wallet',
+    build: (settings: BillingSettings) => (
+      <DiscountCodeSettingsSection
+        defaultValues={{
+          enabled: settings['discount_code_setting.enabled'],
         }}
       />
     ),

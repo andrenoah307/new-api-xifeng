@@ -660,6 +660,15 @@ const zh: Record<string, string> = {
   'Unenrolling...': '取消中...',
   'Trigger Sweep': '触发扫描',
   'Sweeping...': '扫描中...',
+
+  // Discount Code
+  'Discount Code': '折扣码',
+  'Discount Code Settings': '折扣码设置',
+  'Configure discount code feature for user wallet recharge': '配置用户钱包充值的折扣码功能',
+  'Configure discount code feature for user wallet': '配置用户钱包折扣码功能',
+  'Enable discount code': '启用折扣码',
+  'Allow users to use discount codes when recharging their wallet': '允许用户在充值钱包时使用折扣码',
+  'Save discount code settings': '保存折扣码设置',
 }
 
 export default zh

@@ -119,6 +119,7 @@ func GetStatus(c *gin.Context) {
 		"user_agreement_enabled":                legalSetting.UserAgreement != "",
 		"privacy_policy_enabled":                legalSetting.PrivacyPolicy != "",
 		"checkin_enabled":                       operation_setting.GetCheckinSetting().Enabled,
+		"discount_code_enabled":                 operation_setting.GetDiscountCodeSetting().Enabled,
 		"invitation_code_enabled":               common.InvitationCodeEnabled,
 		"invitation_code_oauth_required":        common.InvitationCodeOAuthRequired,
 		"invitation_code_user_generate_enabled": common.InvitationCodeUserGenerateEnabled,

@@ -55,6 +55,7 @@ const { Text } = Typography;
 
 const RechargeCard = ({
   t,
+  discountCodeEnabled,
   enableOnlineTopUp,
   enableStripeTopUp,
   enableCreemTopUp,
@@ -580,7 +581,8 @@ const RechargeCard = ({
               )}
 
               {/* 折扣码输入区域 */}
-              {(enableOnlineTopUp ||
+              {discountCodeEnabled &&
+                (enableOnlineTopUp ||
                 enableStripeTopUp ||
                 enableWaffoTopUp ||
                 enableWaffoPancakeTopUp) && (
