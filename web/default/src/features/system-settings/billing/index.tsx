@@ -110,6 +110,7 @@ const defaultBillingSettings: BillingSettings = {
   'checkin_setting.enabled': false,
   'checkin_setting.min_quota': 1000,
   'checkin_setting.max_quota': 10000,
+  'discount_code_setting.enabled': false,
 }
 
 export function BillingSettings() {

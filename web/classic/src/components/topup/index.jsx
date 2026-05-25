@@ -993,6 +993,7 @@ const TopUp = () => {
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         <RechargeCard
           t={t}
+          discountCodeEnabled={statusState?.status?.discount_code_enabled}
           enableOnlineTopUp={enableOnlineTopUp}
           enableStripeTopUp={enableStripeTopUp}
           enableCreemTopUp={enableCreemTopUp}

@@ -58,6 +58,10 @@ func (*StripeAdaptor) RequestAmount(c *gin.Context, req *StripePayRequest) {
 	}
 	payMoney := getStripePayMoney(float64(req.Amount), group)
 	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
 		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
@@ -102,6 +106,10 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 
 	var discountCodeId int
 	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
 		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})

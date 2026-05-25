@@ -329,11 +329,13 @@ export function Wallet(props: WalletProps) {
                   enableWaffoPancakeTopup={
                     topupInfo?.enable_waffo_pancake_topup
                   }
-                  discountCode={discountCodeInput}
-                  onDiscountCodeChange={setDiscountCodeInput}
-                  onValidateDiscountCode={handleValidateDiscount}
-                  discountValidating={discountValidating}
-                  discountInfo={discountInfo}
+                  {...(status?.discount_code_enabled ? {
+                    discountCode: discountCodeInput,
+                    onDiscountCodeChange: setDiscountCodeInput,
+                    onValidateDiscountCode: handleValidateDiscount,
+                    discountValidating: discountValidating,
+                    discountInfo: discountInfo,
+                  } : {})}
                   selectedPaymentMethodType={selectedPaymentMethod?.type}
                 />
               </div>
