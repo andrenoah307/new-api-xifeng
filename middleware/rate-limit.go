@@ -209,7 +209,25 @@ func LogQueryRateLimit() func(c *gin.Context) {
 	if !common.LogQueryRateLimitEnable {
 		return defNext
 	}
-	return userRateLimitFactory(common.LogQueryRateLimitNum, common.LogQueryRateLimitDuration, "LQ")
+	limiter := userRateLimitFactory(common.LogQueryRateLimitNum, common.LogQueryRateLimitDuration, "LQ")
+	return func(c *gin.Context) {
+		if c.GetInt("role") >= common.RoleAdminUser {
+			c.Next()
+			return
+		}
+		limiter(c)
+	}
+}
+
+func LogExportRateLimit() func(c *gin.Context) {
+	limiter := userRateLimitFactory(3, 60, "LE")
+	return func(c *gin.Context) {
+		if c.GetInt("role") >= common.RoleAdminUser {
+			c.Next()
+			return
+		}
+		limiter(c)
+	}
 }
 
 func DashboardDataRateLimit() func(c *gin.Context) {

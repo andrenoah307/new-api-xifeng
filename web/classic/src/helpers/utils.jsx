@@ -1039,6 +1039,7 @@ export const createCardProPagination = ({
   onPageChange,
   onPageSizeChange,
   isMobile = false,
+  isAdmin = false,
   pageSizeOpts = [10, 20, 50, 100],
   showSizeChanger = true,
   t = (key) => key,
@@ -1048,7 +1049,7 @@ export const createCardProPagination = ({
   const start = (currentPage - 1) * pageSize + 1;
   const end = Math.min(currentPage * pageSize, total);
   const LOG_COUNT_LIMIT = 1000;
-  const totalDisplay = total >= LOG_COUNT_LIMIT ? `${LOG_COUNT_LIMIT}+` : `${total}`;
+  const totalDisplay = !isAdmin && total >= LOG_COUNT_LIMIT ? `${LOG_COUNT_LIMIT}+` : `${total}`;
   const totalText = `${t('显示第')} ${start} ${t('条 - 第')} ${end} ${t('条，共')} ${totalDisplay} ${t('条')}`;
 
   return (
