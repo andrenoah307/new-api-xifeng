@@ -54,6 +54,7 @@ const LogsPage = () => {
           onPageChange: logsData.handlePageChange,
           onPageSizeChange: logsData.handlePageSizeChange,
           isMobile: isMobile,
+          isAdmin: logsData.isAdminUser,
           t: logsData.t,
         })}
         t={logsData.t}

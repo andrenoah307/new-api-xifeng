@@ -665,6 +665,11 @@ const en = {
   'Enable discount code': 'Enable discount code',
   'Allow users to use discount codes when recharging their wallet': 'Allow users to use discount codes when recharging their wallet',
   'Save discount code settings': 'Save discount code settings',
+
+  // Log Export
+  'Export Logs': 'Export Logs',
+  'Export failed': 'Export failed',
+  'Export rate limit exceeded, please try again later': 'Export rate limit exceeded, please try again later',
 } as const
 
 export default en

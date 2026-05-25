@@ -32,6 +32,8 @@ const LogsFilters = ({
   setLogType,
   loading,
   isAdminUser,
+  handleExport,
+  exporting,
   t,
 }) => {
   return (
@@ -182,6 +184,14 @@ const LogsFilters = ({
               size='small'
             >
               {t('列设置')}
+            </Button>
+            <Button
+              type='tertiary'
+              onClick={handleExport}
+              loading={exporting}
+              size='small'
+            >
+              {t('导出日志')}
             </Button>
           </div>
         </div>
