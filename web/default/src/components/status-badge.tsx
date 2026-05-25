@@ -74,8 +74,8 @@ export const textColorMap = {
 export type StatusVariant = keyof typeof dotColorMap
 
 const sizeMap = {
-  sm: 'h-6 gap-1 px-2 text-sm leading-none',
-  md: 'h-6 gap-1 px-2 text-sm leading-none',
+  sm: 'h-5 gap-1 px-2 text-xs leading-none',
+  md: 'h-6 gap-1 px-2 text-xs leading-none',
   lg: 'h-7 gap-1.5 px-2.5 text-sm leading-none',
 } as const
 
@@ -168,7 +168,7 @@ export function StatusBadge({
       title={copyable ? `Click to copy: ${copyText || label || ''}` : undefined}
       {...props}
     >
-      {Icon && <Icon className='size-3.5 shrink-0' />}
+      {Icon && <Icon className='size-3 shrink-0' />}
       {content}
     </span>
   )
