@@ -656,6 +656,15 @@ const en = {
   'Unenrolling...': 'Unenrolling...',
   'Trigger Sweep': 'Trigger Sweep',
   'Sweeping...': 'Sweeping...',
+
+  // Discount Code
+  'Discount Code': 'Discount Code',
+  'Discount Code Settings': 'Discount Code Settings',
+  'Configure discount code feature for user wallet recharge': 'Configure discount code feature for user wallet recharge',
+  'Configure discount code feature for user wallet': 'Configure discount code feature for user wallet',
+  'Enable discount code': 'Enable discount code',
+  'Allow users to use discount codes when recharging their wallet': 'Allow users to use discount codes when recharging their wallet',
+  'Save discount code settings': 'Save discount code settings',
 } as const
 
 export default en

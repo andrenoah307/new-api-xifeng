@@ -122,6 +122,10 @@ func RequestWaffoAmount(c *gin.Context) {
 
 	payMoney := getWaffoPayMoney(float64(req.Amount), group)
 	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
 		dc, err := model.ValidateDiscountCode(req.DiscountCode, c.GetInt("id"))
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
@@ -203,6 +207,10 @@ func RequestWaffoPay(c *gin.Context) {
 
 	var discountCodeId int
 	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
 		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})

@@ -7,6 +7,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -190,6 +191,10 @@ func UpdateDiscountCode(c *gin.Context) {
 }
 
 func ValidateUserDiscountCode(c *gin.Context) {
+	if !operation_setting.IsDiscountCodeEnabled() {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "折扣码功能未启用"})
+		return
+	}
 	var req struct {
 		Code string `json:"code"`
 	}
