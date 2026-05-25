@@ -56,7 +56,7 @@ export const getInitialTimestamp = () => {
     case 'hour':
       return timestamp2string(now - 86400);
     case 'week':
-      return timestamp2string(now - 86400 * 30);
+      return timestamp2string(now - 86400 * 7);
     default:
       return timestamp2string(now - 86400 * 7);
   }
