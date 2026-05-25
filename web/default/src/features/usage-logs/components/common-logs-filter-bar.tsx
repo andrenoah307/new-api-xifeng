@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
+import { Download } from 'lucide-react'
+import { toast } from 'sonner'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
 import { type Table } from '@tanstack/react-table'
@@ -21,6 +23,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { DataTableToolbar } from '@/components/data-table'
+import { getLogExportUrl } from '../api'
 import { LOG_TYPES } from '../constants'
 import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
@@ -139,6 +142,40 @@ export function CommonLogsFilterBar<TData>(
     [handleApply]
   )
 
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = useCallback(async () => {
+    setExporting(true)
+    try {
+      const params = buildSearchParams(filters, 'common')
+      const exportParams: Record<string, unknown> = { ...params }
+      if (logType) exportParams.type = logType
+      const url = getLogExportUrl(exportParams, isAdmin)
+      const response = await fetch(url, { credentials: 'include' })
+      if (response.status === 429) {
+        toast.error(t('Export rate limit exceeded, please try again later'))
+        return
+      }
+      if (!response.ok) {
+        toast.error(t('Export failed'))
+        return
+      }
+      const blob = await response.blob()
+      const downloadUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = `logs_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(downloadUrl)
+    } catch {
+      toast.error(t('Export failed'))
+    } finally {
+      setExporting(false)
+    }
+  }, [filters, logType, isAdmin, t])
+
   const hasExpandedFilters =
     !!filters.token ||
     !!filters.username ||
@@ -154,6 +191,23 @@ export function CommonLogsFilterBar<TData>(
   const statsBar = (
     <div className='flex flex-wrap items-center gap-2'>
       <CommonLogsStats />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant='ghost'
+              size='icon'
+              onClick={handleExport}
+              disabled={exporting}
+              aria-label={t('Export Logs')}
+              className='text-muted-foreground hover:text-foreground size-7'
+            />
+          }
+        >
+          <Download className={exporting ? 'animate-pulse' : ''} />
+        </TooltipTrigger>
+        <TooltipContent>{t('Export Logs')}</TooltipContent>
+      </Tooltip>
       <Tooltip>
         <TooltipTrigger
           render={

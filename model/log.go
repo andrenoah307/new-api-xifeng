@@ -321,14 +321,13 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
+func buildAllLogsQuery(logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId string) *gorm.DB {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
 	} else {
 		tx = LOG_DB.Where("logs.type = ?", logType)
 	}
-
 	if modelName != "" {
 		tx = tx.Where("logs.model_name like ?", modelName)
 	}
@@ -353,79 +352,20 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	if group != "" {
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
 	}
-	if cachedTotal > 0 {
-		total = cachedTotal
-	} else {
-		subQ := tx.Session(&gorm.Session{}).Model(&Log{}).Select("1").Limit(common.LogSearchCountLimit + 1)
-		err = LOG_DB.Table("(?) AS t", subQ).Count(&total).Error
-		if err != nil {
-			return nil, 0, err
-		}
-		if total > int64(common.LogSearchCountLimit) {
-			total = int64(common.LogSearchCountLimit)
-		}
-	}
-	err = tx.Order("logs.id desc").Limit(num).Offset(startIdx).Find(&logs).Error
-	if err != nil {
-		return nil, 0, err
-	}
-
-	channelIds := types.NewSet[int]()
-	for _, log := range logs {
-		if log.ChannelId != 0 {
-			channelIds.Add(log.ChannelId)
-		}
-	}
-
-	if channelIds.Len() > 0 {
-		var channels []struct {
-			Id   int    `gorm:"column:id"`
-			Name string `gorm:"column:name"`
-		}
-		if common.MemoryCacheEnabled {
-			// Cache get channel
-			for _, channelId := range channelIds.Items() {
-				if cacheChannel, err := CacheGetChannel(channelId); err == nil {
-					channels = append(channels, struct {
-						Id   int    `gorm:"column:id"`
-						Name string `gorm:"column:name"`
-					}{
-						Id:   channelId,
-						Name: cacheChannel.Name,
-					})
-				}
-			}
-		} else {
-			// Bulk query channels from DB
-			if err = DB.Table("channels").Select("id, name").Where("id IN ?", channelIds.Items()).Find(&channels).Error; err != nil {
-				return logs, total, err
-			}
-		}
-		channelMap := make(map[int]string, len(channels))
-		for _, channel := range channels {
-			channelMap[channel.Id] = channel.Name
-		}
-		for i := range logs {
-			logs[i].ChannelName = channelMap[logs[i].ChannelId]
-		}
-	}
-
-	return logs, total, err
+	return tx
 }
 
-
-func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
+func buildUserLogsQuery(userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId string) *gorm.DB {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB.Where("logs.user_id = ?", userId)
 	} else {
 		tx = LOG_DB.Where("logs.user_id = ? and logs.type = ?", userId, logType)
 	}
-
 	if modelName != "" {
 		modelNamePattern, err := sanitizeLikePattern(modelName)
 		if err != nil {
-			return nil, 0, err
+			return tx.Where("1 = 0")
 		}
 		tx = tx.Where("logs.model_name LIKE ? ESCAPE '!'", modelNamePattern)
 	}
@@ -444,6 +384,72 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 	if group != "" {
 		tx = tx.Where("logs."+logGroupCol+" = ?", group)
 	}
+	return tx
+}
+
+func resolveChannelNames(logs []*Log) {
+	channelIds := types.NewSet[int]()
+	for _, log := range logs {
+		if log.ChannelId != 0 {
+			channelIds.Add(log.ChannelId)
+		}
+	}
+	if channelIds.Len() == 0 {
+		return
+	}
+	var channels []struct {
+		Id   int    `gorm:"column:id"`
+		Name string `gorm:"column:name"`
+	}
+	if common.MemoryCacheEnabled {
+		for _, channelId := range channelIds.Items() {
+			if cacheChannel, err := CacheGetChannel(channelId); err == nil {
+				channels = append(channels, struct {
+					Id   int    `gorm:"column:id"`
+					Name string `gorm:"column:name"`
+				}{
+					Id:   channelId,
+					Name: cacheChannel.Name,
+				})
+			}
+		}
+	} else {
+		if err := DB.Table("channels").Select("id, name").Where("id IN ?", channelIds.Items()).Find(&channels).Error; err != nil {
+			return
+		}
+	}
+	channelMap := make(map[int]string, len(channels))
+	for _, ch := range channels {
+		channelMap[ch.Id] = ch.Name
+	}
+	for i := range logs {
+		logs[i].ChannelName = channelMap[logs[i].ChannelId]
+	}
+}
+
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
+	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId)
+
+	if cachedTotal > 0 {
+		total = cachedTotal
+	} else {
+		err = tx.Session(&gorm.Session{}).Model(&Log{}).Count(&total).Error
+		if err != nil {
+			return nil, 0, err
+		}
+	}
+	err = tx.Order("logs.id desc").Limit(num).Offset(startIdx).Find(&logs).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	resolveChannelNames(logs)
+	return logs, total, err
+}
+
+func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
+	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId)
+
 	if cachedTotal > 0 {
 		total = cachedTotal
 	} else {
@@ -465,6 +471,56 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 
 	formatUserLogs(logs, startIdx)
 	return logs, total, err
+}
+
+func ExportAllLogs(logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId string, callback func([]*Log) error) error {
+	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId)
+	return streamLogs(tx, true, callback)
+}
+
+func ExportUserLogs(userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId string, callback func([]*Log) error) error {
+	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId)
+	return streamLogs(tx, false, callback)
+}
+
+func streamLogs(tx *gorm.DB, includeChannelName bool, callback func([]*Log) error) error {
+	const batchSize = 1000
+	var lastId int
+	for {
+		var batch []*Log
+		err := tx.Session(&gorm.Session{}).Where("logs.id > ?", lastId).Order("logs.id asc").Limit(batchSize).Find(&batch).Error
+		if err != nil {
+			return err
+		}
+		if len(batch) == 0 {
+			break
+		}
+		if includeChannelName {
+			resolveChannelNames(batch)
+		}
+		if err := callback(batch); err != nil {
+			return err
+		}
+		lastId = batch[len(batch)-1].Id
+	}
+	return nil
+}
+
+var logTypeLabels = map[int]string{
+	LogTypeUnknown: "unknown",
+	LogTypeTopup:   "topup",
+	LogTypeConsume: "consume",
+	LogTypeManage:  "manage",
+	LogTypeSystem:  "system",
+	LogTypeError:   "error",
+	LogTypeRefund:  "refund",
+}
+
+func LogTypeLabel(logType int) string {
+	if label, ok := logTypeLabels[logType]; ok {
+		return label
+	}
+	return "unknown"
 }
 
 type Stat struct {

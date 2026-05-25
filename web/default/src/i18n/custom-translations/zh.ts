@@ -669,6 +669,11 @@ const zh: Record<string, string> = {
   'Enable discount code': '启用折扣码',
   'Allow users to use discount codes when recharging their wallet': '允许用户在充值钱包时使用折扣码',
   'Save discount code settings': '保存折扣码设置',
+
+  // Log Export
+  'Export Logs': '导出日志',
+  'Export failed': '导出失败',
+  'Export rate limit exceeded, please try again later': '导出次数过于频繁，请稍后再试',
 }
 
 export default zh

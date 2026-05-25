@@ -835,6 +835,56 @@ export const useLogsData = () => {
     );
   };
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const formValues = formApi ? formApi.getValues() : {};
+      const dateRange = formValues.dateRange || [];
+      let localStartTimestamp = dateRange[0] ? Date.parse(dateRange[0]) / 1000 : 0;
+      let localEndTimestamp = dateRange[1] ? Date.parse(dateRange[1]) / 1000 : 0;
+
+      const currentLogType = formValues.logType !== undefined ? formValues.logType : logType;
+      const params = new URLSearchParams();
+      if (currentLogType) params.set('type', String(currentLogType));
+      if (localStartTimestamp) params.set('start_timestamp', String(localStartTimestamp));
+      if (localEndTimestamp) params.set('end_timestamp', String(localEndTimestamp));
+      if (formValues.token_name) params.set('token_name', formValues.token_name);
+      if (formValues.model_name) params.set('model_name', formValues.model_name);
+      if (formValues.group) params.set('group', formValues.group);
+      if (formValues.request_id) params.set('request_id', formValues.request_id);
+      if (isAdminUser && formValues.username) params.set('username', formValues.username);
+      if (isAdminUser && formValues.channel) params.set('channel', formValues.channel);
+
+      const path = isAdminUser ? '/api/log/export' : '/api/log/self/export';
+      const url = `${path}?${params.toString()}`;
+
+      const response = await fetch(url, { credentials: 'include' });
+      if (response.status === 429) {
+        showError(t('导出次数过于频繁，请稍后再试'));
+        return;
+      }
+      if (!response.ok) {
+        showError(t('导出失败'));
+        return;
+      }
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `logs_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    } catch (e) {
+      showError(t('导出失败'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return {
     // Basic state
     logs,
@@ -896,6 +946,10 @@ export const useLogsData = () => {
     hasExpandableRows,
     setLogType,
     openParamOverrideModal,
+
+    // Export
+    handleExport,
+    exporting,
 
     // Translation
     t,

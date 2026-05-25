@@ -91,3 +91,16 @@ export const getAllTaskLogs = (params: GetTaskLogsParams) =>
 
 export const getUserTaskLogs = (params: GetTaskLogsParams) =>
   fetchLogs('/api/task', params, false)
+
+// ============================================================================
+// Log Export
+// ============================================================================
+
+export function getLogExportUrl(
+  params: Record<string, unknown>,
+  isAdmin: boolean
+): string {
+  const qs = buildQueryParams(params)
+  const path = isAdmin ? '/api/log/export' : '/api/log/self/export'
+  return `${path}?${qs}`
+}
