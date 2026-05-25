@@ -32,6 +32,7 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxValue,
+  useComboboxAnchor,
 } from '@/components/ui/combobox'
 
 export type Option = {
@@ -58,6 +59,11 @@ interface MultiSelectProps {
   id?: string
   /** Disable the entire control. */
   disabled?: boolean
+  /**
+   * Limits rendered chips while keeping all values selected.
+   * Hidden values remain searchable/removable from the dropdown.
+   */
+  maxVisibleChips?: number
 }
 
 const COMMA_REGEX = /[,，\n]/
@@ -87,6 +93,8 @@ function splitDraft(value: string): { completed: string[]; draft: string } {
  *   - A "Add \"<value>\"" item appears at the top of the dropdown when the
  *     typed text doesn't match any option.
  * - Backspace on an empty input removes the last selected chip (Base UI default).
+ * - `maxVisibleChips` can cap large selections and show a compact "+N more"
+ *   summary so forms do not grow vertically without bound.
  *
  * Focus/border styling is inherited from `ComboboxChips`, which uses the same
  * tokens as `Input` so it stays visually consistent with other form fields.
@@ -94,6 +102,10 @@ function splitDraft(value: string): { completed: string[]; draft: string } {
 export function MultiSelect(props: MultiSelectProps) {
   const { t } = useTranslation()
   const placeholder = props.placeholder ?? t('Select items...')
+
+  // Anchor the popup to the chips container so its width tracks the entire
+  // input row, not just the leftover space at the end of wrapped chips.
+  const chipsAnchorRef = useComboboxAnchor()
 
   const [inputValue, setInputValue] = React.useState('')
   const [open, setOpen] = React.useState(false)
@@ -213,17 +225,35 @@ export function MultiSelect(props: MultiSelectProps) {
       onOpenChange={setOpen}
       disabled={props.disabled}
     >
-      <ComboboxChips className={cn('w-full', props.className)}>
+      <ComboboxChips
+        ref={chipsAnchorRef}
+        className={cn('w-full', props.className)}
+      >
         <ComboboxValue>
-          {(values: string[]) =>
-            values.map((value) => (
-              <ComboboxChip key={value}>
-                <span className='max-w-[16rem] truncate'>
-                  {labelMap.get(value) ?? value}
-                </span>
-              </ComboboxChip>
-            ))
-          }
+          {(values: string[]) => {
+            const visibleValues =
+              typeof props.maxVisibleChips === 'number'
+                ? values.slice(0, props.maxVisibleChips)
+                : values
+            const hiddenCount = values.length - visibleValues.length
+
+            return (
+              <>
+                {visibleValues.map((value) => (
+                  <ComboboxChip key={value}>
+                    <span className='max-w-[16rem] truncate'>
+                      {labelMap.get(value) ?? value}
+                    </span>
+                  </ComboboxChip>
+                ))}
+                {hiddenCount > 0 && (
+                  <span className='bg-muted text-muted-foreground flex h-[calc(--spacing(5.25))] w-fit items-center justify-center rounded-sm px-1.5 text-xs font-medium whitespace-nowrap'>
+                    {t('+{{count}} more', { count: hiddenCount })}
+                  </span>
+                )}
+              </>
+            )
+          }}
         </ComboboxValue>
         <ComboboxChipsInput
           id={props.id}
@@ -233,7 +263,7 @@ export function MultiSelect(props: MultiSelectProps) {
         />
       </ComboboxChips>
 
-      <ComboboxContent>
+      <ComboboxContent anchor={chipsAnchorRef}>
         <ComboboxList>
           <ComboboxCollection>
             {(item: string) => {
