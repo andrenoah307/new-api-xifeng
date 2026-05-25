@@ -284,6 +284,10 @@ var (
 	LogQueryRateLimitEnable         = true
 	LogQueryRateLimitNum            = 20
 	LogQueryRateLimitDuration int64 = 60
+
+	DashboardDataRateLimitEnable         = true
+	DashboardDataRateLimitNum            = 15
+	DashboardDataRateLimitDuration int64 = 60
 )
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute

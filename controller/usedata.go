@@ -64,11 +64,11 @@ func GetUserQuotaDates(c *gin.Context) {
 	userId := c.GetInt("id")
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
-	// 判断时间跨度是否超过 1 个月
-	if endTimestamp-startTimestamp > 2592000 {
+	// 判断时间跨度是否超过 1 周
+	if endTimestamp-startTimestamp > 604800 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
-			"message": "时间跨度不能超过 1 个月",
+			"message": "时间跨度不能超过 1 周",
 		})
 		return
 	}

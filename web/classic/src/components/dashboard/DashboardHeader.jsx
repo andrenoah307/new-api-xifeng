@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Button, Form, Select as SemiSelect } from '@douyinfe/semi-ui';
+import { Button, DatePicker, Select as SemiSelect } from '@douyinfe/semi-ui';
 import { RefreshCw, Search } from 'lucide-react';
 
 const DashboardHeader = ({
@@ -55,7 +55,7 @@ const DashboardHeader = ({
           />
         ) : (
           <div className='flex items-center gap-2 flex-wrap'>
-            <Form.DatePicker
+            <DatePicker
               type='dateTime'
               density='compact'
               value={inputs.start_timestamp}
@@ -63,7 +63,7 @@ const DashboardHeader = ({
               placeholder={t('起始时间')}
               style={{ width: 175 }}
             />
-            <Form.DatePicker
+            <DatePicker
               type='dateTime'
               density='compact'
               value={inputs.end_timestamp}

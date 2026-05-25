@@ -43,6 +43,9 @@ export async function getUserQuotaDates(
   },
   isAdmin = false
 ) {
+  if (!isAdmin && params.end_timestamp - params.start_timestamp > 604800) {
+    throw new Error('Time range cannot exceed 1 week')
+  }
   const endpoint = isAdmin ? '/api/data' : '/api/data/self'
   const res = await api.get<{ success: boolean; data: QuotaDataItem[] }>(
     endpoint,

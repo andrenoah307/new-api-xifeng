@@ -169,6 +169,11 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
       let localStartTimestamp = Date.parse(start_timestamp) / 1000;
       let localEndTimestamp = Date.parse(end_timestamp) / 1000;
 
+      if (!isAdminUser && localEndTimestamp - localStartTimestamp > 604800) {
+        showError(t('时间跨度不能超过 1 周'));
+        return [];
+      }
+
       if (isAdminUser) {
         url = `/api/data/?username=${username}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&default_time=${dataExportDefaultTime}`;
       } else {

@@ -211,3 +211,10 @@ func LogQueryRateLimit() func(c *gin.Context) {
 	}
 	return userRateLimitFactory(common.LogQueryRateLimitNum, common.LogQueryRateLimitDuration, "LQ")
 }
+
+func DashboardDataRateLimit() func(c *gin.Context) {
+	if !common.DashboardDataRateLimitEnable {
+		return defNext
+	}
+	return userRateLimitFactory(common.DashboardDataRateLimitNum, common.DashboardDataRateLimitDuration, "DD")
+}
