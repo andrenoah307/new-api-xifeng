@@ -273,8 +273,8 @@ const TopUp = () => {
       }
     }
 
-    if (topUpCount < minTopUp) {
-      showError('充值数量不能小于' + minTopUp);
+    if (topUpCount < getPaymentMinTopUp(payWay)) {
+      showError(t('充值数量不能小于') + getPaymentMinTopUp(payWay));
       return;
     }
     setConfirmLoading(true);
