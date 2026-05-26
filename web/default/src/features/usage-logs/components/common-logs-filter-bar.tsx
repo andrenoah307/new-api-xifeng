@@ -242,6 +242,7 @@ export function CommonLogsFilterBar<TData>(
 
   const handleExport = useCallback(async () => {
     setExporting(true)
+    const toastId = toast.loading(t('Exporting logs...'))
     try {
       const params = buildSearchParams(filters, 'common')
       const exportParams: Record<string, unknown> = { ...params }
@@ -252,19 +253,34 @@ export function CommonLogsFilterBar<TData>(
         headers: getCommonHeaders(),
       })
       if (response.status === 429) {
-        toast.error(t('Export rate limit exceeded, please try again later'))
+        toast.error(t('Export rate limit exceeded, please try again later'), { id: toastId })
         return
       }
       if (!response.ok) {
         try {
           const err = await response.json()
-          toast.error(err.message || t('Export failed'))
+          toast.error(err.message || t('Export failed'), { id: toastId })
         } catch {
-          toast.error(t('Export failed'))
+          toast.error(t('Export failed'), { id: toastId })
         }
         return
       }
-      const blob = await response.blob()
+      const reader = response.body?.getReader()
+      if (!reader) {
+        toast.error(t('Export failed'), { id: toastId })
+        return
+      }
+      const chunks: Uint8Array[] = []
+      let received = 0
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+        received += value.length
+        const sizeMB = (received / 1024 / 1024).toFixed(1)
+        toast.loading(t('Exporting logs... {{size}} MB', { size: sizeMB }), { id: toastId })
+      }
+      const blob = new Blob(chunks, { type: 'text/csv' })
       const downloadUrl = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = downloadUrl
@@ -273,8 +289,9 @@ export function CommonLogsFilterBar<TData>(
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(downloadUrl)
+      toast.success(t('Export completed'), { id: toastId })
     } catch {
-      toast.error(t('Export failed'))
+      toast.error(t('Export failed'), { id: toastId })
     } finally {
       setExporting(false)
     }

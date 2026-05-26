@@ -674,6 +674,9 @@ const zh: Record<string, string> = {
   'Export Logs': '导出日志',
   'Export failed': '导出失败',
   'Export rate limit exceeded, please try again later': '导出次数过于频繁，请稍后再试',
+  'Exporting logs...': '正在导出日志...',
+  'Exporting logs... {{size}} MB': '正在导出日志... {{size}} MB',
+  'Export completed': '导出完成',
 }
 
 export default zh
