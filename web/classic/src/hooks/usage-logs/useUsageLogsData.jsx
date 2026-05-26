@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal } from '@douyinfe/semi-ui';
+import { Modal, Toast } from '@douyinfe/semi-ui';
 import {
   API,
   getTodayStartTimestamp,
@@ -840,6 +840,8 @@ export const useLogsData = () => {
 
   const handleExport = async () => {
     setExporting(true);
+    const toastId = 'log-export';
+    Toast.info({ content: t('正在导出日志...'), id: toastId, duration: 0 });
     try {
       const formValues = formApi ? formApi.getValues() : {};
       const dateRange = formValues.dateRange || [];
@@ -866,19 +868,34 @@ export const useLogsData = () => {
         headers: { 'New-API-User': getUserIdFromLocalStorage() },
       });
       if (response.status === 429) {
-        showError(t('导出次数过于频繁，请稍后再试'));
+        Toast.error({ content: t('导出次数过于频繁，请稍后再试'), id: toastId });
         return;
       }
       if (!response.ok) {
         try {
           const err = await response.json();
-          showError(err.message || t('导出失败'));
+          Toast.error({ content: err.message || t('导出失败'), id: toastId });
         } catch {
-          showError(t('导出失败'));
+          Toast.error({ content: t('导出失败'), id: toastId });
         }
         return;
       }
-      const blob = await response.blob();
+      const reader = response.body?.getReader();
+      if (!reader) {
+        Toast.error({ content: t('导出失败'), id: toastId });
+        return;
+      }
+      const chunks = [];
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        const sizeMB = (received / 1024 / 1024).toFixed(1);
+        Toast.info({ content: t('正在导出日志...') + ` ${sizeMB} MB`, id: toastId, duration: 0 });
+      }
+      const blob = new Blob(chunks, { type: 'text/csv' });
       const downloadUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
@@ -887,8 +904,9 @@ export const useLogsData = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(downloadUrl);
+      Toast.success({ content: t('导出完成'), id: toastId });
     } catch (e) {
-      showError(t('导出失败'));
+      Toast.error({ content: t('导出失败'), id: toastId });
     } finally {
       setExporting(false);
     }

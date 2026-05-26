@@ -670,6 +670,9 @@ const en = {
   'Export Logs': 'Export Logs',
   'Export failed': 'Export failed',
   'Export rate limit exceeded, please try again later': 'Export rate limit exceeded, please try again later',
+  'Exporting logs...': 'Exporting logs...',
+  'Exporting logs... {{size}} MB': 'Exporting logs... {{size}} MB',
+  'Export completed': 'Export completed',
 } as const
 
 export default en
