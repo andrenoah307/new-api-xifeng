@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -207,46 +209,33 @@ func ExportAllLogsCsv(c *gin.Context) {
 	group := c.Query("group")
 	requestId := c.Query("request_id")
 
-	filename := fmt.Sprintf("logs_%s.csv", time.Now().Format("20060102_150405"))
-	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	c.Header("Transfer-Encoding", "chunked")
-
-	writer := csv.NewWriter(c.Writer)
-	// BOM for Excel UTF-8 compatibility
-	c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
-	writer.Write([]string{"时间", "类型", "用户名", "令牌名称", "模型名称", "花费", "提示词tokens", "补全tokens", "请求耗时ms", "渠道ID", "渠道名称", "分组", "请求ID", "IP"})
-	writer.Flush()
-
-	err := model.ExportAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, func(logs []*model.Log) error {
-		for _, log := range logs {
-			record := []string{
-				time.Unix(log.CreatedAt, 0).Format("2006-01-02 15:04:05"),
-				model.LogTypeLabel(log.Type),
-				log.Username,
-				log.TokenName,
-				log.ModelName,
-				formatQuotaAsDollar(log.Quota),
-				strconv.Itoa(log.PromptTokens),
-				strconv.Itoa(log.CompletionTokens),
-				strconv.Itoa(log.UseTime),
-				strconv.Itoa(log.ChannelId),
-				log.ChannelName,
-				log.Group,
-				log.RequestId,
-				log.Ip,
+	headers := []string{"时间", "类型", "用户名", "令牌名称", "模型名称", "花费", "提示词tokens", "补全tokens", "请求耗时ms", "渠道ID", "渠道名称", "分组", "请求ID", "IP"}
+	exportCsvWithHeartbeat(c, headers, func(ctx context.Context, writer *csv.Writer) error {
+		return model.ExportAllLogs(ctx, logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, func(logs []*model.Log) error {
+			for _, log := range logs {
+				record := []string{
+					time.Unix(log.CreatedAt, 0).Format("2006-01-02 15:04:05"),
+					model.LogTypeLabel(log.Type),
+					log.Username,
+					log.TokenName,
+					log.ModelName,
+					formatQuotaAsDollar(log.Quota),
+					strconv.Itoa(log.PromptTokens),
+					strconv.Itoa(log.CompletionTokens),
+					strconv.Itoa(log.UseTime),
+					strconv.Itoa(log.ChannelId),
+					log.ChannelName,
+					log.Group,
+					log.RequestId,
+					log.Ip,
+				}
+				if err := writer.Write(record); err != nil {
+					return err
+				}
 			}
-			if err := writer.Write(record); err != nil {
-				return err
-			}
-		}
-		writer.Flush()
-		c.Writer.Flush()
-		return writer.Error()
+			return nil
+		})
 	})
-	if err != nil {
-		common.SysError("export all logs failed: " + err.Error())
-	}
 }
 
 func ExportUserLogsCsv(c *gin.Context) {
@@ -267,39 +256,75 @@ func ExportUserLogsCsv(c *gin.Context) {
 	group := c.Query("group")
 	requestId := c.Query("request_id")
 
+	headers := []string{"时间", "类型", "令牌名称", "模型名称", "花费", "提示词tokens", "补全tokens", "请求耗时ms", "分组", "请求ID"}
+	exportCsvWithHeartbeat(c, headers, func(ctx context.Context, writer *csv.Writer) error {
+		return model.ExportUserLogs(ctx, userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, func(logs []*model.Log) error {
+			for _, log := range logs {
+				record := []string{
+					time.Unix(log.CreatedAt, 0).Format("2006-01-02 15:04:05"),
+					model.LogTypeLabel(log.Type),
+					log.TokenName,
+					log.ModelName,
+					formatQuotaAsDollar(log.Quota),
+					strconv.Itoa(log.PromptTokens),
+					strconv.Itoa(log.CompletionTokens),
+					strconv.Itoa(log.UseTime),
+					log.Group,
+					log.RequestId,
+				}
+				if err := writer.Write(record); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	})
+}
+
+func exportCsvWithHeartbeat(c *gin.Context, headers []string, writeFn func(ctx context.Context, writer *csv.Writer) error) {
 	filename := fmt.Sprintf("logs_%s.csv", time.Now().Format("20060102_150405"))
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
 	c.Header("Transfer-Encoding", "chunked")
+	c.Header("X-Accel-Buffering", "no")
+	c.Header("Cache-Control", "no-cache")
 
 	writer := csv.NewWriter(c.Writer)
 	c.Writer.Write([]byte{0xEF, 0xBB, 0xBF})
-	writer.Write([]string{"时间", "类型", "令牌名称", "模型名称", "花费", "提示词tokens", "补全tokens", "请求耗时ms", "分组", "请求ID"})
+	writer.Write(headers)
 	writer.Flush()
+	c.Writer.Flush()
 
-	err := model.ExportUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, func(logs []*model.Log) error {
-		for _, log := range logs {
-			record := []string{
-				time.Unix(log.CreatedAt, 0).Format("2006-01-02 15:04:05"),
-				model.LogTypeLabel(log.Type),
-				log.TokenName,
-				log.ModelName,
-				formatQuotaAsDollar(log.Quota),
-				strconv.Itoa(log.PromptTokens),
-				strconv.Itoa(log.CompletionTokens),
-				strconv.Itoa(log.UseTime),
-				log.Group,
-				log.RequestId,
-			}
-			if err := writer.Write(record); err != nil {
-				return err
+	ctx, cancel := context.WithCancel(c.Request.Context())
+	defer cancel()
+
+	var mu sync.Mutex
+	go func() {
+		ticker := time.NewTicker(8 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				mu.Lock()
+				if f, ok := c.Writer.(http.Flusher); ok {
+					f.Flush()
+				}
+				mu.Unlock()
+			case <-ctx.Done():
+				return
 			}
 		}
-		writer.Flush()
-		c.Writer.Flush()
-		return writer.Error()
-	})
-	if err != nil {
-		common.SysError("export user logs failed: " + err.Error())
+	}()
+
+	err := writeFn(ctx, writer)
+	cancel()
+
+	mu.Lock()
+	writer.Flush()
+	c.Writer.Flush()
+	mu.Unlock()
+
+	if err != nil && ctx.Err() == nil {
+		common.SysError("export logs failed: " + err.Error())
 	}
 }

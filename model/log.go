@@ -473,22 +473,25 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 	return logs, total, err
 }
 
-func ExportAllLogs(logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId string, callback func([]*Log) error) error {
+func ExportAllLogs(ctx context.Context, logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId string, callback func([]*Log) error) error {
 	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId)
-	return streamLogs(tx, true, callback)
+	return streamLogs(ctx, tx, true, callback)
 }
 
-func ExportUserLogs(userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId string, callback func([]*Log) error) error {
+func ExportUserLogs(ctx context.Context, userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId string, callback func([]*Log) error) error {
 	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId)
-	return streamLogs(tx, false, callback)
+	return streamLogs(ctx, tx, false, callback)
 }
 
-func streamLogs(tx *gorm.DB, includeChannelName bool, callback func([]*Log) error) error {
+func streamLogs(ctx context.Context, tx *gorm.DB, includeChannelName bool, callback func([]*Log) error) error {
 	const batchSize = 1000
 	var lastId int
 	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		var batch []*Log
-		err := tx.Session(&gorm.Session{}).Where("logs.id > ?", lastId).Order("logs.id asc").Limit(batchSize).Find(&batch).Error
+		err := tx.Session(&gorm.Session{}).WithContext(ctx).Where("logs.id > ?", lastId).Order("logs.id asc").Limit(batchSize).Find(&batch).Error
 		if err != nil {
 			return err
 		}
