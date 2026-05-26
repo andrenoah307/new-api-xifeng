@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { toast } from 'sonner'
 import {
   Gift,
   ExternalLink,
@@ -126,6 +127,15 @@ export function RechargeFormCard({
       onTopupAmountChange(numValue)
     }
   }
+
+  const handleAmountBlur = useCallback(() => {
+    const numValue = parseInt(localAmount) || 0
+    if (numValue < minTopup) {
+      toast.error(t('Minimum topup amount: {{amount}}', { amount: minTopup }))
+      setLocalAmount(minTopup.toString())
+      onTopupAmountChange(minTopup)
+    }
+  }, [localAmount, minTopup, onTopupAmountChange, t])
 
   const hasConfigurableTopup =
     topupInfo?.enable_online_topup ||
@@ -286,6 +296,7 @@ export function RechargeFormCard({
                     type='number'
                     value={localAmount}
                     onChange={(e) => handleAmountChange(e.target.value)}
+                    onBlur={handleAmountBlur}
                     min={minTopup}
                     placeholder={`Minimum ${minTopup}`}
                     className='h-9 text-base sm:h-10 sm:text-lg'
