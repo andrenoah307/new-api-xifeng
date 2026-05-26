@@ -139,17 +139,17 @@ const TopUp = () => {
       : minTopUp;
   };
 
-  const requestAmountByPayment = async (payment, value) => {
+  const requestAmountByPayment = async (payment, value, opts) => {
     if (payment === 'stripe') {
-      return getStripeAmount(value);
+      return getStripeAmount(value, opts);
     }
     if (payment === 'waffo_pancake') {
-      return getWaffoPancakeAmount(value);
+      return getWaffoPancakeAmount(value, opts);
     }
     if (typeof payment === 'string' && payment.startsWith('waffo:')) {
-      return getWaffoAmount(value);
+      return getWaffoAmount(value, opts);
     }
-    return getAmount(value);
+    return getAmount(value, opts);
   };
 
   const topUp = async () => {
@@ -419,7 +419,7 @@ const TopUp = () => {
     }
   };
 
-  const getWaffoAmount = async (value) => {
+  const getWaffoAmount = async (value, { silent } = {}) => {
     if (value === undefined) {
       value = topUpCount;
     }
@@ -435,10 +435,10 @@ const TopUp = () => {
           setAmount(parseFloat(data));
         } else {
           setAmount(0);
-          Toast.error({ content: '错误：' + data, id: 'getAmount' });
+          if (!silent) Toast.error({ content: '错误：' + data, id: 'getAmount' });
         }
       } else {
-        showError(res);
+        if (!silent) showError(res);
       }
     } catch (err) {
       // amount fetch failed silently
@@ -484,7 +484,7 @@ const TopUp = () => {
     }
   };
 
-  const getWaffoPancakeAmount = async (value) => {
+  const getWaffoPancakeAmount = async (value, { silent } = {}) => {
     if (value === undefined) {
       value = topUpCount;
     }
@@ -500,10 +500,10 @@ const TopUp = () => {
           setAmount(parseFloat(data));
         } else {
           setAmount(0);
-          Toast.error({ content: '错误：' + data, id: 'getAmount' });
+          if (!silent) Toast.error({ content: '错误：' + data, id: 'getAmount' });
         }
       } else {
-        showError(res);
+        if (!silent) showError(res);
       }
     } catch (err) {
       // amount fetch failed silently
@@ -685,7 +685,7 @@ const TopUp = () => {
           }
 
           // 初始化显示实付金额
-          getAmount(minTopUpValue);
+          getAmount(minTopUpValue, { silent: true });
         } catch (e) {
           setPayMethods([]);
         }
@@ -794,7 +794,7 @@ const TopUp = () => {
     return amount + ' ' + t('元');
   };
 
-  const getAmount = async (value) => {
+  const getAmount = async (value, { silent } = {}) => {
     if (value === undefined) {
       value = topUpCount;
     }
@@ -810,10 +810,10 @@ const TopUp = () => {
           setAmount(parseFloat(data));
         } else {
           setAmount(0);
-          Toast.error({ content: '错误：' + data, id: 'getAmount' });
+          if (!silent) Toast.error({ content: '错误：' + data, id: 'getAmount' });
         }
       } else {
-        showError(res);
+        if (!silent) showError(res);
       }
     } catch (err) {
       // amount fetch failed silently
@@ -821,7 +821,7 @@ const TopUp = () => {
     setAmountLoading(false);
   };
 
-  const getStripeAmount = async (value) => {
+  const getStripeAmount = async (value, { silent } = {}) => {
     if (value === undefined) {
       value = topUpCount;
     }
@@ -837,10 +837,10 @@ const TopUp = () => {
           setAmount(parseFloat(data));
         } else {
           setAmount(0);
-          Toast.error({ content: '错误：' + data, id: 'getAmount' });
+          if (!silent) Toast.error({ content: '错误：' + data, id: 'getAmount' });
         }
       } else {
-        showError(res);
+        if (!silent) showError(res);
       }
     } catch (err) {
       // amount fetch failed silently
