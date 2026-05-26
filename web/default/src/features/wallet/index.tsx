@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -151,8 +151,13 @@ export function Wallet(props: WalletProps) {
     }
   }, [topupInfo, topupAmount])
 
-  // Recalculate payment amount when discount code changes
+  // Recalculate payment amount when discount code changes (skip initial mount)
+  const discountMountedRef = useRef(false)
   useEffect(() => {
+    if (!discountMountedRef.current) {
+      discountMountedRef.current = true
+      return
+    }
     if (topupAmount > 0) {
       calculatePaymentAmount(topupAmount, getCurrentPaymentType(), discountInfo?.code)
     }
