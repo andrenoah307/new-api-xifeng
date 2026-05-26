@@ -870,7 +870,12 @@ export const useLogsData = () => {
         return;
       }
       if (!response.ok) {
-        showError(t('导出失败'));
+        try {
+          const err = await response.json();
+          showError(err.message || t('导出失败'));
+        } catch {
+          showError(t('导出失败'));
+        }
         return;
       }
       const blob = await response.blob();
