@@ -35,6 +35,7 @@ import {
   renderLogContent,
   renderAudioModelPrice,
   renderClaudeModelPrice,
+  getUserIdFromLocalStorage,
   renderModelPrice,
   renderTieredModelPrice,
   renderTaskBillingProcess,
@@ -860,7 +861,10 @@ export const useLogsData = () => {
       const path = isAdminUser ? '/api/log/export' : '/api/log/self/export';
       const url = `${path}?${params.toString()}`;
 
-      const response = await fetch(url, { credentials: 'include' });
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: { 'New-API-User': getUserIdFromLocalStorage() },
+      });
       if (response.status === 429) {
         showError(t('导出次数过于频繁，请稍后再试'));
         return;

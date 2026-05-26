@@ -40,6 +40,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useIsAdmin } from '@/hooks/use-admin'
+import { getCommonHeaders } from '@/lib/api'
 
 import { getLogExportUrl } from '../api'
 import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
@@ -246,7 +247,10 @@ export function CommonLogsFilterBar<TData>(
       const exportParams: Record<string, unknown> = { ...params }
       if (logType) exportParams.type = logType
       const url = getLogExportUrl(exportParams, isAdmin)
-      const response = await fetch(url, { credentials: 'include' })
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: getCommonHeaders(),
+      })
       if (response.status === 429) {
         toast.error(t('Export rate limit exceeded, please try again later'))
         return
