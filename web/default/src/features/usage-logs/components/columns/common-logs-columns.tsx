@@ -490,7 +490,8 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                   icon={KeyRound}
                   copyText={sensitiveVisible ? tokenName : undefined}
                   size='sm'
-                  className='border-border/60 bg-muted/30 text-foreground max-w-full overflow-hidden rounded-md border px-1.5 py-0.5 font-mono'
+                  showDot={false}
+                  className='border-border/60 bg-muted/30 text-foreground max-w-full overflow-hidden rounded-md border h-6 px-2 py-0.5 gap-1.5 font-mono'
                 />
               </TooltipTrigger>
               {sensitiveVisible && tokenName.length > 16 && (
@@ -525,7 +526,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         const modelInfo = formatModelName(log)
 
         return (
-          <div className='flex max-w-[220px] flex-col gap-0.5'>
+          <div className='flex w-fit flex-col gap-0.5'>
             <ModelBadge
               modelName={modelInfo.name}
               actualModel={modelInfo.actualModel}
@@ -555,6 +556,17 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         const timeVariant = getResponseTimeColor(useTime, log.completion_tokens)
         const frtVariant = frt ? getFirstResponseTimeColor(frt / 1000) : null
 
+        const timingBgMap: Record<string, string> = {
+          success:
+            'border border-emerald-200/40 bg-emerald-50/35 dark:border-emerald-900/40 dark:bg-emerald-950/15',
+          warning:
+            'border border-amber-200/45 bg-amber-50/35 dark:border-amber-900/40 dark:bg-amber-950/15',
+          danger:
+            'border border-rose-200/50 bg-rose-50/35 dark:border-rose-900/40 dark:bg-rose-950/15',
+          neutral:
+            'border border-border/60 bg-muted/30 dark:border-border/40 dark:bg-muted/20',
+        }
+
         return (
           <div className='flex flex-col gap-1'>
             <div className='flex items-center gap-1.5'>
@@ -563,7 +575,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                 variant={timeVariant as StatusBadgeProps['variant']}
                 size='sm'
                 copyable={false}
-                className='font-mono'
+                className={cn('font-mono', timingBgMap[timeVariant])}
               />
               {log.is_stream &&
                 (frt != null && frt > 0 ? (
@@ -571,15 +583,18 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     label={formatUseTime(frt / 1000)}
                     variant={frtVariant as StatusBadgeProps['variant']}
                     size='sm'
+                    showDot={false}
                     copyable={false}
-                    className='font-mono'
+                    className={cn('font-mono', timingBgMap[frtVariant])}
                   />
                 ) : (
                   <StatusBadge
                     label='N/A'
                     variant='neutral'
                     size='sm'
+                    showDot={false}
                     copyable={false}
+                    className={timingBgMap.neutral}
                   />
                 ))}
             </div>
