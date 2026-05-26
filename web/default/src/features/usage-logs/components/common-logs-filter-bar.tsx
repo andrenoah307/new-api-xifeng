@@ -256,7 +256,12 @@ export function CommonLogsFilterBar<TData>(
         return
       }
       if (!response.ok) {
-        toast.error(t('Export failed'))
+        try {
+          const err = await response.json()
+          toast.error(err.message || t('Export failed'))
+        } catch {
+          toast.error(t('Export failed'))
+        }
         return
       }
       const blob = await response.blob()
