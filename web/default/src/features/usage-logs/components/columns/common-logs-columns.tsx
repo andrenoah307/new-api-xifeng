@@ -357,7 +357,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     )}
                   </div>
                   {log.channel_name && (
-                    <span className='text-muted-foreground/70 truncate text-[11px]'>
+                    <span className='text-muted-foreground/70 truncate !text-xs [font-family:var(--font-body)]'>
                       {channelName}
                     </span>
                   )}
@@ -491,7 +491,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                   copyText={sensitiveVisible ? tokenName : undefined}
                   size='sm'
                   showDot={false}
-                  className='border-border/60 bg-muted/30 text-foreground max-w-full overflow-hidden rounded-md border h-6 px-2 py-0.5 gap-1.5 font-mono'
+                  className='border-border/60 bg-muted/30 text-foreground max-w-full overflow-hidden rounded-md border h-6 px-2 py-0.5 gap-1.5'
                 />
               </TooltipTrigger>
               {sensitiveVisible && tokenName.length > 16 && (
@@ -502,7 +502,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
             </Tooltip>
           </TooltipProvider>
           {metaParts.length > 0 && (
-            <span className='text-muted-foreground/60 truncate text-[11px]'>
+            <span className='text-muted-foreground/60 truncate !text-xs [font-family:var(--font-body)]'>
               {metaParts.join(' · ')}
             </span>
           )}
@@ -598,13 +598,13 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                   />
                 ))}
             </div>
-            <div className='flex items-center gap-1 text-[11px]'>
-              <span className='text-muted-foreground/60'>
+            <div className='flex items-center gap-1 !text-xs leading-none [font-family:var(--font-body)]'>
+              <span className='text-muted-foreground/60 !text-xs leading-none [font-family:var(--font-body)]'>
                 {log.is_stream ? t('Stream') : t('Non-stream')}
                 {tokensPerSecond != null && (
                   <>
                     {' · '}
-                    <span className='font-mono tabular-nums'>
+                    <span className='tabular-nums'>
                       {Math.round(tokensPerSecond)}
                     </span>
                     {' t/s'}
