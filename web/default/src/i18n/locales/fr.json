@@ -2778,6 +2778,7 @@
     "Override auto-discovered endpoint": "Remplacer le point de terminaison auto-découvert",
     "Override request headers": "Remplacer les en-têtes de requête",
     "Override request headers (JSON format)": "Surcharge des en-têtes de requête (format JSON)",
+    "Override request parameters": "Remplacer les paramètres de requête",
     "Override request parameters (JSON format)": "Remplacer les paramètres de requête (format JSON)",
     "Override request parameters. Cannot override": "Remplacer les paramètres de requête. Impossible de remplacer",
     "Override request parameters. Cannot override stream parameter.": "Remplace les paramètres de requête. Impossible de remplacer le paramètre stream.",

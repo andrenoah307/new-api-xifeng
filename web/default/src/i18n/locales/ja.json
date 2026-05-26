@@ -2778,6 +2778,7 @@
     "Override auto-discovered endpoint": "自動検出されたエンドポイントを上書きする",
     "Override request headers": "リクエストヘッダーを上書きする",
     "Override request headers (JSON format)": "リクエストヘッダーのオーバーライド (JSON 形式)",
+    "Override request parameters": "リクエストパラメータを上書き",
     "Override request parameters (JSON format)": "リクエストパラメータの上書き (JSON形式)",
     "Override request parameters. Cannot override": "リクエストパラメーターを上書きします。上書きできません",
     "Override request parameters. Cannot override stream parameter.": "リクエストパラメータを上書きします。stream パラメータは上書きできません。",

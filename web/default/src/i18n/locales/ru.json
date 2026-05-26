@@ -2778,6 +2778,7 @@
     "Override auto-discovered endpoint": "Переопределить автоматически обнаруженную конечную точку",
     "Override request headers": "Переопределить заголовки запроса",
     "Override request headers (JSON format)": "Переопределение заголовков запроса (формат JSON)",
+    "Override request parameters": "Переопределить параметры запроса",
     "Override request parameters (JSON format)": "Переопределить параметры запроса (формат JSON)",
     "Override request parameters. Cannot override": "Переопределить параметры запроса. Невозможно переопределить",
     "Override request parameters. Cannot override stream parameter.": "Переопределяет параметры запроса. Параметр stream переопределить нельзя.",
