@@ -714,9 +714,6 @@ const TopUp = () => {
           if (topupInfo.amount_options.length === 0) {
             setPresetAmounts(generatePresetAmounts(minTopUpValue));
           }
-
-          // 初始化显示实付金额
-          getAmount(minTopUpValue, { silent: true });
         } catch (e) {
           setPayMethods([]);
         }
@@ -822,6 +819,7 @@ const TopUp = () => {
   }, [statusState?.status]);
 
   const renderAmount = () => {
+    if (amount === 0) return '--';
     return amount + ' ' + t('元');
   };
 
