@@ -309,7 +309,7 @@ export function RechargeFormCard({
                       <Skeleton className='h-5 w-16' />
                     ) : (
                       <span className='text-sm font-semibold'>
-                        {formatCurrency(paymentAmount)}
+                        {paymentAmount > 0 ? formatCurrency(paymentAmount) : '--'}
                       </span>
                     )}
                   </div>
