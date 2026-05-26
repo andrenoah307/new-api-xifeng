@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { toast } from 'sonner'
 import {
   Gift,
   ExternalLink,
@@ -25,7 +26,7 @@ import {
   TicketPercent,
   Check,
 } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -146,6 +147,15 @@ export function RechargeFormCard({
       onTopupAmountChange(numValue)
     }
   }
+
+  const handleAmountBlur = useCallback(() => {
+    const numValue = parseInt(localAmount) || 0
+    if (numValue < minTopup) {
+      toast.error(t('Minimum topup amount: {{amount}}', { amount: minTopup }))
+      setLocalAmount(minTopup.toString())
+      onTopupAmountChange(minTopup)
+    }
+  }, [localAmount, minTopup, onTopupAmountChange, t])
 
   const hasConfigurableTopup =
     topupInfo?.enable_online_topup ||
@@ -308,6 +318,7 @@ export function RechargeFormCard({
                     type='number'
                     value={localAmount}
                     onChange={(e) => handleAmountChange(e.target.value)}
+                    onBlur={handleAmountBlur}
                     min={minTopup}
                     placeholder={`Minimum ${minTopup}`}
                     className='h-9 text-base sm:h-10 sm:text-lg'
