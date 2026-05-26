@@ -125,12 +125,17 @@ const RechargeCard = ({
   }, [topUpCount, payWay]);
 
   // Sync validated discount code to parent ref and recalculate amount
+  const discountMountedRef = useRef(false);
   useEffect(() => {
     if (discountCodeRef) {
       discountCodeRef.current = discountCodeInfo ? discountCode.trim() : '';
     }
     if (discountCodeInfoRef) {
       discountCodeInfoRef.current = discountCodeInfo;
+    }
+    if (!discountMountedRef.current) {
+      discountMountedRef.current = true;
+      return;
     }
     if (requestAmountByPayment) {
       requestAmountByPayment(payWay);
