@@ -183,6 +183,7 @@ export function createChannelColumn<T>(config: {
           autoColor={String(channelId)}
           copyText={String(channelId)}
           size='sm'
+          showDot={false}
           className='font-mono'
         />
       )
