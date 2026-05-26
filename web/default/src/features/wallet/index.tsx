@@ -170,13 +170,17 @@ export function Wallet(props: WalletProps) {
     calculatePaymentAmount(preset.value, getCurrentPaymentType(), discountInfo?.code)
   }
 
-  // Handle topup amount change
+  // Handle topup amount change (state only, no API call — calculation deferred to blur)
   const handleTopupAmountChange = (amount: number) => {
     setTopupAmount(amount)
     setSelectedPreset(null)
     clearDiscountCode()
-    calculatePaymentAmount(amount, getCurrentPaymentType())
   }
+
+  // Handle topup amount blur — validate and calculate payment
+  const handleTopupAmountBlur = useCallback((amount: number) => {
+    calculatePaymentAmount(amount, getCurrentPaymentType())
+  }, [calculatePaymentAmount, getCurrentPaymentType])
 
   // Handle payment method selection
   const handlePaymentMethodSelect = async (method: PaymentMethod) => {
@@ -304,6 +308,7 @@ export function Wallet(props: WalletProps) {
                   onSelectPreset={handleSelectPreset}
                   topupAmount={topupAmount}
                   onTopupAmountChange={handleTopupAmountChange}
+                  onTopupAmountBlur={handleTopupAmountBlur}
                   paymentAmount={paymentAmount}
                   calculating={calculating}
                   onPaymentMethodSelect={handlePaymentMethodSelect}

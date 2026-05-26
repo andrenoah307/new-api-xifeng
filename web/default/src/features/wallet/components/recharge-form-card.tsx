@@ -69,6 +69,7 @@ interface RechargeFormCardProps {
   onSelectPreset: (preset: PresetAmount) => void
   topupAmount: number
   onTopupAmountChange: (amount: number) => void
+  onTopupAmountBlur?: (amount: number) => void
   paymentAmount: number
   calculating: boolean
   onPaymentMethodSelect: (method: PaymentMethod) => void
@@ -105,6 +106,7 @@ export function RechargeFormCard({
   onSelectPreset,
   topupAmount,
   onTopupAmountChange,
+  onTopupAmountBlur,
   paymentAmount,
   calculating,
   onPaymentMethodSelect,
@@ -154,8 +156,11 @@ export function RechargeFormCard({
       toast.error(t('Minimum topup amount: {{amount}}', { amount: minTopup }))
       setLocalAmount(minTopup.toString())
       onTopupAmountChange(minTopup)
+      onTopupAmountBlur?.(minTopup)
+    } else {
+      onTopupAmountBlur?.(numValue)
     }
-  }, [localAmount, minTopup, onTopupAmountChange, t])
+  }, [localAmount, minTopup, onTopupAmountChange, onTopupAmountBlur, t])
 
   const hasConfigurableTopup =
     topupInfo?.enable_online_topup ||

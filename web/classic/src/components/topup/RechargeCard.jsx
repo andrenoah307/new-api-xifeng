@@ -318,11 +318,10 @@ const RechargeCard = ({
                       max={999999999}
                       step={1}
                       precision={0}
-                      onChange={async (value) => {
+                      onChange={(value) => {
                         if (value && value >= 1) {
                           setTopUpCount(value);
                           setSelectedPreset(null);
-                          await getAmount(value);
                         }
                       }}
                       onBlur={(e) => {
@@ -333,6 +332,8 @@ const RechargeCard = ({
                           if (value && value < minTopUp) {
                             showError(t('充值数量不能小于') + renderQuotaWithAmount(minTopUp));
                           }
+                        } else {
+                          getAmount(value);
                         }
                       }}
                       formatter={(value) => (value ? `${value}` : '')}
