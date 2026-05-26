@@ -357,7 +357,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     )}
                   </div>
                   {log.channel_name && (
-                    <span className='text-muted-foreground/70 truncate !text-xs [font-family:var(--font-body)]'>
+                    <span className='text-muted-foreground/70 truncate [font-family:var(--font-body)] !text-xs'>
                       {channelName}
                     </span>
                   )}
@@ -502,7 +502,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
             </Tooltip>
           </TooltipProvider>
           {metaParts.length > 0 && (
-            <span className='text-muted-foreground/60 truncate !text-xs [font-family:var(--font-body)]'>
+            <span className='text-muted-foreground/60 truncate [font-family:var(--font-body)] !text-xs'>
               {metaParts.join(' · ')}
             </span>
           )}
@@ -598,8 +598,8 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                   />
                 ))}
             </div>
-            <div className='flex items-center gap-1 !text-xs leading-none [font-family:var(--font-body)]'>
-              <span className='text-muted-foreground/60 !text-xs leading-none [font-family:var(--font-body)]'>
+            <div className='flex items-center gap-1 [font-family:var(--font-body)] !text-xs leading-none'>
+              <span className='text-muted-foreground/60 [font-family:var(--font-body)] !text-xs leading-none'>
                 {log.is_stream ? t('Stream') : t('Non-stream')}
                 {tokensPerSecond != null && (
                   <>
@@ -736,7 +736,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
 
         return (
           <div className='flex flex-col gap-0.5'>
-            <span className='border-border/80 bg-muted/60 inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 font-semibold tabular-nums [font-family:var(--font-body)]'>
+            <span className='border-border/80 bg-muted/60 inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 [font-family:var(--font-body)] font-semibold tabular-nums'>
               {quotaStr}
             </span>
           </div>

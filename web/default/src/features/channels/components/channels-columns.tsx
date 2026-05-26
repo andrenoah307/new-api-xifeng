@@ -638,14 +638,12 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <span className='border-border bg-muted text-primary inline-flex h-5 w-5 items-center justify-center rounded-md border shrink-0' />
+                      <span className='border-border bg-muted text-primary inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border' />
                     }
                   >
                     <MultiKeyModeIcon className='h-3 w-3' />
                   </TooltipTrigger>
-                  <TooltipContent side='top'>
-                    {multiKeyTooltip}
-                  </TooltipContent>
+                  <TooltipContent side='top'>{multiKeyTooltip}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
@@ -654,7 +652,7 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
               size='sm'
               copyable={false}
               showDot={false}
-              className='pl-1 gap-1'
+              className='gap-1 pl-1'
             >
               {icon}
               <span className='truncate'>{typeName}</span>

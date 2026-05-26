@@ -79,7 +79,6 @@ const sizeMap = {
   lg: 'h-6 gap-1.5 px-2 text-xs leading-none',
 } as const
 
-
 export interface StatusBadgeProps extends Omit<
   React.HTMLAttributes<HTMLSpanElement>,
   'children'

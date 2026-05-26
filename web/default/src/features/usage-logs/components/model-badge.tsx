@@ -101,12 +101,12 @@ function ModelBadgeContent(props: ModelBadgeProps) {
       showDot={!provider}
       autoColor={provider ? undefined : props.modelName}
       className={cn(
-        'border-border/60 bg-muted/30 h-auto min-h-6 gap-1.5 rounded-md border px-2 py-0.5 whitespace-normal break-all [font-family:var(--font-body)]',
+        'border-border/60 bg-muted/30 h-auto min-h-6 gap-1.5 rounded-md border px-2 py-0.5 [font-family:var(--font-body)] break-all whitespace-normal',
         provider && 'text-foreground',
         props.className
       )}
     >
-      <span className='flex items-center gap-1.5 min-w-0'>
+      <span className='flex min-w-0 items-center gap-1.5'>
         {provider && (
           <span
             className='flex size-3.5 shrink-0 items-center justify-center'
