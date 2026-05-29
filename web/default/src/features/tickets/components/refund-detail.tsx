@@ -6,14 +6,6 @@ import { StatusBadge } from '@/components/status-badge'
 import { CopyButton } from '@/components/copy-button'
 import { formatTimestampToDate, formatQuota, parseQuotaFromDollars } from '@/lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -82,37 +74,37 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
   return (
     <div
       className={cn(
-        'mb-4 w-fit max-w-full rounded-lg border p-3',
+        'mb-4 inline-block rounded-lg border p-3',
         hasActive
           ? 'bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'
           : 'bg-muted/50 border-border'
       )}
     >
       <p className="text-sm font-medium mb-2">{t('User has invoice records')}</p>
-      <Table className="text-xs">
-        <TableHeader>
-          <TableRow className="border-0 hover:bg-transparent">
-            <TableHead className="h-7 text-xs px-2">{t('Date')}</TableHead>
-            <TableHead className="h-7 text-xs px-2">{t('Company')}</TableHead>
-            <TableHead className="h-7 text-xs px-2 text-right">{t('Amount')}</TableHead>
-            <TableHead className="h-7 text-xs px-2">{t('Status')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+      <table className="text-xs border-collapse">
+        <thead>
+          <tr>
+            <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium whitespace-nowrap">{t('Date')}</th>
+            <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium">{t('Company')}</th>
+            <th className="text-muted-foreground px-2 py-1 text-right text-xs font-medium">{t('Amount')}</th>
+            <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium">{t('Status')}</th>
+          </tr>
+        </thead>
+        <tbody>
           {visible.map((inv) => {
             const statusCfg = INVOICE_STATUS_CONFIG[inv.invoice_status]
             return (
-              <TableRow key={inv.id} className="border-0 hover:bg-transparent">
-                <TableCell className="py-1 px-2 text-muted-foreground whitespace-nowrap">
+              <tr key={inv.id}>
+                <td className="text-muted-foreground px-2 py-1 whitespace-nowrap">
                   {formatTimestampToDate(inv.created_time)}
-                </TableCell>
-                <TableCell className="py-1 px-2 max-w-[200px] truncate">
+                </td>
+                <td className="px-2 py-1 max-w-[200px] truncate">
                   {inv.company_name}
-                </TableCell>
-                <TableCell className="py-1 px-2 font-mono text-right whitespace-nowrap">
+                </td>
+                <td className="px-2 py-1 font-mono text-right whitespace-nowrap">
                   ¥{inv.total_money?.toFixed(2)}
-                </TableCell>
-                <TableCell className="py-1 px-2">
+                </td>
+                <td className="px-2 py-1">
                   {statusCfg && (
                     <StatusBadge
                       label={t(statusCfg.labelKey)}
@@ -120,12 +112,12 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
                       copyable={false}
                     />
                   )}
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )
           })}
-        </TableBody>
-      </Table>
+        </tbody>
+      </table>
       {invoices.length > 1 && (
         <button
           type="button"
