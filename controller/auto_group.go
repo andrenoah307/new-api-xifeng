@@ -31,6 +31,11 @@ var validMetrics = map[string]bool{
 	"yesterday_topup":      true,
 	"total_request_count":  true,
 	"recent_request_count": true,
+	"current_group":        true,
+}
+
+var stringMetrics = map[string]bool{
+	"current_group": true,
 }
 
 var validOps = map[string]bool{
@@ -58,11 +63,23 @@ func validateAutoGroupRuleRequest(req *autoGroupRuleRequest) error {
 		if !validMetrics[cond.Metric] {
 			return fmt.Errorf("条件 %d: 不支持的指标 %s", i+1, cond.Metric)
 		}
-		if !validOps[cond.Op] {
-			return fmt.Errorf("条件 %d: 不支持的操作符 %s", i+1, cond.Op)
-		}
-		if strings.HasPrefix(cond.Metric, "recent_") && cond.Param <= 0 {
-			return fmt.Errorf("条件 %d: recent 类指标的参数 (小时数) 必须大于 0", i+1)
+		if stringMetrics[cond.Metric] {
+			if cond.Op != "==" && cond.Op != "!=" {
+				return fmt.Errorf("条件 %d: 分组条件仅支持 == 和 != 操作符", i+1)
+			}
+			if strings.TrimSpace(cond.ValueStr) == "" {
+				return fmt.Errorf("条件 %d: 分组值不能为空", i+1)
+			}
+			if _, ok := groups[cond.ValueStr]; !ok {
+				return fmt.Errorf("条件 %d: 分组 %s 不存在", i+1, cond.ValueStr)
+			}
+		} else {
+			if !validOps[cond.Op] {
+				return fmt.Errorf("条件 %d: 不支持的操作符 %s", i+1, cond.Op)
+			}
+			if strings.HasPrefix(cond.Metric, "recent_") && cond.Param <= 0 {
+				return fmt.Errorf("条件 %d: recent 类指标的参数 (小时数) 必须大于 0", i+1)
+			}
 		}
 	}
 	return nil

@@ -4,6 +4,7 @@ import { Trash2, MoreHorizontal as DotsHorizontalIcon } from 'lucide-react'
 import { formatTimestampToDate } from '@/lib/format'
 import { DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
+import { GroupBadge } from '@/components/group-badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -95,9 +96,7 @@ export function useEnrollmentsColumns(): ColumnDef<AutoGroupEnrollment>[] {
         <DataTableColumnHeader column={column} title={t('Original Group')} />
       ),
       cell: ({ row }) => (
-        <Badge variant='outline'>
-          {row.getValue('original_group') || '-'}
-        </Badge>
+        <GroupBadge group={row.getValue('original_group')} />
       ),
     },
     {
@@ -107,9 +106,7 @@ export function useEnrollmentsColumns(): ColumnDef<AutoGroupEnrollment>[] {
         <DataTableColumnHeader column={column} title={t('Current Group')} />
       ),
       cell: ({ row }) => (
-        <Badge variant='secondary'>
-          {row.getValue('current_group') || '-'}
-        </Badge>
+        <GroupBadge group={row.getValue('current_group')} />
       ),
     },
     {

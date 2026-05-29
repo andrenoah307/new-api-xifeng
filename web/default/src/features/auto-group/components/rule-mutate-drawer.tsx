@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
@@ -33,8 +34,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import { createRule, updateRule, getRule } from '../api'
-import { METRICS, METRICS_MAP, OPS, SUCCESS_MESSAGES } from '../constants'
+import { createRule, updateRule, getRule, getGroups } from '../api'
+import { METRICS, METRICS_MAP, OPS, STRING_OPS, STRING_METRICS, SUCCESS_MESSAGES } from '../constants'
 import type { AutoGroupRule, AutoGroupCondition } from '../types'
 import { useAutoGroup } from './auto-group-provider'
 
@@ -46,6 +47,7 @@ const conditionSchema = z.object({
   metric: z.string().min(1, 'Metric is required'),
   op: z.string().min(1, 'Operator is required'),
   value: z.number(),
+  value_str: z.string().optional(),
   param: z.number().optional(),
 })
 
@@ -92,6 +94,11 @@ export function RuleMutateDrawer({
   const isUpdate = !!currentRow
   const { triggerRefresh } = useAutoGroup()
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const { data: groupOptions = [] } = useQuery({
+    queryKey: ['groups-list'],
+    queryFn: getGroups,
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -268,12 +275,20 @@ export function RuleMutateDrawer({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('Target Group')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      placeholder={t('Enter target group name')}
-                    />
-                  </FormControl>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('Select target group')} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {groupOptions.map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {g}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormDescription>
                     {t('The group users will be assigned to when rule matches')}
                   </FormDescription>
@@ -325,6 +340,7 @@ export function RuleMutateDrawer({
                 const metricValue = form.watch(`conditions.${index}.metric`)
                 const metricConfig = METRICS_MAP[metricValue]
                 const showParam = metricConfig?.needsParam
+                const isStringMetric = STRING_METRICS.has(metricValue)
 
                 return (
                   <div
@@ -340,7 +356,20 @@ export function RuleMutateDrawer({
                             <FormItem className='col-span-2 sm:col-span-1'>
                               <Select
                                 value={f.value}
-                                onValueChange={f.onChange}
+                                onValueChange={(v) => {
+                                  const wasString = STRING_METRICS.has(f.value)
+                                  const nowString = STRING_METRICS.has(v)
+                                  f.onChange(v)
+                                  if (wasString !== nowString) {
+                                    if (nowString) {
+                                      form.setValue(`conditions.${index}.op`, '==')
+                                      form.setValue(`conditions.${index}.value`, 0)
+                                      form.setValue(`conditions.${index}.value_str`, '')
+                                    } else {
+                                      form.setValue(`conditions.${index}.value_str`, undefined)
+                                    }
+                                  }
+                                }}
                               >
                                 <FormControl>
                                   <SelectTrigger>
@@ -377,7 +406,7 @@ export function RuleMutateDrawer({
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {OPS.map((op) => (
+                                  {(isStringMetric ? STRING_OPS : OPS).map((op) => (
                                     <SelectItem
                                       key={op.value}
                                       value={op.value}
@@ -392,28 +421,59 @@ export function RuleMutateDrawer({
                           )}
                         />
 
-                        <FormField
-                          control={form.control}
-                          name={`conditions.${index}.value`}
-                          render={({ field: f }) => (
-                            <FormItem>
-                              <FormControl>
-                                <Input
-                                  {...f}
-                                  type='number'
-                                  step='any'
-                                  placeholder={t('Value')}
-                                  onChange={(e) =>
-                                    f.onChange(
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                        {isStringMetric ? (
+                          <FormField
+                            control={form.control}
+                            name={`conditions.${index}.value_str`}
+                            render={({ field: f }) => (
+                              <FormItem>
+                                <Select
+                                  value={f.value || ''}
+                                  onValueChange={f.onChange}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue
+                                        placeholder={t('Select group')}
+                                      />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {groupOptions.map((g) => (
+                                      <SelectItem key={g} value={g}>
+                                        {g}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        ) : (
+                          <FormField
+                            control={form.control}
+                            name={`conditions.${index}.value`}
+                            render={({ field: f }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input
+                                    {...f}
+                                    type='number'
+                                    step='any'
+                                    placeholder={t('Value')}
+                                    onChange={(e) =>
+                                      f.onChange(
+                                        parseFloat(e.target.value) || 0
+                                      )
+                                    }
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
                       </div>
 
                       <Button
@@ -430,7 +490,7 @@ export function RuleMutateDrawer({
                       </Button>
                     </div>
 
-                    {showParam && (
+                    {showParam && !isStringMetric && (
                       <FormField
                         control={form.control}
                         name={`conditions.${index}.param`}

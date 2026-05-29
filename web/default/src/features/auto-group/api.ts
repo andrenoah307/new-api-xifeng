@@ -11,6 +11,18 @@ import type {
 } from './types'
 
 // ============================================================================
+// Groups
+// ============================================================================
+
+export async function getGroups(): Promise<string[]> {
+  const res = await api.get('/api/group/')
+  const data = res.data?.data
+  if (Array.isArray(data)) return data.map(String)
+  if (data && typeof data === 'object') return Object.keys(data)
+  return []
+}
+
+// ============================================================================
 // Rules
 // ============================================================================
 

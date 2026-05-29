@@ -77,7 +77,7 @@ func TestMatchConditions(t *testing.T) {
 			{Metric: "total_spend", Op: "<=", Value: 200},
 		})
 		cache := map[string]float64{"total_spend": 100}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.True(t, got)
 	})
 
@@ -88,7 +88,7 @@ func TestMatchConditions(t *testing.T) {
 			{Metric: "total_spend", Op: ">=", Value: 200},
 		})
 		cache := map[string]float64{"total_spend": 100}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.False(t, got)
 	})
 
@@ -99,7 +99,7 @@ func TestMatchConditions(t *testing.T) {
 			{Metric: "total_spend", Op: "<=", Value: 50},
 		})
 		cache := map[string]float64{"total_spend": 30}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.True(t, got)
 	})
 
@@ -110,7 +110,7 @@ func TestMatchConditions(t *testing.T) {
 			{Metric: "total_spend", Op: "<=", Value: 50},
 		})
 		cache := map[string]float64{"total_spend": 100}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.False(t, got)
 	})
 
@@ -118,7 +118,7 @@ func TestMatchConditions(t *testing.T) {
 		t.Parallel()
 		rule := makeRule("all", nil)
 		cache := map[string]float64{}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.True(t, got)
 	})
 
@@ -126,7 +126,7 @@ func TestMatchConditions(t *testing.T) {
 		t.Parallel()
 		rule := makeRule("any", nil)
 		cache := map[string]float64{}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.False(t, got)
 	})
 
@@ -136,7 +136,7 @@ func TestMatchConditions(t *testing.T) {
 			{Metric: "recent_spend", Op: ">=", Value: 10, Param: 24},
 		})
 		cache := map[string]float64{"recent_spend_24": 50}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.True(t, got)
 	})
 
@@ -146,7 +146,7 @@ func TestMatchConditions(t *testing.T) {
 			{Metric: "total_spend", Op: ">=", Value: 10, Param: 0},
 		})
 		cache := map[string]float64{"total_spend": 50}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.True(t, got)
 	})
 
@@ -157,7 +157,7 @@ func TestMatchConditions(t *testing.T) {
 			{Metric: "total_spend", Op: ">=", Value: 200},
 		})
 		cache := map[string]float64{"total_spend": 100}
-		got := engine.matchConditions(0, rule, cache)
+		got := engine.matchConditions(0, rule, cache, map[string]string{})
 		require.False(t, got, "empty match_mode should default to 'all' (AND)")
 	})
 }
@@ -344,5 +344,115 @@ func TestParsedConditions(t *testing.T) {
 		t.Parallel()
 		var rule *model.AutoGroupRule
 		require.Nil(t, rule.ParsedConditions())
+	})
+}
+
+func TestIsStringMetric(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, isStringMetric("current_group"))
+	require.False(t, isStringMetric("total_spend"))
+	require.False(t, isStringMetric("recent_spend"))
+	require.False(t, isStringMetric(""))
+}
+
+func TestCompareString(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		actual string
+		op     string
+		target string
+		want   bool
+	}{
+		{"eq match", "vip", "==", "vip", true},
+		{"eq mismatch", "vip", "==", "default", false},
+		{"neq match", "vip", "!=", "default", true},
+		{"neq mismatch", "vip", "!=", "vip", false},
+		{"empty actual eq empty", "", "==", "", true},
+		{"empty actual neq nonempty", "", "!=", "vip", true},
+		{"unknown op", "vip", ">=", "vip", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := compareString(tt.actual, tt.op, tt.target)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestMatchConditionsWithStringMetric(t *testing.T) {
+	t.Parallel()
+
+	engine := &autoGroupEngine{}
+
+	makeRule := func(matchMode string, conds []model.AutoGroupCondition) *compiledAutoGroupRule {
+		return &compiledAutoGroupRule{
+			Raw: &model.AutoGroupRule{
+				MatchMode: matchMode,
+			},
+			Conditions: conds,
+		}
+	}
+
+	t.Run("current_group eq match", func(t *testing.T) {
+		t.Parallel()
+		rule := makeRule("all", []model.AutoGroupCondition{
+			{Metric: "current_group", Op: "==", ValueStr: "default"},
+		})
+		cache := map[string]float64{}
+		strCache := map[string]string{"current_group": "default"}
+		got := engine.matchConditions(0, rule, cache, strCache)
+		require.True(t, got)
+	})
+
+	t.Run("current_group eq mismatch", func(t *testing.T) {
+		t.Parallel()
+		rule := makeRule("all", []model.AutoGroupCondition{
+			{Metric: "current_group", Op: "==", ValueStr: "vip"},
+		})
+		cache := map[string]float64{}
+		strCache := map[string]string{"current_group": "default"}
+		got := engine.matchConditions(0, rule, cache, strCache)
+		require.False(t, got)
+	})
+
+	t.Run("mixed numeric and string conditions all mode", func(t *testing.T) {
+		t.Parallel()
+		rule := makeRule("all", []model.AutoGroupCondition{
+			{Metric: "current_group", Op: "==", ValueStr: "default"},
+			{Metric: "total_spend", Op: ">=", Value: 100},
+		})
+		cache := map[string]float64{"total_spend": 200}
+		strCache := map[string]string{"current_group": "default"}
+		got := engine.matchConditions(0, rule, cache, strCache)
+		require.True(t, got)
+	})
+
+	t.Run("mixed conditions all mode one fails", func(t *testing.T) {
+		t.Parallel()
+		rule := makeRule("all", []model.AutoGroupCondition{
+			{Metric: "current_group", Op: "==", ValueStr: "vip"},
+			{Metric: "total_spend", Op: ">=", Value: 100},
+		})
+		cache := map[string]float64{"total_spend": 200}
+		strCache := map[string]string{"current_group": "default"}
+		got := engine.matchConditions(0, rule, cache, strCache)
+		require.False(t, got)
+	})
+
+	t.Run("current_group neq in any mode", func(t *testing.T) {
+		t.Parallel()
+		rule := makeRule("any", []model.AutoGroupCondition{
+			{Metric: "current_group", Op: "!=", ValueStr: "svip"},
+			{Metric: "total_spend", Op: ">=", Value: 9999},
+		})
+		cache := map[string]float64{"total_spend": 100}
+		strCache := map[string]string{"current_group": "default"}
+		got := engine.matchConditions(0, rule, cache, strCache)
+		require.True(t, got)
 	})
 }
