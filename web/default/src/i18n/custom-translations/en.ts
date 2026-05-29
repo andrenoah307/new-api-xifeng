@@ -677,7 +677,7 @@ const en = {
   'Export completed': 'Export completed',
 
   // Invoice-Refund Cross Validation
-  'Invoice conflict warning': 'You have active invoice applications. Proceeding with a refund may require invoice reversal (red-letter correction).',
+  'Invoice conflict warning': 'You have invoice applications. After submitting a refund, the associated invoices will be reversed (red-letter correction).',
   'Invoice conflict acknowledge': 'I understand that this refund may require invoice reversal and wish to proceed',
   'Refund conflict warning': 'You have active refund applications. Creating an invoice now may require reversal if refunds are approved.',
   'Refund conflict acknowledge': 'I understand and wish to proceed with the invoice application',

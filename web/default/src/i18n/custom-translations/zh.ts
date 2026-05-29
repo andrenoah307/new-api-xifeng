@@ -683,7 +683,7 @@ const zh: Record<string, string> = {
   // Invoice-Refund Cross Validation
   Date: '日期',
   Company: '公司',
-  'Invoice conflict warning': '您存在进行中的发票申请。提交退款后，关联的发票可能需要红冲处理。',
+  'Invoice conflict warning': '您存在发票申请，提交退款后，关联的发票将会进行冲红处理',
   'Invoice conflict acknowledge': '我已了解退款可能导致发票红冲，确认继续提交',
   'Refund conflict warning': '您存在待处理的退款申请。如退款通过，当前申请的发票可能需要红冲处理。',
   'Refund conflict acknowledge': '我已了解并确认继续申请开票',
