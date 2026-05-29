@@ -366,7 +366,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
               label={t('收款账号')}
               maxLength={128}
               showClear
-              placeholder={t('支付宝 / 微信账号或银行卡号')}
+              placeholder={t('支付宝账号或银行卡号')}
               rules={[{ required: true, message: t('收款账号不能为空') }]}
             />
             {payeeType === 'bank' && (

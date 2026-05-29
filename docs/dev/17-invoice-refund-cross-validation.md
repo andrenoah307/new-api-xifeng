@@ -49,3 +49,17 @@ GET /api/ticket/admin/:id/refund
 | i18n | i18n/keys.go + locales/ |
 | Default 前端 | features/tickets/api.ts, create-ticket-dialog.tsx, create-invoice-ticket-dialog.tsx, refund-detail.tsx, ticket-admin-detail.tsx |
 | Classic 前端 | CreateTicketModal.jsx, CreateInvoiceTicketModal.jsx, RefundDetail.jsx, TicketAdmin/index.jsx |
+
+## 退款方式精简
+
+退款收款方式仅保留**支付宝**（alipay）和**银行卡**（bank），移除微信和其他选项。
+
+- 后端 `IsValidRefundPayeeType` 仅接受 `alipay`/`bank`，`refundPayeeTypeText` 保留历史类型显示（向后兼容）
+- Default 前端 `PAYEE_TYPE_OPTIONS` 仅含两项（表单用），`PAYEE_TYPE_LABELS` 含所有类型（显示用）
+- Classic 前端新增 `REFUND_PAYEE_TYPE_OPTIONS`（下拉框用），原 `REFUND_PAYEE_TYPES` 保留完整（显示用）
+
+## 视觉优化
+
+- **InvoiceHistoryAlert**：自定义 div + amber 配色 + `max-w-2xl` + `grid-cols-[auto_1fr_auto_auto]` + 列标题
+- **Alert warning 变体**：`alert.tsx` 新增 amber warning 变体，对话框冲突提醒统一使用
+- **Classic Grid**：列宽从 `1fr×4` 改为 `auto 1fr auto auto`，`maxWidth: 672`

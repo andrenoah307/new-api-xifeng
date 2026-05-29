@@ -488,7 +488,7 @@ const en = {
     'Describe in detail for faster resolution',
   'Refund amount placeholder': 'Enter the amount you wish to refund',
   'Payee name placeholder': "Enter payee's real name",
-  'Payee account placeholder': 'Alipay / WeChat account or bank card number',
+  'Payee account placeholder': 'Alipay account or bank card number',
   'Bank name placeholder': 'Enter bank name',
   'Contact placeholder': 'Phone or email for admin to contact you',
   'Refund reason placeholder': 'Briefly explain the refund reason',

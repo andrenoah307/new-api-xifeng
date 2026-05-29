@@ -19,9 +19,7 @@ const (
 
 const (
 	RefundPayeeTypeAlipay = "alipay"
-	RefundPayeeTypeWechat = "wechat"
 	RefundPayeeTypeBank   = "bank"
-	RefundPayeeTypeOther  = "other"
 )
 
 // 批准退款时的额度操作模式。默认按 RefundQuotaModeWriteOff（核销冻结）。
@@ -99,7 +97,7 @@ func NormalizeRefundPayeeType(payeeType string) string {
 
 func IsValidRefundPayeeType(payeeType string) bool {
 	switch NormalizeRefundPayeeType(payeeType) {
-	case RefundPayeeTypeAlipay, RefundPayeeTypeWechat, RefundPayeeTypeBank, RefundPayeeTypeOther:
+	case RefundPayeeTypeAlipay, RefundPayeeTypeBank:
 		return true
 	default:
 		return false
@@ -110,12 +108,14 @@ func refundPayeeTypeText(payeeType string) string {
 	switch NormalizeRefundPayeeType(payeeType) {
 	case RefundPayeeTypeAlipay:
 		return "支付宝"
-	case RefundPayeeTypeWechat:
+	case "wechat":
 		return "微信"
 	case RefundPayeeTypeBank:
 		return "银行卡"
-	default:
+	case "other":
 		return "其他"
+	default:
+		return payeeType
 	}
 }
 
