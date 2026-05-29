@@ -45,7 +45,7 @@ import {
   getLogTypeConfig,
   isPerCallBilling,
   isTimingLogType,
-  stripProxyIdSuffixes,
+  stripLocalRequestId,
 } from '../../lib/utils'
 import type { LogOtherData } from '../../types'
 
@@ -384,7 +384,7 @@ interface DetailsDialogProps {
 export function DetailsDialog(props: DetailsDialogProps) {
   const { t } = useTranslation()
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
-  const details = stripProxyIdSuffixes(props.log.content ?? '')
+  const details = stripLocalRequestId(props.log.content ?? '')
   const other = parseLogOther(props.log.other)
   const typeConfig = getLogTypeConfig(props.log.type)
 

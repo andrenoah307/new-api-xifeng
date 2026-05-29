@@ -96,6 +96,16 @@ func TestStripLocalRequestId(t *testing.T) {
 			input:    "error msg (request_ori_id: abc123)",
 			expected: "error msg (request_ori_id: abc123)",
 		},
+		{
+			name:     "preserves request_ori_id with malformed uuid",
+			input:    "error (request_ori_id: 0d547ced-f559-4e08-90e9712affa50070) (request id: local123)",
+			expected: "error (request_ori_id: 0d547ced-f559-4e08-90e9712affa50070)",
+		},
+		{
+			name:     "preserves all upstream ids strips only local",
+			input:    "upstream error (request_ori_id: uuid-1)（traceid: trace-abc） (request id: local-1) (request id: local-2)",
+			expected: "upstream error (request_ori_id: uuid-1)（traceid: trace-abc）",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
