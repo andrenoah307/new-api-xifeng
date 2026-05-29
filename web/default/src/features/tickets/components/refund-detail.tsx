@@ -82,11 +82,17 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
     >
       <p className="text-sm font-medium mb-2">{t('User has invoice records')}</p>
       <table className="text-xs border-collapse">
+        <colgroup>
+          <col />
+          <col />
+          <col style={{ width: 52 }} />
+          <col />
+        </colgroup>
         <thead>
           <tr>
             <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium whitespace-nowrap">{t('Date')}</th>
             <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium">{t('Company')}</th>
-            <th className="text-muted-foreground px-2 py-1 text-right text-xs font-medium min-w-[52px]">{t('Amount')}</th>
+            <th className="text-muted-foreground px-2 py-1 text-right text-xs font-medium">{t('Amount')}</th>
             <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium">{t('Status')}</th>
           </tr>
         </thead>
@@ -101,7 +107,7 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
                 <td className="px-2 py-1 max-w-[200px] truncate">
                   {inv.company_name}
                 </td>
-                <td className="px-2 py-1 font-mono text-right whitespace-nowrap min-w-[52px]">
+                <td className="px-2 py-1 font-mono text-right whitespace-nowrap">
                   ¥{inv.total_money?.toFixed(2)}
                 </td>
                 <td className="px-2 py-1">
