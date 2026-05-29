@@ -1141,3 +1141,10 @@ export function stripProxyIdSuffixes(msg) {
   return result.trimEnd();
 }
 
+const LOCAL_REQUEST_ID_PATTERN = /\s*\(request id: [^)]*\)/g;
+
+export function stripLocalRequestId(msg) {
+  if (!msg) return msg;
+  return msg.replace(LOCAL_REQUEST_ID_PATTERN, '').trimEnd();
+}
+
