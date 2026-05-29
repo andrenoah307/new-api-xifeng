@@ -280,7 +280,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
               <Banner
                 type='warning'
                 description={t(
-                  '您存在进行中的发票申请。提交退款后，关联的发票可能需要红冲处理。',
+                  '您存在发票申请，提交退款后，关联的发票将会进行冲红处理',
                 )}
                 closeIcon={null}
                 className='!mb-3'
