@@ -9,6 +9,7 @@ import {
 import { formatTimestampToDate } from '@/lib/format'
 import { DataTableColumnHeader } from '@/components/data-table'
 import { Badge } from '@/components/ui/badge'
+import { GroupBadge } from '@/components/group-badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -165,7 +166,7 @@ export function useRulesColumns(): ColumnDef<AutoGroupRule>[] {
         <DataTableColumnHeader column={column} title={t('Target Group')} />
       ),
       cell: ({ row }) => (
-        <Badge variant='outline'>{row.getValue('target_group')}</Badge>
+        <GroupBadge group={row.getValue('target_group')} />
       ),
     },
     {

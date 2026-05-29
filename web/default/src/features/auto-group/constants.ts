@@ -17,11 +17,14 @@ export const METRICS: MetricConfig[] = [
   { key: 'yesterday_topup', labelKey: "Yesterday's Top-up (USD)", needsParam: false },
   { key: 'total_request_count', labelKey: 'Total Request Count', needsParam: false },
   { key: 'recent_request_count', labelKey: 'Recent N Hours Request Count', needsParam: true },
+  { key: 'current_group', labelKey: 'Current Group', needsParam: false },
 ]
 
 export const METRICS_MAP: Record<string, MetricConfig> = Object.fromEntries(
   METRICS.map((m) => [m.key, m])
 )
+
+export const STRING_METRICS = new Set(['current_group'])
 
 // ============================================================================
 // Operators
@@ -32,6 +35,11 @@ export const OPS = [
   { value: '>', label: '>' },
   { value: '<=', label: '<=' },
   { value: '<', label: '<' },
+  { value: '==', label: '==' },
+  { value: '!=', label: '!=' },
+] as const
+
+export const STRING_OPS = [
   { value: '==', label: '==' },
   { value: '!=', label: '!=' },
 ] as const

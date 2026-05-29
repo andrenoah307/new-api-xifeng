@@ -25,10 +25,11 @@ type AutoGroupRule struct {
 }
 
 type AutoGroupCondition struct {
-	Metric string  `json:"metric"`
-	Op     string  `json:"op"`
-	Value  float64 `json:"value"`
-	Param  int     `json:"param,omitempty"`
+	Metric   string  `json:"metric"`
+	Op       string  `json:"op"`
+	Value    float64 `json:"value"`
+	ValueStr string  `json:"value_str,omitempty"`
+	Param    int     `json:"param,omitempty"`
 }
 
 func (rule *AutoGroupRule) BeforeCreate(tx *gorm.DB) error {

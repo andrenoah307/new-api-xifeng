@@ -8,6 +8,7 @@ export const autoGroupConditionSchema = z.object({
   metric: z.string(),
   op: z.string(),
   value: z.number(),
+  value_str: z.string().optional(),
   param: z.number().optional(),
 })
 

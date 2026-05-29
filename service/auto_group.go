@@ -15,8 +15,11 @@ type compiledAutoGroupRule struct {
 	Conditions []model.AutoGroupCondition
 }
 
+const groupChangeCooldownSeconds int64 = 60
+
 type autoGroupEngine struct {
 	started       atomic.Bool
+	sweeping      atomic.Bool
 	rules         atomic.Value // []*compiledAutoGroupRule
 	enrolledUsers atomic.Value // map[int]struct{}
 	evalCh        chan int
@@ -200,6 +203,12 @@ func (e *autoGroupEngine) evaluateBatch(userIds map[int]struct{}) {
 }
 
 func (e *autoGroupEngine) sweepAll() {
+	if !e.sweeping.CompareAndSwap(false, true) {
+		common.SysLog("auto group sweep skipped: already running")
+		return
+	}
+	defer e.sweeping.Store(false)
+
 	rules := e.currentRules()
 	enrollments, err := model.ListAllEnrollments()
 	if err != nil {
@@ -217,6 +226,11 @@ func (e *autoGroupEngine) evaluateUser(userId int, rules []*compiledAutoGroupRul
 		return
 	}
 
+	now := common.GetTimestamp()
+	if enrollment.CurrentRuleId != 0 && now-enrollment.UpdatedAt < groupChangeCooldownSeconds {
+		return
+	}
+
 	hasSubscription, err := model.HasActiveSubscriptionWithUpgrade(userId)
 	if err != nil {
 		common.SysError(fmt.Sprintf("auto group check subscription for user %d failed: %v", userId, err))
@@ -227,10 +241,11 @@ func (e *autoGroupEngine) evaluateUser(userId int, rules []*compiledAutoGroupRul
 	}
 
 	metricsCache := make(map[string]float64)
+	strMetricsCache := make(map[string]string)
 	var matchedRule *compiledAutoGroupRule
 
 	for _, rule := range rules {
-		if e.matchConditions(userId, rule, metricsCache) {
+		if e.matchConditions(userId, rule, metricsCache, strMetricsCache) {
 			matchedRule = rule
 			break
 		}
@@ -239,59 +254,68 @@ func (e *autoGroupEngine) evaluateUser(userId int, rules []*compiledAutoGroupRul
 	if matchedRule != nil {
 		targetGroup := matchedRule.Raw.TargetGroup
 		if targetGroup != enrollment.CurrentGroup {
-			if err := model.DB.Model(&model.User{}).
-				Where("id = ?", userId).
-				Update("group", targetGroup).Error; err != nil {
+			if err := model.TransactionalGroupChange(userId, targetGroup, matchedRule.Raw.Id); err != nil {
 				common.SysError(fmt.Sprintf("auto group update user %d group to %s failed: %v", userId, targetGroup, err))
 				return
 			}
-			if err := model.UpdateEnrollmentGroup(userId, targetGroup, matchedRule.Raw.Id); err != nil {
-				common.SysError(fmt.Sprintf("auto group update enrollment for user %d failed: %v", userId, err))
-			}
 			model.UpdateUserGroupCache(userId, targetGroup)
-			common.SysLog(fmt.Sprintf("auto group: user %d group changed to %s (rule: %s)", userId, targetGroup, matchedRule.Raw.Name))
+			common.SysLog(fmt.Sprintf("auto group: user %d group changed %s -> %s (rule: %s)", userId, enrollment.CurrentGroup, targetGroup, matchedRule.Raw.Name))
 		}
 	} else {
 		if enrollment.CurrentRuleId != 0 {
-			if err := model.DB.Model(&model.User{}).
-				Where("id = ?", userId).
-				Update("group", enrollment.OriginalGroup).Error; err != nil {
+			if err := model.TransactionalGroupChange(userId, enrollment.OriginalGroup, 0); err != nil {
 				common.SysError(fmt.Sprintf("auto group revert user %d group to %s failed: %v", userId, enrollment.OriginalGroup, err))
 				return
 			}
-			if err := model.UpdateEnrollmentGroup(userId, enrollment.OriginalGroup, 0); err != nil {
-				common.SysError(fmt.Sprintf("auto group update enrollment for user %d failed: %v", userId, err))
-			}
 			model.UpdateUserGroupCache(userId, enrollment.OriginalGroup)
-			common.SysLog(fmt.Sprintf("auto group: user %d group reverted to %s (no matching rule)", userId, enrollment.OriginalGroup))
+			common.SysLog(fmt.Sprintf("auto group: user %d group reverted %s -> %s (no matching rule)", userId, enrollment.CurrentGroup, enrollment.OriginalGroup))
 		}
 	}
 }
 
-func (e *autoGroupEngine) matchConditions(userId int, rule *compiledAutoGroupRule, metricsCache map[string]float64) bool {
+func (e *autoGroupEngine) matchConditions(userId int, rule *compiledAutoGroupRule, metricsCache map[string]float64, strMetricsCache map[string]string) bool {
 	isAll := rule.Raw.MatchMode != "any"
 
 	for _, cond := range rule.Conditions {
-		metricKey := cond.Metric
-		if cond.Param > 0 {
-			metricKey = fmt.Sprintf("%s_%d", cond.Metric, cond.Param)
-		}
+		var matched bool
 
-		value, ok := metricsCache[metricKey]
-		if !ok {
-			var err error
-			value, err = e.computeMetric(userId, cond.Metric, cond.Param)
-			if err != nil {
-				common.SysError(fmt.Sprintf("auto group compute metric %s for user %d failed: %v", cond.Metric, userId, err))
-				if isAll {
-					return false
+		if isStringMetric(cond.Metric) {
+			strValue, ok := strMetricsCache[cond.Metric]
+			if !ok {
+				var err error
+				strValue, err = e.computeStringMetric(userId, cond.Metric)
+				if err != nil {
+					common.SysError(fmt.Sprintf("auto group compute string metric %s for user %d failed: %v", cond.Metric, userId, err))
+					if isAll {
+						return false
+					}
+					continue
 				}
-				continue
+				strMetricsCache[cond.Metric] = strValue
 			}
-			metricsCache[metricKey] = value
+			matched = compareString(strValue, cond.Op, cond.ValueStr)
+		} else {
+			metricKey := cond.Metric
+			if cond.Param > 0 {
+				metricKey = fmt.Sprintf("%s_%d", cond.Metric, cond.Param)
+			}
+
+			value, ok := metricsCache[metricKey]
+			if !ok {
+				var err error
+				value, err = e.computeMetric(userId, cond.Metric, cond.Param)
+				if err != nil {
+					common.SysError(fmt.Sprintf("auto group compute metric %s for user %d failed: %v", cond.Metric, userId, err))
+					if isAll {
+						return false
+					}
+					continue
+				}
+				metricsCache[metricKey] = value
+			}
+			matched = compareValue(value, cond.Op, cond.Value)
 		}
 
-		matched := compareValue(value, cond.Op, cond.Value)
 		if isAll && !matched {
 			return false
 		}
@@ -383,5 +407,33 @@ func compareValue(actual float64, op string, target float64) bool {
 		return actual != target
 	default:
 		return false
+	}
+}
+
+func isStringMetric(metric string) bool {
+	return metric == "current_group"
+}
+
+func compareString(actual, op, target string) bool {
+	switch op {
+	case "==":
+		return actual == target
+	case "!=":
+		return actual != target
+	default:
+		return false
+	}
+}
+
+func (e *autoGroupEngine) computeStringMetric(userId int, metric string) (string, error) {
+	switch metric {
+	case "current_group":
+		user, err := model.GetUserById(userId, false)
+		if err != nil {
+			return "", err
+		}
+		return user.Group, nil
+	default:
+		return "", fmt.Errorf("unknown string metric: %s", metric)
 	}
 }

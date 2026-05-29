@@ -607,6 +607,8 @@ const en = {
   'Higher = evaluated first': 'Higher = evaluated first',
   'Target Group': 'Target Group',
   'Enter target group name': 'Enter target group name',
+  'Select target group': 'Select target group',
+  'Select group': 'Select group',
   'The group users will be assigned to when rule matches':
     'The group users will be assigned to when rule matches',
   'Match Mode': 'Match Mode',
