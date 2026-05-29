@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog,
   DialogContent,
@@ -35,6 +36,7 @@ import { formatTimestampToDate } from '@/lib/format'
 import {
   createInvoiceTicket,
   getEligibleInvoiceOrders,
+  checkInvoiceRefundConflict,
   type TicketInvoiceOrder,
 } from '../../api'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
@@ -76,6 +78,7 @@ export function CreateInvoiceTicketDialog({
   const queryClient = useQueryClient()
   const schema = useMemo(() => createSchema(t), [t])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [refundConflictAcked, setRefundConflictAcked] = useState(false)
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ticketQueryKeys.eligibleOrders(),
@@ -83,8 +86,17 @@ export function CreateInvoiceTicketDialog({
     enabled: open,
   })
 
+  const { data: refundConflict } = useQuery({
+    queryKey: ticketQueryKeys.invoiceRefundCheck(),
+    queryFn: checkInvoiceRefundConflict,
+    enabled: open,
+  })
+
   useEffect(() => {
-    if (!open) setSelectedIds(new Set())
+    if (!open) {
+      setSelectedIds(new Set())
+      setRefundConflictAcked(false)
+    }
   }, [open])
 
   const invoiceAmount = useMemo(
@@ -151,9 +163,10 @@ export function CreateInvoiceTicketDialog({
         email: values.email ?? '',
         content: values.content ?? '',
         topup_order_ids: Array.from(selectedIds),
+        refund_conflict_acknowledged: refundConflictAcked,
       })
     },
-    [selectedIds, mutation, t]
+    [selectedIds, mutation, t, refundConflictAcked]
   )
 
   return (
@@ -164,6 +177,24 @@ export function CreateInvoiceTicketDialog({
         </DialogHeader>
 
         <div className="space-y-5">
+          {refundConflict?.has_refunds && (
+            <Alert>
+              <AlertDescription className="space-y-2">
+                <p className="font-medium">{t('Refund conflict warning')}</p>
+                <div className="flex items-center gap-2 pt-1">
+                  <Checkbox
+                    id="refund-conflict-ack"
+                    checked={refundConflictAcked}
+                    onCheckedChange={(checked) => setRefundConflictAcked(checked === true)}
+                  />
+                  <label htmlFor="refund-conflict-ack" className="text-xs cursor-pointer">
+                    {t('Refund conflict acknowledge')}
+                  </label>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Step 1: Order selection */}
           <div>
             <h4 className="mb-2 text-sm font-medium">
@@ -359,7 +390,7 @@ export function CreateInvoiceTicketDialog({
           <Button
             type="submit"
             form="invoice-ticket-form"
-            disabled={mutation.isPending || selectedIds.size === 0}
+            disabled={mutation.isPending || selectedIds.size === 0 || (refundConflict?.has_refunds && !refundConflictAcked)}
           >
             {mutation.isPending ? t('Submitting...') : t('Submit Application')}
           </Button>

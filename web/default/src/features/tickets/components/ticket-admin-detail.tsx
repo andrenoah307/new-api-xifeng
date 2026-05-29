@@ -321,7 +321,8 @@ export default function TicketAdminDetailPage({
           )}
           {isRefund && refundData && (
             <RefundDetail
-              refund={refundData}
+              refund={refundData.refund}
+              userInvoices={refundData.user_invoices}
               onStatusChange={handleRefundStatusChange}
               onSendMessage={handleSendSystemMessage}
               loading={refundStatusMutation.isPending}

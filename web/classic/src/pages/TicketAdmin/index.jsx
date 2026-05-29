@@ -63,6 +63,7 @@ const AdminTicketDetail = () => {
   const [invoice, setInvoice] = useState(null);
   const [orders, setOrders] = useState([]);
   const [refund, setRefund] = useState(null);
+  const [userInvoices, setUserInvoices] = useState(null);
   const [statusValue, setStatusValue] = useState(1);
   const [priorityValue, setPriorityValue] = useState(2);
   const account = useMemo(() => getCurrentAccount(), []);
@@ -84,6 +85,7 @@ const AdminTicketDetail = () => {
     }
     const data = res.data?.data || {};
     setRefund(data.refund || null);
+    setUserInvoices(data.user_invoices || []);
   }, [id, t]);
 
   const loadDetail = useCallback(async () => {
@@ -110,6 +112,7 @@ const AdminTicketDetail = () => {
         await loadRefundDetail();
       } else {
         setRefund(null);
+        setUserInvoices(null);
       }
     } catch (error) {
       showError(error?.message || t('请求失败'));
@@ -374,6 +377,7 @@ const AdminTicketDetail = () => {
         <RefundDetail
           refund={refund}
           ticket={ticket}
+          userInvoices={userInvoices}
           loading={saving}
           onStatusChange={handleRefundStatusChange}
           onSendMessage={sendSystemMessage}

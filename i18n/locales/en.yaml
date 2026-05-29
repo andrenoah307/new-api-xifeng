@@ -164,6 +164,8 @@ ticket.refund_contact_empty: "Contact info cannot be empty"
 ticket.refund_not_pending: "Refund request is no longer pending"
 ticket.refund_quota_mode_invalid: "Invalid quota operation mode"
 ticket.assignee_invalid: "Ticket has already been assigned by another staff, or the target user is invalid"
+ticket.refund_invoice_conflict: "You have active invoice applications. Please acknowledge the potential invoice reversal before proceeding."
+ticket.invoice_refund_conflict: "You have active refund applications. Please acknowledge the potential impact before proceeding with invoice application."
 
 # Payment messages
 payment.not_configured: "Payment information has not been configured by administrator"
