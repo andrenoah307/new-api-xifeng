@@ -123,6 +123,14 @@ func GetTicketInvoiceByTicketId(ticketId int) (*TicketInvoice, error) {
 	return &invoice, nil
 }
 
+func GetUserInvoiceSummaries(userId int) ([]*TicketInvoice, error) {
+	var invoices []*TicketInvoice
+	if err := DB.Where("user_id = ?", userId).Order("created_time DESC").Find(&invoices).Error; err != nil {
+		return nil, err
+	}
+	return invoices, nil
+}
+
 func getProtectedInvoiceOrderSet(tx *gorm.DB, userId int) (map[int]struct{}, error) {
 	var invoices []*TicketInvoice
 	if err := tx.Where("user_id = ? AND invoice_status <> ?", userId, InvoiceStatusRejected).Find(&invoices).Error; err != nil {

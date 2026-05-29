@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Banner,
   Button,
+  Checkbox,
   Col,
   Empty,
   Form,
@@ -22,6 +24,8 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [orders, setOrders] = useState([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [invoiceAmount, setInvoiceAmount] = useState(0);
+  const [refundConflict, setRefundConflict] = useState(null);
+  const [refundConflictAcked, setRefundConflictAcked] = useState(false);
   const formApiRef = useRef(null);
 
   const loadOrders = async () => {
@@ -54,6 +58,17 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       return;
     }
     loadOrders();
+  }, [visible]);
+
+  useEffect(() => {
+    if (visible) {
+      API.get('/api/ticket/invoice/refund-check').then((res) => {
+        if (res.data?.success) setRefundConflict(res.data.data);
+      });
+    } else {
+      setRefundConflict(null);
+      setRefundConflictAcked(false);
+    }
   }, [visible]);
 
   // 选中订单时自动计算开票金额
@@ -107,7 +122,8 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
 
   const canSubmit =
     selectedOrderIds.length > 0 &&
-    (MIN_INVOICE_AMOUNT <= 0 || invoiceAmount >= MIN_INVOICE_AMOUNT);
+    (MIN_INVOICE_AMOUNT <= 0 || invoiceAmount >= MIN_INVOICE_AMOUNT) &&
+    !(refundConflict?.has_refunds && !refundConflictAcked);
 
   const handleSubmit = async (values) => {
     if (!selectedOrderIds.length) {
@@ -130,6 +146,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
         content: values.content || '',
         email: values.email || '',
         topup_order_ids: selectedOrderIds,
+        refund_conflict_acknowledged: refundConflictAcked,
       });
       if (res.data?.success) {
         showSuccess(t('发票申请已提交'));
@@ -181,6 +198,24 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       }
     >
       <div className='flex flex-col gap-4'>
+        {refundConflict?.has_refunds && (
+          <Banner
+            type='warning'
+            description={t(
+              '您存在待处理的退款申请。如退款通过，当前申请的发票可能需要红冲处理。',
+            )}
+            closeIcon={null}
+            style={{ marginBottom: 0 }}
+          />
+        )}
+        {refundConflict?.has_refunds && (
+          <Checkbox
+            checked={refundConflictAcked}
+            onChange={(e) => setRefundConflictAcked(e.target.checked)}
+          >
+            {t('我已了解并确认继续申请开票')}
+          </Checkbox>
+        )}
         {/* 第一部分：选择账单 */}
         <div>
           <Title heading={6} className='!mb-3'>

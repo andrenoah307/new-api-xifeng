@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,7 @@ import {
   createGeneralTicket,
   createRefundTicket,
   getCurrentUserQuota,
+  checkRefundInvoiceConflict,
 } from '../../api'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
 import { PAYEE_TYPE_OPTIONS, humanFileSize } from '../../constants'
@@ -73,6 +75,7 @@ export function CreateTicketDialog({
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [ticketType, setTicketType] = useState<'general' | 'refund'>('general')
+  const [invoiceConflictAcked, setInvoiceConflictAcked] = useState(false)
 
   const {
     attachments,
@@ -88,6 +91,12 @@ export function CreateTicketDialog({
   const { data: userQuota, isLoading: quotaLoading } = useQuery({
     queryKey: ['user', 'quota'],
     queryFn: getCurrentUserQuota,
+    enabled: open && ticketType === 'refund',
+  })
+
+  const { data: invoiceConflict } = useQuery({
+    queryKey: ticketQueryKeys.refundInvoiceCheck(),
+    queryFn: checkRefundInvoiceConflict,
     enabled: open && ticketType === 'refund',
   })
 
@@ -122,6 +131,7 @@ export function CreateTicketDialog({
     if (!open) {
       form.reset()
       setTicketType('general')
+      setInvoiceConflictAcked(false)
       discardAll()
     }
   }, [open])
@@ -220,10 +230,11 @@ export function CreateTicketDialog({
           contact: values.contact ?? '',
           reason: values.reason || values.content || '',
           attachment_ids: attachmentIds,
+          invoice_conflict_acknowledged: invoiceConflictAcked,
         })
       }
     },
-    [ticketType, createGeneral, createRefund, t, attachmentIds, maxRefundDollars, form, payeeType]
+    [ticketType, createGeneral, createRefund, t, attachmentIds, maxRefundDollars, form, payeeType, invoiceConflictAcked]
   )
 
   const handleFileInput = useCallback(
@@ -287,6 +298,35 @@ export function CreateTicketDialog({
               <Alert variant="destructive">
                 <AlertDescription>
                   {t('Refund freeze warning')}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {ticketType === 'refund' && invoiceConflict?.has_active_invoices && (
+              <Alert variant="destructive">
+                <AlertDescription className="space-y-2">
+                  <p className="font-medium">{t('Invoice conflict warning')}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('Active invoices summary', {
+                      count: invoiceConflict.invoices.filter(
+                        (inv) => inv.invoice_status === 1 || inv.invoice_status === 2
+                      ).length,
+                      amount: `¥${invoiceConflict.invoices
+                        .filter((inv) => inv.invoice_status === 1 || inv.invoice_status === 2)
+                        .reduce((sum, inv) => sum + inv.total_money, 0)
+                        .toFixed(2)}`,
+                    })}
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Checkbox
+                      id="invoice-conflict-ack"
+                      checked={invoiceConflictAcked}
+                      onCheckedChange={(checked) => setInvoiceConflictAcked(checked === true)}
+                    />
+                    <label htmlFor="invoice-conflict-ack" className="text-xs cursor-pointer">
+                      {t('Invoice conflict acknowledge')}
+                    </label>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
@@ -588,7 +628,7 @@ export function CreateTicketDialog({
             )}
 
             <DialogFooter>
-              <Button type="submit" disabled={isPending || (ticketType === 'refund' && (quotaLoading || maxRefundDollars == null))}>
+              <Button type="submit" disabled={isPending || (ticketType === 'refund' && (quotaLoading || maxRefundDollars == null)) || (ticketType === 'refund' && invoiceConflict?.has_active_invoices && !invoiceConflictAcked)}>
                 {isPending ? t('Submitting...') : t('Submit Ticket')}
               </Button>
             </DialogFooter>

@@ -25,11 +25,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { getUserQuota, type TicketRefund } from '../api'
-import { REFUND_STATUS, REFUND_STATUS_CONFIG, PAYEE_TYPE_OPTIONS } from '../constants'
+import { getUserQuota, type TicketRefund, type TicketInvoice } from '../api'
+import { REFUND_STATUS, REFUND_STATUS_CONFIG, PAYEE_TYPE_OPTIONS, INVOICE_STATUS_CONFIG } from '../constants'
 
 interface RefundDetailProps {
   refund: TicketRefund
+  userInvoices?: TicketInvoice[]
   readonly?: boolean
   loading?: boolean
   onStatusChange?: (
@@ -59,8 +60,67 @@ function parseQuotaInput(str: string): number | null {
   return parseQuotaFromDollars(num)
 }
 
+function InvoiceRow({ invoice }: { invoice: TicketInvoice }) {
+  const { t } = useTranslation()
+  const statusCfg = INVOICE_STATUS_CONFIG[invoice.invoice_status]
+  return (
+    <div className="grid grid-cols-4 gap-2 items-center py-0.5">
+      <span className="text-muted-foreground">{formatTimestampToDate(invoice.created_time)}</span>
+      <span className="truncate">{invoice.company_name}</span>
+      <span className="font-mono">&yen;{invoice.total_money?.toFixed(2)}</span>
+      {statusCfg && (
+        <StatusBadge
+          label={t(statusCfg.labelKey)}
+          variant={statusCfg.variant}
+          copyable={false}
+        />
+      )}
+    </div>
+  )
+}
+
+function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+
+  const hasActive = invoices.some(
+    (inv) => inv.invoice_status === 1 || inv.invoice_status === 2
+  )
+
+  return (
+    <Alert variant={hasActive ? 'destructive' : 'default'} className="mb-4">
+      <AlertDescription>
+        <div className="space-y-2">
+          <p className="font-medium">{t('User has invoice records')}</p>
+          <div className="space-y-1 text-xs">
+            <InvoiceRow invoice={invoices[0]} />
+            {invoices.length > 1 && (
+              <>
+                {expanded &&
+                  invoices.slice(1).map((inv) => (
+                    <InvoiceRow key={inv.id} invoice={inv} />
+                  ))}
+                <button
+                  type="button"
+                  onClick={() => setExpanded(!expanded)}
+                  className="text-xs text-primary hover:underline mt-1"
+                >
+                  {expanded
+                    ? t('Hide invoices')
+                    : t('Show more invoices', { count: invoices.length - 1 })}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </AlertDescription>
+    </Alert>
+  )
+}
+
 export function RefundDetail({
   refund,
+  userInvoices,
   readonly,
   loading,
   onStatusChange,
@@ -172,6 +232,9 @@ export function RefundDetail({
           )}
         </CardHeader>
         <CardContent className="space-y-4">
+          {userInvoices && userInvoices.length > 0 && (
+            <InvoiceHistoryAlert invoices={userInvoices} />
+          )}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-muted/50 rounded-lg p-3 text-center">
               <div className="text-muted-foreground text-xs">

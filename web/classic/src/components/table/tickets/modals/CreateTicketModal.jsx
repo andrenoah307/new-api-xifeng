@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Banner, Button, Form, Modal, Typography, Upload } from '@douyinfe/semi-ui';
+import { Banner, Button, Checkbox, Form, Modal, Typography, Upload } from '@douyinfe/semi-ui';
 import { IconUpload } from '@douyinfe/semi-icons';
 import {
   API,
@@ -28,6 +28,8 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [userQuota, setUserQuota] = useState(0);
   const [maxRefundableQuota, setMaxRefundableQuota] = useState(0);
   const [quotaLoading, setQuotaLoading] = useState(false);
+  const [invoiceConflict, setInvoiceConflict] = useState(null);
+  const [invoiceConflictAcked, setInvoiceConflictAcked] = useState(false);
   const formApiRef = useRef(null);
   const {
     config,
@@ -79,6 +81,17 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
     });
   }, [visible]);
 
+  useEffect(() => {
+    if (ticketType === 'refund' && visible) {
+      API.get('/api/ticket/refund/invoice-check').then((res) => {
+        if (res.data?.success) setInvoiceConflict(res.data.data);
+      });
+    } else {
+      setInvoiceConflict(null);
+      setInvoiceConflictAcked(false);
+    }
+  }, [ticketType, visible]);
+
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
@@ -115,6 +128,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
           payee_bank: values.payee_bank,
           contact: values.contact,
           reason: values.reason || values.content,
+          invoice_conflict_acknowledged: invoiceConflictAcked,
         };
         const res = await API.post('/api/ticket/refund/', payload);
         if (res.data?.success) {
@@ -171,6 +185,10 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
       okText={t('提交工单')}
       cancelText={t('取消')}
       confirmLoading={loading || uploading}
+      okButtonProps={{
+        disabled:
+          invoiceConflict?.has_active_invoices && !invoiceConflictAcked,
+      }}
       centered
       width={560}
       style={{ maxWidth: '92vw' }}
@@ -258,6 +276,25 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
               )}
               className='!mb-3'
             />
+            {invoiceConflict?.has_active_invoices && (
+              <Banner
+                type='warning'
+                description={t(
+                  '您存在进行中的发票申请。提交退款后，关联的发票可能需要红冲处理。',
+                )}
+                closeIcon={null}
+                className='!mb-3'
+              />
+            )}
+            {invoiceConflict?.has_active_invoices && (
+              <Checkbox
+                checked={invoiceConflictAcked}
+                onChange={(e) => setInvoiceConflictAcked(e.target.checked)}
+                style={{ marginBottom: 12 }}
+              >
+                {t('我已了解退款可能导致发票红冲，确认继续提交')}
+              </Checkbox>
+            )}
           </>
         )}
 

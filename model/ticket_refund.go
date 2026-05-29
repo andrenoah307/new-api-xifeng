@@ -683,3 +683,12 @@ func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) error {
 
 	return nil
 }
+
+func GetUserActiveRefundSummaries(userId int) ([]*TicketRefund, error) {
+	var refunds []*TicketRefund
+	if err := DB.Where("user_id = ? AND refund_status IN ?", userId, []int{RefundStatusPending, RefundStatusRefunded}).
+		Order("created_time DESC").Find(&refunds).Error; err != nil {
+		return nil, err
+	}
+	return refunds, nil
+}
