@@ -675,6 +675,17 @@ const en = {
   'Exporting logs...': 'Exporting logs...',
   'Exporting logs... {{size}} MB': 'Exporting logs... {{size}} MB',
   'Export completed': 'Export completed',
+
+  // Invoice-Refund Cross Validation
+  'Invoice conflict warning': 'You have active invoice applications. Proceeding with a refund may require invoice reversal (red-letter correction).',
+  'Invoice conflict acknowledge': 'I understand that this refund may require invoice reversal and wish to proceed',
+  'Refund conflict warning': 'You have active refund applications. Creating an invoice now may require reversal if refunds are approved.',
+  'Refund conflict acknowledge': 'I understand and wish to proceed with the invoice application',
+  'User has invoice records': 'This user has submitted invoice applications',
+  'Show more invoices': 'Show {{count}} more',
+  'Hide invoices': 'Hide',
+  'Active invoices summary': '{{count}} active invoice(s), total {{amount}}',
+  'Active refunds summary': '{{count}} active refund(s), total {{amount}}',
 } as const
 
 export default en

@@ -184,6 +184,8 @@ const (
 	MsgTicketRefundNotPending      = "ticket.refund_not_pending"
 	MsgTicketRefundQuotaModeInvalid = "ticket.refund_quota_mode_invalid"
 	MsgTicketAssigneeInvalid        = "ticket.assignee_invalid"
+	MsgTicketRefundInvoiceConflict  = "ticket.refund_invoice_conflict"
+	MsgTicketInvoiceRefundConflict  = "ticket.invoice_refund_conflict"
 )
 
 // Payment related messages

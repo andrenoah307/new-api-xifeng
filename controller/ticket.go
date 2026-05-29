@@ -58,17 +58,18 @@ type UpdateTicketStatusRequest struct {
 }
 
 type CreateInvoiceTicketRequest struct {
-	Subject        string `json:"subject"`
-	Priority       int    `json:"priority"`
-	Content        string `json:"content"`
-	CompanyName    string `json:"company_name"`
-	TaxNumber      string `json:"tax_number"`
-	BankName       string `json:"bank_name"`
-	BankAccount    string `json:"bank_account"`
-	CompanyAddress string `json:"company_address"`
-	CompanyPhone   string `json:"company_phone"`
-	Email          string `json:"email"`
-	TopUpOrderIds  []int  `json:"topup_order_ids"`
+	Subject                    string `json:"subject"`
+	Priority                   int    `json:"priority"`
+	Content                    string `json:"content"`
+	CompanyName                string `json:"company_name"`
+	TaxNumber                  string `json:"tax_number"`
+	BankName                   string `json:"bank_name"`
+	BankAccount                string `json:"bank_account"`
+	CompanyAddress             string `json:"company_address"`
+	CompanyPhone               string `json:"company_phone"`
+	Email                      string `json:"email"`
+	TopUpOrderIds              []int  `json:"topup_order_ids"`
+	RefundConflictAcknowledged bool   `json:"refund_conflict_acknowledged"`
 }
 
 type UpdateInvoiceStatusRequest struct {
@@ -76,15 +77,16 @@ type UpdateInvoiceStatusRequest struct {
 }
 
 type CreateRefundTicketRequest struct {
-	Subject      string `json:"subject"`
-	Priority     int    `json:"priority"`
-	RefundQuota  int    `json:"refund_quota"`
-	PayeeType    string `json:"payee_type"`
-	PayeeName    string `json:"payee_name"`
-	PayeeAccount string `json:"payee_account"`
-	PayeeBank    string `json:"payee_bank"`
-	Contact      string `json:"contact"`
-	Reason       string `json:"reason"`
+	Subject                      string `json:"subject"`
+	Priority                     int    `json:"priority"`
+	RefundQuota                  int    `json:"refund_quota"`
+	PayeeType                    string `json:"payee_type"`
+	PayeeName                    string `json:"payee_name"`
+	PayeeAccount                 string `json:"payee_account"`
+	PayeeBank                    string `json:"payee_bank"`
+	Contact                      string `json:"contact"`
+	Reason                       string `json:"reason"`
+	InvoiceConflictAcknowledged  bool   `json:"invoice_conflict_acknowledged"`
 }
 
 type UpdateRefundStatusRequest struct {
@@ -679,6 +681,23 @@ func GetEligibleInvoiceOrders(c *gin.Context) {
 	common.ApiSuccess(c, topUps)
 }
 
+func CheckInvoiceRefundConflict(c *gin.Context) {
+	currentUser, err := getTicketCurrentUser(c)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	refunds, err := model.GetUserActiveRefundSummaries(currentUser.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"has_refunds": len(refunds) > 0,
+		"refunds":     refunds,
+	})
+}
+
 func CreateInvoiceTicket(c *gin.Context) {
 	var req CreateInvoiceTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -689,6 +708,16 @@ func CreateInvoiceTicket(c *gin.Context) {
 	currentUser, err := getTicketCurrentUser(c)
 	if err != nil {
 		common.ApiError(c, err)
+		return
+	}
+
+	refunds, err := model.GetUserActiveRefundSummaries(currentUser.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if len(refunds) > 0 && !req.RefundConflictAcknowledged {
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceRefundConflict)
 		return
 	}
 
@@ -754,6 +783,31 @@ func GetTicketInvoice(c *gin.Context) {
 	})
 }
 
+func CheckRefundInvoiceConflict(c *gin.Context) {
+	currentUser, err := getTicketCurrentUser(c)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	invoices, err := model.GetUserInvoiceSummaries(currentUser.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	hasActive := false
+	for _, inv := range invoices {
+		if inv.InvoiceStatus == model.InvoiceStatusPending || inv.InvoiceStatus == model.InvoiceStatusIssued {
+			hasActive = true
+			break
+		}
+	}
+	common.ApiSuccess(c, gin.H{
+		"has_invoices":        len(invoices) > 0,
+		"has_active_invoices": hasActive,
+		"invoices":            invoices,
+	})
+}
+
 func CreateRefundTicket(c *gin.Context) {
 	var req CreateRefundTicketRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -779,6 +833,23 @@ func CreateRefundTicket(c *gin.Context) {
 	}
 	if req.RefundQuota > maxRefundable {
 		common.ApiErrorI18n(c, i18n.MsgTicketRefundQuotaExceed)
+		return
+	}
+
+	invoices, err := model.GetUserInvoiceSummaries(currentUser.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	hasActiveInvoice := false
+	for _, inv := range invoices {
+		if inv.InvoiceStatus == model.InvoiceStatusPending || inv.InvoiceStatus == model.InvoiceStatusIssued {
+			hasActiveInvoice = true
+			break
+		}
+	}
+	if hasActiveInvoice && !req.InvoiceConflictAcknowledged {
+		common.ApiErrorI18n(c, i18n.MsgTicketRefundInvoiceConflict)
 		return
 	}
 
@@ -831,8 +902,10 @@ func GetTicketRefund(c *gin.Context) {
 		handleTicketError(c, err)
 		return
 	}
+	invoices, _ := model.GetUserInvoiceSummaries(refund.UserId)
 	common.ApiSuccess(c, gin.H{
-		"refund": refund,
+		"refund":        refund,
+		"user_invoices": invoices,
 	})
 }
 

@@ -194,6 +194,7 @@ export async function createRefundTicket(data: {
   contact: string
   reason: string
   attachment_ids: number[]
+  invoice_conflict_acknowledged?: boolean
 }): Promise<{ id: number } | null> {
   const res = await api.post('/api/ticket/refund/', data)
   return res.data?.data ?? null
@@ -206,6 +207,7 @@ export async function createInvoiceTicket(data: {
   content: string
   email: string
   topup_order_ids: number[]
+  refund_conflict_acknowledged?: boolean
 }): Promise<{ id: number } | null> {
   const res = await api.post('/api/ticket/invoice/', data)
   return res.data?.data ?? null
@@ -258,9 +260,9 @@ export async function getAdminInvoiceDetail(
 
 export async function getAdminRefundDetail(
   ticketId: number
-): Promise<TicketRefund | null> {
+): Promise<{ refund: TicketRefund; user_invoices: TicketInvoice[] } | null> {
   const res = await api.get(`/api/ticket/admin/${ticketId}/refund`)
-  return res.data?.data?.refund ?? null
+  return res.data?.data ?? null
 }
 
 export async function getAdminUserProfile(
@@ -373,6 +375,23 @@ export interface InvoiceExportItem {
   created_time: number
 }
 
+export interface InvoiceConflictCheck {
+  has_invoices: boolean
+  has_active_invoices: boolean
+  invoices: TicketInvoice[]
+}
+
+export interface RefundConflictCheck {
+  has_refunds: boolean
+  refunds: Array<{
+    id: number
+    ticket_id: number
+    refund_quota: number
+    refund_status: number
+    created_time: number
+  }>
+}
+
 export interface InvoiceExportListParams {
   p: number
   page_size: number
@@ -387,4 +406,14 @@ export async function getInvoiceExportList(
 ): Promise<{ items: InvoiceExportItem[]; total: number }> {
   const res = await api.get('/api/ticket/admin/invoice/export-list', { params })
   return res.data?.data ?? { items: [], total: 0 }
+}
+
+export async function checkRefundInvoiceConflict(): Promise<InvoiceConflictCheck | null> {
+  const res = await api.get('/api/ticket/refund/invoice-check')
+  return res.data?.data ?? null
+}
+
+export async function checkInvoiceRefundConflict(): Promise<RefundConflictCheck | null> {
+  const res = await api.get('/api/ticket/invoice/refund-check')
+  return res.data?.data ?? null
 }

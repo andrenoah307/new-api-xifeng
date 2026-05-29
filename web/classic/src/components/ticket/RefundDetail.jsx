@@ -28,6 +28,8 @@ import {
   quotaToDisplayAmount,
 } from '../../helpers/quota';
 import {
+  getInvoiceStatusColor,
+  getInvoiceStatusText,
   getRefundPayeeTypeText,
   getRefundStatusColor,
   getRefundStatusText,
@@ -66,6 +68,7 @@ const CopyableText = ({ value, t }) => {
 const RefundDetail = ({
   refund,
   ticket,
+  userInvoices,
   loading = false,
   readonly = false,
   onStatusChange,
@@ -77,6 +80,7 @@ const RefundDetail = ({
   const [rejectVisible, setRejectVisible] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectLoading, setRejectLoading] = useState(false);
+  const [invoicesExpanded, setInvoicesExpanded] = useState(false);
 
   const [quotaMode, setQuotaMode] = useState(QUOTA_MODE_WRITE_OFF);
   const [customAmountInput, setCustomAmountInput] = useState('');
@@ -259,6 +263,100 @@ const RefundDetail = ({
   const snapshotAmount = formatAmount(refund.user_quota_snapshot);
 
   return (
+    <>
+    {userInvoices && userInvoices.length > 0 && (
+      <Banner
+        type='warning'
+        description={
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>
+              {t('该用户存在发票申请记录')}
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                gap: 8,
+                fontSize: 13,
+              }}
+            >
+              <span style={{ color: 'var(--semi-color-text-2)' }}>
+                {t('申请时间')}
+              </span>
+              <span style={{ color: 'var(--semi-color-text-2)' }}>
+                {t('公司抬头')}
+              </span>
+              <span style={{ color: 'var(--semi-color-text-2)' }}>
+                {t('发票金额')}
+              </span>
+              <span style={{ color: 'var(--semi-color-text-2)' }}>
+                {t('状态')}
+              </span>
+              <span>
+                {timestamp2string(userInvoices[0].created_time)}
+              </span>
+              <span>{userInvoices[0].company_name}</span>
+              <span>
+                &yen;{userInvoices[0].total_money?.toFixed(2)}
+              </span>
+              <Tag
+                color={getInvoiceStatusColor(
+                  userInvoices[0].invoice_status,
+                )}
+                size='small'
+              >
+                {getInvoiceStatusText(userInvoices[0].invoice_status, t)}
+              </Tag>
+            </div>
+            {userInvoices.length > 1 && !invoicesExpanded && (
+              <Button
+                theme='borderless'
+                size='small'
+                onClick={() => setInvoicesExpanded(true)}
+                style={{ marginTop: 4 }}
+              >
+                {t('展开更多')} ({userInvoices.length - 1} {t('条')})
+              </Button>
+            )}
+            {invoicesExpanded &&
+              userInvoices.slice(1).map((inv) => (
+                <div
+                  key={inv.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                    gap: 8,
+                    fontSize: 13,
+                    marginTop: 4,
+                  }}
+                >
+                  <span>{timestamp2string(inv.created_time)}</span>
+                  <span>{inv.company_name}</span>
+                  <span>&yen;{inv.total_money?.toFixed(2)}</span>
+                  <Tag
+                    color={getInvoiceStatusColor(inv.invoice_status)}
+                    size='small'
+                  >
+                    {getInvoiceStatusText(inv.invoice_status, t)}
+                  </Tag>
+                </div>
+              ))}
+            {invoicesExpanded && (
+              <Button
+                theme='borderless'
+                size='small'
+                onClick={() => setInvoicesExpanded(false)}
+                style={{ marginTop: 4 }}
+              >
+                {t('收起')}
+              </Button>
+            )}
+          </div>
+        }
+        closeIcon={null}
+        style={{ marginBottom: 16 }}
+      />
+    )}
     <Card className='!rounded-2xl shadow-sm border-0'>
       <div className='flex flex-col gap-4'>
         {/* 头部：标题 + 状态 + 操作按钮 */}
@@ -570,6 +668,7 @@ const RefundDetail = ({
         </div>
       </Modal>
     </Card>
+    </>
   );
 };
 

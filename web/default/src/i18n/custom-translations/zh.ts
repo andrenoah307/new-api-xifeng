@@ -679,6 +679,17 @@ const zh: Record<string, string> = {
   'Exporting logs...': '正在导出日志...',
   'Exporting logs... {{size}} MB': '正在导出日志... {{size}} MB',
   'Export completed': '导出完成',
+
+  // Invoice-Refund Cross Validation
+  'Invoice conflict warning': '您存在进行中的发票申请。提交退款后，关联的发票可能需要红冲处理。',
+  'Invoice conflict acknowledge': '我已了解退款可能导致发票红冲，确认继续提交',
+  'Refund conflict warning': '您存在待处理的退款申请。如退款通过，当前申请的发票可能需要红冲处理。',
+  'Refund conflict acknowledge': '我已了解并确认继续申请开票',
+  'User has invoice records': '该用户存在发票申请记录',
+  'Show more invoices': '展开更多 ({{count}} 条)',
+  'Hide invoices': '收起',
+  'Active invoices summary': '进行中的发票申请：{{count}} 张，合计 {{amount}}',
+  'Active refunds summary': '进行中的退款申请：{{count}} 笔，合计 {{amount}}',
 }
 
 export default zh

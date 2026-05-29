@@ -199,6 +199,8 @@ func SetApiRouter(router *gin.Engine) {
 			ticketRoute.PUT("/self/:id/close", controller.CloseUserTicket)
 			ticketRoute.GET("/invoice/eligible_orders", controller.GetEligibleInvoiceOrders)
 			ticketRoute.POST("/invoice/", controller.CreateInvoiceTicket)
+			ticketRoute.GET("/refund/invoice-check", controller.CheckRefundInvoiceConflict)
+			ticketRoute.GET("/invoice/refund-check", controller.CheckInvoiceRefundConflict)
 			ticketRoute.POST("/refund/", controller.CreateRefundTicket)
 			ticketRoute.POST("/attachment", middleware.CriticalRateLimit(), controller.UploadTicketAttachment)
 			ticketRoute.DELETE("/attachment/:id", controller.DeleteTicketAttachment)
