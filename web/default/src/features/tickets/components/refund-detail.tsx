@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cn } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { StatusBadge } from '@/components/status-badge'
 import { CopyButton } from '@/components/copy-button'
@@ -26,7 +27,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { getUserQuota, type TicketRefund, type TicketInvoice } from '../api'
-import { REFUND_STATUS, REFUND_STATUS_CONFIG, PAYEE_TYPE_OPTIONS, INVOICE_STATUS_CONFIG } from '../constants'
+import { REFUND_STATUS, REFUND_STATUS_CONFIG, PAYEE_TYPE_LABELS, INVOICE_STATUS_CONFIG } from '../constants'
 
 interface RefundDetailProps {
   refund: TicketRefund
@@ -64,10 +65,12 @@ function InvoiceRow({ invoice }: { invoice: TicketInvoice }) {
   const { t } = useTranslation()
   const statusCfg = INVOICE_STATUS_CONFIG[invoice.invoice_status]
   return (
-    <div className="grid grid-cols-4 gap-2 items-center py-0.5">
-      <span className="text-muted-foreground">{formatTimestampToDate(invoice.created_time)}</span>
+    <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 items-center py-0.5">
+      <span className="text-muted-foreground whitespace-nowrap">
+        {formatTimestampToDate(invoice.created_time)}
+      </span>
       <span className="truncate">{invoice.company_name}</span>
-      <span className="font-mono">&yen;{invoice.total_money?.toFixed(2)}</span>
+      <span className="font-mono whitespace-nowrap">¥{invoice.total_money?.toFixed(2)}</span>
       {statusCfg && (
         <StatusBadge
           label={t(statusCfg.labelKey)}
@@ -88,33 +91,42 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
   )
 
   return (
-    <Alert variant={hasActive ? 'destructive' : 'default'} className="mb-4">
-      <AlertDescription>
-        <div className="space-y-2">
-          <p className="font-medium">{t('User has invoice records')}</p>
-          <div className="space-y-1 text-xs">
-            <InvoiceRow invoice={invoices[0]} />
-            {invoices.length > 1 && (
-              <>
-                {expanded &&
-                  invoices.slice(1).map((inv) => (
-                    <InvoiceRow key={inv.id} invoice={inv} />
-                  ))}
-                <button
-                  type="button"
-                  onClick={() => setExpanded(!expanded)}
-                  className="text-xs text-primary hover:underline mt-1"
-                >
-                  {expanded
-                    ? t('Hide invoices')
-                    : t('Show more invoices', { count: invoices.length - 1 })}
-                </button>
-              </>
-            )}
-          </div>
+    <div
+      className={cn(
+        'mb-4 max-w-2xl rounded-lg border p-3',
+        hasActive
+          ? 'bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'
+          : 'bg-muted/50 border-border'
+      )}
+    >
+      <p className="text-sm font-medium mb-2">{t('User has invoice records')}</p>
+      <div className="space-y-1 text-xs">
+        <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 text-muted-foreground font-medium py-0.5">
+          <span>{t('Date')}</span>
+          <span>{t('Company')}</span>
+          <span>{t('Amount')}</span>
+          <span>{t('Status')}</span>
         </div>
-      </AlertDescription>
-    </Alert>
+        <InvoiceRow invoice={invoices[0]} />
+        {invoices.length > 1 && (
+          <>
+            {expanded &&
+              invoices.slice(1).map((inv) => (
+                <InvoiceRow key={inv.id} invoice={inv} />
+              ))}
+            <button
+              type="button"
+              onClick={() => setExpanded(!expanded)}
+              className="text-xs text-primary hover:underline mt-1"
+            >
+              {expanded
+                ? t('Hide invoices')
+                : t('Show more invoices', { count: invoices.length - 1 })}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -150,9 +162,7 @@ export function RefundDetail({
 
   const targetUserQuota = targetUser?.quota ?? null
 
-  const payeeLabel =
-    PAYEE_TYPE_OPTIONS.find((o) => o.value === refund.payee_type)?.label ??
-    refund.payee_type
+  const payeeLabel = PAYEE_TYPE_LABELS[refund.payee_type] ?? refund.payee_type
 
   const parsedCustomQuota = parseQuotaInput(customAmount)
   const frozenQ = refund.frozen_quota || 0

@@ -107,10 +107,15 @@ export const REFUND_STATUS_CONFIG: Record<
 
 export const PAYEE_TYPE_OPTIONS = [
   { value: 'alipay', label: 'Alipay' },
-  { value: 'wechat', label: 'WeChat' },
   { value: 'bank', label: 'Bank Card' },
-  { value: 'other', label: 'Other' },
 ]
+
+export const PAYEE_TYPE_LABELS: Record<string, string> = {
+  alipay: 'Alipay',
+  wechat: 'WeChat',
+  bank: 'Bank Card',
+  other: 'Other',
+}
 
 // ============================================================================
 // Helpers

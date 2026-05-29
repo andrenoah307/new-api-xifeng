@@ -275,9 +275,10 @@ const RefundDetail = ({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr 1fr',
-                gap: 8,
+                gridTemplateColumns: 'auto 1fr auto auto',
+                gap: '4px 16px',
                 fontSize: 13,
+                maxWidth: 672,
               }}
             >
               <span style={{ color: 'var(--semi-color-text-2)' }}>
@@ -324,10 +325,11 @@ const RefundDetail = ({
                   key={inv.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 1fr 1fr',
-                    gap: 8,
+                    gridTemplateColumns: 'auto 1fr auto auto',
+                    gap: '4px 16px',
                     fontSize: 13,
                     marginTop: 4,
+                    maxWidth: 672,
                   }}
                 >
                   <span>{timestamp2string(inv.created_time)}</span>

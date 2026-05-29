@@ -159,6 +159,11 @@ const REFUND_PAYEE_TYPES = [
   { value: 'other', labelKey: '其他' },
 ];
 
+const REFUND_PAYEE_TYPE_OPTIONS = [
+  { value: 'alipay', labelKey: '支付宝' },
+  { value: 'bank', labelKey: '银行卡' },
+];
+
 export const getRefundPayeeTypeText = (payeeType, t) => {
   const item = REFUND_PAYEE_TYPES.find(
     (x) => x.value === String(payeeType || '').toLowerCase(),
@@ -167,5 +172,5 @@ export const getRefundPayeeTypeText = (payeeType, t) => {
 };
 
 export const getRefundPayeeTypeOptions = (t) =>
-  REFUND_PAYEE_TYPES.map((x) => ({ label: t(x.labelKey), value: x.value }));
+  REFUND_PAYEE_TYPE_OPTIONS.map((x) => ({ label: t(x.labelKey), value: x.value }));
 

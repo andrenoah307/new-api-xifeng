@@ -178,7 +178,7 @@ export function CreateInvoiceTicketDialog({
 
         <div className="space-y-5">
           {refundConflict?.has_refunds && (
-            <Alert>
+            <Alert variant="warning">
               <AlertDescription className="space-y-2">
                 <p className="font-medium">{t('Refund conflict warning')}</p>
                 <div className="flex items-center gap-2 pt-1">
