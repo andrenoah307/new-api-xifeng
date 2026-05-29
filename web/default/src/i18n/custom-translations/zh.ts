@@ -611,6 +611,8 @@ const zh: Record<string, string> = {
   'Higher = evaluated first': '数值越大优先级越高',
   'Target Group': '目标分组',
   'Enter target group name': '输入目标分组名称',
+  'Select target group': '选择目标分组',
+  'Select group': '选择分组',
   'The group users will be assigned to when rule matches':
     '规则匹配时用户将被分配到的分组',
   'Match Mode': '匹配模式',

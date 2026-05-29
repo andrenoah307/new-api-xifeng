@@ -127,3 +127,21 @@ func UpdateEnrollmentGroup(userId int, group string, ruleId int) error {
 			"updated_at":      now,
 		}).Error
 }
+
+func TransactionalGroupChange(userId int, newGroup string, ruleId int) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&User{}).
+			Where("id = ?", userId).
+			Update(commonGroupCol, newGroup).Error; err != nil {
+			return err
+		}
+		now := common.GetTimestamp()
+		return tx.Model(&AutoGroupEnrollment{}).
+			Where("user_id = ?", userId).
+			Updates(map[string]interface{}{
+				"current_group":   newGroup,
+				"current_rule_id": ruleId,
+				"updated_at":      now,
+			}).Error
+	})
+}

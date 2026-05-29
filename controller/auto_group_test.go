@@ -183,12 +183,13 @@ func TestValidateAutoGroupRuleRequest(t *testing.T) {
 func TestValidMetrics(t *testing.T) {
 	t.Parallel()
 
-	require.Len(t, validMetrics, 8, "should support exactly 8 metrics")
+	require.Len(t, validMetrics, 9, "should support exactly 9 metrics")
 
 	expected := []string{
 		"total_spend", "recent_spend", "yesterday_spend",
 		"total_topup", "recent_topup", "yesterday_topup",
 		"total_request_count", "recent_request_count",
+		"current_group",
 	}
 	for _, m := range expected {
 		require.True(t, validMetrics[m], "missing metric: %s", m)
@@ -204,4 +205,57 @@ func TestValidOps(t *testing.T) {
 	for _, op := range expected {
 		require.True(t, validOps[op], "missing op: %s", op)
 	}
+}
+
+func TestValidateCurrentGroupCondition(t *testing.T) {
+	t.Parallel()
+
+	t.Run("current_group rejects non-eq/neq operators", func(t *testing.T) {
+		t.Parallel()
+		req := &autoGroupRuleRequest{
+			Name:        "test",
+			TargetGroup: "default",
+			Conditions: []model.AutoGroupCondition{
+				{Metric: "current_group", Op: ">=", ValueStr: "default"},
+			},
+		}
+		err := validateAutoGroupRuleRequest(req)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "仅支持 == 和 !=")
+	})
+
+	t.Run("current_group rejects empty value_str", func(t *testing.T) {
+		t.Parallel()
+		req := &autoGroupRuleRequest{
+			Name:        "test",
+			TargetGroup: "default",
+			Conditions: []model.AutoGroupCondition{
+				{Metric: "current_group", Op: "==", ValueStr: ""},
+			},
+		}
+		err := validateAutoGroupRuleRequest(req)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "分组值不能为空")
+	})
+
+	t.Run("current_group rejects nonexistent group", func(t *testing.T) {
+		t.Parallel()
+		req := &autoGroupRuleRequest{
+			Name:        "test",
+			TargetGroup: "default",
+			Conditions: []model.AutoGroupCondition{
+				{Metric: "current_group", Op: "==", ValueStr: "nonexistent_group_xyz"},
+			},
+		}
+		err := validateAutoGroupRuleRequest(req)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "不存在")
+	})
+}
+
+func TestStringMetrics(t *testing.T) {
+	t.Parallel()
+
+	require.Len(t, stringMetrics, 1)
+	require.True(t, stringMetrics["current_group"])
 }
