@@ -497,7 +497,7 @@ const zh: Record<string, string> = {
   'Content placeholder': '请详细描述问题，方便管理员更快定位',
   'Refund amount placeholder': '请输入希望退还的金额',
   'Payee name placeholder': '请输入收款人真实姓名',
-  'Payee account placeholder': '支付宝 / 微信账号或银行卡号',
+  'Payee account placeholder': '支付宝账号或银行卡号',
   'Bank name placeholder': '请输入开户行名称',
   'Contact placeholder': '手机号或邮箱，便于管理员联系',
   'Refund reason placeholder': '请简要说明退款原因',
@@ -681,6 +681,8 @@ const zh: Record<string, string> = {
   'Export completed': '导出完成',
 
   // Invoice-Refund Cross Validation
+  Date: '日期',
+  Company: '公司',
   'Invoice conflict warning': '您存在进行中的发票申请。提交退款后，关联的发票可能需要红冲处理。',
   'Invoice conflict acknowledge': '我已了解退款可能导致发票红冲，确认继续提交',
   'Refund conflict warning': '您存在待处理的退款申请。如退款通过，当前申请的发票可能需要红冲处理。',

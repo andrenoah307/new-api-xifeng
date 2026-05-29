@@ -295,7 +295,7 @@ export function CreateTicketDialog({
             )}
 
             {ticketType === 'refund' && (
-              <Alert variant="destructive">
+              <Alert variant="warning">
                 <AlertDescription>
                   {t('Refund freeze warning')}
                 </AlertDescription>
@@ -303,7 +303,7 @@ export function CreateTicketDialog({
             )}
 
             {ticketType === 'refund' && invoiceConflict?.has_active_invoices && (
-              <Alert variant="destructive">
+              <Alert variant="warning">
                 <AlertDescription className="space-y-2">
                   <p className="font-medium">{t('Invoice conflict warning')}</p>
                   <p className="text-xs text-muted-foreground">

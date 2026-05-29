@@ -2182,6 +2182,7 @@
     "支付完成后用户跳转的页面，留空则自动使用 服务器地址 + /console/topup": "",
     "支付宝": "Alipay",
     "支付宝 / 微信账号或银行卡号": "",
+    "支付宝账号或银行卡号": "Tài khoản Alipay hoặc số thẻ ngân hàng",
     "支付成功邮件通知": "",
     "支付方式": "Phương thức thanh toán",
     "支付方式名称": "Tên phương thức thanh toán",
