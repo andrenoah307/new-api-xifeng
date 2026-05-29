@@ -6,6 +6,14 @@ import { StatusBadge } from '@/components/status-badge'
 import { CopyButton } from '@/components/copy-button'
 import { formatTimestampToDate, formatQuota, parseQuotaFromDollars } from '@/lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -61,27 +69,6 @@ function parseQuotaInput(str: string): number | null {
   return parseQuotaFromDollars(num)
 }
 
-function InvoiceRow({ invoice }: { invoice: TicketInvoice }) {
-  const { t } = useTranslation()
-  const statusCfg = INVOICE_STATUS_CONFIG[invoice.invoice_status]
-  return (
-    <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 items-center py-0.5">
-      <span className="text-muted-foreground whitespace-nowrap">
-        {formatTimestampToDate(invoice.created_time)}
-      </span>
-      <span className="truncate">{invoice.company_name}</span>
-      <span className="font-mono whitespace-nowrap">¥{invoice.total_money?.toFixed(2)}</span>
-      {statusCfg && (
-        <StatusBadge
-          label={t(statusCfg.labelKey)}
-          variant={statusCfg.variant}
-          copyable={false}
-        />
-      )}
-    </div>
-  )
-}
-
 function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
@@ -90,42 +77,66 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
     (inv) => inv.invoice_status === 1 || inv.invoice_status === 2
   )
 
+  const visible = expanded ? invoices : [invoices[0]]
+
   return (
     <div
       className={cn(
-        'mb-4 max-w-2xl rounded-lg border p-3',
+        'mb-4 w-fit max-w-full rounded-lg border p-3',
         hasActive
           ? 'bg-amber-50/80 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800'
           : 'bg-muted/50 border-border'
       )}
     >
       <p className="text-sm font-medium mb-2">{t('User has invoice records')}</p>
-      <div className="space-y-1 text-xs">
-        <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-4 text-muted-foreground font-medium py-0.5">
-          <span>{t('Date')}</span>
-          <span>{t('Company')}</span>
-          <span>{t('Amount')}</span>
-          <span>{t('Status')}</span>
-        </div>
-        <InvoiceRow invoice={invoices[0]} />
-        {invoices.length > 1 && (
-          <>
-            {expanded &&
-              invoices.slice(1).map((inv) => (
-                <InvoiceRow key={inv.id} invoice={inv} />
-              ))}
-            <button
-              type="button"
-              onClick={() => setExpanded(!expanded)}
-              className="text-xs text-primary hover:underline mt-1"
-            >
-              {expanded
-                ? t('Hide invoices')
-                : t('Show more invoices', { count: invoices.length - 1 })}
-            </button>
-          </>
-        )}
-      </div>
+      <Table className="text-xs">
+        <TableHeader>
+          <TableRow className="border-0 hover:bg-transparent">
+            <TableHead className="h-7 text-xs px-2">{t('Date')}</TableHead>
+            <TableHead className="h-7 text-xs px-2">{t('Company')}</TableHead>
+            <TableHead className="h-7 text-xs px-2 text-right">{t('Amount')}</TableHead>
+            <TableHead className="h-7 text-xs px-2">{t('Status')}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visible.map((inv) => {
+            const statusCfg = INVOICE_STATUS_CONFIG[inv.invoice_status]
+            return (
+              <TableRow key={inv.id} className="border-0 hover:bg-transparent">
+                <TableCell className="py-1 px-2 text-muted-foreground whitespace-nowrap">
+                  {formatTimestampToDate(inv.created_time)}
+                </TableCell>
+                <TableCell className="py-1 px-2 max-w-[200px] truncate">
+                  {inv.company_name}
+                </TableCell>
+                <TableCell className="py-1 px-2 font-mono text-right whitespace-nowrap">
+                  ¥{inv.total_money?.toFixed(2)}
+                </TableCell>
+                <TableCell className="py-1 px-2">
+                  {statusCfg && (
+                    <StatusBadge
+                      label={t(statusCfg.labelKey)}
+                      variant={statusCfg.variant}
+                      copyable={false}
+                    />
+                  )}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+      {invoices.length > 1 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-primary hover:underline mt-1"
+        >
+          {expanded
+            ? t('Hide invoices')
+            : t('Show more invoices', { count: invoices.length - 1 })}
+        </button>
+      )}
     </div>
   )
 }
