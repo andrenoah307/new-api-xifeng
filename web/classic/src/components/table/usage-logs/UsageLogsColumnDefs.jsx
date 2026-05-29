@@ -34,7 +34,7 @@ import {
   renderModelTag,
   renderModelPriceSimple,
   renderTieredModelPriceSimple,
-  stripProxyIdSuffixes,
+  stripLocalRequestId,
 } from '../../../helpers';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
 import { CircleAlert, Route, Sparkles } from 'lucide-react';
@@ -928,7 +928,7 @@ export const getLogsColumns = ({
       fixed: 'right',
       width: 200,
       render: (text, record, index) => {
-        const cleanText = stripProxyIdSuffixes(text);
+        const cleanText = stripLocalRequestId(text);
         const detailSummary = getUsageLogDetailSummary(
           record,
           cleanText,
