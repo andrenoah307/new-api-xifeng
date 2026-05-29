@@ -69,8 +69,6 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
     (inv) => inv.invoice_status === 1 || inv.invoice_status === 2
   )
 
-  const visible = expanded ? invoices : [invoices[0]]
-
   return (
     <div
       className={cn(
@@ -82,12 +80,6 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
     >
       <p className="text-sm font-medium mb-2">{t('User has invoice records')}</p>
       <table className="text-xs border-collapse">
-        <colgroup>
-          <col />
-          <col />
-          <col style={{ width: 52 }} />
-          <col />
-        </colgroup>
         <thead>
           <tr>
             <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium whitespace-nowrap">{t('Date')}</th>
@@ -97,10 +89,11 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
           </tr>
         </thead>
         <tbody>
-          {visible.map((inv) => {
+          {invoices.map((inv, i) => {
             const statusCfg = INVOICE_STATUS_CONFIG[inv.invoice_status]
+            const hidden = !expanded && i > 0
             return (
-              <tr key={inv.id}>
+              <tr key={inv.id} className={hidden ? 'collapse' : undefined}>
                 <td className="text-muted-foreground px-2 py-1 whitespace-nowrap">
                   {formatTimestampToDate(inv.created_time)}
                 </td>
