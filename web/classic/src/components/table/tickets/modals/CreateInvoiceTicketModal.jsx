@@ -52,7 +52,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       formApiRef.current?.setValues({
         company_name: '',
         tax_number: '',
-        invoice_content: '*信息技术服务*技术服务费',
+        invoice_content: '*生产生活服务*技术服务费',
         content: '',
       });
       return;
@@ -261,7 +261,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
               company_name: '',
               tax_number: '',
               email: '',
-              invoice_content: '*信息技术服务*技术服务费',
+              invoice_content: '*生产生活服务*技术服务费',
               content: '',
             }}
             getFormApi={(api) => {
