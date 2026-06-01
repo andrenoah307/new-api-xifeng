@@ -341,7 +341,7 @@ export function CreateInvoiceTicketDialog({
                     <FormLabel>{t('Invoice Content')}</FormLabel>
                     <Input
                       disabled
-                      value="*信息技术服务*技术服务费"
+                      value="*生产生活服务*技术服务费"
                     />
                   </FormItem>
                   <FormField
