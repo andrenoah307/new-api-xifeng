@@ -49,6 +49,17 @@ describe('channel form errors', () => {
     assert.equal(hasAdvancedSettingsErrors(errors), false)
   })
 
+  test('does not treat model mapping errors as advanced settings errors', () => {
+    const errors = {
+      model_mapping: {
+        type: 'custom',
+        message: 'Invalid model mapping',
+      },
+    } satisfies FieldErrors<ChannelFormValues>
+
+    assert.equal(hasAdvancedSettingsErrors(errors), false)
+  })
+
   test('classifies schema errors from invalid advanced JSON fields', () => {
     const result = channelFormSchema.safeParse({
       ...CHANNEL_FORM_DEFAULT_VALUES,

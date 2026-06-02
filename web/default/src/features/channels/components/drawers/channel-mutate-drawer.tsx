@@ -205,7 +205,6 @@ function readAdvancedSettingsPreference(): boolean {
 
 function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
   return Boolean(
-    values.model_mapping?.trim() ||
     values.param_override?.trim() ||
     values.header_override?.trim() ||
     values.status_code_mapping?.trim() ||
