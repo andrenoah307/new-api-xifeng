@@ -16,7 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from 'react'
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -128,6 +135,10 @@ type ModelPricingEditorPanelProps = Omit<
   'open' | 'onOpenChange'
 > & {
   className?: string
+}
+
+export type ModelPricingEditorPanelHandle = {
+  commitDraft: () => Promise<ModelRatioData | null>
 }
 
 type PreviewRow = {
@@ -377,14 +388,13 @@ function buildPreviewRows(
   ]
 }
 
-export function ModelPricingSheet({
-  open,
-  onOpenChange,
-  onSave,
-  onCancel,
-  editData,
-  selectedTargetCount = 0,
-}: ModelPricingSheetProps) {
+export const ModelPricingSheet = forwardRef<
+  ModelPricingEditorPanelHandle,
+  ModelPricingSheetProps
+>(function ModelPricingSheet(
+  { open, onOpenChange, onSave, onCancel, editData, selectedTargetCount = 0 },
+  ref
+) {
   const { t } = useTranslation()
   const title = editData ? t('Edit model pricing') : t('Add model pricing')
   const description = editData?.name || t('New model')
@@ -400,6 +410,7 @@ export function ModelPricingSheet({
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
         <ModelPricingEditorPanel
+          ref={ref}
           onSave={onSave}
           editData={editData}
           selectedTargetCount={selectedTargetCount}
@@ -412,15 +423,15 @@ export function ModelPricingSheet({
       </SheetContent>
     </Sheet>
   )
-}
+})
 
-export function ModelPricingEditorPanel({
-  onSave,
-  editData,
-  selectedTargetCount = 0,
-  onCancel,
-  className,
-}: ModelPricingEditorPanelProps) {
+export const ModelPricingEditorPanel = forwardRef<
+  ModelPricingEditorPanelHandle,
+  ModelPricingEditorPanelProps
+>(function ModelPricingEditorPanel(
+  { onSave, editData, selectedTargetCount = 0, onCancel, className },
+  ref
+) {
   const { t } = useTranslation()
   const [pricingMode, setPricingMode] = useState<PricingMode>('per-token')
   const [promptPrice, setPromptPrice] = useState('')
@@ -687,7 +698,7 @@ export function ModelPricingEditorPanel({
     return nextWarnings
   }, [editData, laneEnabled, lanePrices, pricingMode, promptPrice, t])
 
-  const handleSubmit = (values: ModelPricingFormValues) => {
+  const validatePricingValues = useCallback(() => {
     if (
       pricingMode === 'per-token' &&
       toNumberOrNull(promptPrice) === null &&
@@ -698,7 +709,7 @@ export function ModelPricingEditorPanel({
       form.setError('ratio', {
         message: t('Input price is required before saving dependent prices.'),
       })
-      return
+      return false
     }
 
     if (
@@ -709,27 +720,53 @@ export function ModelPricingEditorPanel({
       form.setError('audioRatio', {
         message: t('Audio output price requires an audio input price.'),
       })
-      return
+      return false
     }
 
-    const data: ModelRatioData = {
-      name: values.name.trim(),
-      billingMode: pricingMode,
-      price: values.price || '',
-      ratio: values.ratio || '',
-      cacheRatio: values.cacheRatio || '',
-      createCacheRatio: values.createCacheRatio || '',
-      completionRatio: values.completionRatio || '',
-      imageRatio: values.imageRatio || '',
-      audioRatio: values.audioRatio || '',
-      audioCompletionRatio: values.audioCompletionRatio || '',
-    }
+    return true
+  }, [form, laneEnabled, lanePrices, pricingMode, promptPrice, t])
 
-    if (pricingMode === 'tiered_expr') {
-      data.billingExpr = billingExpr
-      data.requestRuleExpr = requestRuleExpr
-    }
+  const buildSubmitData = useCallback(
+    (values: ModelPricingFormValues) => {
+      const data: ModelRatioData = {
+        name: values.name.trim(),
+        billingMode: pricingMode,
+        price: values.price || '',
+        ratio: values.ratio || '',
+        cacheRatio: values.cacheRatio || '',
+        createCacheRatio: values.createCacheRatio || '',
+        completionRatio: values.completionRatio || '',
+        imageRatio: values.imageRatio || '',
+        audioRatio: values.audioRatio || '',
+        audioCompletionRatio: values.audioCompletionRatio || '',
+      }
 
+      if (pricingMode === 'tiered_expr') {
+        data.billingExpr = billingExpr
+        data.requestRuleExpr = requestRuleExpr
+      }
+
+      return data
+    },
+    [billingExpr, pricingMode, requestRuleExpr]
+  )
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      commitDraft: async () => {
+        const isValid = await form.trigger()
+        if (!isValid || !validatePricingValues()) return null
+        return buildSubmitData(form.getValues())
+      },
+    }),
+    [form, validatePricingValues, buildSubmitData]
+  )
+
+  const handleSubmit = (values: ModelPricingFormValues) => {
+    if (!validatePricingValues()) return
+
+    const data = buildSubmitData(values)
     onSave(data)
     form.reset()
     onCancel?.()
@@ -980,7 +1017,7 @@ export function ModelPricingEditorPanel({
       </Form>
     </div>
   )
-}
+})
 
 function PriceInput(props: {
   value: string
