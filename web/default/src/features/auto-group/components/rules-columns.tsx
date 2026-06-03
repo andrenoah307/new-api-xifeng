@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Edit,
@@ -20,7 +22,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Switch } from '@/components/ui/switch'
-import { updateRule } from '../api'
+import { updateRule, getGroupOptions } from '../api'
+import type { GroupOption } from '../api'
 import { METRICS_MAP, SUCCESS_MESSAGES } from '../constants'
 import type { AutoGroupRule, AutoGroupCondition } from '../types'
 import { useAutoGroup } from './auto-group-provider'
@@ -128,6 +131,14 @@ function RuleRowActions({ rule }: { rule: AutoGroupRule }) {
 
 export function useRulesColumns(): ColumnDef<AutoGroupRule>[] {
   const { t } = useTranslation()
+  const { data: groups = [] } = useQuery({
+    queryKey: ['groups-with-desc'],
+    queryFn: getGroupOptions,
+  })
+  const groupDescMap = useMemo(
+    () => Object.fromEntries(groups.map((g) => [g.value, g.desc])),
+    [groups]
+  )
   return [
     {
       accessorKey: 'id',
@@ -165,9 +176,18 @@ export function useRulesColumns(): ColumnDef<AutoGroupRule>[] {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('Target Group')} />
       ),
-      cell: ({ row }) => (
-        <GroupBadge group={row.getValue('target_group')} />
-      ),
+      cell: ({ row }) => {
+        const group = row.getValue('target_group') as string
+        const desc = groupDescMap[group]
+        return (
+          <span className='inline-flex items-center gap-1.5'>
+            <GroupBadge group={group} />
+            {desc && desc !== group && (
+              <span className='text-muted-foreground text-xs'>{desc}</span>
+            )}
+          </span>
+        )
+      },
     },
     {
       accessorKey: 'match_mode',
