@@ -34,6 +34,9 @@ const LogsFilters = ({
   isAdminUser,
   handleExport,
   exporting,
+  onOfflineExport,
+  onShowExportTasks,
+  offlineExportEnabled,
   t,
 }) => {
   return (
@@ -193,6 +196,24 @@ const LogsFilters = ({
             >
               {t('导出日志')}
             </Button>
+            {offlineExportEnabled && (
+              <Button
+                type='tertiary'
+                onClick={onOfflineExport}
+                size='small'
+              >
+                {t('离线导出')}
+              </Button>
+            )}
+            {offlineExportEnabled && (
+              <Button
+                type='tertiary'
+                onClick={onShowExportTasks}
+                size='small'
+              >
+                {t('导出记录')}
+              </Button>
+            )}
           </div>
         </div>
       </div>

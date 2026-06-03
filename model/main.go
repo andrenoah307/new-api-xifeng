@@ -330,6 +330,7 @@ func migrateDB() error {
 		&DiscountCodeUsage{},
 		&AutoGroupRule{},
 		&AutoGroupEnrollment{},
+		&LogExportTask{},
 	)
 	if err != nil {
 		return err
