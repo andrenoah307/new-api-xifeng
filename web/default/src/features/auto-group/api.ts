@@ -14,12 +14,23 @@ import type {
 // Groups
 // ============================================================================
 
-export async function getGroups(): Promise<string[]> {
-  const res = await api.get('/api/group/')
+export type GroupOption = {
+  value: string
+  desc: string
+  ratio: number | string
+}
+
+export async function getGroupOptions(): Promise<GroupOption[]> {
+  const res = await api.get('/api/user/self/groups')
   const data = res.data?.data
-  if (Array.isArray(data)) return data.map(String)
-  if (data && typeof data === 'object') return Object.keys(data)
-  return []
+  if (!data || typeof data !== 'object') return []
+  return Object.entries(data)
+    .filter(([key]) => key !== 'auto')
+    .map(([key, info]) => ({
+      value: key,
+      desc: (info as { desc?: string }).desc || key,
+      ratio: (info as { ratio?: number | string }).ratio ?? 1,
+    }))
 }
 
 // ============================================================================

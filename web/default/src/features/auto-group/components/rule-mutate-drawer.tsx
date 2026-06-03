@@ -34,7 +34,8 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import { createRule, updateRule, getRule, getGroups } from '../api'
+import { createRule, updateRule, getRule, getGroupOptions } from '../api'
+import type { GroupOption } from '../api'
 import { METRICS, METRICS_MAP, OPS, STRING_OPS, STRING_METRICS, SUCCESS_MESSAGES } from '../constants'
 import type { AutoGroupRule, AutoGroupCondition } from '../types'
 import { useAutoGroup } from './auto-group-provider'
@@ -96,8 +97,8 @@ export function RuleMutateDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { data: groupOptions = [] } = useQuery({
-    queryKey: ['groups-list'],
-    queryFn: getGroups,
+    queryKey: ['groups-with-desc'],
+    queryFn: getGroupOptions,
   })
 
   const form = useForm<FormValues>({
@@ -283,8 +284,15 @@ export function RuleMutateDrawer({
                     </FormControl>
                     <SelectContent>
                       {groupOptions.map((g) => (
-                        <SelectItem key={g} value={g}>
-                          {g}
+                        <SelectItem key={g.value} value={g.value}>
+                          <span className='flex items-center gap-2'>
+                            <span>{g.value}</span>
+                            {g.desc !== g.value && (
+                              <span className='text-muted-foreground text-xs'>
+                                {g.desc}
+                              </span>
+                            )}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -440,8 +448,15 @@ export function RuleMutateDrawer({
                                   </FormControl>
                                   <SelectContent>
                                     {groupOptions.map((g) => (
-                                      <SelectItem key={g} value={g}>
-                                        {g}
+                                      <SelectItem key={g.value} value={g.value}>
+                                        <span className='flex items-center gap-2'>
+                                          <span>{g.value}</span>
+                                          {g.desc !== g.value && (
+                                            <span className='text-muted-foreground text-xs'>
+                                              {g.desc}
+                                            </span>
+                                          )}
+                                        </span>
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
