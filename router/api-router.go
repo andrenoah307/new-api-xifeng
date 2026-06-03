@@ -452,6 +452,17 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.GET("/export", middleware.AdminAuth(), controller.ExportAllLogsCsv)
 		logRoute.GET("/self/export", middleware.UserAuth(), middleware.LogExportRateLimit(), controller.ExportUserLogsCsv)
 		logRoute.GET("/self/search", middleware.UserAuth(), middleware.SearchRateLimit(), controller.SearchUserLogs)
+		// Offline export - user
+		logRoute.POST("/self/export-offline", middleware.UserAuth(), middleware.LogOfflineExportRateLimit(), controller.SubmitOfflineExport)
+		logRoute.GET("/self/export-tasks", middleware.UserAuth(), controller.GetUserExportTaskList)
+		logRoute.GET("/self/export-download/:id", middleware.UserAuth(), controller.DownloadExportFile)
+		// Offline export - admin
+		logRoute.GET("/export-tasks", middleware.AdminAuth(), controller.GetAdminExportTasks)
+		logRoute.GET("/export-queue-stats", middleware.AdminAuth(), controller.GetExportQueueStats)
+		logRoute.GET("/export-config", middleware.AdminAuth(), controller.GetExportConfig)
+		logRoute.PUT("/export-config", middleware.AdminAuth(), controller.UpdateExportConfig)
+		logRoute.POST("/export-tasks/:id/cancel", middleware.AdminAuth(), controller.CancelExportTask)
+		logRoute.GET("/export-tasks/:id/download", middleware.AdminAuth(), controller.AdminDownloadExportFile)
 
 		dataRoute := apiRouter.Group("/data")
 		dataRoute.GET("/", middleware.AdminAuth(), controller.GetAllQuotaDates)

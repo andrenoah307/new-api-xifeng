@@ -12,6 +12,7 @@ const (
 	EmailTemplateKeyTicketAssigned      = "ticket_assigned"
 	EmailTemplateKeyPaymentSuccessUser  = "payment_success_user"
 	EmailTemplateKeyPaymentSuccessAdmin = "payment_success_admin"
+	EmailTemplateKeyLogExportComplete   = "log_export_complete"
 )
 
 // EmailTemplateOptionPrefix 是存入 OptionMap / DB 时的 Key 前缀
@@ -210,6 +211,26 @@ func EmailTemplateSpecs() []EmailTemplateSpec {
 				varActionURL, varActionLabel,
 			},
 			DefaultSubject: "{{username}} 完成了一笔充值",
+			DefaultBody:    defaultBody,
+		},
+		{
+			Key:         EmailTemplateKeyLogExportComplete,
+			Name:        "日志导出完成-通知用户",
+			Description: "离线日志导出任务完成后，发送给提交用户的邮件，包含下载链接。",
+			Variables: []EmailTemplateVariable{
+				varSystemName, varServerAddr, varHeading,
+				{Name: "intro", Description: "正文开头说明", Sample: "你的日志导出已完成，请在有效期内下载。"},
+				{Name: "username", Description: "提交导出的用户名", Sample: "alice"},
+				{Name: "row_count", Description: "导出行数", Sample: "12345"},
+				{Name: "file_size", Description: "文件大小（人类可读）", Sample: "4.2 MB"},
+				{Name: "download_url", Description: "文件下载链接", Sample: "https://example.com/export/download/42"},
+				{Name: "expire_time", Description: "文件过期时间", Sample: "2026-06-06 12:00:00"},
+				{Name: "site_name", Description: "站点名称（同 system_name）", Sample: "New API"},
+				varInfoTable,
+				{Name: "content_preview_block", Description: "（导出邮件默认为空）", Sample: ""},
+				varActionURL, varActionLabel,
+			},
+			DefaultSubject: "数据导出完成 - {{site_name}}",
 			DefaultBody:    defaultBody,
 		},
 	}

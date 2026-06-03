@@ -1,12 +1,14 @@
 import { api } from '@/lib/api'
 import { buildQueryParams } from './lib/utils'
 import type {
+  ExportTask,
   GetLogsParams,
   GetLogsResponse,
   GetLogStatsParams,
   GetLogStatsResponse,
   GetMidjourneyLogsParams,
   GetTaskLogsParams,
+  SubmitOfflineExportParams,
   UserInfo,
 } from './types'
 
@@ -103,4 +105,32 @@ export function getLogExportUrl(
   const qs = buildQueryParams(params)
   const path = isAdmin ? '/api/log/export' : '/api/log/self/export'
   return `${path}?${qs}`
+}
+
+// ============================================================================
+// Offline Export
+// ============================================================================
+
+export async function submitOfflineExport(params: SubmitOfflineExportParams) {
+  const res = await api.post('/api/log/self/export-offline', params)
+  return res.data as {
+    success: boolean
+    message?: string
+    data?: { id: number }
+    next_available_time?: number
+  }
+}
+
+export async function getUserExportTasks(page = 1, pageSize = 10) {
+  const res = await api.get(
+    `/api/log/self/export-tasks?page=${page}&page_size=${pageSize}`
+  )
+  return res.data as {
+    success: boolean
+    data: { items: ExportTask[]; total: number }
+  }
+}
+
+export function getExportDownloadUrl(taskId: number): string {
+  return `/api/log/self/export-download/${taskId}`
 }

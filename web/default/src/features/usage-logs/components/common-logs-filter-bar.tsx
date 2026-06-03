@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Download } from 'lucide-react'
+import { Download, CloudDownload, ListTodo } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
@@ -7,6 +7,7 @@ import { type Table } from '@tanstack/react-table'
 import { Eye, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useIsAdmin } from '@/hooks/use-admin'
+import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -31,6 +32,8 @@ import { getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
 import { CommonLogsStats } from './common-logs-stats'
 import { CompactDateTimeRangePicker } from './compact-date-time-range-picker'
+import { ExportTasksSheet } from './export-tasks-sheet'
+import { OfflineExportDialog } from './offline-export-dialog'
 import { useUsageLogsContext } from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
@@ -54,8 +57,12 @@ export function CommonLogsFilterBar<TData>(
   const queryClient = useQueryClient()
   const searchParams = route.useSearch()
   const isAdmin = useIsAdmin()
+  const { status } = useStatus()
   const { sensitiveVisible, setSensitiveVisible } = useUsageLogsContext()
   const fetchingLogs = useIsFetching({ queryKey: ['logs'] })
+
+  const [offlineExportOpen, setOfflineExportOpen] = useState(false)
+  const [exportTasksOpen, setExportTasksOpen] = useState(false)
 
   const [filters, setFilters] = useState<CommonLogFilters>(() => {
     const { start, end } = getDefaultTimeRange()
@@ -214,6 +221,8 @@ export function CommonLogsFilterBar<TData>(
   const inputClass = 'w-full sm:w-[140px] lg:w-[160px]'
   const sensitiveType = sensitiveVisible ? 'text' : 'password'
 
+  const offlineExportEnabled = !!status?.enable_log_export_offline
+
   const statsBar = (
     <div className='flex flex-wrap items-center gap-2'>
       <CommonLogsStats />
@@ -234,6 +243,42 @@ export function CommonLogsFilterBar<TData>(
         </TooltipTrigger>
         <TooltipContent>{t('Export Logs')}</TooltipContent>
       </Tooltip>
+      {offlineExportEnabled && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant='ghost'
+                size='icon'
+                onClick={() => setOfflineExportOpen(true)}
+                aria-label={t('Offline Export')}
+                className='text-muted-foreground hover:text-foreground size-7'
+              />
+            }
+          >
+            <CloudDownload />
+          </TooltipTrigger>
+          <TooltipContent>{t('Offline Export')}</TooltipContent>
+        </Tooltip>
+      )}
+      {offlineExportEnabled && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant='ghost'
+                size='icon'
+                onClick={() => setExportTasksOpen(true)}
+                aria-label={t('Export Tasks')}
+                className='text-muted-foreground hover:text-foreground size-7'
+              />
+            }
+          >
+            <ListTodo />
+          </TooltipTrigger>
+          <TooltipContent>{t('Export Tasks')}</TooltipContent>
+        </Tooltip>
+      )}
       <Tooltip>
         <TooltipTrigger
           render={
@@ -252,6 +297,20 @@ export function CommonLogsFilterBar<TData>(
           {sensitiveVisible ? t('Hide') : t('Show')}
         </TooltipContent>
       </Tooltip>
+      {offlineExportEnabled && (
+        <>
+          <OfflineExportDialog
+            open={offlineExportOpen}
+            onOpenChange={setOfflineExportOpen}
+            filters={filters}
+            logType={logType || undefined}
+          />
+          <ExportTasksSheet
+            open={exportTasksOpen}
+            onOpenChange={setExportTasksOpen}
+          />
+        </>
+      )}
     </div>
   )
 

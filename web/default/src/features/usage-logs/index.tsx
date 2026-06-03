@@ -1,11 +1,14 @@
 import { useCallback, useMemo } from 'react'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { useIsAdmin } from '@/hooks/use-admin'
+import { useStatus } from '@/hooks/use-status'
 import { useSidebarConfig } from '@/hooks/use-sidebar-config'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SectionPageLayout } from '@/components/layout'
 import type { NavGroup } from '@/components/layout/types'
 import { CacheStatsDialog } from '@/features/system-settings/general/channel-affinity/cache-stats-dialog'
+import { AdminExportTab } from './components/admin-export-tab'
 import { UserInfoDialog } from './components/dialogs/user-info-dialog'
 import {
   UsageLogsProvider,
@@ -37,12 +40,19 @@ const SECTION_META: Record<
     titleKey: 'Task Logs',
     descriptionKey: 'View and manage your task logs',
   },
+  'export-management': {
+    titleKey: 'Export Management',
+    descriptionKey: 'Manage export queue, tasks and configuration',
+  },
 }
 
 function UsageLogsContent() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const params = route.useParams()
+  const isAdmin = useIsAdmin()
+  const { status } = useStatus()
+  const offlineExportEnabled = !!status?.enable_log_export_offline
   const activeCategory: UsageLogsSectionId =
     params.section && isUsageLogsSectionId(params.section)
       ? params.section
@@ -59,13 +69,18 @@ function UsageLogsContent() {
     () => [
       {
         title: 'Task Logs',
-        items: TASK_LOG_SECTIONS.map((section) => ({
-          title: SECTION_META[section].titleKey,
-          url: `/usage-logs/${section}`,
-        })),
+        items: [
+          ...TASK_LOG_SECTIONS.map((section) => ({
+            title: SECTION_META[section].titleKey,
+            url: `/usage-logs/${section}`,
+          })),
+          ...(isAdmin && offlineExportEnabled
+            ? [{ title: SECTION_META['export-management'].titleKey, url: '/usage-logs/export-management' }]
+            : []),
+        ],
       },
     ],
-    []
+    [isAdmin, offlineExportEnabled]
   )
   const filteredTabGroups = useSidebarConfig(tabNavGroups)
   const visibleSections = useMemo(
@@ -92,7 +107,11 @@ function UsageLogsContent() {
   )
 
   const pageMeta =
-    activeCategory === 'common' ? SECTION_META.common : SECTION_META.task
+    activeCategory === 'common'
+      ? SECTION_META.common
+      : activeCategory === 'export-management'
+        ? SECTION_META['export-management']
+        : SECTION_META.task
   const showTaskSwitcher =
     activeCategory !== 'common' && visibleSections.length > 1
 
@@ -118,7 +137,11 @@ function UsageLogsContent() {
                 </TabsList>
               </Tabs>
             )}
-            <UsageLogsTable logCategory={activeCategory} />
+            {activeCategory === 'export-management' ? (
+              <AdminExportTab />
+            ) : (
+              <UsageLogsTable logCategory={activeCategory} />
+            )}
           </div>
         </SectionPageLayout.Content>
       </SectionPageLayout>

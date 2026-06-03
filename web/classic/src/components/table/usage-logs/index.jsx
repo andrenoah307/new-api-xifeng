@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { useContext } from 'react';
 import CardPro from '../../common/ui/CardPro';
 import LogsTable from './UsageLogsTable';
 import LogsActions from './UsageLogsActions';
@@ -26,13 +26,34 @@ import ColumnSelectorModal from './modals/ColumnSelectorModal';
 import UserInfoModal from './modals/UserInfoModal';
 import ChannelAffinityUsageCacheModal from './modals/ChannelAffinityUsageCacheModal';
 import ParamOverrideModal from './modals/ParamOverrideModal';
+import OfflineExportModal from './modals/OfflineExportModal';
+import ExportTasksModal from './modals/ExportTasksModal';
 import { useLogsData } from '../../../hooks/usage-logs/useUsageLogsData';
+import { useOfflineExport } from '../../../hooks/usage-logs/useOfflineExport';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { createCardProPagination } from '../../../helpers/utils';
+import { StatusContext } from '../../../context/Status';
 
 const LogsPage = () => {
   const logsData = useLogsData();
   const isMobile = useIsMobile();
+  const [statusState] = useContext(StatusContext);
+  const offlineExportEnabled = !!statusState?.status?.enable_log_export_offline;
+
+  const offlineExport = useOfflineExport();
+
+  // Build filters from current form state for offline export
+  const buildOfflineFilters = () => {
+    const formValues = logsData.formApi ? logsData.formApi.getValues() : {};
+    const dateRange = formValues.dateRange || [];
+    return {
+      start_timestamp: dateRange[0] ? Math.floor(Date.parse(dateRange[0]) / 1000) : undefined,
+      end_timestamp: dateRange[1] ? Math.floor(Date.parse(dateRange[1]) / 1000) : undefined,
+      model_name: formValues.model_name || undefined,
+      token_name: formValues.token_name || undefined,
+      channel: formValues.channel || undefined,
+    };
+  };
 
   return (
     <>
@@ -41,12 +62,36 @@ const LogsPage = () => {
       <UserInfoModal {...logsData} />
       <ChannelAffinityUsageCacheModal {...logsData} />
       <ParamOverrideModal {...logsData} />
+      <OfflineExportModal
+        visible={offlineExport.modalOpen}
+        onClose={() => offlineExport.setModalOpen(false)}
+        onSubmit={offlineExport.submitOfflineExport}
+        submitting={offlineExport.submitting}
+        filters={buildOfflineFilters()}
+      />
+      <ExportTasksModal
+        visible={offlineExport.tasksModalOpen}
+        onClose={() => offlineExport.setTasksModalOpen(false)}
+        tasks={offlineExport.tasks}
+        total={offlineExport.tasksTotal}
+        page={offlineExport.tasksPage}
+        loading={offlineExport.tasksLoading}
+        onPageChange={(p) => offlineExport.fetchTasks(p)}
+        onRefresh={offlineExport.fetchTasks}
+      />
 
       {/* Main Content */}
       <CardPro
         type='type2'
         statsArea={<LogsActions {...logsData} />}
-        searchArea={<LogsFilters {...logsData} />}
+        searchArea={
+          <LogsFilters
+            {...logsData}
+            offlineExportEnabled={offlineExportEnabled}
+            onOfflineExport={() => offlineExport.setModalOpen(true)}
+            onShowExportTasks={() => offlineExport.setTasksModalOpen(true)}
+          />
+        }
         paginationArea={createCardProPagination({
           currentPage: logsData.activePage,
           pageSize: logsData.pageSize,
