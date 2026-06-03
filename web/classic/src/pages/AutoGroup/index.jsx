@@ -147,6 +147,7 @@ const AutoGroup = () => {
 
   // Group options (for target_group dropdown)
   const [groupOptions, setGroupOptions] = useState([]);
+  const [groupDescMap, setGroupDescMap] = useState({});
 
   // -------------------------------------------------------------------------
   // Data Loading
@@ -154,10 +155,22 @@ const AutoGroup = () => {
 
   const loadGroups = useCallback(async () => {
     try {
-      const res = await API.get('/api/group/');
+      const res = await API.get('/api/user/self/groups');
       if (res.data.success) {
-        const groups = Object.keys(res.data.data || {});
-        setGroupOptions(groups.map((g) => ({ label: g, value: g })));
+        const data = res.data.data || {};
+        const descMap = {};
+        const opts = [];
+        for (const [key, info] of Object.entries(data)) {
+          if (key === 'auto') continue;
+          const desc = info?.desc || key;
+          descMap[key] = desc;
+          opts.push({
+            label: desc !== key ? `${key}（${desc}）` : key,
+            value: key,
+          });
+        }
+        setGroupOptions(opts);
+        setGroupDescMap(descMap);
       }
     } catch {
       // silent
@@ -455,8 +468,20 @@ const AutoGroup = () => {
     {
       title: t('目标分组'),
       dataIndex: 'target_group',
-      width: 120,
-      render: (val) => <Tag color="blue">{val || '-'}</Tag>,
+      width: 160,
+      render: (val) => {
+        const desc = groupDescMap[val];
+        return (
+          <span>
+            <Tag color="blue">{val || '-'}</Tag>
+            {desc && desc !== val && (
+              <Text type="tertiary" size="small" style={{ marginLeft: 4 }}>
+                {desc}
+              </Text>
+            )}
+          </span>
+        );
+      },
     },
     {
       title: t('匹配模式'),
@@ -532,14 +557,38 @@ const AutoGroup = () => {
     {
       title: t('原始分组'),
       dataIndex: 'original_group',
-      width: 120,
-      render: (val) => <Tag>{val || '-'}</Tag>,
+      width: 160,
+      render: (val) => {
+        const desc = groupDescMap[val];
+        return (
+          <span>
+            <Tag>{val || '-'}</Tag>
+            {desc && desc !== val && (
+              <Text type="tertiary" size="small" style={{ marginLeft: 4 }}>
+                {desc}
+              </Text>
+            )}
+          </span>
+        );
+      },
     },
     {
       title: t('当前分组'),
       dataIndex: 'current_group',
-      width: 120,
-      render: (val) => <Tag color="blue">{val || '-'}</Tag>,
+      width: 160,
+      render: (val) => {
+        const desc = groupDescMap[val];
+        return (
+          <span>
+            <Tag color="blue">{val || '-'}</Tag>
+            {desc && desc !== val && (
+              <Text type="tertiary" size="small" style={{ marginLeft: 4 }}>
+                {desc}
+              </Text>
+            )}
+          </span>
+        );
+      },
     },
     {
       title: t('规则 ID'),
