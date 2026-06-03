@@ -57,7 +57,7 @@ const DashboardHeader = ({
           <div className='flex items-center gap-2 flex-wrap'>
             <DatePicker
               type='dateTime'
-              density='compact'
+              size='small'
               value={inputs.start_timestamp}
               onChange={(value) => handleInputChange(value, 'start_timestamp')}
               placeholder={t('起始时间')}
@@ -65,7 +65,7 @@ const DashboardHeader = ({
             />
             <DatePicker
               type='dateTime'
-              density='compact'
+              size='small'
               value={inputs.end_timestamp}
               onChange={(value) => handleInputChange(value, 'end_timestamp')}
               placeholder={t('结束时间')}

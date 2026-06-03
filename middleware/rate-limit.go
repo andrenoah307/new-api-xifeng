@@ -230,6 +230,17 @@ func LogExportRateLimit() func(c *gin.Context) {
 	}
 }
 
+func LogOfflineExportRateLimit() func(c *gin.Context) {
+	limiter := userRateLimitFactory(2, 60, "LOE")
+	return func(c *gin.Context) {
+		if c.GetInt("role") >= common.RoleAdminUser {
+			c.Next()
+			return
+		}
+		limiter(c)
+	}
+}
+
 func DashboardDataRateLimit() func(c *gin.Context) {
 	if !common.DashboardDataRateLimitEnable {
 		return defNext

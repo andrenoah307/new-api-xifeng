@@ -310,6 +310,38 @@ export interface GetTaskLogsParams {
 }
 
 // ============================================================================
+// Offline Export Types
+// ============================================================================
+
+export interface ExportTask {
+  id: number
+  user_id: number
+  username: string
+  email: string
+  status: number
+  filters: string
+  file_path: string
+  file_size: number
+  row_count: number
+  progress: number
+  error_message: string
+  created_time: number
+  started_time: number
+  completed_time: number
+}
+
+export interface SubmitOfflineExportParams {
+  filters: {
+    start_timestamp: number
+    end_timestamp: number
+    model_name?: string
+    token_name?: string
+    channel_id?: number
+  }
+  email: string
+}
+
+// ============================================================================
 // Fetch Logs Configuration
 // ============================================================================
 
