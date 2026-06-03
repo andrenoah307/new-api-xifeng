@@ -686,6 +686,11 @@ const en = {
   'Hide invoices': 'Hide',
   'Active invoices summary': '{{count}} active invoice(s), total {{amount}}',
   'Active refunds summary': '{{count}} active refund(s), total {{amount}}',
+
+  // Monitoring - Whitelist
+  'Whitelist keywords': 'Whitelist keywords',
+  'If an error message contains any whitelist keyword, the channel will NOT be auto-disabled, even if it matches a failure keyword. Whitelist has higher priority.':
+    'If an error message contains any whitelist keyword, the channel will NOT be auto-disabled, even if it matches a failure keyword. Whitelist has higher priority.',
 } as const
 
 export default en
