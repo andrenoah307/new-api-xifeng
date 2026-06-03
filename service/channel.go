@@ -55,11 +55,19 @@ func ShouldDisableChannel(err *types.NewAPIError) bool {
 	if types.IsSkipRetryError(err) {
 		return false
 	}
+
+	lowerMessage := strings.ToLower(err.Error())
+	if len(operation_setting.AutomaticDisableWhitelist) > 0 {
+		whitelisted, _ := AcSearch(lowerMessage, operation_setting.AutomaticDisableWhitelist, true)
+		if whitelisted {
+			return false
+		}
+	}
+
 	if operation_setting.ShouldDisableByStatusCode(err.StatusCode) {
 		return true
 	}
 
-	lowerMessage := strings.ToLower(err.Error())
 	search, _ := AcSearch(lowerMessage, operation_setting.AutomaticDisableKeywords, true)
 	return search
 }

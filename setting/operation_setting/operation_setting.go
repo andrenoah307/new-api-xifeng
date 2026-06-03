@@ -30,3 +30,21 @@ func AutomaticDisableKeywordsFromString(s string) {
 		}
 	}
 }
+
+var AutomaticDisableWhitelist = []string{}
+
+func AutomaticDisableWhitelistToString() string {
+	return strings.Join(AutomaticDisableWhitelist, "\n")
+}
+
+func AutomaticDisableWhitelistFromString(s string) {
+	AutomaticDisableWhitelist = []string{}
+	parts := strings.Split(s, "\n")
+	for _, k := range parts {
+		k = strings.TrimSpace(k)
+		k = strings.ToLower(k)
+		if k != "" {
+			AutomaticDisableWhitelist = append(AutomaticDisableWhitelist, k)
+		}
+	}
+}

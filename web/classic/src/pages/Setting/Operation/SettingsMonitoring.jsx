@@ -39,6 +39,7 @@ export default function SettingsMonitoring(props) {
     AutomaticDisableChannelEnabled: false,
     AutomaticEnableChannelEnabled: false,
     AutomaticDisableKeywords: '',
+    AutomaticDisableWhitelist: '',
     AutomaticDisableStatusCodes: '401',
     AutomaticRetryStatusCodes:
       '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
@@ -273,6 +274,18 @@ export default function SettingsMonitoring(props) {
                   autosize={{ minRows: 6, maxRows: 12 }}
                   onChange={(value) =>
                     setInputs({ ...inputs, AutomaticDisableKeywords: value })
+                  }
+                />
+                <Form.TextArea
+                  label={t('关键词白名单')}
+                  placeholder={t('一行一个，不区分大小写')}
+                  extraText={t(
+                    '如果错误信息包含白名单中的关键词，即使匹配到禁用关键词也不会自动禁用通道，白名单优先级更高',
+                  )}
+                  field={'AutomaticDisableWhitelist'}
+                  autosize={{ minRows: 4, maxRows: 8 }}
+                  onChange={(value) =>
+                    setInputs({ ...inputs, AutomaticDisableWhitelist: value })
                   }
                 />
               </Col>

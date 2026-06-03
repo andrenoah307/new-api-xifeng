@@ -692,6 +692,11 @@ const zh: Record<string, string> = {
   'Hide invoices': '收起',
   'Active invoices summary': '进行中的发票申请：{{count}} 张，合计 {{amount}}',
   'Active refunds summary': '进行中的退款申请：{{count}} 笔，合计 {{amount}}',
+
+  // Monitoring - Whitelist
+  'Whitelist keywords': '关键词白名单',
+  'If an error message contains any whitelist keyword, the channel will NOT be auto-disabled, even if it matches a failure keyword. Whitelist has higher priority.':
+    '如果错误信息包含白名单中的关键词，即使匹配到禁用关键词也不会自动禁用通道，白名单优先级更高。',
 }
 
 export default zh
