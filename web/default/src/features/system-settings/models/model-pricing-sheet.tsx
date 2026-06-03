@@ -839,7 +839,11 @@ export const ModelPricingEditorPanel = forwardRef<
                 )}
               />
 
-              <Tabs value={pricingMode} onValueChange={handleModeChange}>
+              <Tabs
+                value={pricingMode}
+                onValueChange={handleModeChange}
+                className='gap-4'
+              >
                 <TabsList className='grid w-full grid-cols-3'>
                   <TabsTrigger value='per-token'>{t('Per-token')}</TabsTrigger>
                   <TabsTrigger value='per-request'>
@@ -850,8 +854,8 @@ export const ModelPricingEditorPanel = forwardRef<
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value='per-token' className='flex flex-col gap-5'>
-                  <FieldGroup>
+                <TabsContent value='per-token' className='pt-0'>
+                  <FieldGroup className='gap-5'>
                     <Field>
                       <FieldLabel>{t('Input price')}</FieldLabel>
                       <PriceInput
@@ -892,57 +896,57 @@ export const ModelPricingEditorPanel = forwardRef<
                   </FieldGroup>
                 </TabsContent>
 
-                <TabsContent
-                  value='per-request'
-                  className='flex flex-col gap-5'
-                >
-                  <FormField
-                    control={form.control}
-                    name='price'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t('Fixed price')}</FormLabel>
-                        <FormControl>
-                          <InputGroup>
-                            <InputGroupAddon>$</InputGroupAddon>
-                            <InputGroupInput
-                              inputMode='decimal'
-                              placeholder='0.01'
-                              {...field}
-                              onChange={(event) => {
-                                const value = event.target.value
-                                if (numericDraftRegex.test(value)) {
-                                  field.onChange(value)
-                                }
-                              }}
-                            />
-                            <InputGroupAddon align='inline-end'>
-                              {t('per request')}
-                            </InputGroupAddon>
-                          </InputGroup>
-                        </FormControl>
-                        <FormDescription>
-                          {t(
-                            'Cost in USD per request, regardless of tokens used.'
-                          )}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <TabsContent value='per-request' className='pt-0'>
+                  <FieldGroup className='gap-5'>
+                    <FormField
+                      control={form.control}
+                      name='price'
+                      render={({ field }) => (
+                        <FormItem className='contents'>
+                          <Field>
+                            <FieldLabel>{t('Fixed price')}</FieldLabel>
+                            <FormControl>
+                              <InputGroup>
+                                <InputGroupAddon>$</InputGroupAddon>
+                                <InputGroupInput
+                                  inputMode='decimal'
+                                  placeholder='0.01'
+                                  {...field}
+                                  onChange={(event) => {
+                                    const value = event.target.value
+                                    if (numericDraftRegex.test(value)) {
+                                      field.onChange(value)
+                                    }
+                                  }}
+                                />
+                                <InputGroupAddon align='inline-end'>
+                                  {t('per request')}
+                                </InputGroupAddon>
+                              </InputGroup>
+                            </FormControl>
+                            <FieldDescription>
+                              {t(
+                                'Cost in USD per request, regardless of tokens used.'
+                              )}
+                            </FieldDescription>
+                            <FormMessage />
+                          </Field>
+                        </FormItem>
+                      )}
+                    />
+                  </FieldGroup>
                 </TabsContent>
 
-                <TabsContent
-                  value='tiered_expr'
-                  className='flex flex-col gap-5'
-                >
-                  <TieredPricingEditor
-                    modelName={watchedValues.name}
-                    billingExpr={billingExpr}
-                    requestRuleExpr={requestRuleExpr}
-                    onBillingExprChange={setBillingExpr}
-                    onRequestRuleExprChange={setRequestRuleExpr}
-                  />
+                <TabsContent value='tiered_expr' className='pt-0'>
+                  <FieldGroup className='gap-5'>
+                    <TieredPricingEditor
+                      modelName={watchedValues.name}
+                      billingExpr={billingExpr}
+                      requestRuleExpr={requestRuleExpr}
+                      onBillingExprChange={setBillingExpr}
+                      onRequestRuleExprChange={setRequestRuleExpr}
+                    />
+                  </FieldGroup>
                 </TabsContent>
               </Tabs>
 
