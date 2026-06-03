@@ -35,6 +35,7 @@ const monitoringSchema = z
     AutomaticDisableChannelEnabled: z.boolean(),
     AutomaticEnableChannelEnabled: z.boolean(),
     AutomaticDisableKeywords: z.string(),
+    AutomaticDisableWhitelist: z.string(),
     AutomaticDisableStatusCodes: z.string(),
     AutomaticRetryStatusCodes: z.string(),
     monitor_setting: z.object({
@@ -83,6 +84,7 @@ type MonitoringSettingsSectionProps = {
     AutomaticDisableChannelEnabled: boolean
     AutomaticEnableChannelEnabled: boolean
     AutomaticDisableKeywords: string
+    AutomaticDisableWhitelist: string
     AutomaticDisableStatusCodes: string
     AutomaticRetryStatusCodes: string
     'monitor_setting.auto_test_channel_enabled': boolean
@@ -100,6 +102,7 @@ type NormalizedMonitoringValues = {
   AutomaticDisableChannelEnabled: boolean
   AutomaticEnableChannelEnabled: boolean
   AutomaticDisableKeywords: string
+  AutomaticDisableWhitelist: string
   AutomaticDisableStatusCodes: string
   AutomaticRetryStatusCodes: string
   'monitor_setting.auto_test_channel_enabled': boolean
@@ -115,6 +118,9 @@ const buildFormDefaults = (
   AutomaticEnableChannelEnabled: defaults.AutomaticEnableChannelEnabled,
   AutomaticDisableKeywords: normalizeLineEndings(
     defaults.AutomaticDisableKeywords ?? ''
+  ),
+  AutomaticDisableWhitelist: normalizeLineEndings(
+    defaults.AutomaticDisableWhitelist ?? ''
   ),
   AutomaticDisableStatusCodes: defaults.AutomaticDisableStatusCodes ?? '',
   AutomaticRetryStatusCodes: defaults.AutomaticRetryStatusCodes ?? '',
@@ -135,6 +141,9 @@ const normalizeDefaults = (
   AutomaticEnableChannelEnabled: defaults.AutomaticEnableChannelEnabled,
   AutomaticDisableKeywords: normalizeLineEndings(
     defaults.AutomaticDisableKeywords ?? ''
+  ),
+  AutomaticDisableWhitelist: normalizeLineEndings(
+    defaults.AutomaticDisableWhitelist ?? ''
   ),
   AutomaticDisableStatusCodes: parseHttpStatusCodeRules(
     defaults.AutomaticDisableStatusCodes ?? ''
@@ -157,6 +166,9 @@ const normalizeFormValues = (
   AutomaticEnableChannelEnabled: values.AutomaticEnableChannelEnabled,
   AutomaticDisableKeywords: normalizeLineEndings(
     values.AutomaticDisableKeywords
+  ),
+  AutomaticDisableWhitelist: normalizeLineEndings(
+    values.AutomaticDisableWhitelist
   ),
   AutomaticDisableStatusCodes: parseHttpStatusCodeRules(
     values.AutomaticDisableStatusCodes
@@ -406,6 +418,30 @@ export function MonitoringSettingsSection({
                 <FormDescription>
                   {t(
                     'If an upstream error contains any of these keywords (case insensitive), the channel will be disabled automatically.'
+                  )}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='AutomaticDisableWhitelist'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Whitelist keywords')}</FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={4}
+                    placeholder={t('one keyword per line')}
+                    {...field}
+                    onChange={(event) => field.onChange(event.target.value)}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'If an error message contains any whitelist keyword, the channel will NOT be auto-disabled, even if it matches a failure keyword. Whitelist has higher priority.'
                   )}
                 </FormDescription>
                 <FormMessage />
