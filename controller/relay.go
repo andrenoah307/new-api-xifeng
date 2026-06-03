@@ -92,9 +92,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			errMsg := newAPIError.Error()
 			if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok && channelSetting.StripRequestId {
 				errMsg = common.StripLocalRequestId(errMsg)
+				newAPIError.SetMessage(errMsg)
+			} else {
+				newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
 			}
 			logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(errMsg)))
-			newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
