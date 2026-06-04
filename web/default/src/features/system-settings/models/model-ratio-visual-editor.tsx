@@ -90,6 +90,8 @@ type ModelRatioVisualEditorProps = {
   billingMode: string
   billingExpr: string
   onChange: (field: string, value: string) => void
+  onSave: () => void | Promise<void>
+  isSaving: boolean
 }
 
 export type ModelRatioVisualEditorHandle = {
@@ -124,6 +126,8 @@ const ModelRatioVisualEditorComponent = forwardRef<
     billingMode,
     billingExpr,
     onChange,
+    onSave,
+    isSaving,
   },
   ref
 ) {
@@ -672,7 +676,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
           ) : (
             <div className='min-h-0 flex-1 overflow-auto rounded-md border'>
               <table className='w-full caption-bottom text-sm tabular-nums'>
-                <thead className='bg-background sticky top-0 z-10'>
+                <thead>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <tr key={headerGroup.id} className='border-b'>
                       {headerGroup.headers.map((header) => (
@@ -680,9 +684,9 @@ const ModelRatioVisualEditorComponent = forwardRef<
                           key={header.id}
                           colSpan={header.colSpan}
                           className={cn(
-                            'text-foreground h-10 px-2 text-left align-middle text-sm font-medium whitespace-nowrap',
+                            'bg-background text-foreground sticky top-0 z-10 h-10 px-2 text-left align-middle text-sm font-medium whitespace-nowrap',
                             header.column.id === 'actions' &&
-                              'bg-background sticky right-0 z-20 w-24 min-w-24 shadow-[-10px_0_14px_-14px_hsl(var(--foreground))]'
+                              'right-0 z-30 w-24 min-w-24 shadow-[-10px_0_14px_-14px_hsl(var(--foreground))]'
                           )}
                         >
                           {header.isPlaceholder
@@ -746,6 +750,8 @@ const ModelRatioVisualEditorComponent = forwardRef<
             <ModelPricingEditorPanel
               ref={editorPanelRef}
               editData={editData}
+              onSave={onSave}
+              isSaving={isSaving}
               className='h-full min-h-0'
             />
           ) : (
@@ -782,6 +788,8 @@ const ModelRatioVisualEditorComponent = forwardRef<
           open={sheetOpen}
           onOpenChange={setSheetOpen}
           editData={editData}
+          onSave={onSave}
+          isSaving={isSaving}
         />
       )}
     </div>
@@ -803,7 +811,9 @@ export const ModelRatioVisualEditor = memo(
       prevProps.audioCompletionRatio === nextProps.audioCompletionRatio &&
       prevProps.billingMode === nextProps.billingMode &&
       prevProps.billingExpr === nextProps.billingExpr &&
-      prevProps.onChange === nextProps.onChange
+      prevProps.onChange === nextProps.onChange &&
+      prevProps.onSave === nextProps.onSave &&
+      prevProps.isSaving === nextProps.isSaving
     )
   }
 )

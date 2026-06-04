@@ -136,6 +136,7 @@ export function buildModelRatioColumns({
     },
     {
       id: 'actions',
+      header: () => <div className='text-right'>{t('Actions')}</div>,
       cell: ({ row }) => (
         <div className='flex justify-end gap-2'>
           <Button

@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { memo, useCallback, useRef, useState } from 'react'
 import { type UseFormReturn } from 'react-hook-form'
-import { Code2, Eye } from 'lucide-react'
+import { Code2, Eye, RotateCcw, Save } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import {
@@ -110,16 +110,20 @@ export const ModelRatioForm = memo(function ModelRatioForm({
           onClick={onReset}
           disabled={isResetting}
         >
+          <RotateCcw data-icon='inline-start' />
           {t('Reset prices')}
         </Button>
-        <Button
-          type='button'
-          size='sm'
-          onClick={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? t('Saving...') : t('Save model prices')}
-        </Button>
+        {editMode === 'json' && (
+          <Button
+            type='button'
+            size='sm'
+            onClick={handleSave}
+            disabled={isSaving}
+          >
+            <Save data-icon='inline-start' />
+            {isSaving ? t('Saving...') : t('Save model prices')}
+          </Button>
+        )}
         <Button variant='outline' size='sm' onClick={toggleEditMode}>
           {editMode === 'visual' ? (
             <>
@@ -160,6 +164,8 @@ export const ModelRatioForm = memo(function ModelRatioForm({
               audioCompletionRatio={form.watch('AudioCompletionRatio')}
               billingMode={form.watch('BillingMode')}
               billingExpr={form.watch('BillingExpr')}
+              onSave={handleSave}
+              isSaving={isSaving}
               onChange={(field, value) => {
                 const fieldMap: Record<string, keyof ModelFormValues> = {
                   'billing_setting.billing_mode': 'BillingMode',

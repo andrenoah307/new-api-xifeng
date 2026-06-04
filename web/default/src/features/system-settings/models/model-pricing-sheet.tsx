@@ -26,10 +26,11 @@ import {
 } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, Save } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import {
   Field,
   FieldDescription,
@@ -86,6 +87,8 @@ type ModelPricingSheetProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   editData?: ModelRatioData | null
+  onSave?: () => void | Promise<void>
+  isSaving?: boolean
 }
 
 type ModelPricingEditorPanelProps = Omit<
@@ -102,7 +105,10 @@ export type ModelPricingEditorPanelHandle = {
 export const ModelPricingSheet = forwardRef<
   ModelPricingEditorPanelHandle,
   ModelPricingSheetProps
->(function ModelPricingSheet({ open, onOpenChange, editData }, ref) {
+>(function ModelPricingSheet(
+  { open, onOpenChange, editData, onSave, isSaving },
+  ref
+) {
   const { t } = useTranslation()
   const title = editData ? t('Edit model pricing') : t('Add model pricing')
   const description = editData?.name || t('New model')
@@ -120,6 +126,8 @@ export const ModelPricingSheet = forwardRef<
         <ModelPricingEditorPanel
           ref={ref}
           editData={editData}
+          onSave={onSave}
+          isSaving={isSaving}
           className='h-full rounded-none border-0'
         />
       </SheetContent>
@@ -130,7 +138,10 @@ export const ModelPricingSheet = forwardRef<
 export const ModelPricingEditorPanel = forwardRef<
   ModelPricingEditorPanelHandle,
   ModelPricingEditorPanelProps
->(function ModelPricingEditorPanel({ editData, className }, ref) {
+>(function ModelPricingEditorPanel(
+  { editData, className, onSave, isSaving },
+  ref
+) {
   const { t } = useTranslation()
   const [pricingMode, setPricingMode] = useState<PricingMode>('per-token')
   const [promptPrice, setPromptPrice] = useState('')
@@ -461,6 +472,7 @@ export const ModelPricingEditorPanel = forwardRef<
   )
 
   const activeName = watchedValues.name || editData?.name || t('New model')
+  const showActions = Boolean(onSave)
 
   return (
     <div
@@ -488,7 +500,7 @@ export const ModelPricingEditorPanel = forwardRef<
           className='flex min-h-0 flex-1 flex-col'
           autoComplete='off'
         >
-          <div className='min-h-0 flex-1 overflow-y-auto p-4'>
+          <div className='min-h-0 flex-1 overflow-y-auto p-4 pb-6'>
             <div className='grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(220px,260px)]'>
               <FieldGroup>
                 {warnings.length > 0 && (
@@ -670,6 +682,23 @@ export const ModelPricingEditorPanel = forwardRef<
               </aside>
             </div>
           </div>
+          {showActions && (
+            <div className='bg-background/95 supports-[backdrop-filter]:bg-background/80 shrink-0 border-t p-3 backdrop-blur'>
+              <div className='flex flex-col-reverse gap-2 sm:flex-row sm:justify-end'>
+                {onSave && (
+                  <Button
+                    type='button'
+                    onClick={onSave}
+                    disabled={isSaving}
+                    className='w-full sm:w-auto'
+                  >
+                    <Save data-icon='inline-start' />
+                    {isSaving ? t('Saving...') : t('Save model prices')}
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </form>
       </Form>
     </div>
