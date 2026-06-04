@@ -27,7 +27,6 @@ import {
   useRef,
 } from 'react'
 import {
-  type ColumnDef,
   type ColumnFiltersState,
   type OnChangeFn,
   type PaginationState,
@@ -44,22 +43,17 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { useMediaQuery } from '@/hooks'
-import { Copy, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Copy, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   DataTableBulkActions,
-  DataTableColumnHeader,
   DataTableToolbar,
   DataTablePagination,
 } from '@/components/data-table'
-import { StatusBadge } from '@/components/status-badge'
-import {
-  combineBillingExpr,
-  splitBillingExprAndRequestRules,
-} from '@/features/pricing/lib/billing-expr'
+import { combineBillingExpr } from '@/features/pricing/lib/billing-expr'
 import { safeJsonParse } from '../utils/json-parser'
 import {
   ModelPricingEditorPanel,
@@ -67,7 +61,12 @@ import {
   ModelPricingSheet,
   type ModelRatioData,
 } from './model-pricing-sheet'
-import { formatPricingNumber } from './pricing-format'
+import {
+  buildModelSnapshots,
+  getSnapshotSignature,
+  type ModelRow,
+} from './model-pricing-snapshots'
+import { buildModelRatioColumns } from './model-ratio-table-columns'
 
 type ModelRatioVisualEditorProps = {
   savedModelPrice: string
@@ -93,288 +92,11 @@ type ModelRatioVisualEditorProps = {
   onChange: (field: string, value: string) => void
 }
 
-type ModelPricingSnapshot = {
-  name: string
-  price?: string
-  ratio?: string
-  cacheRatio?: string
-  createCacheRatio?: string
-  completionRatio?: string
-  imageRatio?: string
-  audioRatio?: string
-  audioCompletionRatio?: string
-  billingMode?: string
-  billingExpr?: string
-  requestRuleExpr?: string
-  hasConflict: boolean
-}
-
-type ModelRow = ModelPricingSnapshot & {
-  saved?: ModelPricingSnapshot
-  draft?: ModelPricingSnapshot
-  isDraftChanged: boolean
-  isDraftDeleted: boolean
-  isDraftNew: boolean
-}
-
 export type ModelRatioVisualEditorHandle = {
   commitOpenEditor: () => Promise<boolean>
 }
 
 const STORAGE_KEY = 'model-ratio-column-visibility'
-
-const hasValue = (value?: string) => value !== undefined && value !== ''
-
-const toNumberOrNull = (value?: string) => {
-  if (!hasValue(value)) return null
-  const num = Number(value)
-  return Number.isFinite(num) ? num : null
-}
-
-const ratioToPrice = (ratio?: string, denominator?: string) => {
-  const ratioNumber = toNumberOrNull(ratio)
-  const denominatorNumber = denominator ? toNumberOrNull(denominator) : 2
-  if (ratioNumber === null || denominatorNumber === null) return ''
-  return formatPricingNumber(ratioNumber * denominatorNumber)
-}
-
-const filterBySelectedValues = (
-  rowValue: unknown,
-  filterValue: unknown
-): boolean => {
-  if (!Array.isArray(filterValue) || filterValue.length === 0) return true
-  return filterValue.includes(String(rowValue))
-}
-
-const getModeLabel = (mode?: string) => {
-  if (mode === 'per-request') return 'Per-request'
-  if (mode === 'tiered_expr') return 'Expression'
-  return 'Per-token'
-}
-
-const getModeVariant = (mode?: string): 'warning' | 'info' | 'success' => {
-  if (mode === 'per-request') return 'warning'
-  if (mode === 'tiered_expr') return 'info'
-  return 'success'
-}
-
-const getExpressionSummary = (
-  row: ModelPricingSnapshot,
-  t: (key: string) => string
-) => {
-  const tierCount = (row.billingExpr?.match(/tier\(/g) || []).length
-  if (tierCount > 0) {
-    return `${t('Tiered pricing')} · ${tierCount} ${t('tiers')}`
-  }
-  return t('Expression pricing')
-}
-
-const getPriceSummary = (
-  row: ModelPricingSnapshot,
-  t: (key: string) => string
-) => {
-  if (row.billingMode === 'tiered_expr') {
-    return getExpressionSummary(row, t)
-  }
-  if (row.billingMode === 'per-request') {
-    return row.price ? `$${row.price} / ${t('request')}` : t('Unset price')
-  }
-
-  const inputPrice = ratioToPrice(row.ratio)
-  if (!inputPrice) return t('Unset price')
-
-  const extraCount = [
-    row.completionRatio,
-    row.cacheRatio,
-    row.createCacheRatio,
-    row.imageRatio,
-    row.audioRatio,
-    row.audioCompletionRatio,
-  ].filter(hasValue).length
-
-  return extraCount > 0
-    ? `${t('Input')} $${inputPrice} · ${extraCount} ${t('extras')}`
-    : `${t('Input')} $${inputPrice}`
-}
-
-const getPriceDetail = (
-  row: ModelPricingSnapshot,
-  t: (key: string) => string
-) => {
-  if (row.billingMode === 'tiered_expr') {
-    return row.requestRuleExpr
-      ? t('Includes request rules')
-      : t('Expression based')
-  }
-  if (row.billingMode === 'per-request') {
-    return t('Fixed request price')
-  }
-
-  const inputPrice = ratioToPrice(row.ratio)
-  if (!inputPrice) return t('No base input price')
-
-  const details = [
-    row.completionRatio &&
-      `${t('Output')} $${ratioToPrice(row.completionRatio, inputPrice)}`,
-    row.cacheRatio &&
-      `${t('Cache')} $${ratioToPrice(row.cacheRatio, inputPrice)}`,
-    row.createCacheRatio &&
-      `${t('Cache write')} $${ratioToPrice(row.createCacheRatio, inputPrice)}`,
-  ].filter(Boolean)
-
-  return details.length > 0 ? details.join(' · ') : t('Base input price only')
-}
-
-const buildModelSnapshots = ({
-  modelPrice,
-  modelRatio,
-  cacheRatio,
-  createCacheRatio,
-  completionRatio,
-  imageRatio,
-  audioRatio,
-  audioCompletionRatio,
-  billingMode,
-  billingExpr,
-}: Pick<
-  ModelRatioVisualEditorProps,
-  | 'modelPrice'
-  | 'modelRatio'
-  | 'cacheRatio'
-  | 'createCacheRatio'
-  | 'completionRatio'
-  | 'imageRatio'
-  | 'audioRatio'
-  | 'audioCompletionRatio'
-  | 'billingMode'
-  | 'billingExpr'
->): ModelPricingSnapshot[] => {
-  const priceMap = safeJsonParse<Record<string, number>>(modelPrice, {
-    fallback: {},
-    context: 'model prices',
-  })
-  const ratioMap = safeJsonParse<Record<string, number>>(modelRatio, {
-    fallback: {},
-    context: 'model ratios',
-  })
-  const cacheMap = safeJsonParse<Record<string, number>>(cacheRatio, {
-    fallback: {},
-    context: 'cache ratios',
-  })
-  const createCacheMap = safeJsonParse<Record<string, number>>(
-    createCacheRatio,
-    { fallback: {}, context: 'create cache ratios' }
-  )
-  const completionMap = safeJsonParse<Record<string, number>>(completionRatio, {
-    fallback: {},
-    context: 'completion ratios',
-  })
-  const imageMap = safeJsonParse<Record<string, number>>(imageRatio, {
-    fallback: {},
-    context: 'image ratios',
-  })
-  const audioMap = safeJsonParse<Record<string, number>>(audioRatio, {
-    fallback: {},
-    context: 'audio ratios',
-  })
-  const audioCompletionMap = safeJsonParse<Record<string, number>>(
-    audioCompletionRatio,
-    { fallback: {}, context: 'audio completion ratios' }
-  )
-  const billingModeMap = safeJsonParse<Record<string, string>>(billingMode, {
-    fallback: {},
-    context: 'billing mode',
-  })
-  const billingExprMap = safeJsonParse<Record<string, string>>(billingExpr, {
-    fallback: {},
-    context: 'billing expression',
-  })
-
-  const modelNames = new Set([
-    ...Object.keys(priceMap),
-    ...Object.keys(ratioMap),
-    ...Object.keys(cacheMap),
-    ...Object.keys(createCacheMap),
-    ...Object.keys(completionMap),
-    ...Object.keys(imageMap),
-    ...Object.keys(audioMap),
-    ...Object.keys(audioCompletionMap),
-    ...Object.keys(billingModeMap),
-    ...Object.keys(billingExprMap),
-  ])
-
-  return Array.from(modelNames).map((name) => {
-    const price = priceMap[name]?.toString() || ''
-    const ratio = ratioMap[name]?.toString() || ''
-    const cache = cacheMap[name]?.toString() || ''
-    const createCache = createCacheMap[name]?.toString() || ''
-    const completion = completionMap[name]?.toString() || ''
-    const image = imageMap[name]?.toString() || ''
-    const audio = audioMap[name]?.toString() || ''
-    const audioCompletion = audioCompletionMap[name]?.toString() || ''
-
-    const modeForModel = billingModeMap[name]
-    if (modeForModel === 'tiered_expr') {
-      const fullExpr = billingExprMap[name] || ''
-      const { billingExpr: pureExpr, requestRuleExpr } =
-        splitBillingExprAndRequestRules(fullExpr)
-      return {
-        name,
-        billingMode: 'tiered_expr',
-        billingExpr: pureExpr,
-        requestRuleExpr,
-        price,
-        ratio,
-        cacheRatio: cache,
-        createCacheRatio: createCache,
-        completionRatio: completion,
-        imageRatio: image,
-        audioRatio: audio,
-        audioCompletionRatio: audioCompletion,
-        hasConflict: false,
-      }
-    }
-
-    return {
-      name,
-      price,
-      ratio,
-      cacheRatio: cache,
-      createCacheRatio: createCache,
-      completionRatio: completion,
-      imageRatio: image,
-      audioRatio: audio,
-      audioCompletionRatio: audioCompletion,
-      billingMode: price !== '' ? 'per-request' : 'per-token',
-      hasConflict:
-        price !== '' &&
-        (ratio !== '' ||
-          completion !== '' ||
-          cache !== '' ||
-          createCache !== '' ||
-          image !== '' ||
-          audio !== '' ||
-          audioCompletion !== ''),
-    }
-  })
-}
-
-const getSnapshotSignature = (snapshot?: ModelPricingSnapshot) => {
-  if (!snapshot) return ''
-  return JSON.stringify({
-    price: snapshot.price || '',
-    ratio: snapshot.ratio || '',
-    cacheRatio: snapshot.cacheRatio || '',
-    createCacheRatio: snapshot.createCacheRatio || '',
-    completionRatio: snapshot.completionRatio || '',
-    imageRatio: snapshot.imageRatio || '',
-    audioRatio: snapshot.audioRatio || '',
-    audioCompletionRatio: snapshot.audioCompletionRatio || '',
-    billingMode: snapshot.billingMode || 'per-token',
-    billingExpr: snapshot.billingExpr || '',
-    requestRuleExpr: snapshot.requestRuleExpr || '',
-  })
-}
 
 const ModelRatioVisualEditorComponent = forwardRef<
   ModelRatioVisualEditorHandle,
@@ -688,159 +410,15 @@ const ModelRatioVisualEditorComponent = forwardRef<
     ]
   )
 
-  const columns = useMemo<ColumnDef<ModelRow>[]>(() => {
-    return [
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <Checkbox
-            checked={table.getIsAllPageRowsSelected()}
-            indeterminate={table.getIsSomePageRowsSelected()}
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
-            aria-label={t('Select all')}
-            className='translate-y-[2px]'
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label={t('Select row')}
-            className='translate-y-[2px]'
-          />
-        ),
-        enableSorting: false,
-        enableHiding: false,
-        meta: { label: t('Select') },
-      },
-      {
-        accessorKey: 'name',
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title={t('Model name')} />
-        ),
-        cell: ({ row }) => (
-          <div className='flex items-center gap-2 font-medium'>
-            {row.getValue('name')}
-            {row.original.isDraftChanged && (
-              <StatusBadge
-                label={t('Draft')}
-                variant={row.original.isDraftDeleted ? 'danger' : 'warning'}
-                copyable={false}
-              />
-            )}
-            {row.original.billingMode === 'tiered_expr' && (
-              <StatusBadge
-                label={t('Tiered')}
-                variant='info'
-                copyable={false}
-              />
-            )}
-            {row.original.hasConflict && (
-              <StatusBadge
-                label={t('Conflict')}
-                variant='danger'
-                copyable={false}
-              />
-            )}
-          </div>
-        ),
-        enableHiding: false,
-      },
-      {
-        accessorKey: 'billingMode',
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title={t('Mode')} />
-        ),
-        cell: ({ row }) => (
-          <StatusBadge
-            label={t(getModeLabel(row.original.billingMode))}
-            variant={getModeVariant(row.original.billingMode)}
-            copyable={false}
-          />
-        ),
-        filterFn: (row, id, value) =>
-          filterBySelectedValues(row.getValue(id), value),
-        meta: { label: t('Mode') },
-      },
-      {
-        id: 'priceSummary',
-        header: ({ column }) => (
-          <DataTableColumnHeader column={column} title={t('Price summary')} />
-        ),
-        cell: ({ row }) => (
-          <div className='flex min-w-[180px] flex-col gap-2'>
-            <div className='flex flex-col gap-1'>
-              <span className='font-medium'>
-                {getPriceSummary(row.original, t)}
-              </span>
-              <span className='text-muted-foreground max-w-[320px] truncate text-xs'>
-                {getPriceDetail(row.original, t)}
-              </span>
-            </div>
-            {row.original.isDraftChanged && (
-              <div className='border-warning/45 bg-warning/10 text-foreground flex max-w-[360px] flex-col gap-1 rounded-md border px-2.5 py-2 shadow-sm'>
-                <div className='flex items-center gap-2'>
-                  <StatusBadge
-                    label={t('Draft')}
-                    variant={row.original.isDraftDeleted ? 'danger' : 'warning'}
-                    copyable={false}
-                    className='bg-background/70'
-                  />
-                  {!row.original.isDraftDeleted && row.original.draft && (
-                    <StatusBadge
-                      label={t(getModeLabel(row.original.draft.billingMode))}
-                      variant={getModeVariant(row.original.draft.billingMode)}
-                      copyable={false}
-                      className='bg-background/70'
-                    />
-                  )}
-                  <span className='truncate text-sm font-medium'>
-                    {row.original.isDraftDeleted
-                      ? t('Will be removed')
-                      : getPriceSummary(row.original.draft ?? row.original, t)}
-                  </span>
-                </div>
-                {!row.original.isDraftDeleted && row.original.draft && (
-                  <span className='text-muted-foreground truncate text-xs'>
-                    {getPriceDetail(row.original.draft, t)}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        ),
-        sortingFn: (rowA, rowB) =>
-          getPriceSummary(rowA.original, t).localeCompare(
-            getPriceSummary(rowB.original, t)
-          ),
-        meta: { label: t('Price summary') },
-      },
-      {
-        id: 'actions',
-        cell: ({ row }) => (
-          <div className='flex justify-end gap-2'>
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={() => handleEdit(row.original)}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              variant='ghost'
-              size='sm'
-              onClick={() => handleDelete(row.original.name)}
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        ),
-        enableHiding: false,
-      },
-    ]
-  }, [handleEdit, handleDelete, t])
+  const columns = useMemo(
+    () =>
+      buildModelRatioColumns({
+        onDelete: handleDelete,
+        onEdit: handleEdit,
+        t,
+      }),
+    [handleEdit, handleDelete, t]
+  )
 
   const table = useReactTable({
     data: models,
@@ -1101,7 +679,11 @@ const ModelRatioVisualEditorComponent = forwardRef<
                         <th
                           key={header.id}
                           colSpan={header.colSpan}
-                          className='text-foreground h-10 px-2 text-left align-middle text-sm font-medium whitespace-nowrap'
+                          className={cn(
+                            'text-foreground h-10 px-2 text-left align-middle text-sm font-medium whitespace-nowrap',
+                            header.column.id === 'actions' &&
+                              'bg-background sticky right-0 z-20 w-24 min-w-24 shadow-[-10px_0_14px_-14px_hsl(var(--foreground))]'
+                          )}
                         >
                           {header.isPlaceholder
                             ? null
@@ -1121,8 +703,8 @@ const ModelRatioVisualEditorComponent = forwardRef<
                       data-state={row.getIsSelected() ? 'selected' : undefined}
                       className={
                         editData?.name === row.original.name
-                          ? 'bg-muted/45 hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors'
-                          : 'hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors'
+                          ? 'bg-muted/45 hover:bg-muted/50 data-[state=selected]:bg-muted group border-b transition-colors'
+                          : 'hover:bg-muted/50 data-[state=selected]:bg-muted group border-b transition-colors'
                       }
                       onClick={(event) => {
                         const target = event.target as HTMLElement
@@ -1133,7 +715,13 @@ const ModelRatioVisualEditorComponent = forwardRef<
                       {row.getVisibleCells().map((cell) => (
                         <td
                           key={cell.id}
-                          className='p-2 align-middle text-sm whitespace-nowrap'
+                          className={cn(
+                            'p-2 align-middle text-sm whitespace-nowrap',
+                            cell.column.id === 'actions' &&
+                              (editData?.name === row.original.name
+                                ? 'bg-muted/45 group-hover:bg-muted/50 group-data-[state=selected]:bg-muted sticky right-0 z-10 w-24 min-w-24 shadow-[-10px_0_14px_-14px_hsl(var(--foreground))]'
+                                : 'bg-background group-hover:bg-muted/50 group-data-[state=selected]:bg-muted sticky right-0 z-10 w-24 min-w-24 shadow-[-10px_0_14px_-14px_hsl(var(--foreground))]')
+                          )}
                         >
                           {flexRender(
                             cell.column.columnDef.cell,

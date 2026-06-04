@@ -24,7 +24,6 @@ import {
   useMemo,
   useState,
 } from 'react'
-import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AlertTriangle } from 'lucide-react'
@@ -61,54 +60,27 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { sideDrawerContentClassName } from '@/components/drawer-layout'
-import { combineBillingExpr } from '@/features/pricing/lib/billing-expr'
 import {
-  SettingsControlGroup,
-  SettingsSwitchField,
-} from '../components/settings-form-layout'
+  EMPTY_LANE_ENABLED,
+  EMPTY_LANE_PRICES,
+  buildPreviewRows,
+  createInitialLaneState,
+  createModelPricingSchema,
+  hasValue,
+  laneConfigs,
+  numericDraftRegex,
+  ratioFieldByLane,
+  toNumberOrNull,
+  type LaneKey,
+  type ModelPricingFormValues,
+  type ModelRatioData,
+  type PricingMode,
+} from './model-pricing-core'
+import { PriceInput, PriceLane } from './model-pricing-inputs'
 import { formatPricingNumber } from './pricing-format'
 import { TieredPricingEditor } from './tiered-pricing-editor'
 
-const createModelPricingSchema = (t: (key: string) => string) =>
-  z.object({
-    name: z.string().min(1, t('Model name is required')),
-    price: z.string().optional(),
-    ratio: z.string().optional(),
-    cacheRatio: z.string().optional(),
-    createCacheRatio: z.string().optional(),
-    completionRatio: z.string().optional(),
-    imageRatio: z.string().optional(),
-    audioRatio: z.string().optional(),
-    audioCompletionRatio: z.string().optional(),
-  })
-
-type ModelPricingFormValues = z.infer<
-  ReturnType<typeof createModelPricingSchema>
->
-
-type PricingMode = 'per-token' | 'per-request' | 'tiered_expr'
-type LaneKey =
-  | 'completion'
-  | 'cache'
-  | 'createCache'
-  | 'image'
-  | 'audioInput'
-  | 'audioOutput'
-
-export type ModelRatioData = {
-  name: string
-  price?: string
-  ratio?: string
-  cacheRatio?: string
-  createCacheRatio?: string
-  completionRatio?: string
-  imageRatio?: string
-  audioRatio?: string
-  audioCompletionRatio?: string
-  billingMode?: PricingMode
-  billingExpr?: string
-  requestRuleExpr?: string
-}
+export type { ModelRatioData } from './model-pricing-core'
 
 type ModelPricingSheetProps = {
   open: boolean
@@ -125,239 +97,6 @@ type ModelPricingEditorPanelProps = Omit<
 
 export type ModelPricingEditorPanelHandle = {
   commitDraft: () => Promise<ModelRatioData | null>
-}
-
-type PreviewRow = {
-  key: string
-  label: string
-  value: string
-  multiline?: boolean
-}
-
-const numericDraftRegex = /^(\d+(\.\d*)?|\.\d*)?$/
-
-const EMPTY_LANE_PRICES: Record<LaneKey, string> = {
-  completion: '',
-  cache: '',
-  createCache: '',
-  image: '',
-  audioInput: '',
-  audioOutput: '',
-}
-
-const EMPTY_LANE_ENABLED: Record<LaneKey, boolean> = {
-  completion: false,
-  cache: false,
-  createCache: false,
-  image: false,
-  audioInput: false,
-  audioOutput: false,
-}
-
-const ratioFieldByLane: Record<LaneKey, keyof ModelPricingFormValues> = {
-  completion: 'completionRatio',
-  cache: 'cacheRatio',
-  createCache: 'createCacheRatio',
-  image: 'imageRatio',
-  audioInput: 'audioRatio',
-  audioOutput: 'audioCompletionRatio',
-}
-
-const laneConfigs: Array<{
-  key: LaneKey
-  titleKey: string
-  descriptionKey: string
-  placeholder: string
-}> = [
-  {
-    key: 'completion',
-    titleKey: 'Completion price',
-    descriptionKey: 'Output token price for generated tokens.',
-    placeholder: '15',
-  },
-  {
-    key: 'cache',
-    titleKey: 'Cache read price',
-    descriptionKey: 'Token price for cache reads.',
-    placeholder: '0.3',
-  },
-  {
-    key: 'createCache',
-    titleKey: 'Cache write price',
-    descriptionKey: 'Token price for creating cache entries.',
-    placeholder: '3.75',
-  },
-  {
-    key: 'image',
-    titleKey: 'Image input price',
-    descriptionKey: 'Token price for image input.',
-    placeholder: '2.5',
-  },
-  {
-    key: 'audioInput',
-    titleKey: 'Audio input price',
-    descriptionKey: 'Token price for audio input.',
-    placeholder: '3.81',
-  },
-  {
-    key: 'audioOutput',
-    titleKey: 'Audio output price',
-    descriptionKey: 'Token price for audio output.',
-    placeholder: '15.11',
-  },
-]
-
-function hasValue(value: unknown): boolean {
-  return (
-    value !== '' && value !== null && value !== undefined && value !== false
-  )
-}
-
-function toNumberOrNull(value: unknown): number | null {
-  if (!hasValue(value) && value !== 0) return null
-  const num = Number(value)
-  return Number.isFinite(num) ? num : null
-}
-
-function ratioToBasePrice(ratio: unknown): string {
-  const num = toNumberOrNull(ratio)
-  if (num === null) return ''
-  return formatPricingNumber(num * 2)
-}
-
-function deriveLanePrice(
-  ratio: unknown,
-  denominator: unknown,
-  fallback = ''
-): string {
-  const ratioNumber = toNumberOrNull(ratio)
-  const denominatorNumber = toNumberOrNull(denominator)
-  if (ratioNumber === null || denominatorNumber === null) return fallback
-  return formatPricingNumber(ratioNumber * denominatorNumber)
-}
-
-function createInitialLaneState(data?: ModelRatioData | null) {
-  if (!data) {
-    return {
-      promptPrice: '',
-      prices: { ...EMPTY_LANE_PRICES },
-      enabled: { ...EMPTY_LANE_ENABLED },
-    }
-  }
-
-  const promptPrice = ratioToBasePrice(data.ratio)
-  const audioInputPrice = deriveLanePrice(data.audioRatio, promptPrice)
-  const prices: Record<LaneKey, string> = {
-    completion: deriveLanePrice(data.completionRatio, promptPrice),
-    cache: deriveLanePrice(data.cacheRatio, promptPrice),
-    createCache: deriveLanePrice(data.createCacheRatio, promptPrice),
-    image: deriveLanePrice(data.imageRatio, promptPrice),
-    audioInput: audioInputPrice,
-    audioOutput: deriveLanePrice(data.audioCompletionRatio, audioInputPrice),
-  }
-
-  return {
-    promptPrice,
-    prices,
-    enabled: {
-      completion: hasValue(data.completionRatio),
-      cache: hasValue(data.cacheRatio),
-      createCache: hasValue(data.createCacheRatio),
-      image: hasValue(data.imageRatio),
-      audioInput: hasValue(data.audioRatio),
-      audioOutput: hasValue(data.audioCompletionRatio),
-    },
-  }
-}
-
-function buildPreviewRows(
-  values: ModelPricingFormValues,
-  mode: PricingMode,
-  billingExpr: string,
-  requestRuleExpr: string,
-  promptPrice: string,
-  lanePrices: Record<LaneKey, string>,
-  laneEnabled: Record<LaneKey, boolean>,
-  t: (key: string) => string
-): PreviewRow[] {
-  if (mode === 'tiered_expr') {
-    const effectiveExpr = combineBillingExpr(billingExpr, requestRuleExpr)
-    return [
-      { key: 'mode', label: 'BillingMode', value: 'tiered_expr' },
-      {
-        key: 'expr',
-        label: t('Expression'),
-        value: effectiveExpr || t('Empty'),
-        multiline: true,
-      },
-    ]
-  }
-
-  if (mode === 'per-request') {
-    return [
-      {
-        key: 'price',
-        label: 'ModelPrice',
-        value: values.price || t('Empty'),
-      },
-    ]
-  }
-
-  return [
-    {
-      key: 'inputPrice',
-      label: t('Input price'),
-      value: promptPrice ? `$${promptPrice}` : t('Empty'),
-    },
-    {
-      key: 'completion',
-      label: t('Completion price'),
-      value:
-        laneEnabled.completion && lanePrices.completion
-          ? `$${lanePrices.completion}`
-          : t('Empty'),
-    },
-    {
-      key: 'cache',
-      label: t('Cache read price'),
-      value:
-        laneEnabled.cache && lanePrices.cache
-          ? `$${lanePrices.cache}`
-          : t('Empty'),
-    },
-    {
-      key: 'createCache',
-      label: t('Cache write price'),
-      value:
-        laneEnabled.createCache && lanePrices.createCache
-          ? `$${lanePrices.createCache}`
-          : t('Empty'),
-    },
-    {
-      key: 'image',
-      label: t('Image input price'),
-      value:
-        laneEnabled.image && lanePrices.image
-          ? `$${lanePrices.image}`
-          : t('Empty'),
-    },
-    {
-      key: 'audio',
-      label: t('Audio input price'),
-      value:
-        laneEnabled.audioInput && lanePrices.audioInput
-          ? `$${lanePrices.audioInput}`
-          : t('Empty'),
-    },
-    {
-      key: 'audioCompletion',
-      label: t('Audio output price'),
-      value:
-        laneEnabled.audioOutput && lanePrices.audioOutput
-          ? `$${lanePrices.audioOutput}`
-          : t('Empty'),
-    },
-  ]
 }
 
 export const ModelPricingSheet = forwardRef<
@@ -936,65 +675,3 @@ export const ModelPricingEditorPanel = forwardRef<
     </div>
   )
 })
-
-function PriceInput(props: {
-  value: string
-  placeholder?: string
-  disabled?: boolean
-  onChange: (value: string) => void
-}) {
-  return (
-    <InputGroup>
-      <InputGroupAddon>$</InputGroupAddon>
-      <InputGroupInput
-        inputMode='decimal'
-        value={props.value}
-        placeholder={props.placeholder}
-        disabled={props.disabled}
-        onChange={(event) => props.onChange(event.target.value)}
-      />
-      <InputGroupAddon align='inline-end'>$/1M</InputGroupAddon>
-    </InputGroup>
-  )
-}
-
-function PriceLane(props: {
-  title: string
-  description: string
-  placeholder: string
-  value: string
-  enabled: boolean
-  disabled?: boolean
-  onEnabledChange: (checked: boolean) => void
-  onChange: (value: string) => void
-}) {
-  const { t } = useTranslation()
-  const effectiveDisabled = props.disabled || !props.enabled
-
-  return (
-    <SettingsControlGroup
-      className={cn('space-y-3', effectiveDisabled && 'opacity-75')}
-      data-disabled={effectiveDisabled || undefined}
-    >
-      <SettingsSwitchField
-        checked={props.enabled}
-        disabled={props.disabled}
-        onCheckedChange={props.onEnabledChange}
-        label={props.title}
-        description={props.description}
-        aria-label={props.title}
-      />
-      <PriceInput
-        value={props.value}
-        placeholder={props.placeholder}
-        disabled={effectiveDisabled}
-        onChange={props.onChange}
-      />
-      <p className='text-muted-foreground text-xs'>
-        {props.enabled
-          ? t('USD price per 1M tokens.')
-          : t('Disabled lanes are omitted on save.')}
-      </p>
-    </SettingsControlGroup>
-  )
-}
