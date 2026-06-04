@@ -37,7 +37,6 @@ import {
   SettingsSwitchContent,
   SettingsSwitchItem,
 } from '../components/settings-form-layout'
-import { SettingsPageActionsPortal } from '../components/settings-page-context'
 import {
   ModelRatioVisualEditor,
   type ModelRatioVisualEditorHandle,
@@ -59,6 +58,7 @@ type ModelFormValues = {
 
 type ModelRatioFormProps = {
   form: UseFormReturn<ModelFormValues>
+  savedValues: ModelFormValues
   onSave: (values: ModelFormValues) => Promise<void>
   onReset: () => void
   isSaving: boolean
@@ -67,6 +67,7 @@ type ModelRatioFormProps = {
 
 export const ModelRatioForm = memo(function ModelRatioForm({
   form,
+  savedValues,
   onSave,
   onReset,
   isSaving,
@@ -101,7 +102,24 @@ export const ModelRatioForm = memo(function ModelRatioForm({
 
   return (
     <div className='space-y-6'>
-      <div className='flex justify-end'>
+      <div className='flex flex-wrap justify-end gap-2'>
+        <Button
+          type='button'
+          variant='destructive'
+          size='sm'
+          onClick={onReset}
+          disabled={isResetting}
+        >
+          {t('Reset prices')}
+        </Button>
+        <Button
+          type='button'
+          size='sm'
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? t('Saving...') : t('Save model prices')}
+        </Button>
         <Button variant='outline' size='sm' onClick={toggleEditMode}>
           {editMode === 'visual' ? (
             <>
@@ -118,29 +136,20 @@ export const ModelRatioForm = memo(function ModelRatioForm({
       </div>
 
       <Form {...form}>
-        <SettingsPageActionsPortal>
-          <Button
-            type='button'
-            variant='destructive'
-            size='sm'
-            onClick={onReset}
-            disabled={isResetting}
-          >
-            {t('Reset prices')}
-          </Button>
-          <Button
-            type='button'
-            size='sm'
-            onClick={handleSave}
-            disabled={isSaving}
-          >
-            {isSaving ? t('Saving...') : t('Save model prices')}
-          </Button>
-        </SettingsPageActionsPortal>
         {editMode === 'visual' ? (
           <div className='space-y-6'>
             <ModelRatioVisualEditor
               ref={visualEditorRef}
+              savedModelPrice={savedValues.ModelPrice}
+              savedModelRatio={savedValues.ModelRatio}
+              savedCacheRatio={savedValues.CacheRatio}
+              savedCreateCacheRatio={savedValues.CreateCacheRatio}
+              savedCompletionRatio={savedValues.CompletionRatio}
+              savedImageRatio={savedValues.ImageRatio}
+              savedAudioRatio={savedValues.AudioRatio}
+              savedAudioCompletionRatio={savedValues.AudioCompletionRatio}
+              savedBillingMode={savedValues.BillingMode}
+              savedBillingExpr={savedValues.BillingExpr}
               modelPrice={form.watch('ModelPrice')}
               modelRatio={form.watch('ModelRatio')}
               cacheRatio={form.watch('CacheRatio')}

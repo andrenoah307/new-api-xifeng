@@ -50,14 +50,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
   DataTableBulkActions,
   DataTableColumnHeader,
   DataTableToolbar,
@@ -78,6 +70,16 @@ import {
 import { formatPricingNumber } from './pricing-format'
 
 type ModelRatioVisualEditorProps = {
+  savedModelPrice: string
+  savedModelRatio: string
+  savedCacheRatio: string
+  savedCreateCacheRatio: string
+  savedCompletionRatio: string
+  savedImageRatio: string
+  savedAudioRatio: string
+  savedAudioCompletionRatio: string
+  savedBillingMode: string
+  savedBillingExpr: string
   modelPrice: string
   modelRatio: string
   cacheRatio: string
@@ -91,7 +93,7 @@ type ModelRatioVisualEditorProps = {
   onChange: (field: string, value: string) => void
 }
 
-type ModelRow = {
+type ModelPricingSnapshot = {
   name: string
   price?: string
   ratio?: string
@@ -105,6 +107,14 @@ type ModelRow = {
   billingExpr?: string
   requestRuleExpr?: string
   hasConflict: boolean
+}
+
+type ModelRow = ModelPricingSnapshot & {
+  saved?: ModelPricingSnapshot
+  draft?: ModelPricingSnapshot
+  isDraftChanged: boolean
+  isDraftDeleted: boolean
+  isDraftNew: boolean
 }
 
 export type ModelRatioVisualEditorHandle = {
@@ -148,7 +158,10 @@ const getModeVariant = (mode?: string): 'warning' | 'info' | 'success' => {
   return 'success'
 }
 
-const getExpressionSummary = (row: ModelRow, t: (key: string) => string) => {
+const getExpressionSummary = (
+  row: ModelPricingSnapshot,
+  t: (key: string) => string
+) => {
   const tierCount = (row.billingExpr?.match(/tier\(/g) || []).length
   if (tierCount > 0) {
     return `${t('Tiered pricing')} · ${tierCount} ${t('tiers')}`
@@ -156,7 +169,10 @@ const getExpressionSummary = (row: ModelRow, t: (key: string) => string) => {
   return t('Expression pricing')
 }
 
-const getPriceSummary = (row: ModelRow, t: (key: string) => string) => {
+const getPriceSummary = (
+  row: ModelPricingSnapshot,
+  t: (key: string) => string
+) => {
   if (row.billingMode === 'tiered_expr') {
     return getExpressionSummary(row, t)
   }
@@ -181,7 +197,10 @@ const getPriceSummary = (row: ModelRow, t: (key: string) => string) => {
     : `${t('Input')} $${inputPrice}`
 }
 
-const getPriceDetail = (row: ModelRow, t: (key: string) => string) => {
+const getPriceDetail = (
+  row: ModelPricingSnapshot,
+  t: (key: string) => string
+) => {
   if (row.billingMode === 'tiered_expr') {
     return row.requestRuleExpr
       ? t('Includes request rules')
@@ -206,11 +225,172 @@ const getPriceDetail = (row: ModelRow, t: (key: string) => string) => {
   return details.length > 0 ? details.join(' · ') : t('Base input price only')
 }
 
+const buildModelSnapshots = ({
+  modelPrice,
+  modelRatio,
+  cacheRatio,
+  createCacheRatio,
+  completionRatio,
+  imageRatio,
+  audioRatio,
+  audioCompletionRatio,
+  billingMode,
+  billingExpr,
+}: Pick<
+  ModelRatioVisualEditorProps,
+  | 'modelPrice'
+  | 'modelRatio'
+  | 'cacheRatio'
+  | 'createCacheRatio'
+  | 'completionRatio'
+  | 'imageRatio'
+  | 'audioRatio'
+  | 'audioCompletionRatio'
+  | 'billingMode'
+  | 'billingExpr'
+>): ModelPricingSnapshot[] => {
+  const priceMap = safeJsonParse<Record<string, number>>(modelPrice, {
+    fallback: {},
+    context: 'model prices',
+  })
+  const ratioMap = safeJsonParse<Record<string, number>>(modelRatio, {
+    fallback: {},
+    context: 'model ratios',
+  })
+  const cacheMap = safeJsonParse<Record<string, number>>(cacheRatio, {
+    fallback: {},
+    context: 'cache ratios',
+  })
+  const createCacheMap = safeJsonParse<Record<string, number>>(
+    createCacheRatio,
+    { fallback: {}, context: 'create cache ratios' }
+  )
+  const completionMap = safeJsonParse<Record<string, number>>(completionRatio, {
+    fallback: {},
+    context: 'completion ratios',
+  })
+  const imageMap = safeJsonParse<Record<string, number>>(imageRatio, {
+    fallback: {},
+    context: 'image ratios',
+  })
+  const audioMap = safeJsonParse<Record<string, number>>(audioRatio, {
+    fallback: {},
+    context: 'audio ratios',
+  })
+  const audioCompletionMap = safeJsonParse<Record<string, number>>(
+    audioCompletionRatio,
+    { fallback: {}, context: 'audio completion ratios' }
+  )
+  const billingModeMap = safeJsonParse<Record<string, string>>(billingMode, {
+    fallback: {},
+    context: 'billing mode',
+  })
+  const billingExprMap = safeJsonParse<Record<string, string>>(billingExpr, {
+    fallback: {},
+    context: 'billing expression',
+  })
+
+  const modelNames = new Set([
+    ...Object.keys(priceMap),
+    ...Object.keys(ratioMap),
+    ...Object.keys(cacheMap),
+    ...Object.keys(createCacheMap),
+    ...Object.keys(completionMap),
+    ...Object.keys(imageMap),
+    ...Object.keys(audioMap),
+    ...Object.keys(audioCompletionMap),
+    ...Object.keys(billingModeMap),
+    ...Object.keys(billingExprMap),
+  ])
+
+  return Array.from(modelNames).map((name) => {
+    const price = priceMap[name]?.toString() || ''
+    const ratio = ratioMap[name]?.toString() || ''
+    const cache = cacheMap[name]?.toString() || ''
+    const createCache = createCacheMap[name]?.toString() || ''
+    const completion = completionMap[name]?.toString() || ''
+    const image = imageMap[name]?.toString() || ''
+    const audio = audioMap[name]?.toString() || ''
+    const audioCompletion = audioCompletionMap[name]?.toString() || ''
+
+    const modeForModel = billingModeMap[name]
+    if (modeForModel === 'tiered_expr') {
+      const fullExpr = billingExprMap[name] || ''
+      const { billingExpr: pureExpr, requestRuleExpr } =
+        splitBillingExprAndRequestRules(fullExpr)
+      return {
+        name,
+        billingMode: 'tiered_expr',
+        billingExpr: pureExpr,
+        requestRuleExpr,
+        price,
+        ratio,
+        cacheRatio: cache,
+        createCacheRatio: createCache,
+        completionRatio: completion,
+        imageRatio: image,
+        audioRatio: audio,
+        audioCompletionRatio: audioCompletion,
+        hasConflict: false,
+      }
+    }
+
+    return {
+      name,
+      price,
+      ratio,
+      cacheRatio: cache,
+      createCacheRatio: createCache,
+      completionRatio: completion,
+      imageRatio: image,
+      audioRatio: audio,
+      audioCompletionRatio: audioCompletion,
+      billingMode: price !== '' ? 'per-request' : 'per-token',
+      hasConflict:
+        price !== '' &&
+        (ratio !== '' ||
+          completion !== '' ||
+          cache !== '' ||
+          createCache !== '' ||
+          image !== '' ||
+          audio !== '' ||
+          audioCompletion !== ''),
+    }
+  })
+}
+
+const getSnapshotSignature = (snapshot?: ModelPricingSnapshot) => {
+  if (!snapshot) return ''
+  return JSON.stringify({
+    price: snapshot.price || '',
+    ratio: snapshot.ratio || '',
+    cacheRatio: snapshot.cacheRatio || '',
+    createCacheRatio: snapshot.createCacheRatio || '',
+    completionRatio: snapshot.completionRatio || '',
+    imageRatio: snapshot.imageRatio || '',
+    audioRatio: snapshot.audioRatio || '',
+    audioCompletionRatio: snapshot.audioCompletionRatio || '',
+    billingMode: snapshot.billingMode || 'per-token',
+    billingExpr: snapshot.billingExpr || '',
+    requestRuleExpr: snapshot.requestRuleExpr || '',
+  })
+}
+
 const ModelRatioVisualEditorComponent = forwardRef<
   ModelRatioVisualEditorHandle,
   ModelRatioVisualEditorProps
 >(function ModelRatioVisualEditor(
   {
+    savedModelPrice,
+    savedModelRatio,
+    savedCacheRatio,
+    savedCreateCacheRatio,
+    savedCompletionRatio,
+    savedImageRatio,
+    savedAudioRatio,
+    savedAudioCompletionRatio,
+    savedBillingMode,
+    savedBillingExpr,
     modelPrice,
     modelRatio,
     cacheRatio,
@@ -279,120 +459,64 @@ const ModelRatioVisualEditorComponent = forwardRef<
   }, [columnVisibility])
 
   const models = useMemo(() => {
-    const priceMap = safeJsonParse<Record<string, number>>(modelPrice, {
-      fallback: {},
-      context: 'model prices',
+    const savedRows = buildModelSnapshots({
+      modelPrice: savedModelPrice,
+      modelRatio: savedModelRatio,
+      cacheRatio: savedCacheRatio,
+      createCacheRatio: savedCreateCacheRatio,
+      completionRatio: savedCompletionRatio,
+      imageRatio: savedImageRatio,
+      audioRatio: savedAudioRatio,
+      audioCompletionRatio: savedAudioCompletionRatio,
+      billingMode: savedBillingMode,
+      billingExpr: savedBillingExpr,
     })
-    const ratioMap = safeJsonParse<Record<string, number>>(modelRatio, {
-      fallback: {},
-      context: 'model ratios',
-    })
-    const cacheMap = safeJsonParse<Record<string, number>>(cacheRatio, {
-      fallback: {},
-      context: 'cache ratios',
-    })
-    const createCacheMap = safeJsonParse<Record<string, number>>(
+    const draftRows = buildModelSnapshots({
+      modelPrice,
+      modelRatio,
+      cacheRatio,
       createCacheRatio,
-      { fallback: {}, context: 'create cache ratios' }
-    )
-    const completionMap = safeJsonParse<Record<string, number>>(
       completionRatio,
-      { fallback: {}, context: 'completion ratios' }
-    )
-    const imageMap = safeJsonParse<Record<string, number>>(imageRatio, {
-      fallback: {},
-      context: 'image ratios',
-    })
-    const audioMap = safeJsonParse<Record<string, number>>(audioRatio, {
-      fallback: {},
-      context: 'audio ratios',
-    })
-    const audioCompletionMap = safeJsonParse<Record<string, number>>(
+      imageRatio,
+      audioRatio,
       audioCompletionRatio,
-      { fallback: {}, context: 'audio completion ratios' }
-    )
-    const billingModeMap = safeJsonParse<Record<string, string>>(billingMode, {
-      fallback: {},
-      context: 'billing mode',
-    })
-    const billingExprMap = safeJsonParse<Record<string, string>>(billingExpr, {
-      fallback: {},
-      context: 'billing expression',
+      billingMode,
+      billingExpr,
     })
 
-    const modelNames = new Set([
-      ...Object.keys(priceMap),
-      ...Object.keys(ratioMap),
-      ...Object.keys(cacheMap),
-      ...Object.keys(createCacheMap),
-      ...Object.keys(completionMap),
-      ...Object.keys(imageMap),
-      ...Object.keys(audioMap),
-      ...Object.keys(audioCompletionMap),
-      ...Object.keys(billingModeMap),
-      ...Object.keys(billingExprMap),
-    ])
+    const savedByName = new Map(savedRows.map((row) => [row.name, row]))
+    const draftByName = new Map(draftRows.map((row) => [row.name, row]))
+    const modelNames = new Set([...savedByName.keys(), ...draftByName.keys()])
 
-    const modelData: ModelRow[] = Array.from(modelNames).map((name) => {
-      const price = priceMap[name]?.toString() || ''
-      const ratio = ratioMap[name]?.toString() || ''
-      const cache = cacheMap[name]?.toString() || ''
-      const createCache = createCacheMap[name]?.toString() || ''
-      const completion = completionMap[name]?.toString() || ''
-      const image = imageMap[name]?.toString() || ''
-      const audio = audioMap[name]?.toString() || ''
-      const audioCompletion = audioCompletionMap[name]?.toString() || ''
+    return Array.from(modelNames)
+      .map((name) => {
+        const saved = savedByName.get(name)
+        const draft = draftByName.get(name)
+        const displayed = saved ?? draft
+        const savedSignature = getSnapshotSignature(saved)
+        const draftSignature = getSnapshotSignature(draft)
 
-      const modeForModel = billingModeMap[name]
-      if (modeForModel === 'tiered_expr') {
-        // Tiered_expr models may also retain ratio/price values as fallback
-        // during multi-instance sync delays. We preserve them in the row so
-        // the edit dialog round-trip and the next save don't drop them.
-        const fullExpr = billingExprMap[name] || ''
-        const { billingExpr: pureExpr, requestRuleExpr } =
-          splitBillingExprAndRequestRules(fullExpr)
         return {
-          name,
-          billingMode: 'tiered_expr',
-          billingExpr: pureExpr,
-          requestRuleExpr,
-          price,
-          ratio,
-          cacheRatio: cache,
-          createCacheRatio: createCache,
-          completionRatio: completion,
-          imageRatio: image,
-          audioRatio: audio,
-          audioCompletionRatio: audioCompletion,
-          hasConflict: false,
+          ...displayed!,
+          saved,
+          draft,
+          isDraftChanged: savedSignature !== draftSignature,
+          isDraftDeleted: Boolean(saved && !draft),
+          isDraftNew: Boolean(!saved && draft),
         }
-      }
-
-      return {
-        name,
-        price,
-        ratio,
-        cacheRatio: cache,
-        createCacheRatio: createCache,
-        completionRatio: completion,
-        imageRatio: image,
-        audioRatio: audio,
-        audioCompletionRatio: audioCompletion,
-        billingMode: price !== '' ? 'per-request' : 'per-token',
-        hasConflict:
-          price !== '' &&
-          (ratio !== '' ||
-            completion !== '' ||
-            cache !== '' ||
-            createCache !== '' ||
-            image !== '' ||
-            audio !== '' ||
-            audioCompletion !== ''),
-      }
-    })
-
-    return modelData.sort((a, b) => a.name.localeCompare(b.name))
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
   }, [
+    savedModelPrice,
+    savedModelRatio,
+    savedCacheRatio,
+    savedCreateCacheRatio,
+    savedCompletionRatio,
+    savedImageRatio,
+    savedAudioRatio,
+    savedAudioCompletionRatio,
+    savedBillingMode,
+    savedBillingExpr,
     modelPrice,
     modelRatio,
     cacheRatio,
@@ -428,24 +552,25 @@ const ModelRatioVisualEditorComponent = forwardRef<
 
   const handleEdit = useCallback(
     (model: ModelRow) => {
+      const editableModel = model.draft ?? model.saved ?? model
       setEditData({
-        name: model.name,
-        price: model.price,
-        ratio: model.ratio,
-        cacheRatio: model.cacheRatio,
-        createCacheRatio: model.createCacheRatio,
-        completionRatio: model.completionRatio,
-        imageRatio: model.imageRatio,
-        audioRatio: model.audioRatio,
-        audioCompletionRatio: model.audioCompletionRatio,
+        name: editableModel.name,
+        price: editableModel.price,
+        ratio: editableModel.ratio,
+        cacheRatio: editableModel.cacheRatio,
+        createCacheRatio: editableModel.createCacheRatio,
+        completionRatio: editableModel.completionRatio,
+        imageRatio: editableModel.imageRatio,
+        audioRatio: editableModel.audioRatio,
+        audioCompletionRatio: editableModel.audioCompletionRatio,
         billingMode:
-          model.billingMode === 'tiered_expr'
+          editableModel.billingMode === 'tiered_expr'
             ? 'tiered_expr'
-            : model.price && model.price !== ''
+            : editableModel.price && editableModel.price !== ''
               ? 'per-request'
               : 'per-token',
-        billingExpr: model.billingExpr,
-        requestRuleExpr: model.requestRuleExpr,
+        billingExpr: editableModel.billingExpr,
+        requestRuleExpr: editableModel.requestRuleExpr,
       })
       setEditorOpen(true)
       if (isMobile) setSheetOpen(true)
@@ -458,12 +583,6 @@ const ModelRatioVisualEditorComponent = forwardRef<
     setEditorOpen(true)
     if (isMobile) setSheetOpen(true)
   }, [isMobile])
-
-  const handleCancel = useCallback(() => {
-    setEditData(null)
-    setEditorOpen(false)
-    setSheetOpen(false)
-  }, [])
 
   const handleGlobalFilterChange = useCallback<OnChangeFn<string>>(
     (updater) => {
@@ -604,6 +723,13 @@ const ModelRatioVisualEditorComponent = forwardRef<
         cell: ({ row }) => (
           <div className='flex items-center gap-2 font-medium'>
             {row.getValue('name')}
+            {row.original.isDraftChanged && (
+              <StatusBadge
+                label={t('Draft')}
+                variant={row.original.isDraftDeleted ? 'danger' : 'warning'}
+                copyable={false}
+              />
+            )}
             {row.original.billingMode === 'tiered_expr' && (
               <StatusBadge
                 label={t('Tiered')}
@@ -644,13 +770,45 @@ const ModelRatioVisualEditorComponent = forwardRef<
           <DataTableColumnHeader column={column} title={t('Price summary')} />
         ),
         cell: ({ row }) => (
-          <div className='flex min-w-[180px] flex-col gap-1'>
-            <span className='font-medium'>
-              {getPriceSummary(row.original, t)}
-            </span>
-            <span className='text-muted-foreground max-w-[320px] truncate text-xs'>
-              {getPriceDetail(row.original, t)}
-            </span>
+          <div className='flex min-w-[180px] flex-col gap-2'>
+            <div className='flex flex-col gap-1'>
+              <span className='font-medium'>
+                {getPriceSummary(row.original, t)}
+              </span>
+              <span className='text-muted-foreground max-w-[320px] truncate text-xs'>
+                {getPriceDetail(row.original, t)}
+              </span>
+            </div>
+            {row.original.isDraftChanged && (
+              <div className='border-warning/45 bg-warning/10 text-foreground flex max-w-[360px] flex-col gap-1 rounded-md border px-2.5 py-2 shadow-sm'>
+                <div className='flex items-center gap-2'>
+                  <StatusBadge
+                    label={t('Draft')}
+                    variant={row.original.isDraftDeleted ? 'danger' : 'warning'}
+                    copyable={false}
+                    className='bg-background/70'
+                  />
+                  {!row.original.isDraftDeleted && row.original.draft && (
+                    <StatusBadge
+                      label={t(getModeLabel(row.original.draft.billingMode))}
+                      variant={getModeVariant(row.original.draft.billingMode)}
+                      copyable={false}
+                      className='bg-background/70'
+                    />
+                  )}
+                  <span className='truncate text-sm font-medium'>
+                    {row.original.isDraftDeleted
+                      ? t('Will be removed')
+                      : getPriceSummary(row.original.draft ?? row.original, t)}
+                  </span>
+                </div>
+                {!row.original.isDraftDeleted && row.original.draft && (
+                  <span className='text-muted-foreground truncate text-xs'>
+                    {getPriceDetail(row.original.draft, t)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         ),
         sortingFn: (rowA, rowB) =>
@@ -849,18 +1007,6 @@ const ModelRatioVisualEditorComponent = forwardRef<
     ]
   )
 
-  const handleSave = useCallback(
-    (data: ModelRatioData) => {
-      persistPricingData(data)
-      setEditData(data)
-      setEditorOpen(true)
-      toast.success(
-        t('Pricing changes saved to draft. Click "Save model prices" to apply.')
-      )
-    },
-    [persistPricingData, t]
-  )
-
   const handleBatchCopy = useCallback(() => {
     if (!editData) {
       toast.error(t('Open a source model first'))
@@ -901,12 +1047,10 @@ const ModelRatioVisualEditorComponent = forwardRef<
     [editorOpen, persistPricingData]
   )
 
-  const selectedTargetCount = table.getFilteredSelectedRowModel().rows.length
-
   return (
     <div className='flex flex-col gap-4'>
-      <div className='grid min-h-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(420px,0.82fr)] xl:grid-cols-[minmax(0,1.1fr)_minmax(520px,0.9fr)]'>
-        <div className='flex min-w-0 flex-col gap-4'>
+      <div className='grid h-[clamp(720px,calc(100vh-12rem),900px)] min-h-0 gap-4 md:grid-cols-[minmax(300px,0.72fr)_minmax(520px,1.28fr)] xl:grid-cols-[minmax(320px,0.68fr)_minmax(640px,1.32fr)]'>
+        <div className='flex min-h-0 min-w-0 flex-col gap-3'>
           <DataTableToolbar
             table={table}
             searchPlaceholder={t('Search models...')}
@@ -948,33 +1092,37 @@ const ModelRatioVisualEditorComponent = forwardRef<
                 : t('No models configured. Use Add model to get started.')}
             </div>
           ) : (
-            <div className='overflow-hidden rounded-md border'>
-              <Table>
-                <TableHeader>
+            <div className='min-h-0 flex-1 overflow-auto rounded-md border'>
+              <table className='w-full caption-bottom text-sm tabular-nums'>
+                <thead className='bg-background sticky top-0 z-10'>
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
+                    <tr key={headerGroup.id} className='border-b'>
                       {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} colSpan={header.colSpan}>
+                        <th
+                          key={header.id}
+                          colSpan={header.colSpan}
+                          className='text-foreground h-10 px-2 text-left align-middle text-sm font-medium whitespace-nowrap'
+                        >
                           {header.isPlaceholder
                             ? null
                             : flexRender(
                                 header.column.columnDef.header,
                                 header.getContext()
                               )}
-                        </TableHead>
+                        </th>
                       ))}
-                    </TableRow>
+                    </tr>
                   ))}
-                </TableHeader>
-                <TableBody>
+                </thead>
+                <tbody>
                   {table.getRowModel().rows.map((row) => (
-                    <TableRow
+                    <tr
                       key={row.id}
                       data-state={row.getIsSelected() ? 'selected' : undefined}
                       className={
                         editData?.name === row.original.name
-                          ? 'bg-muted/45'
-                          : undefined
+                          ? 'bg-muted/45 hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors'
+                          : 'hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors'
                       }
                       onClick={(event) => {
                         const target = event.target as HTMLElement
@@ -983,17 +1131,20 @@ const ModelRatioVisualEditorComponent = forwardRef<
                       }}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
+                        <td
+                          key={cell.id}
+                          className='p-2 align-middle text-sm whitespace-nowrap'
+                        >
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext()
                           )}
-                        </TableCell>
+                        </td>
                       ))}
-                    </TableRow>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -1002,18 +1153,15 @@ const ModelRatioVisualEditorComponent = forwardRef<
           )}
         </div>
 
-        <div className='hidden min-w-0 md:block'>
+        <div className='hidden min-h-0 min-w-0 md:block'>
           {editorOpen ? (
             <ModelPricingEditorPanel
               ref={editorPanelRef}
-              onSave={handleSave}
-              onCancel={handleCancel}
               editData={editData}
-              selectedTargetCount={selectedTargetCount}
-              className='sticky top-4 h-[calc(100vh-8rem)] min-h-[620px]'
+              className='h-full min-h-0'
             />
           ) : (
-            <div className='bg-card text-muted-foreground sticky top-4 flex h-[calc(100vh-8rem)] min-h-[420px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-6 text-center'>
+            <div className='bg-card text-muted-foreground flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl border border-dashed p-6 text-center'>
               <div className='text-foreground text-base font-medium'>
                 {t('Select a model to edit pricing')}
               </div>
@@ -1045,10 +1193,7 @@ const ModelRatioVisualEditorComponent = forwardRef<
           ref={editorPanelRef}
           open={sheetOpen}
           onOpenChange={setSheetOpen}
-          onSave={handleSave}
-          onCancel={handleCancel}
           editData={editData}
-          selectedTargetCount={selectedTargetCount}
         />
       )}
     </div>
