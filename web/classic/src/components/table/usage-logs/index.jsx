@@ -17,7 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
+import { Tabs, TabPane } from '@douyinfe/semi-ui';
 import CardPro from '../../common/ui/CardPro';
 import LogsTable from './UsageLogsTable';
 import LogsActions from './UsageLogsActions';
@@ -28,12 +29,14 @@ import ChannelAffinityUsageCacheModal from './modals/ChannelAffinityUsageCacheMo
 import ParamOverrideModal from './modals/ParamOverrideModal';
 import OfflineExportModal from './modals/OfflineExportModal';
 import ExportTasksModal from './modals/ExportTasksModal';
+import AdminExportPanel from './AdminExportPanel';
 import { useLogsData } from '../../../hooks/usage-logs/useUsageLogsData';
 import { useOfflineExport } from '../../../hooks/usage-logs/useOfflineExport';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { createCardProPagination } from '../../../helpers/utils';
 import { StatusContext } from '../../../context/Status';
 import { UserContext } from '../../../context/User';
+import { useTranslation } from 'react-i18next';
 
 const LogsPage = () => {
   const logsData = useLogsData();
@@ -41,6 +44,10 @@ const LogsPage = () => {
   const [statusState] = useContext(StatusContext);
   const [userState] = useContext(UserContext);
   const offlineExportEnabled = !!statusState?.status?.enable_log_export_offline;
+  const isAdmin = userState?.user?.role >= 10;
+  const showAdminExport = isAdmin && offlineExportEnabled;
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState('logs');
 
   const offlineExport = useOfflineExport();
 
@@ -57,7 +64,7 @@ const LogsPage = () => {
     };
   };
 
-  return (
+  const logsContent = (
     <>
       {/* Modals */}
       <ColumnSelectorModal {...logsData} />
@@ -110,6 +117,19 @@ const LogsPage = () => {
         <LogsTable {...logsData} />
       </CardPro>
     </>
+  );
+
+  if (!showAdminExport) return logsContent;
+
+  return (
+    <Tabs activeKey={activeTab} onChange={setActiveTab}>
+      <TabPane tab={t('使用日志')} itemKey="logs">
+        {logsContent}
+      </TabPane>
+      <TabPane tab={t('导出管理')} itemKey="export">
+        {activeTab === 'export' && <AdminExportPanel />}
+      </TabPane>
+    </Tabs>
   );
 };
 

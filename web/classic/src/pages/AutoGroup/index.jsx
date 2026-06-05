@@ -285,7 +285,7 @@ const AutoGroup = () => {
     try {
       const payload = {
         ...ruleForm,
-        conditions: JSON.stringify(ruleForm.conditions),
+        conditions: ruleForm.conditions,
       };
 
       let res;
@@ -336,10 +336,7 @@ const AutoGroup = () => {
       const payload = {
         ...record,
         enabled: !record.enabled,
-        conditions:
-          typeof record.conditions === 'string'
-            ? record.conditions
-            : JSON.stringify(record.conditions),
+        conditions: safeParseJSON(record.conditions, []),
       };
       const res = await API.put(`/api/auto_group/rules/${payload.id}`, payload);
       if (res.data.success) {

@@ -97,3 +97,43 @@
 **解法**：新增 `STRING_METRICS` Set 和 `STRING_OPS` 数组。条件行渲染根据 `STRING_METRICS.has(metric)` 切换：操作符用 `STRING_OPS` / `OP_OPTIONS`；值输入用分组 Select / InputNumber。指标切换时通过 `handleMetricChange` 重置 op/value/value_str，防止数值条件的残留值污染字符串条件。`formatConditionsSummary` 对字符串指标展示 `value_str` 而非 `value`。
 
 **相关代码**：`web/classic/src/pages/AutoGroup/index.jsx:STRING_METRICS`、`handleMetricChange`、条件行渲染 (line 822+)
+
+---
+
+### #95 自动分组保存报"无效的参数"：前端预序列化 conditions 与后端类型不匹配
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| web/classic/src/pages/AutoGroup/index.jsx, controller/auto_group.go | Classic 前端创建/更新/启禁用规则时 | P1 |
+
+**问题**：Classic 前端 `submitRule` 用 `JSON.stringify(ruleForm.conditions)` 将条件数组预序列化为字符串发送，但后端 `autoGroupRuleRequest.Conditions` 类型为 `[]model.AutoGroupCondition`（Go slice）。Go JSON decoder 遇到字符串 `"[{...}]"` 无法解码为 slice → `DecodeJson` 返回 error → controller 返回 "无效的请求参数"。`toggleRuleEnabled` 同理。
+
+**解法**：前端不做 `JSON.stringify`，直接发送 `conditions: ruleForm.conditions`（JSON 数组）。后端 controller 负责验证后用 `common.Marshal(req.Conditions)` 重新序列化为字符串存入 DB。`toggleRuleEnabled` 用 `safeParseJSON(record.conditions)` 将 API 返回的字符串解析回数组再发送。
+
+**相关代码**：`controller/auto_group.go:15-23`（请求结构体）、`AutoGroup/index.jsx:submitRule`、`toggleRuleEnabled`
+
+---
+
+### #96 Classic 运营设置父组件缺少初始 key → 子组件 useEffect 过滤后 inputsRow 丢失 key → compareObjects 跳过
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| web/classic/src/components/settings/OperationSetting.jsx, SettingsMonitoring.jsx | 保存任何在父组件初始 state 中缺失的设置项时 | P1 |
+
+**问题**：Classic 父组件 `OperationSetting.jsx` 的初始 `inputs` state 缺少 `AutomaticDisableWhitelist`。子组件 `SettingsMonitoring.jsx` 的 `useEffect([props.options])` 会触发两次——第一次用初始父 state（无此 key），将子组件 `inputs` 和 `inputsRow` 都重置为不含此 key 的对象。第二次（API 数据到达后）虽然 `props.options` 有此 key，但 `Object.keys(inputs).includes(key)` 检查的是第一次重置后的 `inputs`（已无此 key）→ 过滤掉 → `inputsRow` 仍无此 key。用户编辑后 `inputs` 有此 key 但 `inputsRow` 没有 → `compareObjects` 要求两个对象都 `hasOwnProperty` → 跳过 → "没有修改什么"。
+
+**解法**：父组件初始 state 必须包含所有子组件需要的 key。新增设置项时，同时更新父组件初始 state 和子组件初始 state。排查：比对子组件表单字段与父组件 `inputs` 初始值。
+
+**相关代码**：`OperationSetting.jsx` 初始 state、`SettingsMonitoring.jsx:useEffect`、`utils.jsx:compareObjects`
+
+---
+
+### #97 Default 前端 baselineRef 与 defaultValues 不同步：查询刷新后 dirty check 失效
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| web/default/src/features/system-settings/integrations/monitoring-settings-section.tsx | 保存设置后重新加载数据时 | P2 |
+
+**问题**：`baselineRef` 仅在 `useRef` 初始化和 `onSubmit` 成功后更新，不随 `defaultValues` prop 变化同步。保存后 `useUpdateOption` 触发 query invalidation → 服务器返回标准化值（如小写转换）→ `useResetForm` 重置表单为服务器值 → 但 `baselineRef` 仍为用户提交的原始值 → 下次 dirty check 比较错位。
+
+**解法**：添加 `useEffect(() => { baselineRef.current = normalizeDefaults(defaultValues) }, [defaultValues])` 使 baseline 随服务器数据同步。
