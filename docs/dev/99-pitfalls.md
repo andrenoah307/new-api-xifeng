@@ -55,3 +55,45 @@
 **解法**：CVA 新增 `warning` 变体（amber 配色 + dark mode 适配），对话框内的冲突提醒统一改用 `variant="warning"`。InvoiceHistoryAlert 因需控制宽度（max-w-2xl），不使用 Alert 组件而用自定义 div + 相同 amber 配色。
 
 **相关代码**：`alert.tsx:alertVariants`、`create-ticket-dialog.tsx`、`create-invoice-ticket-dialog.tsx`、`refund-detail.tsx:InvoiceHistoryAlert`
+
+---
+
+### #92 下载 403：window.open / 邮件链接无法携带自定义请求头
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| middleware/auth.go, router/api-router.go, export-tasks-sheet.tsx | 用户点击下载按钮或邮件中下载链接时 | P1 |
+
+**问题**：`authHelper` 两阶段认证——Stage 1 验 cookie session，Stage 2 验 `New-Api-User` 请求头（CSRF 防护）。`window.open()` 和邮件客户端点击链接只发送 cookie，不发自定义头，Stage 2 返回 403/401。
+
+**解法**：
+- **站内下载**：改用 `fetch()` + blob 下载，通过 `getCommonHeaders()` 携带 `New-Api-User` 头。三处都改：Default 用户端、Classic 用户端、Default 管理端。
+- **邮件链接**：下载路由从 `UserAuth()` 改为 `SessionAuth()`（仅验 cookie，跳过 CSRF 头检查）。`SessionAuth` 仍设置 `c.Set("id", ...)` 和 `c.Set("role", ...)`，rate limiter 和 ownership 校验正常工作。仅用于幂等只读 GET 资源，与工单附件下载同模式。
+
+**相关代码**：`middleware/auth.go:SessionAuth`、`router/api-router.go:458`、`export-tasks-sheet.tsx:handleDownload`、`ExportTasksModal.jsx:onClick`、`admin-export-tab.tsx:onClick`
+
+---
+
+### #93 前端构建缓存：Go embed 导致代码修改不生效
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| main.go, web/default/dist | 修改前端代码后直接 go build 部署 | P1 |
+
+**问题**：`main.go` 的 `//go:embed web/default/dist` 在编译时将前端静态文件嵌入 Go 二进制。如果只修改了前端源码但没有重新 `bun run build`，`dist/` 目录仍是旧版本，Go 二进制打包旧文件。表现为"代码已提交但线上行为不变"。
+
+**解法**：前端代码修改后部署流程必须：`cd web/default && bun run build` → `go build`。可通过检查 `dist/` 文件时间戳 vs 源码最后修改时间排查。CI 中确保 build 步骤在 go build 之前。
+
+---
+
+### #94 Classic 自动分组字符串指标：独立于数值指标的完整链路
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| web/classic/src/pages/AutoGroup/index.jsx | 添加 current_group 等字符串类型条件指标时 | P2 |
+
+**问题**：Classic 前端自动分组条件编辑器仅支持数值类型指标——操作符固定 6 个（>=, >, <=, <, ==, !=），值输入固定 InputNumber。`current_group` 是字符串类型指标，需要不同的操作符（仅 ==, !=）和值输入（分组选择器 Select）。
+
+**解法**：新增 `STRING_METRICS` Set 和 `STRING_OPS` 数组。条件行渲染根据 `STRING_METRICS.has(metric)` 切换：操作符用 `STRING_OPS` / `OP_OPTIONS`；值输入用分组 Select / InputNumber。指标切换时通过 `handleMetricChange` 重置 op/value/value_str，防止数值条件的残留值污染字符串条件。`formatConditionsSummary` 对字符串指标展示 `value_str` 而非 `value`。
+
+**相关代码**：`web/classic/src/pages/AutoGroup/index.jsx:STRING_METRICS`、`handleMetricChange`、条件行渲染 (line 822+)
