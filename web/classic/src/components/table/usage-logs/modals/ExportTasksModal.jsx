@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { Modal, Table, Tag, Button, Progress, Typography } from '@douyinfe/semi-ui';
 import { IconDownload } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
-import { timestamp2string } from '../../../../helpers';
+import { timestamp2string, getUserIdFromLocalStorage } from '../../../../helpers';
+import { showError } from '../../../../helpers';
 
 const { Text } = Typography;
 
@@ -94,7 +95,26 @@ export default function ExportTasksModal({
               icon={<IconDownload />}
               size="small"
               type="tertiary"
-              onClick={() => window.open(`/api/log/self/export-download/${record.id}`, '_blank')}
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/log/self/export-download/${record.id}`, {
+                    credentials: 'include',
+                    headers: { 'New-API-User': String(getUserIdFromLocalStorage()) },
+                  });
+                  if (!res.ok) throw new Error(res.statusText);
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `export-${record.id}.csv.gz`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                } catch (e) {
+                  showError(e.message || t('下载失败'));
+                }
+              }}
             >
               {t('下载')}
             </Button>

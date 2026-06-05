@@ -4493,6 +4493,7 @@
     "Manage export queue, tasks and configuration": "Manage export queue, tasks and configuration",
     "Queue Stats": "Queue Stats",
     "Queue Depth": "Queue Depth",
+    "Workers": "Workers",
     "Storage": "Storage",
     "Export Config": "Export Config",
     "Worker Count": "Worker Count",
@@ -4504,6 +4505,9 @@
     "Cancel Export Task": "Cancel Export Task",
     "Task cancelled": "Task cancelled",
     "Config saved": "Config saved",
+    "Download failed": "Download failed",
+    "Row Count": "Row Count",
+    "Created Time": "Created Time",
     "Processing": "Processing"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?"

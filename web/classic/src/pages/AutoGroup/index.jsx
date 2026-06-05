@@ -52,10 +52,17 @@ const METRICS = [
   { key: 'yesterday_topup', label: '昨日充值 (USD)', needsParam: false },
   { key: 'total_request_count', label: '累计请求数', needsParam: false },
   { key: 'recent_request_count', label: '近 N 小时请求数', needsParam: true },
+  { key: 'current_group', label: '当前分组', needsParam: false },
 ];
 
 const METRIC_OPTIONS = METRICS.map((m) => ({ label: m.label, value: m.key }));
 const METRIC_MAP = Object.fromEntries(METRICS.map((m) => [m.key, m]));
+
+const STRING_METRICS = new Set(['current_group']);
+const STRING_OPS = [
+  { label: '==', value: '==' },
+  { label: '!=', value: '!=' },
+];
 
 const OP_OPTIONS = [
   { label: '>=', value: '>=' },
@@ -103,7 +110,8 @@ function formatConditionsSummary(conditions, t) {
       const m = METRIC_MAP[c.metric];
       const label = m ? t(m.label) : c.metric;
       const param = m?.needsParam && c.param ? ` (${c.param}h)` : '';
-      return `${label}${param} ${c.op} ${c.value}`;
+      const displayVal = STRING_METRICS.has(c.metric) ? (c.value_str || '-') : c.value;
+      return `${label}${param} ${c.op} ${displayVal}`;
     })
     .join(', ');
 }
@@ -435,6 +443,31 @@ const AutoGroup = () => {
       conditions: prev.conditions.map((c, i) =>
         i === index ? { ...c, [field]: value } : c,
       ),
+    }));
+  };
+
+  const handleMetricChange = (index, newMetric) => {
+    const oldMetric = ruleForm.conditions[index].metric;
+    const wasString = STRING_METRICS.has(oldMetric);
+    const nowString = STRING_METRICS.has(newMetric);
+    setRuleForm((prev) => ({
+      ...prev,
+      conditions: prev.conditions.map((c, i) => {
+        if (i !== index) return c;
+        const updated = { ...c, metric: newMetric };
+        if (wasString !== nowString) {
+          if (nowString) {
+            updated.op = '==';
+            updated.value = 0;
+            updated.value_str = '';
+          } else {
+            updated.op = '>=';
+            updated.value = 0;
+            delete updated.value_str;
+          }
+        }
+        return updated;
+      }),
     }));
   };
 
@@ -808,6 +841,7 @@ const AutoGroup = () => {
             {ruleForm.conditions.map((condition, index) => {
               const metricConfig = METRIC_MAP[condition.metric];
               const needsParam = metricConfig?.needsParam || false;
+              const isString = STRING_METRICS.has(condition.metric);
               return (
                 <div
                   key={index}
@@ -821,7 +855,7 @@ const AutoGroup = () => {
                 >
                   <Select
                     value={condition.metric}
-                    onChange={(val) => updateCondition(index, 'metric', val)}
+                    onChange={(val) => handleMetricChange(index, val)}
                     optionList={METRIC_OPTIONS.map((o) => ({
                       ...o,
                       label: t(o.label),
@@ -832,16 +866,28 @@ const AutoGroup = () => {
                   <Select
                     value={condition.op}
                     onChange={(val) => updateCondition(index, 'op', val)}
-                    optionList={OP_OPTIONS}
+                    optionList={isString ? STRING_OPS : OP_OPTIONS}
                     style={{ width: 80 }}
                     getPopupContainer={() => document.body}
                   />
-                  <InputNumber
-                    value={condition.value}
-                    onChange={(val) => updateCondition(index, 'value', val)}
-                    style={{ width: 100 }}
-                  />
-                  {needsParam && (
+                  {isString ? (
+                    <Select
+                      value={condition.value_str || ''}
+                      onChange={(val) => updateCondition(index, 'value_str', val)}
+                      optionList={groupOptions.map((o) => ({ label: o.value, value: o.value }))}
+                      placeholder={t('选择分组')}
+                      style={{ width: 160 }}
+                      filter
+                      getPopupContainer={() => document.body}
+                    />
+                  ) : (
+                    <InputNumber
+                      value={condition.value}
+                      onChange={(val) => updateCondition(index, 'value', val)}
+                      style={{ width: 100 }}
+                    />
+                  )}
+                  {needsParam && !isString && (
                     <InputNumber
                       value={condition.param}
                       onChange={(val) => updateCondition(index, 'param', val)}

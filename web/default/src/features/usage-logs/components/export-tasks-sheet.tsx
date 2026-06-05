@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge, type StatusVariant } from '@/components/status-badge'
 import { Progress } from '@/components/ui/progress'
 import { formatTimestampToDate } from '@/lib/format'
+import { getCommonHeaders } from '@/lib/api'
 import { getUserExportTasks, getExportDownloadUrl } from '../api'
 import type { ExportTask } from '../types'
 
@@ -42,8 +43,25 @@ function TaskItem({ task }: { task: ExportTask }) {
   const { t } = useTranslation()
   const config = STATUS_CONFIG[task.status] ?? STATUS_CONFIG[4]
 
-  const handleDownload = () => {
-    window.open(getExportDownloadUrl(task.id), '_blank')
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(getExportDownloadUrl(task.id), {
+        credentials: 'include',
+        headers: getCommonHeaders(),
+      })
+      if (!res.ok) throw new Error(res.statusText)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `export-${task.id}.csv.gz`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      // silent fail — user sees nothing happen
+    }
   }
 
   return (
