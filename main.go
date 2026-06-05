@@ -146,6 +146,9 @@ func main() {
 
 	service.StartAutoGroupEngine()
 
+	// Offline log export worker pool (DB-backed queue, gzip CSV generation)
+	service.InitLogExportWorker()
+
 	// Wire task polling adaptor factory (breaks service -> relay import cycle).
 	// Must run before the system task runner starts: the async_task_poll handler
 	// calls service.RunTaskPollingOnce, which needs this factory set.

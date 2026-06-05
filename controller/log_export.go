@@ -41,13 +41,18 @@ func SubmitOfflineExport(c *gin.Context) {
 		common.ApiErrorMsg(c, "无效的请求参数")
 		return
 	}
-	if req.Email == "" {
-		common.ApiErrorMsg(c, "邮箱地址不能为空")
-		return
-	}
-
 	userId := c.GetInt("id")
 	username := c.GetString("username")
+
+	// If email not provided, fall back to the user's account email
+	if req.Email == "" {
+		userEmail, err := model.GetUserEmail(userId)
+		if err != nil || userEmail == "" {
+			common.ApiErrorMsg(c, "请先在账号设置中绑定邮箱")
+			return
+		}
+		req.Email = userEmail
+	}
 
 	// Cooldown check
 	cfg := operation_setting.GetLogExportSetting()

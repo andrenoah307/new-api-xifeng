@@ -33,11 +33,13 @@ import { useOfflineExport } from '../../../hooks/usage-logs/useOfflineExport';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { createCardProPagination } from '../../../helpers/utils';
 import { StatusContext } from '../../../context/Status';
+import { UserContext } from '../../../context/User';
 
 const LogsPage = () => {
   const logsData = useLogsData();
   const isMobile = useIsMobile();
   const [statusState] = useContext(StatusContext);
+  const [userState] = useContext(UserContext);
   const offlineExportEnabled = !!statusState?.status?.enable_log_export_offline;
 
   const offlineExport = useOfflineExport();
@@ -68,6 +70,7 @@ const LogsPage = () => {
         onSubmit={offlineExport.submitOfflineExport}
         submitting={offlineExport.submitting}
         filters={buildOfflineFilters()}
+        userEmail={userState?.user?.email || ''}
       />
       <ExportTasksModal
         visible={offlineExport.tasksModalOpen}

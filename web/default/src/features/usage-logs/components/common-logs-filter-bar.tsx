@@ -354,7 +354,7 @@ export function CommonLogsFilterBar<TData>(
         >
           <Download className={exporting ? 'animate-pulse' : ''} />
         </TooltipTrigger>
-        <TooltipContent>{t('Export Logs')}</TooltipContent>
+        <TooltipContent>{t('Export Logs')}: {t('Download current page as CSV')}</TooltipContent>
       </Tooltip>
       {offlineExportEnabled && (
         <Tooltip>
@@ -371,7 +371,7 @@ export function CommonLogsFilterBar<TData>(
           >
             <CloudDownload />
           </TooltipTrigger>
-          <TooltipContent>{t('Offline Export')}</TooltipContent>
+          <TooltipContent>{t('Offline Export')}: {t('Background export, notified by email, one task per 24h')}</TooltipContent>
         </Tooltip>
       )}
       {offlineExportEnabled && (
@@ -389,7 +389,7 @@ export function CommonLogsFilterBar<TData>(
           >
             <ListTodo />
           </TooltipTrigger>
-          <TooltipContent>{t('Export Tasks')}</TooltipContent>
+          <TooltipContent>{t('Export Tasks')}: {t('View task status and download completed exports')}</TooltipContent>
         </Tooltip>
       )}
       {offlineExportEnabled && (

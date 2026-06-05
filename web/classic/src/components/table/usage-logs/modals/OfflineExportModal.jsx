@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Input, Typography } from '@douyinfe/semi-ui';
+import React from 'react';
+import { Modal, Typography } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
@@ -10,20 +10,11 @@ export default function OfflineExportModal({
   onSubmit,
   submitting,
   filters,
+  userEmail,
 }) {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
-
-  useEffect(() => {
-    if (visible) {
-      setEmail('');
-    }
-  }, [visible]);
 
   const handleOk = () => {
-    if (!email.trim()) {
-      return;
-    }
     const exportFilters = {};
     if (filters?.start_timestamp) {
       exportFilters.start_timestamp = filters.start_timestamp;
@@ -40,12 +31,11 @@ export default function OfflineExportModal({
     if (filters?.channel) {
       exportFilters.channel_id = Number(filters.channel);
     }
-    onSubmit(exportFilters, email.trim());
+    onSubmit(exportFilters);
   };
 
   const formatTime = (val) => {
     if (!val) return '-';
-    // val is epoch seconds from buildOfflineFilters
     const d = new Date(val * 1000);
     if (isNaN(d.getTime())) return String(val);
     return d.toLocaleString();
@@ -73,16 +63,12 @@ export default function OfflineExportModal({
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>
-        <Text size="small" style={{ display: 'block', marginBottom: 4 }}>{t('通知邮箱')}</Text>
-        <Input
-          placeholder={t('导出完成后将发送邮件通知')}
-          value={email}
-          onChange={setEmail}
-          size="default"
-        />
+        <Text size="small" style={{ display: 'block', marginBottom: 4 }}>
+          {t('通知邮箱')}: <Text strong>{userEmail || t('未绑定邮箱，请在账号设置中绑定')}</Text>
+        </Text>
       </div>
       <Text type="tertiary" size="small">
-        {t('导出将在后台异步执行，完成后通过邮件发送下载链接')}
+        {t('离线导出限制：每 24 小时可提交一次，结果保留 72 小时')}
       </Text>
     </Modal>
   );
