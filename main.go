@@ -136,6 +136,9 @@ func main() {
 
 	service.StartAutoGroupEngine()
 
+	// Offline log export worker pool (DB-backed queue, gzip CSV generation)
+	service.InitLogExportWorker()
+
 	// Wire task polling adaptor factory (breaks service -> relay import cycle)
 	service.GetTaskAdaptorFunc = func(platform constant.TaskPlatform) service.TaskPollingAdaptor {
 		a := relay.GetTaskAdaptor(platform)

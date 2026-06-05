@@ -123,3 +123,9 @@ func GetTotalExportFileSize() (int64, error) {
 		Scan(&total).Error
 	return total, err
 }
+
+func GetExportTaskCountByStatus(status int) (int64, error) {
+	var count int64
+	err := DB.Model(&LogExportTask{}).Where("status = ?", status).Count(&count).Error
+	return count, err
+}

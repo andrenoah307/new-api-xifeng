@@ -338,7 +338,7 @@ export interface SubmitOfflineExportParams {
     token_name?: string
     channel_id?: number
   }
-  email: string
+  email?: string
 }
 
 // ============================================================================
