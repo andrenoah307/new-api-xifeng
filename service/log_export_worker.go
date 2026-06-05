@@ -118,6 +118,20 @@ func GetExportQueueStats() *ExportQueueStats {
 	if total, err := model.GetTotalExportFileSize(); err == nil {
 		stats.TotalStorageBytes = total
 	}
+
+	if cnt, err := model.GetExportTaskCountByStatus(model.ExportStatusPending); err == nil {
+		stats.PendingCount = cnt
+	}
+	if cnt, err := model.GetExportTaskCountByStatus(model.ExportStatusProcessing); err == nil {
+		stats.ProcessingCount = cnt
+	}
+	if cnt, err := model.GetExportTaskCountByStatus(model.ExportStatusDone); err == nil {
+		stats.DoneCount = cnt
+	}
+	if cnt, err := model.GetExportTaskCountByStatus(model.ExportStatusFailed); err == nil {
+		stats.FailedCount = cnt
+	}
+
 	return stats
 }
 

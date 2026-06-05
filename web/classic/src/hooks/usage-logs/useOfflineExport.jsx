@@ -13,10 +13,10 @@ export function useOfflineExport() {
   const [tasksPage, setTasksPage] = useState(1);
   const [tasksLoading, setTasksLoading] = useState(false);
 
-  const submitOfflineExport = useCallback(async (filters, email) => {
+  const submitOfflineExport = useCallback(async (filters) => {
     setSubmitting(true);
     try {
-      const res = await API.post('/api/log/self/export-offline', { filters, email });
+      const res = await API.post('/api/log/self/export-offline', { filters });
       const { success, message, next_available_time } = res.data;
       if (success) {
         Toast.success(t('离线导出任务已提交，完成后将通过邮件通知'));

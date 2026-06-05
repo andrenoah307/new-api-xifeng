@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Button, Form } from '@douyinfe/semi-ui';
+import { Button, Form, Tooltip } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
 
 import { DATE_RANGE_PRESETS } from '../../../constants/console.constants';
@@ -197,22 +197,26 @@ const LogsFilters = ({
               {t('导出日志')}
             </Button>
             {offlineExportEnabled && (
-              <Button
-                type='tertiary'
-                onClick={onOfflineExport}
-                size='small'
-              >
-                {t('离线导出')}
-              </Button>
+              <Tooltip content={t('后台异步导出，完成后邮件通知，每 24 小时 1 次')} position='top'>
+                <Button
+                  type='tertiary'
+                  onClick={onOfflineExport}
+                  size='small'
+                >
+                  {t('离线导出')}
+                </Button>
+              </Tooltip>
             )}
             {offlineExportEnabled && (
-              <Button
-                type='tertiary'
-                onClick={onShowExportTasks}
-                size='small'
-              >
-                {t('导出记录')}
-              </Button>
+              <Tooltip content={t('查看导出任务状态和下载已完成的导出文件')} position='top'>
+                <Button
+                  type='tertiary'
+                  onClick={onShowExportTasks}
+                  size='small'
+                >
+                  {t('导出记录')}
+                </Button>
+              </Tooltip>
             )}
           </div>
         </div>
