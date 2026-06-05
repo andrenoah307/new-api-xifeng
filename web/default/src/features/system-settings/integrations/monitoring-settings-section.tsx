@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import * as z from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -202,6 +202,10 @@ export function MonitoringSettingsSection({
   })
 
   useResetForm(form, formDefaults)
+
+  useEffect(() => {
+    baselineRef.current = normalizeDefaults(defaultValues)
+  }, [defaultValues])
 
   const autoDisableStatusCodes = form.watch('AutomaticDisableStatusCodes')
   const autoRetryStatusCodes = form.watch('AutomaticRetryStatusCodes')
