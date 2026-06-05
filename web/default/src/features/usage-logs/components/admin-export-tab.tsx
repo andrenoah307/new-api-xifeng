@@ -22,6 +22,7 @@ import {
 import { DataTablePagination } from '@/components/data-table/pagination'
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
 import { formatTimestamp } from '@/lib/format'
+import { getCommonHeaders } from '@/lib/api'
 import {
   getAdminExportTasks,
   getExportQueueStats,
@@ -406,12 +407,26 @@ export function AdminExportTab() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              onClick={() =>
-                                window.open(
-                                  getAdminExportDownloadUrl(task.id),
-                                  '_blank'
-                                )
-                              }
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(getAdminExportDownloadUrl(task.id), {
+                                    credentials: 'include',
+                                    headers: getCommonHeaders(),
+                                  })
+                                  if (!res.ok) throw new Error(res.statusText)
+                                  const blob = await res.blob()
+                                  const url = URL.createObjectURL(blob)
+                                  const a = document.createElement('a')
+                                  a.href = url
+                                  a.download = `export-${task.id}.csv.gz`
+                                  document.body.appendChild(a)
+                                  a.click()
+                                  a.remove()
+                                  URL.revokeObjectURL(url)
+                                } catch {
+                                  toast.error(t('Download failed'))
+                                }
+                              }}
                               title={t('Download')}
                             >
                               <Download className="h-3.5 w-3.5" />

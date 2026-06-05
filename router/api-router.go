@@ -426,7 +426,7 @@ func SetApiRouter(router *gin.Engine) {
 		// Offline export - user
 		logRoute.POST("/self/export-offline", middleware.UserAuth(), middleware.LogOfflineExportRateLimit(), controller.SubmitOfflineExport)
 		logRoute.GET("/self/export-tasks", middleware.UserAuth(), controller.GetUserExportTaskList)
-		logRoute.GET("/self/export-download/:id", middleware.UserAuth(), controller.DownloadExportFile)
+		logRoute.GET("/self/export-download/:id", middleware.SessionAuth(), middleware.LogExportDownloadRateLimit(), controller.DownloadExportFile)
 		// Offline export - admin
 		logRoute.GET("/export-tasks", middleware.AdminAuth(), controller.GetAdminExportTasks)
 		logRoute.GET("/export-queue-stats", middleware.AdminAuth(), controller.GetExportQueueStats)
