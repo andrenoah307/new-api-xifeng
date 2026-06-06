@@ -1652,6 +1652,7 @@
     "导入配置失败: ": "Failed to import configuration: ",
     "导出": "Export",
     "导出管理": "Export Management",
+    "导出范围": "Export Range",
     "导出日志失败": "Failed to export logs",
     "导出日志": "Export Logs",
     "队列状态": "Queue Stats",

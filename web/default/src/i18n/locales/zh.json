@@ -5086,6 +5086,7 @@
     "Workers": "工作线程",
     "Row Count": "行数",
     "Created Time": "创建时间",
+    "Export Range": "导出范围",
     "Processing": "处理中"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？"

@@ -88,9 +88,9 @@ export default function AdminExportPanel() {
     });
   };
 
-  const downloadTask = async (taskId) => {
+  const downloadTask = async (task) => {
     try {
-      const res = await fetch(`/api/log/export-tasks/${taskId}/download`, {
+      const res = await fetch(`/api/log/export-tasks/${task.id}/download`, {
         credentials: 'include',
         headers: { 'New-API-User': String(getUserIdFromLocalStorage()) },
       });
@@ -99,7 +99,7 @@ export default function AdminExportPanel() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `export-${taskId}.csv.gz`;
+      a.download = `${task.username || 'export'}-${timestamp2string(task.created_time).replaceAll('-', '').replaceAll(':', '').replace(' ', '-')}.csv.gz`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -112,6 +112,23 @@ export default function AdminExportPanel() {
   const columns = [
     { title: 'ID', dataIndex: 'id', width: 60 },
     { title: t('用户'), dataIndex: 'username', width: 120, render: (val) => val || '-' },
+    {
+      title: t('导出范围'),
+      dataIndex: 'filters',
+      width: 200,
+      render: (val) => {
+        if (!val) return '-';
+        try {
+          const f = typeof val === 'string' ? JSON.parse(val) : val;
+          const s = f.start_timestamp ? timestamp2string(f.start_timestamp) : '';
+          const e = f.end_timestamp ? timestamp2string(f.end_timestamp) : '';
+          if (!s && !e) return '-';
+          return `${s} ~ ${e}`;
+        } catch {
+          return '-';
+        }
+      },
+    },
     {
       title: t('状态'),
       dataIndex: 'status',
@@ -151,7 +168,7 @@ export default function AdminExportPanel() {
       render: (_, record) => (
         <div style={{ display: 'flex', gap: 4 }}>
           {record.status === 2 && (
-            <Button icon={<IconDownload />} size="small" type="tertiary" onClick={() => downloadTask(record.id)}>
+            <Button icon={<IconDownload />} size="small" type="tertiary" onClick={() => downloadTask(record)}>
               {t('下载')}
             </Button>
           )}
