@@ -98,6 +98,7 @@ const OPERATIONS_SECTIONS = [
     build: (settings: OperationsSettings) => (
       <LogSettingsSection
         defaultEnabled={Boolean(settings.LogConsumeEnabled)}
+        forceRecordIpEnabled={Boolean(settings.ForceRecordIPEnabled)}
       />
     ),
   },

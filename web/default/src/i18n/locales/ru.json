@@ -3495,6 +3495,8 @@
     "Recommended to keep this high to avoid upstream throttling.": "Рекомендуется поддерживать это значение высоким, чтобы избежать регулирования со стороны вышестоящего поставщика.",
     "Record IP Address": "Записывать IP-адрес",
     "Record quota usage": "Записывать использование квоты",
+    "Force record IP in all user logs": "Принудительная запись IP во всех журналах",
+    "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "После включения все журналы потребления и ошибок будут записывать IP-адрес клиента, независимо от личных настроек пользователя",
     "Recursion Strategy": "Стратегия рекурсии",
     "Recursive": "Рекурсивно",
     "Redeem": "Обменять квоту",

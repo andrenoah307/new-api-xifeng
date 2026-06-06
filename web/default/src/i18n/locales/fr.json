@@ -3495,6 +3495,8 @@
     "Recommended to keep this high to avoid upstream throttling.": "Il est recommandé de maintenir cette valeur élevée pour éviter la limitation en amont.",
     "Record IP Address": "Enregistrer l'adresse IP",
     "Record quota usage": "Enregistrer l'utilisation du quota",
+    "Force record IP in all user logs": "Forcer l'enregistrement de l'IP dans tous les journaux",
+    "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "Après l'activation, tous les journaux de consommation et d'erreur enregistreront l'adresse IP du client, quels que soient les paramètres personnels de l'utilisateur",
     "Recursion Strategy": "Stratégie de récursion",
     "Recursive": "Récursif",
     "Redeem": "Utiliser",

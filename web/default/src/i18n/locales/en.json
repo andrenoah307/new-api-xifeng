@@ -3505,6 +3505,8 @@
     "Recommended to keep this high to avoid upstream throttling.": "Recommended to keep this high to avoid upstream throttling.",
     "Record IP Address": "Record IP Address",
     "Record quota usage": "Record quota usage",
+    "Force record IP in all user logs": "Force record IP in all user logs",
+    "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings",
     "Recursion Strategy": "Recursion Strategy",
     "Recursive": "Recursive",
     "Redeem": "Redeem",
