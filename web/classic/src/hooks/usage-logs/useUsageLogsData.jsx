@@ -868,21 +868,21 @@ export const useLogsData = () => {
         headers: { 'New-API-User': getUserIdFromLocalStorage() },
       });
       if (response.status === 429) {
-        Toast.error({ content: t('导出次数过于频繁，请稍后再试'), id: toastId });
+        Toast.error({ content: t('导出次数过于频繁，请稍后再试'), id: toastId, duration: 3 });
         return;
       }
       if (!response.ok) {
         try {
           const err = await response.json();
-          Toast.error({ content: err.message || t('导出失败'), id: toastId });
+          Toast.error({ content: err.message || t('导出失败'), id: toastId, duration: 3 });
         } catch {
-          Toast.error({ content: t('导出失败'), id: toastId });
+          Toast.error({ content: t('导出失败'), id: toastId, duration: 3 });
         }
         return;
       }
       const reader = response.body?.getReader();
       if (!reader) {
-        Toast.error({ content: t('导出失败'), id: toastId });
+        Toast.error({ content: t('导出失败'), id: toastId, duration: 3 });
         return;
       }
       const chunks = [];
@@ -904,9 +904,9 @@ export const useLogsData = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(downloadUrl);
-      Toast.success({ content: t('导出完成'), id: toastId });
+      Toast.success({ content: t('导出完成'), id: toastId, duration: 3 });
     } catch (e) {
-      Toast.error({ content: t('导出失败'), id: toastId });
+      Toast.error({ content: t('导出失败'), id: toastId, duration: 3 });
     } finally {
       setExporting(false);
     }
