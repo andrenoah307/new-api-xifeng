@@ -26,6 +26,7 @@ import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { resetModelRatios } from '../api'
+import { SettingsPageTitleStatusPortal } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { GroupRatioForm } from './group-ratio-form'
@@ -439,25 +440,35 @@ export function RatioSettingsCard({
     )
   }
 
+  const renderTabSwitcher = () => (
+    <TabsList className={`grid w-fit max-w-full ${tabsGridClass}`}>
+      {visibleTabs.map((tab) => (
+        <TabsTrigger key={tab} value={tab}>
+          {t(tabLabels[tab])}
+        </TabsTrigger>
+      ))}
+    </TabsList>
+  )
+
   return (
-    <SettingsSection title={t(titleKey)}>
+    <>
       {visibleTabs.length === 1 ? (
-        renderTabContent(defaultTab)
+        <SettingsSection title={t(titleKey)}>
+          {renderTabContent(defaultTab)}
+        </SettingsSection>
       ) : (
         <Tabs defaultValue={defaultTab} className='space-y-6'>
-          <TabsList className={`grid w-full ${tabsGridClass}`}>
-            {visibleTabs.map((tab) => (
-              <TabsTrigger key={tab} value={tab}>
-                {t(tabLabels[tab])}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <SettingsPageTitleStatusPortal>
+            {renderTabSwitcher()}
+          </SettingsPageTitleStatusPortal>
 
-          {visibleTabs.map((tab) => (
-            <TabsContent key={tab} value={tab}>
-              {renderTabContent(tab)}
-            </TabsContent>
-          ))}
+          <SettingsSection title={t(titleKey)}>
+            {visibleTabs.map((tab) => (
+              <TabsContent key={tab} value={tab}>
+                {renderTabContent(tab)}
+              </TabsContent>
+            ))}
+          </SettingsSection>
         </Tabs>
       )}
 
@@ -473,6 +484,6 @@ export function RatioSettingsCard({
         handleConfirm={handleConfirmReset}
         confirmText={t('Reset')}
       />
-    </SettingsSection>
+    </>
   )
 }
