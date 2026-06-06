@@ -54,7 +54,7 @@ function TaskItem({ task }: { task: ExportTask }) {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `export-${task.id}.csv.gz`
+      a.download = `${task.username || 'export'}-${formatTimestampToDate(task.created_time).replaceAll('-', '').replaceAll(':', '').replace(' ', '-')}.csv.gz`
       document.body.appendChild(a)
       a.click()
       a.remove()
