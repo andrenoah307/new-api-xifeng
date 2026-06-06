@@ -54,7 +54,7 @@ export function Dialog({
   children,
   trigger,
   footer,
-  contentHeight = 'min(58vh, 520px)',
+  contentHeight = 'auto',
   contentClassName,
   headerClassName,
   titleClassName,
