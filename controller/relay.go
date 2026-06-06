@@ -308,7 +308,16 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		matchStatusCode, matchErrorCode, matchMessage := getErrorFilterMatchInput(newAPIError)
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
-		applyChannelErrorFilter(newAPIError, channel.GetSetting().ErrorFilterRules, matchStatusCode, matchErrorCode, matchMessage)
+		// 错误过滤规则优先取自渠道对象（重试时为完整渠道）；首次尝试的渠道是
+		// 从 context 拼出的精简对象（无 Setting），此时回退到 context 中的渠道设置，
+		// 与 strip_request_id 一致，确保第一次尝试就能命中改写/替换。
+		errorFilterRules := channel.GetSetting().ErrorFilterRules
+		if len(errorFilterRules) == 0 {
+			if cs, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok {
+				errorFilterRules = cs.ErrorFilterRules
+			}
+		}
+		applyChannelErrorFilter(newAPIError, errorFilterRules, matchStatusCode, matchErrorCode, matchMessage)
 		relayInfo.LastError = newAPIError
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
