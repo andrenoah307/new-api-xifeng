@@ -1882,15 +1882,20 @@ const EditChannelModal = (props) => {
       strip_request_id: localInputs.strip_request_id || false,
       system_prompt: localInputs.system_prompt || '',
       system_prompt_override: localInputs.system_prompt_override || false,
+      // 下列自定义编辑器（错误过滤/风控头/限流/压力冷却）不是注册的 Form.Field，
+      // Semi 的 setValues(默认 isOverride:false) 在加载时不会把它们写入表单 store，
+      // 因此 getValues()(=localInputs) 在「打开已有渠道未触碰直接保存」时缺失这些键，
+      // normalize(undefined) 会被覆盖为空，导致设置丢失。必须从 React state(inputs，
+      // 即编辑器 value 绑定的来源)读取，保证所见即所存。
       error_filter_rules: normalizeErrorFilterRules(
-        localInputs.error_filter_rules,
+        inputs.error_filter_rules,
       ),
       risk_control_headers: normalizeRiskControlHeaders(
-        localInputs.risk_control_headers,
+        inputs.risk_control_headers,
       ).filter((rule) => rule.name),
     };
     const normalizedRateLimit = normalizeChannelRateLimit(
-      localInputs.rate_limit,
+      inputs.rate_limit,
     );
     if (
       normalizedRateLimit.enabled ||
@@ -1899,7 +1904,7 @@ const EditChannelModal = (props) => {
     ) {
       channelExtraSettings.rate_limit = normalizedRateLimit;
     }
-    const normalizedPC = normalizePressureCooling(localInputs.pressure_cooling);
+    const normalizedPC = normalizePressureCooling(inputs.pressure_cooling);
     if (normalizedPC) {
       channelExtraSettings.pressure_cooling = normalizedPC;
     }
