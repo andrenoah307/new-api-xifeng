@@ -31,7 +31,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import { JsonCodeEditor } from '@/components/json-code-editor'
 import {
   SettingsForm,
   SettingsSwitchContent,
@@ -140,10 +140,9 @@ function ModelJsonTextareaField(props: {
         <FormItem className='flex min-w-0 flex-col gap-2'>
           <FormLabel>{props.label}</FormLabel>
           <FormControl>
-            <Textarea
-              {...field}
-              className='h-56 min-h-56 max-h-56 resize-none overflow-auto [field-sizing:fixed] font-mono text-xs leading-5'
-              spellCheck={false}
+            <JsonCodeEditor
+              value={field.value}
+              onChange={(value) => field.onChange(value)}
             />
           </FormControl>
           <FormDescription className='text-xs leading-5'>
