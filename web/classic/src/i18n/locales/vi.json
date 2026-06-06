@@ -1282,6 +1282,8 @@
     "启用请求透传": "Bật truyền qua yêu cầu",
     "启用违规扣费": "Bật trừ phí vi phạm",
     "启用额度消费日志记录": "Bật ghi nhật ký tiêu thụ hạn ngạch",
+    "强制记录所有用户日志IP": "Bắt buộc ghi IP trong tất cả nhật ký",
+    "开启后，无论用户个人设置如何，所有消费和错误日志都将记录客户端IP地址": "Sau khi bật, tất cả nhật ký tiêu thụ và lỗi sẽ ghi lại địa chỉ IP máy khách bất kể cài đặt cá nhân của người dùng",
     "启用风控": "",
     "启用风控的分组数": "",
     "启用验证": "Bật xác thực",

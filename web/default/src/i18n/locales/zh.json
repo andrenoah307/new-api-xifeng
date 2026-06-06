@@ -3146,6 +3146,8 @@
     "Recommended to keep this high to avoid upstream throttling.": "建议保持此值较高，以避免上游限流。",
     "Record IP Address": "记录 IP 地址",
     "Record quota usage": "记录配额使用量",
+    "Force record IP in all user logs": "强制记录所有用户日志IP",
+    "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "开启后，无论用户个人设置如何，所有消费和错误日志都将记录客户端IP地址",
     "Recursion Strategy": "递归策略",
     "Recursive": "递归",
     "Redeem": "兑换额度",

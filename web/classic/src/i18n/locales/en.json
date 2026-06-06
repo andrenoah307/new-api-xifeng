@@ -1311,6 +1311,8 @@
     "启用请求透传": "Enable request pass-through",
     "启用违规扣费": "Enable violation deduction",
     "启用额度消费日志记录": "Enable quota consumption logging",
+    "强制记录所有用户日志IP": "Force record IP in all user logs",
+    "开启后，无论用户个人设置如何，所有消费和错误日志都将记录客户端IP地址": "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings",
     "启用风控": "",
     "启用风控的分组数": "",
     "启用验证": "Enable Authentication",
