@@ -3135,6 +3135,8 @@
     "Recommended to keep this high to avoid upstream throttling.": "アップストリームのスロットリングを避けるため、これを高く保つことを推奨します。",
     "Record IP Address": "IPアドレスを記録",
     "Record quota usage": "クォータ使用量を記録",
+    "Force record IP in all user logs": "全ユーザーのログIPを強制記録",
+    "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "有効にすると、ユーザーの個人設定に関係なく、すべての消費ログとエラーログにクライアントIPアドレスが記録されます",
     "Recursion Strategy": "再帰戦略",
     "Recursive": "再帰",
     "Redeem": "引き換え",

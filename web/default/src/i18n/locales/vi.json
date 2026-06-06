@@ -3135,6 +3135,8 @@
     "Recommended to keep this high to avoid upstream throttling.": "Khuyến nghị giữ mức này cao để tránh điều tiết từ phía thượng nguồn.",
     "Record IP Address": "Ghi lại địa chỉ IP",
     "Record quota usage": "Ghi lại mức sử dụng hạn mức",
+    "Force record IP in all user logs": "Bắt buộc ghi IP trong tất cả nhật ký",
+    "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "Sau khi bật, tất cả nhật ký tiêu thụ và lỗi sẽ ghi lại địa chỉ IP máy khách bất kể cài đặt cá nhân của người dùng",
     "Recursion Strategy": "Chiến lược đệ quy",
     "Recursive": "Đệ quy",
     "Redeem": "Đổi",
