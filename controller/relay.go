@@ -91,12 +91,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		if newAPIError != nil {
 			logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.Error()))
 			errMsg := newAPIError.Error()
+			// 移除上游响应的 Request ID（strip_request_id）开启时：仅移除上游链路带入的
+			// (request id: ...)，不触碰 request_ori_id / traceid；随后无论开关都补上本站 request id。
 			if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok && channelSetting.StripRequestId {
 				errMsg = common.StripLocalRequestId(errMsg)
-				newAPIError.SetMessage(errMsg)
-			} else {
-				newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
 			}
+			newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
