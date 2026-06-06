@@ -106,7 +106,7 @@ export default function ExportTasksModal({
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `export-${record.id}.csv.gz`;
+                  a.download = `${record.username || 'export'}-${timestamp2string(record.created_time).replaceAll('-', '').replaceAll(':', '').replace(' ', '-')}.csv.gz`;
                   document.body.appendChild(a);
                   a.click();
                   a.remove();
