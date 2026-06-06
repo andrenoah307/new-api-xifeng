@@ -471,7 +471,6 @@ export const ModelPricingEditorPanel = forwardRef<
     [form, validatePricingValues, buildSubmitData]
   )
 
-  const activeName = watchedValues.name || editData?.name || t('New model')
   const showActions = Boolean(onSave)
 
   return (
@@ -487,9 +486,6 @@ export const ModelPricingEditorPanel = forwardRef<
             <h3 className='truncate text-base font-medium'>
               {isEditMode ? t('Edit model pricing') : t('Add model pricing')}
             </h3>
-            <p className='text-muted-foreground truncate text-sm'>
-              {activeName}
-            </p>
           </div>
         </div>
       </div>
@@ -656,9 +652,6 @@ export const ModelPricingEditorPanel = forwardRef<
               <aside className='bg-muted/20 sticky top-0 rounded-lg border'>
                 <div className='border-b px-3 py-2'>
                   <div className='text-sm font-medium'>{t('Preview')}</div>
-                  <div className='text-muted-foreground text-xs'>
-                    {activeName}
-                  </div>
                 </div>
                 <div className='divide-y'>
                   {previewRows.map((row) => (
