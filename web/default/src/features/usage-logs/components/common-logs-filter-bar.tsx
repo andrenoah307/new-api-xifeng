@@ -260,21 +260,21 @@ export function CommonLogsFilterBar<TData>(
         headers: getCommonHeaders(),
       })
       if (response.status === 429) {
-        toast.error(t('Export rate limit exceeded, please try again later'), { id: toastId })
+        toast.error(t('Export rate limit exceeded, please try again later'), { id: toastId, duration: 5000 })
         return
       }
       if (!response.ok) {
         try {
           const err = await response.json()
-          toast.error(err.message || t('Export failed'), { id: toastId })
+          toast.error(err.message || t('Export failed'), { id: toastId, duration: 5000 })
         } catch {
-          toast.error(t('Export failed'), { id: toastId })
+          toast.error(t('Export failed'), { id: toastId, duration: 5000 })
         }
         return
       }
       const reader = response.body?.getReader()
       if (!reader) {
-        toast.error(t('Export failed'), { id: toastId })
+        toast.error(t('Export failed'), { id: toastId, duration: 5000 })
         return
       }
       const chunks: Uint8Array[] = []
@@ -296,9 +296,9 @@ export function CommonLogsFilterBar<TData>(
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(downloadUrl)
-      toast.success(t('Export completed'), { id: toastId })
+      toast.success(t('Export completed'), { id: toastId, duration: 5000 })
     } catch {
-      toast.error(t('Export failed'), { id: toastId })
+      toast.error(t('Export failed'), { id: toastId, duration: 5000 })
     } finally {
       setExporting(false)
     }
