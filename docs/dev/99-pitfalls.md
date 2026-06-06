@@ -137,3 +137,36 @@
 **问题**：`baselineRef` 仅在 `useRef` 初始化和 `onSubmit` 成功后更新，不随 `defaultValues` prop 变化同步。保存后 `useUpdateOption` 触发 query invalidation → 服务器返回标准化值（如小写转换）→ `useResetForm` 重置表单为服务器值 → 但 `baselineRef` 仍为用户提交的原始值 → 下次 dirty check 比较错位。
 
 **解法**：添加 `useEffect(() => { baselineRef.current = normalizeDefaults(defaultValues) }, [defaultValues])` 使 baseline 随服务器数据同步。
+
+---
+
+### #98 CSV 导出缺少 Content 详情列：manage/topup 记录导出后全为空值
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| service/log_export_worker.go, controller/log.go | 导出包含 manage/topup 类型日志时 | P2 |
+
+**问题**：`Log.Content` 是 manage/topup/system 类型记录的唯一有效信息字段（如"管理员为用户 xxx 修改额度"、"充值 100 元"），但 CSV 导出仅包含 token name、model name、quota 等 relay 相关列，manage/topup 记录的这些字段全为零值，导出后该行几乎全为空。
+
+**解法**：三处 CSV 写入统一追加"详情"列，映射 `log.Content`：
+1. 离线导出 worker（`service/log_export_worker.go:generateExport`）
+2. 管理员在线导出（`controller/log.go:ExportAllLogsCsv`）
+3. 用户在线导出（`controller/log.go:ExportUserLogsCsv`）
+
+**相关代码**：`service/log_export_worker.go:222-258`、`controller/log.go:212-232`、`controller/log.go:259-276`
+
+---
+
+### #99 导出文件命名无意义：export-{id}.csv.gz 无法识别来源
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| controller/log_export.go, 4 处前端下载 handler | 用户下载导出文件时 | P3 |
+
+**问题**：导出文件下载名为 `export-{taskId}.csv.gz`（如 `export-42.csv.gz`），下载到本地后无法区分不同导出任务的来源用户和时间。多个文件混在一起时更难辨别。
+
+**解法**：
+- **后端**：`serveExportFile` 通过 `buildDownloadFilename(task)` 构建 Content-Disposition 文件名为 `{username}-{YYYYMMDD-HHmmss}.csv.gz`。`sanitizeFilename` 过滤文件系统非法字符，截断 50 字符。无用户名时回退到 `user-{userId}`。
+- **前端**：4 处 blob 下载（Default admin-export-tab、Default export-tasks-sheet、Classic AdminExportPanel、Classic ExportTasksModal）的 `a.download` 同步使用 task 对象的 `username` + `created_time` 构建相同格式文件名。
+
+**相关代码**：`controller/log_export.go:serveExportFile`、`admin-export-tab.tsx:421`、`export-tasks-sheet.tsx:57`、`AdminExportPanel.jsx:102`、`ExportTasksModal.jsx:109`

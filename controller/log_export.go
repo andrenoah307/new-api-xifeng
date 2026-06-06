@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -257,7 +257,32 @@ func serveExportFile(c *gin.Context, task *model.LogExportTask) {
 		return
 	}
 
-	filename := filepath.Base(task.FilePath)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	downloadName := buildDownloadFilename(task)
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, downloadName))
 	c.File(task.FilePath)
+}
+
+func buildDownloadFilename(task *model.LogExportTask) string {
+	name := sanitizeFilename(task.Username)
+	if name == "" {
+		name = fmt.Sprintf("user-%d", task.UserId)
+	}
+	ts := time.Unix(task.CreatedTime, 0).Format("20060102-150405")
+	return fmt.Sprintf("%s-%s.csv.gz", name, ts)
+}
+
+func sanitizeFilename(s string) string {
+	var buf strings.Builder
+	for _, r := range s {
+		switch {
+		case r == '/' || r == '\\' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|':
+			buf.WriteRune('_')
+		default:
+			buf.WriteRune(r)
+		}
+		if buf.Len() > 50 {
+			break
+		}
+	}
+	return buf.String()
 }

@@ -47,6 +47,19 @@ function formatBytes(bytes: number): string {
   return `${val.toFixed(i > 0 ? 1 : 0)} ${units[i]}`
 }
 
+function formatExportRange(filtersJson: string): string {
+  if (!filtersJson) return '-'
+  try {
+    const f = JSON.parse(filtersJson)
+    const s = f.start_timestamp ? formatTimestamp(f.start_timestamp) : ''
+    const e = f.end_timestamp ? formatTimestamp(f.end_timestamp) : ''
+    if (!s && !e) return '-'
+    return `${s} ~ ${e}`
+  } catch {
+    return '-'
+  }
+}
+
 type StatusVariant = 'warning' | 'info' | 'success' | 'danger' | 'neutral'
 
 function getStatusVariant(status: number): StatusVariant {
@@ -347,6 +360,7 @@ export function AdminExportTab() {
                 <TableRow>
                   <TableHead>{t('ID')}</TableHead>
                   <TableHead>{t('Username')}</TableHead>
+                  <TableHead>{t('Export Range')}</TableHead>
                   <TableHead>{t('Status')}</TableHead>
                   <TableHead>{t('Progress')}</TableHead>
                   <TableHead>{t('Row Count')}</TableHead>
@@ -358,14 +372,14 @@ export function AdminExportTab() {
               <TableBody>
                 {tasksLoading && tasks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={9} className="text-center py-8">
                       {t('Loading...')}
                     </TableCell>
                   </TableRow>
                 ) : tasks.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={9}
                       className="text-center py-8 text-muted-foreground"
                     >
                       {t('No data')}
@@ -378,6 +392,9 @@ export function AdminExportTab() {
                         {task.id}
                       </TableCell>
                       <TableCell>{task.username || '-'}</TableCell>
+                      <TableCell className="text-xs">
+                        {formatExportRange(task.filters)}
+                      </TableCell>
                       <TableCell>
                         <StatusBadge
                           variant={getStatusVariant(task.status)}
@@ -418,7 +435,7 @@ export function AdminExportTab() {
                                   const url = URL.createObjectURL(blob)
                                   const a = document.createElement('a')
                                   a.href = url
-                                  a.download = `export-${task.id}.csv.gz`
+                                  a.download = `${task.username || 'export'}-${formatTimestamp(task.created_time).replaceAll('-', '').replaceAll(':', '').replace(' ', '-')}.csv.gz`
                                   document.body.appendChild(a)
                                   a.click()
                                   a.remove()
