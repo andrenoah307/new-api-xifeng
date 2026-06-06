@@ -4013,11 +4013,11 @@ export function ChannelMutateDrawer({
                                   <FormItem className='flex items-center justify-between px-4 py-3'>
                                     <div className='space-y-0.5'>
                                       <FormLabel>
-                                        {t('Strip Request ID from Responses')}
+                                        {t('Strip Upstream Request ID from Responses')}
                                       </FormLabel>
                                       <FormDescription>
                                         {t(
-                                          'When enabled, removes the local proxy request ID suffix from error responses. Upstream provider IDs (request_ori_id, traceid) are preserved.'
+                                          "When enabled, strips inherited upstream (request id: ...) from error responses and keeps only this gateway's own request ID. request_ori_id and traceid are untouched."
                                         )}
                                       </FormDescription>
                                     </div>

@@ -2876,14 +2876,14 @@ const EditChannelModal = (props) => {
                   />
                   <Form.Switch
                     field='strip_request_id'
-                    label={t('移除响应中的 Request ID')}
+                    label={t('移除上游响应的 Request ID')}
                     checkedText={t('开')}
                     uncheckedText={t('关')}
                     onChange={(value) =>
                       handleChannelSettingsChange('strip_request_id', value)
                     }
                     extraText={t(
-                      '开启后将从错误响应中移除 (request id: ...) 信息',
+                      '开启后移除上游链路带入的 (request id: ...)，仅保留本站 Request ID；request_ori_id、traceid 不受影响',
                     )}
                   />
 
