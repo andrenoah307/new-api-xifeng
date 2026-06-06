@@ -447,6 +447,7 @@ const RuleItem = ({ rule, index, onUpdate, onRemove, t, actionOptions, channelId
                     onUpdate(index, { status_codes: normalizeStatusCodes(vals) })
                   }
                   separator={[',', '，', ' ']}
+                  addOnBlur
                   style={{ width: '100%' }}
                 />
               </div>
@@ -460,6 +461,7 @@ const RuleItem = ({ rule, index, onUpdate, onRemove, t, actionOptions, channelId
                       onUpdate(index, { error_codes: normalizeStringList(vals) })
                     }
                     separator={[',', '，']}
+                    addOnBlur
                     style={{ width: '100%' }}
                   />
                 </Col>
@@ -472,6 +474,7 @@ const RuleItem = ({ rule, index, onUpdate, onRemove, t, actionOptions, channelId
                       onUpdate(index, { message_contains: normalizeStringList(vals) })
                     }
                     separator={[',', '，']}
+                    addOnBlur
                     style={{ width: '100%' }}
                   />
                 </Col>
