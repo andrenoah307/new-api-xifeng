@@ -170,3 +170,27 @@
 - **前端**：4 处 blob 下载（Default admin-export-tab、Default export-tasks-sheet、Classic AdminExportPanel、Classic ExportTasksModal）的 `a.download` 同步使用 task 对象的 `username` + `created_time` 构建相同格式文件名。
 
 **相关代码**：`controller/log_export.go:serveExportFile`、`admin-export-tab.tsx:421`、`export-tasks-sheet.tsx:57`、`AdminExportPanel.jsx:102`、`ExportTasksModal.jsx:109`
+
+---
+
+### #100 HiddenModels 精确匹配 vs 子串匹配——模型名是精确标识符
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| controller/pricing.go, setting/operation_setting | 管理员配置隐藏模型后 | P2 |
+
+**问题**：`AutomaticDisableKeywords` 使用 Aho-Corasick 子串匹配（大小写不敏感），如果 `HiddenModels` 照搬此逻辑，`gpt-4` 会误匹配 `gpt-4o`、`gpt-4-turbo` 等模型。模型名是精确标识符，不适合模糊匹配。
+
+**解法**：
+- **精确匹配**：`hiddenModelsSet = map[string]struct{}`，`IsModelHidden(name)` 直接 map 查找，O(1) 且大小写敏感。
+- **Controller 层过滤**：`filterHiddenModels` 在 `controller/pricing.go` 的 `GetPricing()` 中执行，位于 `filterPricingByUsableGroups()` 之后。不修改缓存层——模型在 `model.GetPricing()` 缓存中仍存在，管理员通过其他接口仍可见。
+- **即时生效**：`updateOptionMap` 中 `HiddenModelsFromString` 在设置保存时重建 map，下次 API 请求即生效，无需等待缓存刷新。
+- **并发安全**：先构建新 slice/map 再赋值（与 `AutomaticDisableKeywords` 同模式），无需 mutex。
+
+**新增设置项清单**（通用）：
+1. `setting/operation_setting/` 变量 + 解析函数
+2. `model/option.go` InitOptionMap + updateOptionMap case
+3. Default 前端：`types.ts` 类型 + `operations/index.tsx` defaultValues + section-registry build + UI 组件
+4. Classic 前端：`OperationSetting.jsx` 父 state + `SettingsGeneral.jsx` 子 state + UI
+
+**相关代码**：`setting/operation_setting/operation_setting.go`、`model/option.go:219,675`、`controller/pricing.go:filterHiddenModels`
