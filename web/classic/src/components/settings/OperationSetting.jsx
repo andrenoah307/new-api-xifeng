@@ -55,6 +55,7 @@ const OperationSetting = () => {
     DefaultCollapseSidebar: false,
     DemoSiteEnabled: false,
     SelfUseModeEnabled: false,
+    HiddenModels: '',
 
     /* 顶栏模块管理 */
     HeaderNavModules: '',

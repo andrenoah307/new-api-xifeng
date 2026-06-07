@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -23,6 +24,7 @@ const behaviorSchema = z.object({
   DefaultCollapseSidebar: z.boolean(),
   DemoSiteEnabled: z.boolean(),
   SelfUseModeEnabled: z.boolean(),
+  HiddenModels: z.string(),
 })
 
 type BehaviorFormValues = z.infer<typeof behaviorSchema>
@@ -152,6 +154,28 @@ export function SystemBehaviorSection({
                     onCheckedChange={field.onChange}
                   />
                 </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='HiddenModels'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Hidden Models')}</FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={6}
+                    placeholder={t('one model name per line')}
+                    {...field}
+                    onChange={(e) => field.onChange(e.target.value)}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t('Models listed here will be hidden from the pricing page but can still be used via API.')}
+                </FormDescription>
+                <FormMessage />
               </FormItem>
             )}
           />

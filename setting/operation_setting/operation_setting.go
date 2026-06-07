@@ -48,3 +48,29 @@ func AutomaticDisableWhitelistFromString(s string) {
 		}
 	}
 }
+
+var HiddenModels = []string{}
+var hiddenModelsSet = map[string]struct{}{}
+
+func HiddenModelsToString() string {
+	return strings.Join(HiddenModels, "\n")
+}
+
+func HiddenModelsFromString(s string) {
+	list := []string{}
+	set := map[string]struct{}{}
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			list = append(list, line)
+			set[line] = struct{}{}
+		}
+	}
+	HiddenModels = list
+	hiddenModelsSet = set
+}
+
+func IsModelHidden(name string) bool {
+	_, ok := hiddenModelsSet[name]
+	return ok
+}
