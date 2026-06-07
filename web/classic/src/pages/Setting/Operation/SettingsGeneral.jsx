@@ -57,6 +57,7 @@ export default function GeneralSettings(props) {
     DefaultCollapseSidebar: false,
     DemoSiteEnabled: false,
     SelfUseModeEnabled: false,
+    HiddenModels: '',
     'token_setting.max_user_tokens': 1000,
   });
   const refForm = useRef();
@@ -401,6 +402,18 @@ export default function GeneralSettings(props) {
                   extraText={t('每个用户最多可创建的令牌数量，默认 1000，设置过大可能会影响性能')}
                   placeholder={'1000'}
                   onChange={handleFieldChange('token_setting.max_user_tokens')}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={12} lg={12} xl={12}>
+                <Form.TextArea
+                  field={'HiddenModels'}
+                  label={t('隐藏模型列表')}
+                  extraText={t('列表中的模型不会在模型广场展示，但 API 调用和计费照常')}
+                  placeholder={t('一行一个模型名称')}
+                  autosize={{ minRows: 3, maxRows: 10 }}
+                  onChange={handleFieldChange('HiddenModels')}
                 />
               </Col>
             </Row>

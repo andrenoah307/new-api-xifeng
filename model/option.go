@@ -215,6 +215,7 @@ func InitOptionMap() {
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
 	common.OptionMap["AutomaticDisableWhitelist"] = operation_setting.AutomaticDisableWhitelistToString()
+	common.OptionMap["HiddenModels"] = operation_setting.HiddenModelsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	common.OptionMap["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
 	common.OptionMap["ExposeRatioEnabled"] = strconv.FormatBool(ratio_setting.IsExposeRatioEnabled())
@@ -697,6 +698,8 @@ func updateOptionMap(key string, value string) (err error) {
 		operation_setting.AutomaticDisableKeywordsFromString(value)
 	case "AutomaticDisableWhitelist":
 		operation_setting.AutomaticDisableWhitelistFromString(value)
+	case "HiddenModels":
+		operation_setting.HiddenModelsFromString(value)
 	case "AutomaticDisableStatusCodes":
 		err = operation_setting.AutomaticDisableStatusCodesFromString(value)
 	case "AutomaticRetryStatusCodes":
