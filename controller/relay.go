@@ -91,12 +91,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		if newAPIError != nil {
 			logger.LogError(c, fmt.Sprintf("relay error: %s", newAPIError.Error()))
 			errMsg := newAPIError.Error()
+			// 移除上游响应的 Request ID（strip_request_id）开启时：仅移除上游链路带入的
+			// (request id: ...)，不触碰 request_ori_id / traceid；随后无论开关都补上本站 request id。
 			if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok && channelSetting.StripRequestId {
 				errMsg = common.StripLocalRequestId(errMsg)
-				newAPIError.SetMessage(errMsg)
-			} else {
-				newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
 			}
+			newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
@@ -307,7 +307,16 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 		matchStatusCode, matchErrorCode, matchMessage := getErrorFilterMatchInput(newAPIError)
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
-		applyChannelErrorFilter(newAPIError, channel.GetSetting().ErrorFilterRules, matchStatusCode, matchErrorCode, matchMessage)
+		// 错误过滤规则优先取自渠道对象（重试时为完整渠道）；首次尝试的渠道是
+		// 从 context 拼出的精简对象（无 Setting），此时回退到 context 中的渠道设置，
+		// 与 strip_request_id 一致，确保第一次尝试就能命中改写/替换。
+		errorFilterRules := channel.GetSetting().ErrorFilterRules
+		if len(errorFilterRules) == 0 {
+			if cs, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok {
+				errorFilterRules = cs.ErrorFilterRules
+			}
+		}
+		applyChannelErrorFilter(newAPIError, errorFilterRules, matchStatusCode, matchErrorCode, matchMessage)
 		relayInfo.LastError = newAPIError
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
