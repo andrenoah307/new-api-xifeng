@@ -120,8 +120,10 @@ type ClaudeMessageSource struct {
 }
 
 type ClaudeMessage struct {
-	Role    string `json:"role"`
-	Content any    `json:"content"`
+	Role           string               `json:"role"`
+	Content        any                  `json:"content"`
+	parsedContent  []ClaudeMediaMessage
+	contentParsed  bool
 }
 
 func (c *ClaudeMessage) IsStringContent() bool {
@@ -167,7 +169,16 @@ func (c *ClaudeMessage) SetContent(content any) {
 }
 
 func (c *ClaudeMessage) ParseContent() ([]ClaudeMediaMessage, error) {
-	return common.Any2Type[[]ClaudeMediaMessage](c.Content)
+	if c.contentParsed {
+		return c.parsedContent, nil
+	}
+	result, err := common.Any2Type[[]ClaudeMediaMessage](c.Content)
+	if err != nil {
+		return nil, err
+	}
+	c.parsedContent = result
+	c.contentParsed = true
+	return result, nil
 }
 
 type Tool struct {
@@ -234,6 +245,9 @@ type ClaudeRequest struct {
 	// ServiceTier specifies upstream service level and may affect billing.
 	// This field is filtered by default and can be enabled via channel setting allow_service_tier.
 	ServiceTier string `json:"service_tier,omitempty"`
+
+	parsedSystem []ClaudeMediaMessage
+	systemParsed bool
 }
 
 // OutputConfigForEffort just for extract effort
@@ -479,7 +493,12 @@ func (c *ClaudeRequest) SetStringSystem(system string) {
 }
 
 func (c *ClaudeRequest) ParseSystem() []ClaudeMediaMessage {
+	if c.systemParsed {
+		return c.parsedSystem
+	}
 	mediaContent, _ := common.Any2Type[[]ClaudeMediaMessage](c.System)
+	c.parsedSystem = mediaContent
+	c.systemParsed = true
 	return mediaContent
 }
 

@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"slices"
 	"strconv"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 type ModelRequest struct {
@@ -181,6 +183,25 @@ func Distribute() func(c *gin.Context) {
 // - application/x-www-form-urlencoded
 // - multipart/form-data
 func getModelFromRequest(c *gin.Context) (*ModelRequest, error) {
+	contentType := c.Request.Header.Get("Content-Type")
+	if strings.HasPrefix(contentType, "application/json") {
+		storage, err := common.GetBodyStorage(c)
+		if err != nil {
+			return nil, errors.New(i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": err.Error()}))
+		}
+		body, err := storage.Bytes()
+		if err != nil {
+			return nil, errors.New(i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": err.Error()}))
+		}
+		if _, seekErr := storage.Seek(0, io.SeekStart); seekErr != nil {
+			return nil, seekErr
+		}
+		c.Request.Body = io.NopCloser(storage)
+		return &ModelRequest{
+			Model: gjson.GetBytes(body, "model").String(),
+			Group: gjson.GetBytes(body, "group").String(),
+		}, nil
+	}
 	var modelRequest ModelRequest
 	err := common.UnmarshalBodyReusable(c, &modelRequest)
 	if err != nil {

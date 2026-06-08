@@ -3,7 +3,6 @@ package common
 import (
 	crand "crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -290,12 +289,12 @@ func GetPointer[T any](v T) *T {
 
 func Any2Type[T any](data any) (T, error) {
 	var zero T
-	bytes, err := json.Marshal(data)
+	jsonBytes, err := Marshal(data)
 	if err != nil {
 		return zero, err
 	}
 	var res T
-	err = json.Unmarshal(bytes, &res)
+	err = Unmarshal(jsonBytes, &res)
 	if err != nil {
 		return zero, err
 	}
