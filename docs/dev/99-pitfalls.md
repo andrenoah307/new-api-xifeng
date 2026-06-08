@@ -194,3 +194,30 @@
 4. Classic 前端：`OperationSetting.jsx` 父 state + `SettingsGeneral.jsx` 子 state + UI
 
 **相关代码**：`setting/operation_setting/operation_setting.go`、`model/option.go:219,675`、`controller/pricing.go:filterHiddenModels`
+
+---
+
+### #101 common.DeepCopy 反射拷贝已移除——浅拷贝 + targeted clone 替代
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| relay/*.go (8 个 handler) | 每次 API 请求 | P0 |
+
+**问题**：`common.DeepCopy` 使用 `jinzhu/copier` 的 `CopyWithOption(&dst, src, copier.Option{DeepCopy: true})`，通过反射递归拷贝 struct 全部字段。生产 pprof 显示此调用占 CPU 52.9%（19s/35.9s 采样）。实际只有 `Model`（string）和极少数 `SystemPromptOverride` 路径需要保护 `info.Request` 不被重试间共享污染。
+
+**解法**：
+- **浅拷贝**：`copied := *req; request := &copied`——Go struct value copy，所有值类型字段独立，slice/map/pointer 共享 backing data。栈分配，零反射，零 alloc。
+- **Targeted clone**：仅在确认会 in-place mutation 共享 slice 元素的路径做 `make` + `copy`：
+  - `applySystemPromptIfNeeded`（`chat_completions_via_responses.go`）：`SystemPromptOverride` 路径修改 `Messages[i].Content`，clone Messages slice
+  - `compatible_handler.go` 第二个 system prompt block：同上模式
+  - `gemini_handler.go`：`SystemPromptOverride` 路径修改 `SystemInstructions.Parts[i].Text`，clone SystemInstructions struct + Parts slice
+- **安全分析**：`copier` 的 `DeepCopy: true` 对 `any`/`interface{}` 字段不做深拷贝（复制接口值而非底层对象）。`json.RawMessage` 是 `[]byte`，浅拷贝共享 backing array，但 handler 仅序列化（只读）不 mutate。浅拷贝在行为上与原 DeepCopy 等价。
+- **依赖清理**：`common/copy.go` 已删除，`jinzhu/copier` 已从 `go.mod` 移除。
+
+**新 handler 规范**：
+1. 禁止引入 `jinzhu/copier` 或其他反射拷贝库
+2. 使用 `copied := *req; request := &copied` 模式
+3. 修改 slice 元素（非替换整个 slice）前，先 `make` + `copy` clone 该 slice
+4. 替换 slice/pointer 字段本身（`request.X = newValue`）不需要 clone——浅拷贝的字段是独立的
+
+**相关代码**：`relay/responses_handler.go:58`、`relay/compatible_handler.go:34`、`relay/claude_handler.go:34`、`relay/gemini_handler.go:63`、`relay/embedding_handler.go:28`、`relay/rerank_handler.go:28`、`relay/audio_handler.go:26`、`relay/image_handler.go:31`、`relay/chat_completions_via_responses.go:52`
