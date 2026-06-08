@@ -50,6 +50,9 @@ func applySystemPromptIfNeeded(c *gin.Context, info *relaycommon.RelayInfo, requ
 	}
 
 	common.SetContextKey(c, constant.ContextKeySystemPromptOverride, true)
+	cloned := make([]dto.Message, len(request.Messages))
+	copy(cloned, request.Messages)
+	request.Messages = cloned
 	for i, message := range request.Messages {
 		if message.Role != systemRole {
 			continue
