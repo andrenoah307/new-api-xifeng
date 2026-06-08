@@ -4,22 +4,24 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+
+	gojson "github.com/goccy/go-json"
 )
 
 func Unmarshal(data []byte, v any) error {
-	return json.Unmarshal(data, v)
+	return gojson.Unmarshal(data, v)
 }
 
 func UnmarshalJsonStr(data string, v any) error {
-	return json.Unmarshal(StringToByteSlice(data), v)
+	return gojson.Unmarshal(StringToByteSlice(data), v)
 }
 
 func DecodeJson(reader io.Reader, v any) error {
-	return json.NewDecoder(reader).Decode(v)
+	return gojson.NewDecoder(reader).Decode(v)
 }
 
 func Marshal(v any) ([]byte, error) {
-	return json.Marshal(v)
+	return gojson.Marshal(v)
 }
 
 func GetJsonType(data json.RawMessage) string {

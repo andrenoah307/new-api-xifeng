@@ -221,3 +221,30 @@
 4. 替换 slice/pointer 字段本身（`request.X = newValue`）不需要 clone——浅拷贝的字段是独立的
 
 **相关代码**：`relay/responses_handler.go:58`、`relay/compatible_handler.go:34`、`relay/claude_handler.go:34`、`relay/gemini_handler.go:63`、`relay/embedding_handler.go:28`、`relay/rerank_handler.go:28`、`relay/audio_handler.go:26`、`relay/image_handler.go:31`、`relay/chat_completions_via_responses.go:52`
+
+---
+
+### #102 JSON 序列化性能三连优化——go-json + ParseContent 缓存 + gjson 字段提取
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| common/json.go, dto/claude.go, middleware/distributor.go | 每次 API 请求 | P0 |
+
+**问题**：DeepCopy 消除后，`encoding/json` 成为新瓶颈（占剩余 CPU 75%+）。三个独立问题叠加：
+1. 标准库 `encoding/json.Unmarshal` 先 `checkValid`（全量扫描验证）再解析——双重扫描，`checkValid` 单独占 17.44% flat CPU
+2. `ClaudeMessage.ParseContent()` 无缓存，同一消息被 `GetTokenCountMeta` 和 relay adaptor 各调用一次，每次 `Any2Type` 做完整 marshal→unmarshal 往返（累计 63 GB 分配）
+3. `middleware.getModelFromRequest` 全量 `json.Unmarshal` 解析整个 request body 只取 `model` 字段（23.59% cum CPU），controller 随后再次全量解析同一 body
+
+**解法**：
+1. **`goccy/go-json` 替换**：`common/json.go` 底层改为 `goccy/go-json`（纯 Go，无 CGO 要求）。`common/utils.go:Any2Type` 改用 `common.Marshal/Unmarshal` 而非直接 `encoding/json`，统一走 go-json 路径。`encoding/json` 仅保留类型引用（`json.RawMessage` 等）。
+2. **ParseContent/ParseSystem 缓存**：`ClaudeMessage` 加 `parsedContent` + `contentParsed` 缓存字段，`ClaudeRequest` 加 `parsedSystem` + `systemParsed`——首次调用 `Any2Type`，后续直接返回缓存。仿 OpenAI `Message.parsedContent` 模式。未导出字段不影响 JSON 序列化。
+3. **gjson 字段提取**：`middleware.getModelFromRequest` 对 `application/json` 请求用 `gjson.GetBytes(body, "model")` / `gjson.GetBytes(body, "group")` 直接提取，不触发全量解析。非 JSON content-type（form/multipart）回退原 `UnmarshalBodyReusable`。`GetBodyStorage` 仍被调用以初始化 body cache，controller 后续解析不受影响。
+
+**兼容性要点**：
+- `goccy/go-json` 的 `RawMessage`、`Number` 等类型是标准库的 type alias，完全兼容
+- `goccy/go-json` 已在 `go.mod` 中（gin indirect dependency）
+- `gjson` 已在 `go.mod` 中（direct dependency）
+- 缓存字段为 unexported（小写），不参与 JSON marshal/unmarshal
+- `ParseContent()` 返回值签名不变 `([]ClaudeMediaMessage, error)`
+
+**相关代码**：`common/json.go`、`common/utils.go:Any2Type`、`dto/claude.go:ClaudeMessage.ParseContent`、`dto/claude.go:ClaudeRequest.ParseSystem`、`middleware/distributor.go:getModelFromRequest`
