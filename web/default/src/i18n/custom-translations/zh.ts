@@ -697,6 +697,28 @@ const zh: Record<string, string> = {
   'Whitelist keywords': '关键词白名单',
   'If an error message contains any whitelist keyword, the channel will NOT be auto-disabled, even if it matches a failure keyword. Whitelist has higher priority.':
     '如果错误信息包含白名单中的关键词，即使匹配到禁用关键词也不会自动禁用通道，白名单优先级更高。',
+
+  // Region Restriction
+  'Region Restriction': '地区限制',
+  'Control model access based on geographic region':
+    '根据地理区域控制模型访问权限',
+  'Enable Region Restriction': '启用地区限制',
+  'Console Visibility Filtering': '控制台可见性过滤',
+  'Hide blocked models from pricing page and model lists':
+    '在定价页和模型列表中隐藏被封锁的模型',
+  'API Relay Blocking': 'API 转发拦截',
+  'Return 403 when blocked model is requested from restricted region':
+    '当受限地区请求被封锁模型时返回 403',
+  'ip2region Database Path': 'ip2region 数据库路径',
+  'Path to the ip2region .xdb file for IP geolocation':
+    'IP 地理位置查询的 ip2region .xdb 文件路径',
+  'Custom Block Message': '自定义拦截消息',
+  'Custom error message when model is blocked by region (leave empty for default)':
+    '模型因地区被封锁时的自定义错误消息（留空使用默认值）',
+  'Region-Model Blacklist': '地区-模型黑名单',
+  'JSON map of country codes to blocked model patterns. Example: {"CN": ["gpt-4*"], "RU": ["*"]}':
+    '国家代码到封锁模型模式的 JSON 映射。示例：{"CN": ["gpt-4*"], "RU": ["*"]}',
+  'Save region restriction settings': '保存地区限制设置',
 }
 
 export default zh

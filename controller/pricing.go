@@ -3,6 +3,8 @@ package controller
 import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/geoip"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -41,6 +43,24 @@ func filterHiddenModels(pricing []model.Pricing) []model.Pricing {
 	filtered := make([]model.Pricing, 0, len(pricing))
 	for _, p := range pricing {
 		if !operation_setting.IsModelHidden(p.ModelName) {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
+func filterRegionBlockedModels(c *gin.Context, pricing []model.Pricing) []model.Pricing {
+	rs := operation_setting.GetRegionRestrictionSetting()
+	if !rs.Enabled || !rs.FilterConsole {
+		return pricing
+	}
+	cc := geoip.LookupCountry(requestip.GetClientIP(c))
+	if cc == "" {
+		return pricing
+	}
+	filtered := make([]model.Pricing, 0, len(pricing))
+	for _, p := range pricing {
+		if !operation_setting.IsModelBlockedForCountry(cc, p.ModelName) {
 			filtered = append(filtered, p)
 		}
 	}

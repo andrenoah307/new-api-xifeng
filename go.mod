@@ -85,7 +85,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
 )
 
-require github.com/Azure/go-ntlmssp v0.1.1
+require (
+	github.com/Azure/go-ntlmssp v0.1.1
+	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20260609051939-e360f3d0315b
+)
 
 require (
 	github.com/DmitriyVTitov/size v1.5.0 // indirect
@@ -126,7 +129,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/go-webauthn/x v0.1.25 // indirect
-	github.com/goccy/go-json v0.10.2 // indirect
+	github.com/goccy/go-json v0.10.2
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/go-tpm v0.9.5 // indirect
 	github.com/gorilla/context v1.1.1 // indirect

@@ -13,10 +13,13 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/pkg/geoip"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 
@@ -73,6 +76,18 @@ func Distribute() func(c *gin.Context) {
 				matchName := ratio_setting.FormatMatchingModelName(modelRequest.Model) // match gpts & thinking-*
 				if _, ok := tokenModelLimit[matchName]; !ok {
 					abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorTokenModelForbidden, map[string]any{"Model": modelRequest.Model}))
+					return
+				}
+			}
+
+			if rs := operation_setting.GetRegionRestrictionSetting(); rs.Enabled && rs.BlockRelay {
+				cc := geoip.LookupCountry(requestip.GetClientIP(c))
+				if cc != "" && operation_setting.IsModelBlockedForCountry(cc, modelRequest.Model) {
+					blockMsg := rs.BlockMessage
+					if blockMsg == "" {
+						blockMsg = "Model '" + modelRequest.Model + "' is not available in your region"
+					}
+					abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
 					return
 				}
 			}

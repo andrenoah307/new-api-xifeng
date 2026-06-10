@@ -377,4 +377,6 @@ const (
 	MsgCustomOAuthHasBindings       = "custom_oauth.has_bindings"
 	MsgCustomOAuthBindingNotFound   = "custom_oauth.binding_not_found"
 	MsgCustomOAuthProviderIdInvalid = "custom_oauth.provider_id_field_invalid"
+
+	MsgRegionModelBlocked = "region.model_blocked"
 )

@@ -691,6 +691,28 @@ const en = {
   'Whitelist keywords': 'Whitelist keywords',
   'If an error message contains any whitelist keyword, the channel will NOT be auto-disabled, even if it matches a failure keyword. Whitelist has higher priority.':
     'If an error message contains any whitelist keyword, the channel will NOT be auto-disabled, even if it matches a failure keyword. Whitelist has higher priority.',
+
+  // Region Restriction
+  'Region Restriction': 'Region Restriction',
+  'Control model access based on geographic region':
+    'Control model access based on geographic region',
+  'Enable Region Restriction': 'Enable Region Restriction',
+  'Console Visibility Filtering': 'Console Visibility Filtering',
+  'Hide blocked models from pricing page and model lists':
+    'Hide blocked models from pricing page and model lists',
+  'API Relay Blocking': 'API Relay Blocking',
+  'Return 403 when blocked model is requested from restricted region':
+    'Return 403 when blocked model is requested from restricted region',
+  'ip2region Database Path': 'ip2region Database Path',
+  'Path to the ip2region .xdb file for IP geolocation':
+    'Path to the ip2region .xdb file for IP geolocation',
+  'Custom Block Message': 'Custom Block Message',
+  'Custom error message when model is blocked by region (leave empty for default)':
+    'Custom error message when model is blocked by region (leave empty for default)',
+  'Region-Model Blacklist': 'Region-Model Blacklist',
+  'JSON map of country codes to blocked model patterns. Example: {"CN": ["gpt-4*"], "RU": ["*"]}':
+    'JSON map of country codes to blocked model patterns. Example: {"CN": ["gpt-4*"], "RU": ["*"]}',
+  'Save region restriction settings': 'Save region restriction settings',
 } as const
 
 export default en

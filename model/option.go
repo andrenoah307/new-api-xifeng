@@ -748,6 +748,8 @@ func handleConfigUpdate(key, value string) bool {
 		ratio_setting.InvalidateExposedDataCache()
 	} else if configName == "theme" {
 		system_setting.UpdateAndSyncTheme()
+	} else if configName == "region_restriction" {
+		operation_setting.RebuildRegionRestrictionIndex()
 	}
 
 	return true // 已处理

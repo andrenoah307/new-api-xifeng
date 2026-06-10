@@ -42,6 +42,12 @@ const defaultSecuritySettings: SecuritySettings = {
   'fetch_setting.allowed_ports': [],
   'fetch_setting.apply_ip_filter_for_domain': false,
   'token_setting.max_user_tokens': 1000,
+  'region_restriction.enabled': false,
+  'region_restriction.filter_console': true,
+  'region_restriction.block_relay': true,
+  'region_restriction.xdb_path': 'data/ip2region.xdb',
+  'region_restriction.block_message': '',
+  'region_restriction.blocked_models': '{}',
 }
 
 export function SecuritySettings() {
