@@ -9,6 +9,8 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/geoip"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/relay"
 	"github.com/QuantumNous/new-api/relay/channel/ai360"
 	"github.com/QuantumNous/new-api/relay/channel/lingyiwanwu"
@@ -109,6 +111,24 @@ func init() {
 	})
 }
 
+func filterRegionBlockedOpenAIModels(c *gin.Context, models []dto.OpenAIModels) []dto.OpenAIModels {
+	rs := operation_setting.GetRegionRestrictionSetting()
+	if !rs.Enabled || !rs.FilterConsole {
+		return models
+	}
+	cc := geoip.LookupCountry(requestip.GetClientIP(c))
+	if cc == "" {
+		return models
+	}
+	filtered := make([]dto.OpenAIModels, 0, len(models))
+	for _, m := range models {
+		if !operation_setting.IsModelBlockedForCountry(cc, m.Id) {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered
+}
+
 func ListModels(c *gin.Context, modelType int) {
 	userOpenAiModels := make([]dto.OpenAIModels, 0)
 
@@ -199,6 +219,8 @@ func ListModels(c *gin.Context, modelType int) {
 			}
 		}
 	}
+
+	userOpenAiModels = filterRegionBlockedOpenAIModels(c, userOpenAiModels)
 
 	switch modelType {
 	case constant.ChannelTypeAnthropic:
