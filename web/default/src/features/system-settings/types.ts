@@ -304,6 +304,12 @@ export type SecuritySettings = {
   'fetch_setting.ip_list': string[]
   'fetch_setting.allowed_ports': number[]
   'fetch_setting.apply_ip_filter_for_domain': boolean
+  'region_restriction.enabled': boolean
+  'region_restriction.filter_console': boolean
+  'region_restriction.block_relay': boolean
+  'region_restriction.xdb_path': string
+  'region_restriction.block_message': string
+  'region_restriction.blocked_models': string
 }
 
 export type UpstreamChannel = {

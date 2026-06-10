@@ -3,6 +3,7 @@ import { SensitiveWordsSection } from '../request-limits/sensitive-words-section
 import { SSRFSection } from '../request-limits/ssrf-section'
 import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { RegionRestrictionSection } from './region-restriction-section'
 
 const SECURITY_SECTIONS = [
   {
@@ -58,6 +59,28 @@ const SECURITY_SECTIONS = [
             settings['fetch_setting.allowed_ports'],
           'fetch_setting.apply_ip_filter_for_domain':
             settings['fetch_setting.apply_ip_filter_for_domain'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'region-restriction',
+    titleKey: 'Region Restriction',
+    descriptionKey: 'Control model access based on geographic region',
+    build: (settings: SecuritySettings) => (
+      <RegionRestrictionSection
+        defaultValues={{
+          'region_restriction.enabled': settings['region_restriction.enabled'],
+          'region_restriction.filter_console':
+            settings['region_restriction.filter_console'],
+          'region_restriction.block_relay':
+            settings['region_restriction.block_relay'],
+          'region_restriction.xdb_path':
+            settings['region_restriction.xdb_path'],
+          'region_restriction.block_message':
+            settings['region_restriction.block_message'],
+          'region_restriction.blocked_models':
+            settings['region_restriction.blocked_models'],
         }}
       />
     ),

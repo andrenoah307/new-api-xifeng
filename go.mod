@@ -64,6 +64,11 @@ require (
 )
 
 require (
+	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20260609051939-e360f3d0315b // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
+)
+
+require (
 	github.com/DmitriyVTitov/size v1.5.0 // indirect
 	github.com/anknown/darts v0.0.0-20151216065714-83ff685239e6 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.9 // indirect

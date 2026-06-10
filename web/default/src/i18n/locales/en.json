@@ -3194,6 +3194,8 @@
     "Registry (optional)": "Registry (optional)",
     "Registry secret": "Registry secret",
     "Registry username": "Registry username",
+    "Region Restriction": "Region Restriction",
+    "Control model access based on geographic region": "Control model access based on geographic region",
     "Reject Reason": "Reject Reason",
     "Release details": "Release details",
     "Released": "Released",

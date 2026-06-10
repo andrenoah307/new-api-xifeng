@@ -3195,6 +3195,8 @@
     "Registry (optional)": "注册表 (可选)",
     "Registry secret": "注册表密钥",
     "Registry username": "注册表用户名",
+    "Region Restriction": "地区限制",
+    "Control model access based on geographic region": "根据地理区域控制模型访问权限",
     "Reject Reason": "拒绝原因",
     "Release details": "版本详情",
     "Released": "发布于",
