@@ -49,17 +49,22 @@ export function UserAuthForm({
   ...props
 }: AuthFormProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const consentRequired = Boolean(
+    status?.user_agreement_enabled || status?.privacy_policy_enabled
+  )
   const [isLoading, setIsLoading] = useState(false)
   const [wechatCode, setWeChatCode] = useState('')
-  const [agreedToLegal, setAgreedToLegal] = useState(false)
+  const [allLegalAgreed, setAllLegalAgreed] = useState(!consentRequired)
   const [passkeySupported, setPasskeySupported] = useState(false)
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
   const [isWeChatDialogOpen, setIsWeChatDialogOpen] = useState(false)
   const [isWeChatSubmitting, setIsWeChatSubmitting] = useState(false)
-  const legalConsentErrorMessage = t('Please agree to the legal terms first')
+  const legalConsentErrorMessage = t(
+    'Please read and agree to all three documents first'
+  )
   const loginFailedMessage = t('Login failed')
 
-  const { status } = useStatus()
   const passkeyLoginEnabled = Boolean(
     status?.passkey_login ?? status?.data?.passkey_login
   )
@@ -72,22 +77,9 @@ export function UserAuthForm({
   } = useTurnstile()
   const { handleLoginSuccess, redirectTo2FA } = useAuthRedirect()
 
-  const hasUserAgreement = Boolean(status?.user_agreement_enabled)
-  const hasPrivacyPolicy = Boolean(status?.privacy_policy_enabled)
-  const requiresLegalConsent = hasUserAgreement || hasPrivacyPolicy
   const passkeyButtonDisabled =
-    isPasskeyLoading ||
-    !passkeySupported ||
-    (requiresLegalConsent && !agreedToLegal)
+    isPasskeyLoading || !passkeySupported || !allLegalAgreed
   const hasWeChatLogin = Boolean(status?.wechat_login)
-
-  useEffect(() => {
-    if (requiresLegalConsent) {
-      setAgreedToLegal(false)
-    } else {
-      setAgreedToLegal(true)
-    }
-  }, [requiresLegalConsent])
 
   useEffect(() => {
     detectPasskeySupport()
@@ -118,7 +110,7 @@ export function UserAuthForm({
   }, [status])
 
   async function onSubmit(data: z.infer<typeof loginFormSchema>) {
-    if (requiresLegalConsent && !agreedToLegal) {
+    if (!allLegalAgreed) {
       toast.error(legalConsentErrorMessage)
       return
     }
@@ -150,7 +142,7 @@ export function UserAuthForm({
   }
 
   const handleOpenWeChatDialog = () => {
-    if (requiresLegalConsent && !agreedToLegal) {
+    if (!allLegalAgreed) {
       toast.error(legalConsentErrorMessage)
       return
     }
@@ -190,7 +182,7 @@ export function UserAuthForm({
   }
 
   async function handlePasskeyLogin() {
-    if (requiresLegalConsent && !agreedToLegal) {
+    if (!allLegalAgreed) {
       toast.error(legalConsentErrorMessage)
       return
     }
@@ -307,7 +299,7 @@ export function UserAuthForm({
         <Button
           type='submit'
           className='mt-2 w-full justify-center gap-2'
-          disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
+          disabled={isLoading || (!allLegalAgreed)}
         >
           {isLoading ? <Loader2 className='animate-spin' /> : <LogIn />}
           {t('Sign in')}
@@ -325,8 +317,7 @@ export function UserAuthForm({
 
         <LegalConsent
           status={status}
-          checked={agreedToLegal}
-          onCheckedChange={setAgreedToLegal}
+          onAllAgreedChange={setAllLegalAgreed}
           className='mt-1'
         />
 
@@ -357,7 +348,7 @@ export function UserAuthForm({
         {/* OAuth Providers */}
         <OAuthProviders
           status={status}
-          disabled={isLoading || (requiresLegalConsent && !agreedToLegal)}
+          disabled={isLoading || (!allLegalAgreed)}
           onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
           isWeChatLoading={isWeChatSubmitting}
         />
@@ -418,7 +409,7 @@ export function UserAuthForm({
                 disabled={
                   isWeChatSubmitting ||
                   !wechatCode.trim() ||
-                  (requiresLegalConsent && !agreedToLegal)
+                  (!allLegalAgreed)
                 }
                 className='gap-2'
               >

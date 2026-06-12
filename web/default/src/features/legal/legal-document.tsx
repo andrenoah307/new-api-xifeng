@@ -28,6 +28,55 @@ function isLikelyHtml(value: string) {
   return /<\/?[a-z][\s\S]*>/i.test(value)
 }
 
+type LegalDocumentInlineProps = {
+  rawContent: string
+  emptyMessage?: string
+}
+
+export function LegalDocumentInline({
+  rawContent,
+  emptyMessage,
+}: LegalDocumentInlineProps) {
+  const { t } = useTranslation()
+  const trimmed = rawContent.trim()
+  if (!trimmed) {
+    return (
+      <p className='text-muted-foreground text-sm'>
+        {emptyMessage ?? t('Document not configured.')}
+      </p>
+    )
+  }
+  if (isValidUrl(trimmed)) {
+    return (
+      <div className='space-y-3'>
+        <p className='text-muted-foreground text-sm'>
+          {t('The administrator configured an external link for this document.')}
+        </p>
+        <Button
+          render={
+            <a href={trimmed} target='_blank' rel='noopener noreferrer' />
+          }
+        >
+          {t('View document')}
+        </Button>
+      </div>
+    )
+  }
+  if (isLikelyHtml(trimmed)) {
+    return (
+      <div
+        className='prose prose-neutral dark:prose-invert max-w-none text-sm'
+        dangerouslySetInnerHTML={{ __html: trimmed }}
+      />
+    )
+  }
+  return (
+    <Markdown className='prose-neutral dark:prose-invert max-w-none text-sm'>
+      {trimmed}
+    </Markdown>
+  )
+}
+
 export function LegalDocument({
   title,
   queryKey,

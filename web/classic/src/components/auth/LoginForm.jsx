@@ -40,6 +40,10 @@ import {
   buildAssertionResult,
   isPasskeySupported,
 } from '../../helpers';
+import {
+  getReadStatus as getLegalReadStatus,
+  markRead as markLegalRead,
+} from '../../helpers/legalConsentStorage';
 import Turnstile from 'react-turnstile';
 import {
   Button,
@@ -104,9 +108,23 @@ const LoginForm = () => {
   const [showTwoFA, setShowTwoFA] = useState(false);
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [hasUserAgreement, setHasUserAgreement] = useState(false);
   const [hasPrivacyPolicy, setHasPrivacyPolicy] = useState(false);
+  const [legalDocHash, setLegalDocHash] = useState('');
+  const [legalDocContent, setLegalDocContent] = useState('');
+  const [legalAgreed, setLegalAgreed] = useState({
+    'user-agreement': false,
+    'privacy-policy': false,
+    'terms-of-service': false,
+  });
+  const [legalModalDoc, setLegalModalDoc] = useState(null);
+  const consentRequired = hasUserAgreement || hasPrivacyPolicy;
+  const allAgreedToTerms = !consentRequired
+    ? true
+    : Boolean(legalDocHash) &&
+      legalAgreed['user-agreement'] &&
+      legalAgreed['privacy-policy'] &&
+      legalAgreed['terms-of-service'];
   const [githubButtonState, setGithubButtonState] = useState('idle');
   const [githubButtonDisabled, setGithubButtonDisabled] = useState(false);
   const githubTimeoutRef = useRef(null);
@@ -155,6 +173,104 @@ const LoginForm = () => {
   }, [status]);
 
   useEffect(() => {
+    if (!consentRequired) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await API.get('/api/user-agreement');
+        if (cancelled) return;
+        const data = res?.data || {};
+        const content = data.data || '';
+        const hash = data.hash || '';
+        setLegalDocContent(content);
+        setLegalDocHash(hash);
+        if (hash) {
+          setLegalAgreed({
+            'user-agreement': getLegalReadStatus('user-agreement', hash),
+            'privacy-policy': getLegalReadStatus('privacy-policy', hash),
+            'terms-of-service': getLegalReadStatus('terms-of-service', hash),
+          });
+        } else {
+          setLegalAgreed({
+            'user-agreement': false,
+            'privacy-policy': false,
+            'terms-of-service': false,
+          });
+        }
+      } catch {
+        // ignore; user will see disabled checkboxes
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [consentRequired]);
+
+  const showLegalConsentError = () =>
+    showInfo(t('请先阅读并同意用户协议、隐私政策和服务条款'));
+
+  const handleLegalCheckboxToggle = (docKey, nextValue) => {
+    if (nextValue) {
+      setLegalModalDoc(docKey);
+    } else {
+      setLegalAgreed((prev) => ({ ...prev, [docKey]: false }));
+    }
+  };
+
+  const handleLegalModalConfirm = () => {
+    if (!legalModalDoc || !legalDocHash) {
+      setLegalModalDoc(null);
+      return;
+    }
+    markLegalRead(legalModalDoc, legalDocHash);
+    setLegalAgreed((prev) => ({ ...prev, [legalModalDoc]: true }));
+    setLegalModalDoc(null);
+  };
+
+  const renderLegalConsentBlock = () => {
+    if (!consentRequired) return null;
+    const items = [
+      { key: 'user-agreement', label: t('用户协议') },
+      { key: 'privacy-policy', label: t('隐私政策') },
+      { key: 'terms-of-service', label: t('服务条款') },
+    ];
+    return (
+      <div className='mt-6 space-y-2'>
+        {items.map((item) => (
+          <Checkbox
+            key={item.key}
+            checked={legalAgreed[item.key]}
+            disabled={!legalDocHash}
+            onChange={(e) =>
+              handleLegalCheckboxToggle(item.key, e.target.checked)
+            }
+          >
+            <Text size='small' className='text-gray-600'>
+              {t('我已阅读并同意')}
+              <a
+                href='#'
+                onClick={(e) => {
+                  e.preventDefault();
+                  setLegalModalDoc(item.key);
+                }}
+                className='text-blue-600 hover:text-blue-800 mx-1'
+              >
+                《{item.label}》
+              </a>
+            </Text>
+          </Checkbox>
+        ))}
+      </div>
+    );
+  };
+
+  const legalModalTitleMap = {
+    'user-agreement': t('用户协议'),
+    'privacy-policy': t('隐私政策'),
+    'terms-of-service': t('服务条款'),
+  };
+
+  useEffect(() => {
     isPasskeySupported()
       .then(setPasskeySupported)
       .catch(() => setPasskeySupported(false));
@@ -173,8 +289,8 @@ const LoginForm = () => {
   }, []);
 
   const onWeChatLoginClicked = () => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     setWechatLoading(true);
@@ -216,8 +332,8 @@ const LoginForm = () => {
   }
 
   async function handleSubmit(e) {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     if (turnstileEnabled && turnstileToken === '') {
@@ -271,8 +387,8 @@ const LoginForm = () => {
 
   // 添加Telegram登录处理函数
   const onTelegramLoginClicked = async (response) => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     const fields = [
@@ -311,8 +427,8 @@ const LoginForm = () => {
 
   // 包装的GitHub登录点击处理
   const handleGitHubClick = () => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     if (githubButtonDisabled) {
@@ -339,8 +455,8 @@ const LoginForm = () => {
 
   // 包装的Discord登录点击处理
   const handleDiscordClick = () => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     setDiscordLoading(true);
@@ -354,8 +470,8 @@ const LoginForm = () => {
 
   // 包装的OIDC登录点击处理
   const handleOIDCClick = () => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     setOidcLoading(true);
@@ -374,8 +490,8 @@ const LoginForm = () => {
 
   // 包装的LinuxDO登录点击处理
   const handleLinuxDOClick = () => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     setLinuxdoLoading(true);
@@ -389,8 +505,8 @@ const LoginForm = () => {
 
   // 包装的自定义OAuth登录点击处理
   const handleCustomOAuthClick = (provider) => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: true }));
@@ -412,8 +528,8 @@ const LoginForm = () => {
   };
 
   const handlePasskeyLogin = async () => {
-    if ((hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms) {
-      showInfo(t('请先阅读并同意用户协议和隐私政策'));
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
       return;
     }
     if (!passkeySupported) {
@@ -660,39 +776,7 @@ const LoginForm = () => {
 
               {(hasUserAgreement || hasPrivacyPolicy) && (
                 <div className='mt-6'>
-                  <Checkbox
-                    checked={agreedToTerms}
-                    onChange={(e) => setAgreedToTerms(e.target.checked)}
-                  >
-                    <Text size='small' className='text-gray-600'>
-                      {t('我已阅读并同意')}
-                      {hasUserAgreement && (
-                        <>
-                          <a
-                            href='/user-agreement'
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='text-blue-600 hover:text-blue-800 mx-1'
-                          >
-                            {t('用户协议')}
-                          </a>
-                        </>
-                      )}
-                      {hasUserAgreement && hasPrivacyPolicy && t('和')}
-                      {hasPrivacyPolicy && (
-                        <>
-                          <a
-                            href='/privacy-policy'
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='text-blue-600 hover:text-blue-800 mx-1'
-                          >
-                            {t('隐私政策')}
-                          </a>
-                        </>
-                      )}
-                    </Text>
-                  </Checkbox>
+                  {renderLegalConsentBlock()}
                 </div>
               )}
 
@@ -766,39 +850,7 @@ const LoginForm = () => {
 
                 {(hasUserAgreement || hasPrivacyPolicy) && (
                   <div className='pt-4'>
-                    <Checkbox
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    >
-                      <Text size='small' className='text-gray-600'>
-                        {t('我已阅读并同意')}
-                        {hasUserAgreement && (
-                          <>
-                            <a
-                              href='/user-agreement'
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='text-blue-600 hover:text-blue-800 mx-1'
-                            >
-                              {t('用户协议')}
-                            </a>
-                          </>
-                        )}
-                        {hasUserAgreement && hasPrivacyPolicy && t('和')}
-                        {hasPrivacyPolicy && (
-                          <>
-                            <a
-                              href='/privacy-policy'
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='text-blue-600 hover:text-blue-800 mx-1'
-                            >
-                              {t('隐私政策')}
-                            </a>
-                          </>
-                        )}
-                      </Text>
-                    </Checkbox>
+                    {renderLegalConsentBlock()}
                   </div>
                 )}
 
@@ -811,7 +863,7 @@ const LoginForm = () => {
                     onClick={handleSubmit}
                     loading={loginLoading}
                     disabled={
-                      (hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms
+                      !allAgreedToTerms
                     }
                   >
                     {t('继续')}
@@ -870,6 +922,40 @@ const LoginForm = () => {
   };
 
   // 微信登录模态框
+  const renderLegalConsentModal = () => {
+    if (!consentRequired) return null;
+    return (
+      <Modal
+        title={legalModalDoc ? legalModalTitleMap[legalModalDoc] : ''}
+        visible={legalModalDoc !== null}
+        maskClosable={true}
+        onOk={handleLegalModalConfirm}
+        onCancel={() => setLegalModalDoc(null)}
+        okText={t('我已阅读')}
+        cancelText={t('关闭')}
+        centered={true}
+        width={640}
+        style={{ maxWidth: '92vw' }}
+        bodyStyle={{
+          maxHeight: 'calc(80vh - 120px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
+        getPopupContainer={() => document.body}
+        okButtonProps={{ disabled: !legalDocHash }}
+      >
+        {legalDocContent ? (
+          <div
+            className='text-sm whitespace-pre-wrap break-words'
+            dangerouslySetInnerHTML={{ __html: legalDocContent }}
+          />
+        ) : (
+          <Text type='secondary'>{t('文档尚未配置')}</Text>
+        )}
+      </Modal>
+    );
+  };
+
   const renderWeChatLoginModal = () => {
     return (
       <Modal
@@ -964,6 +1050,7 @@ const LoginForm = () => {
           : renderOAuthOptions()}
         {renderWeChatLoginModal()}
         {render2FAModal()}
+        {renderLegalConsentModal()}
 
         {turnstileEnabled && (
           <div className='flex justify-center mt-6'>

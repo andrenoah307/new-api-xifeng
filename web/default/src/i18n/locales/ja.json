@@ -4485,7 +4485,11 @@
     "Cancel Export Task": "",
     "Task cancelled": "",
     "Config saved": "",
-    "Processing": ""
+    "Processing": "",
+    "Terms of Service": "利用規約",
+    "I have read": "確認しました",
+    "Please read and agree to all three documents first": "ご利用前に利用規約・プライバシーポリシー・サービス条項にご同意ください",
+    "Document not configured.": "ドキュメントは未設定です。"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？"
 }
