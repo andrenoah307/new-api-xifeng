@@ -126,7 +126,7 @@ export default function MonitoringDashboard() {
   const queryClient = useQueryClient()
   const { status } = useStatus()
   const regionBlockedGroups: string[] =
-    (status as Record<string, unknown>)?.region_blocked_groups as string[] ?? []
+    status?.region_blocked_groups ?? []
 
   const [keyword, setKeyword] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>(loadSortMode)

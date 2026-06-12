@@ -75,7 +75,7 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
   const groupRatios = useGroupRatios()
   const { status } = useStatus()
   const regionBlockedGroups: string[] =
-    (status as Record<string, unknown>)?.region_blocked_groups as string[] ?? []
+    status?.region_blocked_groups ?? []
   return [
     {
       id: 'select',

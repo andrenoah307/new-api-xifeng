@@ -114,6 +114,9 @@ func configToMap(config interface{}) (map[string]string, error) {
 
 		// 获取json标签作为键名
 		key := fieldType.Tag.Get("json")
+		if idx := strings.Index(key, ","); idx != -1 {
+			key = key[:idx]
+		}
 		if key == "" || key == "-" {
 			key = fieldType.Name
 		}
@@ -185,6 +188,9 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 
 		// 获取json标签作为键名
 		key := fieldType.Tag.Get("json")
+		if idx := strings.Index(key, ","); idx != -1 {
+			key = key[:idx]
+		}
 		if key == "" || key == "-" {
 			key = fieldType.Name
 		}
@@ -256,6 +262,9 @@ func updateConfigFromMap(config interface{}, configMap map[string]string) error 
 			// json.Unmarshal merges into existing maps (keeps old keys that are
 			// absent from the new JSON). Allocate a fresh map so removed keys
 			// are properly cleared.
+			if strValue == "" || strValue == "null" {
+				strValue = "{}"
+			}
 			fresh := reflect.New(field.Type())
 			if err := json.Unmarshal([]byte(strValue), fresh.Interface()); err != nil {
 				continue
