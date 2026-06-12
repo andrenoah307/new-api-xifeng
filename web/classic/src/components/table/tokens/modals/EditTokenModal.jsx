@@ -137,7 +137,10 @@ const EditTokenModal = (props) => {
     let res = await API.get(`/api/user/self/groups`);
     const { success, message, data } = res.data;
     if (success) {
-      let localGroupOptions = Object.entries(data).map(([group, info]) => ({
+      const regionBlockedGroups = statusState?.status?.region_blocked_groups || [];
+      let localGroupOptions = Object.entries(data)
+        .filter(([group]) => !regionBlockedGroups.includes(group))
+        .map(([group, info]) => ({
         label: info.desc,
         value: group,
         ratio: info.ratio,

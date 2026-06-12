@@ -43,6 +43,7 @@ import {
 } from '../constants'
 import GroupStatusCard from './group-status-card'
 import GroupDetailPanel from './group-detail-panel'
+import { useStatus } from '@/hooks/use-status'
 
 const POLL_INTERVAL_MS = 60_000
 
@@ -123,6 +124,9 @@ export default function MonitoringDashboard() {
   const { t } = useTranslation()
   const admin = useIsAdmin()
   const queryClient = useQueryClient()
+  const { status } = useStatus()
+  const regionBlockedGroups: string[] =
+    (status as Record<string, unknown>)?.region_blocked_groups as string[] ?? []
 
   const [keyword, setKeyword] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>(loadSortMode)
@@ -409,6 +413,7 @@ export default function MonitoringDashboard() {
                 key={g.group_name}
                 group={g}
                 onClick={admin ? handleCardClick : undefined}
+                regionBlockedGroups={regionBlockedGroups}
               />
             ))}
           </div>

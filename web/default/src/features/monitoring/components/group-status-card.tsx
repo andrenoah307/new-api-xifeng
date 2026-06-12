@@ -20,11 +20,13 @@ import StatusTimeline from './status-timeline'
 interface GroupStatusCardProps {
   group: MonitoringGroupWithHistory
   onClick?: (group: MonitoringGroupWithHistory) => void
+  regionBlockedGroups?: string[]
 }
 
 const GroupStatusCard = memo(function GroupStatusCard({
   group,
   onClick,
+  regionBlockedGroups = [],
 }: GroupStatusCardProps) {
   const { t } = useTranslation()
 
@@ -81,6 +83,11 @@ const GroupStatusCard = memo(function GroupStatusCard({
             >
               {group.group_name}
             </span>
+            {regionBlockedGroups.includes(group.group_name) && (
+              <span className='shrink-0 text-[10px] text-destructive'>
+                {t('Not available in current region')}
+              </span>
+            )}
           </div>
           <div className="text-muted-foreground mt-1.5 flex items-center gap-1.5 text-[11px]">
             {group.last_test_model && (

@@ -104,6 +104,15 @@ func GetPricing(c *gin.Context) {
 	}
 
 	usableGroup = service.GetUserUsableGroups(group)
+	// Remove region-blocked groups from usable groups
+	cc := geoip.LookupCountry(requestip.GetClientIP(c))
+	if cc != "" {
+		for g := range usableGroup {
+			if operation_setting.IsGroupBlockedForCountry(cc, g) {
+				delete(usableGroup, g)
+			}
+		}
+	}
 	pricing = filterPricingByUsableGroups(pricing, usableGroup)
 	pricing = filterHiddenModels(pricing)
 	pricing = filterRegionBlockedModels(c, pricing)
