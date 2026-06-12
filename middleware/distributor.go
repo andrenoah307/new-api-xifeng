@@ -13,7 +13,6 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
-	"github.com/QuantumNous/new-api/pkg/geoip"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
@@ -81,7 +80,7 @@ func Distribute() func(c *gin.Context) {
 			}
 
 			if rs := operation_setting.GetRegionRestrictionSetting(); rs.Enabled && rs.BlockRelay {
-				cc := geoip.LookupCountry(requestip.GetClientIP(c))
+				cc := requestip.GetClientCountry(c)
 				if cc != "" {
 					tokenGroup := c.GetString("group")
 					if tokenGroup != "" && tokenGroup != "auto" && operation_setting.IsGroupBlockedForCountry(cc, tokenGroup) {

@@ -3,7 +3,6 @@ package controller
 import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/pkg/geoip"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -54,7 +53,7 @@ func filterRegionBlockedModels(c *gin.Context, pricing []model.Pricing) []model.
 	if !rs.Enabled || !rs.FilterConsole {
 		return pricing
 	}
-	cc := geoip.LookupCountry(requestip.GetClientIP(c))
+	cc := requestip.GetClientCountry(c)
 	if cc == "" {
 		return pricing
 	}
@@ -107,7 +106,7 @@ func GetPricing(c *gin.Context) {
 	// Remove region-blocked groups from usable groups
 	rs := operation_setting.GetRegionRestrictionSetting()
 	if rs.Enabled && rs.FilterConsole {
-		cc := geoip.LookupCountry(requestip.GetClientIP(c))
+		cc := requestip.GetClientCountry(c)
 		if cc != "" {
 			for g := range usableGroup {
 				if operation_setting.IsGroupBlockedForCountry(cc, g) {
