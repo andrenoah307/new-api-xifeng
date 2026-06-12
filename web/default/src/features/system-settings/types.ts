@@ -394,6 +394,7 @@ export type SecuritySettings = {
   'region_restriction.xdb_path': string
   'region_restriction.block_message': string
   'region_restriction.blocked_models': string
+  'region_restriction.blocked_groups': string
   'group_model_blacklist.enabled': boolean
   'group_model_blacklist.filter_console': boolean
   'group_model_blacklist.block_relay': boolean

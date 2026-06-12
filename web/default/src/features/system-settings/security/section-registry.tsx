@@ -110,6 +110,8 @@ const SECURITY_SECTIONS = [
             settings['region_restriction.block_message'],
           'region_restriction.blocked_models':
             settings['region_restriction.blocked_models'],
+          'region_restriction.blocked_groups':
+            settings['region_restriction.blocked_groups'],
         }}
       />
     ),

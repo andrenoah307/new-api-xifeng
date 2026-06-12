@@ -131,6 +131,7 @@ const SystemSetting = () => {
     'region_restriction.xdb_path': 'data/ip2region.xdb',
     'region_restriction.block_message': '',
     'region_restriction.blocked_models': '',
+    'region_restriction.blocked_groups': '',
     // 分组模型黑名单配置
     'group_model_blacklist.enabled': false,
     'group_model_blacklist.filter_console': true,
@@ -197,6 +198,7 @@ const SystemSetting = () => {
             item.value = toBoolean(item.value);
             break;
           case 'region_restriction.blocked_models':
+          case 'region_restriction.blocked_groups':
             try {
               item.value = item.value
                 ? JSON.stringify(JSON.parse(item.value), null, 2)
@@ -603,6 +605,7 @@ const SystemSetting = () => {
       'region_restriction.xdb_path',
       'region_restriction.block_message',
       'region_restriction.blocked_models',
+      'region_restriction.blocked_groups',
     ];
     const options = keys
       .filter((k) => inputs[k] !== originInputs[k])
@@ -1354,6 +1357,24 @@ const SystemSetting = () => {
                           setInputs({
                             ...inputs,
                             'region_restriction.blocked_models': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.TextArea
+                        field='region_restriction.blocked_groups'
+                        label={t('地区分组黑名单')}
+                        extraText={t('地区分组黑名单说明')}
+                        placeholder={'{"CN": ["default"], "RU": ["*"]}'}
+                        autosize={{ minRows: 4, maxRows: 12 }}
+                        style={{ fontFamily: 'monospace' }}
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.blocked_groups': value,
                           })
                         }
                       />
