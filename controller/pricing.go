@@ -105,11 +105,14 @@ func GetPricing(c *gin.Context) {
 
 	usableGroup = service.GetUserUsableGroups(group)
 	// Remove region-blocked groups from usable groups
-	cc := geoip.LookupCountry(requestip.GetClientIP(c))
-	if cc != "" {
-		for g := range usableGroup {
-			if operation_setting.IsGroupBlockedForCountry(cc, g) {
-				delete(usableGroup, g)
+	rs := operation_setting.GetRegionRestrictionSetting()
+	if rs.Enabled && rs.FilterConsole {
+		cc := geoip.LookupCountry(requestip.GetClientIP(c))
+		if cc != "" {
+			for g := range usableGroup {
+				if operation_setting.IsGroupBlockedForCountry(cc, g) {
+					delete(usableGroup, g)
+				}
 			}
 		}
 	}
