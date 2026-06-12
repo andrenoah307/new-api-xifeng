@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { memo } from 'react';
-import { Tooltip, Typography } from '@douyinfe/semi-ui';
+import { Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
 import { Database, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import StatusTimeline from './StatusTimeline';
@@ -64,7 +64,7 @@ function formatClock(unixSec) {
   });
 }
 
-const GroupStatusCard = memo(({ group, onClick }) => {
+const GroupStatusCard = memo(({ group, onClick, regionBlockedGroups = [] }) => {
   const { t } = useTranslation();
 
   const noData =
@@ -121,6 +121,11 @@ const GroupStatusCard = memo(({ group, onClick }) => {
             >
               {group.group_name}
             </Text>
+            {regionBlockedGroups.includes(group.group_name) && (
+              <Tag size='small' color='red' style={{ marginLeft: 4 }}>
+                {t('在当前区域不可用')}
+              </Tag>
+            )}
           </div>
           <div className='mt-1.5 flex items-center gap-1.5 text-[11px] text-semi-color-text-3'>
             {group.last_test_model && (
