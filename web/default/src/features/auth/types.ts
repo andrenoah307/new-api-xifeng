@@ -154,6 +154,7 @@ export interface SystemStatus {
   register_enabled?: boolean
   password_register_enabled?: boolean
   custom_oauth_providers?: CustomOAuthProviderInfo[]
+  region_blocked_groups?: string[]
   [key: string]: unknown
 }
 

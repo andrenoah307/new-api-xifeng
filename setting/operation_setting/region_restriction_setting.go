@@ -1,9 +1,11 @@
 package operation_setting
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/config"
 )
 
@@ -143,12 +145,17 @@ func RebuildRegionRestrictionIndex() {
 	regionGroupMatcherIndexLock.Lock()
 	regionGroupMatcherIndex = newGroupIndex
 	regionGroupMatcherIndexLock.Unlock()
+
+	common.SysLog(fmt.Sprintf(
+		"region restriction index rebuilt: %d model countries, %d group countries",
+		len(newModelIndex), len(newGroupIndex),
+	))
 }
 
 // IsModelBlockedForCountry returns true if the given model is blocked for the
 // specified country code according to the pre-compiled matcher index.
 func IsModelBlockedForCountry(countryCode, modelName string) bool {
-	if countryCode == "" {
+	if countryCode == "" || !regionRestrictionSetting.Enabled {
 		return false
 	}
 
@@ -166,7 +173,7 @@ func IsModelBlockedForCountry(countryCode, modelName string) bool {
 // IsGroupBlockedForCountry returns true if the given group is blocked for the
 // specified country code.
 func IsGroupBlockedForCountry(countryCode, group string) bool {
-	if countryCode == "" || group == "" || group == "auto" {
+	if countryCode == "" || group == "" || group == "auto" || !regionRestrictionSetting.Enabled {
 		return false
 	}
 

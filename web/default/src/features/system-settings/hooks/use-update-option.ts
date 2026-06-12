@@ -18,6 +18,12 @@ const STATUS_RELATED_KEYS = [
   'general_setting.quota_display_type',
   'general_setting.custom_currency_symbol',
   'general_setting.custom_currency_exchange_rate',
+  'region_restriction.enabled',
+  'region_restriction.blocked_groups',
+  'region_restriction.blocked_models',
+  'region_restriction.filter_console',
+  'group_model_blacklist.enabled',
+  'group_model_blacklist.blocked_models',
 ]
 
 export function useUpdateOption() {
