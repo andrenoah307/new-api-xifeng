@@ -1,2 +1,5 @@
 export { UserAgreement } from './user-agreement'
 export { PrivacyPolicy } from './privacy-policy'
+export { LegalDocumentInline } from './legal-document'
+export { getUserAgreement } from './api'
+export type { LegalDocumentResponse } from './types'

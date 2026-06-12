@@ -12,7 +12,6 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
-	"github.com/QuantumNous/new-api/pkg/geoip"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/console_setting"
@@ -133,9 +132,8 @@ func GetStatus(c *gin.Context) {
 		"ticket_attachment_max_count":     setting.TicketAttachmentMaxCount,
 		"ticket_attachment_allowed_exts":  setting.TicketAttachmentAllowedExts,
 
-		"region_blocked_groups": operation_setting.GetBlockedGroupsForCountry(
-			geoip.LookupCountry(requestip.GetClientIP(c)),
-		),
+		"region_blocked_groups":    operation_setting.GetBlockedGroupsForCountry(requestip.GetClientCountry(c)),
+		"region_detected_country":  requestip.GetClientCountry(c),
 	}
 
 	// 根据启用状态注入可选内容
@@ -208,19 +206,31 @@ func GetAbout(c *gin.Context) {
 }
 
 func GetUserAgreement(c *gin.Context) {
+	content := system_setting.GetLegalSettings().UserAgreement
+	hash := ""
+	if content != "" {
+		hash = common.Sha1([]byte(content))[:8]
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    system_setting.GetLegalSettings().UserAgreement,
+		"data":    content,
+		"hash":    hash,
 	})
 	return
 }
 
 func GetPrivacyPolicy(c *gin.Context) {
+	content := system_setting.GetLegalSettings().PrivacyPolicy
+	hash := ""
+	if content != "" {
+		hash = common.Sha1([]byte(content))[:8]
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    system_setting.GetLegalSettings().PrivacyPolicy,
+		"data":    content,
+		"hash":    hash,
 	})
 	return
 }

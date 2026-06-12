@@ -4528,7 +4528,11 @@
     "Row Count": "Row Count",
     "Created Time": "Created Time",
     "Export Range": "Export Range",
-    "Processing": "Processing"
+    "Processing": "Processing",
+    "Terms of Service": "Terms of Service",
+    "I have read": "I have read",
+    "Please read and agree to all three documents first": "Please read and agree to all three documents first",
+    "Document not configured.": "Document not configured."
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?"
 }

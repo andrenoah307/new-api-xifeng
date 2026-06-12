@@ -248,3 +248,44 @@
 - `ParseContent()` 返回值签名不变 `([]ClaudeMediaMessage, error)`
 
 **相关代码**：`common/json.go`、`common/utils.go:Any2Type`、`dto/claude.go:ClaudeMessage.ParseContent`、`dto/claude.go:ClaudeRequest.ParseSystem`、`middleware/distributor.go:getModelFromRequest`
+
+### #112 法律合规三 checkbox 分项确认：取代单 checkbox 模型
+
+- 旧：登录/注册一个 checkbox 同时同意「用户协议+隐私政策」
+- 新：三个独立 checkbox（用户协议 / 隐私政策 / 服务条款）+ 三浮窗 + 必须打开浮窗点"我已阅读"才能勾选
+- Default 用 shadcn `Dialog`，Classic 用 Semi `Modal`（必须 `centered + bodyStyle.overflowY + getPopupContainer`，Rule 6）
+- 三项链接同指 `/user-agreement` 端点（用户已确认不新增后端 `TermsOfService` 字段）
+- 父组件用派生变量 `allLegalAgreed` / `allAgreedToTerms`，禁止把 `requiresLegalConsent && !agreedToLegal` 散落到各 handler
+
+**相关代码**：`web/default/src/features/auth/components/legal-consent.tsx`、`web/classic/src/components/auth/{LoginForm,RegisterForm}.jsx`
+
+### #113 localStorage 文档版本 hash 失效：避免历史 hash 堆积 + 隐私模式降级
+
+- key 格式 `legal-read:{docKey}:{hash8}`，hash 来自后端 `/api/user-agreement` 响应字段（`common.Sha1(content)[:8]`）
+- `markRead` 必须先 `clearStaleEntries` 扫描同 docKey 旧 hash 删除，否则 storage 会堆 N 份历史已读
+- 隐私模式 / 配额满抛异常必须 try/catch 降级为内存 `Map`（单会话），否则 LegalConsent 渲染崩溃
+- 空 hash（文档未配置）→ checkbox `disabled` + 走 `consentRequired=false` 放行
+
+**相关代码**：`web/default/src/features/auth/lib/legal-consent-storage.ts`、`web/classic/src/helpers/legalConsentStorage.js`
+
+### #114 后端响应字段仅追加：保证旧前端兼容
+
+- `/api/user-agreement` `/api/privacy-policy` 响应追加 `hash` 字段必须**只追加**，旧前端仍能 `data` 字段读到原始内容
+- 文档为空时 `hash=""`，前端必须按"无需确认"分支走
+
+**相关代码**：`controller/misc.go:GetUserAgreement`、`controller/misc.go:GetPrivacyPolicy`
+
+### #115 Classic LoginForm 存量 Modal Rule 6 旧债
+
+- `Modal.error`（密码警告）/ 微信登录 Modal / 2FA Modal 三处都缺 `bodyStyle.overflowY` + `getPopupContainer`
+- 本次合规改造仅对新增 Legal Modal 严格遵守，旧三处遗留登记需单独 PR 修复
+
+**相关代码**：`web/classic/src/components/auth/LoginForm.jsx`
+
+### #116 登录多通道单点守卫：26 处守卫的单变量收敛
+
+- Default sign-in（9）+ Default sign-up（4）+ Classic LoginForm（9）+ Classic RegisterForm（8，**本次补齐 OAuth/Telegram/WeChat 守卫，原本仅靠按钮 disabled 防御**）
+- 收敛到单一派生变量 `allLegalAgreed` / `allAgreedToTerms`，新增 provider 时仅需 `if (!allAgreedToTerms) { showLegalConsentError(); return; }`
+- grep `agreedToLegal\|agreedToTerms\|allLegalAgreed\|allAgreedToTerms` 一次性确认全部覆盖
+
+**相关代码**：`web/default/src/features/auth/sign-{in,up}/components/*.tsx`、`web/classic/src/components/auth/{LoginForm,RegisterForm}.jsx`
