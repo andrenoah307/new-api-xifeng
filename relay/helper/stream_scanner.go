@@ -25,6 +25,7 @@ const (
 	InitialScannerBufferSize    = 64 << 10 // 64KB (64*1024)
 	DefaultMaxScannerBufferSize = 64 << 20 // 64MB (64*1024*1024) default SSE buffer size
 	DefaultPingInterval         = 10 * time.Second
+	DrainAfterClientGone        = 15 * time.Second
 )
 
 func getScannerBufferSize() int {
@@ -222,17 +223,31 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 			}
 		}()
 
+		clientGone := false
+		var drainDeadline time.Time
+
 		for scanner.Scan() {
-			// 检查是否需要停止
 			select {
 			case <-stopChan:
 				return
 			case <-ctx.Done():
 				return
-			case <-c.Request.Context().Done():
-				info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
-				return
 			default:
+				if !clientGone {
+					select {
+					case <-c.Request.Context().Done():
+						clientGone = true
+						drainDeadline = time.Now().Add(DrainAfterClientGone)
+						info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
+						logger.LogInfo(c, fmt.Sprintf("client disconnected, draining upstream for up to %s to capture usage", DrainAfterClientGone))
+					default:
+					}
+				}
+			}
+
+			if clientGone && time.Now().After(drainDeadline) {
+				logger.LogInfo(c, "upstream drain timeout, stopping scanner")
+				return
 			}
 
 			ticker.Reset(streamingTimeout)
@@ -289,6 +304,11 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 		// EndReason already set by the goroutine that triggered stopChan
 	case <-c.Request.Context().Done():
 		info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
+		select {
+		case <-stopChan:
+		case <-time.After(DrainAfterClientGone + 5*time.Second):
+			logger.LogError(c, "upstream drain safety timeout in main loop")
+		}
 	}
 
 	if info.StreamStatus.IsNormalEnd() && !info.StreamStatus.HasErrors() {
