@@ -5059,7 +5059,11 @@
     "Cancel Export Task": "",
     "Task cancelled": "",
     "Config saved": "",
-    "Processing": ""
+    "Processing": "",
+    "Terms of Service": "Условия обслуживания",
+    "I have read": "Я прочитал",
+    "Please read and agree to all three documents first": "Сначала ознакомьтесь и согласитесь со всеми тремя документами",
+    "Document not configured.": "Документ не настроен."
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Закрытие разморозит замороженную квоту возврата. Вы уверены?"
 }

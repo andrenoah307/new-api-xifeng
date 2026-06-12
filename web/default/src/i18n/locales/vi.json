@@ -5059,7 +5059,11 @@
     "Cancel Export Task": "",
     "Task cancelled": "",
     "Config saved": "",
-    "Processing": ""
+    "Processing": "",
+    "Terms of Service": "Điều khoản dịch vụ",
+    "I have read": "Tôi đã đọc",
+    "Please read and agree to all three documents first": "Vui lòng đọc và đồng ý với cả ba tài liệu trước",
+    "Document not configured.": "Tài liệu chưa được cấu hình."
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?"
 }

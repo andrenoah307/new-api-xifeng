@@ -5059,7 +5059,11 @@
     "Cancel Export Task": "",
     "Task cancelled": "",
     "Config saved": "",
-    "Processing": ""
+    "Processing": "",
+    "Terms of Service": "Conditions de service",
+    "I have read": "J'ai lu",
+    "Please read and agree to all three documents first": "Veuillez lire et accepter les trois documents d'abord",
+    "Document not configured.": "Document non configuré."
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "La fermeture dégelera le quota de remboursement gelé. Êtes-vous sûr ?"
 }
