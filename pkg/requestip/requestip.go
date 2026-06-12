@@ -77,12 +77,25 @@ func GetClientIP(c *gin.Context) string {
 				return ip
 			}
 		}
-		// Strict mode enabled but configured header missing/invalid — fall back to
-		// RemoteAddr rather than other proxy headers to keep the spoofing protection.
 		return parseRemoteAddrIP(c.Request.RemoteAddr)
 	}
-	// Default (backward compatible): delegate to Gin's ClientIP which respects
-	// TrustedProxies / ForwardedByClientIP settings. Matches upstream new-api default.
+	// Default: try all common proxy headers in priority order, use the first
+	// valid public IP found. This handles CDN/reverse-proxy chains (Cloudflare,
+	// nginx, etc.) without requiring explicit TrustedIPHeader configuration.
+	for _, headerName := range diagnosisHeaderOrder {
+		raw := c.GetHeader(headerName)
+		if raw == "" {
+			continue
+		}
+		ip := extractHeaderIP(headerName, raw)
+		if ip == "" {
+			continue
+		}
+		parsed := net.ParseIP(ip)
+		if parsed != nil && !isPrivateOrSpecialIP(parsed) {
+			return ip
+		}
+	}
 	if ip := c.ClientIP(); ip != "" {
 		return ip
 	}
