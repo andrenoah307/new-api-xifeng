@@ -148,6 +148,24 @@ func filterRegionBlockedOpenAIModels(c *gin.Context, models []dto.OpenAIModels) 
 	return filtered
 }
 
+func filterRegionBlockedUserModels(c *gin.Context, models []string) []string {
+	rs := operation_setting.GetRegionRestrictionSetting()
+	if !rs.Enabled || !rs.FilterConsole {
+		return models
+	}
+	cc := geoip.LookupCountry(requestip.GetClientIP(c))
+	if cc == "" {
+		return models
+	}
+	filtered := make([]string, 0, len(models))
+	for _, m := range models {
+		if !operation_setting.IsModelBlockedForCountry(cc, m) {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered
+}
+
 func getPreferredModelOwners(modelNames []string, groups []string) map[string]string {
 	channelTypes, err := model.GetPreferredModelOwnerChannelTypes(modelNames, groups)
 	if err != nil {

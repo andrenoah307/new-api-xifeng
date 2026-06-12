@@ -588,7 +588,7 @@ const SystemSetting = () => {
       .filter((k) => inputs[k] !== originInputs[k])
       .map((k) => ({
         key: k,
-        value: typeof inputs[k] === 'boolean' ? String(inputs[k]) : inputs[k],
+        value: typeof inputs[k] === 'boolean' ? String(inputs[k]) : (inputs[k] ?? ''),
       }));
     if (!options.length) {
       showError(t('你似乎并没有修改什么'));

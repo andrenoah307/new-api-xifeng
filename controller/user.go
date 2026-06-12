@@ -695,6 +695,7 @@ func GetUserModels(c *gin.Context) {
 			}
 		}
 	}
+	models = filterRegionBlockedUserModels(c, models)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
