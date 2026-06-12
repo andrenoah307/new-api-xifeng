@@ -67,6 +67,20 @@ func filterRegionBlockedModels(c *gin.Context, pricing []model.Pricing) []model.
 	return filtered
 }
 
+func filterGroupBlockedModels(group string, pricing []model.Pricing) []model.Pricing {
+	gmbs := operation_setting.GetGroupModelBlacklistSetting()
+	if !gmbs.Enabled || !gmbs.FilterConsole || group == "" || group == "auto" {
+		return pricing
+	}
+	filtered := make([]model.Pricing, 0, len(pricing))
+	for _, p := range pricing {
+		if !operation_setting.IsModelBlockedForGroup(group, p.ModelName) {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
 func GetPricing(c *gin.Context) {
 	pricing := model.GetPricing()
 	userId, exists := c.Get("id")
@@ -93,6 +107,7 @@ func GetPricing(c *gin.Context) {
 	pricing = filterPricingByUsableGroups(pricing, usableGroup)
 	pricing = filterHiddenModels(pricing)
 	pricing = filterRegionBlockedModels(c, pricing)
+	pricing = filterGroupBlockedModels(group, pricing)
 	// check groupRatio contains usableGroup
 	for group := range ratio_setting.GetGroupRatioCopy() {
 		if _, ok := usableGroup[group]; !ok {
