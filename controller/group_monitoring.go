@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/pkg/geoip"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -366,7 +365,7 @@ func filterRegionBlockedGroupNames(c *gin.Context, groups []string) []string {
 	if !rs.Enabled || !rs.FilterConsole {
 		return groups
 	}
-	cc := geoip.LookupCountry(requestip.GetClientIP(c))
+	cc := requestip.GetClientCountry(c)
 	if cc == "" {
 		return groups
 	}

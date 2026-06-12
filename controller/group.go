@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/pkg/geoip"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
@@ -50,7 +49,7 @@ func GetUserGroups(c *gin.Context) {
 	// Remove region-blocked groups
 	rs := operation_setting.GetRegionRestrictionSetting()
 	if rs.Enabled && rs.FilterConsole {
-		cc := geoip.LookupCountry(requestip.GetClientIP(c))
+		cc := requestip.GetClientCountry(c)
 		if cc != "" {
 			for g := range usableGroups {
 				if g != "auto" && operation_setting.IsGroupBlockedForCountry(cc, g) {

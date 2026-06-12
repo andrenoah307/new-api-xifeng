@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/QuantumNous/new-api/pkg/geoip"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 )
@@ -56,6 +57,16 @@ type Diagnosis struct {
 	RecommendedHeader     string          `json:"recommended_header"`
 	RecommendationMessage string          `json:"recommendation_message"`
 	Items                 []DiagnosisItem `json:"items"`
+}
+
+// GetClientCountry returns the ISO country code for the client.
+// Prefers CDN-provided Cf-Ipcountry header (authoritative for Cloudflare-proxied
+// requests), falls back to ip2region offline lookup.
+func GetClientCountry(c *gin.Context) string {
+	if cc := c.GetHeader("Cf-Ipcountry"); cc != "" && cc != "XX" && cc != "T1" {
+		return strings.ToUpper(cc)
+	}
+	return geoip.LookupCountry(GetClientIP(c))
 }
 
 // GetClientIP returns the client IP used by security-sensitive modules.
