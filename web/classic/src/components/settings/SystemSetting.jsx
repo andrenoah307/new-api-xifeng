@@ -124,6 +124,13 @@ const SystemSetting = () => {
     'fetch_setting.ip_list': [],
     'fetch_setting.allowed_ports': [],
     'fetch_setting.apply_ip_filter_for_domain': true,
+    // 地区限制配置
+    'region_restriction.enabled': false,
+    'region_restriction.filter_console': true,
+    'region_restriction.block_relay': true,
+    'region_restriction.xdb_path': 'data/ip2region.xdb',
+    'region_restriction.block_message': '',
+    'region_restriction.blocked_models': '',
   });
 
   const [originInputs, setOriginInputs] = useState({});
@@ -177,6 +184,20 @@ const SystemSetting = () => {
           case 'fetch_setting.ip_filter_mode':
           case 'fetch_setting.apply_ip_filter_for_domain':
             item.value = toBoolean(item.value);
+            break;
+          case 'region_restriction.enabled':
+          case 'region_restriction.filter_console':
+          case 'region_restriction.block_relay':
+            item.value = toBoolean(item.value);
+            break;
+          case 'region_restriction.blocked_models':
+            try {
+              item.value = item.value
+                ? JSON.stringify(JSON.parse(item.value), null, 2)
+                : '';
+            } catch (e) {
+              item.value = item.value || '';
+            }
             break;
           case 'fetch_setting.domain_list':
             try {
@@ -539,6 +560,41 @@ const SystemSetting = () => {
     if (options.length > 0) {
       await updateOptions(options);
     }
+  };
+
+  const submitRegionRestriction = async () => {
+    const bm = inputs['region_restriction.blocked_models'];
+    if (bm && bm.trim()) {
+      try {
+        const parsed = JSON.parse(bm);
+        if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+          showError(t('地区模型黑名单格式错误，必须是JSON对象'));
+          return;
+        }
+      } catch (e) {
+        showError(t('地区模型黑名单JSON格式无效'));
+        return;
+      }
+    }
+    const keys = [
+      'region_restriction.enabled',
+      'region_restriction.filter_console',
+      'region_restriction.block_relay',
+      'region_restriction.xdb_path',
+      'region_restriction.block_message',
+      'region_restriction.blocked_models',
+    ];
+    const options = keys
+      .filter((k) => inputs[k] !== originInputs[k])
+      .map((k) => ({
+        key: k,
+        value: typeof inputs[k] === 'boolean' ? String(inputs[k]) : inputs[k],
+      }));
+    if (!options.length) {
+      showError(t('你似乎并没有修改什么'));
+      return;
+    }
+    await updateOptions(options);
   };
 
   const handleAddEmail = () => {
@@ -1136,6 +1192,124 @@ const SystemSetting = () => {
 
                   <Button onClick={submitSSRF} style={{ marginTop: 16 }}>
                     {t('更新SSRF防护设置')}
+                  </Button>
+                </Form.Section>
+              </Card>
+
+              <Card>
+                <Form.Section text={t('地区限制设置')}>
+                  <Banner
+                    type='info'
+                    description={t('地区限制开关说明')}
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='region_restriction.enabled'
+                        label={t('启用地区限制')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.enabled': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='region_restriction.filter_console'
+                        label={t('控制台可见性过滤')}
+                        extraText={t('控制台可见性过滤说明')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.filter_console': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='region_restriction.block_relay'
+                        label={t('API中继拦截')}
+                        extraText={t('API中继拦截说明')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.block_relay': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field='region_restriction.xdb_path'
+                        label={t('ip2region数据库路径')}
+                        extraText={t('ip2region数据库路径说明')}
+                        placeholder='data/ip2region.xdb'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.xdb_path': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field='region_restriction.block_message'
+                        label={t('自定义拦截消息')}
+                        extraText={t('自定义拦截消息说明')}
+                        placeholder=''
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.block_message': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.TextArea
+                        field='region_restriction.blocked_models'
+                        label={t('地区模型黑名单')}
+                        extraText={t('地区模型黑名单说明')}
+                        placeholder={'{"CN": ["gpt-4*"], "RU": ["*"]}'}
+                        autosize={{ minRows: 4, maxRows: 12 }}
+                        style={{ fontFamily: 'monospace' }}
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.blocked_models': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Button
+                    onClick={submitRegionRestriction}
+                    style={{ marginTop: 16 }}
+                  >
+                    {t('更新地区限制设置')}
                   </Button>
                 </Form.Section>
               </Card>
