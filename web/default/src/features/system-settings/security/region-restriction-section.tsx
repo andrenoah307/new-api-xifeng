@@ -121,7 +121,7 @@ export function RegionRestrictionSection({
 
     for (const key of updates) {
       const raw = data[key]
-      const value = typeof raw === 'boolean' ? String(raw) : raw
+      const value = typeof raw === 'boolean' ? String(raw) : (raw ?? '')
       await updateOption.mutateAsync({
         key: `${PREFIX}${key}`,
         value,

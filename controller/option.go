@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -130,7 +129,7 @@ func UpdateOption(c *gin.Context) {
 	case int:
 		option.Value = common.Interface2String(option.Value.(int))
 	default:
-		option.Value = fmt.Sprintf("%v", option.Value)
+		option.Value = common.Interface2String(option.Value)
 	}
 	switch option.Key {
 	case "GitHubOAuthEnabled":
