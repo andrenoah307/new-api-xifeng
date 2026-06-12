@@ -40,7 +40,7 @@ import { StatusContext } from '../../context/Status';
 export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
   const { t } = useTranslation();
   const [statusState] = useContext(StatusContext);
-  const regionBlockedGroups = statusState?.region_blocked_groups || [];
+  const regionBlockedGroups = statusState?.status?.region_blocked_groups || [];
 
   // Basic state
   const [tokens, setTokens] = useState([]);
