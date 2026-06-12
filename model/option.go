@@ -27,6 +27,15 @@ func AllOption() ([]*Option, error) {
 }
 
 func InitOptionMap() {
+	operation_setting.SetGetAllGroupNamesFunc(func() []string {
+		groups := setting.GetUserUsableGroupsCopy()
+		names := make([]string, 0, len(groups))
+		for k := range groups {
+			names = append(names, k)
+		}
+		return names
+	})
+
 	common.OptionMapRWMutex.Lock()
 	common.OptionMap = make(map[string]string)
 

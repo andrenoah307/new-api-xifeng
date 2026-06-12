@@ -82,13 +82,24 @@ func Distribute() func(c *gin.Context) {
 
 			if rs := operation_setting.GetRegionRestrictionSetting(); rs.Enabled && rs.BlockRelay {
 				cc := geoip.LookupCountry(requestip.GetClientIP(c))
-				if cc != "" && operation_setting.IsModelBlockedForCountry(cc, modelRequest.Model) {
-					blockMsg := rs.BlockMessage
-					if blockMsg == "" {
-						blockMsg = "Model '" + modelRequest.Model + "' is not available in your region"
+				if cc != "" {
+					tokenGroup := c.GetString("group")
+					if tokenGroup != "" && tokenGroup != "auto" && operation_setting.IsGroupBlockedForCountry(cc, tokenGroup) {
+						blockMsg := rs.BlockMessage
+						if blockMsg == "" {
+							blockMsg = "Group '" + tokenGroup + "' is not available in your region"
+						}
+						abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
+						return
 					}
-					abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
-					return
+					if operation_setting.IsModelBlockedForCountry(cc, modelRequest.Model) {
+						blockMsg := rs.BlockMessage
+						if blockMsg == "" {
+							blockMsg = "Model '" + modelRequest.Model + "' is not available in your region"
+						}
+						abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
+						return
+					}
 				}
 			}
 

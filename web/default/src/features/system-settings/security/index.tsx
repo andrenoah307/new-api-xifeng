@@ -28,6 +28,7 @@ const defaultSecuritySettings: SecuritySettings = {
   'region_restriction.xdb_path': 'data/ip2region.xdb',
   'region_restriction.block_message': '',
   'region_restriction.blocked_models': '{}',
+  'region_restriction.blocked_groups': '',
   'group_model_blacklist.enabled': false,
   'group_model_blacklist.filter_console': true,
   'group_model_blacklist.block_relay': true,

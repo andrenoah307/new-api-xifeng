@@ -12,6 +12,8 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/pkg/geoip"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/console_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -130,6 +132,10 @@ func GetStatus(c *gin.Context) {
 		"ticket_attachment_max_size":      setting.TicketAttachmentMaxSize,
 		"ticket_attachment_max_count":     setting.TicketAttachmentMaxCount,
 		"ticket_attachment_allowed_exts":  setting.TicketAttachmentAllowedExts,
+
+		"region_blocked_groups": operation_setting.GetBlockedGroupsForCountry(
+			geoip.LookupCountry(requestip.GetClientIP(c)),
+		),
 	}
 
 	// 根据启用状态注入可选内容
