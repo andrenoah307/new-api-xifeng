@@ -38,6 +38,18 @@ const regionRestrictionSchema = z.object({
     },
     'Must be valid JSON object, e.g. {"CN": ["gpt-4*"]}'
   ),
+  blocked_groups: z.string().refine(
+    (val) => {
+      if (!val.trim()) return true
+      try {
+        const parsed = JSON.parse(val)
+        return typeof parsed === 'object' && !Array.isArray(parsed)
+      } catch {
+        return false
+      }
+    },
+    'Must be valid JSON object, e.g. {"CN": ["default"]}'
+  ),
 })
 
 type RegionRestrictionFormValues = z.output<typeof regionRestrictionSchema>
@@ -50,6 +62,7 @@ type RegionRestrictionProps = {
     'region_restriction.xdb_path': string
     'region_restriction.block_message': string
     'region_restriction.blocked_models': string
+    'region_restriction.blocked_groups': string
   }
 }
 
@@ -60,6 +73,7 @@ type FlatValues = {
   xdb_path: string
   block_message: string
   blocked_models: string
+  blocked_groups: string
 }
 
 const PREFIX = 'region_restriction.' as const
@@ -73,6 +87,7 @@ const buildFormDefaults = (
   xdb_path: defaults['region_restriction.xdb_path'],
   block_message: defaults['region_restriction.block_message'],
   blocked_models: defaults['region_restriction.blocked_models'],
+  blocked_groups: defaults['region_restriction.blocked_groups'],
 })
 
 const flattenDefaults = (
@@ -84,6 +99,7 @@ const flattenDefaults = (
   xdb_path: defaults['region_restriction.xdb_path'],
   block_message: defaults['region_restriction.block_message'],
   blocked_models: defaults['region_restriction.blocked_models'],
+  blocked_groups: defaults['region_restriction.blocked_groups'],
 })
 
 export function RegionRestrictionSection({
@@ -268,6 +284,30 @@ export function RegionRestrictionSection({
                 <FormDescription>
                   {t(
                     'JSON map of country codes to blocked model patterns. Example: {"CN": ["gpt-4*"], "RU": ["*"]}'
+                  )}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='blocked_groups'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Region-Group Blacklist')}</FormLabel>
+                <FormControl>
+                  <Textarea
+                    rows={6}
+                    placeholder='{"CN": ["default"], "RU": ["*"]}'
+                    className='font-mono text-sm'
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'JSON map of country codes to blocked group patterns. Groups in the blacklist will be completely unavailable in that region.'
                   )}
                 </FormDescription>
                 <FormMessage />

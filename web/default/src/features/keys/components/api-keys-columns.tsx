@@ -16,6 +16,7 @@ import {
 import { DataTableColumnHeader } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge } from '@/components/status-badge'
+import { useStatus } from '@/hooks/use-status'
 import { getSystemOptions } from '@/features/system-settings/api'
 import { API_KEY_STATUSES } from '../constants'
 import { type ApiKey } from '../types'
@@ -80,6 +81,9 @@ function useGroupRatios(): Record<string, number> {
 export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
   const { t } = useTranslation()
   const groupRatios = useGroupRatios()
+  const { status } = useStatus()
+  const regionBlockedGroups: string[] =
+    (status as Record<string, unknown>)?.region_blocked_groups as string[] ?? []
   return [
     {
       id: 'select',
@@ -240,7 +244,16 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
             </Tooltip>
           )
         }
-        return <GroupBadge group={group} ratio={ratio} />
+        return (
+          <div className='flex flex-col gap-1'>
+            <GroupBadge group={group} ratio={ratio} />
+            {regionBlockedGroups.includes(group) && (
+              <span className='text-xs text-destructive'>
+                {t('Not available in current region')}
+              </span>
+            )}
+          </div>
+        )
       },
       meta: { label: t('Group'), mobileHidden: true },
     },
