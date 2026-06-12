@@ -3,6 +3,7 @@ import { SensitiveWordsSection } from '../request-limits/sensitive-words-section
 import { SSRFSection } from '../request-limits/ssrf-section'
 import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { GroupModelBlacklistSection } from './group-model-blacklist-section'
 import { RegionRestrictionSection } from './region-restriction-section'
 
 const SECURITY_SECTIONS = [
@@ -81,6 +82,27 @@ const SECURITY_SECTIONS = [
             settings['region_restriction.block_message'],
           'region_restriction.blocked_models':
             settings['region_restriction.blocked_models'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'group-model-blacklist',
+    titleKey: 'Group Model Blacklist',
+    descriptionKey: 'Control model access based on user group',
+    build: (settings: SecuritySettings) => (
+      <GroupModelBlacklistSection
+        defaultValues={{
+          'group_model_blacklist.enabled':
+            settings['group_model_blacklist.enabled'],
+          'group_model_blacklist.filter_console':
+            settings['group_model_blacklist.filter_console'],
+          'group_model_blacklist.block_relay':
+            settings['group_model_blacklist.block_relay'],
+          'group_model_blacklist.block_message':
+            settings['group_model_blacklist.block_message'],
+          'group_model_blacklist.blocked_models':
+            settings['group_model_blacklist.blocked_models'],
         }}
       />
     ),
