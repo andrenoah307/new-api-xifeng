@@ -92,6 +92,20 @@ func Distribute() func(c *gin.Context) {
 				}
 			}
 
+			if gmbs := operation_setting.GetGroupModelBlacklistSetting(); gmbs.Enabled && gmbs.BlockRelay {
+				tokenGroup := c.GetString("group")
+				if tokenGroup != "" && tokenGroup != "auto" {
+					if operation_setting.IsModelBlockedForGroup(tokenGroup, modelRequest.Model) {
+						blockMsg := gmbs.BlockMessage
+						if blockMsg == "" {
+							blockMsg = "Model '" + modelRequest.Model + "' is not available for your group"
+						}
+						abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
+						return
+					}
+				}
+			}
+
 			if shouldSelectChannel {
 				if modelRequest.Model == "" {
 					abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorModelNameRequired))

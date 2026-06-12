@@ -166,6 +166,34 @@ func filterRegionBlockedUserModels(c *gin.Context, models []string) []string {
 	return filtered
 }
 
+func filterGroupBlockedOpenAIModels(group string, models []dto.OpenAIModels) []dto.OpenAIModels {
+	gmbs := operation_setting.GetGroupModelBlacklistSetting()
+	if !gmbs.Enabled || !gmbs.FilterConsole || group == "" || group == "auto" {
+		return models
+	}
+	filtered := make([]dto.OpenAIModels, 0, len(models))
+	for _, m := range models {
+		if !operation_setting.IsModelBlockedForGroup(group, m.Id) {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered
+}
+
+func filterGroupBlockedUserModels(group string, models []string) []string {
+	gmbs := operation_setting.GetGroupModelBlacklistSetting()
+	if !gmbs.Enabled || !gmbs.FilterConsole || group == "" || group == "auto" {
+		return models
+	}
+	filtered := make([]string, 0, len(models))
+	for _, m := range models {
+		if !operation_setting.IsModelBlockedForGroup(group, m) {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered
+}
+
 func getPreferredModelOwners(modelNames []string, groups []string) map[string]string {
 	channelTypes, err := model.GetPreferredModelOwnerChannelTypes(modelNames, groups)
 	if err != nil {
@@ -316,6 +344,7 @@ func ListModels(c *gin.Context, modelType int) {
 	}
 
 	userOpenAiModels = filterRegionBlockedOpenAIModels(c, userOpenAiModels)
+	userOpenAiModels = filterGroupBlockedOpenAIModels(c.GetString("group"), userOpenAiModels)
 
 	switch modelType {
 	case constant.ChannelTypeAnthropic:

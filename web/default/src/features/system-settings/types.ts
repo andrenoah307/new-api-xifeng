@@ -394,6 +394,11 @@ export type SecuritySettings = {
   'region_restriction.xdb_path': string
   'region_restriction.block_message': string
   'region_restriction.blocked_models': string
+  'group_model_blacklist.enabled': boolean
+  'group_model_blacklist.filter_console': boolean
+  'group_model_blacklist.block_relay': boolean
+  'group_model_blacklist.block_message': string
+  'group_model_blacklist.blocked_models': string
 }
 
 export type UpstreamChannel = {

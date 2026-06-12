@@ -750,6 +750,8 @@ func handleConfigUpdate(key, value string) bool {
 		system_setting.UpdateAndSyncTheme()
 	} else if configName == "region_restriction" {
 		operation_setting.RebuildRegionRestrictionIndex()
+	} else if configName == "group_model_blacklist" {
+		operation_setting.RebuildGroupModelBlacklistIndex()
 	}
 
 	return true // 已处理

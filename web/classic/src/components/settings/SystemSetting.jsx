@@ -131,6 +131,12 @@ const SystemSetting = () => {
     'region_restriction.xdb_path': 'data/ip2region.xdb',
     'region_restriction.block_message': '',
     'region_restriction.blocked_models': '',
+    // 分组模型黑名单配置
+    'group_model_blacklist.enabled': false,
+    'group_model_blacklist.filter_console': true,
+    'group_model_blacklist.block_relay': true,
+    'group_model_blacklist.block_message': '',
+    'group_model_blacklist.blocked_models': '',
   });
 
   const [originInputs, setOriginInputs] = useState({});
@@ -191,6 +197,20 @@ const SystemSetting = () => {
             item.value = toBoolean(item.value);
             break;
           case 'region_restriction.blocked_models':
+            try {
+              item.value = item.value
+                ? JSON.stringify(JSON.parse(item.value), null, 2)
+                : '';
+            } catch (e) {
+              item.value = item.value || '';
+            }
+            break;
+          case 'group_model_blacklist.enabled':
+          case 'group_model_blacklist.filter_console':
+          case 'group_model_blacklist.block_relay':
+            item.value = toBoolean(item.value);
+            break;
+          case 'group_model_blacklist.blocked_models':
             try {
               item.value = item.value
                 ? JSON.stringify(JSON.parse(item.value), null, 2)
@@ -583,6 +603,40 @@ const SystemSetting = () => {
       'region_restriction.xdb_path',
       'region_restriction.block_message',
       'region_restriction.blocked_models',
+    ];
+    const options = keys
+      .filter((k) => inputs[k] !== originInputs[k])
+      .map((k) => ({
+        key: k,
+        value: typeof inputs[k] === 'boolean' ? String(inputs[k]) : (inputs[k] ?? ''),
+      }));
+    if (!options.length) {
+      showError(t('你似乎并没有修改什么'));
+      return;
+    }
+    await updateOptions(options);
+  };
+
+  const submitGroupModelBlacklist = async () => {
+    const bm = inputs['group_model_blacklist.blocked_models'];
+    if (bm && bm.trim()) {
+      try {
+        const parsed = JSON.parse(bm);
+        if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+          showError(t('分组模型黑名单格式错误，必须是JSON对象'));
+          return;
+        }
+      } catch (e) {
+        showError(t('分组模型黑名单JSON格式无效'));
+        return;
+      }
+    }
+    const keys = [
+      'group_model_blacklist.enabled',
+      'group_model_blacklist.filter_console',
+      'group_model_blacklist.block_relay',
+      'group_model_blacklist.block_message',
+      'group_model_blacklist.blocked_models',
     ];
     const options = keys
       .filter((k) => inputs[k] !== originInputs[k])
@@ -1310,6 +1364,107 @@ const SystemSetting = () => {
                     style={{ marginTop: 16 }}
                   >
                     {t('更新地区限制设置')}
+                  </Button>
+                </Form.Section>
+              </Card>
+
+              <Card>
+                <Form.Section text={t('分组模型黑名单设置')}>
+                  <Banner
+                    type='info'
+                    description={t('分组模型黑名单开关说明')}
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='group_model_blacklist.enabled'
+                        label={t('启用分组模型黑名单')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.enabled': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='group_model_blacklist.filter_console'
+                        label={t('控制台可见性过滤(分组)')}
+                        extraText={t('控制台可见性过滤说明(分组)')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.filter_console': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='group_model_blacklist.block_relay'
+                        label={t('API中继拦截(分组)')}
+                        extraText={t('API中继拦截说明(分组)')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.block_relay': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.Input
+                        field='group_model_blacklist.block_message'
+                        label={t('自定义拦截消息(分组)')}
+                        extraText={t('自定义拦截消息说明(分组)')}
+                        placeholder=''
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.block_message': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.TextArea
+                        field='group_model_blacklist.blocked_models'
+                        label={t('分组模型黑名单')}
+                        extraText={t('分组模型黑名单说明')}
+                        placeholder={'{"default": ["o1-*"], "vip": ["dall-e-*"]}'}
+                        autosize={{ minRows: 4, maxRows: 12 }}
+                        style={{ fontFamily: 'monospace' }}
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.blocked_models': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Button
+                    onClick={submitGroupModelBlacklist}
+                    style={{ marginTop: 16 }}
+                  >
+                    {t('更新分组模型黑名单设置')}
                   </Button>
                 </Form.Section>
               </Card>

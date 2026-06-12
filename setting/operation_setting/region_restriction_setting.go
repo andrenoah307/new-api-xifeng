@@ -52,6 +52,40 @@ type modelMatcher struct {
 	exact    string
 }
 
+func compileModelPatterns(patterns []string) []modelMatcher {
+	matchers := make([]modelMatcher, 0, len(patterns))
+	for _, p := range patterns {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if p == "" {
+			continue
+		}
+		if p == "*" {
+			matchers = append(matchers, modelMatcher{matchAll: true})
+		} else if strings.HasSuffix(p, "*") {
+			matchers = append(matchers, modelMatcher{prefix: strings.TrimSuffix(p, "*")})
+		} else {
+			matchers = append(matchers, modelMatcher{exact: p})
+		}
+	}
+	return matchers
+}
+
+func matchModelAgainstMatchers(matchers []modelMatcher, modelName string) bool {
+	modelName = strings.ToLower(modelName)
+	for _, m := range matchers {
+		if m.matchAll {
+			return true
+		}
+		if m.prefix != "" && strings.HasPrefix(modelName, m.prefix) {
+			return true
+		}
+		if m.exact != "" && modelName == m.exact {
+			return true
+		}
+	}
+	return false
+}
+
 var (
 	regionMatcherIndex     map[string][]modelMatcher
 	regionMatcherIndexLock sync.RWMutex
@@ -67,21 +101,7 @@ func RebuildRegionRestrictionIndex() {
 		if upperCountry == "" {
 			continue
 		}
-		matchers := make([]modelMatcher, 0, len(patterns))
-		for _, pattern := range patterns {
-			pattern = strings.TrimSpace(pattern)
-			if pattern == "" {
-				continue
-			}
-			lowerPattern := strings.ToLower(pattern)
-			if lowerPattern == "*" {
-				matchers = append(matchers, modelMatcher{matchAll: true})
-			} else if strings.HasSuffix(lowerPattern, "*") {
-				matchers = append(matchers, modelMatcher{prefix: strings.TrimSuffix(lowerPattern, "*")})
-			} else {
-				matchers = append(matchers, modelMatcher{exact: lowerPattern})
-			}
-		}
+		matchers := compileModelPatterns(patterns)
 		if len(matchers) > 0 {
 			newIndex[upperCountry] = matchers
 		}
@@ -107,17 +127,5 @@ func IsModelBlockedForCountry(countryCode, modelName string) bool {
 		return false
 	}
 
-	lowerModel := strings.ToLower(modelName)
-	for _, m := range matchers {
-		if m.matchAll {
-			return true
-		}
-		if m.prefix != "" && strings.HasPrefix(lowerModel, m.prefix) {
-			return true
-		}
-		if m.exact != "" && lowerModel == m.exact {
-			return true
-		}
-	}
-	return false
+	return matchModelAgainstMatchers(matchers, modelName)
 }
