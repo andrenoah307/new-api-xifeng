@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/geoip"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
@@ -13,7 +15,7 @@ import (
 
 func GetAdminMonitoringGroups(c *gin.Context) {
 	setting := operation_setting.GetGroupMonitoringSetting()
-	monitoringGroups := setting.MonitoringGroups
+	monitoringGroups := filterRegionBlockedGroupNames(c, setting.MonitoringGroups)
 	if len(monitoringGroups) == 0 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -200,7 +202,7 @@ func DeleteMonitoringGroupRecords(c *gin.Context) {
 func GetPublicMonitoringGroups(c *gin.Context) {
 	setting := operation_setting.GetGroupMonitoringSetting()
 
-	monitoringGroups := setting.MonitoringGroups
+	monitoringGroups := filterRegionBlockedGroupNames(c, setting.MonitoringGroups)
 	if len(monitoringGroups) == 0 {
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -357,4 +359,22 @@ func prependSeedRecord(groupName string, startTime int64, history []model.Monito
 	}
 	seed.RecordedAt = startTime
 	return append([]model.MonitoringHistory{*seed}, history...)
+}
+
+func filterRegionBlockedGroupNames(c *gin.Context, groups []string) []string {
+	rs := operation_setting.GetRegionRestrictionSetting()
+	if !rs.Enabled || !rs.FilterConsole {
+		return groups
+	}
+	cc := geoip.LookupCountry(requestip.GetClientIP(c))
+	if cc == "" {
+		return groups
+	}
+	filtered := make([]string, 0, len(groups))
+	for _, g := range groups {
+		if !operation_setting.IsGroupBlockedForCountry(cc, g) {
+			filtered = append(filtered, g)
+		}
+	}
+	return filtered
 }

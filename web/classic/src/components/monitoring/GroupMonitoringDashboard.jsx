@@ -20,6 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React, {
   memo,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -30,6 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess, isAdmin } from '../../helpers';
 import GroupStatusCard from './GroupStatusCard';
 import GroupDetailPanel from './GroupDetailPanel';
+import { StatusContext } from '../../context/Status';
 
 const { Text } = Typography;
 
@@ -94,6 +96,8 @@ function rateAccent(rate) {
 
 const GroupMonitoringDashboard = () => {
   const { t } = useTranslation();
+  const [statusState] = useContext(StatusContext);
+  const regionBlockedGroups = statusState?.status?.region_blocked_groups || [];
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -310,6 +314,7 @@ const GroupMonitoringDashboard = () => {
                 key={g.group_name}
                 group={g}
                 onClick={admin ? handleCardClick : undefined}
+                regionBlockedGroups={regionBlockedGroups}
               />
             ))}
           </div>
