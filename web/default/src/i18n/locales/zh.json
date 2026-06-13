@@ -5108,7 +5108,19 @@
     "Terms of Service": "服务条款",
     "I have read": "我已阅读",
     "Please read and agree to all three documents first": "请先阅读并同意用户协议、隐私政策和服务条款",
-    "Document not configured.": "文档尚未配置。"
+    "Document not configured.": "文档尚未配置。",
+    "I have read and acknowledged": "我已阅读并知悉",
+    "I acknowledge": "我已确认",
+    "Loading notice…": "正在加载告示…",
+    "Regional access disclaimer": "区域访问免责声明",
+    "Silence (minutes)": "静默时长（分钟）",
+    "Blocked countries": "拦截国家",
+    "Show a disclaimer modal to users from specific regions until they acknowledge it.": "向来自指定区域的用户展示免责声明弹窗，必须确认后才能继续访问。",
+    "When disabled, the disclaimer modal will never be shown.": "关闭后，任何 IP 都不会看到免责声明弹窗。",
+    "Heading shown at the top of the disclaimer dialog.": "免责声明弹窗的标题。",
+    "Body text of the disclaimer. Line breaks are preserved.": "免责声明正文，保留换行格式。",
+    "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "ISO 国家码大写，每行一个或英文逗号分隔，默认 CN。",
+    "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = 每次访问都弹出；60 = 用户确认后 60 分钟内不再弹出。"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？"
 }

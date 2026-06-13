@@ -5063,7 +5063,19 @@
     "Terms of Service": "Условия обслуживания",
     "I have read": "Я прочитал",
     "Please read and agree to all three documents first": "Сначала ознакомьтесь и согласитесь со всеми тремя документами",
-    "Document not configured.": "Документ не настроен."
+    "Document not configured.": "Документ не настроен.",
+    "I have read and acknowledged": "Я прочитал и принимаю",
+    "I acknowledge": "Подтверждаю",
+    "Loading notice…": "Загрузка уведомления…",
+    "Regional access disclaimer": "Региональный отказ от ответственности",
+    "Silence (minutes)": "Период тишины (минуты)",
+    "Blocked countries": "Заблокированные страны",
+    "Show a disclaimer modal to users from specific regions until they acknowledge it.": "Показывать модальное окно отказа пользователям из указанных регионов до подтверждения.",
+    "When disabled, the disclaimer modal will never be shown.": "При отключении модальное окно отказа не будет показано никогда.",
+    "Heading shown at the top of the disclaimer dialog.": "Заголовок, отображаемый в верхней части диалога.",
+    "Body text of the disclaimer. Line breaks are preserved.": "Текст отказа; переносы строк сохраняются.",
+    "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "Коды ISO стран (заглавные), по одному в строке или через запятую. По умолчанию CN.",
+    "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = показывать каждый раз; 60 = тишина 60 минут после подтверждения."
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Закрытие разморозит замороженную квоту возврата. Вы уверены?"
 }
