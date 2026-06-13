@@ -4489,7 +4489,19 @@
     "Terms of Service": "利用規約",
     "I have read": "確認しました",
     "Please read and agree to all three documents first": "ご利用前に利用規約・プライバシーポリシー・サービス条項にご同意ください",
-    "Document not configured.": "ドキュメントは未設定です。"
+    "Document not configured.": "ドキュメントは未設定です。",
+    "I have read and acknowledged": "確認しました",
+    "I acknowledge": "了承する",
+    "Loading notice…": "通知を読み込み中…",
+    "Regional access disclaimer": "地域アクセス免責事項",
+    "Silence (minutes)": "再表示までの時間（分）",
+    "Blocked countries": "対象地域",
+    "Show a disclaimer modal to users from specific regions until they acknowledge it.": "特定の地域からのユーザーに対し、確認するまで免責事項モーダルを表示します。",
+    "When disabled, the disclaimer modal will never be shown.": "無効化すると、どのIPからアクセスしても免責事項モーダルは表示されません。",
+    "Heading shown at the top of the disclaimer dialog.": "免責事項ダイアログの上部に表示される見出し。",
+    "Body text of the disclaimer. Line breaks are preserved.": "免責事項本文。改行はそのまま保持されます。",
+    "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "ISO国コードを大文字で、1行に1つまたはカンマ区切りで入力。既定値はCN。",
+    "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = 毎回表示；60 = 確認後60分間は再表示しない。"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？"
 }

@@ -24,6 +24,7 @@ import User from './pages/User';
 import { AuthRedirect, PrivateRoute, AdminRoute, TicketStaffRoute } from './helpers';
 import RegisterForm from './components/auth/RegisterForm';
 import LoginForm from './components/auth/LoginForm';
+import CnDisclaimerGate from './components/CnDisclaimerGate';
 import NotFound from './pages/NotFound';
 import Forbidden from './pages/Forbidden';
 import Setting from './pages/Setting';
@@ -500,6 +501,7 @@ function App() {
         />
         <Route path='*' element={<NotFound />} />
       </Routes>
+      <CnDisclaimerGate />
     </SetupCheck>
   );
 }

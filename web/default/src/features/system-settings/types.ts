@@ -38,6 +38,11 @@ export type SiteSettings = {
   ServerAddress: string
   'legal.user_agreement': string
   'legal.privacy_policy': string
+  'cn_disclaimer.enabled': string
+  'cn_disclaimer.title': string
+  'cn_disclaimer.content': string
+  'cn_disclaimer.blocked_countries': string
+  'cn_disclaimer.silence_minutes': string
   HeaderNavModules: string
   SidebarModulesAdmin: string
 }

@@ -289,3 +289,51 @@
 - grep `agreedToLegal\|agreedToTerms\|allLegalAgreed\|allAgreedToTerms` 一次性确认全部覆盖
 
 **相关代码**：`web/default/src/features/auth/sign-{in,up}/components/*.tsx`、`web/classic/src/components/auth/{LoginForm,RegisterForm}.jsx`
+
+### #117 系统设置数组字段持久化：BlockedCountries 序列化与回填
+
+- 后端结构体字段 `BlockedCountries []string` 通过 `config.GlobalConfig.Register("cn_disclaimer", ...)` 注册，前端保存路径 `controller/option.go:handleConfigUpdate` 需要 `reflect.Slice` 分支兼容空字符串/null（参考 #110 reflect.Map 修复）
+- 前端 `defaultSiteSettings['cn_disclaimer.blocked_countries']` 默认值用 `'["CN"]'` 而非 `'[]'`，避免 dirty check 误报
+- Default `CnDisclaimerSection` 提交时把 textarea 多行内容 trim + 大写 + 序列化为 JSON 数组字符串
+- Classic `OtherSetting.jsx` 的 `getOptions` 读取后必须把 JSON 数组反序列化为换行文本回填 textarea，否则用户首次打开看到的是 `["CN"]` 文本
+
+**相关代码**：`setting/system_setting/cn_disclaimer.go`、`web/default/src/features/system-settings/site/cn-disclaimer-section.tsx`、`web/classic/src/components/settings/OtherSetting.jsx`
+
+### #118 全站拦截组件挂载位置：根布局 + 路由豁免
+
+- Default `CnDisclaimerGate` 必须挂载在 `__root.tsx:RootComponent` 内部、`Outlet` 之后（让 Dialog portal 覆盖全部路由内容）
+- Classic `CnDisclaimerGate` 必须在 `App.jsx` 的 `<Routes>` 同级、`<SetupCheck>` 内部挂载
+- **必须豁免 `/setup` 路由**，否则首次安装向导被锁
+- Default 必须早于 `<Toaster>`，否则 Dialog 内 toast 被遮挡
+- Gate 内部用 `useLocation()` 取 pathname，前缀匹配豁免清单
+
+**相关代码**：`web/default/src/routes/__root.tsx`、`web/classic/src/App.jsx`、`web/default/src/features/cn-disclaimer/cn-disclaimer-gate.tsx`、`web/classic/src/components/CnDisclaimerGate.jsx`
+
+### #119 不可关闭 Modal/Dialog 完整封装：三路关闭路径都要禁
+
+- shadcn Dialog 默认 ESC + 遮罩点击 + 右上 X 三个关闭路径
+- 全站拦截必须三路全禁：`onEscapeKeyDown={e=>e.preventDefault()} + onPointerDownOutside={e=>e.preventDefault()} + className='[&>button.absolute]:hidden'`
+- Classic Semi Modal 用 `maskClosable={false} + closable={false} + escClose={false}`
+- Modal footer 自定义渲染 checkbox + 确认按钮，禁用默认 OK/Cancel（默认按钮无法禁用直到 checkbox 勾选）
+
+**相关代码**：`web/default/src/features/cn-disclaimer/cn-disclaimer-gate.tsx`、`web/classic/src/components/CnDisclaimerGate.jsx`
+
+### #120 status payload 一次性下发拦截决策：避免前端二次 IP 探测
+
+- `cn_disclaimer_required` 由后端 `controller/misc.go:GetStatus` 基于 `requestip.GetClientCountry(c)` 一次性算好下发
+- 前端不再发请求探测 IP（避免 race / CDN 头丢失 / Tor 用户多次切换 IP 抖动）
+- hash 算法：`Sha1(title+"|"+content+"|"+blockedCountries.join(","))[:8]`
+- hash 必须包含 title + content + blocked_countries 三项，**但不能包含 silence_minutes**（管理员调静默时长不应强迫用户重新确认）
+
+**相关代码**：`controller/misc.go:GetStatus`、`controller/misc.go:GetCnDisclaimer`
+
+### #121 已读静默时长（cooldown）实现：unix 秒时间戳 + 服务端实时读取 silence_minutes
+
+- localStorage value 必须存**确认时间戳（unix 秒）**而非简单 `'1'` 标志
+- `isStillSilent(hash, silenceMinutes)` = `(now - ts) < silenceMinutes * 60`
+- `silenceMinutes <= 0` 时永远 false（每次都弹）
+- **关键**：`silenceMinutes` 从后端 `/api/cn-disclaimer` 响应实时取，前端不缓存这个数字到 storage——避免管理员调短 silenceMinutes 后旧本地"静默到期时间"反而还有效
+- `markAcknowledged` 前调 `clearStaleEntries` 扫描清掉同 prefix 旧 hash 残留，防历史 hash 堆积撑爆 storage
+- 隐私模式 localStorage 异常需 try/catch + 内存 Map fallback，否则 Gate 渲染崩溃
+
+**相关代码**：`web/default/src/features/cn-disclaimer/lib/storage.ts`、`web/classic/src/helpers/cnDisclaimerStorage.js`

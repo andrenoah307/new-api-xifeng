@@ -13,6 +13,7 @@ import { NavigationProgress } from '@/components/navigation-progress'
 import { GeneralError } from '@/features/errors/general-error'
 import { NotFoundError } from '@/features/errors/not-found-error'
 import { getSetupStatus } from '@/features/setup/api'
+import { CnDisclaimerGate } from '@/features/cn-disclaimer'
 
 function RootComponent() {
   // Load system configuration (logo, system name, etc.) from backend
@@ -22,6 +23,7 @@ function RootComponent() {
     <ThemeCustomizationProvider>
       <NavigationProgress />
       <Outlet />
+      <CnDisclaimerGate />
       <Toaster duration={5000} />
       {import.meta.env.MODE === 'development' && (
         <>

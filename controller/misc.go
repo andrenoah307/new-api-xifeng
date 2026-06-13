@@ -48,6 +48,8 @@ func GetStatus(c *gin.Context) {
 
 	passkeySetting := system_setting.GetPasskeySettings()
 	legalSetting := system_setting.GetLegalSettings()
+	cnDisclaimerSetting := system_setting.GetCnDisclaimerSettings()
+	clientCountry := requestip.GetClientCountry(c)
 
 	data := gin.H{
 		"version":                     common.Version,
@@ -132,8 +134,11 @@ func GetStatus(c *gin.Context) {
 		"ticket_attachment_max_count":     setting.TicketAttachmentMaxCount,
 		"ticket_attachment_allowed_exts":  setting.TicketAttachmentAllowedExts,
 
-		"region_blocked_groups":    operation_setting.GetBlockedGroupsForCountry(requestip.GetClientCountry(c)),
-		"region_detected_country":  requestip.GetClientCountry(c),
+		"region_blocked_groups":    operation_setting.GetBlockedGroupsForCountry(clientCountry),
+		"region_detected_country":  clientCountry,
+
+		"cn_disclaimer_enabled":  cnDisclaimerSetting.Enabled,
+		"cn_disclaimer_required": system_setting.IsCnDisclaimerCountry(clientCountry),
 	}
 
 	// 根据启用状态注入可选内容
@@ -231,6 +236,25 @@ func GetPrivacyPolicy(c *gin.Context) {
 		"message": "",
 		"data":    content,
 		"hash":    hash,
+	})
+	return
+}
+
+func GetCnDisclaimer(c *gin.Context) {
+	s := system_setting.GetCnDisclaimerSettings()
+	hash := ""
+	if s.Content != "" {
+		hash = common.Sha1([]byte(s.Title+"|"+s.Content+"|"+strings.Join(s.BlockedCountries, ",")))[:8]
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success":           true,
+		"message":           "",
+		"enabled":           s.Enabled,
+		"title":             s.Title,
+		"content":           s.Content,
+		"blocked_countries": s.BlockedCountries,
+		"silence_minutes":   s.SilenceMinutes,
+		"hash":              hash,
 	})
 	return
 }
