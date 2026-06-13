@@ -4489,7 +4489,19 @@
     "Terms of Service": "Điều khoản dịch vụ",
     "I have read": "Tôi đã đọc",
     "Please read and agree to all three documents first": "Vui lòng đọc và đồng ý với cả ba tài liệu trước",
-    "Document not configured.": "Tài liệu chưa được cấu hình."
+    "Document not configured.": "Tài liệu chưa được cấu hình.",
+    "I have read and acknowledged": "Tôi đã đọc và xác nhận",
+    "I acknowledge": "Tôi xác nhận",
+    "Loading notice…": "Đang tải thông báo…",
+    "Regional access disclaimer": "Tuyên bố miễn trừ truy cập theo khu vực",
+    "Silence (minutes)": "Thời gian im lặng (phút)",
+    "Blocked countries": "Quốc gia bị chặn",
+    "Show a disclaimer modal to users from specific regions until they acknowledge it.": "Hiển thị hộp thoại tuyên bố miễn trừ cho người dùng từ các khu vực được chỉ định cho đến khi họ xác nhận.",
+    "When disabled, the disclaimer modal will never be shown.": "Khi tắt, hộp thoại tuyên bố miễn trừ sẽ không bao giờ xuất hiện.",
+    "Heading shown at the top of the disclaimer dialog.": "Tiêu đề hiển thị ở đầu hộp thoại.",
+    "Body text of the disclaimer. Line breaks are preserved.": "Nội dung tuyên bố; giữ nguyên ngắt dòng.",
+    "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "Mã quốc gia ISO (chữ hoa), mỗi dòng một mã hoặc cách bởi dấu phẩy. Mặc định CN.",
+    "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = hiển thị mỗi lần truy cập; 60 = im lặng trong 60 phút sau khi người dùng xác nhận."
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?"
 }

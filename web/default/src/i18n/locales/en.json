@@ -4532,7 +4532,19 @@
     "Terms of Service": "Terms of Service",
     "I have read": "I have read",
     "Please read and agree to all three documents first": "Please read and agree to all three documents first",
-    "Document not configured.": "Document not configured."
+    "Document not configured.": "Document not configured.",
+    "I have read and acknowledged": "I have read and acknowledged",
+    "I acknowledge": "I acknowledge",
+    "Loading notice…": "Loading notice…",
+    "Regional access disclaimer": "Regional access disclaimer",
+    "Silence (minutes)": "Silence (minutes)",
+    "Blocked countries": "Blocked countries",
+    "Show a disclaimer modal to users from specific regions until they acknowledge it.": "Show a disclaimer modal to users from specific regions until they acknowledge it.",
+    "When disabled, the disclaimer modal will never be shown.": "When disabled, the disclaimer modal will never be shown.",
+    "Heading shown at the top of the disclaimer dialog.": "Heading shown at the top of the disclaimer dialog.",
+    "Body text of the disclaimer. Line breaks are preserved.": "Body text of the disclaimer. Line breaks are preserved.",
+    "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.",
+    "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges."
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?"
 }

@@ -10,6 +10,7 @@ import { NoticeSection } from '../maintenance/notice-section'
 import { SidebarModulesSection } from '../maintenance/sidebar-modules-section'
 import type { SiteSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { CnDisclaimerSection } from './cn-disclaimer-section'
 
 const SITE_SECTIONS = [
   {
@@ -32,6 +33,23 @@ const SITE_SECTIONS = [
             user_agreement: settings['legal.user_agreement'],
             privacy_policy: settings['legal.privacy_policy'],
           },
+        }}
+      />
+    ),
+  },
+  {
+    id: 'cn-disclaimer',
+    titleKey: 'Regional access disclaimer',
+    descriptionKey:
+      'Show a disclaimer modal to users from specific regions until they acknowledge it.',
+    build: (settings: SiteSettings) => (
+      <CnDisclaimerSection
+        defaultValues={{
+          enabled: settings['cn_disclaimer.enabled'],
+          title: settings['cn_disclaimer.title'],
+          content: settings['cn_disclaimer.content'],
+          blockedCountries: settings['cn_disclaimer.blocked_countries'],
+          silenceMinutes: settings['cn_disclaimer.silence_minutes'],
         }}
       />
     ),

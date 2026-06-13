@@ -156,6 +156,8 @@ export interface SystemStatus {
   custom_oauth_providers?: CustomOAuthProviderInfo[]
   region_blocked_groups?: string[]
   region_detected_country?: string
+  cn_disclaimer_enabled?: boolean
+  cn_disclaimer_required?: boolean
   [key: string]: unknown
 }
 

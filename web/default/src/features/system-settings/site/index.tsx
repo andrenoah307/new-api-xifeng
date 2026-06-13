@@ -16,6 +16,11 @@ const defaultSiteSettings: SiteSettings = {
   ServerAddress: '',
   'legal.user_agreement': '',
   'legal.privacy_policy': '',
+  'cn_disclaimer.enabled': 'true',
+  'cn_disclaimer.title': '',
+  'cn_disclaimer.content': '',
+  'cn_disclaimer.blocked_countries': '["CN"]',
+  'cn_disclaimer.silence_minutes': '60',
   HeaderNavModules: '',
   SidebarModulesAdmin: '',
 }

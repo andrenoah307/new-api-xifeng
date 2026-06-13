@@ -4489,7 +4489,19 @@
     "Terms of Service": "Conditions de service",
     "I have read": "J'ai lu",
     "Please read and agree to all three documents first": "Veuillez lire et accepter les trois documents d'abord",
-    "Document not configured.": "Document non configuré."
+    "Document not configured.": "Document non configuré.",
+    "I have read and acknowledged": "J'ai lu et reconnu",
+    "I acknowledge": "Je confirme",
+    "Loading notice…": "Chargement de l'avis…",
+    "Regional access disclaimer": "Avertissement d'accès régional",
+    "Silence (minutes)": "Silence (minutes)",
+    "Blocked countries": "Pays bloqués",
+    "Show a disclaimer modal to users from specific regions until they acknowledge it.": "Afficher une fenêtre d'avertissement aux utilisateurs de certaines régions jusqu'à confirmation.",
+    "When disabled, the disclaimer modal will never be shown.": "Si désactivé, la fenêtre d'avertissement ne sera jamais affichée.",
+    "Heading shown at the top of the disclaimer dialog.": "Titre affiché en haut de la boîte de dialogue.",
+    "Body text of the disclaimer. Line breaks are preserved.": "Texte de l'avertissement. Les sauts de ligne sont conservés.",
+    "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "Codes pays ISO (majuscules), un par ligne ou séparés par des virgules. Par défaut CN.",
+    "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = afficher à chaque visite ; 60 = masquer pendant 60 minutes après confirmation."
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "La fermeture dégelera le quota de remboursement gelé. Êtes-vous sûr ?"
 }
