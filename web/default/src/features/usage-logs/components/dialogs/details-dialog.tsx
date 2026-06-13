@@ -473,6 +473,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
     if (hasUsername) return String(username)
     return `ID: ${id}`
   })()
+  const authMethodLabel = (() => {
+    if (!isManage || !props.isAdmin || !adminInfo?.auth_method) return ''
+    if (adminInfo.auth_method === 'access_token') return t('Access Token')
+    if (adminInfo.auth_method === 'session') return t('Session')
+    return String(adminInfo.auth_method)
+  })()
 
   // Localized operation text rendered from the language-independent op
   // descriptor (shared by audit type=3 and login type=7).
@@ -805,6 +811,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
             >
               {operationText != null && (
                 <DetailRow label={t('Operation')} value={operationText} />
+              )}
+              {authMethodLabel !== '' && (
+                <DetailRow
+                  label={t('Authentication Method')}
+                  value={authMethodLabel}
+                />
               )}
               {changedFieldsText !== '' && (
                 <DetailRow
