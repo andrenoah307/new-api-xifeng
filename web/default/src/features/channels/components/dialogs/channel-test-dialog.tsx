@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   type ColumnDef,
   type RowSelectionState,
@@ -67,7 +68,12 @@ import {
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
 import { StatusBadge } from '@/components/status-badge'
-import { formatResponseTime, handleTestChannel } from '../../lib'
+import {
+  channelsQueryKeys,
+  formatResponseTime,
+  handleTestChannel,
+} from '../../lib'
+import type { GetChannelsResponse, SearchChannelsResponse } from '../../types'
 import { useChannels } from '../channels-provider'
 
 type ChannelTestDialogProps = {
@@ -84,8 +90,57 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error'
 type TestResult = {
   status: TestStatus
   responseTime?: number
+  completedAt?: number
   error?: string
   errorCode?: string
+}
+
+type ChannelTestCachePatch = {
+  responseTime: number
+  testTime: number
+}
+
+type LatestChannelTestCachePatch = {
+  patch: ChannelTestCachePatch
+  completedAt: number
+}
+
+type ChannelListCache = GetChannelsResponse | SearchChannelsResponse
+
+function createChannelTestCachePatch(
+  responseTime?: number,
+  completedAt = Date.now()
+): ChannelTestCachePatch | undefined {
+  if (typeof responseTime !== 'number' || !Number.isFinite(responseTime)) {
+    return undefined
+  }
+
+  return {
+    responseTime,
+    testTime: Math.floor(completedAt / 1000),
+  }
+}
+
+function getLatestChannelTestCachePatch(
+  results: TestResult[]
+): ChannelTestCachePatch | undefined {
+  const latest = results.reduce<LatestChannelTestCachePatch | undefined>(
+    (latestPatch, result) => {
+      const completedAt = result.completedAt ?? 0
+      const patch = createChannelTestCachePatch(
+        result.responseTime,
+        completedAt
+      )
+      if (!patch) return latestPatch
+      if (!latestPatch || completedAt >= latestPatch.completedAt) {
+        return { patch, completedAt }
+      }
+      return latestPatch
+    },
+    undefined
+  )
+
+  return latest?.patch
 }
 
 const endpointTypeOptions: Array<{ value: string; label: string }> = [
@@ -204,6 +259,8 @@ export function ChannelTestDialog({
 }: ChannelTestDialogProps) {
   const { t } = useTranslation()
   const { currentRow } = useChannels()
+  const queryClient = useQueryClient()
+  const currentChannelId = currentRow?.id
   const [endpointType, setEndpointType] = useState('auto')
   const [isStreamTest, setIsStreamTest] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -301,8 +358,60 @@ export function ChannelTestDialog({
     }))
   }, [])
 
+  const updateChannelTestCache = useCallback(
+    (patch?: ChannelTestCachePatch) => {
+      if (!patch || currentChannelId === undefined) return
+
+      queryClient.setQueriesData<ChannelListCache>(
+        { queryKey: channelsQueryKeys.lists() },
+        (oldData) => {
+          const data = oldData?.data
+          if (!oldData || !data?.items.length) return oldData
+
+          let changed = false
+          const nextItems = data.items.map((channel) => {
+            if (channel.id !== currentChannelId) return channel
+
+            changed = true
+            return {
+              ...channel,
+              response_time: patch.responseTime,
+              test_time: patch.testTime,
+            }
+          })
+
+          if (!changed) return oldData
+
+          return {
+            ...oldData,
+            data: {
+              ...data,
+              items: nextItems,
+            },
+          }
+        }
+      )
+    },
+    [currentChannelId, queryClient]
+  )
+
+  const refreshChannelLists = useCallback(
+    (patch?: ChannelTestCachePatch) => {
+      updateChannelTestCache(patch)
+      void queryClient
+        .invalidateQueries({ queryKey: channelsQueryKeys.lists() })
+        .then(() => updateChannelTestCache(patch))
+        .catch(() => undefined)
+    },
+    [queryClient, updateChannelTestCache]
+  )
+
   const testSingleModel = useCallback(
-    async (model: string, silent = false): Promise<TestResult | undefined> => {
+    async (
+      model: string,
+      silent = false,
+      refreshList = true
+    ): Promise<TestResult | undefined> => {
       if (!currentRow) return
 
       markModelTesting(model, true)
@@ -319,9 +428,11 @@ export function ChannelTestDialog({
             silent,
           },
           (success, responseTime, error, errorCode) => {
+            const completedAt = Date.now()
             finalResult = {
               status: success ? 'success' : 'error',
               responseTime,
+              completedAt,
               error,
               errorCode,
             }
@@ -331,11 +442,20 @@ export function ChannelTestDialog({
       } catch (error: unknown) {
         finalResult = {
           status: 'error',
+          completedAt: Date.now(),
           error: error instanceof Error ? error.message : t('Test failed'),
         }
         updateTestResult(model, finalResult)
       } finally {
         markModelTesting(model, false)
+        if (refreshList) {
+          refreshChannelLists(
+            createChannelTestCachePatch(
+              finalResult?.responseTime,
+              finalResult?.completedAt
+            )
+          )
+        }
       }
       return finalResult
     },
@@ -344,6 +464,7 @@ export function ChannelTestDialog({
       endpointType,
       isStreamTest,
       markModelTesting,
+      refreshChannelLists,
       t,
       updateTestResult,
     ]
@@ -354,15 +475,19 @@ export function ChannelTestDialog({
       if (!modelsToTest.length) return
 
       setIsBatchTesting(true)
+      let resultPatch: ChannelTestCachePatch | undefined
       try {
         const settled = await Promise.allSettled(
-          modelsToTest.map((modelName) => testSingleModel(modelName, true))
+          modelsToTest.map((modelName) =>
+            testSingleModel(modelName, true, false)
+          )
         )
         const results = settled
           .map((result) =>
             result.status === 'fulfilled' ? result.value : undefined
           )
           .filter((result): result is TestResult => Boolean(result))
+        resultPatch = getLatestChannelTestCachePatch(results)
         const successCount = results.filter(
           (result) => result.status === 'success'
         ).length
@@ -387,9 +512,10 @@ export function ChannelTestDialog({
       } finally {
         setIsBatchTesting(false)
         setRowSelection({})
+        refreshChannelLists(resultPatch)
       }
     },
-    [t, testSingleModel]
+    [refreshChannelLists, t, testSingleModel]
   )
 
   const handleClose = () => {
@@ -482,7 +608,7 @@ export function ChannelTestDialog({
               disabled={isTestingModel || isBatchTesting}
             >
               {isTestingModel && (
-                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                <Loader2 className='animate-spin' data-icon='inline-start' />
               )}
               {t('Test')}
             </Button>
@@ -685,7 +811,7 @@ function TestStatusCell({
   if (result.status === 'testing') {
     return (
       <div className='text-muted-foreground flex min-w-0 items-center gap-2 text-sm'>
-        <Loader2 className='h-4 w-4 shrink-0 animate-spin' />
+        <Loader2 className='size-4 shrink-0 animate-spin' />
         <span className='truncate'>{t('Testing...')}</span>
       </div>
     )
@@ -878,7 +1004,7 @@ function TestModelsBulkActions({
         >
           {disabled ? (
             <>
-              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              <Loader2 className='animate-spin' data-icon='inline-start' />
               {t('Testing...')}
             </>
           ) : (
