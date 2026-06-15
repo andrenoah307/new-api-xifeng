@@ -1061,6 +1061,27 @@ func buildUsageFromGeminiMetadata(metadata dto.GeminiUsageMetadata, fallbackProm
 	return usage
 }
 
+// openaiResponseHasContent 检查转换后的 OpenAI 风格响应是否含任何可计费产出（文本、思考、工具调用）。
+// 用于零计费兜底：当上游 OutputTokens=0 且所有 choice 均为空时，视为上游 usage 不全。
+func openaiResponseHasContent(resp *dto.OpenAITextResponse) bool {
+	if resp == nil {
+		return false
+	}
+	for i := range resp.Choices {
+		msg := &resp.Choices[i].Message
+		if len(msg.ToolCalls) > 0 {
+			return true
+		}
+		if msg.GetReasoningContent() != "" {
+			return true
+		}
+		if msg.StringContent() != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func responseGeminiChat2OpenAI(c *gin.Context, response *dto.GeminiChatResponse) *dto.OpenAITextResponse {
 	fullTextResponse := dto.OpenAITextResponse{
 		Id:      helper.GetResponseID(c),
@@ -1316,10 +1337,13 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 	}
 
 	if usage.CompletionTokens <= 0 {
-		if info.ReceivedResponseCount > 0 {
+		if info.ReceivedResponseCount > 0 && responseText.Len() > 0 {
 			usage = service.ResponseText2Usage(c, responseText.String(), info.UpstreamModelName, info.GetEstimatePromptTokens())
 		} else {
+			// 空响应兜底：上游 usage 显示 output=0 且整段流无任何响应文本，
+			// 视为上游 usage 不全（坑点 #94 / #122 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
 			usage = &dto.Usage{}
+			common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 		}
 	}
 
@@ -1468,6 +1492,13 @@ func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 	fullTextResponse := responseGeminiChat2OpenAI(c, &geminiResponse)
 	fullTextResponse.Model = info.UpstreamModelName
 	usage := buildUsageFromGeminiMetadata(geminiResponse.UsageMetadata, info.GetEstimatePromptTokens())
+
+	// 空输出兜底：上游 OutputTokens=0 且转换后 OpenAI Choices 无任何文本/工具调用，
+	// 视为上游 usage 不全（坑点 #94 / #122 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
+	if usage.CompletionTokens == 0 && !openaiResponseHasContent(fullTextResponse) {
+		usage = dto.Usage{}
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
+	}
 
 	fullTextResponse.Usage = usage
 
