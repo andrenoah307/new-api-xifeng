@@ -337,3 +337,39 @@
 - 隐私模式 localStorage 异常需 try/catch + 内存 Map fallback，否则 Gate 渲染崩溃
 
 **相关代码**：`web/default/src/features/cn-disclaimer/lib/storage.ts`、`web/classic/src/helpers/cnDisclaimerStorage.js`
+
+### #122 计费 usage 零计费兜底：必须覆盖所有非 OpenAI handler
+
+| 模块 | 触发条件 | 严重度 |
+|------|----------|--------|
+| relay/channel/claude, relay/channel/gemini, service/text_quota.go | 上游返回 `output_tokens=0` + 响应内容为空时 | P1 |
+
+**问题**：#94/#711e3fdc/#76b4f721 已经把 OpenAI 路径（`OaiStreamHandler` / `OpenaiHandler`）的"上游 usage 不全 → 零计费 + 标记 `LocalCountTokens`"逻辑修好了，但 **Claude/Gemini 路径没同步**：
+
+- Claude `HandleStreamFinalResponse`（`relay-claude.go:833`）在 `CompletionTokens == 0` 时只调 `service.ResponseText2Usage(responseText, ...)` 估算 completion；如果 `responseText == ""`（上游收到 `message_start.input_tokens` 后没有任何 `content_block_delta`，只回了 `message_delta.usage.output_tokens=0`），fallback estimator `rune_count×1.5 = 0` 仍把 completion 估算成 0，但 **PromptTokens 已经保留来自 message_start 的巨大值**（生产观测平均 88w，最大 293w）。
+- `calculateTextQuotaSummary` 按 `TotalTokens = PromptTokens + CompletionTokens = PromptTokens > 0` 走完整计费路径，结果 `Quota ≈ PromptTokens × ModelRatio × GroupRatio`。即便 `admin_info.local_count_tokens=true`，依然实扣百万级 quota。
+- Gemini `geminiStreamHandler` 同样：`info.ReceivedResponseCount > 0 && responseText == ""` 时仍走 `ResponseText2Usage` fallback，相同陷阱。
+- Gemini 非流式 `GeminiChatHandler` 在 candidates 非空但实际无任何文本/工具调用时也按 prompt × ratio 计费。
+- `calculateTextQuotaSummary` 末尾的"保底 1 quota"规则（`!ratio.IsZero() && Quota == 0 → Quota = 1`）会覆盖上游 handler 的零计费意图——即便 handler 已经把 usage 归零并标 `LocalCountTokens`，由于 ratio>0 仍会被强制保底成 1。
+
+**生产数据**：vip_2_cc + gpt-5.5 近 7 天 1559 条样本均为此模式（100% `is_stream=1` + `claude:true` + `prompt > 0 && completion = 0` + `local_count_tokens=true`），累计错扣 quota ≈ 12 亿。
+
+**解法**：
+1. **Claude 流式**（`HandleStreamFinalResponse`）：在现有 fallback 之后追加"empty stream"兜底——`CompletionTokens == 0 && ResponseText.Len() == 0` → `PromptTokens/TotalTokens/PromptTokensDetails/ClaudeCacheCreation5m/1h` 全部归零 + `SetContextKey(ctx, ContextKeyLocalCountTokens, true)`。
+2. **Claude 非流式**（`HandleClaudeResponseData`）：抽 `claudeResponseHasContent(resp *dto.ClaudeResponse)` helper，遍历 `Content[]`，检查 `tool_use`/`server_tool_use`/`GetText()`/`GetStringContent()`；返回 false 且 `OutputTokens == 0` → 整份 usage 归零 + 标 `LocalCountTokens`。
+3. **Gemini 流式**（`geminiStreamHandler` line 1318-1324）：`ReceivedResponseCount > 0 && responseText.Len() > 0` 才走 `ResponseText2Usage` fallback；否则 `usage = &dto.Usage{} + LocalCountTokens`。
+4. **Gemini 非流式**（`GeminiChatHandler`）：抽 `openaiResponseHasContent(resp *dto.OpenAITextResponse)` helper，检查 `Choices[].Message.ToolCalls`/`GetReasoningContent()`/`StringContent()`；`usage.CompletionTokens == 0 && !openaiResponseHasContent(resp)` → `usage = dto.Usage{} + LocalCountTokens`。
+5. **通用兜底**（`service/text_quota.go:calculateTextQuotaSummary`）：保底 1 quota 规则增加 `LocalCountTokens` 守卫——`!ratio.IsZero() && Quota == 0 && !common.GetContextKeyBool(ctx, ContextKeyLocalCountTokens)` 才保底 1，避免上游 handler 的零计费意图被绕过。
+
+**新 handler 规范**：
+- 新增非 OpenAI 渠道（Bedrock/Vertex/OpenRouter Claude 路径等）的 stream/non-stream handler **必须**在 usage 解析路径末尾加 empty-output 兜底，不能只依赖 `ResponseText2Usage` 估算补 completion。
+- `ResponseText2Usage` 仍是"流被中断 / 上游 usage 字段缺失"场景的正常 fallback；但调用方**必须**先判断"响应是否真的有产出"——`ResponseText.Len() == 0` 时直接走零计费分支，不要喂空字符串给估算器再问"为什么估算结果还是 0"。
+- 任何在 handler 内部归零 usage 的路径都**必须**配套设置 `ContextKeyLocalCountTokens`，给 `calculateTextQuotaSummary` 的保底守卫提供信号。
+- 历史的"保底 1 quota"规则只适用于 ratio>0 但实际 quota 极小（被 round 0）的合法路径，**不**适用于零计费意图。
+
+**相关代码**：`relay/channel/claude/relay-claude.go:HandleStreamFinalResponse`（833-）、`relay/channel/claude/relay-claude.go:claudeResponseHasContent`、`relay/channel/claude/relay-claude.go:HandleClaudeResponseData`、`relay/channel/gemini/relay-gemini.go:geminiStreamHandler`、`relay/channel/gemini/relay-gemini.go:openaiResponseHasContent`、`relay/channel/gemini/relay-gemini.go:GeminiChatHandler`、`service/text_quota.go:calculateTextQuotaSummary`
+
+**单测**：
+- `service/text_quota_test.go`：`TestCalculateTextQuotaSummarySkipsMinimumQuotaWhenLocalCountTokens` / `TestCalculateTextQuotaSummaryKeepsMinimumQuotaWithoutLocalCountTokens` / `TestCalculateTextQuotaSummarySkipsMinimumWhenLocalCountTokensButTokensPresent`
+- `relay/channel/claude/relay_claude_zero_charge_test.go`：`TestHandleStreamFinalResponseZeroChargesEmptyOutput` / `TestHandleStreamFinalResponseKeepsUsageWithResponseText` / `TestClaudeResponseHasContent*`
+- `relay/channel/gemini/relay_gemini_zero_charge_test.go`：`TestOpenaiResponseHasContent*`
