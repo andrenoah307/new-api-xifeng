@@ -851,6 +851,16 @@ func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, clau
 		}
 		claudeInfo.Usage.TotalTokens = claudeInfo.Usage.PromptTokens + claudeInfo.Usage.CompletionTokens
 	}
+	// 空输出兜底：上游 usage 显示 output=0 且整段流没有任何响应文本/思考内容，
+	// 视为上游 usage 不全（坑点 #94 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
+	if claudeInfo.Usage.CompletionTokens == 0 && claudeInfo.ResponseText.Len() == 0 {
+		claudeInfo.Usage.PromptTokens = 0
+		claudeInfo.Usage.TotalTokens = 0
+		claudeInfo.Usage.PromptTokensDetails = dto.InputTokenDetails{}
+		claudeInfo.Usage.ClaudeCacheCreation5mTokens = 0
+		claudeInfo.Usage.ClaudeCacheCreation1hTokens = 0
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
+	}
 	if claudeInfo.Usage != nil {
 		claudeInfo.Usage.UsageSemantic = "anthropic"
 	}
@@ -893,6 +903,27 @@ func ClaudeStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.
 	return claudeInfo.Usage, nil
 }
 
+// claudeResponseHasContent 检查非流式 Claude 响应中是否含任何可计费产出（文本、思考、工具调用、媒体）。
+// 用于零计费兜底：当上游 OutputTokens=0 且整段 content 无任何内容时，视为上游 usage 不全。
+func claudeResponseHasContent(resp *dto.ClaudeResponse) bool {
+	if resp == nil {
+		return false
+	}
+	for i := range resp.Content {
+		block := &resp.Content[i]
+		if block.Type == "tool_use" || block.Type == "server_tool_use" {
+			return true
+		}
+		if block.GetText() != "" {
+			return true
+		}
+		if block.GetStringContent() != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo, httpResp *http.Response, data []byte) *types.NewAPIError {
 	var claudeResponse dto.ClaudeResponse
 	err := common.Unmarshal(data, &claudeResponse)
@@ -915,6 +946,16 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 		claudeInfo.Usage.PromptTokensDetails.CachedCreationTokens = claudeResponse.Usage.CacheCreationInputTokens
 		claudeInfo.Usage.ClaudeCacheCreation5mTokens = claudeResponse.Usage.GetCacheCreation5mTokens()
 		claudeInfo.Usage.ClaudeCacheCreation1hTokens = claudeResponse.Usage.GetCacheCreation1hTokens()
+	}
+	// 非流式空输出兜底：上游 OutputTokens=0 且响应 content 无文本/工具调用，
+	// 视为上游 usage 不全（坑点 #94 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
+	if claudeInfo.Usage.CompletionTokens == 0 && !claudeResponseHasContent(&claudeResponse) {
+		claudeInfo.Usage.PromptTokens = 0
+		claudeInfo.Usage.TotalTokens = 0
+		claudeInfo.Usage.PromptTokensDetails = dto.InputTokenDetails{}
+		claudeInfo.Usage.ClaudeCacheCreation5mTokens = 0
+		claudeInfo.Usage.ClaudeCacheCreation1hTokens = 0
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 	}
 	var responseData []byte
 	switch info.RelayFormat {
