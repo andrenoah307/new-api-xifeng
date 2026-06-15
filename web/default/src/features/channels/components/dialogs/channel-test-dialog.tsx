@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type ChangeEvent, useCallback, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   type ColumnDef,
@@ -73,12 +73,20 @@ import {
   formatResponseTime,
   handleTestChannel,
 } from '../../lib'
-import type { GetChannelsResponse, SearchChannelsResponse } from '../../types'
+import type {
+  Channel,
+  GetChannelsResponse,
+  SearchChannelsResponse,
+} from '../../types'
 import { useChannels } from '../channels-provider'
 
 type ChannelTestDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+}
+
+type ChannelTestDialogContentProps = ChannelTestDialogProps & {
+  currentRow: Channel
 }
 
 type ModelRow = {
@@ -257,10 +265,30 @@ export function ChannelTestDialog({
   open,
   onOpenChange,
 }: ChannelTestDialogProps) {
-  const { t } = useTranslation()
   const { currentRow } = useChannels()
+
+  if (!currentRow) {
+    return null
+  }
+
+  return (
+    <ChannelTestDialogContent
+      key={currentRow.id}
+      open={open}
+      onOpenChange={onOpenChange}
+      currentRow={currentRow}
+    />
+  )
+}
+
+function ChannelTestDialogContent({
+  open,
+  onOpenChange,
+  currentRow,
+}: ChannelTestDialogContentProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const currentChannelId = currentRow?.id
+  const currentChannelId = currentRow.id
   const [endpointType, setEndpointType] = useState('auto')
   const [isStreamTest, setIsStreamTest] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -297,23 +325,30 @@ export function ChannelTestDialog({
     setPagination({ pageIndex: 0, pageSize: 10 })
   }, [])
 
-  useEffect(() => {
-    if (open && currentRow) {
-      resetState()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, currentRow?.id, resetState])
-
   const streamDisabled = STREAM_INCOMPATIBLE_ENDPOINTS.has(endpointType)
+  const effectiveStreamTest = !streamDisabled && isStreamTest
 
-  useEffect(() => {
-    if (streamDisabled) {
+  const handleEndpointTypeChange = useCallback((value: string | null) => {
+    if (value === null) return
+
+    setEndpointType(value)
+    if (STREAM_INCOMPATIBLE_ENDPOINTS.has(value)) {
       setIsStreamTest(false)
     }
-  }, [streamDisabled])
+  }, [])
 
-  const modelsValue = currentRow?.models ?? ''
-  const defaultTestModel = currentRow?.test_model?.trim()
+  const handleSearchTermChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(event.target.value)
+      setPagination((prev) =>
+        prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }
+      )
+    },
+    []
+  )
+
+  const modelsValue = currentRow.models
+  const defaultTestModel = currentRow.test_model?.trim()
 
   const models = useMemo(() => {
     if (!modelsValue) return []
@@ -328,10 +363,6 @@ export function ChannelTestDialog({
     const keyword = searchTerm.toLowerCase()
     return models.filter((model) => model.toLowerCase().includes(keyword))
   }, [models, searchTerm])
-
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-  }, [searchTerm, modelsValue])
 
   const tableData = useMemo<ModelRow[]>(
     () => filteredModels.map((model) => ({ model })),
@@ -360,7 +391,7 @@ export function ChannelTestDialog({
 
   const updateChannelTestCache = useCallback(
     (patch?: ChannelTestCachePatch) => {
-      if (!patch || currentChannelId === undefined) return
+      if (!patch) return
 
       queryClient.setQueriesData<ChannelListCache>(
         { queryKey: channelsQueryKeys.lists() },
@@ -424,7 +455,7 @@ export function ChannelTestDialog({
           {
             testModel: model,
             endpointType: endpointType === 'auto' ? undefined : endpointType,
-            stream: isStreamTest || undefined,
+            stream: effectiveStreamTest || undefined,
             silent,
           },
           (success, responseTime, error, errorCode) => {
@@ -462,7 +493,7 @@ export function ChannelTestDialog({
     [
       currentRow,
       endpointType,
-      isStreamTest,
+      effectiveStreamTest,
       markModelTesting,
       refreshChannelLists,
       t,
@@ -518,10 +549,19 @@ export function ChannelTestDialog({
     [refreshChannelLists, t, testSingleModel]
   )
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     resetState()
     onOpenChange(false)
-  }
+  }, [onOpenChange, resetState])
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        handleClose()
+      }
+    },
+    [handleClose]
+  )
 
   const isAnyTesting = testingModels.size > 0 || isBatchTesting
 
@@ -641,15 +681,11 @@ export function ChannelTestDialog({
     withFacetedRowModel: false,
   })
 
-  if (!currentRow) {
-    return null
-  }
-
   return (
     <>
       <Dialog
         open={open}
-        onOpenChange={handleClose}
+        onOpenChange={handleDialogOpenChange}
         title={t('Test Channel Connection')}
         description={
           <>
@@ -675,7 +711,7 @@ export function ChannelTestDialog({
               <Select
                 items={endpointSelectItems}
                 value={endpointType}
-                onValueChange={(v) => v !== null && setEndpointType(v)}
+                onValueChange={handleEndpointTypeChange}
               >
                 <SelectTrigger id='endpoint-type'>
                   <SelectValue placeholder={t('Auto detect (default)')} />
@@ -701,12 +737,12 @@ export function ChannelTestDialog({
               <div className='flex items-center gap-2'>
                 <Switch
                   id='stream-toggle'
-                  checked={isStreamTest}
+                  checked={effectiveStreamTest}
                   onCheckedChange={setIsStreamTest}
                   disabled={streamDisabled}
                 />
                 <span className='text-sm'>
-                  {isStreamTest ? t('Enabled') : t('Disabled')}
+                  {effectiveStreamTest ? t('Enabled') : t('Disabled')}
                 </span>
               </div>
               <p className='text-muted-foreground text-xs'>
@@ -726,7 +762,7 @@ export function ChannelTestDialog({
               <Input
                 placeholder={t('Filter models...')}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleSearchTermChange}
                 className='sm:w-64'
               />
             </div>
