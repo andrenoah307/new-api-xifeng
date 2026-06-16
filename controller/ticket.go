@@ -1052,6 +1052,37 @@ func GetTicketUserProfile(c *gin.Context) {
 	common.ApiSuccess(c, resp)
 }
 
+// GetTicketUserTopUps 管理员/客服在工单画像中查看该用户充值账单（分页，过滤赠金 discount_bonus）。
+func GetTicketUserTopUps(c *gin.Context) {
+	ticketId, ok := parseTicketID(c)
+	if !ok {
+		return
+	}
+	ticket, err := model.GetTicketById(ticketId)
+	if err != nil {
+		handleTicketError(c, err)
+		return
+	}
+	if !ensureTicketAccessible(c, ticket) {
+		return
+	}
+	user, err := model.GetUserById(ticket.UserId, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo := common.GetPageQuery(c)
+	filter := model.TopUpFilter{ExcludeSources: []string{"discount_bonus"}}
+	topups, total, err := model.GetUserTopUps(user.Id, filter, pageInfo)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(topups)
+	common.ApiSuccess(c, pageInfo)
+}
+
 func UpdateInvoiceStatus(c *gin.Context) {
 	ticketId, ok := parseTicketID(c)
 	if !ok {
