@@ -36,11 +36,32 @@ const StatusTag = (status, t) => {
 
 // Modal 懒加载：首次打开才请求一次用户画像，避免对 LOG_DB 产生无谓压力；用 ref 记录是否请求过，
 // 这样请求失败也不会被 React 状态循环重新触发，刷新由"刷新"按钮显式发起。
+const TopUpStatusTag = (status, t) => {
+  switch (status) {
+    case 'success':
+      return <Tag color='green' shape='circle'>{t('成功')}</Tag>;
+    case 'pending':
+      return <Tag color='orange' shape='circle'>{t('待支付')}</Tag>;
+    case 'failed':
+    case 'expired':
+      return <Tag color='red' shape='circle'>{t(status === 'failed' ? '失败' : '已过期')}</Tag>;
+    default:
+      return <Tag color='grey' shape='circle'>{status || '-'}</Tag>;
+  }
+};
+
 const TicketUserProfilePanel = ({ ticketId, username, userId, t }) => {
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState(null);
   const attemptedRef = useRef(false);
+
+  const [topups, setTopups] = useState([]);
+  const [topupTotal, setTopupTotal] = useState(0);
+  const [topupPage, setTopupPage] = useState(1);
+  const [topupLoading, setTopupLoading] = useState(false);
+  const topupPageSize = 5;
+  const topupAttemptedRef = useRef(false);
 
   const loadProfile = useCallback(async () => {
     if (!ticketId) return;
@@ -64,12 +85,44 @@ const TicketUserProfilePanel = ({ ticketId, username, userId, t }) => {
     }
   }, [ticketId, t]);
 
+  const loadTopUps = useCallback(
+    async (page) => {
+      if (!ticketId) return;
+      setTopupLoading(true);
+      topupAttemptedRef.current = true;
+      try {
+        const res = await API.get(
+          `/api/ticket/admin/${ticketId}/user-topups?p=${page}&page_size=${topupPageSize}`,
+        );
+        if (res.data?.success) {
+          setTopups(res.data.data?.items || []);
+          setTopupTotal(res.data.data?.total || 0);
+          setTopupPage(page);
+        } else {
+          showError(res.data?.message || t('加载充值账单失败'));
+        }
+      } catch (e) {
+        showError(
+          e?.response?.status === 404
+            ? t('该功能需要后端更新后才能使用')
+            : t('请求失败'),
+        );
+      } finally {
+        setTopupLoading(false);
+      }
+    },
+    [ticketId, t],
+  );
+
   const open = useCallback(() => {
     setVisible(true);
     if (!attemptedRef.current && !loading) {
       loadProfile();
     }
-  }, [loadProfile, loading]);
+    if (!topupAttemptedRef.current && !topupLoading) {
+      loadTopUps(1);
+    }
+  }, [loadProfile, loading, loadTopUps, topupLoading]);
   const close = useCallback(() => setVisible(false), []);
 
   const basicRows = useMemo(() => {
@@ -196,6 +249,40 @@ const TicketUserProfilePanel = ({ ticketId, username, userId, t }) => {
     [t],
   );
 
+  const topupColumns = useMemo(
+    () => [
+      {
+        title: t('时间'),
+        dataIndex: 'complete_time',
+        key: 'topup_time',
+        width: 170,
+        render: (_, r) =>
+          timestamp2string(r.complete_time > 0 ? r.complete_time : r.create_time),
+      },
+      {
+        title: t('实付金额'),
+        dataIndex: 'money',
+        key: 'money',
+        width: 110,
+        render: (v) => `¥${Number(v || 0).toFixed(2)}`,
+      },
+      {
+        title: t('到账额度'),
+        dataIndex: 'quota_granted',
+        key: 'quota_granted',
+        width: 130,
+        render: (v) => renderQuota(Number(v || 0)),
+      },
+      {
+        title: t('状态'),
+        dataIndex: 'status',
+        key: 'status',
+        render: (v) => TopUpStatusTag(v, t),
+      },
+    ],
+    [t],
+  );
+
   // pr-8 给 Semi Modal 自带的右上角关闭按钮留位，避免"刷新"按钮被它覆盖。
   const titleNode = (
     <div className='flex items-center justify-between w-full pr-8'>
@@ -211,8 +298,11 @@ const TicketUserProfilePanel = ({ ticketId, username, userId, t }) => {
       <Button
         theme='borderless'
         icon={<IconRefresh />}
-        loading={loading}
-        onClick={loadProfile}
+        loading={loading || topupLoading}
+        onClick={() => {
+          loadProfile();
+          loadTopUps(topupPage);
+        }}
       >
         {t('刷新')}
       </Button>
@@ -293,6 +383,33 @@ const TicketUserProfilePanel = ({ ticketId, username, userId, t }) => {
                   />
                 }
               />
+            </div>
+
+            <div>
+              <Title heading={6} className='!mb-2'>
+                {t('充值账单')}
+              </Title>
+              <div style={{ minHeight: 240 }}>
+                <CardTable
+                  rowKey='id'
+                  columns={topupColumns}
+                  dataSource={topups}
+                  loading={topupLoading}
+                  scroll={undefined}
+                  pagination={{
+                    currentPage: topupPage,
+                    pageSize: topupPageSize,
+                    total: topupTotal,
+                    onPageChange: (p) => loadTopUps(p),
+                  }}
+                  empty={
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description={t('暂无充值记录')}
+                    />
+                  }
+                />
+              </div>
             </div>
           </div>
         )}

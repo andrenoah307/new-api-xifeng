@@ -16,6 +16,8 @@ export const ticketQueryKeys = {
     [...ticketQueryKeys.all, 'admin-refund', ticketId] as const,
   adminUserProfile: (ticketId: number) =>
     [...ticketQueryKeys.all, 'admin-profile', ticketId] as const,
+  adminUserTopUps: (ticketId: number, page: number) =>
+    [...ticketQueryKeys.all, 'admin-topups', ticketId, page] as const,
   staff: () => [...ticketQueryKeys.all, 'staff'] as const,
   eligibleOrders: () => [...ticketQueryKeys.all, 'eligible-orders'] as const,
   refundInvoiceCheck: () => [...ticketQueryKeys.all, 'refund-invoice-check'] as const,

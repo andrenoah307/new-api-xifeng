@@ -176,6 +176,8 @@ type TopUpFilter struct {
 	Status    string
 	StartTime int64
 	EndTime   int64
+
+	ExcludeSources []string
 }
 
 // GetUserTopUps 查询某用户的充值记录（分页 + COUNT 上限防 DoS）。
@@ -356,6 +358,9 @@ func applyTopUpQueryFilters(query *gorm.DB, filter TopUpFilter) (*gorm.DB, error
 	}
 	if filter.EndTime > 0 {
 		query = query.Where("create_time <= ?", filter.EndTime)
+	}
+	if len(filter.ExcludeSources) > 0 {
+		query = query.Where("(source IS NULL OR source NOT IN ?)", filter.ExcludeSources)
 	}
 	return query, nil
 }
