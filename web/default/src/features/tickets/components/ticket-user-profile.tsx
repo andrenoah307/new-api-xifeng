@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { User, Mail, Shield, Clock, Activity, Database, RefreshCw } from 'lucide-react'
+import { User, Mail, Shield, Clock, Activity, Database, RefreshCw, Receipt, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,8 @@ import { StatusBadge } from '@/components/status-badge'
 import { formatQuota } from '@/lib/format'
 import { formatTimestampToDate } from '@/lib/format'
 import { getRoleLabelKey } from '@/lib/roles'
-import { getAdminUserProfile } from '../api'
+import { STATUS_CONFIG } from '@/features/topup-history/constants'
+import { getAdminUserProfile, getAdminUserTopUps } from '../api'
 import { ticketQueryKeys } from '../lib/ticket-actions'
 
 interface TicketUserProfileButtonProps {
@@ -74,7 +75,7 @@ export function TicketUserProfileButton({
             {t('No data available')}
           </p>
         ) : (
-          <ProfileContent profile={profile} t={t} />
+          <ProfileContent profile={profile} t={t} ticketId={ticketId} />
         )}
       </DialogContent>
     </Dialog>
@@ -84,9 +85,11 @@ export function TicketUserProfileButton({
 function ProfileContent({
   profile,
   t,
+  ticketId,
 }: {
   profile: NonNullable<Awaited<ReturnType<typeof getAdminUserProfile>>>
   t: (key: string) => string
+  ticketId: number
 }) {
   const statusVariant = profile.status === 1 ? 'success' : 'neutral'
   const statusLabel = profile.status === 1 ? t('Enabled') : t('Disabled')
@@ -251,6 +254,132 @@ function ProfileContent({
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      <TopUpSection ticketId={ticketId} t={t} />
+    </div>
+  )
+}
+
+function TopUpSection({
+  ticketId,
+  t,
+}: {
+  ticketId: number
+  t: (key: string) => string
+}) {
+  const [page, setPage] = useState(1)
+  const pageSize = 5
+  const { data, isLoading } = useQuery({
+    queryKey: ticketQueryKeys.adminUserTopUps(ticketId, page),
+    queryFn: () => getAdminUserTopUps(ticketId, page, pageSize),
+    enabled: true,
+  })
+  const items = data?.items ?? []
+  const total = data?.total ?? 0
+
+  return (
+    <div>
+      <h4 className="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs font-medium">
+        <Receipt className="h-3 w-3" />
+        {t('Top-up Records')}
+      </h4>
+      <div
+        className="overflow-x-auto rounded-md border"
+        style={{ minHeight: 160 }}
+      >
+        <table className="w-full text-xs">
+          <thead className="bg-muted/30">
+            <tr>
+              <th className="px-2 py-1.5 text-left font-medium">{t('Time')}</th>
+              <th className="px-2 py-1.5 text-right font-medium">
+                {t('Payment Amount')}
+              </th>
+              <th className="px-2 py-1.5 text-right font-medium">
+                {t('Granted Quota')}
+              </th>
+              <th className="px-2 py-1.5 text-left font-medium">
+                {t('Status')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={4} className="px-2 py-6">
+                  <Skeleton className="h-4 w-full" />
+                </td>
+              </tr>
+            ) : items.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="text-muted-foreground px-2 py-6 text-center"
+                >
+                  {t('No top-up records')}
+                </td>
+              </tr>
+            ) : (
+              items.map((tp) => {
+                const cfg = STATUS_CONFIG[tp.status]
+                return (
+                  <tr key={tp.id} className="border-t">
+                    <td className="text-muted-foreground px-2 py-1.5 font-mono">
+                      {formatTimestampToDate(
+                        tp.complete_time > 0
+                          ? tp.complete_time
+                          : tp.create_time
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono text-red-600 dark:text-red-400">
+                      ¥{tp.money.toFixed(2)}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono">
+                      {formatQuota(tp.quota_granted)}
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {cfg ? (
+                        <StatusBadge
+                          label={t(cfg.labelKey)}
+                          variant={cfg.variant}
+                          size="sm"
+                          copyable={false}
+                        />
+                      ) : (
+                        <span>{tp.status}</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+      {total > pageSize && (
+        <div className="text-muted-foreground mt-2 flex items-center justify-end gap-2 text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2"
+            disabled={page <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            {t('Previous')}
+          </Button>
+          <span>{`${page} / ${Math.max(1, Math.ceil(total / pageSize))}`}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2"
+            disabled={page * pageSize >= total}
+            onClick={() => setPage((p) => p + 1)}
+          >
+            {t('Next')}
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Button>
         </div>
       )}
     </div>

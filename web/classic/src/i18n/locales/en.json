@@ -808,6 +808,8 @@
     "充值确认": "Top Up confirmation",
     "充值订单记录": "",
     "充值账单": "Top Up Bills",
+    "到账额度": "Quota Granted",
+    "加载充值账单失败": "Failed to load top up bills",
     "充值金额折扣配置": "Top Up amount discount configuration",
     "充值金额折扣配置不是合法的 JSON 对象": "Top Up amount discount configuration is not a valid JSON object",
     "充值链接": "Top Up Link",

@@ -121,6 +121,29 @@ export interface UserProfile {
   }>
 }
 
+export interface TicketTopUp {
+  id: number
+  user_id: number
+  amount: number
+  money: number
+  quota_granted: number
+  trade_no: string
+  payment_method: string
+  payment_provider: string
+  create_time: number
+  complete_time: number
+  status: string
+  source: string
+  discount_code_id: number
+}
+
+export interface TicketTopUpPage {
+  page: number
+  page_size: number
+  total: number
+  items: TicketTopUp[]
+}
+
 interface TicketListResponse {
   items: Ticket[]
   total: number
@@ -269,6 +292,17 @@ export async function getAdminUserProfile(
   ticketId: number
 ): Promise<UserProfile | null> {
   const res = await api.get(`/api/ticket/admin/${ticketId}/user-profile`)
+  return res.data?.data ?? null
+}
+
+export async function getAdminUserTopUps(
+  ticketId: number,
+  page: number,
+  pageSize: number
+): Promise<TicketTopUpPage | null> {
+  const res = await api.get(`/api/ticket/admin/${ticketId}/user-topups`, {
+    params: { p: page, page_size: pageSize },
+  })
   return res.data?.data ?? null
 }
 
