@@ -23,7 +23,15 @@ import {
   type RowSelectionState,
   type Table as TanStackTable,
 } from '@tanstack/react-table'
-import { Check, Copy, Info, Loader2, Settings } from 'lucide-react'
+import {
+  Check,
+  CheckCircle2,
+  Copy,
+  Info,
+  Loader2,
+  Settings,
+  Trash2,
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
@@ -61,6 +69,7 @@ import {
   DataTableView,
   useDataTable,
 } from '@/components/data-table'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Dialog } from '@/components/dialog'
 import {
   sideDrawerContentClassName,
@@ -69,6 +78,7 @@ import {
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
 import { StatusBadge } from '@/components/status-badge'
+import { updateChannel } from '../../api'
 import {
   channelsQueryKeys,
   formatResponseTime,
@@ -315,11 +325,17 @@ function ChannelTestDialogContent({
   const [isBatchTesting, setIsBatchTesting] = useState(false)
   const [isBatchStopRequested, setIsBatchStopRequested] = useState(false)
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null)
+  const [removedModels, setRemovedModels] = useState<Set<string>>(
+    () => new Set()
+  )
+  const [isDeleteFailedDialogOpen, setIsDeleteFailedDialogOpen] =
+    useState(false)
+  const [isDeletingFailed, setIsDeletingFailed] = useState(false)
   const [failureDetails, setFailureDetails] =
     useState<FailureDetailsState | null>(null)
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 10,
+    pageSize: 30,
   })
   const endpointSelectItems = useMemo(
     () =>
@@ -341,8 +357,11 @@ function ChannelTestDialogContent({
     setIsBatchTesting(false)
     setIsBatchStopRequested(false)
     setBatchProgress(null)
+    setRemovedModels(() => new Set())
+    setIsDeleteFailedDialogOpen(false)
+    setIsDeletingFailed(false)
     setFailureDetails(null)
-    setPagination({ pageIndex: 0, pageSize: 10 })
+    setPagination({ pageIndex: 0, pageSize: 30 })
   }, [])
 
   const streamDisabled = STREAM_INCOMPATIBLE_ENDPOINTS.has(endpointType)
@@ -370,13 +389,28 @@ function ChannelTestDialogContent({
   const modelsValue = currentRow.models
   const defaultTestModel = currentRow.test_model?.trim()
 
-  const models = useMemo(() => {
+  const baseModels = useMemo(() => {
     if (!modelsValue) return []
     return modelsValue
       .split(',')
       .map((model) => model.trim())
       .filter(Boolean)
   }, [modelsValue])
+
+  const models = useMemo(
+    () => baseModels.filter((model) => !removedModels.has(model)),
+    [baseModels, removedModels]
+  )
+
+  const successModels = useMemo(
+    () => models.filter((model) => testResults[model]?.status === 'success'),
+    [models, testResults]
+  )
+
+  const failedModels = useMemo(
+    () => models.filter((model) => testResults[model]?.status === 'error'),
+    [models, testResults]
+  )
 
   const filteredModels = useMemo(() => {
     if (!searchTerm) return models
@@ -661,6 +695,68 @@ function ChannelTestDialogContent({
     [refreshChannelLists, t, testSingleModel, updateTestResult]
   )
 
+  const handleSelectSuccessfulModels = useCallback(() => {
+    setRowSelection(() => {
+      const next: RowSelectionState = {}
+      for (const model of successModels) {
+        next[model] = true
+      }
+      return next
+    })
+  }, [successModels])
+
+  const handleDeleteFailedModels = useCallback(async () => {
+    const failed = models.filter(
+      (model) => testResults[model]?.status === 'error'
+    )
+    if (!failed.length) {
+      setIsDeleteFailedDialogOpen(false)
+      return
+    }
+
+    const failedSet = new Set(failed)
+    const remaining = models.filter((model) => !failedSet.has(model))
+
+    setIsDeletingFailed(true)
+    try {
+      const response = await updateChannel(currentRow.id, {
+        models: remaining.join(','),
+      })
+      if (response.success) {
+        setRemovedModels((prev) => {
+          const next = new Set(prev)
+          for (const model of failed) next.add(model)
+          return next
+        })
+        setTestResults((prev) => {
+          const next = { ...prev }
+          for (const model of failed) delete next[model]
+          return next
+        })
+        setRowSelection((prev) => {
+          const next = { ...prev }
+          for (const model of failed) delete next[model]
+          return next
+        })
+        toast.success(
+          t('Deleted {{count}} failed models', { count: failed.length })
+        )
+        refreshChannelLists()
+        setIsDeleteFailedDialogOpen(false)
+      } else {
+        toast.error(response.message || t('Failed to delete failed models'))
+      }
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t('Failed to delete failed models')
+      )
+    } finally {
+      setIsDeletingFailed(false)
+    }
+  }, [currentRow.id, models, refreshChannelLists, t, testResults])
+
   const handleClose = useCallback(() => {
     resetState()
     onOpenChange(false)
@@ -911,6 +1007,36 @@ function ChannelTestDialogContent({
               />
             )}
 
+            {!isAnyTesting &&
+              (successModels.length > 0 || failedModels.length > 0) && (
+                <div className='flex flex-wrap items-center gap-2'>
+                  {successModels.length > 0 && (
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={handleSelectSuccessfulModels}
+                    >
+                      <CheckCircle2 data-icon='inline-start' />
+                      {t('Select successful models ({{count}})', {
+                        count: successModels.length,
+                      })}
+                    </Button>
+                  )}
+                  {failedModels.length > 0 && (
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setIsDeleteFailedDialogOpen(true)}
+                    >
+                      <Trash2 data-icon='inline-start' />
+                      {t('Delete failed models ({{count}})', {
+                        count: failedModels.length,
+                      })}
+                    </Button>
+                  )}
+                </div>
+              )}
+
             <div className='space-y-3'>
               <DataTableView
                 table={table}
@@ -951,14 +1077,23 @@ function ChannelTestDialogContent({
               <DataTablePagination table={table} />
             </div>
 
-            <TestModelsBulkActions
-              table={table}
-              disabled={isAnyTesting}
-              onTestSelected={handleBatchTest}
-            />
+            <TestModelsBulkActions table={table} />
           </div>
         </div>
       </Dialog>
+      <ConfirmDialog
+        open={isDeleteFailedDialogOpen}
+        onOpenChange={setIsDeleteFailedDialogOpen}
+        title={t('Delete failed models')}
+        desc={t(
+          'This removes {{count}} failed models from this channel. This action cannot be undone.',
+          { count: failedModels.length }
+        )}
+        destructive
+        isLoading={isDeletingFailed}
+        confirmText={t('Delete')}
+        handleConfirm={handleDeleteFailedModels}
+      />
       <FailureDetailsSheet
         details={failureDetails}
         onOpenChange={(sheetOpen) => {
@@ -1193,21 +1328,18 @@ function FailureDetailsSheet({
 
 function TestModelsBulkActions({
   table,
-  disabled,
-  onTestSelected,
 }: {
   table: TanStackTable<ModelRow>
-  disabled?: boolean
-  onTestSelected: (models: string[]) => void
 }) {
   const { t } = useTranslation()
+  const { copyToClipboard } = useCopyToClipboard()
   const selectedRows = table.getFilteredSelectedRowModel().rows
   const selectedModels = selectedRows.map((row) => row.original.model)
 
-  const buttonLabel =
-    selectedModels.length > 0
-      ? t('Test {{count}} selected', { count: selectedModels.length })
-      : t('Test selected models')
+  const handleCopySelected = useCallback(() => {
+    if (selectedModels.length === 0) return
+    void copyToClipboard(selectedModels.join(','))
+  }, [copyToClipboard, selectedModels])
 
   return (
     <BulkActionsToolbar table={table} entityName='model'>
@@ -1216,22 +1348,16 @@ function TestModelsBulkActions({
           render={
             <Button
               size='sm'
-              onClick={() => onTestSelected(selectedModels)}
-              disabled={disabled || selectedModels.length === 0}
+              onClick={handleCopySelected}
+              disabled={selectedModels.length === 0}
             />
           }
         >
-          {disabled ? (
-            <>
-              <Loader2 className='animate-spin' data-icon='inline-start' />
-              {t('Testing...')}
-            </>
-          ) : (
-            buttonLabel
-          )}
+          <Copy data-icon='inline-start' />
+          {t('Copy selected models')}
         </TooltipTrigger>
         <TooltipContent>
-          <p>{t('Run tests for the selected models')}</p>
+          <p>{t('Copy selected models separated by commas (e.g. a,b)')}</p>
         </TooltipContent>
       </Tooltip>
     </BulkActionsToolbar>
