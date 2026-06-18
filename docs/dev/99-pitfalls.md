@@ -373,3 +373,51 @@
 - `service/text_quota_test.go`：`TestCalculateTextQuotaSummarySkipsMinimumQuotaWhenLocalCountTokens` / `TestCalculateTextQuotaSummaryKeepsMinimumQuotaWithoutLocalCountTokens` / `TestCalculateTextQuotaSummarySkipsMinimumWhenLocalCountTokensButTokensPresent`
 - `relay/channel/claude/relay_claude_zero_charge_test.go`：`TestHandleStreamFinalResponseZeroChargesEmptyOutput` / `TestHandleStreamFinalResponseKeepsUsageWithResponseText` / `TestClaudeResponseHasContent*`
 - `relay/channel/gemini/relay_gemini_zero_charge_test.go`：`TestOpenaiResponseHasContent*`
+
+### #128 Lost Update：整行 / 整 hash 覆盖原子计数列（余额竞态）
+
+**漏洞类**：TOCTOU / Lost Update 竞争条件（来自 `tmp/newapi-lost-update-poc`，PoC 估 CVSS 7.5-9.0）。
+
+**原理**：计费扣费在 DB 与 Redis 两层都走**原子**操作——
+- DB：`gorm.Expr("quota - ?")`（user）/ `used_quota + ?`（channel）/ `remain_quota - ?`（token）；
+- Redis：`RedisHIncrBy(key, field, delta)`（user `Quota` / token `RemainQuota`）。
+
+但任何**"读整行 → 改少数字段 → 整行/结构体写回"**（GORM `Save` 写全列；`Updates(struct)` 写全部非零字段）或**"整 hash 覆盖 Redis"**（`RedisHSetObj` 用结构体快照逐字段 `HSET`）的路径，都会把请求开始时读到的**旧计数值**覆盖回去，抹掉这期间并发扣费的原子增减。
+
+**PoC 利用**：高并发 `PUT /api/user/self`（sidebar_modules / language 分支）反复触发 `User.Update`，旧 `quota` 快照覆盖 DB + 缓存，把余额"钉死"在旧值；同时用 API key 铸币 → **免费调用**。
+
+**机制澄清**：PoC 文案写的是"乐观锁 version 冲突回滚"，但本仓库 **`users` 表没有 version 列**，真实机制是更朴素的 stale full-row overwrite。两层（DB + Redis）各是一个独立的 lost-update 向量。
+
+**重要边界**：token 消费**同时扣 `user.quota`**；故修好 `user.quota` 后，channel `used_quota`（统计/展示）与 token `remain_quota`（子额度）的覆盖**不再产生"免费额度"**，属正确性 / 统计 / 缓存一致性加固，非新的免费铸币口子。
+
+**修复（dev-20260512 本会话）**：
+
+| 沉点 | 文件 | 修法 |
+|------|------|------|
+| `User.Update` | `model/user.go` | `.Omit(userProtectedColumns...)` + 结尾 `updateUserCache`→`invalidateUserCache` |
+| `User.Edit` / `User.ClearBinding` | `model/user.go` | 结尾 `updateUserCache(*user)`→`invalidateUserCache(user.Id)`（DB 写本就走 map/单列白名单，仅缓存侧覆盖 `Quota`） |
+| `Channel.Update` / `Channel.Save` / `SaveWithoutKey` | `model/channel.go` | `.Omit("used_quota","balance","balance_updated_time")`（`SaveWithoutKey` 由 `UpdateChannelStatus` 在自动封禁 / 压力冷却 / 中继报错热路径触发；`Save` 由 `GetSetting`/`GetOtherSettings` 损坏 JSON 自愈触发） |
+| `GetTokenById`(读路径,无条件覆盖) / `Token.Update` / `SelectUpdate` | `model/token.go` | `cacheSetToken`→`cacheDeleteToken(token.Key)`（整 hash 覆盖 `RemainQuota`，对抗 `cacheDecrTokenQuota`） |
+
+`userProtectedColumns`（`model/user.go`）= `quota, used_quota, request_count, aff_count, aff_quota, aff_history, enforcement_*（9 列）, risk_warning_pending_at`。
+
+**安全（无需改、审计已证伪）**：`GetUserCache` / `GetTokenByKey` 的缓存回填是 **miss-only**（`shouldUpdateRedis(fromDB,err)`），且 `RedisHIncrBy`/`RedisHSetField` 带 `ttl>0` 守卫——key 缺失时为 no-op，不会产生残缺 hash，自愈安全。`TransferAffQuotaToQuota` 走 `FOR UPDATE` 行锁事务（重读在锁内），DB 侧安全。
+
+**规范（红线）**：
+1. **新增原子自增/自减计数列**（用户 / 渠道 / Token / 任何实体）必须**同步登记**到该实体的"禁写整行"白名单（`userProtectedColumns` 或 Channel/Token 的 Omit/Select），并在所有整行 `Save` / 结构体 `Updates` / 整 hash `RedisHSetObj` 路径排除。
+2. 资料 / 绑定 / 设置类更新**只改自己那几列**，绝不整行回写余额 / 计数列；优先 `map[string]interface{}` 或 `Select(白名单)`。
+3. 缓存更新优先 **失效（invalidate / DEL）而非整 hash 覆盖**——`RedisHSetObj` 会覆盖并发 `RedisHIncrBy`；失效后下次读从库（已正确）重建。读路径**不应**无条件整 hash 回写一个被 `HIncrBy` 管理的 hash。
+4. "set 绝对值"语义改一个被并发自减的余额（如 token `remain_quota` 编辑），**加锁也救不了**（绝对覆盖本身丢失消费），必须 **compare-and-swap**（客户端回传基线 + `WHERE col=baseline`）或拆成原子增量。
+
+**暂缓（S2，需前端 CAS，全栈改动）**：`controller/token.go:UpdateToken` 用客户端绝对值覆盖 `remain_quota`（经 `Token.Update` 的 `Select` 白名单写 DB）。正确解法 = 前端 Classic/Default 回传 `original_remain_quota` 基线 + 后端 `WHERE remain_quota=baseline` 的 CAS，冲突提示刷新；待单独排期。
+
+**仅记录不修（二级一致性，非 lost-update）**：`TransferAffQuotaToQuota`/`Redeem`/`Topup 充值` 给 DB 加额度后**不回写/失效 Redis** → 缓存偏低、TTL 自愈、向用户少报余额（保守、不影响安全）。
+
+**审计**：本会话用对抗式工作流全仓扫描（18 候选 → 11 确认 / 5 证伪），上表为去重后确认项。
+
+**测试**：`model/lost_update_test.go`
+- `TestUserUpdate_DoesNotClobberAtomicColumns`：原子改 `quota/used_quota/request_count` 后，旧快照 `Update` 不覆盖。
+- `TestUserEdit_DoesNotClobberQuota`：`Edit` map 白名单不触碰 `quota`（回归守卫）。
+- `TestChannelUpdate_DoesNotClobberUsedQuota` / `TestChannelSave_DoesNotClobberUsedQuota` / `TestChannelSaveWithoutKey_DoesNotClobberUsedQuota`：三条整行写路径均不覆盖 `used_quota`。
+- `TestMain` 迁移列表补 `&Ability{}`（`Channel.Update` 末尾 `UpdateAbilities` 需 `abilities` 表）。
+- 缓存侧（invalidate）端到端需 Redis 才能验，单测仅覆盖 DB 侧不被覆盖。
