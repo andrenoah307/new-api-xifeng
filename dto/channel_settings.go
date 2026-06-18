@@ -73,8 +73,7 @@ const (
 )
 
 type AdvancedCustomConfig struct {
-	Routes   []AdvancedCustomRoute  `json:"advanced_routes,omitempty"`
-	Fallback AdvancedCustomFallback `json:"advanced_fallback,omitempty"`
+	Routes []AdvancedCustomRoute `json:"advanced_routes,omitempty"`
 }
 
 type AdvancedCustomRoute struct {
@@ -84,14 +83,61 @@ type AdvancedCustomRoute struct {
 	Auth         *AdvancedCustomRouteAuth `json:"auth,omitempty"`
 }
 
-type AdvancedCustomFallback struct {
-	Enabled bool `json:"enabled,omitempty"`
-}
-
 type AdvancedCustomRouteAuth struct {
 	Type  string `json:"type,omitempty"`
 	Name  string `json:"name,omitempty"`
 	Value string `json:"value,omitempty"`
+}
+
+const advancedCustomModelPlaceholder = "{model}"
+
+// MatchPath returns the first route whose IncomingPath matches requestPath.
+// Matching mirrors the relay adaptor: exact match, {model} placeholder, and
+// :generateContent <-> :streamGenerateContent equivalence.
+func (c *AdvancedCustomConfig) MatchPath(requestPath string) (AdvancedCustomRoute, bool) {
+	if c == nil {
+		return AdvancedCustomRoute{}, false
+	}
+	for _, route := range c.Routes {
+		if matchAdvancedCustomIncomingPath(strings.TrimSpace(route.IncomingPath), requestPath) {
+			return route, true
+		}
+	}
+	return AdvancedCustomRoute{}, false
+}
+
+// SupportsPath reports whether any route matches requestPath.
+func (c *AdvancedCustomConfig) SupportsPath(requestPath string) bool {
+	_, ok := c.MatchPath(requestPath)
+	return ok
+}
+
+func matchAdvancedCustomIncomingPath(configuredPath string, requestPath string) bool {
+	if matchAdvancedCustomIncomingPathTemplate(configuredPath, requestPath) {
+		return true
+	}
+	if strings.Contains(configuredPath, ":generateContent") {
+		streamPath := strings.Replace(configuredPath, ":generateContent", ":streamGenerateContent", 1)
+		return matchAdvancedCustomIncomingPathTemplate(streamPath, requestPath)
+	}
+	return false
+}
+
+func matchAdvancedCustomIncomingPathTemplate(configuredPath string, requestPath string) bool {
+	if !strings.Contains(configuredPath, advancedCustomModelPlaceholder) {
+		return configuredPath == requestPath
+	}
+
+	parts := strings.Split(configuredPath, advancedCustomModelPlaceholder)
+	if len(parts) != 2 {
+		return false
+	}
+	if !strings.HasPrefix(requestPath, parts[0]) || !strings.HasSuffix(requestPath, parts[1]) {
+		return false
+	}
+
+	model := strings.TrimSuffix(strings.TrimPrefix(requestPath, parts[0]), parts[1])
+	return model != "" && !strings.Contains(model, "/")
 }
 
 func IsAdvancedCustomConverterAllowed(converter string) bool {
@@ -112,8 +158,8 @@ func (c *AdvancedCustomConfig) Validate() error {
 	if c == nil {
 		return fmt.Errorf("advanced_custom is required")
 	}
-	if len(c.Routes) == 0 && !c.Fallback.Enabled {
-		return fmt.Errorf("advanced_custom requires at least one route or enabled fallback")
+	if len(c.Routes) == 0 {
+		return fmt.Errorf("advanced_custom requires at least one route")
 	}
 
 	seenPaths := make(map[string]struct{}, len(c.Routes))

@@ -110,7 +110,6 @@ export interface ChannelOtherSettings {
 
 export interface AdvancedCustomConfig {
   advanced_routes?: AdvancedCustomRoute[]
-  advanced_fallback?: AdvancedCustomFallback
 }
 
 export interface AdvancedCustomRoute {
@@ -118,10 +117,6 @@ export interface AdvancedCustomRoute {
   upstream_path?: string
   converter?: AdvancedCustomConverter
   auth?: AdvancedCustomRouteAuth
-}
-
-export interface AdvancedCustomFallback {
-  enabled?: boolean
 }
 
 export interface AdvancedCustomRouteAuth {

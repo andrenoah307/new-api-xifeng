@@ -227,16 +227,6 @@ export const channelFormSchema = z
         addRequiredIssue(ctx, 'advanced_custom', advancedCustomError.message)
       }
       if (
-        advancedCustomConfig?.advanced_fallback?.enabled === true &&
-        !data.base_url?.trim()
-      ) {
-        addRequiredIssue(
-          ctx,
-          'base_url',
-          'Base URL is required when fallback is enabled'
-        )
-      }
-      if (
         advancedCustomConfigUsesRelativeUpstreamPath(advancedCustomConfig) &&
         !data.base_url?.trim()
       ) {

@@ -33,7 +33,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog } from '@/components/dialog'
 import {
@@ -152,13 +151,6 @@ export function AdvancedCustomEditorDialog({
     })
   }
 
-  const setFallbackEnabled = (enabled: boolean) => {
-    setConfig((current) => ({
-      ...normalizeAdvancedCustomConfig(current),
-      advanced_fallback: { enabled },
-    }))
-  }
-
   const parseJsonEditorConfig = (): AdvancedCustomConfig | null => {
     const parsed = parseAdvancedCustomConfig(jsonText)
     if (!parsed) {
@@ -215,11 +207,6 @@ export function AdvancedCustomEditorDialog({
           ...(base.advanced_routes || []),
           ...(template.advanced_routes || []),
         ],
-        advanced_fallback: {
-          enabled:
-            base.advanced_fallback?.enabled === true ||
-            template.advanced_fallback?.enabled === true,
-        },
       }
     }
 
@@ -355,23 +342,7 @@ export function AdvancedCustomEditorDialog({
 
       {editMode === 'visual' ? (
         <div className='flex flex-col gap-5 p-4'>
-          <div className='flex flex-col gap-3 border-y py-4 sm:flex-row sm:items-center sm:justify-between'>
-            <div className='flex items-center gap-3'>
-              <Switch
-                checked={normalizedConfig.advanced_fallback?.enabled === true}
-                onCheckedChange={setFallbackEnabled}
-              />
-              <div className='space-y-1'>
-                <div className='text-sm font-medium'>
-                  {t('Fallback routing')}
-                </div>
-                <div className='text-muted-foreground max-w-2xl text-xs leading-relaxed'>
-                  {t(
-                    'When enabled, requests that do not match any advanced route are forwarded to the channel base URL. When disabled, unmatched requests return an error.'
-                  )}
-                </div>
-              </div>
-            </div>
+          <div className='flex justify-end border-y py-4'>
             <Button
               type='button'
               variant='outline'

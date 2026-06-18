@@ -32,7 +32,6 @@ type Adaptor struct {
 	geminiAdaptor gemini.Adaptor
 
 	resolved  bool
-	fallback  bool
 	converted bool
 	route     dto.AdvancedCustomRoute
 	converter string
@@ -49,7 +48,7 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, err
 	}
-	if a.fallback || converter == dto.AdvancedCustomConverterNone {
+	if converter == dto.AdvancedCustomConverterNone {
 		return a.convertOpenAICompatibleRequest(c, info, request)
 	}
 
@@ -73,9 +72,6 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 	if err != nil {
 		return nil, err
 	}
-	if a.fallback {
-		return a.convertClaudeToOpenAICompatibleRequest(c, info, request)
-	}
 
 	switch converter {
 	case dto.AdvancedCustomConverterNone:
@@ -91,9 +87,6 @@ func (a *Adaptor) ConvertGeminiRequest(c *gin.Context, info *relaycommon.RelayIn
 	converter, err := a.resolveForConversion(c, info)
 	if err != nil {
 		return nil, err
-	}
-	if a.fallback {
-		return a.convertGeminiToOpenAICompatibleRequest(c, info, request)
 	}
 
 	switch converter {
@@ -159,23 +152,11 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 	if err := a.resolve(nil, info); err != nil {
 		return "", err
 	}
-	if a.fallback {
-		return a.withTemporaryChannelType(info, constant.ChannelTypeOpenAI, func() (string, error) {
-			return a.openaiAdaptor.GetRequestURL(info)
-		})
-	}
 	return a.routeURL(info)
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, header *http.Header, info *relaycommon.RelayInfo) error {
 	if err := a.resolve(c, info); err != nil {
-		return err
-	}
-	if a.fallback {
-		old := info.ChannelType
-		info.ChannelType = constant.ChannelTypeOpenAI
-		err := a.openaiAdaptor.SetupRequestHeader(c, header, info)
-		info.ChannelType = old
 		return err
 	}
 
@@ -205,7 +186,7 @@ func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, request
 	if err := a.resolve(c, info); err != nil {
 		return nil, err
 	}
-	if !a.converted && (a.fallback || a.converter != dto.AdvancedCustomConverterNone) {
+	if !a.converted && a.converter != dto.AdvancedCustomConverterNone {
 		return nil, errors.New("advanced custom converter routes cannot be used with pass-through request body")
 	}
 
@@ -223,9 +204,6 @@ func (a *Adaptor) DoRequest(c *gin.Context, info *relaycommon.RelayInfo, request
 func (a *Adaptor) DoResponse(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (usage any, err *types.NewAPIError) {
 	if err := a.resolve(c, info); err != nil {
 		return nil, types.NewOpenAIError(err, types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
-	}
-	if a.fallback {
-		return a.openaiAdaptor.DoResponse(c, resp, info)
 	}
 
 	switch a.converter {
@@ -295,9 +273,7 @@ func (a *Adaptor) resolve(c *gin.Context, info *relaycommon.RelayInfo) error {
 	}
 
 	incomingPath := incomingRequestPath(c, info)
-	route, ok := lo.Find(config.Routes, func(route dto.AdvancedCustomRoute) bool {
-		return matchIncomingPath(strings.TrimSpace(route.IncomingPath), incomingPath)
-	})
+	route, ok := config.MatchPath(incomingPath)
 	if ok {
 		route.Converter = strings.TrimSpace(route.Converter)
 		if route.Converter == "" {
@@ -308,13 +284,7 @@ func (a *Adaptor) resolve(c *gin.Context, info *relaycommon.RelayInfo) error {
 		a.resolved = true
 		return nil
 	}
-	if config.Fallback.Enabled {
-		a.fallback = true
-		a.converter = dto.AdvancedCustomConverterNone
-		a.resolved = true
-		return nil
-	}
-	return fmt.Errorf("advanced custom route not found for path: %s", incomingPath)
+	return fmt.Errorf("advanced custom channel does not support request path: %s", incomingPath)
 }
 
 func incomingRequestPath(c *gin.Context, info *relaycommon.RelayInfo) string {
@@ -325,34 +295,6 @@ func incomingRequestPath(c *gin.Context, info *relaycommon.RelayInfo) string {
 		return ""
 	}
 	return strings.Split(info.RequestURLPath, "?")[0]
-}
-
-func matchIncomingPath(configuredPath string, requestPath string) bool {
-	if matchIncomingPathTemplate(configuredPath, requestPath) {
-		return true
-	}
-	if strings.Contains(configuredPath, ":generateContent") {
-		streamPath := strings.Replace(configuredPath, ":generateContent", ":streamGenerateContent", 1)
-		return matchIncomingPathTemplate(streamPath, requestPath)
-	}
-	return false
-}
-
-func matchIncomingPathTemplate(configuredPath string, requestPath string) bool {
-	if !strings.Contains(configuredPath, advancedCustomModelPlaceholder) {
-		return configuredPath == requestPath
-	}
-
-	parts := strings.Split(configuredPath, advancedCustomModelPlaceholder)
-	if len(parts) != 2 {
-		return false
-	}
-	if !strings.HasPrefix(requestPath, parts[0]) || !strings.HasSuffix(requestPath, parts[1]) {
-		return false
-	}
-
-	model := strings.TrimSuffix(strings.TrimPrefix(requestPath, parts[0]), parts[1])
-	return model != "" && !strings.Contains(model, "/")
 }
 
 func (a *Adaptor) routeURL(info *relaycommon.RelayInfo) (string, error) {
@@ -534,12 +476,4 @@ func (a *Adaptor) convertOpenAICompatibleImageRequest(c *gin.Context, info *rela
 	converted, err := a.openaiAdaptor.ConvertImageRequest(c, info, request)
 	info.ChannelType = old
 	return converted, err
-}
-
-func (a *Adaptor) withTemporaryChannelType(info *relaycommon.RelayInfo, channelType int, fn func() (string, error)) (string, error) {
-	old := info.ChannelType
-	info.ChannelType = channelType
-	value, err := fn()
-	info.ChannelType = old
-	return value, err
 }

@@ -1845,18 +1845,6 @@ export function ChannelMutateDrawer({
                                     {t('Routes')}:{' '}
                                     {advancedCustomStats.routeCount}
                                   </Badge>
-                                  <Badge
-                                    variant={
-                                      advancedCustomStats.fallbackEnabled
-                                        ? 'default'
-                                        : 'outline'
-                                    }
-                                  >
-                                    {t('Fallback')}:{' '}
-                                    {advancedCustomStats.fallbackEnabled
-                                      ? t('Enabled')
-                                      : t('Disabled')}
-                                  </Badge>
                                   {!advancedCustomStats.valid && (
                                     <Badge variant='destructive'>
                                       {t('Incomplete')}
@@ -2254,6 +2242,7 @@ export function ChannelMutateDrawer({
                                   allowCreate
                                   createLabel='Add custom model "{{value}}"'
                                   maxVisibleChips={8}
+                                  copyChipOnClick
                                 />
                               </FormControl>
                               {modelMappingGuardrail.exposedTargetModels

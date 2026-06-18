@@ -161,7 +161,7 @@ func TestAdaptorSetupRequestHeaderAddsClaudeDefaultHeaders(t *testing.T) {
 	assert.Equal(t, "2023-06-01", header.Get("anthropic-version"))
 }
 
-func TestAdaptorReturnsErrorWhenNoRouteAndFallbackDisabled(t *testing.T) {
+func TestAdaptorReturnsErrorWhenNoRouteMatchesPath(t *testing.T) {
 	adaptor := &Adaptor{}
 	info := advancedCustomRelayInfo(&dto.AdvancedCustomConfig{
 		Routes: []dto.AdvancedCustomRoute{
@@ -176,20 +176,7 @@ func TestAdaptorReturnsErrorWhenNoRouteAndFallbackDisabled(t *testing.T) {
 
 	_, err := adaptor.GetRequestURL(info)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "route not found")
-}
-
-func TestAdaptorFallbackUsesOpenAICompatibleBaseURL(t *testing.T) {
-	adaptor := &Adaptor{}
-	info := advancedCustomRelayInfo(&dto.AdvancedCustomConfig{
-		Fallback: dto.AdvancedCustomFallback{Enabled: true},
-	})
-	info.RequestURLPath = "/v1/messages"
-	info.RelayFormat = types.RelayFormatClaude
-
-	requestURL, err := adaptor.GetRequestURL(info)
-	require.NoError(t, err)
-	assert.Equal(t, "https://fallback.example/v1/chat/completions", requestURL)
+	assert.Contains(t, err.Error(), "does not support request path")
 }
 
 func TestAdaptorReplacesModelPlaceholderInRouteURL(t *testing.T) {

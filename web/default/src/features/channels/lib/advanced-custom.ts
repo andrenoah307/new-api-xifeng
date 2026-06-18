@@ -176,12 +176,11 @@ export const ADVANCED_CUSTOM_TEMPLATE_OPTIONS: AdvancedCustomTemplateOption[] =
         advanced_routes: [
           {
             incoming_path: '/v1/chat/completions',
-            upstream_path: 'https://api.openai.com/v1/chat/completions',
+            upstream_path: '/v1/chat/completions',
             converter: 'none',
             auth: bearerHeaderAuth(),
           },
         ],
-        advanced_fallback: { enabled: false },
       },
     },
     {
@@ -191,12 +190,11 @@ export const ADVANCED_CUSTOM_TEMPLATE_OPTIONS: AdvancedCustomTemplateOption[] =
         advanced_routes: [
           {
             incoming_path: '/v1/responses',
-            upstream_path: 'https://api.openai.com/v1/responses',
+            upstream_path: '/v1/responses',
             converter: 'none',
             auth: bearerHeaderAuth(),
           },
         ],
-        advanced_fallback: { enabled: false },
       },
     },
     {
@@ -206,12 +204,11 @@ export const ADVANCED_CUSTOM_TEMPLATE_OPTIONS: AdvancedCustomTemplateOption[] =
         advanced_routes: [
           {
             incoming_path: '/v1/embeddings',
-            upstream_path: 'https://api.openai.com/v1/embeddings',
+            upstream_path: '/v1/embeddings',
             converter: 'none',
             auth: bearerHeaderAuth(),
           },
         ],
-        advanced_fallback: { enabled: false },
       },
     },
     {
@@ -221,18 +218,17 @@ export const ADVANCED_CUSTOM_TEMPLATE_OPTIONS: AdvancedCustomTemplateOption[] =
         advanced_routes: [
           {
             incoming_path: '/v1/images/generations',
-            upstream_path: 'https://api.openai.com/v1/images/generations',
+            upstream_path: '/v1/images/generations',
             converter: 'none',
             auth: bearerHeaderAuth(),
           },
           {
             incoming_path: '/v1/images/edits',
-            upstream_path: 'https://api.openai.com/v1/images/edits',
+            upstream_path: '/v1/images/edits',
             converter: 'none',
             auth: bearerHeaderAuth(),
           },
         ],
-        advanced_fallback: { enabled: false },
       },
     },
     {
@@ -242,12 +238,11 @@ export const ADVANCED_CUSTOM_TEMPLATE_OPTIONS: AdvancedCustomTemplateOption[] =
         advanced_routes: [
           {
             incoming_path: '/v1/messages',
-            upstream_path: 'https://api.anthropic.com/v1/messages',
+            upstream_path: '/v1/messages',
             converter: 'none',
             auth: apiKeyHeaderAuth(),
           },
         ],
-        advanced_fallback: { enabled: false },
       },
     },
     {
@@ -257,27 +252,23 @@ export const ADVANCED_CUSTOM_TEMPLATE_OPTIONS: AdvancedCustomTemplateOption[] =
         advanced_routes: [
           {
             incoming_path: '/v1beta/models/{model}:generateContent',
-            upstream_path:
-              'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+            upstream_path: '/v1beta/models/{model}:generateContent',
             converter: 'none',
             auth: geminiQueryAuth(),
           },
           {
             incoming_path: '/v1beta/models/{model}:embedContent',
-            upstream_path:
-              'https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent',
+            upstream_path: '/v1beta/models/{model}:embedContent',
             converter: 'none',
             auth: geminiQueryAuth(),
           },
           {
             incoming_path: '/v1beta/models/{model}:batchEmbedContents',
-            upstream_path:
-              'https://generativelanguage.googleapis.com/v1beta/models/{model}:batchEmbedContents',
+            upstream_path: '/v1beta/models/{model}:batchEmbedContents',
             converter: 'none',
             auth: geminiQueryAuth(),
           },
         ],
-        advanced_fallback: { enabled: false },
       },
     },
     {
@@ -287,13 +278,11 @@ export const ADVANCED_CUSTOM_TEMPLATE_OPTIONS: AdvancedCustomTemplateOption[] =
         advanced_routes: [
           {
             incoming_path: '/v1/chat/completions',
-            upstream_path:
-              'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+            upstream_path: '/v1beta/models/{model}:generateContent',
             converter: 'openai_chat_completions_to_gemini_generate_content',
             auth: geminiQueryAuth(),
           },
         ],
-        advanced_fallback: { enabled: false },
       },
     },
   ]
@@ -325,7 +314,6 @@ export function createAdvancedCustomRoute(): AdvancedCustomRoute {
 export function createAdvancedCustomConfig(): AdvancedCustomConfig {
   return {
     advanced_routes: [createAdvancedCustomRoute()],
-    advanced_fallback: { enabled: false },
   }
 }
 
@@ -405,9 +393,6 @@ export function normalizeAdvancedCustomConfig(
 
   return {
     advanced_routes: routes,
-    advanced_fallback: {
-      enabled: config.advanced_fallback?.enabled === true,
-    },
   }
 }
 
@@ -420,11 +405,9 @@ export function validateAdvancedCustomConfig(
 
   const normalized = normalizeAdvancedCustomConfig(config)
   const routes = normalized.advanced_routes || []
-  const fallbackEnabled = normalized.advanced_fallback?.enabled === true
-  if (routes.length === 0 && !fallbackEnabled) {
+  if (routes.length === 0) {
     return {
-      message:
-        'Advanced custom configuration requires at least one route or fallback',
+      message: 'Advanced custom configuration requires at least one route',
     }
   }
 
@@ -492,17 +475,15 @@ export function advancedCustomConfigUsesRelativeUpstreamPath(
 
 export function getAdvancedCustomStats(value: string | undefined): {
   routeCount: number
-  fallbackEnabled: boolean
   valid: boolean
 } {
   const config = parseAdvancedCustomConfig(value)
   if (!config) {
-    return { routeCount: 0, fallbackEnabled: false, valid: false }
+    return { routeCount: 0, valid: false }
   }
   const normalized = normalizeAdvancedCustomConfig(config)
   return {
     routeCount: normalized.advanced_routes?.length || 0,
-    fallbackEnabled: normalized.advanced_fallback?.enabled === true,
     valid: validateAdvancedCustomConfig(normalized) === null,
   }
 }

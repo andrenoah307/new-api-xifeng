@@ -956,9 +956,6 @@ func (channel *Channel) ValidateSettings() error {
 		if channelOtherSettings.AdvancedCustom == nil {
 			return fmt.Errorf("advanced_custom is required")
 		}
-		if channelOtherSettings.AdvancedCustom.Fallback.Enabled && (channel.BaseURL == nil || strings.TrimSpace(*channel.BaseURL) == "") {
-			return fmt.Errorf("base_url is required when advanced_custom advanced_fallback is enabled")
-		}
 	}
 	if channelOtherSettings.AdvancedCustom != nil {
 		if err := channelOtherSettings.AdvancedCustom.Validate(); err != nil {
