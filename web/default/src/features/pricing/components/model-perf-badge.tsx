@@ -45,8 +45,8 @@ function formatCompactLatency(ms: number): string {
 
 function formatCompactThroughput(tps: number): string {
   if (!Number.isFinite(tps) || tps <= 0) return '—'
-  if (tps >= 1_000) return `${formatCompactNumber(tps / 1_000)}Ktps`
-  return `${formatCompactNumber(tps)}tps`
+  if (tps >= 1_000) return `${formatCompactNumber(tps / 1_000)}Kt`
+  return `${formatCompactNumber(tps)}t`
 }
 
 export const ModelPerfBadge = memo(function ModelPerfBadge(
