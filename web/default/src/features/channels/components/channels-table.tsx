@@ -55,6 +55,8 @@ import { useChannels } from './channels-provider'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 
 const route = getRouteApi('/_authenticated/channels/')
+const CHANNELS_COLUMN_VISIBILITY_STORAGE_KEY =
+  'channels:column-visibility'
 
 const CHANNEL_SORTABLE_COLUMNS = new Set<ChannelSortBy>([
   'id',
@@ -268,6 +270,7 @@ export function ChannelsTable() {
       models: false,
       tag: false,
     },
+    columnVisibilityStorageKey: CHANNELS_COLUMN_VISIBILITY_STORAGE_KEY,
     columnFilters,
     pagination,
     globalFilter,
