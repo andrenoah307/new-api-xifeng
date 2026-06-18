@@ -94,7 +94,7 @@ export function useDrawingLogsColumns(
         return (
           <div className='flex min-w-0 flex-col gap-0.5'>
             <span className='truncate font-mono text-xs tabular-nums'>
-              {formatTimestampToDate(submitTime)}
+              {formatTimestampToDate(submitTime, 'milliseconds')}
             </span>
             <StatusBadge
               label={t(mjStatusMapper.getLabel(log.status))}
