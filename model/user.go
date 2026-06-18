@@ -599,11 +599,25 @@ func (user *User) FinalizeOAuthUserCreation(inviterId int) {
 	}
 }
 
+// userProtectedColumns 是仅允许通过原子 gorm.Expr 自增/自减修改的余额与计数列。
+// 任何整行/结构体 Updates 都不得写这些列，否则并发的资料更新会用旧快照覆盖
+// 并发扣费结果（Lost Update）。新增此类原子计数列时务必同步登记到这里。
+var userProtectedColumns = []string{
+	"quota", "used_quota", "request_count",
+	"aff_count", "aff_quota", "aff_history",
+	"enforcement_hit_count_risk", "enforcement_hit_count_moderation",
+	"enforcement_window_start_at", "enforcement_last_hit_at",
+	"enforcement_email_window_start_at", "enforcement_email_count_in_window",
+	"enforcement_ban_email_window_start_at", "enforcement_ban_email_count_in_window",
+	"enforcement_auto_banned_at", "risk_warning_pending_at",
+}
+
 func (user *User) Update(updatePassword bool) error {
 	if err := user.UpdateWithTx(DB, updatePassword); err != nil {
 		return err
 	}
-	return updateUserCache(*user)
+	// 失效缓存而非整 hash 覆盖，避免旧 quota 快照覆盖原子扣费（Lost Update）。
+	return invalidateUserCache(user.Id)
 }
 
 func (user *User) UpdateWithTx(tx *gorm.DB, updatePassword bool) error {
@@ -619,17 +633,24 @@ func (user *User) UpdateWithTx(tx *gorm.DB, updatePassword bool) error {
 	if err = tx.First(&current, user.Id).Error; err != nil {
 		return err
 	}
-	if err = tx.Model(&current).Omit("quota", "used_quota", "request_count").Updates(newUser).Error; err != nil {
+	// 用 Omit 排除原子计数列，避免旧快照覆盖并发扣费；其余字段照常更新。
+	if err = tx.Model(&current).Omit(userProtectedColumns...).Updates(newUser).Error; err != nil {
 		return err
 	}
-	return tx.First(user, user.Id).Error
+	if err = tx.First(user, user.Id).Error; err != nil {
+		return err
+	}
+	// 失效缓存而非整 hash 覆盖：updateUserCache 会用旧 quota 快照覆盖 RedisHIncrBy 的
+	// 原子自减，造成缓存侧 Lost Update。失效后下次读自动从库重建。
+	return invalidateUserCache(user.Id)
 }
 
 func (user *User) Edit(updatePassword bool) error {
 	if err := user.EditWithTx(DB, updatePassword); err != nil {
 		return err
 	}
-	return updateUserCache(*user)
+	// 失效缓存而非整 hash 覆盖，避免旧 quota 快照覆盖原子扣费（Lost Update）。
+	return invalidateUserCache(user.Id)
 }
 
 func (user *User) EditWithTx(tx *gorm.DB, updatePassword bool) error {
@@ -660,7 +681,11 @@ func (user *User) EditWithTx(tx *gorm.DB, updatePassword bool) error {
 	if err = tx.Model(&current).Updates(updates).Error; err != nil {
 		return err
 	}
-	return tx.First(user, user.Id).Error
+	if err = tx.First(user, user.Id).Error; err != nil {
+		return err
+	}
+	// 失效缓存而非整 hash 覆盖 Quota（Lost Update，详见 User.Update）。
+	return invalidateUserCache(user.Id)
 }
 
 func (user *User) ClearBinding(bindingType string) error {
@@ -691,7 +716,8 @@ func (user *User) ClearBinding(bindingType string) error {
 		return err
 	}
 
-	return updateUserCache(*user)
+	// 失效缓存而非整 hash 覆盖 Quota（Lost Update，详见 User.Update）。
+	return invalidateUserCache(user.Id)
 }
 
 func (user *User) Delete() error {

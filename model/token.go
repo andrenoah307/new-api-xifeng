@@ -252,8 +252,9 @@ func GetTokenById(id int) (*Token, error) {
 	err = DB.First(&token, "id = ?", id).Error
 	if shouldUpdateRedis(true, err) {
 		gopool.Go(func() {
-			if err := cacheSetToken(token); err != nil {
-				common.SysLog("failed to update user status cache: " + err.Error())
+			// 失效而非整 hash 覆盖 RemainQuota（Lost Update）；失效后下次读从库重建。
+			if err := cacheDeleteToken(token.Key); err != nil {
+				common.SysLog("failed to invalidate token cache: " + err.Error())
 			}
 		})
 	}
@@ -295,9 +296,9 @@ func (token *Token) Update() (err error) {
 	defer func() {
 		if shouldUpdateRedis(true, err) {
 			gopool.Go(func() {
-				err := cacheSetToken(*token)
-				if err != nil {
-					common.SysLog("failed to update token cache: " + err.Error())
+				// 失效而非整 hash 覆盖 RemainQuota（Lost Update）；失效后下次读从库重建。
+				if err := cacheDeleteToken(token.Key); err != nil {
+					common.SysLog("failed to invalidate token cache: " + err.Error())
 				}
 			})
 		}
@@ -311,9 +312,9 @@ func (token *Token) SelectUpdate() (err error) {
 	defer func() {
 		if shouldUpdateRedis(true, err) {
 			gopool.Go(func() {
-				err := cacheSetToken(*token)
-				if err != nil {
-					common.SysLog("failed to update token cache: " + err.Error())
+				// 失效而非整 hash 覆盖 RemainQuota（Lost Update）；失效后下次读从库重建。
+				if err := cacheDeleteToken(token.Key); err != nil {
+					common.SysLog("failed to invalidate token cache: " + err.Error())
 				}
 			})
 		}
