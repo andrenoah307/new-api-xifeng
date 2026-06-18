@@ -139,6 +139,8 @@
     "active users": "アクティブユーザー",
     "Actual Amount": "実際の金額",
     "Plan Price": "プラン価格",
+    "Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.": "ユーザーがこのプランを購入する際に支払う金額。実際の通貨は決済ゲートウェイによって異なります。",
+    "Amount the user pays to purchase this plan (USD).": "ユーザーがこのプランを購入する際に支払う金額（USD）。",
     "Plan Quota": "プランのクォータ",
     "Total quota included in the plan, usable per billing period. 0 means unlimited.": "プランに含まれる合計クォータ。請求期間ごとに使用可能。0 は無制限を意味します。",
     "Actual Model": "実際のモデル",

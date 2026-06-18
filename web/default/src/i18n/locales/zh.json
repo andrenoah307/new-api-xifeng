@@ -139,6 +139,8 @@
     "active users": "活跃用户",
     "Actual Amount": "实付金额",
     "Plan Price": "套餐价格",
+    "Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.": "用户购买该套餐需支付的金额，具体币种由支付渠道决定",
+    "Amount the user pays to purchase this plan (USD).": "用户购买该套餐需支付的金额（美元）。",
     "Plan Quota": "套餐额度",
     "Total quota included in the plan, usable per billing period. 0 means unlimited.": "套餐包含的总额度，每个计费周期可用；0 表示不限量",
     "Actual Model": "实际模型",

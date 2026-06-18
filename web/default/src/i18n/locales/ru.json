@@ -139,6 +139,8 @@
     "active users": "активных пользователей",
     "Actual Amount": "Фактическая сумма",
     "Plan Price": "Цена тарифа",
+    "Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.": "Сумма, которую пользователь платит за покупку тарифа; фактическая валюта зависит от платёжного шлюза.",
+    "Amount the user pays to purchase this plan (USD).": "Сумма, которую пользователь платит за покупку этого тарифа (USD).",
     "Plan Quota": "Квота тарифа",
     "Total quota included in the plan, usable per billing period. 0 means unlimited.": "Общая квота, включённая в тариф, доступна за каждый расчётный период. 0 означает безлимит.",
     "Actual Model": "Фактическая модель",

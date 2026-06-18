@@ -139,6 +139,8 @@
     "active users": "Người dùng tích cực",
     "Actual Amount": "Số tiền thực tế",
     "Plan Price": "Giá gói",
+    "Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.": "Số tiền người dùng trả để mua gói này; loại tiền tệ thực tế tùy thuộc vào cổng thanh toán.",
+    "Amount the user pays to purchase this plan (USD).": "Số tiền người dùng trả để mua gói này (USD).",
     "Plan Quota": "Hạn ngạch gói",
     "Total quota included in the plan, usable per billing period. 0 means unlimited.": "Tổng hạn ngạch bao gồm trong gói, dùng được mỗi kỳ thanh toán. 0 nghĩa là không giới hạn.",
     "Actual Model": "Mô hình thực tế",

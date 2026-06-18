@@ -139,6 +139,8 @@
     "active users": "active users",
     "Actual Amount": "Actual Amount",
     "Plan Price": "Plan Price",
+    "Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.": "Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.",
+    "Amount the user pays to purchase this plan (USD).": "Amount the user pays to purchase this plan (USD).",
     "Plan Quota": "Plan Quota",
     "Total quota included in the plan, usable per billing period. 0 means unlimited.": "Total quota included in the plan, usable per billing period. 0 means unlimited.",
     "Actual Model": "Actual Model",

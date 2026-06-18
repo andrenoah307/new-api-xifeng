@@ -139,6 +139,8 @@
     "active users": "utilisateurs actifs",
     "Actual Amount": "Montant réel",
     "Plan Price": "Prix du forfait",
+    "Amount the user pays to purchase this plan; the actual currency depends on the payment gateway.": "Montant que l'utilisateur paie pour acheter ce forfait ; la devise réelle dépend de la passerelle de paiement.",
+    "Amount the user pays to purchase this plan (USD).": "Montant que l'utilisateur paie pour acheter ce forfait (USD).",
     "Plan Quota": "Quota du forfait",
     "Total quota included in the plan, usable per billing period. 0 means unlimited.": "Quota total inclus dans le forfait, utilisable par période de facturation. 0 signifie illimité.",
     "Actual Model": "Modèle réel",
