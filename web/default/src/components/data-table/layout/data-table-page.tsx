@@ -1,3 +1,8 @@
+import type {
+  ColumnDef,
+  Row,
+  Table as TanstackTable,
+} from '@tanstack/react-table'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -17,14 +22,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import * as React from 'react'
-import {
-  type ColumnDef,
-  type Row,
-  type Table as TanstackTable,
-} from '@tanstack/react-table'
+
+import { PageFooterPortal } from '@/components/layout'
 import { useMediaQuery } from '@/hooks'
 import { cn } from '@/lib/utils'
-import { PageFooterPortal } from '@/components/layout'
+
 import {
   DataTableView,
   type DataTableColumnClassName,
@@ -32,15 +34,15 @@ import {
   type DataTableRenderRowHelpers,
 } from '../core/data-table-view'
 import { DataTablePagination } from '../core/pagination'
-import { DataTableToolbar } from '../toolbar/toolbar'
-import { DataTableViewModeToggle } from '../toolbar/view-mode-toggle'
 import {
   DATA_TABLE_VIEW_MODES,
   useDataTableViewMode,
   type DataTableViewMode,
 } from '../hooks/use-data-table-view-mode'
-import { MobileCardList } from './mobile-card-list'
+import { DataTableToolbar } from '../toolbar/toolbar'
+import { DataTableViewModeToggle } from '../toolbar/view-mode-toggle'
 import { DataTableCardGrid } from './card-grid'
+import { MobileCardList } from './mobile-card-list'
 
 /**
  * Pass-through configuration for the default {@link DataTableToolbar}.
@@ -376,7 +378,9 @@ function renderToolbar<TData>(
 function renderPagination<TData>(
   props: DataTablePageProps<TData>
 ): React.ReactNode {
-  if (props.showPagination === false) return null
+  if (props.showPagination === false) {
+    return null
+  }
 
   const pagination = <DataTablePagination table={props.table} />
 
@@ -391,7 +395,9 @@ function renderMobile<TData>(
   props: DataTablePageProps<TData>,
   showMobile: boolean
 ): React.ReactNode {
-  if (!showMobile) return null
+  if (!showMobile) {
+    return null
+  }
 
   const ownGetRowClassName = props.getRowClassName
   const mobileGetRowClassName =
@@ -436,7 +442,9 @@ function renderDesktop<TData>(
   cardViewActive: boolean,
   viewMode: DataTableViewMode
 ): React.ReactNode {
-  if (showMobile) return null
+  if (showMobile) {
+    return null
+  }
 
   const isFetchingOnly = props.isFetching && !props.isLoading
   const fixedHeight = props.fixedHeight !== false
@@ -481,8 +489,7 @@ function renderDesktop<TData>(
       splitHeader={fixedHeight}
       tableContainerClassName={fixedHeight ? 'h-full min-h-0' : undefined}
       tableHeaderClassName={cn(
-        fixedHeight &&
-          '[background-color:color-mix(in_oklch,var(--muted)_30%,var(--background))]',
+        fixedHeight && '[background-color:var(--table-header)]',
         props.tableHeaderClassName
       )}
       getColumnClassName={props.getColumnClassName}
