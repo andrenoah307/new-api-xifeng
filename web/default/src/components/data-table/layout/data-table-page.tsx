@@ -33,7 +33,14 @@ import {
 } from '../core/data-table-view'
 import { DataTablePagination } from '../core/pagination'
 import { DataTableToolbar } from '../toolbar/toolbar'
+import { DataTableViewModeToggle } from '../toolbar/view-mode-toggle'
+import {
+  DATA_TABLE_VIEW_MODES,
+  useDataTableViewMode,
+  type DataTableViewMode,
+} from '../hooks/use-data-table-view-mode'
 import { MobileCardList } from './mobile-card-list'
+import { DataTableCardGrid } from './card-grid'
 
 /**
  * Pass-through configuration for the default {@link DataTableToolbar}.
@@ -209,6 +216,53 @@ export type DataTablePageProps<TData> = {
    * outside the scrollable body automatically.
    */
   tableHeaderClassName?: string
+
+  /**
+   * Opt into the table/card view toggle. Defaults to `false`, so existing
+   * pages render the table only and behave exactly as before. When enabled, a
+   * {@link DataTableViewModeToggle} is injected into the default toolbar
+   * (requires `toolbarProps`; ignored when a fully custom `toolbar` is used)
+   * and the desktop view switches between the table and a card grid.
+   *
+   * The mobile layout is unaffected — it always renders the mobile list.
+   */
+  enableCardView?: boolean
+
+  /**
+   * Controlled view mode. When provided, `onViewModeChange` should update it.
+   * Leave unset to let the page manage view mode internally (optionally
+   * persisted via `viewModeStorageKey`).
+   */
+  viewMode?: DataTableViewMode
+
+  /**
+   * Change handler for the controlled `viewMode`.
+   */
+  onViewModeChange?: (mode: DataTableViewMode) => void
+
+  /**
+   * localStorage key for persisting the (uncontrolled) view mode per table.
+   * Ignored when `viewMode` is controlled.
+   */
+  viewModeStorageKey?: string
+
+  /**
+   * Initial (uncontrolled) view mode. Defaults to `'table'`.
+   */
+  defaultViewMode?: DataTableViewMode
+
+  /**
+   * Custom card renderer for card view. When omitted, cards are generated
+   * generically from the column definitions (driven by column meta).
+   */
+  renderCard?: React.ComponentProps<
+    typeof DataTableCardGrid<TData>
+  >['renderCard']
+
+  /**
+   * Responsive grid className override for the card view.
+   */
+  cardGridClassName?: string
 }
 
 /**
@@ -236,9 +290,21 @@ export function DataTablePage<TData>(props: DataTablePageProps<TData>) {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const showMobile = isMobile && !props.hideMobile
 
-  const toolbarNode = renderToolbar(props)
+  const [internalViewMode, setInternalViewMode] = useDataTableViewMode({
+    storageKey: props.viewModeStorageKey,
+    defaultMode: props.defaultViewMode,
+  })
+  const viewMode = props.viewMode ?? internalViewMode
+  const setViewMode = props.onViewModeChange ?? setInternalViewMode
+  const cardViewActive = !!props.enableCardView
+
+  const viewToggle = cardViewActive ? (
+    <DataTableViewModeToggle value={viewMode} onChange={setViewMode} />
+  ) : undefined
+
+  const toolbarNode = renderToolbar(props, viewToggle)
   const mobileNode = renderMobile(props, showMobile)
-  const desktopNode = renderDesktop(props, showMobile)
+  const desktopNode = renderDesktop(props, showMobile, cardViewActive, viewMode)
   const paginationNode = renderPagination(props)
 
   return (
@@ -267,16 +333,24 @@ export function DataTablePage<TData>(props: DataTablePageProps<TData>) {
 }
 
 function renderToolbar<TData>(
-  props: DataTablePageProps<TData>
+  props: DataTablePageProps<TData>,
+  viewToggle: React.ReactNode
 ): React.ReactNode {
   if (props.toolbar !== undefined) {
+    // Fully custom toolbar: the consumer owns layout, including any toggle.
     return props.toolbar
   }
   if (props.toolbarProps === null) {
     return null
   }
   if (props.toolbarProps) {
-    return <DataTableToolbar table={props.table} {...props.toolbarProps} />
+    return (
+      <DataTableToolbar
+        table={props.table}
+        {...props.toolbarProps}
+        viewToggle={props.toolbarProps.viewToggle ?? viewToggle}
+      />
+    )
   }
   return null
 }
@@ -323,12 +397,40 @@ function renderMobile<TData>(
 
 function renderDesktop<TData>(
   props: DataTablePageProps<TData>,
-  showMobile: boolean
+  showMobile: boolean,
+  cardViewActive: boolean,
+  viewMode: DataTableViewMode
 ): React.ReactNode {
   if (showMobile) return null
 
   const isFetchingOnly = props.isFetching && !props.isLoading
   const fixedHeight = props.fixedHeight !== false
+
+  if (cardViewActive && viewMode === DATA_TABLE_VIEW_MODES.CARD) {
+    return (
+      <div
+        className={cn(
+          fixedHeight && 'min-h-0 flex-1 overflow-y-auto',
+          'transition-opacity duration-150',
+          isFetchingOnly && 'pointer-events-none opacity-60'
+        )}
+      >
+        <DataTableCardGrid
+          table={props.table}
+          isLoading={props.isLoading}
+          emptyTitle={props.emptyTitle}
+          emptyDescription={props.emptyDescription}
+          emptyIcon={props.emptyIcon}
+          renderCard={props.renderCard}
+          gridClassName={props.cardGridClassName}
+          skeletonKeyPrefix={props.skeletonKeyPrefix}
+          getRowClassName={(row) =>
+            props.getRowClassName?.(row, { isMobile: false })
+          }
+        />
+      </div>
+    )
+  }
 
   return (
     <DataTableView
