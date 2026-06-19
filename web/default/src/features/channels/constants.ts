@@ -24,10 +24,10 @@ For commercial licensing, please contact support@quantumnous.com
 export const CHANNEL_TYPES = {
   0: 'Unknown',
   1: 'OpenAI',
-  2: 'Midjourney',
+  2: 'MjProxy',
   3: 'Azure',
   4: 'Ollama',
-  5: 'MidjourneyPlus',
+  5: 'MjProxyPlus',
   // 6: 'OpenAIMax',
   7: 'OhMyGPT',
   8: 'Custom',
