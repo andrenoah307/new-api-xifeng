@@ -64,4 +64,4 @@ export const DISABLED_ROW_DESKTOP =
   '[--data-table-card-bg:var(--table-disabled)] hover:[--data-table-card-bg:var(--table-disabled-hover)] [background-color:var(--table-disabled)] hover:[background-color:var(--table-disabled-hover)] [&>td:first-child]:[border-left-color:var(--table-disabled-border)] [&>td:first-child]:border-l-4 [&>td:first-child]:pl-1'
 
 export const DISABLED_ROW_MOBILE =
-  '[--data-table-card-bg:var(--table-disabled)] [background-color:var(--table-disabled)] border-l-4 [border-left-color:var(--table-disabled-border)]'
+  '[--data-table-card-bg:var(--table-disabled)] [background-color:var(--table-disabled)]'
