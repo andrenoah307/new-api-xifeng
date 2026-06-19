@@ -132,6 +132,17 @@ export type DataTablePageProps<TData> = {
   hideMobile?: boolean
 
   /**
+   * Render the card view on mobile instead of the default {@link MobileCardList}.
+   * When enabled, the mobile layout reuses the same {@link DataTableCardGrid}
+   * (and therefore `renderCard` / `cardGridClassName`) as the desktop card view,
+   * stacked in a single column. Falls back to the generic card content when no
+   * `renderCard` is provided. Ignored when a custom `mobile` slot is supplied.
+   *
+   * Defaults to `false`, so existing pages keep the list-style mobile layout.
+   */
+  mobileCardView?: boolean
+
+  /**
    * Row className resolver — applied to both desktop `TableRow` and mobile card.
    * Composes with the default `data-state="selected"` styling on desktop.
    * The `ctx.isMobile` flag is provided so consumers can return the
@@ -247,7 +258,9 @@ export type DataTablePageProps<TData> = {
   viewModeStorageKey?: string
 
   /**
-   * Initial (uncontrolled) view mode. Defaults to `'table'`.
+   * Initial (uncontrolled) view mode. When unset, defaults to `'card'` if
+   * `enableCardView` is `true`, otherwise `'table'`. A persisted selection
+   * (via `viewModeStorageKey`) always takes precedence over this default.
    */
   defaultViewMode?: DataTableViewMode
 
@@ -292,7 +305,12 @@ export function DataTablePage<TData>(props: DataTablePageProps<TData>) {
 
   const [internalViewMode, setInternalViewMode] = useDataTableViewMode({
     storageKey: props.viewModeStorageKey,
-    defaultMode: props.defaultViewMode,
+    // When card view is enabled, prefer it as the default unless the consumer
+    // explicitly opts into a different initial mode. A persisted choice (via
+    // `viewModeStorageKey`) still takes precedence over this default.
+    defaultMode:
+      props.defaultViewMode ??
+      (props.enableCardView ? DATA_TABLE_VIEW_MODES.CARD : undefined),
   })
   const viewMode = props.viewMode ?? internalViewMode
   const setViewMode = props.onViewModeChange ?? setInternalViewMode
@@ -381,16 +399,33 @@ function renderMobile<TData>(
     (ownGetRowClassName
       ? (row: Row<TData>) => ownGetRowClassName(row, { isMobile: true })
       : undefined)
-  const mobileContent = props.mobile ?? (
-    <MobileCardList
-      table={props.table}
-      isLoading={props.isLoading}
-      emptyTitle={props.emptyTitle}
-      emptyDescription={props.emptyDescription}
-      getRowKey={props.mobileProps?.getRowKey}
-      getRowClassName={mobileGetRowClassName}
-    />
-  )
+
+  let mobileContent = props.mobile
+  if (mobileContent === undefined) {
+    mobileContent = props.mobileCardView ? (
+      <DataTableCardGrid
+        table={props.table}
+        isLoading={props.isLoading}
+        emptyTitle={props.emptyTitle}
+        emptyDescription={props.emptyDescription}
+        emptyIcon={props.emptyIcon}
+        renderCard={props.renderCard}
+        gridClassName={props.cardGridClassName ?? 'grid grid-cols-1 gap-3'}
+        skeletonKeyPrefix={props.skeletonKeyPrefix}
+        getRowKey={props.mobileProps?.getRowKey}
+        getRowClassName={mobileGetRowClassName}
+      />
+    ) : (
+      <MobileCardList
+        table={props.table}
+        isLoading={props.isLoading}
+        emptyTitle={props.emptyTitle}
+        emptyDescription={props.emptyDescription}
+        getRowKey={props.mobileProps?.getRowKey}
+        getRowClassName={mobileGetRowClassName}
+      />
+    )
+  }
 
   return <div className='min-h-0 flex-1 overflow-y-auto'>{mobileContent}</div>
 }

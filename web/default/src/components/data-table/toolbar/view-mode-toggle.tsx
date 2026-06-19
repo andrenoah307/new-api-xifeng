@@ -51,14 +51,14 @@ export function DataTableViewModeToggle(props: DataTableViewModeToggleProps) {
 
   const segments: Segment[] = [
     {
-      value: DATA_TABLE_VIEW_MODES.TABLE,
-      icon: Table2,
-      tooltip: t('Table view'),
-    },
-    {
       value: DATA_TABLE_VIEW_MODES.CARD,
       icon: Grid2X2,
       tooltip: t('Card view'),
+    },
+    {
+      value: DATA_TABLE_VIEW_MODES.TABLE,
+      icon: Table2,
+      tooltip: t('Table view'),
     },
   ]
 
