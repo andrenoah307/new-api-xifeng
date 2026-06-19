@@ -409,7 +409,7 @@ export function ChannelsTable() {
             singleSelect: true,
           },
         ],
-        afterFilters: (
+        preActions: (
           <Tooltip>
             <TooltipTrigger
               render={
