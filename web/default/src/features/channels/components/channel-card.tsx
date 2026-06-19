@@ -18,19 +18,12 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { flexRender, type Row } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
+import { cn } from '@/lib/utils'
 import { GroupBadge } from '@/components/group-badge'
 import { CHANNEL_STATUS } from '../constants'
 import { isTagAggregateRow, parseGroupsList } from '../lib'
 import type { Channel } from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
-
-/**
- * Field columns rendered in the labelled grid (in display order). The first
- * row (`select`, `type`, `status`, `actions`), the channel name row
- * (`#id` label + `name`, aligned with `priority`/`weight`), and the
- * full-width `group` row are laid out separately around the grid.
- */
-const FIELD_COLUMN_IDS = ['balance', 'response_time', 'test_time'] as const
 
 /**
  * Bespoke channel card for the card view. Reuses every column's existing cell
@@ -68,6 +61,11 @@ export function ChannelCard({ row }: { row: Row<Channel> }) {
   const actionsCell = renderCell('actions')
   const priorityCell = renderCell('priority')
   const weightCell = renderCell('weight')
+  const balanceCell = renderCell('balance')
+  const responseCell = renderCell('response_time')
+  const testCell = renderCell('test_time')
+
+  const labelClass = 'text-muted-foreground text-[11px] font-medium select-none'
 
   // In card view the enable/disable state is already conveyed by the inline
   // power toggle, so the plain "Enabled"/"Disabled" badge is redundant. Keep
@@ -95,44 +93,44 @@ export function ChannelCard({ row }: { row: Row<Channel> }) {
         </div>
       </div>
 
-      {/* Row 2: channel id + name (left) aligned with priority/weight (right) */}
+      {/* Body: left column (id/name + balance) paired with a right-aligned
+          column (priority/weight + response/test time). */}
       <div className='flex items-start justify-between gap-3'>
-        <div className='min-w-0 flex-1 overflow-hidden text-sm'>
-          {!isTagRow && (
-            <div className='text-muted-foreground text-[11px] font-medium tracking-wide uppercase select-none'>
-              #{row.original.id}
+        {/* Left column */}
+        <div className='flex min-w-0 flex-1 flex-col gap-3 overflow-hidden'>
+          <div className='min-w-0 text-sm'>
+            {!isTagRow && <div className={labelClass}>#{row.original.id}</div>}
+            {nameCell}
+          </div>
+          <div className='min-w-0'>
+            <div className={cn('mb-1', labelClass)}>{fieldLabels.balance}</div>
+            <div className='min-w-0 overflow-hidden text-sm'>
+              {balanceCell ?? <span className='text-muted-foreground'>-</span>}
             </div>
-          )}
-          {nameCell}
+          </div>
         </div>
-        <div className='grid flex-shrink-0 grid-cols-2 items-center gap-x-3 text-center'>
-          <span className='text-muted-foreground text-[11px] font-medium tracking-wide uppercase select-none'>
-            {t('Priority')}
-          </span>
-          <span className='text-muted-foreground text-[11px] font-medium tracking-wide uppercase select-none'>
-            {t('Weight')}
-          </span>
-          <div className='flex justify-center'>{priorityCell}</div>
-          <div className='flex justify-center'>{weightCell}</div>
-        </div>
-      </div>
 
-      {/* Body: labelled fields for the remaining columns. Three fields share a
-          single row at every width (the card is wide enough even on phones). */}
-      <div className='grid grid-cols-3 gap-x-4 gap-y-3'>
-        {FIELD_COLUMN_IDS.map((id) => {
-          const content = renderCell(id)
-          return (
-            <div key={id} className='min-w-0'>
-              <div className='text-muted-foreground mb-1 text-[11px] font-medium tracking-wide uppercase select-none'>
-                {fieldLabels[id]}
-              </div>
-              <div className='min-w-0 overflow-hidden text-sm'>
-                {content ?? <span className='text-muted-foreground'>-</span>}
-              </div>
+        {/* Right column (sits on the right, content left-aligned) */}
+        <div className='flex flex-shrink-0 flex-col gap-3'>
+          <div className='grid grid-cols-2 items-center gap-x-3'>
+            <span className={labelClass}>{t('Priority')}</span>
+            <span className={labelClass}>{t('Weight')}</span>
+            <div className='flex justify-start'>{priorityCell}</div>
+            <div className='flex justify-start'>{weightCell}</div>
+          </div>
+          <div className='grid grid-cols-2 gap-x-3'>
+            <div className={cn('mb-1', labelClass)}>
+              {fieldLabels.response_time}
             </div>
-          )
-        })}
+            <div className={cn('mb-1', labelClass)}>{fieldLabels.test_time}</div>
+            <div className='overflow-hidden text-sm'>
+              {responseCell ?? <span className='text-muted-foreground'>-</span>}
+            </div>
+            <div className='overflow-hidden text-sm'>
+              {testCell ?? <span className='text-muted-foreground'>-</span>}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Last row: groups span the full width, showing every group (no label) */}
