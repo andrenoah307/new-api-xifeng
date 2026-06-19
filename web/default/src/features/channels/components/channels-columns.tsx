@@ -285,6 +285,7 @@ function WeightCell({ channel }: { channel: Channel }) {
  * notation (e.g. "$28万"); the precise value stays available in the tooltip.
  */
 const MAX_INLINE_BALANCE_CHARS = 8
+const SENSITIVE_MASK = '••••'
 
 /**
  * Balance cell component with click to update
@@ -292,6 +293,7 @@ const MAX_INLINE_BALANCE_CHARS = 8
 function BalanceCell({ channel }: { channel: Channel }) {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
+  const { sensitiveVisible } = useChannels()
   const isTagRow = isTagAggregateRow(channel)
   const balance = channel.balance || 0
   const usedQuota = channel.used_quota || 0
@@ -320,6 +322,8 @@ function BalanceCell({ channel }: { channel: Channel }) {
       : remainingFull
   const usedLabel = `${t('Used:')} ${usedFull}`
   const remainingLabel = `${t('Remaining:')} ${remainingFull}`
+  const maskedUsedLabel = `${t('Used:')} ${SENSITIVE_MASK}`
+  const maskedRemainingLabel = `${t('Remaining:')} ${SENSITIVE_MASK}`
 
   // Tag row: only show cumulative used quota
   if (isTagRow) {
@@ -329,7 +333,11 @@ function BalanceCell({ channel }: { channel: Channel }) {
           <TooltipTrigger
             render={
               <StatusBadge
-                label={`${t('Used:')} ${usedDisplay}`}
+                label={
+                  sensitiveVisible
+                    ? `${t('Used:')} ${usedDisplay}`
+                    : maskedUsedLabel
+                }
                 variant='neutral'
                 size='sm'
                 copyable={false}
@@ -339,7 +347,7 @@ function BalanceCell({ channel }: { channel: Channel }) {
             }
           />
           <TooltipContent>
-            <p>{usedLabel}</p>
+            <p>{sensitiveVisible ? usedLabel : maskedUsedLabel}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -376,11 +384,19 @@ function BalanceCell({ channel }: { channel: Channel }) {
     await handleUpdateChannelBalance(channel.id, queryClient)
     setIsUpdating(false)
   }
-  let remainingBadgeLabel = remainingDisplay
-  if (isUpdating) {
+  let remainingBadgeLabel = sensitiveVisible
+    ? remainingDisplay
+    : SENSITIVE_MASK
+  if (sensitiveVisible && isUpdating) {
     remainingBadgeLabel = t('Updating...')
-  } else if (channel.type === 57) {
+  } else if (sensitiveVisible && channel.type === 57) {
     remainingBadgeLabel = t('Account Info')
+  }
+  let remainingTooltipLabel = remainingLabel
+  if (!sensitiveVisible) {
+    remainingTooltipLabel = maskedRemainingLabel
+  } else if (channel.type === 57) {
+    remainingTooltipLabel = t('Click to view Codex usage')
   }
   let remainingBadgeVariant: StatusBadgeProps['variant'] = variant
   if (channel.type === 57) {
@@ -396,7 +412,7 @@ function BalanceCell({ channel }: { channel: Channel }) {
           <TooltipTrigger
             render={
               <StatusBadge
-                label={usedDisplay}
+                label={sensitiveVisible ? usedDisplay : SENSITIVE_MASK}
                 variant='neutral'
                 size='sm'
                 copyable={false}
@@ -406,7 +422,7 @@ function BalanceCell({ channel }: { channel: Channel }) {
             }
           />
           <TooltipContent>
-            <p>{usedLabel}</p>
+            <p>{sensitiveVisible ? usedLabel : maskedUsedLabel}</p>
           </TooltipContent>
         </Tooltip>
         <Tooltip>
@@ -424,11 +440,7 @@ function BalanceCell({ channel }: { channel: Channel }) {
             }
           />
           <TooltipContent>
-            <p>
-              {channel.type === 57
-                ? t('Click to view Codex usage')
-                : remainingLabel}
-            </p>
+            <p>{remainingTooltipLabel}</p>
             {channel.type !== 57 && <p>{t('Click to update balance')}</p>}
           </TooltipContent>
         </Tooltip>
@@ -439,6 +451,8 @@ function BalanceCell({ channel }: { channel: Channel }) {
         onOpenChange={setCodexUsageOpen}
         channelName={channel.name}
         channelId={channel.id}
+        channelDisplayName={sensitiveVisible ? undefined : SENSITIVE_MASK}
+        channelDisplayId={sensitiveVisible ? undefined : SENSITIVE_MASK}
         response={codexUsageResponse}
         onRefresh={async () => {
           if (isUpdating) {
@@ -472,6 +486,7 @@ function BalanceCell({ channel }: { channel: Channel }) {
  */
 export function useChannelsColumns(): ColumnDef<Channel>[] {
   const { t, i18n } = useTranslation()
+  const { sensitiveVisible } = useChannels()
   const locale = i18n.resolvedLanguage || i18n.language
   return [
     // Checkbox column
@@ -513,7 +528,7 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
       meta: { mobileHidden: true },
       cell: ({ row }) => {
         const id = row.getValue('id') as number
-        return <TableId value={id} />
+        return <TableId value={sensitiveVisible ? id : SENSITIVE_MASK} />
       },
       size: 80,
     },
@@ -570,7 +585,7 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
             <div className='flex flex-col gap-1'>
               <div className='flex items-center gap-1.5'>
                 <TruncatedText
-                  text={name}
+                  text={sensitiveVisible ? name : SENSITIVE_MASK}
                   className='font-medium'
                   maxWidth='max-w-[180px]'
                 />
@@ -929,7 +944,12 @@ export function useChannelsColumns(): ColumnDef<Channel>[] {
         return (
           <BadgeListCell
             items={groupArray.map((g) => (
-              <GroupBadge key={g} group={g} size='sm' />
+              <GroupBadge
+                key={g}
+                group={g}
+                label={sensitiveVisible ? undefined : SENSITIVE_MASK}
+                size='sm'
+              />
             ))}
           />
         )

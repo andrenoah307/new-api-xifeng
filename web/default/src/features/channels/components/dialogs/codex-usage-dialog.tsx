@@ -139,6 +139,8 @@ type CodexUsageDialogProps = {
   onOpenChange: (open: boolean) => void
   channelName?: string
   channelId?: number
+  channelDisplayName?: string
+  channelDisplayId?: string
   response: CodexUsageDialogData | null
   onRefresh?: () => void | Promise<void>
   isRefreshing?: boolean
@@ -885,6 +887,8 @@ export function CodexUsageDialog({
   onOpenChange,
   channelName,
   channelId,
+  channelDisplayName,
+  channelDisplayId,
   response,
   onRefresh,
   isRefreshing,
@@ -931,9 +935,14 @@ export function CodexUsageDialog({
     ? String(resetCredits)
     : '-'
   const canResetCodexUsage = Number(resetCredits) > 0
-  const channelLabel = `${channelName || '-'}${
-    channelId ? ` (#${channelId})` : ''
-  }`
+  const channelLabelName = channelDisplayName ?? channelName ?? '-'
+  let channelLabelId = ''
+  if (channelDisplayId != null) {
+    channelLabelId = ` (#${channelDisplayId})`
+  } else if (channelId) {
+    channelLabelId = ` (#${channelId})`
+  }
+  const channelLabel = `${channelLabelName}${channelLabelId}`
   const { fiveHourWindow, weeklyWindow } = resolveRateLimitWindows(payload)
 
   const errorMessage =

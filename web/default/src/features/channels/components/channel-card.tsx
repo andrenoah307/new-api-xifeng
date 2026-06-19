@@ -24,6 +24,9 @@ import { CHANNEL_STATUS } from '../constants'
 import { isTagAggregateRow, parseGroupsList } from '../lib'
 import type { Channel } from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
+import { useChannels } from './channels-provider'
+
+const SENSITIVE_MASK = '••••'
 
 /**
  * Bespoke channel card for the card view. Reuses every column's existing cell
@@ -35,6 +38,7 @@ import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
  */
 export function ChannelCard({ row }: { row: Row<Channel> }) {
   const { t } = useTranslation()
+  const { sensitiveVisible } = useChannels()
   const isTagRow = isTagAggregateRow(row.original)
   const cells = row.getAllCells()
 
@@ -99,7 +103,11 @@ export function ChannelCard({ row }: { row: Row<Channel> }) {
         {/* Left column */}
         <div className='flex min-w-0 flex-1 flex-col gap-3 overflow-hidden'>
           <div className='min-w-0 text-sm'>
-            {!isTagRow && <div className={labelClass}>#{row.original.id}</div>}
+            {!isTagRow && (
+              <div className={labelClass}>
+                #{sensitiveVisible ? row.original.id : SENSITIVE_MASK}
+              </div>
+            )}
             {nameCell}
           </div>
           <div className='min-w-0'>
@@ -138,7 +146,12 @@ export function ChannelCard({ row }: { row: Row<Channel> }) {
         {groups.length > 0 ? (
           <div className='-ml-1.5 flex flex-wrap gap-1'>
             {groups.map((g) => (
-              <GroupBadge key={g} group={g} size='sm' />
+              <GroupBadge
+                key={g}
+                group={g}
+                label={sensitiveVisible ? undefined : SENSITIVE_MASK}
+                size='sm'
+              />
             ))}
           </div>
         ) : (
