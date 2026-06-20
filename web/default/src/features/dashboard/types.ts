@@ -33,6 +33,101 @@ export interface QuotaDataItem {
   quota?: number
 }
 
+export interface FlowQuotaDataItem {
+  user_id?: number
+  username?: string
+  node_name?: string
+  use_group?: string
+  token_id?: number
+  token_name?: string
+  channel_id?: number
+  channel_name?: string
+  model_name?: string
+  token_used?: number
+  count?: number
+  quota?: number
+}
+
+export type FlowMetric = 'quota' | 'tokens' | 'requests'
+
+export type FlowRole = 'user' | 'admin' | 'root'
+
+export type FlowNodeKind =
+  | 'user'
+  | 'node'
+  | 'token'
+  | 'group'
+  | 'model'
+  | 'channel'
+
+export interface FlowBuildOptions {
+  role?: FlowRole
+  selectedUsers?: string[]
+  colorPalette?: readonly string[]
+  visibleStages?: FlowNodeKind[]
+  // Resolves the label for a token whose record no longer exists (deleted).
+  // Lets the caller inject a localized string such as "Deleted (123)".
+  deletedTokenLabel?: (tokenId: number) => string
+}
+
+export interface DashboardFlowNode {
+  id: string
+  label: string
+  kind: FlowNodeKind
+  value: number
+  requests: number
+  quota: number
+  tokens: number
+  color: string
+  colorKey: string
+}
+
+export interface DashboardFlowLink {
+  source: string
+  target: string
+  value: number
+  requests: number
+  quota: number
+  tokens: number
+  sourceLabel: string
+  targetLabel: string
+  color: string
+  linkColor: string
+  linkAlpha: number
+  hoverColor: string
+  colorKey: string
+  share: number
+}
+
+export interface DashboardFlowGraph {
+  nodes: DashboardFlowNode[]
+  links: DashboardFlowLink[]
+}
+
+export interface FlowUserFilterOption {
+  value: string
+  label: string
+  valueLabel: string
+  valueRaw: number
+  color: string
+}
+
+export interface FlowFilterOptions {
+  users: FlowUserFilterOption[]
+}
+
+export interface FlowSummary {
+  quota: number
+  tokens: number
+  requests: number
+}
+
+export interface ProcessedFlowData {
+  summary: FlowSummary
+  flow: DashboardFlowGraph
+  filterOptions: FlowFilterOptions
+}
+
 // ============================================================================
 // Uptime Monitoring Types
 // ============================================================================
