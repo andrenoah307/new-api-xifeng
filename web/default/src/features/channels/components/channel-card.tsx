@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { memo } from 'react'
 import { flexRender, type Row } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
@@ -36,7 +37,7 @@ const SENSITIVE_MASK = '••••'
  * priority/weight spinners, balance refresh, response/test times, tag
  * expand-collapse, and the per-row (or per-tag) actions menu.
  */
-export function ChannelCard({ row }: { row: Row<Channel> }) {
+function ChannelCardComponent({ row }: { row: Row<Channel> }) {
   const { t } = useTranslation()
   const { sensitiveVisible } = useChannels()
   const isTagRow = isTagAggregateRow(row.original)
@@ -118,25 +119,23 @@ export function ChannelCard({ row }: { row: Row<Channel> }) {
           </div>
         </div>
 
-        {/* Right column (sits on the right, content left-aligned) */}
-        <div className='flex flex-shrink-0 flex-col gap-3'>
-          <div className='grid grid-cols-2 items-center gap-x-3'>
-            <span className={labelClass}>{t('Priority')}</span>
-            <span className={labelClass}>{t('Weight')}</span>
-            <div className='flex justify-start'>{priorityCell}</div>
-            <div className='flex justify-start'>{weightCell}</div>
+        {/* Right column (sits on the right, content left-aligned). A single
+            grid with content-sized columns keeps Priority/Weight and
+            Response/Last Tested aligned without wasting horizontal space. */}
+        <div className='grid flex-shrink-0 grid-cols-[auto_auto] items-center gap-x-3 gap-y-1'>
+          <span className={labelClass}>{t('Priority')}</span>
+          <span className={labelClass}>{t('Weight')}</span>
+          <div className='flex justify-start'>{priorityCell}</div>
+          <div className='flex justify-start'>{weightCell}</div>
+          <span className={cn('mt-2', labelClass)}>
+            {fieldLabels.response_time}
+          </span>
+          <span className={cn('mt-2', labelClass)}>{fieldLabels.test_time}</span>
+          <div className='overflow-hidden text-sm'>
+            {responseCell ?? <span className='text-muted-foreground'>-</span>}
           </div>
-          <div className='grid grid-cols-2 gap-x-3'>
-            <div className={cn('mb-1', labelClass)}>
-              {fieldLabels.response_time}
-            </div>
-            <div className={cn('mb-1', labelClass)}>{fieldLabels.test_time}</div>
-            <div className='overflow-hidden text-sm'>
-              {responseCell ?? <span className='text-muted-foreground'>-</span>}
-            </div>
-            <div className='overflow-hidden text-sm'>
-              {testCell ?? <span className='text-muted-foreground'>-</span>}
-            </div>
+          <div className='overflow-hidden text-sm'>
+            {testCell ?? <span className='text-muted-foreground'>-</span>}
           </div>
         </div>
       </div>
@@ -161,3 +160,10 @@ export function ChannelCard({ row }: { row: Row<Channel> }) {
     </div>
   )
 }
+
+/**
+ * Memoized so each card only re-renders when its own react-table row reference
+ * changes, instead of every card re-rendering whenever the parent table state
+ * (filters, pagination, sensitive toggle, etc.) updates.
+ */
+export const ChannelCard = memo(ChannelCardComponent)
