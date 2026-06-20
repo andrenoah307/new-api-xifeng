@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
+
 import type { FlowQuotaDataItem } from '../types'
 import {
   buildDashboardFlowData,
@@ -49,6 +50,42 @@ const rows: FlowQuotaDataItem[] = [
     quota: 70,
     token_used: 30,
     count: 3,
+  },
+]
+
+const topLimitRows: FlowQuotaDataItem[] = [
+  {
+    user_id: 1,
+    username: 'alpha',
+    use_group: 'vip',
+    channel_id: 201,
+    channel_name: 'channel-a',
+    model_name: 'model-a',
+    quota: 100,
+    token_used: 1_000,
+    count: 1,
+  },
+  {
+    user_id: 2,
+    username: 'beta',
+    use_group: 'default',
+    channel_id: 202,
+    channel_name: 'channel-b',
+    model_name: 'model-b',
+    quota: 80,
+    token_used: 10,
+    count: 20,
+  },
+  {
+    user_id: 3,
+    username: 'gamma',
+    use_group: 'free',
+    channel_id: 203,
+    channel_name: 'channel-c',
+    model_name: 'model-c',
+    quota: 10,
+    token_used: 2_000,
+    count: 5,
   },
 ]
 
@@ -181,6 +218,113 @@ describe('dashboard flow data', () => {
       ]
     )
     assert.notEqual(options.users[0].color, options.users[1].color)
+  })
+
+  test('aggregates overflow nodes into per-column Other buckets', () => {
+    const result = buildDashboardFlowData(topLimitRows, 'quota', {
+      role: 'admin',
+      topNodeLimit: 2,
+      overflowMode: 'aggregate',
+      otherNodeLabel: (kind) => `Other ${kind}`,
+    })
+    const nodeIds = result.flow.nodes.map((node) => node.id)
+    const otherUser = result.flow.nodes.find(
+      (node) => node.id === 'user:__other__'
+    )
+    const otherFirstStepLink = result.flow.links.find(
+      (link) =>
+        link.source === 'user:__other__' && link.target === 'group:__other__'
+    )
+    const firstStepTotal = result.flow.links
+      .filter((link) => link.source.startsWith('user:'))
+      .reduce((sum, link) => sum + link.value, 0)
+
+    assert.equal(result.summary.quota, 190)
+    assert.equal(firstStepTotal, 190)
+    assert.equal(otherUser?.label, 'Other user')
+    assert.equal(otherFirstStepLink?.value, 10)
+    assert.equal(nodeIds.includes('user:3'), false)
+    assert.equal(nodeIds.includes('group:free'), false)
+    assert.equal(nodeIds.includes('model:model-c'), false)
+    assert.equal(nodeIds.includes('channel:203'), false)
+    assert.equal(nodeIds.includes('user:__other__'), true)
+    assert.equal(nodeIds.includes('group:__other__'), true)
+    assert.equal(nodeIds.includes('model:__other__'), true)
+    assert.equal(nodeIds.includes('channel:__other__'), true)
+  })
+
+  test('hides overflow paths when overflow mode is hide', () => {
+    const result = buildDashboardFlowData(topLimitRows, 'quota', {
+      role: 'admin',
+      topNodeLimit: 2,
+      overflowMode: 'hide',
+      otherNodeLabel: (kind) => `Other ${kind}`,
+    })
+    const nodeIds = result.flow.nodes.map((node) => node.id)
+    const firstStepTotal = result.flow.links
+      .filter((link) => link.source.startsWith('user:'))
+      .reduce((sum, link) => sum + link.value, 0)
+
+    assert.equal(result.summary.quota, 190)
+    assert.equal(firstStepTotal, 180)
+    assert.equal(nodeIds.includes('user:3'), false)
+    assert.equal(nodeIds.includes('user:__other__'), false)
+    assert.equal(nodeIds.includes('model:__other__'), false)
+  })
+
+  test('ranks top nodes using the selected flow metric', () => {
+    const byQuota = buildDashboardFlowData(topLimitRows, 'quota', {
+      role: 'admin',
+      topNodeLimit: 1,
+      overflowMode: 'aggregate',
+    })
+    const byRequests = buildDashboardFlowData(topLimitRows, 'requests', {
+      role: 'admin',
+      topNodeLimit: 1,
+      overflowMode: 'aggregate',
+    })
+    const byTokens = buildDashboardFlowData(topLimitRows, 'tokens', {
+      role: 'admin',
+      topNodeLimit: 1,
+      overflowMode: 'aggregate',
+    })
+
+    assert.equal(
+      byQuota.flow.nodes.some((node) => node.id === 'user:1'),
+      true
+    )
+    assert.equal(
+      byRequests.flow.nodes.some((node) => node.id === 'user:2'),
+      true
+    )
+    assert.equal(
+      byTokens.flow.nodes.some((node) => node.id === 'user:3'),
+      true
+    )
+  })
+
+  test('applies top limits only to visible stages', () => {
+    const result = buildDashboardFlowData(topLimitRows, 'quota', {
+      role: 'admin',
+      visibleStages: ['user', 'model'],
+      topNodeLimit: 1,
+      overflowMode: 'aggregate',
+    })
+    const nodeIds = result.flow.nodes.map((node) => node.id)
+
+    assert.equal(nodeIds.includes('user:1'), true)
+    assert.equal(nodeIds.includes('user:__other__'), true)
+    assert.equal(nodeIds.includes('model:model-a'), true)
+    assert.equal(nodeIds.includes('model:__other__'), true)
+    assert.equal(nodeIds.includes('group:__other__'), false)
+    assert.equal(nodeIds.includes('channel:__other__'), false)
+    assert.deepEqual(
+      result.flow.links.map((link) => [link.source, link.target, link.value]),
+      [
+        ['user:__other__', 'model:__other__', 90],
+        ['user:1', 'model:model-a', 100],
+      ]
+    )
   })
 
   test('builds Sankey spec with quota token request tooltips', () => {

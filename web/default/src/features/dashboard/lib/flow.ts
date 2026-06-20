@@ -24,11 +24,13 @@ import type {
   FlowFilterOptions,
   FlowMetric,
   FlowNodeKind,
+  FlowOverflowMode,
   FlowQuotaDataItem,
   FlowRole,
   FlowSummary,
   ProcessedFlowData,
 } from '@/features/dashboard/types'
+
 import { getDashboardChartColors } from './charts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -53,13 +55,31 @@ type FlowPathNode = {
   kind: FlowNodeKind
 }
 
+type PreparedFlowPath = {
+  path: FlowPathNode[]
+  metrics: FlowMetrics
+}
+
+type FlowNodeRank = {
+  node: FlowPathNode
+  value: number
+}
+
 type FlowPathContext = {
   deletedTokenLabel?: (tokenId: number) => string
+}
+
+type FlowGraphOptions = {
+  topNodeLimit?: number
+  overflowMode?: FlowOverflowMode
+  otherNodeLabel?: (kind: FlowNodeKind) => string
 }
 
 const EMPTY_FLOW_PATH_CONTEXT: FlowPathContext = {}
 
 const DEFAULT_FLOW_ROLE: FlowRole = 'user'
+
+const DEFAULT_FLOW_OVERFLOW_MODE: FlowOverflowMode = 'aggregate'
 
 const DEFAULT_FLOW_SANKEY_LABELS: FlowSankeyLabels = {
   quota: 'Quota',
@@ -69,6 +89,24 @@ const DEFAULT_FLOW_SANKEY_LABELS: FlowSankeyLabels = {
 }
 
 const DEFAULT_FLOW_CHART_COLOR = '#1664FF'
+
+const OTHER_FLOW_NODE_IDS: Record<FlowNodeKind, string> = {
+  user: 'user:__other__',
+  node: 'node:__other__',
+  token: 'token:__other__',
+  group: 'group:__other__',
+  model: 'model:__other__',
+  channel: 'channel:__other__',
+}
+
+const DEFAULT_OTHER_FLOW_NODE_LABELS: Record<FlowNodeKind, string> = {
+  user: 'Other users',
+  node: 'Other nodes',
+  token: 'Other tokens',
+  group: 'Other groups',
+  model: 'Other models',
+  channel: 'Other channels',
+}
 
 function numberValue(value: unknown): number {
   const n = Number(value)
@@ -107,13 +145,11 @@ function nodeNameNode(row: FlowQuotaDataItem): FlowPathNode {
   }
 }
 
-function tokenNode(
-  row: FlowQuotaDataItem,
-  ctx: FlowPathContext
-): FlowPathNode {
+function tokenNode(row: FlowQuotaDataItem, ctx: FlowPathContext): FlowPathNode {
   const tokenID = numberValue(row.token_id)
   return {
-    id: tokenID > 0 ? `token:${tokenID}` : `token:${row.token_name || 'unknown'}`,
+    id:
+      tokenID > 0 ? `token:${tokenID}` : `token:${row.token_name || 'unknown'}`,
     label: row.token_name || deletedTokenLabel(tokenID, ctx),
     kind: 'token',
   }
@@ -192,15 +228,12 @@ function resolveVisibleStages(
   return filtered.length >= MIN_FLOW_STAGES ? filtered : stages
 }
 
-function flowPath(
+function flowPathForStages(
   row: FlowQuotaDataItem,
-  role: FlowRole,
-  visibleStages?: FlowNodeKind[],
+  stages: FlowNodeKind[],
   ctx: FlowPathContext = EMPTY_FLOW_PATH_CONTEXT
 ): FlowPathNode[] {
-  return resolveVisibleStages(role, visibleStages).map((stage) =>
-    NODE_BUILDERS[stage](row, ctx)
-  )
+  return stages.map((stage) => NODE_BUILDERS[stage](row, ctx))
 }
 
 function colorAt(index: number, palette?: readonly string[]): string {
@@ -250,18 +283,6 @@ function stableColorMap(
     map.set(key, colorAt(index, colors))
   })
   return map
-}
-
-function rootColorKeys(
-  rows: FlowQuotaDataItem[],
-  role: FlowRole,
-  visibleStages?: FlowNodeKind[]
-): string[] {
-  return Array.from(
-    new Set(
-      rows.map((row) => flowPath(row, role, visibleStages)[0]?.id ?? 'unknown')
-    )
-  ).sort((a, b) => a.localeCompare(b))
 }
 
 function filterRows(
@@ -392,26 +413,137 @@ function buildSummary(rows: FlowQuotaDataItem[]): FlowSummary {
   )
 }
 
+function normalizeTopNodeLimit(limit?: number): number | undefined {
+  if (limit === undefined) return undefined
+  const parsed = Math.floor(limit)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+function otherFlowNode(
+  kind: FlowNodeKind,
+  labeler?: (kind: FlowNodeKind) => string
+): FlowPathNode {
+  return {
+    id: OTHER_FLOW_NODE_IDS[kind],
+    label: labeler?.(kind) ?? DEFAULT_OTHER_FLOW_NODE_LABELS[kind],
+    kind,
+  }
+}
+
+function buildTopNodeSets(
+  rows: FlowQuotaDataItem[],
+  metric: FlowMetric,
+  stages: FlowNodeKind[],
+  limit: number | undefined,
+  ctx: FlowPathContext
+): Map<FlowNodeKind, Set<string>> | undefined {
+  if (!limit) return undefined
+
+  const totals = new Map<FlowNodeKind, Map<string, FlowNodeRank>>()
+  for (const stage of stages) {
+    totals.set(stage, new Map())
+  }
+
+  for (const row of rows) {
+    const metrics = rowMetrics(row)
+    const value = metricValue(metrics, metric)
+    const path = flowPathForStages(row, stages, ctx)
+    for (const node of path) {
+      const stageTotals = totals.get(node.kind)
+      if (!stageTotals) continue
+      const current = stageTotals.get(node.id) ?? { node, value: 0 }
+      current.value += value
+      stageTotals.set(node.id, current)
+    }
+  }
+
+  const topSets = new Map<FlowNodeKind, Set<string>>()
+  for (const [kind, stageTotals] of totals) {
+    const topIds = Array.from(stageTotals.values())
+      .sort(
+        (a, b) =>
+          b.value - a.value ||
+          a.node.label.localeCompare(b.node.label) ||
+          a.node.id.localeCompare(b.node.id)
+      )
+      .slice(0, limit)
+      .map((rank) => rank.node.id)
+    topSets.set(kind, new Set(topIds))
+  }
+
+  return topSets
+}
+
+function isTopFlowNode(
+  node: FlowPathNode,
+  topNodeSets?: Map<FlowNodeKind, Set<string>>
+): boolean {
+  const topNodes = topNodeSets?.get(node.kind)
+  return !topNodes || topNodes.has(node.id)
+}
+
+function applyTopNodeLimit(
+  path: FlowPathNode[],
+  topNodeSets: Map<FlowNodeKind, Set<string>> | undefined,
+  mode: FlowOverflowMode,
+  labeler?: (kind: FlowNodeKind) => string
+): FlowPathNode[] | undefined {
+  if (!topNodeSets) return path
+  const containsOverflowNode = path.some(
+    (node) => !isTopFlowNode(node, topNodeSets)
+  )
+  if (!containsOverflowNode) return path
+  if (mode === 'hide') return undefined
+  return path.map((node) =>
+    isTopFlowNode(node, topNodeSets) ? node : otherFlowNode(node.kind, labeler)
+  )
+}
+
 function buildFlowGraph(
   rows: FlowQuotaDataItem[],
   metric: FlowMetric,
   role: FlowRole,
   palette?: readonly string[],
   visibleStages?: FlowNodeKind[],
-  ctx: FlowPathContext = EMPTY_FLOW_PATH_CONTEXT
+  ctx: FlowPathContext = EMPTY_FLOW_PATH_CONTEXT,
+  options: FlowGraphOptions = {}
 ): DashboardFlowGraph {
+  const stages = resolveVisibleStages(role, visibleStages)
+  const topNodeSets = buildTopNodeSets(
+    rows,
+    metric,
+    stages,
+    normalizeTopNodeLimit(options.topNodeLimit),
+    ctx
+  )
+  const overflowMode = options.overflowMode ?? DEFAULT_FLOW_OVERFLOW_MODE
+  const preparedPaths: PreparedFlowPath[] = []
+
+  for (const row of rows) {
+    const path = applyTopNodeLimit(
+      flowPathForStages(row, stages, ctx),
+      topNodeSets,
+      overflowMode,
+      options.otherNodeLabel
+    )
+    if (!path) continue
+    preparedPaths.push({ path, metrics: rowMetrics(row) })
+  }
+
   const nodes = new Map<string, DashboardFlowNode>()
   const links = new Map<string, DashboardFlowLink>()
   const colors = stableColorMap(
-    rootColorKeys(rows, role, visibleStages),
+    preparedPaths
+      .map((prepared) => prepared.path[0]?.id)
+      .filter((id): id is string => Boolean(id))
+      .sort((a, b) => a.localeCompare(b)),
     palette
   )
 
-  for (const row of rows) {
-    const path = flowPath(row, role, visibleStages, ctx)
+  for (const prepared of preparedPaths) {
+    const { path, metrics } = prepared
     const root = path[0]
     if (!root) continue
-    const metrics = rowMetrics(row)
     const color = colors.get(root.id) ?? colorAt(0, palette)
 
     for (const node of path) {
@@ -430,8 +562,8 @@ function buildFlowGraph(
       a.source.localeCompare(b.source) || a.target.localeCompare(b.target)
   )
   const firstStepSources = new Set(
-    rows
-      .map((row) => flowPath(row, role, visibleStages)[0]?.id)
+    preparedPaths
+      .map((prepared) => prepared.path[0]?.id)
       .filter((id): id is string => Boolean(id))
   )
   const total = flowLinks
@@ -512,9 +644,21 @@ export function buildDashboardFlowData(
 
   return {
     summary: buildSummary(filteredRows),
-    flow: buildFlowGraph(filteredRows, metric, role, palette, options.visibleStages, {
-      deletedTokenLabel: options.deletedTokenLabel,
-    }),
+    flow: buildFlowGraph(
+      filteredRows,
+      metric,
+      role,
+      palette,
+      options.visibleStages,
+      {
+        deletedTokenLabel: options.deletedTokenLabel,
+      },
+      {
+        topNodeLimit: options.topNodeLimit,
+        overflowMode: options.overflowMode,
+        otherNodeLabel: options.otherNodeLabel,
+      }
+    ),
     filterOptions: buildFlowFilterOptions(rows, metric, palette),
   }
 }

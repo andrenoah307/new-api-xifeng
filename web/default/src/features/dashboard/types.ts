@@ -50,6 +50,8 @@ export interface FlowQuotaDataItem {
 
 export type FlowMetric = 'quota' | 'tokens' | 'requests'
 
+export type FlowOverflowMode = 'aggregate' | 'hide'
+
 export type FlowRole = 'user' | 'admin' | 'root'
 
 export type FlowNodeKind =
@@ -65,9 +67,12 @@ export interface FlowBuildOptions {
   selectedUsers?: string[]
   colorPalette?: readonly string[]
   visibleStages?: FlowNodeKind[]
+  topNodeLimit?: number
+  overflowMode?: FlowOverflowMode
   // Resolves the label for a token whose record no longer exists (deleted).
   // Lets the caller inject a localized string such as "Deleted (123)".
   deletedTokenLabel?: (tokenId: number) => string
+  otherNodeLabel?: (kind: FlowNodeKind) => string
 }
 
 export interface DashboardFlowNode {

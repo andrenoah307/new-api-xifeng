@@ -32,13 +32,8 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/stores/auth-store'
-import { formatNumber, formatQuota } from '@/lib/format'
-import { ROLE } from '@/lib/roles'
-import { computeTimeRange } from '@/lib/time'
-import { useChartTheme } from '@/lib/use-chart-theme'
-import { cn } from '@/lib/utils'
-import { VCHART_OPTION } from '@/lib/vchart'
+
+import { MultiSelect } from '@/components/multi-select'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   Empty,
@@ -56,7 +51,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { MultiSelect } from '@/components/multi-select'
 import { getFlowQuotaDates } from '@/features/dashboard/api'
 import {
   buildDashboardFlowData,
@@ -74,23 +68,34 @@ import type {
   DashboardFilters,
   FlowMetric,
   FlowNodeKind,
+  FlowOverflowMode,
   FlowRole,
-  FlowSummary,
 } from '@/features/dashboard/types'
+import { formatQuota } from '@/lib/format'
+import { ROLE } from '@/lib/roles'
+import { computeTimeRange } from '@/lib/time'
+import { useChartTheme } from '@/lib/use-chart-theme'
+import { cn } from '@/lib/utils'
+import { VCHART_OPTION } from '@/lib/vchart'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface FlowChartsProps {
   filters?: DashboardFilters
 }
 
-interface FlowStatsProps {
-  summary: FlowSummary
-  loading?: boolean
-}
-
 const FLOW_METRIC_OPTIONS = [
-  { value: 'quota', labelKey: 'Quota', icon: WalletCards },
-  { value: 'tokens', labelKey: 'Tokens', icon: Hash },
-  { value: 'requests', labelKey: 'Requests', icon: Activity },
+  { value: 'quota', labelKey: 'By quota', icon: WalletCards },
+  { value: 'tokens', labelKey: 'By tokens', icon: Hash },
+  { value: 'requests', labelKey: 'By requests', icon: Activity },
+] as const
+
+const FLOW_TOP_LIMIT_OPTIONS = [10, 20, 50, 100] as const
+
+const DEFAULT_FLOW_TOP_NODE_LIMIT = 50
+
+const FLOW_OVERFLOW_MODE_OPTIONS = [
+  { value: 'aggregate', labelKey: 'Merge into Other' },
+  { value: 'hide', labelKey: 'Hide' },
 ] as const
 
 // A Sankey needs at least two columns to render any link.
@@ -126,58 +131,13 @@ const FLOW_STAGE_META: Record<
   },
 }
 
-function FlowStats(props: FlowStatsProps) {
-  const { t } = useTranslation()
-  const items = [
-    {
-      key: 'quota',
-      title: 'Quota',
-      value: formatQuota(props.summary.quota),
-      icon: WalletCards,
-    },
-    {
-      key: 'tokens',
-      title: 'Tokens',
-      value: formatNumber(props.summary.tokens),
-      icon: Hash,
-    },
-    {
-      key: 'requests',
-      title: 'Requests',
-      value: formatNumber(props.summary.requests),
-      icon: Activity,
-    },
-  ]
-
-  return (
-    <div className='overflow-hidden rounded-lg border'>
-      <div className='divide-border/60 grid grid-cols-3 divide-x'>
-        {items.map((item) => {
-          const Icon = item.icon
-          return (
-            <div key={item.key} className='px-3 py-2.5 sm:px-5 sm:py-4'>
-              <div className='flex items-center gap-2'>
-                <Icon className='text-muted-foreground/60 size-3.5 shrink-0' />
-                <div className='text-muted-foreground truncate text-xs font-medium tracking-wider uppercase'>
-                  {t(item.title)}
-                </div>
-              </div>
-              {props.loading ? (
-                <div className='mt-2 flex flex-col gap-1.5'>
-                  <Skeleton className='h-7 w-20' />
-                  <Skeleton className='h-3.5 w-28' />
-                </div>
-              ) : (
-                <div className='text-foreground mt-1.5 font-mono text-lg font-bold tracking-tight tabular-nums sm:mt-2 sm:text-2xl'>
-                  {item.value}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
+const FLOW_OTHER_NODE_LABEL_KEYS: Record<FlowNodeKind, string> = {
+  user: 'Other users',
+  node: 'Other nodes',
+  token: 'Other tokens',
+  group: 'Other groups',
+  model: 'Other models',
+  channel: 'Other channels',
 }
 
 export function FlowCharts(props: FlowChartsProps) {
@@ -188,6 +148,9 @@ export function FlowCharts(props: FlowChartsProps) {
   const isAdmin = Boolean(user?.role && user.role >= ROLE.ADMIN)
   const flowRole: FlowRole = isRoot ? 'root' : isAdmin ? 'admin' : 'user'
   const [metric, setMetric] = useState<FlowMetric>('quota')
+  const [topNodeLimit, setTopNodeLimit] = useState(DEFAULT_FLOW_TOP_NODE_LIMIT)
+  const [overflowMode, setOverflowMode] =
+    useState<FlowOverflowMode>('aggregate')
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
   const [hiddenStages, setHiddenStages] = useState<FlowNodeKind[]>([])
 
@@ -247,9 +210,22 @@ export function FlowCharts(props: FlowChartsProps) {
         role: flowRole,
         selectedUsers,
         visibleStages,
+        topNodeLimit,
+        overflowMode,
         deletedTokenLabel: (tokenId) => t('Deleted ({{id}})', { id: tokenId }),
+        otherNodeLabel: (kind) => t(FLOW_OTHER_NODE_LABEL_KEYS[kind]),
       }),
-    [flowRole, flowRows, isLoading, metric, selectedUsers, visibleStages, t]
+    [
+      flowRole,
+      flowRows,
+      isLoading,
+      metric,
+      overflowMode,
+      selectedUsers,
+      topNodeLimit,
+      visibleStages,
+      t,
+    ]
   )
   const userFilterOptions = useMemo(
     () =>
@@ -273,6 +249,8 @@ export function FlowCharts(props: FlowChartsProps) {
   const chartTheme = resolvedTheme === 'dark' ? 'dark' : 'light'
   const chartKey = [
     metric,
+    topNodeLimit,
+    overflowMode,
     flowRole,
     selectedUsers.join(','),
     visibleStages.join(','),
@@ -292,46 +270,124 @@ export function FlowCharts(props: FlowChartsProps) {
 
   return (
     <div className='flex flex-col gap-3'>
-      <FlowStats summary={flowData.summary} loading={isLoading} />
-
-      <div className='flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between'>
-        <div className='flex flex-wrap items-center gap-2'>
-          <Tabs
-            value={metric}
-            onValueChange={(value) => setMetric(value as FlowMetric)}
-            className='shrink-0'
-          >
-            <TabsList>
-              {FLOW_METRIC_OPTIONS.map((option) => (
-                <TabsTrigger
-                  key={option.value}
-                  value={option.value}
-                  className='px-2.5 text-xs'
-                >
-                  {t(option.labelKey)}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-        {isAdmin && (
-          <div className='flex min-w-0 flex-col gap-2 sm:flex-row lg:w-[min(24rem,34vw)]'>
-            <MultiSelect
-              options={userFilterOptions}
-              selected={selectedUsers}
-              onChange={setSelectedUsers}
-              placeholder={t('All users')}
-              emptyText={t('No users')}
-              maxVisibleChips={2}
-              renderSelectedSummary={(values) =>
-                compactFlowSelectionLabel(values.length)
-              }
-            />
+      <div className='flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between'>
+        <div className='flex min-w-0 flex-wrap items-end gap-2'>
+          <div className='flex min-w-0 flex-col gap-1.5'>
+            <div className='flex items-center gap-1.5'>
+              <span className='text-muted-foreground text-xs font-medium'>
+                {t('Flow width metric')}
+              </span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type='button'
+                        className='text-muted-foreground/60 hover:text-foreground flex size-5 shrink-0 items-center justify-center rounded-md'
+                        aria-label={t('Flow width metric')}
+                      />
+                    }
+                  >
+                    <Info className='size-3.5' />
+                  </TooltipTrigger>
+                  <TooltipContent className='max-w-[14rem]'>
+                    {t('Choose how flow widths are calculated.')}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Tabs
+              value={metric}
+              onValueChange={(value) => setMetric(value as FlowMetric)}
+              className='shrink-0'
+            >
+              <TabsList aria-label={t('Flow width metric')}>
+                {FLOW_METRIC_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  return (
+                    <TabsTrigger
+                      key={option.value}
+                      value={option.value}
+                      className='gap-1.5 px-2.5 text-xs'
+                    >
+                      <Icon data-icon='inline-start' aria-hidden='true' />
+                      {t(option.labelKey)}
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
+            </Tabs>
           </div>
-        )}
-        {isLoading && (
-          <Loader2 className='text-muted-foreground size-4 animate-spin' />
-        )}
+
+          <div className='flex min-w-0 flex-col gap-1.5'>
+            <span className='text-muted-foreground text-xs font-medium'>
+              {t('Display limit')}
+            </span>
+            <Tabs
+              value={String(topNodeLimit)}
+              onValueChange={(value) => setTopNodeLimit(Number(value))}
+              className='shrink-0'
+            >
+              <TabsList aria-label={t('Display limit')}>
+                {FLOW_TOP_LIMIT_OPTIONS.map((limit) => (
+                  <TabsTrigger
+                    key={limit}
+                    value={String(limit)}
+                    className='px-2.5 text-xs'
+                  >
+                    {t('Top {{count}}', { count: limit })}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+
+          <div className='flex min-w-0 flex-col gap-1.5'>
+            <span className='text-muted-foreground text-xs font-medium'>
+              {t('Overflow items')}
+            </span>
+            <Tabs
+              value={overflowMode}
+              onValueChange={(value) =>
+                setOverflowMode(value as FlowOverflowMode)
+              }
+              className='shrink-0'
+            >
+              <TabsList aria-label={t('Overflow items')}>
+                {FLOW_OVERFLOW_MODE_OPTIONS.map((option) => (
+                  <TabsTrigger
+                    key={option.value}
+                    value={option.value}
+                    className='px-2.5 text-xs'
+                  >
+                    {t(option.labelKey)}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+        </div>
+
+        <div className='flex min-w-0 items-center gap-2 xl:justify-end'>
+          {isAdmin && (
+            <div className='flex min-w-0 flex-col gap-2 sm:flex-row xl:w-[min(24rem,34vw)]'>
+              <MultiSelect
+                options={userFilterOptions}
+                selected={selectedUsers}
+                onChange={setSelectedUsers}
+                placeholder={t('All users')}
+                emptyText={t('No users')}
+                maxVisibleChips={2}
+                renderSelectedSummary={(values) =>
+                  compactFlowSelectionLabel(values.length)
+                }
+              />
+            </div>
+          )}
+          {isLoading && (
+            <Loader2 className='text-muted-foreground size-4 animate-spin' />
+          )}
+        </div>
       </div>
 
       <div className='overflow-hidden rounded-lg border'>
