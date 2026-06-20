@@ -22,7 +22,9 @@ import type {
   DashboardFlowNode,
   FlowBuildOptions,
   FlowFilterOptions,
+  FlowLinkSelection,
   FlowMetric,
+  FlowNodeFilter,
   FlowNodeKind,
   FlowOverflowMode,
   FlowQuotaDataItem,
@@ -73,6 +75,13 @@ type FlowGraphOptions = {
   topNodeLimit?: number
   overflowMode?: FlowOverflowMode
   otherNodeLabel?: (kind: FlowNodeKind) => string
+  activeNode?: FlowNodeFilter
+  activeLink?: FlowLinkSelection
+}
+
+type FlowHighlightSets = {
+  nodes: Set<string>
+  links: Set<string>
 }
 
 const EMPTY_FLOW_PATH_CONTEXT: FlowPathContext = {}
@@ -89,6 +98,16 @@ const DEFAULT_FLOW_SANKEY_LABELS: FlowSankeyLabels = {
 }
 
 const DEFAULT_FLOW_CHART_COLOR = '#1664FF'
+
+const FLOW_NODE_KINDS: readonly FlowNodeKind[] = [
+  'user',
+  'node',
+  'token',
+  'group',
+  'model',
+  'channel',
+]
+const FLOW_NODE_KIND_SET = new Set<FlowNodeKind>(FLOW_NODE_KINDS)
 
 const OTHER_FLOW_NODE_IDS: Record<FlowNodeKind, string> = {
   user: 'user:__other__',
@@ -111,6 +130,10 @@ const DEFAULT_OTHER_FLOW_NODE_LABELS: Record<FlowNodeKind, string> = {
 function numberValue(value: unknown): number {
   const n = Number(value)
   return Number.isFinite(n) ? n : 0
+}
+
+function isFlowNodeKind(value: unknown): value is FlowNodeKind {
+  return typeof value === 'string' && FLOW_NODE_KIND_SET.has(value as FlowNodeKind)
 }
 
 function rowMetrics(row: FlowQuotaDataItem): FlowMetrics {
@@ -277,7 +300,7 @@ function stableColorMap(
   palette?: readonly string[]
 ): Map<string, string> {
   const map = new Map<string, string>()
-  const uniqueKeys = Array.from(new Set(keys))
+  const uniqueKeys = [...new Set(keys)]
   const colors = colorPalette(uniqueKeys.length, palette)
   uniqueKeys.forEach((key, index) => {
     map.set(key, colorAt(index, colors))
@@ -292,6 +315,79 @@ function filterRows(
   const selectedUsers = new Set(options.selectedUsers ?? [])
   if (selectedUsers.size === 0) return rows
   return rows.filter((row) => selectedUsers.has(userNode(row).id))
+}
+
+function nodeFilterKey(filter: FlowNodeFilter): string {
+  return `${filter.kind}\u0000${filter.id}`
+}
+
+function normalizeSelectedNodeFilters(
+  selectedNodes: readonly FlowNodeFilter[] | undefined,
+  stages: readonly FlowNodeKind[]
+): Map<FlowNodeKind, Set<string>> {
+  const visibleKinds = new Set(stages)
+  const filters = new Map<FlowNodeKind, Set<string>>()
+
+  for (const filter of selectedNodes ?? []) {
+    if (!visibleKinds.has(filter.kind)) continue
+    const selected = filters.get(filter.kind) ?? new Set<string>()
+    selected.add(filter.id)
+    filters.set(filter.kind, selected)
+  }
+
+  return filters
+}
+
+function pathMatchesNodeFilters(
+  path: FlowPathNode[],
+  filters: Map<FlowNodeKind, Set<string>>
+): boolean {
+  if (filters.size === 0) return true
+
+  const pathNodesByKind = new Map<FlowNodeKind, Set<string>>()
+  for (const node of path) {
+    const ids = pathNodesByKind.get(node.kind) ?? new Set<string>()
+    ids.add(node.id)
+    pathNodesByKind.set(node.kind, ids)
+  }
+
+  for (const [kind, selectedIds] of filters) {
+    const pathIds = pathNodesByKind.get(kind)
+    if (!pathIds) return false
+
+    let hasSelectedNode = false
+    for (const id of selectedIds) {
+      if (pathIds.has(id)) {
+        hasSelectedNode = true
+        break
+      }
+    }
+    if (!hasSelectedNode) return false
+  }
+
+  return true
+}
+
+function filterRowsByNodes(
+  rows: FlowQuotaDataItem[],
+  selectedNodes: readonly FlowNodeFilter[] | undefined,
+  stages: FlowNodeKind[],
+  ctx: FlowPathContext
+): FlowQuotaDataItem[] {
+  const filters = normalizeSelectedNodeFilters(selectedNodes, stages)
+  if (filters.size === 0) return rows
+
+  return rows.filter((row) =>
+    pathMatchesNodeFilters(flowPathForStages(row, stages, ctx), filters)
+  )
+}
+
+function selectedNodeFiltersExceptKind(
+  selectedNodes: readonly FlowNodeFilter[] | undefined,
+  kind: FlowNodeKind
+): FlowNodeFilter[] | undefined {
+  const filtered = (selectedNodes ?? []).filter((filter) => filter.kind !== kind)
+  return filtered.length > 0 ? filtered : undefined
 }
 
 function addNode(
@@ -389,11 +485,20 @@ function linkStableKey(link: Pick<DashboardFlowLink, 'source' | 'target'>) {
   return `${link.source}\u0000${link.target}`
 }
 
+function pathLinkKey(source: FlowPathNode, target: FlowPathNode): string {
+  return `${source.id}\u0000${target.id}`
+}
+
 function byLinkDrawPriority(
   a: DashboardFlowLink,
   b: DashboardFlowLink
 ): number {
-  return b.value - a.value || linkStableKey(a).localeCompare(linkStableKey(b))
+  return (
+    Number(a.dimmed) - Number(b.dimmed) ||
+    Number(b.highlighted) - Number(a.highlighted) ||
+    b.value - a.value ||
+    linkStableKey(a).localeCompare(linkStableKey(b))
+  )
 }
 
 function buildSummary(rows: FlowQuotaDataItem[]): FlowSummary {
@@ -459,7 +564,7 @@ function buildTopNodeSets(
 
   const topSets = new Map<FlowNodeKind, Set<string>>()
   for (const [kind, stageTotals] of totals) {
-    const topIds = Array.from(stageTotals.values())
+    const topIds = [...stageTotals.values()]
       .sort(
         (a, b) =>
           b.value - a.value ||
@@ -497,6 +602,83 @@ function applyTopNodeLimit(
   return path.map((node) =>
     isTopFlowNode(node, topNodeSets) ? node : otherFlowNode(node.kind, labeler)
   )
+}
+
+function pathContainsFlowNode(
+  path: FlowPathNode[],
+  filter: FlowNodeFilter
+): boolean {
+  return path.some((node) => node.kind === filter.kind && node.id === filter.id)
+}
+
+function pathContainsFlowLink(
+  path: FlowPathNode[],
+  link: FlowLinkSelection
+): boolean {
+  for (let i = 0; i < path.length - 1; i++) {
+    if (path[i]?.id === link.source && path[i + 1]?.id === link.target) {
+      return true
+    }
+  }
+  return false
+}
+
+function buildFlowHighlightSets(
+  preparedPaths: PreparedFlowPath[],
+  activeNode: FlowNodeFilter | undefined,
+  activeLink: FlowLinkSelection | undefined,
+  stages: FlowNodeKind[]
+): FlowHighlightSets | undefined {
+  const nodeActive = Boolean(activeNode && stages.includes(activeNode.kind))
+  if (!nodeActive && !activeLink) return undefined
+
+  // A link selection highlights paths that traverse that exact edge; otherwise
+  // fall back to highlighting paths that pass through the active node.
+  const matchesPath = (path: FlowPathNode[]): boolean => {
+    if (activeLink) return pathContainsFlowLink(path, activeLink)
+    return activeNode ? pathContainsFlowNode(path, activeNode) : false
+  }
+
+  const highlightedNodes = new Set<string>()
+  const highlightedLinks = new Set<string>()
+  for (const prepared of preparedPaths) {
+    const { path } = prepared
+    if (!matchesPath(path)) continue
+
+    for (const node of path) {
+      highlightedNodes.add(node.id)
+    }
+    for (let i = 0; i < path.length - 1; i++) {
+      const source = path[i]
+      const target = path[i + 1]
+      if (!source || !target) continue
+      highlightedLinks.add(pathLinkKey(source, target))
+    }
+  }
+
+  if (highlightedNodes.size === 0) return undefined
+  return {
+    nodes: highlightedNodes,
+    links: highlightedLinks,
+  }
+}
+
+function applyFlowHighlights(
+  nodes: Iterable<DashboardFlowNode>,
+  links: Iterable<DashboardFlowLink>,
+  highlightSets: FlowHighlightSets | undefined
+): void {
+  if (!highlightSets) return
+
+  for (const node of nodes) {
+    node.highlighted = highlightSets.nodes.has(node.id)
+    node.dimmed = !node.highlighted
+  }
+  for (const link of links) {
+    const highlighted = highlightSets.links.has(linkStableKey(link))
+    link.highlighted = highlighted
+    link.dimmed = !highlighted
+  }
 }
 
 function buildFlowGraph(
@@ -556,8 +738,18 @@ function buildFlowGraph(
       addLink(links, source, target, metrics, metric, color, root.id)
     }
   }
+  applyFlowHighlights(
+    nodes.values(),
+    links.values(),
+    buildFlowHighlightSets(
+      preparedPaths,
+      options.activeNode,
+      options.activeLink,
+      stages
+    )
+  )
 
-  const flowLinks = Array.from(links.values()).sort(
+  const flowLinks = [...links.values()].sort(
     (a, b) =>
       a.source.localeCompare(b.source) || a.target.localeCompare(b.target)
   )
@@ -575,7 +767,7 @@ function buildFlowGraph(
   assignLinkDisplayColors(flowLinks)
 
   return {
-    nodes: Array.from(nodes.values()).sort(byValueThenLabel),
+    nodes: [...nodes.values()].sort(byValueThenLabel),
     links: flowLinks,
   }
 }
@@ -586,11 +778,11 @@ function formatNumber(value: number): string {
   )
 }
 
-export function buildFlowFilterOptions(
+function buildUserFilterOptions(
   rows: FlowQuotaDataItem[],
   metric: FlowMetric = 'quota',
   palette?: readonly string[]
-): FlowFilterOptions {
+): FlowFilterOptions['users'] {
   const users = new Map<
     string,
     {
@@ -618,18 +810,107 @@ export function buildFlowFilterOptions(
     users.set(user.id, current)
   }
 
+  return [...users.entries()]
+    .map(([value, user]) => ({
+      value,
+      label: user.label,
+      valueLabel: formatNumber(user.value),
+      valueRaw: user.value,
+      color: user.color,
+    }))
+    .sort((a, b) => b.valueRaw - a.valueRaw || a.label.localeCompare(b.label))
+}
+
+function buildNodeFilterOptions(
+  rows: FlowQuotaDataItem[],
+  metric: FlowMetric,
+  role: FlowRole,
+  visibleStages: FlowNodeKind[] | undefined,
+  palette: readonly string[] | undefined,
+  ctx: FlowPathContext,
+  selectedNodes?: readonly FlowNodeFilter[]
+): FlowFilterOptions['nodes'] {
+  const stages = resolveVisibleStages(role, visibleStages)
+  const stageOrder = new Map(stages.map((stage, index) => [stage, index]))
+  const colorIds = new Set<string>()
+  for (const row of rows) {
+    for (const node of flowPathForStages(row, stages, ctx)) {
+      colorIds.add(node.id)
+    }
+  }
+
+  const colors = stableColorMap(
+    [...colorIds].sort((a, b) => a.localeCompare(b)),
+    palette
+  )
+  const options: FlowFilterOptions['nodes'] = []
+
+  for (const stage of stages) {
+    const totals = new Map<
+      string,
+      {
+        node: FlowPathNode
+        value: number
+      }
+    >()
+    const candidateRows = filterRowsByNodes(
+      rows,
+      selectedNodeFiltersExceptKind(selectedNodes, stage),
+      stages,
+      ctx
+    )
+
+    for (const row of candidateRows) {
+      const metrics = rowMetrics(row)
+      const value = metricValue(metrics, metric)
+      const node = NODE_BUILDERS[stage](row, ctx)
+      const key = nodeFilterKey({ kind: node.kind, id: node.id })
+      const current = totals.get(key) ?? { node, value: 0 }
+      current.value += value
+      totals.set(key, current)
+    }
+
+    for (const rank of totals.values()) {
+      options.push({
+        kind: rank.node.kind,
+        value: rank.node.id,
+        label: rank.node.label,
+        valueLabel: formatNumber(rank.value),
+        valueRaw: rank.value,
+        color: colors.get(rank.node.id) ?? colorAt(0, palette),
+      })
+    }
+  }
+
+  return options
+    .sort(
+      (a, b) =>
+        (stageOrder.get(a.kind) ?? 0) - (stageOrder.get(b.kind) ?? 0) ||
+        b.valueRaw - a.valueRaw ||
+        a.label.localeCompare(b.label) ||
+        a.value.localeCompare(b.value)
+    )
+}
+
+export function buildFlowFilterOptions(
+  rows: FlowQuotaDataItem[],
+  metric: FlowMetric = 'quota',
+  palette?: readonly string[],
+  role: FlowRole = DEFAULT_FLOW_ROLE,
+  visibleStages?: FlowNodeKind[],
+  selectedNodes?: readonly FlowNodeFilter[]
+): FlowFilterOptions {
   return {
-    users: Array.from(users.entries())
-      .map(([value, user]) => ({
-        value,
-        label: user.label,
-        valueLabel: formatNumber(user.value),
-        valueRaw: user.value,
-        color: user.color,
-      }))
-      .sort(
-        (a, b) => b.valueRaw - a.valueRaw || a.label.localeCompare(b.label)
-      ),
+    users: buildUserFilterOptions(rows, metric, palette),
+    nodes: buildNodeFilterOptions(
+      rows,
+      metric,
+      role,
+      visibleStages,
+      palette,
+      EMPTY_FLOW_PATH_CONTEXT,
+      selectedNodes
+    ),
   }
 }
 
@@ -639,8 +920,18 @@ export function buildDashboardFlowData(
   options: FlowBuildOptions = {}
 ): ProcessedFlowData {
   const role = options.role ?? DEFAULT_FLOW_ROLE
-  const filteredRows = filterRows(rows, options)
   const palette = options.colorPalette
+  const ctx = {
+    deletedTokenLabel: options.deletedTokenLabel,
+  }
+  const stages = resolveVisibleStages(role, options.visibleStages)
+  const userFilteredRows = filterRows(rows, options)
+  const filteredRows = filterRowsByNodes(
+    userFilteredRows,
+    options.selectedNodes,
+    stages,
+    ctx
+  )
 
   return {
     summary: buildSummary(filteredRows),
@@ -650,16 +941,27 @@ export function buildDashboardFlowData(
       role,
       palette,
       options.visibleStages,
-      {
-        deletedTokenLabel: options.deletedTokenLabel,
-      },
+      ctx,
       {
         topNodeLimit: options.topNodeLimit,
         overflowMode: options.overflowMode,
         otherNodeLabel: options.otherNodeLabel,
+        activeNode: options.activeNode,
+        activeLink: options.activeLink,
       }
     ),
-    filterOptions: buildFlowFilterOptions(rows, metric, palette),
+    filterOptions: {
+      users: buildUserFilterOptions(rows, metric, palette),
+      nodes: buildNodeFilterOptions(
+        userFilteredRows,
+        metric,
+        role,
+        options.visibleStages,
+        palette,
+        ctx,
+        options.selectedNodes
+      ),
+    },
   }
 }
 
@@ -688,11 +990,43 @@ function sankeyDatumValue(
   return sankeyDatumSource(datum)[key]
 }
 
+function sankeyDatumFlag(
+  datum: Record<string, unknown>,
+  key: string
+): boolean {
+  return sankeyDatumValue(datum, key) === true
+}
+
+export function flowSankeyDatumValue(
+  datum: unknown,
+  key: string
+): unknown {
+  const record = recordValue(datum)
+  return record ? sankeyDatumValue(record, key) : undefined
+}
+
 function isSankeyLinkDatum(datum: Record<string, unknown>): boolean {
   return (
     sankeyDatumValue(datum, 'source') !== undefined &&
     sankeyDatumValue(datum, 'target') !== undefined
   )
+}
+
+export function flowNodeFilterFromSankeyDatum(
+  datum: unknown
+): FlowNodeFilter | undefined {
+  const record = recordValue(datum)
+  if (!record || isSankeyLinkDatum(record)) return undefined
+
+  const id = flowSankeyDatumValue(record, 'key')
+  const kind = flowSankeyDatumValue(record, 'kind')
+  if (
+    (typeof id === 'string' || typeof id === 'number') &&
+    isFlowNodeKind(kind)
+  ) {
+    return { kind, id: String(id) }
+  }
+  return undefined
 }
 
 function tooltipMetricLines(
@@ -755,28 +1089,41 @@ export function buildFlowSankeySpec(
               tokens: node.tokens,
               color: node.color,
               colorKey: node.colorKey,
+              highlighted: node.highlighted,
+              dimmed: node.dimmed,
             })),
             links: flow.links
               .filter((link) => link.value > 0)
               .sort(byLinkDrawPriority)
-              .map((link, index) => ({
-                source: link.source,
-                target: link.target,
-                linkKey: linkStableKey(link),
-                sourceLabel: link.sourceLabel,
-                targetLabel: link.targetLabel,
-                value: link.value,
-                requests: link.requests,
-                quota: link.quota,
-                tokens: link.tokens,
-                color: link.color,
-                linkColor: link.linkColor,
-                linkAlpha: link.linkAlpha,
-                hoverColor: link.hoverColor,
-                colorKey: link.colorKey,
-                share: link.share,
-                zIndex: index,
-              })),
+              .map((link, index) => {
+                let zIndex = 100_000 + index
+                if (link.highlighted) {
+                  zIndex = 1_000_000 + index
+                } else if (link.dimmed) {
+                  zIndex = index
+                }
+
+                return {
+                  source: link.source,
+                  target: link.target,
+                  linkKey: linkStableKey(link),
+                  sourceLabel: link.sourceLabel,
+                  targetLabel: link.targetLabel,
+                  value: link.value,
+                  requests: link.requests,
+                  quota: link.quota,
+                  tokens: link.tokens,
+                  color: link.color,
+                  linkColor: link.linkColor,
+                  linkAlpha: link.linkAlpha,
+                  hoverColor: link.hoverColor,
+                  colorKey: link.colorKey,
+                  share: link.share,
+                  highlighted: link.highlighted,
+                  dimmed: link.dimmed,
+                  zIndex,
+                }
+              }),
           },
         ],
       },
@@ -823,9 +1170,17 @@ export function buildFlowSankeySpec(
       style: {
         fill: (datum: Record<string, unknown>) =>
           String(sankeyDatumValue(datum, 'color') ?? colorAt(0)),
-        fillOpacity: 0.92,
-        stroke: 'rgba(148, 163, 184, 0.45)',
-        lineWidth: 1,
+        fillOpacity: (datum: Record<string, unknown>) => {
+          if (sankeyDatumFlag(datum, 'dimmed')) return 0.18
+          if (sankeyDatumFlag(datum, 'highlighted')) return 1
+          return 0.92
+        },
+        stroke: (datum: Record<string, unknown>) =>
+          sankeyDatumFlag(datum, 'highlighted')
+            ? 'rgba(15, 23, 42, 0.74)'
+            : 'rgba(148, 163, 184, 0.45)',
+        lineWidth: (datum: Record<string, unknown>) =>
+          sankeyDatumFlag(datum, 'highlighted') ? 1.5 : 1,
         cursor: 'pointer',
         pickMode: 'accurate',
       },
@@ -854,8 +1209,11 @@ export function buildFlowSankeySpec(
               sankeyDatumValue(datum, 'color') ??
               colorAt(0)
           ),
-        fillOpacity: (datum: Record<string, unknown>) =>
-          numberValue(sankeyDatumValue(datum, 'linkAlpha')) || 1,
+        fillOpacity: (datum: Record<string, unknown>) => {
+          if (sankeyDatumFlag(datum, 'dimmed')) return 0.08
+          if (sankeyDatumFlag(datum, 'highlighted')) return 0.86
+          return numberValue(sankeyDatumValue(datum, 'linkAlpha')) || 1
+        },
         cursor: 'pointer',
         pickMode: 'accurate',
         boundsMode: 'accurate',
@@ -889,7 +1247,12 @@ export function buildFlowSankeySpec(
         },
       },
     },
-    emphasis: { enable: false, trigger: 'hover', effect: 'self' },
+    // Highlighting is driven entirely by our own `highlighted`/`dimmed` data
+    // flags (see fillOpacity above). VChart's built-in click emphasis is
+    // disabled because its Sankey "related" handler crashes on click
+    // (_handleLinkRelatedClick) and would otherwise fight our full-path
+    // highlight.
+    emphasis: { enable: false },
     tooltip: {
       trigger: 'hover',
       activeType: 'mark',

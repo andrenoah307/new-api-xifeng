@@ -31,7 +31,9 @@ import { OverviewDashboard } from './components/overview/overview-dashboard'
 import { DEFAULT_TIME_GRANULARITY } from './constants'
 import {
   buildDefaultDashboardFilters,
+  getDefaultDays,
   getSavedChartPreferences,
+  getSavedGranularity,
   saveChartPreferences,
 } from './lib'
 import {
@@ -43,6 +45,7 @@ import {
   type DashboardChartPreferences,
   type DashboardFilters,
   type QuotaDataItem,
+  type UserChartsFilters,
 } from './types'
 
 const route = getRouteApi('/_authenticated/dashboard/$section')
@@ -166,6 +169,16 @@ export function Dashboard() {
   const [modelFilters, setModelFilters] = useState<DashboardFilters>(() =>
     buildDefaultDashboardFilters(getSavedChartPreferences())
   )
+  const [userChartsFilters, setUserChartsFilters] = useState<UserChartsFilters>(
+    () => {
+      const granularity = getSavedGranularity()
+      return {
+        timeGranularity: granularity,
+        selectedRange: getDefaultDays(granularity),
+        topUserLimit: 10,
+      }
+    }
+  )
 
   const handleFilterChange = useCallback((filters: DashboardFilters) => {
     setModelFilters(filters)
@@ -221,6 +234,7 @@ export function Dashboard() {
         />
         <ModelsFilter
           preferences={chartPreferences}
+          currentFilters={modelFilters}
           onFilterChange={handleFilterChange}
           onReset={handleResetFilters}
         />
@@ -230,6 +244,7 @@ export function Dashboard() {
     activeSection === 'flow' ? (
       <ModelsFilter
         preferences={chartPreferences}
+        currentFilters={modelFilters}
         onFilterChange={handleFilterChange}
         onReset={handleResetFilters}
         titleKey='Flow Filters'
@@ -314,7 +329,10 @@ export function Dashboard() {
           {activeSection === 'users' && (
             <FadeIn>
               <Suspense fallback={<ModelChartsFallback />}>
-                <LazyUserCharts />
+                <LazyUserCharts
+                  filters={userChartsFilters}
+                  onFiltersChange={setUserChartsFilters}
+                />
               </Suspense>
             </FadeIn>
           )}

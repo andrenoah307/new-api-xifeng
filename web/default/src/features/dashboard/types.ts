@@ -62,9 +62,22 @@ export type FlowNodeKind =
   | 'model'
   | 'channel'
 
+export interface FlowNodeFilter {
+  kind: FlowNodeKind
+  id: string
+}
+
+export interface FlowLinkSelection {
+  source: string
+  target: string
+}
+
 export interface FlowBuildOptions {
   role?: FlowRole
   selectedUsers?: string[]
+  selectedNodes?: FlowNodeFilter[]
+  activeNode?: FlowNodeFilter
+  activeLink?: FlowLinkSelection
   colorPalette?: readonly string[]
   visibleStages?: FlowNodeKind[]
   topNodeLimit?: number
@@ -85,6 +98,8 @@ export interface DashboardFlowNode {
   tokens: number
   color: string
   colorKey: string
+  highlighted?: boolean
+  dimmed?: boolean
 }
 
 export interface DashboardFlowLink {
@@ -102,6 +117,8 @@ export interface DashboardFlowLink {
   hoverColor: string
   colorKey: string
   share: number
+  highlighted?: boolean
+  dimmed?: boolean
 }
 
 export interface DashboardFlowGraph {
@@ -117,8 +134,18 @@ export interface FlowUserFilterOption {
   color: string
 }
 
+export interface FlowNodeFilterOption {
+  kind: FlowNodeKind
+  value: string
+  label: string
+  valueLabel: string
+  valueRaw: number
+  color: string
+}
+
 export interface FlowFilterOptions {
   users: FlowUserFilterOption[]
+  nodes: FlowNodeFilterOption[]
 }
 
 export interface FlowSummary {
@@ -169,6 +196,14 @@ export interface DashboardChartPreferences {
   modelAnalyticsChart: ModelAnalyticsChartTab
   defaultTimeRangeDays: number
   defaultTimeGranularity: TimeGranularity
+}
+
+// User analytics selections are held by the dashboard parent so they survive
+// switching between dashboard sub-sections, matching the model/flow filters.
+export interface UserChartsFilters {
+  timeGranularity: TimeGranularity
+  selectedRange: number
+  topUserLimit: number
 }
 
 // ============================================================================

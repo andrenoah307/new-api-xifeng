@@ -16,9 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Fragment, useMemo, useState } from 'react'
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { VChart } from '@visactor/react-vchart'
+import type { EventParamsDefinition, IVChart } from '@visactor/vchart'
 import {
   Activity,
   ChevronRight,
@@ -56,6 +64,8 @@ import {
   buildDashboardFlowData,
   buildFlowSankeySpec,
   buildQueryParams,
+  flowNodeFilterFromSankeyDatum,
+  flowSankeyDatumValue,
   getDefaultDays,
   getFlowStages,
 } from '@/features/dashboard/lib'
@@ -66,7 +76,9 @@ import {
 } from '@/features/dashboard/lib/flow-selection'
 import type {
   DashboardFilters,
+  FlowLinkSelection,
   FlowMetric,
+  FlowNodeFilter,
   FlowNodeKind,
   FlowOverflowMode,
   FlowRole,
@@ -78,6 +90,7 @@ import { useChartTheme } from '@/lib/use-chart-theme'
 import { cn } from '@/lib/utils'
 import { VCHART_OPTION } from '@/lib/vchart'
 import { useAuthStore } from '@/stores/auth-store'
+import { FlowNodeFilterControl } from './flow-node-filter'
 
 interface FlowChartsProps {
   filters?: DashboardFilters
@@ -88,6 +101,12 @@ const FLOW_METRIC_OPTIONS = [
   { value: 'tokens', labelKey: 'By tokens', icon: Hash },
   { value: 'requests', labelKey: 'By requests', icon: Activity },
 ] as const
+
+const FLOW_METRIC_LABEL_KEYS: Record<FlowMetric, string> = {
+  quota: 'Quota',
+  tokens: 'Tokens',
+  requests: 'Requests',
+}
 
 const FLOW_TOP_LIMIT_OPTIONS = [10, 20, 50, 100] as const
 
@@ -131,6 +150,15 @@ const FLOW_STAGE_META: Record<
   },
 }
 
+const FLOW_STAGE_LABEL_KEYS: Record<FlowNodeKind, string> = {
+  user: FLOW_STAGE_META.user.labelKey,
+  node: FLOW_STAGE_META.node.labelKey,
+  token: FLOW_STAGE_META.token.labelKey,
+  group: FLOW_STAGE_META.group.labelKey,
+  model: FLOW_STAGE_META.model.labelKey,
+  channel: FLOW_STAGE_META.channel.labelKey,
+}
+
 const FLOW_OTHER_NODE_LABEL_KEYS: Record<FlowNodeKind, string> = {
   user: 'Other users',
   node: 'Other nodes',
@@ -140,18 +168,113 @@ const FLOW_OTHER_NODE_LABEL_KEYS: Record<FlowNodeKind, string> = {
   channel: 'Other channels',
 }
 
+type FlowChartPointerEvent = EventParamsDefinition['pointerdown']
+
+function chartRecordValue(
+  value: unknown
+): Record<string, unknown> | undefined {
+  return value && typeof value === 'object'
+    ? (value as Record<string, unknown>)
+    : undefined
+}
+
+function looksLikeFlowDatum(value: unknown): boolean {
+  const record = chartRecordValue(value)
+  if (!record) return false
+  return (
+    (record.key !== undefined && record.kind !== undefined) ||
+    (record.source !== undefined && record.target !== undefined)
+  )
+}
+
+function chartGraphicDatum(value: unknown): unknown {
+  const record = chartRecordValue(value)
+  const context = chartRecordValue(record?.context)
+  const data = context?.data
+  if (Array.isArray(data)) return data[0]
+  return data
+}
+
+function flowChartEventDatum(event: FlowChartPointerEvent): unknown {
+  const record = chartRecordValue(event)
+  if (!record) return undefined
+
+  if (record.datum !== undefined && record.datum !== null) return record.datum
+
+  const itemRecord = chartRecordValue(record.item)
+  if (itemRecord?.datum !== undefined && itemRecord.datum !== null) {
+    return itemRecord.datum
+  }
+
+  const graphicDatum = chartGraphicDatum(record.item)
+  if (graphicDatum !== undefined && graphicDatum !== null) return graphicDatum
+
+  const itemData = itemRecord?.data
+  if (Array.isArray(itemData)) return itemData[0]
+  if (itemData !== undefined && itemData !== null) return itemData
+
+  return looksLikeFlowDatum(record) ? record : undefined
+}
+
+function flowNodeFilterKey(filter: FlowNodeFilter): string {
+  return `${filter.kind}\u0000${filter.id}`
+}
+
+function isSameFlowNodeFilter(
+  a: FlowNodeFilter | undefined,
+  b: FlowNodeFilter
+): boolean {
+  return Boolean(a && a.kind === b.kind && a.id === b.id)
+}
+
+function toggleSelectedValue(values: string[], value: string): string[] {
+  return values.includes(value)
+    ? values.filter((item) => item !== value)
+    : [...values, value]
+}
+
+function toggleSelectedNodeFilter(
+  filters: FlowNodeFilter[],
+  filter: FlowNodeFilter
+): FlowNodeFilter[] {
+  const key = flowNodeFilterKey(filter)
+  const hasFilter = filters.some((item) => flowNodeFilterKey(item) === key)
+  return hasFilter
+    ? filters.filter((item) => flowNodeFilterKey(item) !== key)
+    : [...filters, filter]
+}
+
+function formatFlowMetricNumber(value: number): string {
+  return Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(
+    value
+  )
+}
+
 export function FlowCharts(props: FlowChartsProps) {
   const { t } = useTranslation()
   const { resolvedTheme, themeReady } = useChartTheme()
+  const chartInstanceRef = useRef<IVChart | null>(null)
   const user = useAuthStore((state) => state.auth.user)
   const isRoot = Boolean(user?.role && user.role >= ROLE.SUPER_ADMIN)
   const isAdmin = Boolean(user?.role && user.role >= ROLE.ADMIN)
-  const flowRole: FlowRole = isRoot ? 'root' : isAdmin ? 'admin' : 'user'
+  let flowRole: FlowRole = 'user'
+  if (isRoot) {
+    flowRole = 'root'
+  } else if (isAdmin) {
+    flowRole = 'admin'
+  }
   const [metric, setMetric] = useState<FlowMetric>('quota')
   const [topNodeLimit, setTopNodeLimit] = useState(DEFAULT_FLOW_TOP_NODE_LIMIT)
   const [overflowMode, setOverflowMode] =
     useState<FlowOverflowMode>('aggregate')
   const [selectedUsers, setSelectedUsers] = useState<string[]>([])
+  const [selectedNodes, setSelectedNodes] = useState<FlowNodeFilter[]>([])
+  const [activeFlowNode, setActiveFlowNode] = useState<
+    FlowNodeFilter | undefined
+  >()
+  const [activeFlowLink, setActiveFlowLink] = useState<
+    FlowLinkSelection | undefined
+  >()
   const [hiddenStages, setHiddenStages] = useState<FlowNodeKind[]>([])
 
   const stages = useMemo(() => getFlowStages(flowRole), [flowRole])
@@ -159,6 +282,19 @@ export function FlowCharts(props: FlowChartsProps) {
     () => stages.filter((stage) => !hiddenStages.includes(stage)),
     [stages, hiddenStages]
   )
+  useEffect(() => {
+    const visible = new Set(visibleStages)
+    setSelectedNodes((prev) => {
+      const next = prev.filter((filter) => visible.has(filter.kind))
+      return next.length === prev.length ? prev : next
+    })
+    setActiveFlowNode((prev) =>
+      prev && visible.has(prev.kind) ? prev : undefined
+    )
+    // The graph reshapes when columns are toggled, so any highlighted edge may
+    // no longer exist. Drop the link selection rather than leave it dangling.
+    setActiveFlowLink(undefined)
+  }, [visibleStages])
   const toggleStage = (stage: FlowNodeKind) => {
     setHiddenStages((prev) => {
       const hidden = new Set(prev)
@@ -209,6 +345,9 @@ export function FlowCharts(props: FlowChartsProps) {
       buildDashboardFlowData(isLoading ? [] : (flowRows ?? []), metric, {
         role: flowRole,
         selectedUsers,
+        selectedNodes,
+        activeNode: activeFlowNode,
+        activeLink: activeFlowLink,
         visibleStages,
         topNodeLimit,
         overflowMode,
@@ -221,6 +360,9 @@ export function FlowCharts(props: FlowChartsProps) {
       isLoading,
       metric,
       overflowMode,
+      activeFlowNode,
+      activeFlowLink,
+      selectedNodes,
       selectedUsers,
       topNodeLimit,
       visibleStages,
@@ -235,6 +377,75 @@ export function FlowCharts(props: FlowChartsProps) {
       })),
     [flowData.filterOptions.users]
   )
+  const nodeFilterStages = useMemo(
+    () => visibleStages.filter((stage) => stage !== 'user'),
+    [visibleStages]
+  )
+  const nodeFilterOptions = useMemo(
+    () =>
+      flowData.filterOptions.nodes.filter((option) => option.kind !== 'user'),
+    [flowData.filterOptions.nodes]
+  )
+  const metricLabel = t(FLOW_METRIC_LABEL_KEYS[metric])
+  const formatNodeMetricValue = useCallback(
+    (value: number) =>
+      metric === 'quota' ? formatQuota(value) : formatFlowMetricNumber(value),
+    [metric]
+  )
+  // Explicit filters (the chips/dropdown control) narrow the rows that feed the
+  // chart. They are intentionally independent from the click-to-highlight state
+  // below so selecting a filter never dims a node, it removes unrelated rows.
+  const toggleFlowNodeFilter = useCallback((filter: FlowNodeFilter) => {
+    if (filter.kind === 'user') {
+      setSelectedUsers((prev) => toggleSelectedValue(prev, filter.id))
+      return
+    }
+    setSelectedNodes((prev) => toggleSelectedNodeFilter(prev, filter))
+  }, [])
+  const removeFlowNodeFilter = useCallback((filter: FlowNodeFilter) => {
+    if (filter.kind === 'user') {
+      setSelectedUsers((prev) => prev.filter((item) => item !== filter.id))
+      return
+    }
+    const key = flowNodeFilterKey(filter)
+    setSelectedNodes((prev) =>
+      prev.filter((item) => flowNodeFilterKey(item) !== key)
+    )
+  }, [])
+  const clearFlowNodeFilters = useCallback(() => {
+    setSelectedNodes([])
+  }, [])
+  // Clicking a node only drives the highlight: keep every node/link on screen
+  // but emphasize the full paths through the clicked node and dim the rest.
+  // Clicking the active node again, or clicking empty space, clears it.
+  const handleChartPointerDown = useCallback((event: FlowChartPointerEvent) => {
+    const datum = flowChartEventDatum(event)
+    const filter = flowNodeFilterFromSankeyDatum(datum)
+    if (filter) {
+      setActiveFlowLink(undefined)
+      setActiveFlowNode((prev) =>
+        isSameFlowNodeFilter(prev, filter) ? undefined : filter
+      )
+      return
+    }
+
+    const source = flowSankeyDatumValue(datum, 'source')
+    const target = flowSankeyDatumValue(datum, 'target')
+    if (typeof source === 'string' && typeof target === 'string') {
+      setActiveFlowNode(undefined)
+      setActiveFlowLink((prev) =>
+        prev && prev.source === source && prev.target === target
+          ? undefined
+          : { source, target }
+      )
+      return
+    }
+
+    setActiveFlowNode(undefined)
+    setActiveFlowLink(undefined)
+    chartInstanceRef.current?.clearState('selected')
+    chartInstanceRef.current?.clearState('blur')
+  }, [])
   const chartTitle = t('Flow')
   const flowSpec = useMemo(
     () =>
@@ -252,6 +463,9 @@ export function FlowCharts(props: FlowChartsProps) {
     topNodeLimit,
     overflowMode,
     flowRole,
+    activeFlowNode ? flowNodeFilterKey(activeFlowNode) : '',
+    activeFlowLink ? `${activeFlowLink.source}\u0000${activeFlowLink.target}` : '',
+    selectedNodes.map(flowNodeFilterKey).join(','),
     selectedUsers.join(','),
     visibleStages.join(','),
     flowRows?.length ?? 0,
@@ -267,6 +481,46 @@ export function FlowCharts(props: FlowChartsProps) {
     flowError instanceof Error
       ? flowError.message
       : t('Please try again later.')
+  let chartContent = (
+    <VChart
+      key={`flow-${chartKey}`}
+      spec={{
+        ...flowSpec,
+        theme: chartTheme,
+        background: 'transparent',
+      }}
+      option={VCHART_OPTION}
+      onReady={(instance: IVChart) => {
+        chartInstanceRef.current = instance
+      }}
+      onPointerDown={handleChartPointerDown}
+    />
+  )
+  if (displayState === 'loading') {
+    chartContent = <Skeleton className='h-full w-full' />
+  } else if (displayState === 'error') {
+    chartContent = (
+      <div className='flex h-full items-center justify-center p-4'>
+        <Alert variant='destructive' className='max-w-md'>
+          <CircleAlert />
+          <AlertTitle>{t('Failed to load')}</AlertTitle>
+          <AlertDescription>{flowErrorMessage}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  } else if (displayState === 'empty') {
+    chartContent = (
+      <Empty className='h-full border-0 py-12'>
+        <EmptyHeader>
+          <EmptyMedia variant='icon'>
+            <Route />
+          </EmptyMedia>
+          <EmptyTitle>{t('No flow data available')}</EmptyTitle>
+          <EmptyDescription>{t('No data available')}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
+  }
 
   return (
     <div className='flex flex-col gap-3'>
@@ -366,6 +620,18 @@ export function FlowCharts(props: FlowChartsProps) {
               </TabsList>
             </Tabs>
           </div>
+
+          <FlowNodeFilterControl
+            stages={nodeFilterStages}
+            stageLabels={FLOW_STAGE_LABEL_KEYS}
+            metricLabel={metricLabel}
+            formatMetricValue={formatNodeMetricValue}
+            options={nodeFilterOptions}
+            selectedNodes={selectedNodes}
+            onToggleNode={toggleFlowNodeFilter}
+            onRemoveNode={removeFlowNodeFilter}
+            onClearNodes={clearFlowNodeFilters}
+          />
         </div>
 
         <div className='flex min-w-0 items-center gap-2 xl:justify-end'>
@@ -447,37 +713,7 @@ export function FlowCharts(props: FlowChartsProps) {
           </TooltipProvider>
         </div>
         <div className='h-[560px] p-1.5 sm:h-[680px] sm:p-2 2xl:h-[760px]'>
-          {displayState === 'loading' ? (
-            <Skeleton className='h-full w-full' />
-          ) : displayState === 'error' ? (
-            <div className='flex h-full items-center justify-center p-4'>
-              <Alert variant='destructive' className='max-w-md'>
-                <CircleAlert />
-                <AlertTitle>{t('Failed to load')}</AlertTitle>
-                <AlertDescription>{flowErrorMessage}</AlertDescription>
-              </Alert>
-            </div>
-          ) : displayState === 'empty' ? (
-            <Empty className='h-full border-0 py-12'>
-              <EmptyHeader>
-                <EmptyMedia variant='icon'>
-                  <Route />
-                </EmptyMedia>
-                <EmptyTitle>{t('No flow data available')}</EmptyTitle>
-                <EmptyDescription>{t('No data available')}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <VChart
-              key={`flow-${chartKey}`}
-              spec={{
-                ...flowSpec,
-                theme: chartTheme,
-                background: 'transparent',
-              }}
-              option={VCHART_OPTION}
-            />
-          )}
+          {chartContent}
         </div>
       </div>
     </div>
