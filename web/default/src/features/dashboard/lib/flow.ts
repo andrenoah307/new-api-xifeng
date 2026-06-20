@@ -77,6 +77,7 @@ type FlowGraphOptions = {
   otherNodeLabel?: (kind: FlowNodeKind) => string
   activeNode?: FlowNodeFilter
   activeLink?: FlowLinkSelection
+  maskSensitive?: boolean
 }
 
 type FlowHighlightSets = {
@@ -126,6 +127,18 @@ const DEFAULT_OTHER_FLOW_NODE_LABELS: Record<FlowNodeKind, string> = {
   model: 'Other models',
   channel: 'Other channels',
 }
+
+// Kinds whose labels can leak identity (people, keys, infra, business setup).
+// Model names are public, so they stay visible even when masking is on.
+const SENSITIVE_FLOW_KINDS = new Set<FlowNodeKind>([
+  'user',
+  'node',
+  'token',
+  'group',
+  'channel',
+])
+
+const OTHER_FLOW_NODE_ID_SET = new Set<string>(Object.values(OTHER_FLOW_NODE_IDS))
 
 function numberValue(value: unknown): number {
   const n = Number(value)
@@ -663,6 +676,40 @@ function buildFlowHighlightSets(
   }
 }
 
+// Fully masks a label. Nodes stay distinct because the Sankey identifies them
+// by `key` (the node id), not by this display text, so identical masked labels
+// never merge.
+const FLOW_MASK_TEXT = '\u2022\u2022\u2022\u2022'
+
+function maskFlowLabel(label: string): string {
+  if (label.length === 0) return label
+  return FLOW_MASK_TEXT
+}
+
+// Masks sensitive node/link labels in place. Node identity (`id`) is untouched,
+// so links, highlighting, and layout stay exactly the same; only the rendered
+// text changes.
+function maskFlowGraphLabels(
+  nodes: Map<string, DashboardFlowNode>,
+  links: Map<string, DashboardFlowLink>
+): void {
+  const maskedById = new Map<string, string>()
+  for (const node of nodes.values()) {
+    if (!SENSITIVE_FLOW_KINDS.has(node.kind)) continue
+    if (OTHER_FLOW_NODE_ID_SET.has(node.id)) continue
+    const masked = maskFlowLabel(node.label)
+    node.label = masked
+    maskedById.set(node.id, masked)
+  }
+  if (maskedById.size === 0) return
+  for (const link of links.values()) {
+    const sourceMasked = maskedById.get(link.source)
+    if (sourceMasked !== undefined) link.sourceLabel = sourceMasked
+    const targetMasked = maskedById.get(link.target)
+    if (targetMasked !== undefined) link.targetLabel = targetMasked
+  }
+}
+
 function applyFlowHighlights(
   nodes: Iterable<DashboardFlowNode>,
   links: Iterable<DashboardFlowLink>,
@@ -737,6 +784,9 @@ function buildFlowGraph(
       if (!source || !target) continue
       addLink(links, source, target, metrics, metric, color, root.id)
     }
+  }
+  if (options.maskSensitive) {
+    maskFlowGraphLabels(nodes, links)
   }
   applyFlowHighlights(
     nodes.values(),
@@ -948,6 +998,7 @@ export function buildDashboardFlowData(
         otherNodeLabel: options.otherNodeLabel,
         activeNode: options.activeNode,
         activeLink: options.activeLink,
+        maskSensitive: options.maskSensitive,
       }
     ),
     filterOptions: {

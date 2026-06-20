@@ -94,6 +94,8 @@ import { FlowNodeFilterControl } from './flow-node-filter'
 
 interface FlowChartsProps {
   filters?: DashboardFilters
+  // When false, sensitive node labels are masked in the rendered Sankey.
+  sensitiveVisible?: boolean
 }
 
 const FLOW_METRIC_OPTIONS = [
@@ -340,6 +342,7 @@ export function FlowCharts(props: FlowChartsProps) {
     staleTime: 60_000,
   })
 
+  const maskSensitive = props.sensitiveVisible === false
   const flowData = useMemo(
     () =>
       buildDashboardFlowData(isLoading ? [] : (flowRows ?? []), metric, {
@@ -351,6 +354,7 @@ export function FlowCharts(props: FlowChartsProps) {
         visibleStages,
         topNodeLimit,
         overflowMode,
+        maskSensitive,
         deletedTokenLabel: (tokenId) => t('Deleted ({{id}})', { id: tokenId }),
         otherNodeLabel: (kind) => t(FLOW_OTHER_NODE_LABEL_KEYS[kind]),
       }),
@@ -366,6 +370,7 @@ export function FlowCharts(props: FlowChartsProps) {
       selectedUsers,
       topNodeLimit,
       visibleStages,
+      maskSensitive,
       t,
     ]
   )
@@ -468,6 +473,7 @@ export function FlowCharts(props: FlowChartsProps) {
     selectedNodes.map(flowNodeFilterKey).join(','),
     selectedUsers.join(','),
     visibleStages.join(','),
+    maskSensitive ? 'masked' : 'plain',
     flowRows?.length ?? 0,
     resolvedTheme,
   ].join('-')
