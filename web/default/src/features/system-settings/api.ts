@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 import type {
   ConfirmPaymentComplianceResponse,
-  DeleteLogsResponse,
   FetchUpstreamRatiosRequest,
   LogCleanupTask,
   SystemOptionsResponse,
@@ -45,13 +44,6 @@ export async function confirmPaymentCompliance() {
     '/api/option/payment_compliance',
     { confirmed: true }
   )
-  return res.data
-}
-
-export async function deleteLogsBefore(targetTimestamp: number) {
-  const res = await api.delete<DeleteLogsResponse>('/api/log/', {
-    params: { target_timestamp: targetTimestamp },
-  })
   return res.data
 }
 
