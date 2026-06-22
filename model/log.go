@@ -683,33 +683,24 @@ func DeleteOldLogBatch(ctx context.Context, targetTimestamp int64, limit int) (i
 	}
 
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
-		var batchCount int64
-		if err := LOG_DB.WithContext(ctx).Raw(`
-SELECT count() FROM (
-	SELECT created_at, request_id
-	FROM logs
-	WHERE created_at < ?
-	ORDER BY created_at ASC, request_id ASC
-	LIMIT ?
-)`, targetTimestamp, limit).Scan(&batchCount).Error; err != nil {
+		// ClickHouse DELETE is a heavy mutation that rewrites data parts, so
+		// per-batch mutations would be pathologically slow. Remove all matching
+		// rows in a single synchronous mutation regardless of limit; the reported
+		// count lets the caller's progress loop complete in one pass.
+		total, err := CountOldLog(ctx, targetTimestamp)
+		if err != nil {
 			return 0, err
 		}
-		if batchCount == 0 {
+		if total == 0 {
 			return 0, nil
 		}
-
-		if err := LOG_DB.WithContext(ctx).Exec(`
-ALTER TABLE logs DELETE WHERE (created_at, request_id) IN (
-	SELECT created_at, request_id
-	FROM logs
-	WHERE created_at < ?
-	ORDER BY created_at ASC, request_id ASC
-	LIMIT ?
-) SETTINGS mutations_sync = 1`, targetTimestamp, limit).Error; err != nil {
+		if err := LOG_DB.WithContext(ctx).Exec(
+			"ALTER TABLE logs DELETE WHERE created_at < ? SETTINGS mutations_sync = 1",
+			targetTimestamp,
+		).Error; err != nil {
 			return 0, err
 		}
-
-		return batchCount, nil
+		return total, nil
 	}
 
 	result := LOG_DB.WithContext(ctx).Where("created_at < ?", targetTimestamp).Limit(limit).Delete(&Log{})
