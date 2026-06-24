@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -18,6 +19,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/samber/lo"
 )
 
@@ -338,19 +340,40 @@ func taskNeedsUpdate(oldTask *model.Task, newTask dto.SunoDataResponse) bool {
 
 // UpdateVideoTasks 按渠道更新所有视频任务
 func UpdateVideoTasks(ctx context.Context, platform constant.TaskPlatform, taskChannelM map[int][]string, taskM map[string]*model.Task) error {
-	for channelId, taskIds := range taskChannelM {
-		if ctx.Err() != nil {
-			return ctx.Err()
+	channelIDs := make([]int, 0, len(taskChannelM))
+	for channelID := range taskChannelM {
+		channelIDs = append(channelIDs, channelID)
+	}
+	sort.Ints(channelIDs)
+
+	var wg sync.WaitGroup
+	for _, channelId := range channelIDs {
+		taskIds := taskChannelM[channelId]
+		if len(taskIds) == 0 {
+			continue
 		}
-		if err := updateVideoTasks(ctx, platform, channelId, taskIds, taskM); err != nil {
-			logger.LogError(ctx, fmt.Sprintf("Channel #%d failed to update video async tasks: %s", channelId, err.Error()))
-		}
+		taskIds = append([]string(nil), taskIds...)
+
+		wg.Add(1)
+		gopool.Go(func() {
+			defer wg.Done()
+			if err := updateVideoTasks(ctx, platform, channelId, taskIds, taskM); err != nil {
+				logger.LogError(ctx, fmt.Sprintf("Channel #%d failed to update video async tasks: %s", channelId, err.Error()))
+			}
+		})
+	}
+	wg.Wait()
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 	return nil
 }
 
 func updateVideoTasks(ctx context.Context, platform constant.TaskPlatform, channelId int, taskIds []string, taskM map[string]*model.Task) error {
 	logger.LogInfo(ctx, fmt.Sprintf("Channel #%d pending video tasks: %d", channelId, len(taskIds)))
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
 	if len(taskIds) == 0 {
 		return nil
 	}
@@ -383,14 +406,19 @@ func updateVideoTasks(ctx context.Context, platform constant.TaskPlatform, chann
 	}
 	info.ApiKey = cacheGetChannel.Key
 	adaptor.Init(info)
-	for _, taskId := range taskIds {
+	disablePollingSleep := cacheGetChannel.GetOtherSettings().DisableTaskPollingSleep
+	for i, taskId := range taskIds {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		if err := updateVideoSingleTask(ctx, adaptor, cacheGetChannel, taskId, taskM); err != nil {
 			logger.LogError(ctx, fmt.Sprintf("Failed to update video task %s: %s", taskId, err.Error()))
 		}
-		// sleep 1 second between each task to avoid hitting rate limits of upstream platforms
+		if disablePollingSleep || i == len(taskIds)-1 {
+			continue
+		}
+
+		// sleep 1 second between tasks for this channel only.
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
