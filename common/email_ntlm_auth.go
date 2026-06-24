@@ -31,7 +31,7 @@ func (a *smtpAutoAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
 	switch {
 	case smtpServerSupportsAuth(server, "PLAIN"):
 		a.mech = "PLAIN"
-		return "PLAIN", []byte("\x00" + a.username + "\x00" + a.password), nil
+		return smtp.PlainAuth("", a.username, a.password, SMTPServer).Start(server)
 	case smtpServerSupportsAuth(server, "LOGIN"):
 		a.mech = "LOGIN"
 		return "LOGIN", []byte{}, nil
@@ -44,7 +44,7 @@ func (a *smtpAutoAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
 		return "NTLM", negotiateMessage, nil
 	default:
 		a.mech = "PLAIN"
-		return "PLAIN", []byte("\x00" + a.username + "\x00" + a.password), nil
+		return smtp.PlainAuth("", a.username, a.password, SMTPServer).Start(server)
 	}
 }
 

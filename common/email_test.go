@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/smtp"
 	"strconv"
 	"strings"
 	"testing"
@@ -345,6 +346,37 @@ func TestSendEmailDoesNotAutoUpgradeWhenStartTLSDisabled(t *testing.T) {
 		require.Contains(t, message, "<p>123456</p>")
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for SMTP DATA")
+	}
+}
+
+func TestSMTPPlainAuthRejectsRemotePlaintextConnection(t *testing.T) {
+	server := newFakeSMTPServerWithSTARTTLSAdvertisement(t, false)
+	defer server.close()
+	withSMTPSettings(t)
+
+	SMTPServer = "smtp.example.com"
+	SMTPPort = server.port
+	SMTPSSLEnabled = false
+	SMTPStartTLSEnabled = false
+	SMTPInsecureSkipVerify = false
+	SMTPForceAuthLogin = false
+	SMTPAccount = "sender@example.com"
+	SMTPFrom = "sender@example.com"
+	SMTPToken = "secret"
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", server.host, server.port))
+	require.NoError(t, err)
+	client, err := smtp.NewClient(conn, SMTPServer)
+	require.NoError(t, err)
+
+	err = client.Auth(getSMTPAuth())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unencrypted connection")
+
+	select {
+	case command := <-server.authCommands:
+		t.Fatalf("unexpected SMTP auth command: %s", command)
+	default:
 	}
 }
 
