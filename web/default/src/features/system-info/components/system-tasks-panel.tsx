@@ -79,8 +79,12 @@ const TYPE_LABEL: Record<string, string> = {
   log_cleanup: 'Log cleanup',
   channel_test: 'Batch channel test',
   model_update: 'Batch upstream model update',
-  midjourney_poll: 'Midjourney task polling',
+  midjourney_poll: 'Drawing task polling',
   async_task_poll: 'Async task polling',
+}
+
+const TYPE_DISPLAY_ID: Record<string, string> = {
+  midjourney_poll: 'drawing_task_poll',
 }
 
 function isActiveStatus(status: SystemTaskStatus) {
@@ -136,7 +140,7 @@ function SystemTasksTable(props: SystemTasksTableProps) {
                       {t(TYPE_LABEL[task.type] ?? task.type)}
                     </div>
                     <div className='text-muted-foreground font-mono text-[11px]'>
-                      {task.type}
+                      {TYPE_DISPLAY_ID[task.type] ?? task.type}
                     </div>
                   </div>
                 </TableCell>
