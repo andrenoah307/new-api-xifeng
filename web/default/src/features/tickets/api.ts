@@ -157,9 +157,24 @@ interface TicketDetailResponse {
   refund?: TicketRefund
 }
 
+export interface TicketLimitStatus {
+  limited: boolean
+  exempt: boolean
+  threshold_quota: number
+  balance_quota: number
+  used: number
+  remaining: number
+  reset_at: number
+}
+
 // ============================================================================
 // User API
 // ============================================================================
+
+export async function getTicketLimitStatus(): Promise<TicketLimitStatus> {
+  const res = await api.get('/api/ticket/limit-status')
+  return res.data.data
+}
 
 export async function getUserTickets(params: {
   p: number

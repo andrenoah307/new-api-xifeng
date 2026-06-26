@@ -30,6 +30,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [quotaLoading, setQuotaLoading] = useState(false);
   const [invoiceConflict, setInvoiceConflict] = useState(null);
   const [invoiceConflictAcked, setInvoiceConflictAcked] = useState(false);
+  const [limitStatus, setLimitStatus] = useState(null);
   const formApiRef = useRef(null);
   const {
     config,
@@ -57,15 +58,28 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
     }
   };
 
+  const loadLimitStatus = async () => {
+    try {
+      const res = await API.get('/api/ticket/limit-status', {
+        skipErrorHandler: true,
+      });
+      if (res.data?.success) {
+        setLimitStatus(res.data?.data || null);
+      }
+    } catch (error) {}
+  };
+
   useEffect(() => {
     if (!visible) {
       setTicketType('general');
       setPayeeType('alipay');
+      setLimitStatus(null);
       // Modal 关闭时清空本地选中附件（真实删除交给父级的 cancel 流程处理）。
       reset();
       return;
     }
     loadUserQuota();
+    loadLimitStatus();
     formApiRef.current?.setValues({
       type: 'general',
       priority: 2,
@@ -187,7 +201,8 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
       confirmLoading={loading || uploading}
       okButtonProps={{
         disabled:
-          invoiceConflict?.has_active_invoices && !invoiceConflictAcked,
+          limitStatus?.limited ||
+          (invoiceConflict?.has_active_invoices && !invoiceConflictAcked),
       }}
       centered
       width={560}
@@ -206,6 +221,20 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
           handlePaste(e);
         }}
       >
+      {limitStatus?.limited && (
+        <Banner
+          type='warning'
+          closeIcon={null}
+          description={
+            <Text>
+              {t(
+                'You\'ve used this week\'s limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.',
+              )}
+            </Text>
+          }
+          className='!mb-3'
+        />
+      )}
       <Form
         layout='vertical'
         initValues={{

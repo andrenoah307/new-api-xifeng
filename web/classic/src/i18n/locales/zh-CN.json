@@ -4926,6 +4926,7 @@
     "导出任务记录": "导出任务记录",
     "文件大小": "文件大小",
     "暂无导出任务": "暂无导出任务",
-    "下载": "下载"
+    "下载": "下载",
+    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "余额不足时每自然周仅可新建一次工单/开票申请，本周已用完。如需帮助，请先联系客服咨询。"
   }
 }

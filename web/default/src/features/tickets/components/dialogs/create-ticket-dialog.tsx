@@ -39,6 +39,7 @@ import {
   createGeneralTicket,
   createRefundTicket,
   getCurrentUserQuota,
+  getTicketLimitStatus,
   checkRefundInvoiceConflict,
 } from '../../api'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
@@ -99,6 +100,14 @@ export function CreateTicketDialog({
     queryFn: checkRefundInvoiceConflict,
     enabled: open && ticketType === 'refund',
   })
+
+  const { data: limitStatus } = useQuery({
+    queryKey: ['ticket', 'limit-status'],
+    queryFn: getTicketLimitStatus,
+    enabled: open,
+  })
+
+  const isLimited = limitStatus?.limited === true
 
   const balanceDollars = userQuota?.quota != null
     ? quotaUnitsToDollars(userQuota.quota)
@@ -169,6 +178,8 @@ export function CreateTicketDialog({
 
   const onSubmit = useCallback(
     (values: FormValues) => {
+      if (isLimited) return
+
       if (ticketType === 'general') {
         if (!values.subject?.trim()) {
           form.setError('subject', { message: t('Ticket subject is required') })
@@ -234,8 +245,12 @@ export function CreateTicketDialog({
         })
       }
     },
-    [ticketType, createGeneral, createRefund, t, attachmentIds, maxRefundDollars, form, payeeType, invoiceConflictAcked]
+    [isLimited, ticketType, createGeneral, createRefund, t, attachmentIds, maxRefundDollars, form, payeeType, invoiceConflictAcked]
   )
+
+  const isSubmitDisabled = isLimited || isPending ||
+    (ticketType === 'refund' && (quotaLoading || maxRefundDollars == null)) ||
+    (ticketType === 'refund' && invoiceConflict?.has_active_invoices && !invoiceConflictAcked)
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -259,6 +274,14 @@ export function CreateTicketDialog({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {isLimited && (
+              <Alert variant="warning">
+                <AlertDescription>
+                  {t('You\'ve used this week\'s limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.')}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div>
               <FormLabel>{t('Ticket Type')}</FormLabel>
               <Select
@@ -628,7 +651,7 @@ export function CreateTicketDialog({
             )}
 
             <DialogFooter>
-              <Button type="submit" disabled={isPending || (ticketType === 'refund' && (quotaLoading || maxRefundDollars == null)) || (ticketType === 'refund' && invoiceConflict?.has_active_invoices && !invoiceConflictAcked)}>
+              <Button type="submit" disabled={isSubmitDisabled}>
                 {isPending ? t('Submitting...') : t('Submit Ticket')}
               </Button>
             </DialogFooter>
