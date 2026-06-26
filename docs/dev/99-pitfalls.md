@@ -421,3 +421,28 @@
 - `TestChannelUpdate_DoesNotClobberUsedQuota` / `TestChannelSave_DoesNotClobberUsedQuota` / `TestChannelSaveWithoutKey_DoesNotClobberUsedQuota`：三条整行写路径均不覆盖 `used_quota`。
 - `TestMain` 迁移列表补 `&Ability{}`（`Channel.Update` 末尾 `UpdateAbilities` 需 `abilities` 表）。
 - 缓存侧（invalidate）端到端需 Redis 才能验，单测仅覆盖 DB 侧不被覆盖。
+
+### #129 低余额工单/开票周限流：UTC+8 自然周 + 前后端双门
+
+**需求**：用户余额 < 5（货币单位，`quota < 5*QuotaPerUnit`=2,500,000）时，当前 UTC+8 自然周内只能新建一次工单/开票申请（general/invoice/refund 三类合并计数），超出提示「提交过于频繁，如需帮助请先联系客服咨询」。仅 `role>=RoleAdminUser(10)` 豁免（客服 5 不豁免）。
+
+**实现要点**（完整设计见 [`docs/dev/20-low-balance-ticket-weekly-limit.md`](20-low-balance-ticket-weekly-limit.md)）：
+
+1. **自然周必须按固定 UTC+8 算，不能用服务器本地时区**。用 `time.FixedZone("CST", 8*3600)`（`common/week.go`），免 tzdata 依赖；周一对齐复用 `subscription.go` 的 `Monday=1..Sunday=7` 口径（`weekday==0→7`，回退 `-(weekday-1)` 天）。`reset_at` = 下周一 00:00。**坑**：直接 `time.Unix(now,0)` 取的是进程本地时区，部署在 UTC 机器上会算错周界——必须显式 `.In(cstZone)`。
+
+2. **三类工单合并计数**：general/invoice/refund 同存 `tickets` 表（`type` 区分），单条 `COUNT(user_id=? AND created_time>=weekStart)` 即覆盖三类，无需按 type 分别查。
+
+3. **阈值严格小于**：`quota >= 阈值` 不限——余额恰好等于 5 不触发限流。豁免/高余额时 `Remaining=-1`（无限标记）。
+
+4. **前后端双门（坑点 #76 复用）**：
+   - 后端硬门 `controller/ticket.go:enforceWeeklyTicketLimit`，注入 `CreateTicket`/`CreateInvoiceTicket`/`CreateRefundTicket` 三处（紧跟 `getTicketCurrentUser` 之后），被限返回 `ApiErrorI18n(MsgTicketWeeklyLimit)`。
+   - 前端 pre-check `GET /api/ticket/limit-status`（`GetTicketLimitStatus`）→ 双主题打开创建表单时禁用提交 + 内联提示。**仅前端禁用不够**：多 tab / 直接调 API 必须靠后端硬门。
+   - 门控在 controller 层（与既有 invoice/refund 冲突校验同层）。残留多 tab 并发窗口与现有冲突校验等价；需强一致可加 per-user 顾问锁（本批未做）。
+
+5. **计数无 soft-delete 绕过**：用户不能自删工单（仅删附件），故非删计数即可。
+
+6. **i18n 三处**：后端 `i18n/keys.go`+`{en,zh-CN,zh-TW}.yaml`（`ticket.weekly_limit_exceeded`）；前端两套 `i18n/locales/*.json`（英文源串为 key，补齐全部 locale 避免缺键）。
+
+**相关代码**：`common/week.go`、`model/ticket_limit.go`、`controller/ticket.go`、`router/api-router.go:GET /api/ticket/limit-status`、`web/{default,classic}` tickets 创建组件。
+
+**测试**：`common/week_test.go`（周界，100%）、`model/ticket_limit_test.go`（豁免/阈值/首末次/合并/跨周，90–100%）。锚点 2024-01-01 00:00 UTC+8 = 周一 = unix 1704038400。

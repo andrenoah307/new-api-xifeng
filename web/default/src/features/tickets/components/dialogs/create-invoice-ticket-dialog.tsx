@@ -36,6 +36,7 @@ import { formatTimestampToDate } from '@/lib/format'
 import {
   createInvoiceTicket,
   getEligibleInvoiceOrders,
+  getTicketLimitStatus,
   checkInvoiceRefundConflict,
   type TicketInvoiceOrder,
 } from '../../api'
@@ -91,6 +92,14 @@ export function CreateInvoiceTicketDialog({
     queryFn: checkInvoiceRefundConflict,
     enabled: open,
   })
+
+  const { data: limitStatus } = useQuery({
+    queryKey: ['ticket', 'limit-status'],
+    queryFn: getTicketLimitStatus,
+    enabled: open,
+  })
+
+  const isLimited = limitStatus?.limited === true
 
   useEffect(() => {
     if (!open) {
@@ -152,6 +161,8 @@ export function CreateInvoiceTicketDialog({
 
   const onSubmit = useCallback(
     (values: FormValues) => {
+      if (isLimited) return
+
       if (selectedIds.size === 0) {
         toast.error(t('Please select at least one order'))
         return
@@ -166,8 +177,11 @@ export function CreateInvoiceTicketDialog({
         refund_conflict_acknowledged: refundConflictAcked,
       })
     },
-    [selectedIds, mutation, t, refundConflictAcked]
+    [isLimited, selectedIds, mutation, t, refundConflictAcked]
   )
+
+  const isSubmitDisabled = isLimited || mutation.isPending || selectedIds.size === 0 ||
+    (refundConflict?.has_refunds && !refundConflictAcked)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -177,6 +191,14 @@ export function CreateInvoiceTicketDialog({
         </DialogHeader>
 
         <div className="space-y-5">
+          {isLimited && (
+            <Alert variant="warning">
+              <AlertDescription>
+                {t('You\'ve used this week\'s limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.')}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {refundConflict?.has_refunds && (
             <Alert variant="warning">
               <AlertDescription className="space-y-2">
@@ -390,7 +412,7 @@ export function CreateInvoiceTicketDialog({
           <Button
             type="submit"
             form="invoice-ticket-form"
-            disabled={mutation.isPending || selectedIds.size === 0 || (refundConflict?.has_refunds && !refundConflictAcked)}
+            disabled={isSubmitDisabled}
           >
             {mutation.isPending ? t('Submitting...') : t('Submit Application')}
           </Button>

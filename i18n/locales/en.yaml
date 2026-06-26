@@ -166,6 +166,7 @@ ticket.refund_quota_mode_invalid: "Invalid quota operation mode"
 ticket.assignee_invalid: "Ticket has already been assigned by another staff, or the target user is invalid"
 ticket.refund_invoice_conflict: "You have active invoice applications. Please acknowledge the potential invoice reversal before proceeding."
 ticket.invoice_refund_conflict: "You have active refund applications. Please acknowledge the potential impact before proceeding with invoice application."
+ticket.weekly_limit_exceeded: "Too many submissions. When your balance is low, you may create only one ticket/invoice request per calendar week. If you need help, please contact support first."
 
 # Payment messages
 payment.not_configured: "Payment information has not been configured by administrator"
