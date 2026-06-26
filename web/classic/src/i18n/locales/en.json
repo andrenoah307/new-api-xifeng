@@ -5078,6 +5078,7 @@
     "导出任务记录": "Export Task History",
     "文件大小": "File Size",
     "暂无导出任务": "No export tasks",
-    "下载": "Download"
+    "下载": "Download",
+    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first."
   }
 }

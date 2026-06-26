@@ -193,6 +193,7 @@ func SetApiRouter(router *gin.Engine) {
 		ticketRoute := apiRouter.Group("/ticket")
 		ticketRoute.Use(middleware.UserAuth())
 		{
+			ticketRoute.GET("/limit-status", controller.GetTicketLimitStatus)
 			ticketRoute.POST("/", controller.CreateTicket)
 			ticketRoute.GET("/self", controller.GetUserTickets)
 			ticketRoute.GET("/self/:id", controller.GetUserTicket)

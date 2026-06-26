@@ -77,16 +77,16 @@ type UpdateInvoiceStatusRequest struct {
 }
 
 type CreateRefundTicketRequest struct {
-	Subject                      string `json:"subject"`
-	Priority                     int    `json:"priority"`
-	RefundQuota                  int    `json:"refund_quota"`
-	PayeeType                    string `json:"payee_type"`
-	PayeeName                    string `json:"payee_name"`
-	PayeeAccount                 string `json:"payee_account"`
-	PayeeBank                    string `json:"payee_bank"`
-	Contact                      string `json:"contact"`
-	Reason                       string `json:"reason"`
-	InvoiceConflictAcknowledged  bool   `json:"invoice_conflict_acknowledged"`
+	Subject                     string `json:"subject"`
+	Priority                    int    `json:"priority"`
+	RefundQuota                 int    `json:"refund_quota"`
+	PayeeType                   string `json:"payee_type"`
+	PayeeName                   string `json:"payee_name"`
+	PayeeAccount                string `json:"payee_account"`
+	PayeeBank                   string `json:"payee_bank"`
+	Contact                     string `json:"contact"`
+	Reason                      string `json:"reason"`
+	InvoiceConflictAcknowledged bool   `json:"invoice_conflict_acknowledged"`
 }
 
 type UpdateRefundStatusRequest struct {
@@ -97,6 +97,21 @@ type UpdateRefundStatusRequest struct {
 
 func getTicketCurrentUser(c *gin.Context) (*model.User, error) {
 	return model.GetUserById(c.GetInt("id"), false)
+}
+
+// enforceWeeklyTicketLimit 拦截余额不足的非管理员用户每自然周(UTC+8)新建超过一次工单/开票。
+// 返回 true 表示已拦截并写好响应。
+func enforceWeeklyTicketLimit(c *gin.Context, user *model.User) bool {
+	st, err := model.GetUserTicketWeeklyLimitStatus(user.Id, user.Role)
+	if err != nil {
+		common.ApiError(c, err)
+		return true
+	}
+	if st.Limited {
+		common.ApiErrorI18n(c, i18n.MsgTicketWeeklyLimit)
+		return true
+	}
+	return false
 }
 
 // ensureTicketAccessible 针对"工单处理人"（客服 / 管理员）侧的接口做二次鉴权：
@@ -271,6 +286,9 @@ func CreateTicket(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if enforceWeeklyTicketLimit(c, currentUser) {
+		return
+	}
 
 	ticket, message, err := model.CreateTicketWithMessage(model.CreateTicketParams{
 		UserId:        currentUser.Id,
@@ -319,6 +337,20 @@ func GetUserTickets(c *gin.Context) {
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(tickets)
 	common.ApiSuccess(c, pageInfo)
+}
+
+func GetTicketLimitStatus(c *gin.Context) {
+	currentUser, err := getTicketCurrentUser(c)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	st, err := model.GetUserTicketWeeklyLimitStatus(currentUser.Id, currentUser.Role)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, st)
 }
 
 func GetUserTicket(c *gin.Context) {
@@ -710,6 +742,9 @@ func CreateInvoiceTicket(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if enforceWeeklyTicketLimit(c, currentUser) {
+		return
+	}
 
 	refunds, err := model.GetUserActiveRefundSummaries(currentUser.Id)
 	if err != nil {
@@ -823,6 +858,9 @@ func CreateRefundTicket(c *gin.Context) {
 	currentUser, err := getTicketCurrentUser(c)
 	if err != nil {
 		common.ApiError(c, err)
+		return
+	}
+	if enforceWeeklyTicketLimit(c, currentUser) {
 		return
 	}
 

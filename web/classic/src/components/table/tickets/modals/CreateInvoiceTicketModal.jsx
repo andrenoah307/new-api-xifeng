@@ -26,6 +26,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [invoiceAmount, setInvoiceAmount] = useState(0);
   const [refundConflict, setRefundConflict] = useState(null);
   const [refundConflictAcked, setRefundConflictAcked] = useState(false);
+  const [limitStatus, setLimitStatus] = useState(null);
   const formApiRef = useRef(null);
 
   const loadOrders = async () => {
@@ -44,11 +45,23 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
     }
   };
 
+  const loadLimitStatus = async () => {
+    try {
+      const res = await API.get('/api/ticket/limit-status', {
+        skipErrorHandler: true,
+      });
+      if (res.data?.success) {
+        setLimitStatus(res.data?.data || null);
+      }
+    } catch (error) {}
+  };
+
   useEffect(() => {
     if (!visible) {
       setSelectedOrderIds([]);
       setOrders([]);
       setInvoiceAmount(0);
+      setLimitStatus(null);
       formApiRef.current?.setValues({
         company_name: '',
         tax_number: '',
@@ -58,6 +71,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       return;
     }
     loadOrders();
+    loadLimitStatus();
   }, [visible]);
 
   useEffect(() => {
@@ -123,6 +137,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const canSubmit =
     selectedOrderIds.length > 0 &&
     (MIN_INVOICE_AMOUNT <= 0 || invoiceAmount >= MIN_INVOICE_AMOUNT) &&
+    !limitStatus?.limited &&
     !(refundConflict?.has_refunds && !refundConflictAcked);
 
   const handleSubmit = async (values) => {
@@ -198,6 +213,20 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       }
     >
       <div className='flex flex-col gap-4'>
+        {limitStatus?.limited && (
+          <Banner
+            type='warning'
+            closeIcon={null}
+            description={
+              <Text>
+                {t(
+                  'You\'ve used this week\'s limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.',
+                )}
+              </Text>
+            }
+            style={{ marginBottom: 0 }}
+          />
+        )}
         {refundConflict?.has_refunds && (
           <Banner
             type='warning'
