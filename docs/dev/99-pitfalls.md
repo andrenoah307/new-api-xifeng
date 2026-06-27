@@ -446,3 +446,23 @@
 **相关代码**：`common/week.go`、`model/ticket_limit.go`、`controller/ticket.go`、`router/api-router.go:GET /api/ticket/limit-status`、`web/{default,classic}` tickets 创建组件。
 
 **测试**：`common/week_test.go`（周界，100%）、`model/ticket_limit_test.go`（豁免/阈值/首末次/合并/跨周，90–100%）。锚点 2024-01-01 00:00 UTC+8 = 周一 = unix 1704038400。
+
+### #130 超大 logs 表稀疏类型查询：(type,created_at) 在线索引 + 排序对齐
+
+**现象**：管理员按非「消费」类型筛日志慢，「消费」快（完整方案见 [`docs/dev/21-logs-nonconsume-query-optimization.md`](21-logs-nonconsume-query-optimization.md)）。
+
+**根因**：`logs` 无以 `type` 打头的索引（`idx_created_at_type` 的 type 是第二列）。消费占全表 ~99%，PK 倒序 `ORDER BY id DESC LIMIT n` 几下凑满 → 快；非消费**稀疏**，要扫过海量消费行才凑够一页（SELECT 慢），管理员全量 `COUNT` 也要扫遍窗内逐行验 type（COUNT 慢）。
+
+**修法（不重建表）**：
+1. **新增复合索引 `idx_logs_type_created_at (type, created_at)`**（type 打头）→ `WHERE type=X AND created_at∈窗` 直接 seek 该类型再范围扫，**只碰匹配行**，COUNT/SELECT 均精确且快。
+2. **`model/log.go` 的 `GetAllLogs`/`GetUserLogs` 排序 `id DESC` → `created_at DESC, id DESC`**：created_at 与 id 对 append-only 日志单调同向，结果序不变，但让索引直接提供有序扫描，免 filesort/PK 全扫。COUNT 保持精确（加索引后已快，不反转 #69）。
+
+**索引必须在线加、且严守上线顺序（坑）**：
+- **不能走 GORM AutoMigrate 直接建**——它发的是阻塞 `CREATE INDEX`，超大表会卡库。
+- MySQL：`ALTER TABLE logs ADD INDEX idx_logs_type_created_at (type, created_at), ALGORITHM=INPLACE, LOCK=NONE;`（InnoDB online DDL，不重建表、并发读写）。
+- PostgreSQL：`CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_logs_type_created_at ON logs (type, created_at);`（**必须事务外**）。
+- **D2 上线顺序**：DBA **先**在线建索引（名必须 = `idx_logs_type_created_at`，与 gorm tag 一致），**再**部署带 tag 的代码 → AutoMigrate 见已存在即 no-op。**反序（先部署）= 启动时阻塞建索引卡线上**。日志库以 `LOG_SQL_DSN` 为准。
+
+**收敛**：`SumUsedQuota`(`/api/log/stat`) 恒 `type=Consume`、本就在快路径，**无需改**；keyset 游标 / 服务端时间窗护栏在加索引后**已非必要**（索引使非消费含 OFFSET 也快且保留页码跳转），本批不做 → **前端零改动**。
+
+**相关代码**：`model/log.go`（Log 索引 tag、`GetAllLogs`/`GetUserLogs` 排序）、`model/main.go:migrateLOGDB`。
