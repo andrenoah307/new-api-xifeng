@@ -17,10 +17,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/stores/auth-store'
-import { RichContent } from '@/components/rich-content'
+
 import { PublicLayout } from '@/components/layout'
 import { Footer } from '@/components/layout/components/footer'
+import { RichContent } from '@/components/rich-content'
+import { isLikelyHtml } from '@/lib/content-format'
+import { useAuthStore } from '@/stores/auth-store'
+
 import { CTA, Features, Hero, HowItWorks, Stats } from './components'
 import { useHomePageContent } from './hooks'
 
@@ -57,7 +60,11 @@ export function Home() {
     return (
       <PublicLayout>
         <div className='mx-auto max-w-6xl px-4 py-8'>
-          <RichContent content={content} className='custom-home-content' />
+          <RichContent
+            mode={isLikelyHtml(content) ? 'html' : 'markdown'}
+            content={content}
+            className='custom-home-content'
+          />
         </div>
       </PublicLayout>
     )
