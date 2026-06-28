@@ -40,6 +40,7 @@ var (
 	ErrTicketInvoiceTaxNumberEmpty   = errors.New("ticket invoice tax number empty")
 	ErrTicketInvoiceTaxNumberFormat = errors.New("ticket invoice tax number format invalid")
 	ErrTicketInvoiceEmailEmpty      = errors.New("ticket invoice email empty")
+	ErrTicketInvoiceAmountBelowMin  = errors.New("ticket invoice amount below minimum")
 	ErrTicketMessageDuplicate       = errors.New("duplicate message")
 )
 
