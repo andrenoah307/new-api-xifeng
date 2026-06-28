@@ -49,6 +49,7 @@ const paymentSchema = z.object({
   EpayKey: z.string(),
   Price: z.coerce.number().min(0),
   MinTopUp: z.coerce.number().min(0),
+  MinInvoiceAmount: z.coerce.number().min(0),
   CustomCallbackAddress: z.string().refine((value) => {
     const trimmed = value.trim()
     if (!trimmed) return true
@@ -163,6 +164,7 @@ export function PaymentSettingsSection({
     const sanitized = {
       Price: values.Price as number,
       MinTopUp: values.MinTopUp as number,
+      MinInvoiceAmount: values.MinInvoiceAmount as number,
       PayMethods: values.PayMethods.trim(),
       AmountOptions: values.AmountOptions.trim(),
       AmountDiscount: values.AmountDiscount.trim(),
@@ -171,6 +173,7 @@ export function PaymentSettingsSection({
     const initial = {
       Price: initialRef.current.Price,
       MinTopUp: initialRef.current.MinTopUp,
+      MinInvoiceAmount: initialRef.current.MinInvoiceAmount,
       PayMethods: initialRef.current.PayMethods.trim(),
       AmountOptions: initialRef.current.AmountOptions.trim(),
       AmountDiscount: initialRef.current.AmountDiscount.trim(),
@@ -184,6 +187,13 @@ export function PaymentSettingsSection({
 
     if (sanitized.MinTopUp !== initial.MinTopUp) {
       updates.push({ key: 'MinTopUp', value: sanitized.MinTopUp })
+    }
+
+    if (sanitized.MinInvoiceAmount !== initial.MinInvoiceAmount) {
+      updates.push({
+        key: 'MinInvoiceAmount',
+        value: sanitized.MinInvoiceAmount,
+      })
     }
 
     if (
@@ -404,6 +414,7 @@ export function PaymentSettingsSection({
       EpayKey: values.EpayKey.trim(),
       Price: values.Price,
       MinTopUp: values.MinTopUp,
+      MinInvoiceAmount: values.MinInvoiceAmount,
       CustomCallbackAddress: removeTrailingSlash(values.CustomCallbackAddress),
       PayMethods: values.PayMethods.trim(),
       AmountOptions: values.AmountOptions.trim(),
@@ -422,6 +433,7 @@ export function PaymentSettingsSection({
       EpayKey: initialRef.current.EpayKey.trim(),
       Price: initialRef.current.Price,
       MinTopUp: initialRef.current.MinTopUp,
+      MinInvoiceAmount: initialRef.current.MinInvoiceAmount,
       CustomCallbackAddress: removeTrailingSlash(
         initialRef.current.CustomCallbackAddress
       ),
@@ -457,6 +469,13 @@ export function PaymentSettingsSection({
 
     if (sanitized.MinTopUp !== initial.MinTopUp) {
       updates.push({ key: 'MinTopUp', value: sanitized.MinTopUp })
+    }
+
+    if (sanitized.MinInvoiceAmount !== initial.MinInvoiceAmount) {
+      updates.push({
+        key: 'MinInvoiceAmount',
+        value: sanitized.MinInvoiceAmount,
+      })
     }
 
     if (sanitized.CustomCallbackAddress !== initial.CustomCallbackAddress) {
@@ -606,6 +625,33 @@ export function PaymentSettingsSection({
                     </FormControl>
                     <FormDescription>
                       {t('Smallest USD amount users can recharge (Epay)')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='MinInvoiceAmount'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Minimum invoice amount (CNY)')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type='number'
+                        step='0.01'
+                        min={0}
+                        value={(field.value ?? 0) as number}
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Minimum amount required to submit an invoice request; 0 means no limit'
+                      )}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

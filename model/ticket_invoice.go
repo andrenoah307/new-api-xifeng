@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"gorm.io/gorm"
 )
 
@@ -288,6 +289,9 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 		var totalMoney float64
 		for _, topUp := range topUps {
 			totalMoney += topUp.Money
+		}
+		if operation_setting.MinInvoiceAmount > 0 && totalMoney < float64(operation_setting.MinInvoiceAmount) {
+			return ErrTicketInvoiceAmountBelowMin
 		}
 		orderedTopUps = orderTopUps(orderIds, topUps)
 

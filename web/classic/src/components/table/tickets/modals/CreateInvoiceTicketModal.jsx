@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Banner,
   Button,
@@ -13,10 +13,9 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess, timestamp2string } from '../../../../helpers';
+import { StatusContext } from '../../../../context/Status';
 
 const { Text, Title } = Typography;
-
-const MIN_INVOICE_AMOUNT = 0;
 
 const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [loading, setLoading] = useState(false);
@@ -27,6 +26,8 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [refundConflict, setRefundConflict] = useState(null);
   const [refundConflictAcked, setRefundConflictAcked] = useState(false);
   const [limitStatus, setLimitStatus] = useState(null);
+  const [statusState] = useContext(StatusContext);
+  const minInvoiceAmount = Number(statusState?.status?.min_invoice_amount) || 0;
   const formApiRef = useRef(null);
 
   const loadOrders = async () => {
@@ -136,7 +137,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
 
   const canSubmit =
     selectedOrderIds.length > 0 &&
-    (MIN_INVOICE_AMOUNT <= 0 || invoiceAmount >= MIN_INVOICE_AMOUNT) &&
+    (minInvoiceAmount <= 0 || invoiceAmount >= minInvoiceAmount) &&
     !limitStatus?.limited &&
     !(refundConflict?.has_refunds && !refundConflictAcked);
 
@@ -145,9 +146,9 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       showError(t('请选择至少一个充值订单'));
       return;
     }
-    if (MIN_INVOICE_AMOUNT > 0 && invoiceAmount < MIN_INVOICE_AMOUNT) {
+    if (minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount) {
       showError(
-        t('最低开票金额为 {{amount}} 元', { amount: MIN_INVOICE_AMOUNT }),
+        t('最低开票金额为 {{amount}} 元', { amount: minInvoiceAmount }),
       );
       return;
     }
@@ -189,10 +190,10 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       footer={
         <div className='flex items-center justify-between'>
           <div>
-            {MIN_INVOICE_AMOUNT > 0 && invoiceAmount < MIN_INVOICE_AMOUNT && (
+            {minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount && (
               <Text type='danger' size='small'>
                 {t('最低开票金额为 {{amount}} 元，当前已选金额不足', {
-                  amount: MIN_INVOICE_AMOUNT,
+                  amount: minInvoiceAmount,
                 })}
               </Text>
             )}

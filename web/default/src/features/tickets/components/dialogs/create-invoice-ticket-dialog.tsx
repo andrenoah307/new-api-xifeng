@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useStatus } from '@/hooks/use-status'
 import {
   Dialog,
   DialogContent,
@@ -77,9 +78,11 @@ export function CreateInvoiceTicketDialog({
 }: Props) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const { status } = useStatus()
   const schema = useMemo(() => createSchema(t), [t])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [refundConflictAcked, setRefundConflictAcked] = useState(false)
+  const minInvoiceAmount = Number(status?.min_invoice_amount) || 0
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ticketQueryKeys.eligibleOrders(),
@@ -167,6 +170,16 @@ export function CreateInvoiceTicketDialog({
         toast.error(t('Please select at least one order'))
         return
       }
+
+      if (minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount) {
+        toast.error(
+          t('Invoice amount must be at least {{amount}} CNY', {
+            amount: minInvoiceAmount,
+          })
+        )
+        return
+      }
+
       mutation.mutate({
         subject: t('Invoice Application'),
         company_name: values.company_name,
@@ -177,10 +190,22 @@ export function CreateInvoiceTicketDialog({
         refund_conflict_acknowledged: refundConflictAcked,
       })
     },
-    [isLimited, selectedIds, mutation, t, refundConflictAcked]
+    [
+      isLimited,
+      selectedIds,
+      minInvoiceAmount,
+      invoiceAmount,
+      mutation,
+      t,
+      refundConflictAcked,
+    ]
   )
 
-  const isSubmitDisabled = isLimited || mutation.isPending || selectedIds.size === 0 ||
+  const isSubmitDisabled =
+    isLimited ||
+    mutation.isPending ||
+    selectedIds.size === 0 ||
+    (minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount) ||
     (refundConflict?.has_refunds && !refundConflictAcked)
 
   return (
@@ -309,6 +334,13 @@ export function CreateInvoiceTicketDialog({
                 </span>
               </span>
             </div>
+            {minInvoiceAmount > 0 && (
+              <p className="text-muted-foreground mt-2 text-xs">
+                {t('Minimum invoice amount: {{amount}} CNY', {
+                  amount: minInvoiceAmount,
+                })}
+              </p>
+            )}
           </div>
 
           {/* Step 2: Invoice details form */}
