@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 )
 
@@ -197,6 +198,8 @@ func handleTicketError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceTaxNumberFormat)
 	case errors.Is(err, model.ErrTicketInvoiceEmailEmpty):
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceEmailEmpty)
+	case errors.Is(err, model.ErrTicketInvoiceAmountBelowMin):
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceAmountBelowMin, map[string]any{"Amount": operation_setting.MinInvoiceAmount})
 	case errors.Is(err, model.ErrTicketRefundNotFound):
 		common.ApiErrorI18n(c, i18n.MsgTicketRefundNotFound)
 	case errors.Is(err, model.ErrTicketRefundStatusInvalid):

@@ -2609,6 +2609,8 @@
     "最低": "lowest",
     "最低充值数量": "",
     "最低充值美元数量": "Minimum recharge dollar amount",
+    "最低开票金额（元）": "Minimum invoice amount (CNY)",
+    "0 表示不限制，例如：100": "0 means no limit, e.g. 100",
     "最低充值美元数量必须大于 0": "Minimum recharge dollar amount must be greater than 0",
     "最低开票金额为 {{amount}} 元": "",
     "最低开票金额为 {{amount}} 元，当前已选金额不足": "",

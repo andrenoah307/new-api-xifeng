@@ -172,6 +172,7 @@ const (
 	MsgTicketInvoiceTaxNumberEmpty   = "ticket.invoice_tax_number_empty"
 	MsgTicketInvoiceTaxNumberFormat  = "ticket.invoice_tax_number_format"
 	MsgTicketInvoiceEmailEmpty       = "ticket.invoice_email_empty"
+	MsgTicketInvoiceAmountBelowMin   = "ticket.invoice_amount_below_min"
 	MsgTicketRefundNotFound          = "ticket.refund_not_found"
 	MsgTicketRefundStatusInvalid     = "ticket.refund_status_invalid"
 	MsgTicketRefundQuotaInvalid      = "ticket.refund_quota_invalid"

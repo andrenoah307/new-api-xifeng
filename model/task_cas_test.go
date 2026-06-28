@@ -54,6 +54,7 @@ func TestMain(m *testing.M) {
 		&Ticket{},
 		&TicketMessage{},
 		&TicketAttachment{},
+		&TicketInvoice{},
 	); err != nil {
 		panic("failed to migrate: " + err.Error())
 	}

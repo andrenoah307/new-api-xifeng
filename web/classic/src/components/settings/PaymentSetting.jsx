@@ -39,6 +39,7 @@ const PaymentSetting = () => {
     EpayKey: '',
     Price: 7.3,
     MinTopUp: 1,
+    MinInvoiceAmount: 0,
     TopupGroupRatio: '',
     CustomCallbackAddress: '',
     PayMethods: '',
@@ -158,6 +159,7 @@ const PaymentSetting = () => {
             break;
           case 'Price':
           case 'MinTopUp':
+          case 'MinInvoiceAmount':
           case 'StripeUnitPrice':
           case 'StripeMinTopUp':
             newInputs[item.key] = parseFloat(item.value);

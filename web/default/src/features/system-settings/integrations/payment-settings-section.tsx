@@ -104,6 +104,7 @@ const paymentSchema = z.object({
   EpayKey: z.string(),
   Price: z.coerce.number().min(0),
   MinTopUp: z.coerce.number().min(0),
+  MinInvoiceAmount: z.coerce.number().min(0),
   CustomCallbackAddress: z
     .string()
     .refine(
@@ -423,6 +424,7 @@ export function PaymentSettingsSection({
       EpayKey: values.EpayKey.trim(),
       Price: values.Price,
       MinTopUp: values.MinTopUp,
+      MinInvoiceAmount: values.MinInvoiceAmount,
       CustomCallbackAddress: removeTrailingSlash(values.CustomCallbackAddress),
       PayMethods: values.PayMethods.trim(),
       AmountOptions: values.AmountOptions.trim(),
@@ -465,6 +467,7 @@ export function PaymentSettingsSection({
       EpayKey: initialRef.current.EpayKey.trim(),
       Price: initialRef.current.Price,
       MinTopUp: initialRef.current.MinTopUp,
+      MinInvoiceAmount: initialRef.current.MinInvoiceAmount,
       CustomCallbackAddress: removeTrailingSlash(
         initialRef.current.CustomCallbackAddress
       ),
@@ -526,6 +529,13 @@ export function PaymentSettingsSection({
 
     if (sanitized.MinTopUp !== initial.MinTopUp) {
       updates.push({ key: 'MinTopUp', value: sanitized.MinTopUp })
+    }
+
+    if (sanitized.MinInvoiceAmount !== initial.MinInvoiceAmount) {
+      updates.push({
+        key: 'MinInvoiceAmount',
+        value: sanitized.MinInvoiceAmount,
+      })
     }
 
     if (sanitized.CustomCallbackAddress !== initial.CustomCallbackAddress) {
@@ -941,6 +951,32 @@ export function PaymentSettingsSection({
                         </FormControl>
                         <FormDescription>
                           {t('Smallest USD amount users can recharge (Epay)')}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name='MinInvoiceAmount'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('Minimum invoice amount (CNY)')}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type='number'
+                            step='0.01'
+                            min={0}
+                            {...safeNumberFieldProps(field)}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {t(
+                            'Minimum amount required to submit an invoice request; 0 means no limit'
+                          )}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

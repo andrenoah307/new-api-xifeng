@@ -38,6 +38,7 @@ export default function SettingsPaymentGateway(props) {
     EpayKey: '',
     Price: 7.3,
     MinTopUp: 1,
+    MinInvoiceAmount: 0,
   });
   const formApiRef = useRef(null);
 
@@ -55,6 +56,10 @@ export default function SettingsPaymentGateway(props) {
           props.options.MinTopUp !== undefined
             ? parseFloat(props.options.MinTopUp)
             : 1,
+        MinInvoiceAmount:
+          props.options.MinInvoiceAmount !== undefined
+            ? parseFloat(props.options.MinInvoiceAmount)
+            : 0,
       };
 
       setInputs(currentInputs);
@@ -89,6 +94,12 @@ export default function SettingsPaymentGateway(props) {
       }
       if (inputs.MinTopUp !== '') {
         options.push({ key: 'MinTopUp', value: inputs.MinTopUp.toString() });
+      }
+      if (inputs.MinInvoiceAmount !== '') {
+        options.push({
+          key: 'MinInvoiceAmount',
+          value: inputs.MinInvoiceAmount.toString(),
+        });
       }
 
       const requestQueue = options.map((opt) =>
@@ -172,6 +183,13 @@ export default function SettingsPaymentGateway(props) {
                 field='MinTopUp'
                 label={t('最低充值美元数量')}
                 placeholder={t('例如：2，就是最低充值2$')}
+              />
+            </Col>
+            <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+              <Form.InputNumber
+                field='MinInvoiceAmount'
+                label={t('最低开票金额（元）')}
+                placeholder={t('0 表示不限制，例如：100')}
               />
             </Col>
           </Row>

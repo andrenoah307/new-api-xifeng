@@ -294,6 +294,7 @@ export type BillingSettings = {
   EpayKey: string
   Price: number
   MinTopUp: number
+  MinInvoiceAmount: number
   CustomCallbackAddress: string
   PayMethods: string
   'payment_setting.amount_options': string
