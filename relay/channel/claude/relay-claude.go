@@ -833,28 +833,34 @@ func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 }
 
 func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo) {
-	if claudeInfo.Usage.PromptTokens == 0 {
-		//上游出错
-	}
-	if claudeInfo.Usage.CompletionTokens == 0 || !claudeInfo.Done {
+	upstreamUsageMissing := !claudeInfo.Done && claudeInfo.Usage.PromptTokens == 0 &&
+		claudeInfo.Usage.PromptTokensDetails.CachedTokens == 0 &&
+		claudeInfo.Usage.PromptTokensDetails.CachedCreationTokens == 0
+	if (claudeInfo.Usage.CompletionTokens == 0 || !claudeInfo.Done) && !upstreamUsageMissing {
 		if common.DebugEnabled {
 			common.SysLog("claude response usage is not complete, maybe upstream error")
 		}
 		// 只补缺失字段，不整份覆盖——保留 message_start 已拿到的 cache 字段
-		fallback := service.ResponseText2Usage(c, claudeInfo.ResponseText.String(), info.UpstreamModelName, info.GetEstimatePromptTokens())
+		fallback := &dto.Usage{
+			PromptTokens:     info.GetEstimatePromptTokens(),
+			CompletionTokens: service.EstimateTokenByModel(info.UpstreamModelName, claudeInfo.ResponseText.String()),
+		}
+		fallback.TotalTokens = fallback.PromptTokens + fallback.CompletionTokens
 		if claudeInfo.Usage.CompletionTokens == 0 ||
 			(!claudeInfo.Done && fallback.CompletionTokens > claudeInfo.Usage.CompletionTokens) {
 			claudeInfo.Usage.CompletionTokens = fallback.CompletionTokens
 		}
-		if claudeInfo.Usage.PromptTokens == 0 {
+		if claudeInfo.Usage.PromptTokens == 0 && !upstreamUsageMissing {
 			claudeInfo.Usage.PromptTokens = fallback.PromptTokens
 		}
 		claudeInfo.Usage.TotalTokens = claudeInfo.Usage.PromptTokens + claudeInfo.Usage.CompletionTokens
 	}
 	// 空输出兜底：上游 usage 显示 output=0 且整段流没有任何响应文本/思考内容，
 	// 视为上游 usage 不全（坑点 #94 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
-	if claudeInfo.Usage.CompletionTokens == 0 && claudeInfo.ResponseText.Len() == 0 {
+	// 坑点 #129：断流且上游 usage 完全缺失时零计费，禁止用 runes×3/2 估算计费，对齐 OpenAI handler。
+	if (claudeInfo.Usage.CompletionTokens == 0 && claudeInfo.ResponseText.Len() == 0) || upstreamUsageMissing {
 		claudeInfo.Usage.PromptTokens = 0
+		claudeInfo.Usage.CompletionTokens = 0
 		claudeInfo.Usage.TotalTokens = 0
 		claudeInfo.Usage.PromptTokensDetails = dto.InputTokenDetails{}
 		claudeInfo.Usage.ClaudeCacheCreation5mTokens = 0
