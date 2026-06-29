@@ -94,3 +94,16 @@ EXPLAIN SELECT * FROM logs
 - 管理员全类型路径：无 `type` 等值前缀；`created_at` 排序退化为 1.37 亿行 `ALL` 全表扫 + filesort，而 `id desc` 可走 `PRIMARY` backward，取到 20 行即停。
 - 非消费类型路径：`(type,created_at)` 索引本身已让 COUNT 通过 type 前缀范围扫描变快，SELECT 通过 type 前缀取稀疏行后只对少量行做廉价 filesort，收益不依赖全局排序改动。
 - 结论：保留 `(type,created_at)` 索引，保留 COUNT/分页逻辑，回退 `GetAllLogs` / `GetUserLogs` 到 `ORDER BY logs.id desc`。
+
+## 10. 用户/分组查询器优化（2026-06-29）
+
+生产已在线新增 `idx_logs_user_id_created_at (user_id, created_at)`、`idx_logs_group_created_at (group, created_at)` 两个复合索引，并继续保留 `idx_logs_type_created_at (type, created_at)`；代码侧补齐同名 gorm tag，D2 部署时 AutoMigrate 见已存在索引应为 no-op。
+
+- `GetUserLogs` 排序改为 `ORDER BY logs.created_at desc, logs.id desc`：用户路径固定带 `user_id` 过滤，可命中 `(user_id,created_at)`，由索引直接提供时间倒序并用 `id` 兜底排序，Backward index scan + LIMIT 早停，无 filesort。
+- `GetAllLogs` 按 `group` 过滤时切换 `ORDER BY logs.created_at desc, logs.id desc` 以命中 `(group,created_at)`；无过滤保持 `ORDER BY logs.id desc`（全类型走 PK，避免全表 filesort）。
+- `SumUsedQuota` self 路径改按 `user_id` 过滤，调用时 username 传空；统计与列表统一过滤列，命中同一 `(user_id,created_at)` 索引。管理员统计仍传 `userId=0`，保留原 username 过滤行为。
+- `GetAllLogs` / `GetUserLogs` list 接口在无 `start_timestamp` 且无 `request_id` 时默认补 30 天时间窗，防止无窗全表扫；`request_id` 精确查单条保留全时间查找能力。
+
+EXPLAIN 要点：
+- `group` 过滤原来只能扫整组/全窗，生产窗口约 6120 万行；新增 `(group,created_at)` 后按分组和时间范围 seek，只扫匹配范围。
+- self stat 原按 `username` 过滤，无 `(username,created_at)`，需扫约 196 万窗口行（21–35s）；改按 `user_id` 命中 `(user_id,created_at)` 后，重度用户约 1.6s，普通用户毫秒级。

@@ -469,3 +469,11 @@
 **收敛**：`SumUsedQuota`(`/api/log/stat`) 恒 `type=Consume`、本就在快路径，**无需改**；keyset 游标 / 服务端时间窗护栏在加索引后**已非必要**（索引使非消费含 OFFSET 也快且保留页码跳转），本批不做 → **前端零改动**。
 
 **相关代码**：`model/log.go`（Log 索引 tag、`GetAllLogs`/`GetUserLogs` 保持 `ORDER BY logs.id desc`）、`model/main.go:migrateLOGDB`。
+
+### #131 超大 logs 表查询器多过滤列：过滤列必须与 created_at 复合
+
+**现象**：超大 `logs` 表的查询器常叠加实体过滤列（如 `group` / `username` / `token_name`）和时间窗；如果实体列只有单列索引、没有与 `created_at` 组成复合索引，优化器可能先按实体列扫整组/整人，再逐行判断时间窗，行数大时会退化成慢查询。
+
+**修法**：对高频实体过滤列建立 `(过滤列, created_at)` 复合索引，或统一过滤列到已存在的复合索引路径。例如用户 self stat 不再按 `username` 查，而是按 `user_id` 查，命中 `(user_id,created_at)`；分组查询命中 `(group,created_at)`。
+
+**坑**：给查询加二级排序列（如 `created_at desc, id desc`）前，必须确认该调用路径有可命中的 `(前缀等值列…, 排序列)` 索引；没有索引支撑时，二级排序会把原本可早停的路径拖成 filesort。
