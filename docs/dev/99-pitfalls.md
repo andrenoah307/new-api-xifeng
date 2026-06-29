@@ -447,7 +447,7 @@
 
 **测试**：`common/week_test.go`（周界，100%）、`model/ticket_limit_test.go`（豁免/阈值/首末次/合并/跨周，90–100%）。锚点 2024-01-01 00:00 UTC+8 = 周一 = unix 1704038400。
 
-### #130 超大 logs 表稀疏类型查询：(type,created_at) 在线索引 + 排序对齐
+### #130 超大 logs 表稀疏类型查询：(type,created_at) 在线索引 + 保持排序
 
 **现象**：管理员按非「消费」类型筛日志慢，「消费」快（完整方案见 [`docs/dev/21-logs-nonconsume-query-optimization.md`](21-logs-nonconsume-query-optimization.md)）。
 
@@ -455,7 +455,10 @@
 
 **修法（不重建表）**：
 1. **新增复合索引 `idx_logs_type_created_at (type, created_at)`**（type 打头）→ `WHERE type=X AND created_at∈窗` 直接 seek 该类型再范围扫，**只碰匹配行**，COUNT/SELECT 均精确且快。
-2. **`model/log.go` 的 `GetAllLogs`/`GetUserLogs` 排序 `id DESC` → `created_at DESC, id DESC`**：created_at 与 id 对 append-only 日志单调同向，结果序不变，但让索引直接提供有序扫描，免 filesort/PK 全扫。COUNT 保持精确（加索引后已快，不反转 #69）。
+2. **不要改全局 `ORDER BY`**：`GetAllLogs` / `GetUserLogs` 继续保持 `ORDER BY logs.id desc`。`(type,created_at)` 索引单独即可解决非消费慢查询：COUNT 走 type 前缀范围扫描，SELECT 取稀疏行后只对少量行做廉价 filesort。COUNT 保持精确（加索引后已快，不反转 #69）。
+3. **排序回归教训**：把全局排序改成 `created_at desc, id desc` 会在用户日志路径（`user_id` 过滤、无 `(user_id,created_at)` 索引、重度用户千万行）触发灾难性 filesort，也会在管理员全类型路径退化为 1.37 亿行全表扫 + filesort。
+
+**坑**：给查询加二级排序列前，必须确认每条调用路径都有可命中的 `(前缀等值列…, 排序列)` 索引，否则 filesort。
 
 **索引必须在线加、且严守上线顺序（坑）**：
 - **不能走 GORM AutoMigrate 直接建**——它发的是阻塞 `CREATE INDEX`，超大表会卡库。
@@ -465,4 +468,4 @@
 
 **收敛**：`SumUsedQuota`(`/api/log/stat`) 恒 `type=Consume`、本就在快路径，**无需改**；keyset 游标 / 服务端时间窗护栏在加索引后**已非必要**（索引使非消费含 OFFSET 也快且保留页码跳转），本批不做 → **前端零改动**。
 
-**相关代码**：`model/log.go`（Log 索引 tag、`GetAllLogs`/`GetUserLogs` 排序）、`model/main.go:migrateLOGDB`。
+**相关代码**：`model/log.go`（Log 索引 tag、`GetAllLogs`/`GetUserLogs` 保持 `ORDER BY logs.id desc`）、`model/main.go:migrateLOGDB`。
