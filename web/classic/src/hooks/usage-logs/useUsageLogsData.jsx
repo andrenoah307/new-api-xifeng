@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Toast } from '@douyinfe/semi-ui';
+import { Modal, Tag, Toast } from '@douyinfe/semi-ui';
 import {
   API,
   getTodayStartTimestamp,
@@ -377,6 +377,11 @@ export const useLogsData = () => {
       return `${chain.join(' -> ')}`;
     };
 
+    const renderReasoningEffortTag = (effort) => {
+      const color = effort === 'high' ? 'orange' : effort === 'medium' ? 'amber' : 'green';
+      return <Tag color={color} size='small'>{effort}</Tag>;
+    };
+
     let expandDatesLocal = {};
     for (let i = 0; i < logs.length; i++) {
       logs[i].timestamp2string = timestamp2string(logs[i].created_at);
@@ -495,7 +500,7 @@ export const useLogsData = () => {
         if (other?.reasoning_effort) {
           expandDataLocal.push({
             key: t('Reasoning Effort'),
-            value: other.reasoning_effort,
+            value: renderReasoningEffortTag(other.reasoning_effort),
           });
         }
         if (other?.billing_mode === 'tiered_expr' && other?.expr_b64) {

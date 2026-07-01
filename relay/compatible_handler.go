@@ -107,6 +107,10 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 			}
 		}
 		requestBody = common.ReaderOnly(storage)
+		// 坑点 #134：透传请求体跳过 ConvertOpenAIRequest，需在此补写 info.ReasoningEffort，否则日志丢思考等级
+		if effort := relaycommon.ResolveOpenAIReasoningEffortForPassthrough(info.UpstreamModelName, request.ReasoningEffort); effort != "" {
+			info.ReasoningEffort = effort
+		}
 	} else {
 		convertedRequest, err := adaptor.ConvertOpenAIRequest(c, info, request)
 		if err != nil {
