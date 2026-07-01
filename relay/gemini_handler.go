@@ -146,6 +146,10 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 			return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 		}
 		requestBody = common.ReaderOnly(storage)
+		// 坑点 #134：Gemini 透传同样跳过 convert，从模型后缀补写思考等级
+		if level := relaycommon.ResolveGeminiReasoningEffortForPassthrough(info.UpstreamModelName); level != "" {
+			info.ReasoningEffort = level
+		}
 	} else {
 		// 使用 ConvertGeminiRequest 转换请求格式
 		convertedRequest, err := adaptor.ConvertGeminiRequest(c, info, request)
