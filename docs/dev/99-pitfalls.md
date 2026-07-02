@@ -477,3 +477,15 @@
 **修法**：对高频实体过滤列建立 `(过滤列, created_at)` 复合索引，或统一过滤列到已存在的复合索引路径。例如用户 self stat 不再按 `username` 查，而是按 `user_id` 查，命中 `(user_id,created_at)`；分组查询命中 `(group,created_at)`。
 
 **坑**：给查询加二级排序列（如 `created_at desc, id desc`）前，必须确认该调用路径有可命中的 `(前缀等值列…, 排序列)` 索引；没有索引支撑时，二级排序会把原本可早停的路径拖成 filesort。
+
+### #132 使用日志默认结束时间：当天 23:59:59，勿用 now+1h
+
+**现象**：使用日志页默认结束时间历史上取 `当前时刻 + 1 小时`（为兜住“当前小时”数据），语义不直观，跨天临界易把明天纳入。
+
+**修法**：默认结束时间改为「当天 23:59:59」（本地时区），配合后端 `created_at <= endTimestamp`（含右端）精确覆盖当天、排除次日。
+- Classic：`web/classic/src/helpers/utils.jsx` 新增对称 helper `getTodayEndTimestamp()`（= 今日 0 点 + 86399s），`useUsageLogsData.jsx` 两处默认值改用它并移除多余 `now`。
+- Default：`web/default/src/features/usage-logs/lib/utils.ts` 新增 `getEndOfToday()`（`setHours(23,59,59,999)`），`getDefaultTimeRange()` 调用之；经 `timestampToSeconds` 向下取整 → 同为今日 0 点 + 86399s，两端一致。
+
+**坑（边界）**：后端过滤是 `<=`（含右端）。取「当天 23:59:59」正确——含当天全部秒、排除次日 0 点；若取「次日 00:00:00」则 `<=` 会多纳入恰好次日零点那 1 秒的记录，除非后端改 `<` 否则不要用。
+
+**范围**：本次仅改「使用日志页」。dashboard / 绘图(mj) / 任务日志仍有同样 `+3600` 模式（`useDashboardData.js` / `useMjLogsData.js` / `useTaskLogsData.js` / `web/default/src/lib/time.ts`），如需统一另行处理。完整说明见 [`docs/dev/24-logs-default-end-time.md`](24-logs-default-end-time.md)。
