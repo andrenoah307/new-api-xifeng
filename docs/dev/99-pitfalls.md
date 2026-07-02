@@ -489,3 +489,11 @@
 **坑（边界）**：后端过滤是 `<=`（含右端）。取「当天 23:59:59」正确——含当天全部秒、排除次日 0 点；若取「次日 00:00:00」则 `<=` 会多纳入恰好次日零点那 1 秒的记录，除非后端改 `<` 否则不要用。
 
 **范围**：本次仅改「使用日志页」。dashboard / 绘图(mj) / 任务日志仍有同样 `+3600` 模式（`useDashboardData.js` / `useMjLogsData.js` / `useTaskLogsData.js` / `web/default/src/lib/time.ts`），如需统一另行处理。完整说明见 [`docs/dev/24-logs-default-end-time.md`](24-logs-default-end-time.md)。
+
+### #135 [1m] 长上下文后缀定价归一：避免落 37.5 兜底哨兵
+
+**问题**：`xxx[1m]` 未配置时，`GetModelRatio` miss 后落 `37.5` 兜底哨兵，预扣/结算可能 `7.5×` 虚高，未开 `AcceptUnsetRatioModel` 时也会直接拒绝。
+**根因**：`FormatMatchingModelName` 过去不归一尾部大小写不敏感 `[1m]`，导致 `claude-fable-5[1m]` 不能复用 `claude-fable-5` 的倍率/价格。
+**修复**：在 `FormatMatchingModelName` 首行调用 `stripContextWindowSuffix` 剥离尾部 `[1m]`，一处归一覆盖 `ModelPriceHelper` 预扣、`service/text_quota.go` 结算及所有经它的定价 getter。
+**生产取证**：`micu-prod-do-us-1/new-api-third` 仅配置 `ModelRatio["claude-fable-5"]=5`、无 `[1m]` 变体，`SelfUseModeEnabled=false`，近 7 天 `claude-fable-5[1m]` 成功日志 `0` 条。
+**关联文档**：见 [`docs/dev/25-model-suffix-pricing-normalization.md`](25-model-suffix-pricing-normalization.md)。
