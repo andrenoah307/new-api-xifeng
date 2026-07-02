@@ -23,6 +23,7 @@ import { Modal, Tag, Toast } from '@douyinfe/semi-ui';
 import {
   API,
   getTodayStartTimestamp,
+  getTodayEndTimestamp,
   isAdmin,
   showError,
   showSuccess,
@@ -94,7 +95,6 @@ export const useLogsData = () => {
 
   // Form state
   const [formApi, setFormApi] = useState(null);
-  let now = new Date();
   const formInitValues = {
     username: '',
     token_name: '',
@@ -104,7 +104,7 @@ export const useLogsData = () => {
     request_id: '',
     dateRange: [
       timestamp2string(getTodayStartTimestamp()),
-      timestamp2string(now.getTime() / 1000 + 3600),
+      timestamp2string(getTodayEndTimestamp()),
     ],
     logType: '0',
   };
@@ -238,7 +238,7 @@ export const useLogsData = () => {
     const formValues = formApi ? formApi.getValues() : {};
 
     let start_timestamp = timestamp2string(getTodayStartTimestamp());
-    let end_timestamp = timestamp2string(now.getTime() / 1000 + 3600);
+    let end_timestamp = timestamp2string(getTodayEndTimestamp());
 
     if (
       formValues.dateRange &&
