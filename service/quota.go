@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -140,12 +141,20 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 
 	quota := calculateAudioQuota(quotaInfo)
 
-	if userQuota < quota {
-		return fmt.Errorf("user quota is not enough, user quota: %s, need quota: %s", logger.FormatQuota(userQuota), logger.FormatQuota(quota))
-	}
+	// 信任旁路：余额 > TrustQuota 且令牌额度充足的用户，不因单次实时增量额度不足而被中断，
+	// 仍照常 PostConsumeQuota 扣费（可短暂为负，由余额兜底），与钱包预扣信任口径一致。
+	trustQuota := common.GetTrustQuota()
+	trusted := !relayInfo.ForcePreConsume && trustQuota > 0 && userQuota > trustQuota &&
+		(token.UnlimitedQuota || token.RemainQuota > trustQuota)
 
-	if !token.UnlimitedQuota && token.RemainQuota < quota {
-		return fmt.Errorf("token quota is not enough, token remain quota: %s, need quota: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(quota))
+	if !trusted {
+		if userQuota < quota {
+			return fmt.Errorf("user quota is not enough, user quota: %s, need quota: %s", logger.FormatQuota(userQuota), logger.FormatQuota(quota))
+		}
+
+		if !token.UnlimitedQuota && token.RemainQuota < quota {
+			return fmt.Errorf("token quota is not enough, token remain quota: %s, need quota: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(quota))
+		}
 	}
 
 	err = PostConsumeQuota(relayInfo, quota, 0, false)
@@ -462,12 +471,11 @@ func checkAndSendQuotaNotify(relayInfo *relaycommon.RelayInfo, quota int, preCon
 		}
 
 		//noMoreQuota := userCache.Quota-(quota+preConsumedQuota) <= 0
-		quotaTooLow := false
 		consumeQuota := quota + preConsumedQuota
-		if relayInfo.UserQuota-consumeQuota < threshold {
-			quotaTooLow = true
-		}
-		if quotaTooLow {
+		below := relayInfo.UserQuota-consumeQuota < threshold
+		// 边沿触发 + 滞回：仅在余额「跌破阈值」的那一次发送，避免持续低额时每次成功请求刷屏
+		stateKey := fmt.Sprintf("quota_warn_state:%d", relayInfo.UserId)
+		if shouldSendQuotaWarningEdge(stateKey, below) {
 			prompt := "您的额度即将用尽"
 			topUpLink := fmt.Sprintf("%s/console/topup", system_setting.ServerAddress)
 
@@ -518,7 +526,10 @@ func checkAndSendSubscriptionQuotaNotify(relayInfo *relaycommon.RelayInfo) {
 
 		usedAfter := relayInfo.SubscriptionAmountUsedAfterPreConsume + relayInfo.SubscriptionPostDelta
 		remaining := relayInfo.SubscriptionAmountTotal - usedAfter
-		if remaining >= int64(threshold) {
+		below := remaining < int64(threshold)
+		// 边沿触发 + 滞回：仅在订阅余额「跌破阈值」的那一次发送，避免持续低额刷屏
+		stateKey := fmt.Sprintf("quota_warn_state_sub:%d", relayInfo.UserId)
+		if !shouldSendQuotaWarningEdge(stateKey, below) {
 			return
 		}
 
@@ -547,4 +558,50 @@ func checkAndSendSubscriptionQuotaNotify(relayInfo *relaycommon.RelayInfo) {
 			common.SysError(fmt.Sprintf("failed to send subscription quota notify to user %d: %s", relayInfo.UserId, err.Error()))
 		}
 	})
+}
+
+// quotaWarnStateStore 是 Redis 未启用时的内存回退，记录每个状态键当前是否处于「已低于阈值」。
+var quotaWarnStateStore sync.Map
+
+// quotaWarnStateTTL 状态键的过期时间，避免 Redis 长期堆积。
+const quotaWarnStateTTL = 30 * 24 * time.Hour
+
+// shouldSendQuotaWarningEdge 实现额度预警的「边沿触发 + 滞回」：
+//   - 仅当余额从「>=阈值」跌破到「<阈值」的那一次返回 true（发送一次）；
+//   - 持续低于阈值返回 false（不重复发送）；
+//   - 余额回升到阈值之上后清除状态，下次再跌破才会再次触发。
+//
+// 优先用 Redis（多实例一致），未启用时退化为进程内 sync.Map。
+func shouldSendQuotaWarningEdge(stateKey string, below bool) bool {
+	if common.RedisEnabled {
+		prev, err := common.RedisGet(stateKey)
+		wasBelow := err == nil && prev == "1"
+		if below {
+			if wasBelow {
+				return false
+			}
+			if setErr := common.RedisSet(stateKey, "1", quotaWarnStateTTL); setErr != nil {
+				common.SysError("failed to set quota warn state: " + setErr.Error())
+			}
+			return true
+		}
+		if wasBelow {
+			_ = common.RedisDel(stateKey)
+		}
+		return false
+	}
+
+	prevVal, ok := quotaWarnStateStore.Load(stateKey)
+	wasBelow := ok && prevVal.(bool)
+	if below {
+		if wasBelow {
+			return false
+		}
+		quotaWarnStateStore.Store(stateKey, true)
+		return true
+	}
+	if wasBelow {
+		quotaWarnStateStore.Delete(stateKey)
+	}
+	return false
 }

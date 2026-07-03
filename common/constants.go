@@ -148,6 +148,11 @@ var AutomaticEnableChannelEnabled = false
 var QuotaRemindThreshold = 1000
 var PreConsumedQuota = 500
 
+// MaxPreConsumeCompletionTokens 预扣费估算时对客户端 max_tokens 的上限钳制。
+// 仅影响预扣估算（真实计费以上游 usage 为准）：防止异常大的 max_tokens 把预扣估算顶穿，
+// 误杀有余额的用户。<=0 表示不钳制。可经 MAX_PRE_CONSUME_COMPLETION_TOKENS 覆盖。
+var MaxPreConsumeCompletionTokens = 256000
+
 var RetryTimes = 0
 
 //var RootUserEmail = ""
