@@ -184,7 +184,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	if priceData.FreeModel {
 		logger.LogInfo(c, fmt.Sprintf("模型 %s 免费，跳过预扣费", relayInfo.OriginModelName))
 	} else {
-		newAPIError = service.PreConsumeBilling(c, priceData.QuotaToPreConsume, relayInfo)
+		newAPIError = service.PreConsumeBilling(c, priceData.QuotaToPreConsume, priceData.QuotaToPreConsumeMin, relayInfo)
 		if newAPIError != nil {
 			return
 		}

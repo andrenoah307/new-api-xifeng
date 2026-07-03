@@ -5,6 +5,7 @@ import (
 
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/samber/lo"
 )
 
@@ -39,12 +40,26 @@ func GetBillingMode(model string) string {
 	if mode, ok := billingSetting.BillingMode[model]; ok {
 		return mode
 	}
+	// 坑点 #136：tiered/价格检测需与 ratio 一致做 FormatMatchingModelName 归一，否则后缀变体落 37.5 兜底。
+	if normalizedModel := ratio_setting.FormatMatchingModelName(model); normalizedModel != model {
+		if mode, ok := billingSetting.BillingMode[normalizedModel]; ok {
+			return mode
+		}
+	}
 	return BillingModeRatio
 }
 
 func GetBillingExpr(model string) (string, bool) {
-	expr, ok := billingSetting.BillingExpr[model]
-	return expr, ok
+	if expr, ok := billingSetting.BillingExpr[model]; ok {
+		return expr, true
+	}
+	// 坑点 #136：tiered/价格检测需与 ratio 一致做 FormatMatchingModelName 归一，否则后缀变体落 37.5 兜底。
+	if normalizedModel := ratio_setting.FormatMatchingModelName(model); normalizedModel != model {
+		if expr, ok := billingSetting.BillingExpr[normalizedModel]; ok {
+			return expr, true
+		}
+	}
+	return "", false
 }
 
 func GetBillingModeCopy() map[string]string {

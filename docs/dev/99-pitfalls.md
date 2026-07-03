@@ -497,3 +497,19 @@
 **修复**：在 `FormatMatchingModelName` 首行调用 `stripContextWindowSuffix` 剥离尾部 `[1m]`，一处归一覆盖 `ModelPriceHelper` 预扣、`service/text_quota.go` 结算及所有经它的定价 getter。
 **生产取证**：`micu-prod-do-us-1/new-api-third` 仅配置 `ModelRatio["claude-fable-5"]=5`、无 `[1m]` 变体，`SelfUseModeEnabled=false`，近 7 天 `claude-fable-5[1m]` 成功日志 `0` 条。
 **关联文档**：见 [`docs/dev/25-model-suffix-pricing-normalization.md`](25-model-suffix-pricing-normalization.md)。
+
+### #136 tiered/价格计费检测需与 ratio 一致做模型名归一（否则后缀变体落 37.5 兜底）
+
+**问题**：`setting/billing_setting/tiered_billing.go` 的 `GetBillingMode` / `GetBillingExpr` 是裸 map 查找、无归一。客户端发 `gpt-5.5[1m]` 等后缀变体时检测不到 tiered → `ModelPriceHelper` 走 ratio 路径 → `GetModelRatio` miss → 命中 `37.5` 兜底哨兵，预扣虚高 `7.5×+`。
+**根因**：`GetModelRatio`/`GetModelPrice`/`GetCompletionRatio` 都经 `FormatMatchingModelName` 归一，唯 `GetBillingMode`/`GetBillingExpr` 没有，检测口径不一致。
+**修复**：两函数先精确查、miss 再用 `ratio_setting.FormatMatchingModelName` 归一查一次（`billing_setting → ratio_setting` 无循环）。
+**生产取证**：`micu-prod-do-us-1/new-api-third`，`gpt-5.5` 为 `tiered_expr`（结算 `p*5+c*30+cr*0.5`），其后缀变体在预扣落 37.5。
+**关联文档**：见 [`docs/dev/26-preconsume-sentinel-and-partial.md`](26-preconsume-sentinel-and-partial.md)。
+
+### #137 预扣去 37.5 哨兵 + 优雅部分预扣（避免临界拒绝与末位余额不可花费）
+
+**问题**：预扣把 `GetModelRatio` 未配置哨兵 `37.5` 当真实倍率 → 估算虚高 `7.5×+`，且 `service/billing_session.go` 硬门控 `userQuota < preConsume` 整单拒「预扣费额度失败」；低余额用户末位余额永远花不掉。单个 ~3.4h 生产日志 **1362 次**该拒绝。
+**根因**：① `!success` 哨兵值驱动预扣（叠加 #136）；② 硬门控无优雅降级，余额略低于最坏估算即整单拒。
+**修复**：F2——`ModelPriceHelper` 未配置分支 `QuotaToPreConsume` 改保守小额 `int(PreConsumedQuota×groupRatio)`，不用 37.5，`ModelRatio`/结算不变。优雅部分预扣——`types.PriceData` 增 `QuotaToPreConsumeMin`（仅输入下限）；`computePartialTarget` 纯函数：`余额≥full`→全额、`min≤余额<full`→部分预扣 `min(full,余额)`、`余额<min`→拒，令牌侧同构；结算可有界走负，下一请求 `userQuota<=0` 兜底；复用 `shouldTrust` 不回归 #124/#127。
+**生产取证**：案例 `¥84.639440=42,319,720 quota` 唯 `ratio≈37.5×group≈1.6→prompt≈449k` 契合（`QuotaPerUnit=500000`，`USDExchangeRate=1`），当事人 `id 40755`。
+**关联文档**：见 [`docs/dev/26-preconsume-sentinel-and-partial.md`](26-preconsume-sentinel-and-partial.md)。

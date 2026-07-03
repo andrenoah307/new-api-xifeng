@@ -338,8 +338,29 @@ func (s *BillingSession) syncRelayInfo() {
 // NewBillingSession 工厂 — 根据计费偏好创建会话并处理回退
 // ---------------------------------------------------------------------------
 
+// computePartialTarget 计算非受信任用户的实际预扣目标额（坑点 #137 优雅部分预扣）。
+// 当余额/令牌不足以覆盖最坏估算 fullQuota、但仍能覆盖仅输入的预扣下限 minQuota 时，
+// 预扣「可用额」而非硬拒；结算回真（可短暂走负，有界，下一请求 userQuota<=0 兜底）。
+// 返回 (target, ok)；ok=false 表示连输入下限都付不起，应拒绝。
+func computePartialTarget(userQuota, tokenQuota int, tokenUnlimited bool, fullQuota, minQuota int) (int, bool) {
+	target := fullQuota
+	if userQuota < target {
+		if userQuota < minQuota {
+			return 0, false
+		}
+		target = userQuota
+	}
+	if !tokenUnlimited && tokenQuota < target {
+		if tokenQuota < minQuota {
+			return 0, false
+		}
+		target = tokenQuota
+	}
+	return target, true
+}
+
 // NewBillingSession 根据用户计费偏好创建 BillingSession，处理 subscription_first / wallet_first 的回退。
-func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preConsumedQuota int) (*BillingSession, *types.NewAPIError) {
+func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preConsumedQuota int, minPreConsumedQuota int) (*BillingSession, *types.NewAPIError) {
 	if relayInfo == nil {
 		return nil, types.NewError(fmt.Errorf("relayInfo is nil"), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}
@@ -358,19 +379,34 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
 				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 		}
-		if userQuota-preConsumedQuota < 0 {
-			return nil, types.NewErrorWithStatusCode(
-				fmt.Errorf("预扣费额度失败, 用户剩余额度: %s, 需要预扣费额度: %s", logger.FormatQuota(userQuota), logger.FormatQuota(preConsumedQuota)),
-				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
-		}
+		// 必须在 shouldTrust 之前赋值：shouldTrust 依赖 relayInfo.UserQuota 判定信任旁路。
 		relayInfo.UserQuota = userQuota
 
 		session := &BillingSession{
 			relayInfo: relayInfo,
 			funding:   &WalletFunding{userId: relayInfo.UserId},
 		}
-		if apiErr := session.preConsume(c, preConsumedQuota); apiErr != nil {
+
+		// 预扣硬门控必须放在信任判定之后。受信任用户（余额 > TrustQuota 且令牌额度充足）
+		// 实际预扣为 0，真实成本由结算补正，不能因为「虚高的预扣估算 > 当前余额」而误杀
+		// （历史 bug：大输入估算冲高时，余额上百的信任用户仍被拒 "预扣费额度失败"）。
+		// 仅当用户不被信任时，才用预扣估算去卡余额。
+		preConsumeTarget := preConsumedQuota
+		if !session.shouldTrust(c) {
+			// 坑点 #137：优雅部分预扣——余额/令牌不足以覆盖最坏估算但能覆盖输入下限时，
+			// 预扣可用额而非硬拒，避免临界拒绝与「末位余额不可花费」。
+			tokenQuota := c.GetInt("token_quota")
+			target, ok := computePartialTarget(userQuota, tokenQuota, relayInfo.TokenUnlimited, preConsumedQuota, minPreConsumedQuota)
+			if !ok {
+				return nil, types.NewErrorWithStatusCode(
+					fmt.Errorf("预扣费额度失败, 用户剩余额度: %s, 需要预扣费额度: %s", logger.FormatQuota(userQuota), logger.FormatQuota(preConsumedQuota)),
+					types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+					types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			}
+			preConsumeTarget = target
+		}
+
+		if apiErr := session.preConsume(c, preConsumeTarget); apiErr != nil {
 			return nil, apiErr
 		}
 		return session, nil
