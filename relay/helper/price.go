@@ -75,6 +75,7 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 	}
 
 	var preConsumedQuota int
+	var minPreConsumedQuota int
 	var modelRatio float64
 	var completionRatio float64
 	var cacheRatio float64
@@ -88,7 +89,8 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 	if !usePrice {
 		preConsumedTokens := common.Max(promptTokens, common.PreConsumedQuota)
 		if meta.MaxTokens != 0 {
-			preConsumedTokens += meta.MaxTokens
+			// 钳制客户端 max_tokens，避免异常大的 max_tokens 把预扣估算顶穿（真实计费以上游 usage 为准）
+			preConsumedTokens += common.ClampPreConsumeCompletionTokens(meta.MaxTokens)
 		}
 		var success bool
 		var matchName string
@@ -113,11 +115,23 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		audioCompletionRatio = ratio_setting.GetAudioCompletionRatio(info.OriginModelName)
 		ratio := modelRatio * groupRatioInfo.GroupRatio
 		preConsumedQuota = int(float64(preConsumedTokens) * ratio)
+		// 部分预扣下限：仅输入（prompt）的预估成本（坑点 #137）
+		promptOnlyTokens := common.Max(promptTokens, common.PreConsumedQuota)
+		minPreConsumedQuota = int(float64(promptOnlyTokens) * ratio)
+		if !success {
+			// 坑点 #137：未配置倍率哨兵（GetModelRatio 返回 37.5）不得驱动预扣，
+			// 否则预扣虚高 7.5×+ 误拒；改用保守小额，真实计费仍以结算为准。
+			conservative := int(float64(common.PreConsumedQuota) * groupRatioInfo.GroupRatio)
+			preConsumedQuota = conservative
+			minPreConsumedQuota = conservative
+		}
 	} else {
 		if meta.ImagePriceRatio != 0 {
 			modelPrice = modelPrice * meta.ImagePriceRatio
 		}
 		preConsumedQuota = int(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		// 按次价无单独输入下限，min 等于预扣额
+		minPreConsumedQuota = preConsumedQuota
 	}
 
 	// check if free model pre-consume is disabled
@@ -125,15 +139,18 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		// if model price or ratio is 0, do not pre-consume quota
 		if groupRatioInfo.GroupRatio == 0 {
 			preConsumedQuota = 0
+			minPreConsumedQuota = 0
 			freeModel = true
 		} else if usePrice {
 			if modelPrice == 0 {
 				preConsumedQuota = 0
+				minPreConsumedQuota = 0
 				freeModel = true
 			}
 		} else {
 			if modelRatio == 0 {
 				preConsumedQuota = 0
+				minPreConsumedQuota = 0
 				freeModel = true
 			}
 		}
@@ -154,6 +171,7 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		CacheCreation5mRatio: cacheCreationRatio5m,
 		CacheCreation1hRatio: cacheCreationRatio1h,
 		QuotaToPreConsume:    preConsumedQuota,
+		QuotaToPreConsumeMin: minPreConsumedQuota,
 	}
 
 	if common.DebugEnabled {
@@ -246,7 +264,8 @@ func modelPriceHelperTiered(c *gin.Context, info *relaycommon.RelayInfo, promptT
 
 	estimatedCompletionTokens := 0
 	if meta.MaxTokens != 0 {
-		estimatedCompletionTokens = meta.MaxTokens
+		// 钳制客户端 max_tokens（同 ModelPriceHelper），避免预扣估算被异常大的 max_tokens 顶穿
+		estimatedCompletionTokens = common.ClampPreConsumeCompletionTokens(meta.MaxTokens)
 	}
 
 	requestInput, err := ResolveIncomingBillingExprRequestInput(c, info)
@@ -267,10 +286,21 @@ func modelPriceHelperTiered(c *gin.Context, info *relaycommon.RelayInfo, promptT
 	quotaBeforeGroup := rawCost / 1_000_000 * common.QuotaPerUnit
 	preConsumedQuota := billingexpr.QuotaRound(quotaBeforeGroup * groupRatioInfo.GroupRatio)
 
+	// 部分预扣下限：仅输入（C=0）的预估成本（坑点 #137）
+	minPreConsumedQuota := preConsumedQuota
+	if rawCostMin, _, minErr := billingexpr.RunExprWithRequest(exprStr, billingexpr.TokenParams{
+		P:   float64(promptTokens),
+		C:   0,
+		Len: float64(promptTokens),
+	}, requestInput); minErr == nil {
+		minPreConsumedQuota = billingexpr.QuotaRound(rawCostMin / 1_000_000 * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+	}
+
 	freeModel := false
 	if !operation_setting.GetQuotaSetting().EnableFreeModelPreConsume {
 		if groupRatioInfo.GroupRatio == 0 {
 			preConsumedQuota = 0
+			minPreConsumedQuota = 0
 			freeModel = true
 		}
 	}
@@ -294,9 +324,10 @@ func modelPriceHelperTiered(c *gin.Context, info *relaycommon.RelayInfo, promptT
 	info.BillingRequestInput = &requestInput
 
 	priceData := types.PriceData{
-		FreeModel:         freeModel,
-		GroupRatioInfo:    groupRatioInfo,
-		QuotaToPreConsume: preConsumedQuota,
+		FreeModel:            freeModel,
+		GroupRatioInfo:       groupRatioInfo,
+		QuotaToPreConsume:    preConsumedQuota,
+		QuotaToPreConsumeMin: minPreConsumedQuota,
 	}
 
 	logger.LogDebug(c, "model_price_helper_tiered result: model=%s preConsume=%d quotaBeforeGroup=%.2f groupRatio=%.2f tier=%s", info.OriginModelName, preConsumedQuota, quotaBeforeGroup, groupRatioInfo.GroupRatio, trace.MatchedTier)
