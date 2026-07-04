@@ -15,7 +15,7 @@ func TestComputePartialTarget(t *testing.T) {
 		fullQuota      int
 		minQuota       int
 		wantTarget     int
-		wantOK         bool
+		wantReason     preConsumeReject
 	}{
 		{
 			name:       "full covered by wallet and token",
@@ -24,7 +24,7 @@ func TestComputePartialTarget(t *testing.T) {
 			fullQuota:  1000,
 			minQuota:   300,
 			wantTarget: 1000,
-			wantOK:     true,
+			wantReason: preConsumeOK,
 		},
 		{
 			name:       "wallet partial covers input min",
@@ -33,7 +33,7 @@ func TestComputePartialTarget(t *testing.T) {
 			fullQuota:  1000,
 			minQuota:   300,
 			wantTarget: 700,
-			wantOK:     true,
+			wantReason: preConsumeOK,
 		},
 		{
 			name:       "wallet below input min rejects",
@@ -41,7 +41,7 @@ func TestComputePartialTarget(t *testing.T) {
 			tokenQuota: 2000,
 			fullQuota:  1000,
 			minQuota:   300,
-			wantOK:     false,
+			wantReason: preConsumeRejectWallet,
 		},
 		{
 			name:       "token partial tightens wallet target",
@@ -50,7 +50,7 @@ func TestComputePartialTarget(t *testing.T) {
 			fullQuota:  1000,
 			minQuota:   300,
 			wantTarget: 500,
-			wantOK:     true,
+			wantReason: preConsumeOK,
 		},
 		{
 			name:       "token below input min rejects",
@@ -58,7 +58,7 @@ func TestComputePartialTarget(t *testing.T) {
 			tokenQuota: 299,
 			fullQuota:  1000,
 			minQuota:   300,
-			wantOK:     false,
+			wantReason: preConsumeRejectToken,
 		},
 		{
 			name:           "unlimited token ignores token quota",
@@ -68,7 +68,7 @@ func TestComputePartialTarget(t *testing.T) {
 			fullQuota:      1000,
 			minQuota:       300,
 			wantTarget:     700,
-			wantOK:         true,
+			wantReason:     preConsumeOK,
 		},
 		{
 			name:       "min equal full preserves hard gate",
@@ -76,7 +76,7 @@ func TestComputePartialTarget(t *testing.T) {
 			tokenQuota: 2000,
 			fullQuota:  1000,
 			minQuota:   1000,
-			wantOK:     false,
+			wantReason: preConsumeRejectWallet,
 		},
 		{
 			name:       "zero min allows zero token target",
@@ -85,13 +85,70 @@ func TestComputePartialTarget(t *testing.T) {
 			fullQuota:  1000,
 			minQuota:   0,
 			wantTarget: 0,
-			wantOK:     true,
+			wantReason: preConsumeOK,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotTarget, gotOK := computePartialTarget(tt.userQuota, tt.tokenQuota, tt.tokenUnlimited, tt.fullQuota, tt.minQuota)
+			gotTarget, gotReason := computePartialTarget(tt.userQuota, tt.tokenQuota, tt.tokenUnlimited, tt.fullQuota, tt.minQuota)
+			require.Equal(t, tt.wantReason, gotReason)
+			require.Equal(t, tt.wantTarget, gotTarget)
+		})
+	}
+}
+
+func TestResolveFreshTokenTarget(t *testing.T) {
+	tests := []struct {
+		name           string
+		tokenUnlimited bool
+		userQuota      int
+		fullQuota      int
+		minQuota       int
+		wantTarget     int
+		wantOK         bool
+	}{
+		{
+			name:           "limited token rejects",
+			tokenUnlimited: false,
+			userQuota:      2000,
+			fullQuota:      1000,
+			minQuota:       300,
+			wantTarget:     0,
+			wantOK:         false,
+		},
+		{
+			name:           "unlimited token full covered",
+			tokenUnlimited: true,
+			userQuota:      2000,
+			fullQuota:      1000,
+			minQuota:       300,
+			wantTarget:     1000,
+			wantOK:         true,
+		},
+		{
+			name:           "unlimited token wallet partial",
+			tokenUnlimited: true,
+			userQuota:      700,
+			fullQuota:      1000,
+			minQuota:       300,
+			wantTarget:     700,
+			wantOK:         true,
+		},
+		{
+			name:           "unlimited token wallet below min",
+			tokenUnlimited: true,
+			userQuota:      299,
+			fullQuota:      1000,
+			minQuota:       300,
+			wantTarget:     0,
+			wantOK:         false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotTarget, gotOK := resolveFreshTokenTarget(tt.tokenUnlimited, tt.userQuota, tt.fullQuota, tt.minQuota)
 			require.Equal(t, tt.wantOK, gotOK)
 			require.Equal(t, tt.wantTarget, gotTarget)
 		})
