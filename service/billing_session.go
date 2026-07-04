@@ -291,8 +291,8 @@ func (s *BillingSession) shouldTrust(c *gin.Context) bool {
 		return false
 	}
 
-	// 检查令牌是否充足
-	tokenTrusted := s.relayInfo.TokenUnlimited
+	// 检查令牌是否充足（坑点 #139：操练场合成令牌与无限令牌一样不参与令牌门控）
+	tokenTrusted := tokenNonGating(s.relayInfo.TokenUnlimited, s.relayInfo.IsPlayground)
 	if !tokenTrusted {
 		tokenQuota := c.GetInt("token_quota")
 		tokenTrusted = tokenQuota > trustQuota
@@ -347,6 +347,14 @@ const (
 	preConsumeRejectWallet                  // 钱包余额连输入下限都付不起
 	preConsumeRejectToken                   // 令牌额度连输入下限都付不起
 )
+
+// tokenNonGating 判定令牌是否不参与预扣硬门控（坑点 #139）。
+// 无限令牌（TokenUnlimited）与操练场合成令牌（IsPlayground，无 Key/token_quota=0）均不以令牌额度卡预扣：
+// 前者本就无限；后者令牌消费在 PreConsumeTokenQuota/reserveToken/preConsume 回滚已按 IsPlayground 跳过，
+// 门控侧须对齐，否则操练场令牌分支必拒并触发空 Key 的 reconcileTokenReject 硬拒。
+func tokenNonGating(tokenUnlimited, isPlayground bool) bool {
+	return tokenUnlimited || isPlayground
+}
 
 // computePartialTarget 计算非受信任用户的实际预扣目标额（坑点 #137 优雅部分预扣）。
 // 当余额/令牌不足以覆盖最坏估算 fullQuota、但仍能覆盖仅输入的预扣下限 minQuota 时，
@@ -440,7 +448,9 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 			// 坑点 #137：优雅部分预扣——余额/令牌不足以覆盖最坏估算但能覆盖输入下限时，
 			// 预扣可用额而非硬拒，避免临界拒绝与「末位余额不可花费」。
 			tokenQuota := c.GetInt("token_quota")
-			target, reject := computePartialTarget(userQuota, tokenQuota, relayInfo.TokenUnlimited, preConsumedQuota, minPreConsumedQuota)
+			// 坑点 #139：操练场合成令牌（无 Key/非无限/token_quota=0）令牌侧不参与门控，
+			// 否则令牌分支必拒并触发空 Key 的 reconcileTokenReject 硬拒；与既有 IsPlayground 跳过一致。
+			target, reject := computePartialTarget(userQuota, tokenQuota, tokenNonGating(relayInfo.TokenUnlimited, relayInfo.IsPlayground), preConsumedQuota, minPreConsumedQuota)
 			switch reject {
 			case preConsumeRejectWallet:
 				return nil, types.NewErrorWithStatusCode(
