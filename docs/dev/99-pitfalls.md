@@ -526,3 +526,14 @@
 **预扣不落盘**：预扣 403 携 `ErrOptionWithNoRecordErrorLog()`，不写 oneapi 日志/DB error log/SysLog，取证只能靠客户端错误串反推。
 **测试**：`service/billing_session_test.go` `TestComputePartialTarget`(8 例改原因断言)+`TestResolveFreshTokenTarget`(4 例)，两纯函数覆盖 100%。
 **关联文档**：见 [`docs/dev/27-preconsume-token-gate-attribution.md`](27-preconsume-token-gate-attribution.md)。
+
+---
+
+## #139 · 操练场预扣：门控必须豁免 IsPlayground
+
+**问题**：操练场（/pg）最近两次预扣提交后被 403 拦截无法请求；回退上一提交可用。
+**根因**：操练场走 `UserAuth` + 合成 tempToken（`UnlimitedQuota=false`/`Key=""`/`token_quota=0`）。#137 `computePartialTarget` 令牌分支 `tokenQuota(0)<minQuota` → 拒；#138 `reconcileTokenReject` 对空 Key `GetTokenByKey("")` → `ErrRecordNotFound` → 403。此前 `NewBillingSession` 只有钱包门控、从不卡 token_quota 故一直可用——新门控漏了 IsPlayground 豁免。令牌消费侧 `PreConsumeTokenQuota`/`reserveToken`/`preConsume` 回滚三处早已跳过 IsPlayground。
+**修复（后端 only）**：`service/billing_session.go` 加纯函数 `tokenNonGating(tokenUnlimited,isPlayground)=tokenUnlimited||isPlayground`，用于 `shouldTrust` 的 tokenTrusted 与 `computePartialTarget` 第三参 → 操练场令牌不门控、仅钱包判定：富额享信任旁路 0 预扣、低额正确报钱包不足，永不触发空 Key 复核。
+**红线**：任何预扣硬门控新增判定，必须同时豁免 `TokenUnlimited` 与 `IsPlayground`；门控侧须与令牌消费侧既有 IsPlayground 跳过对齐。
+**测试**：`TestTokenNonGating`（4 组合，100%）。
+**关联文档**：见 [`docs/dev/28-playground-preconsume-gate.md`](28-playground-preconsume-gate.md)；承接 #137/#138。

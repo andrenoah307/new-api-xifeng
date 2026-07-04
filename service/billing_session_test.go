@@ -154,3 +154,24 @@ func TestResolveFreshTokenTarget(t *testing.T) {
 		})
 	}
 }
+
+func TestTokenNonGating(t *testing.T) {
+	cases := []struct {
+		name           string
+		tokenUnlimited bool
+		isPlayground   bool
+		want           bool
+	}{
+		{"limited non-playground gates", false, false, false},
+		{"unlimited bypasses", true, false, true},
+		{"playground bypasses", false, true, true},
+		{"unlimited playground bypasses", true, true, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tokenNonGating(tc.tokenUnlimited, tc.isPlayground); got != tc.want {
+				t.Fatalf("tokenNonGating(%v,%v)=%v want %v", tc.tokenUnlimited, tc.isPlayground, got, tc.want)
+			}
+		})
+	}
+}
