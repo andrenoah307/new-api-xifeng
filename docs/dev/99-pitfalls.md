@@ -513,3 +513,16 @@
 **修复**：F2——`ModelPriceHelper` 未配置分支 `QuotaToPreConsume` 改保守小额 `int(PreConsumedQuota×groupRatio)`，不用 37.5，`ModelRatio`/结算不变。优雅部分预扣——`types.PriceData` 增 `QuotaToPreConsumeMin`（仅输入下限）；`computePartialTarget` 纯函数：`余额≥full`→全额、`min≤余额<full`→部分预扣 `min(full,余额)`、`余额<min`→拒，令牌侧同构；结算可有界走负，下一请求 `userQuota<=0` 兜底；复用 `shouldTrust` 不回归 #124/#127。
 **生产取证**：案例 `¥84.639440=42,319,720 quota` 唯 `ratio≈37.5×group≈1.6→prompt≈449k` 契合（`QuotaPerUnit=500000`，`USDExchangeRate=1`），当事人 `id 40755`。
 **关联文档**：见 [`docs/dev/26-preconsume-sentinel-and-partial.md`](26-preconsume-sentinel-and-partial.md)。
+
+---
+
+## #138 · 预扣令牌门控：归因纠正 + fresh 令牌复核
+
+**问题**：钱包余额充裕（¥153.73）却报「预扣费额度失败, 用户剩余额度: ¥153.731172, 需要预扣费额度: ¥0.002674」——金额极小仍被拒，与 #137 哨兵虚高相反。
+**根因**：拒绝来自 #137 `computePartialTarget`；`userQuota≫full` 下钱包分支不可能触发，唯一解是**令牌分支** `!tokenUnlimited && tokenQuota<min`，即运行时 `relayInfo.TokenUnlimited==false`（无限令牌不设 `token_quota`，误判 false 即被当限额耗尽）。两类：①令牌确为限额且 `remain_quota` 走负（拒正确但消息误报成「用户剩余额度」/钱包）；②令牌实为无限但上下文 `token_unlimited_quota` 过期为 false（Redis 令牌缓存滞后）→ 误拒。`shouldTrust`/`PreConsumeTokenQuota` 同样依赖该过期标志；`service/quota.go:147` 实时路径用 fresh `token.UnlimitedQuota` 才是正确范式。
+**生产取证（micu-prod-do-us-1/new-api-third）**：`¥153.731172×500000=76,865,586 quota` 唯一命中用户 `4795`，其令牌全部 `unlimited_quota=1`、remain 深度为负。
+**修复（后端 only）**：`computePartialTarget` 返回归因枚举（wallet/token/ok）；纯函数 `resolveFreshTokenTarget`；方法 `reconcileTokenReject` 在令牌分支拒绝时 `GetTokenByKey(key,true)` fresh 复核——真无限则修复 `relayInfo.TokenUnlimited`+上下文并放行（自愈缓存），真限额则报「令牌额度不足」正确归因；`tryWallet` 按原因分流。热路径零新增开销。
+**红线**：任何可硬拒的预扣判定，令牌无限状态必须以 fresh 令牌（`token.UnlimitedQuota`）为准，不得单信可能过期的上下文 `token_unlimited_quota`/`token_quota`；拒绝消息必须正确归因（钱包 vs 令牌）。
+**预扣不落盘**：预扣 403 携 `ErrOptionWithNoRecordErrorLog()`，不写 oneapi 日志/DB error log/SysLog，取证只能靠客户端错误串反推。
+**测试**：`service/billing_session_test.go` `TestComputePartialTarget`(8 例改原因断言)+`TestResolveFreshTokenTarget`(4 例)，两纯函数覆盖 100%。
+**关联文档**：见 [`docs/dev/27-preconsume-token-gate-attribution.md`](27-preconsume-token-gate-attribution.md)。
