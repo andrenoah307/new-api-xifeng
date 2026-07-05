@@ -11,6 +11,16 @@ const semiUiDir = path.resolve(
   '../..',
 )
 
+// Semi Design depends on date-fns@2 (+ date-fns-tz@1), but the workspace
+// hoists date-fns@4 (used by the default theme) to the top level. date-fns@4
+// removed the deep "_lib/*" subpaths date-fns-tz@1 imports, so pin date-fns
+// to the v2 copy nested under Semi for this build only.
+const dateFnsV2 = path.dirname(
+  require.resolve('date-fns/package.json', {
+    paths: [path.join(semiUiDir, 'semi-foundation'), semiUiDir],
+  }),
+)
+
 export default defineConfig(({ envMode }) => {
   const env = loadEnv({ mode: envMode, prefixes: ['VITE_'] })
   const clientServerUrl =
@@ -43,6 +53,7 @@ export default defineConfig(({ envMode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        'date-fns': dateFnsV2,
         '@douyinfe/semi-ui/dist/css/semi.css': path.resolve(
           semiUiDir,
           'dist/css/semi.css',

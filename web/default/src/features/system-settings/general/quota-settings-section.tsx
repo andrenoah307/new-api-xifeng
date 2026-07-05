@@ -399,3 +399,16 @@ export function QuotaSettingsSection({
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription>
+                    {t('External link users are directed to for top-ups')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsFormGrid>
+        </SettingsForm>
+      </Form>
+    </SettingsSection>
+  )
+}
