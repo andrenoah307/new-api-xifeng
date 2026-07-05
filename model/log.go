@@ -671,7 +671,6 @@ func ExportUserLogs(ctx context.Context, userId int, logType int, startTimestamp
 	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, "")
 	return streamLogs(ctx, tx, false, callback)
 }
-}
 
 func streamLogs(ctx context.Context, tx *gorm.DB, includeChannelName bool, callback func([]*Log) error) error {
 	const batchSize = 1000
