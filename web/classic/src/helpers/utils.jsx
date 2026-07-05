@@ -39,11 +39,37 @@ export function isAdmin() {
   return user.role >= 10;
 }
 
+// isTicketStaff 判断当前登录用户是否有"工单后台"访问权限：客服（5）及以上即可。
+// 用于放行仅需客服身份的前端路由和菜单项。与后端 middleware.TicketStaffAuth 对应。
+export function isTicketStaff() {
+  let user = localStorage.getItem('user');
+  if (!user) return false;
+  try {
+    user = JSON.parse(user);
+    return typeof user.role === 'number' && user.role >= 5;
+  } catch {
+    return false;
+  }
+}
+
 export function isRoot() {
   let user = localStorage.getItem('user');
   if (!user) return false;
   user = JSON.parse(user);
   return user.role >= 100;
+}
+
+// getCurrentUserRole 返回当前登录用户的角色值；未登录或解析失败时返回 0。
+// 供需要基于"当前用户权限"做条件渲染的组件使用（例如角色管理下拉要屏蔽 >= 自己角色的选项）。
+export function getCurrentUserRole() {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return 0;
+    const user = JSON.parse(raw);
+    return Number(user.role) || 0;
+  } catch {
+    return 0;
+  }
 }
 
 export function getSystemName() {

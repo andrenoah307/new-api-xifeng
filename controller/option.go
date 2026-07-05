@@ -207,6 +207,14 @@ func UpdateOption(c *gin.Context) {
 
 			return
 		}
+	case "InvitationCodePolicy":
+		if err := setting.ValidateInvitationCodePolicy(option.Value.(string)); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邀请码策略 JSON 无效: " + err.Error(),
+			})
+			return
+		}
 	case "TelegramOAuthEnabled":
 		if option.Value == "true" && common.TelegramBotToken == "" {
 			c.JSON(http.StatusOK, gin.H{

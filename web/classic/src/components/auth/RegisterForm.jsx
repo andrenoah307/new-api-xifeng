@@ -40,6 +40,7 @@ import {
   Divider,
   Form,
   Icon,
+  Input,
   Modal,
 } from '@douyinfe/semi-ui';
 import Title from '@douyinfe/semi-ui/lib/es/typography/title';
@@ -80,6 +81,7 @@ const RegisterForm = () => {
     email: '',
     verification_code: '',
     wechat_verification_code: '',
+    invitation_code: '',
   });
   const { username, password, password2 } = inputs;
   const [userState, userDispatch] = useContext(UserContext);
@@ -113,11 +115,13 @@ const RegisterForm = () => {
 
   const logo = getLogo();
   const systemName = getSystemName();
-
-  let affCode = new URLSearchParams(window.location.search).get('aff');
-  if (affCode) {
-    localStorage.setItem('aff', affCode);
-  }
+  const urlSearchParams = useMemo(
+    () => new URLSearchParams(window.location.search),
+    [],
+  );
+  const affCodeFromUrl = urlSearchParams.get('aff') || '';
+  const invitationCodeFromUrl =
+    urlSearchParams.get('code') || urlSearchParams.get('invitation_code') || '';
 
   const status = useMemo(() => {
     if (statusState?.status) return statusState.status;
@@ -142,6 +146,34 @@ const RegisterForm = () => {
   );
 
   const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const invitationCodeValue = inputs.invitation_code.trim();
+  const showPasswordInvitationInput = Boolean(
+    status.invitation_code_enabled || invitationCodeValue,
+  );
+  const showOAuthInvitationInput = Boolean(
+    status.invitation_code_oauth_required || invitationCodeValue,
+  );
+
+  useEffect(() => {
+    if (affCodeFromUrl) {
+      localStorage.setItem('aff', affCodeFromUrl);
+    }
+  }, [affCodeFromUrl]);
+
+  useEffect(() => {
+    if (!invitationCodeFromUrl) {
+      return;
+    }
+    setInputs((prev) => {
+      if (prev.invitation_code) {
+        return prev;
+      }
+      return {
+        ...prev,
+        invitation_code: invitationCodeFromUrl,
+      };
+    });
+  }, [invitationCodeFromUrl]);
 
   useEffect(() => {
     setShowEmailVerification(!!status?.email_verification);
@@ -177,21 +209,30 @@ const RegisterForm = () => {
   }, []);
 
   const onWeChatLoginClicked = () => {
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setWechatLoading(true);
     setShowWeChatLoginModal(true);
     setWechatLoading(false);
   };
 
   const onSubmitWeChatVerificationCode = async () => {
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     if (turnstileEnabled && turnstileToken === '') {
       showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
       return;
     }
     setWechatCodeSubmitLoading(true);
     try {
-      const res = await API.get(
-        `/api/oauth/wechat?code=${inputs.wechat_verification_code}`,
-      );
+      const params = new URLSearchParams();
+      params.set('code', inputs.wechat_verification_code);
+      if (invitationCodeValue) {
+        params.set('invitation_code', invitationCodeValue);
+      }
+      const res = await API.get(`/api/oauth/wechat?${params.toString()}`);
       const { success, message, data } = res.data;
       if (success) {
         userDispatch({ type: 'login', payload: data });
@@ -215,6 +256,24 @@ const RegisterForm = () => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
   }
 
+  const ensureOAuthInvitationCode = () => {
+    if (!status.invitation_code_oauth_required || invitationCodeValue) {
+      return true;
+    }
+    showInfo('请输入邀请码');
+    return false;
+  };
+
+  const getOAuthOptions = () => {
+    const options = {
+      shouldLogout: true,
+    };
+    if (invitationCodeValue) {
+      options.invitationCode = invitationCodeValue;
+    }
+    return options;
+  };
+
   async function handleSubmit(e) {
     if (password.length < 8) {
       showInfo('密码长度不得小于 8 位！');
@@ -225,19 +284,25 @@ const RegisterForm = () => {
       return;
     }
     if (username && password) {
+      if (status.invitation_code_enabled && !invitationCodeValue) {
+        showInfo('请输入邀请码');
+        return;
+      }
       if (turnstileEnabled && turnstileToken === '') {
         showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
         return;
       }
       setRegisterLoading(true);
       try {
-        if (!affCode) {
-          affCode = localStorage.getItem('aff');
-        }
-        inputs.aff_code = affCode;
+        const affCode = affCodeFromUrl || localStorage.getItem('aff') || '';
+        const payload = {
+          ...inputs,
+          aff_code: affCode,
+          invitation_code: invitationCodeValue,
+        };
         const res = await API.post(
           `/api/user/register?turnstile=${turnstileToken}`,
-          inputs,
+          payload,
         );
         const { success, message } = res.data;
         if (success) {
@@ -280,6 +345,9 @@ const RegisterForm = () => {
   };
 
   const handleGitHubClick = () => {
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     if (githubButtonDisabled) {
       return;
     }
@@ -295,29 +363,35 @@ const RegisterForm = () => {
       setGithubButtonDisabled(true);
     }, 20000);
     try {
-      onGitHubOAuthClicked(status.github_client_id, { shouldLogout: true });
+      onGitHubOAuthClicked(status.github_client_id, getOAuthOptions());
     } finally {
       setTimeout(() => setGithubLoading(false), 3000);
     }
   };
 
   const handleDiscordClick = () => {
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setDiscordLoading(true);
     try {
-      onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true });
+      onDiscordOAuthClicked(status.discord_client_id, getOAuthOptions());
     } finally {
       setTimeout(() => setDiscordLoading(false), 3000);
     }
   };
 
   const handleOIDCClick = () => {
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setOidcLoading(true);
     try {
       onOIDCClicked(
         status.oidc_authorization_endpoint,
         status.oidc_client_id,
         false,
-        { shouldLogout: true },
+        getOAuthOptions(),
       );
     } finally {
       setTimeout(() => setOidcLoading(false), 3000);
@@ -325,18 +399,24 @@ const RegisterForm = () => {
   };
 
   const handleLinuxDOClick = () => {
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setLinuxdoLoading(true);
     try {
-      onLinuxDOOAuthClicked(status.linuxdo_client_id, { shouldLogout: true });
+      onLinuxDOOAuthClicked(status.linuxdo_client_id, getOAuthOptions());
     } finally {
       setTimeout(() => setLinuxdoLoading(false), 3000);
     }
   };
 
   const handleCustomOAuthClick = (provider) => {
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: true }));
     try {
-      onCustomOAuthClicked(provider, { shouldLogout: true });
+      onCustomOAuthClicked(provider, getOAuthOptions());
     } finally {
       setTimeout(() => {
         setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: false }));
@@ -410,6 +490,20 @@ const RegisterForm = () => {
             </div>
             <div className='px-2 py-8'>
               <div className='space-y-3'>
+                {showOAuthInvitationInput && (
+                  <div className='space-y-2'>
+                    <Text>{t('邀请码')}</Text>
+                    <Input
+                      placeholder={t('请输入邀请码')}
+                      value={inputs.invitation_code}
+                      onChange={(value) =>
+                        handleChange('invitation_code', value)
+                      }
+                      prefix={<IconKey />}
+                    />
+                  </div>
+                )}
+
                 {status.wechat_login && (
                   <Button
                     theme='outline'
@@ -635,6 +729,18 @@ const RegisterForm = () => {
                       prefix={<IconKey />}
                     />
                   </>
+                )}
+
+                {showPasswordInvitationInput && (
+                  <Form.Input
+                    field='invitation_code'
+                    label={t('邀请码')}
+                    placeholder={t('请输入邀请码')}
+                    name='invitation_code'
+                    value={inputs.invitation_code}
+                    onChange={(value) => handleChange('invitation_code', value)}
+                    prefix={<IconKey />}
+                  />
                 )}
 
                 {(hasUserAgreement || hasPrivacyPolicy) && (

@@ -20,6 +20,7 @@ import (
 )
 
 var commonGroupCol string
+var commonGroupsCol string
 var commonKeyCol string
 var commonTrueVal string
 var commonFalseVal string
@@ -31,11 +32,13 @@ func initCol() {
 	// init common column names
 	if common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
 		commonGroupCol = `"group"`
+		commonGroupsCol = `"groups"`
 		commonKeyCol = `"key"`
 		commonTrueVal = "true"
 		commonFalseVal = "false"
 	} else {
 		commonGroupCol = "`group`"
+		commonGroupsCol = "`groups`"
 		commonKeyCol = "`key`"
 		commonTrueVal = "1"
 		commonFalseVal = "0"
@@ -71,6 +74,7 @@ func createRootAccountIfNeed() error {
 			DisplayName: "Root User",
 			AccessToken: nil,
 			Quota:       100000000,
+			CreatedTime: common.GetTimestamp(),
 		}
 		DB.Create(&rootUser)
 	}
@@ -267,6 +271,12 @@ func migrateDB() error {
 	if err := migrateTokenModelLimitsToText(); err != nil {
 		return err
 	}
+	// Drop the legacy (subject_type, subject_id) unique index on
+	// risk_subject_snapshot before AutoMigrate creates the v2 unique index
+	// that includes the group column. Idempotent across all three DBs.
+	if err := dropLegacyRiskSubjectUniqueIndex(); err != nil {
+		return err
+	}
 
 	err := DB.AutoMigrate(
 		&Channel{},
@@ -275,6 +285,8 @@ func migrateDB() error {
 		&PasskeyCredential{},
 		&Option{},
 		&Redemption{},
+		&InvitationCode{},
+		&InvitationCodeUsage{},
 		&Ability{},
 		&Log{},
 		&Midjourney{},
@@ -288,11 +300,25 @@ func migrateDB() error {
 		&TwoFA{},
 		&TwoFABackupCode{},
 		&Checkin{},
+		&Ticket{},
+		&TicketMessage{},
+		&TicketInvoice{},
+		&TicketRefund{},
+		&TicketAttachment{},
 		&SubscriptionOrder{},
 		&UserSubscription{},
 		&SubscriptionPreConsumeRecord{},
 		&CustomOAuthProvider{},
 		&UserOAuthBinding{},
+		&RiskRule{},
+		&RiskSubjectSnapshot{},
+		&RiskIncident{},
+		&EnforcementIncident{},
+		&ModerationIncident{},
+		&ModerationRule{},
+		&ChannelMonitoringStat{},
+		&GroupMonitoringStat{},
+		&MonitoringHistory{},
 		&PerfMetric{},
 		&SystemInstance{},
 		&SystemTask{},
@@ -329,6 +355,8 @@ func migrateDBFast() error {
 		{&PasskeyCredential{}, "PasskeyCredential"},
 		{&Option{}, "Option"},
 		{&Redemption{}, "Redemption"},
+		{&InvitationCode{}, "InvitationCode"},
+		{&InvitationCodeUsage{}, "InvitationCodeUsage"},
 		{&Ability{}, "Ability"},
 		{&Log{}, "Log"},
 		{&Midjourney{}, "Midjourney"},
@@ -342,11 +370,18 @@ func migrateDBFast() error {
 		{&TwoFA{}, "TwoFA"},
 		{&TwoFABackupCode{}, "TwoFABackupCode"},
 		{&Checkin{}, "Checkin"},
+		{&Ticket{}, "Ticket"},
+		{&TicketMessage{}, "TicketMessage"},
+		{&TicketInvoice{}, "TicketInvoice"},
+		{&TicketRefund{}, "TicketRefund"},
 		{&SubscriptionOrder{}, "SubscriptionOrder"},
 		{&UserSubscription{}, "UserSubscription"},
 		{&SubscriptionPreConsumeRecord{}, "SubscriptionPreConsumeRecord"},
 		{&CustomOAuthProvider{}, "CustomOAuthProvider"},
 		{&UserOAuthBinding{}, "UserOAuthBinding"},
+		{&RiskRule{}, "RiskRule"},
+		{&RiskSubjectSnapshot{}, "RiskSubjectSnapshot"},
+		{&RiskIncident{}, "RiskIncident"},
 		{&PerfMetric{}, "PerfMetric"},
 		{&SystemInstance{}, "SystemInstance"},
 		{&SystemTask{}, "SystemTask"},
@@ -563,6 +598,41 @@ PRIMARY KEY (` + "`id`" + `)
 		}
 		if err := DB.Exec("ALTER TABLE `" + tableName + "` ADD COLUMN " + col.DDL).Error; err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// dropLegacyRiskSubjectUniqueIndex removes the v1 unique index
+// idx_risk_subject_unique on risk_subject_snapshot (subject_type, subject_id)
+// so AutoMigrate can install the v2 index that also includes the group column.
+// Idempotent: every branch checks for existence first.
+func dropLegacyRiskSubjectUniqueIndex() error {
+	tableName := "risk_subject_snapshot"
+	legacyIndexName := "idx_risk_subject_unique"
+	if !DB.Migrator().HasTable(tableName) {
+		return nil
+	}
+	switch {
+	case common.UsingMainDatabase(common.DatabaseTypePostgreSQL):
+		if err := DB.Exec(`DROP INDEX IF EXISTS ` + legacyIndexName).Error; err != nil {
+			return fmt.Errorf("drop legacy risk subject unique index (pg): %w", err)
+		}
+	case common.UsingMainDatabase(common.DatabaseTypeMySQL):
+		var count int
+		if err := DB.Raw(`SELECT COUNT(*) FROM information_schema.statistics
+			WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?`,
+			tableName, legacyIndexName).Scan(&count).Error; err != nil {
+			return fmt.Errorf("probe legacy risk subject unique index (mysql): %w", err)
+		}
+		if count > 0 {
+			if err := DB.Exec("DROP INDEX `" + legacyIndexName + "` ON `" + tableName + "`").Error; err != nil {
+				return fmt.Errorf("drop legacy risk subject unique index (mysql): %w", err)
+			}
+		}
+	case common.UsingMainDatabase(common.DatabaseTypeSQLite):
+		if err := DB.Exec(`DROP INDEX IF EXISTS ` + legacyIndexName).Error; err != nil {
+			return fmt.Errorf("drop legacy risk subject unique index (sqlite): %w", err)
 		}
 	}
 	return nil

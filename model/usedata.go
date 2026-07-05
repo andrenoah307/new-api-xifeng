@@ -170,6 +170,20 @@ func GetQuotaDataGroupByUser(startTime int64, endTime int64) (quotaData []*Quota
 	return quotaDatas, err
 }
 
+// GetUserModelUsageTopN 返回指定用户最近 since 时间戳以来调用次数 TopN 的模型聚合。
+// 数据来源是每小时刷新的 quota_data，避免直接扫 logs 对 LOG_DB 造成压力。
+func GetUserModelUsageTopN(userId int, since int64, topN int) ([]*QuotaData, error) {
+	var rows []*QuotaData
+	err := DB.Table("quota_data").
+		Select("model_name, SUM(count) AS count, SUM(quota) AS quota, SUM(token_used) AS token_used").
+		Where("user_id = ? AND created_at >= ?", userId, since).
+		Group("model_name").
+		Order("count DESC").
+		Limit(topN).
+		Scan(&rows).Error
+	return rows, err
+}
+
 func GetAllQuotaDates(startTime int64, endTime int64, username string) (quotaData []*QuotaData, err error) {
 	if username != "" {
 		return GetQuotaDataByUsername(username, startTime, endTime)

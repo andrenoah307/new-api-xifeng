@@ -72,14 +72,17 @@ import {
   Image as ImageIcon,
   CheckSquare,
   CreditCard,
+  Receipt,
   Layers,
   Gift,
+  Ticket,
   User,
   Settings,
   CircleUser,
   Package,
   Server,
   CalendarClock,
+  Activity,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -135,12 +138,18 @@ export function getLucideIcon(key, selected = false) {
       return <ImageIcon {...commonProps} color={iconColor} />;
     case 'task':
       return <CheckSquare {...commonProps} color={iconColor} />;
+    case 'ticket':
+      return <MessageSquare {...commonProps} color={iconColor} />;
     case 'topup':
       return <CreditCard {...commonProps} color={iconColor} />;
+    case 'topup_history':
+      return <Receipt {...commonProps} color={iconColor} />;
     case 'channel':
       return <Layers {...commonProps} color={iconColor} />;
     case 'redemption':
       return <Gift {...commonProps} color={iconColor} />;
+    case 'invitation_code':
+      return <Ticket {...commonProps} color={iconColor} />;
     case 'user':
     case 'personal':
       return <User {...commonProps} color={iconColor} />;
@@ -150,8 +159,12 @@ export function getLucideIcon(key, selected = false) {
       return <Server {...commonProps} color={iconColor} />;
     case 'subscription':
       return <CalendarClock {...commonProps} color={iconColor} />;
+    case 'ticket_admin':
+      return <Ticket {...commonProps} color={iconColor} />;
     case 'setting':
       return <Settings {...commonProps} color={iconColor} />;
+    case 'monitoring':
+      return <Activity {...commonProps} color={iconColor} />;
     default:
       return <CircleUser {...commonProps} color={iconColor} />;
   }

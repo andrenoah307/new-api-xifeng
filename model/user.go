@@ -14,6 +14,7 @@ import (
 
 	"github.com/bytedance/gopkg/util/gopool"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const UserNameMaxLength = 20
@@ -38,7 +39,8 @@ type User struct {
 	AccessToken      *string                    `json:"-" gorm:"type:char(32);column:access_token;uniqueIndex"` // this token is for system management
 	Quota            int                        `json:"quota" gorm:"type:int;default:0"`
 	UsedQuota        int                        `json:"used_quota" gorm:"type:int;default:0;column:used_quota"` // used quota
-	RequestCount     int                        `json:"request_count" gorm:"type:int;default:0;"`               // request number
+	RequestCount     int                        `json:"request_count" gorm:"type:int;default:0;"`              // request number
+	CreatedTime      int64                      `json:"created_time" gorm:"bigint"`
 	Group            string                     `json:"group" gorm:"type:varchar(64);default:'default'"`
 	AffCode          string                     `json:"aff_code" gorm:"type:varchar(32);column:aff_code;uniqueIndex"`
 	AffCount         int                        `json:"aff_count" gorm:"type:int;default:0;column:aff_count"`
@@ -48,11 +50,31 @@ type User struct {
 	DeletedAt        gorm.DeletedAt             `gorm:"index"`
 	LinuxDOId        string                     `json:"linux_do_id" gorm:"column:linux_do_id;index"`
 	Setting          string                     `json:"setting" gorm:"type:text;column:setting"`
+	InvitationCode   string                     `json:"invitation_code" gorm:"-:all"`
 	Remark           string                     `json:"remark,omitempty" gorm:"type:varchar(255)" validate:"max=255"`
 	StripeCustomer   string                     `json:"stripe_customer" gorm:"type:varchar(64);column:stripe_customer;index"`
 	CreatedAt        int64                      `json:"created_at" gorm:"autoCreateTime;column:created_at"`
 	LastLoginAt      int64                      `json:"last_login_at" gorm:"default:0;column:last_login_at"`
 	AdminPermissions map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
+	// RiskWarningPendingAt is the unix timestamp of the most recent enforce-mode
+	// block/observe decision recorded against this user. Login flow shows a
+	// vague "your account triggered platform protection" modal when non-zero.
+	// Acknowledging zeroes it; a fresh decision against any group refreshes it.
+	RiskWarningPendingAt int64 `json:"risk_warning_pending_at" gorm:"bigint;default:0;index"`
+
+	// Enforcement layer counters. Atomic increment is done inside a row-level
+	// FOR UPDATE transaction (see IncrementEnforcementHit) so concurrent hits
+	// on the same user can never lose an increment. Window semantics: when
+	// (now - WindowStart) >= CountWindowHours both source counters are reset.
+	EnforcementHitCountRisk          int   `json:"enforcement_hit_count_risk" gorm:"default:0;index"`
+	EnforcementHitCountModeration    int   `json:"enforcement_hit_count_moderation" gorm:"default:0;index"`
+	EnforcementWindowStartAt         int64 `json:"enforcement_window_start_at" gorm:"bigint;default:0"`
+	EnforcementLastHitAt             int64 `json:"enforcement_last_hit_at" gorm:"bigint;default:0;index"`
+	EnforcementEmailWindowStartAt    int64 `json:"enforcement_email_window_start_at" gorm:"bigint;default:0"`
+	EnforcementEmailCountInWindow    int   `json:"enforcement_email_count_in_window" gorm:"default:0"`
+	EnforcementBanEmailWindowStartAt int64 `json:"enforcement_ban_email_window_start_at" gorm:"bigint;default:0"`
+	EnforcementBanEmailCountInWindow int   `json:"enforcement_ban_email_count_in_window" gorm:"default:0"`
+	EnforcementAutoBannedAt          int64 `json:"enforcement_auto_banned_at" gorm:"bigint;default:0;index"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -133,6 +155,7 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 		"log":        true,
 		"midjourney": true,
 		"task":       true,
+		"ticket":     true,
 	}
 
 	// 个人中心区域 - 所有用户都可以访问
@@ -146,22 +169,28 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 	if userRole == common.RoleAdminUser {
 		// 管理员可以访问管理员区域，但不能访问系统设置
 		defaultConfig["admin"] = map[string]interface{}{
-			"enabled":    true,
-			"channel":    true,
-			"models":     true,
-			"redemption": true,
-			"user":       true,
-			"setting":    false, // 管理员不能访问系统设置
+			"enabled":         true,
+			"channel":         true,
+			"models":          true,
+			"risk":            true,
+			"redemption":      true,
+			"invitation_code": true,
+			"user":            true,
+			"ticket_admin":    true,
+			"setting":         false, // 管理员不能访问系统设置
 		}
 	} else if userRole == common.RoleRootUser {
 		// 超级管理员可以访问所有功能
 		defaultConfig["admin"] = map[string]interface{}{
-			"enabled":    true,
-			"channel":    true,
-			"models":     true,
-			"redemption": true,
-			"user":       true,
-			"setting":    true,
+			"enabled":         true,
+			"channel":         true,
+			"models":          true,
+			"risk":            true,
+			"redemption":      true,
+			"invitation_code": true,
+			"user":            true,
+			"ticket_admin":    true,
+			"setting":         true,
 		}
 	}
 	// 普通用户不包含admin区域
@@ -308,6 +337,34 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	return users, total, nil
 }
 
+// TicketStaffUser 是工单分配候选的精简视图：字段仅包含前端下拉/徽章所需的内容。
+// 不暴露敏感字段（password / access_token / setting 等）。
+type TicketStaffUser struct {
+	Id          int    `json:"id"`
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
+	Role        int    `json:"role"`
+	Group       string `json:"group" gorm:"column:group"`
+}
+
+// GetTicketStaffUsers 返回所有可以处理工单的账号（客服 + 管理员 + 超级管理员），
+// 仅限已启用状态。列表按角色降序 + Id 升序排序，便于前端分组渲染。
+//
+// 用 commonGroupCol 包装 group 关键字，兼容 MySQL / SQLite（反引号）与 PostgreSQL（双引号）。
+func GetTicketStaffUsers() ([]*TicketStaffUser, error) {
+	var users []*TicketStaffUser
+	err := DB.Table("users").
+		Select("id, username, display_name, email, role, "+commonGroupCol).
+		Where("role >= ? AND status = ?", common.RoleCustomerServiceUser, common.UserStatusEnabled).
+		Order("role desc, id asc").
+		Scan(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func GetUserById(id int, selectAll bool) (*User, error) {
 	if id == 0 {
 		return nil, errors.New("id 为空！")
@@ -410,6 +467,9 @@ func (user *User) Insert(inviterId int) error {
 	user.Quota = common.QuotaForNewUser
 	//user.SetAccessToken(common.GetUUID())
 	user.AffCode = common.GetRandomString(4)
+	if user.CreatedTime == 0 {
+		user.CreatedTime = common.GetTimestamp()
+	}
 
 	// 初始化用户设置，包括默认的边栏配置
 	if user.Setting == "" {
@@ -476,6 +536,9 @@ func (user *User) InsertWithTx(tx *gorm.DB, inviterId int) error {
 	}
 	user.Quota = common.QuotaForNewUser
 	user.AffCode = common.GetRandomString(4)
+	if user.CreatedTime == 0 {
+		user.CreatedTime = common.GetTimestamp()
+	}
 
 	// 初始化用户设置
 	if user.Setting == "" {
@@ -570,6 +633,7 @@ func (user *User) EditWithTx(tx *gorm.DB, updatePassword bool) error {
 		"display_name": newUser.DisplayName,
 		"group":        newUser.Group,
 		"remark":       newUser.Remark,
+		"email":        newUser.Email,
 	}
 	if updatePassword {
 		updates["password"] = newUser.Password
@@ -1119,4 +1183,229 @@ func RootUserExists() bool {
 		return false
 	}
 	return true
+}
+
+// ----------------------------------------------------------------------------
+// Risk warning + enforcement counter helpers
+// ----------------------------------------------------------------------------
+
+func MarkUserRiskWarningPending(userID int, ts int64) error {
+	if userID <= 0 || ts <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).
+		Update("risk_warning_pending_at", ts).Error
+}
+
+func AckUserRiskWarningPending(userID int) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).
+		Update("risk_warning_pending_at", int64(0)).Error
+}
+
+func GetUserRiskWarningPending(userID int) (int64, error) {
+	if userID <= 0 {
+		return 0, nil
+	}
+	var ts int64
+	err := DB.Model(&User{}).Where("id = ?", userID).
+		Select("risk_warning_pending_at").Find(&ts).Error
+	return ts, err
+}
+
+// EnforcementCounterSnapshot is the per-source view used by the engine.
+type EnforcementCounterSnapshot struct {
+	UserID                int
+	HitCountRisk          int
+	HitCountModeration    int
+	WindowStartAt         int64
+	LastHitAt             int64
+	EmailWindowStartAt    int64
+	EmailCountInWindow    int
+	BanEmailWindowStartAt int64
+	BanEmailCountInWindow int
+	AutoBannedAt          int64
+	Status                int
+	Username              string
+	Email                 string
+}
+
+func snapshotFromUser(u *User) *EnforcementCounterSnapshot {
+	return &EnforcementCounterSnapshot{
+		UserID:                u.Id,
+		HitCountRisk:          u.EnforcementHitCountRisk,
+		HitCountModeration:    u.EnforcementHitCountModeration,
+		WindowStartAt:         u.EnforcementWindowStartAt,
+		LastHitAt:             u.EnforcementLastHitAt,
+		EmailWindowStartAt:    u.EnforcementEmailWindowStartAt,
+		EmailCountInWindow:    u.EnforcementEmailCountInWindow,
+		BanEmailWindowStartAt: u.EnforcementBanEmailWindowStartAt,
+		BanEmailCountInWindow: u.EnforcementBanEmailCountInWindow,
+		AutoBannedAt:          u.EnforcementAutoBannedAt,
+		Status:                u.Status,
+		Username:              u.Username,
+		Email:                 u.Email,
+	}
+}
+
+const (
+	enforcementSourceRisk       = "risk_distribution"
+	enforcementSourceModeration = "moderation"
+)
+
+// IncrementEnforcementHit atomically rolls the window if expired and bumps
+// the source counter inside a row-locked transaction. Returns the snapshot
+// after the increment plus rolled=true when the window was reset.
+//
+// SQLite ignores Locking{Strength: "UPDATE"} but serializes writes by default,
+// so the same correctness guarantee holds across all three supported DBs.
+func IncrementEnforcementHit(userID int, source string, windowSeconds int64, now int64) (*EnforcementCounterSnapshot, bool, error) {
+	if userID <= 0 {
+		return nil, false, errors.New("invalid user id")
+	}
+	var snap *EnforcementCounterSnapshot
+	rolled := false
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var u User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("id = ?", userID).First(&u).Error; err != nil {
+			return err
+		}
+		if u.EnforcementAutoBannedAt > 0 {
+			snap = snapshotFromUser(&u)
+			return nil
+		}
+		windowStart := u.EnforcementWindowStartAt
+		hitRisk := u.EnforcementHitCountRisk
+		hitMod := u.EnforcementHitCountModeration
+		if windowSeconds > 0 {
+			expiresAt := windowStart + windowSeconds
+			if windowStart == 0 || now >= expiresAt {
+				windowStart = now
+				hitRisk = 0
+				hitMod = 0
+				rolled = true
+			}
+		} else if windowStart == 0 {
+			windowStart = now
+		}
+		switch source {
+		case enforcementSourceRisk:
+			hitRisk++
+		case enforcementSourceModeration:
+			hitMod++
+		default:
+			return fmt.Errorf("unknown enforcement source: %s", source)
+		}
+		if err := tx.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+			"enforcement_hit_count_risk":       hitRisk,
+			"enforcement_hit_count_moderation": hitMod,
+			"enforcement_window_start_at":      windowStart,
+			"enforcement_last_hit_at":          now,
+		}).Error; err != nil {
+			return err
+		}
+		u.EnforcementHitCountRisk = hitRisk
+		u.EnforcementHitCountModeration = hitMod
+		u.EnforcementWindowStartAt = windowStart
+		u.EnforcementLastHitAt = now
+		snap = snapshotFromUser(&u)
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return snap, rolled, nil
+}
+
+// LoadEnforcementCounter is for read-only callers (overview / admin list).
+// Mutators MUST use IncrementEnforcementHit instead to avoid TOCTOU.
+func LoadEnforcementCounter(userID int) (*EnforcementCounterSnapshot, error) {
+	if userID <= 0 {
+		return nil, errors.New("invalid user id")
+	}
+	var u User
+	if err := DB.Where("id = ?", userID).First(&u).Error; err != nil {
+		return nil, err
+	}
+	return snapshotFromUser(&u), nil
+}
+
+func MarkEnforcementEmailSent(userID int, windowStartAt int64, count int) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"enforcement_email_window_start_at": windowStartAt,
+		"enforcement_email_count_in_window": count,
+	}).Error
+}
+
+func MarkEnforcementBanEmailSent(userID int, windowStartAt int64, count int) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"enforcement_ban_email_window_start_at": windowStartAt,
+		"enforcement_ban_email_count_in_window": count,
+	}).Error
+}
+
+func MarkEnforcementAutoBanned(userID int, ts int64) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"status":                     common.UserStatusDisabled,
+		"enforcement_auto_banned_at": ts,
+	}).Error
+}
+
+func ResetEnforcementCounter(userID int) error {
+	if userID <= 0 {
+		return nil
+	}
+	return DB.Model(&User{}).Where("id = ?", userID).Updates(map[string]interface{}{
+		"enforcement_hit_count_risk":            0,
+		"enforcement_hit_count_moderation":      0,
+		"enforcement_window_start_at":           int64(0),
+		"enforcement_last_hit_at":               int64(0),
+		"enforcement_email_window_start_at":     int64(0),
+		"enforcement_email_count_in_window":     0,
+		"enforcement_ban_email_window_start_at": int64(0),
+		"enforcement_ban_email_count_in_window": 0,
+		"enforcement_auto_banned_at":            int64(0),
+	}).Error
+}
+
+// EnforcementCounterRow is the listing row for the admin counter view.
+type EnforcementCounterRow struct {
+	Id                            int    `json:"id"`
+	Username                      string `json:"username"`
+	Email                         string `json:"email"`
+	Status                        int    `json:"status"`
+	EnforcementHitCountRisk       int    `json:"enforcement_hit_count_risk"`
+	EnforcementHitCountModeration int    `json:"enforcement_hit_count_moderation"`
+	EnforcementWindowStartAt      int64  `json:"enforcement_window_start_at"`
+	EnforcementLastHitAt          int64  `json:"enforcement_last_hit_at"`
+	EnforcementAutoBannedAt       int64  `json:"enforcement_auto_banned_at"`
+}
+
+func ListEnforcementCounters(startIdx, pageSize int) ([]*EnforcementCounterRow, int64, error) {
+	var rows []*EnforcementCounterRow
+	var total int64
+	tx := DB.Model(&User{}).
+		Where("enforcement_hit_count_risk > 0 OR enforcement_hit_count_moderation > 0 OR enforcement_auto_banned_at > 0")
+	if err := tx.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := tx.Select("id, username, email, status, " +
+		"enforcement_hit_count_risk, enforcement_hit_count_moderation, " +
+		"enforcement_window_start_at, enforcement_last_hit_at, enforcement_auto_banned_at").
+		Order("(enforcement_hit_count_risk + enforcement_hit_count_moderation) desc, enforcement_last_hit_at desc, id asc").
+		Limit(pageSize).Offset(startIdx).
+		Find(&rows).Error
+	return rows, total, err
 }

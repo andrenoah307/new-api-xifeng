@@ -72,4 +72,10 @@ const (
 	// fallback in authHelper (finishAdminAudit) skips its record to avoid
 	// duplicate entries.
 	ContextKeyAuditLogged ContextKey = "audit_logged"
+	// ContextKeyRateLimitSkipped marks that the current request was diverted from
+	// its primary (often affinity-bound) channel solely because of channel-level
+	// rate limiting. Used by the affinity layer to suppress SwitchOnSuccess so a
+	// transient rate-limit detour does not displace cache affinity on the
+	// original channel.
+	ContextKeyRateLimitSkipped ContextKey = "rate_limit_skipped"
 )

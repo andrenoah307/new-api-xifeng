@@ -25,8 +25,7 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getUsersColumns } from './UsersColumnDefs';
-import PromoteUserModal from './modals/PromoteUserModal';
-import DemoteUserModal from './modals/DemoteUserModal';
+import RoleManagementModal from './modals/PromoteUserModal';
 import EnableDisableUserModal from './modals/EnableDisableUserModal';
 import DeleteUserModal from './modals/DeleteUserModal';
 import ResetPasskeyModal from './modals/ResetPasskeyModal';
@@ -55,7 +54,6 @@ const UsersTable = (usersData) => {
 
   // Modal states
   const [showPromoteModal, setShowPromoteModal] = useState(false);
-  const [showDemoteModal, setShowDemoteModal] = useState(false);
   const [showEnableDisableModal, setShowEnableDisableModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [modalUser, setModalUser] = useState(null);
@@ -71,10 +69,9 @@ const UsersTable = (usersData) => {
     setShowPromoteModal(true);
   };
 
-  const showDemoteUserModal = (user) => {
-    setModalUser(user);
-    setShowDemoteModal(true);
-  };
+  // 兼容 legacy 引用：某些调用路径可能还会走 showDemoteModal，
+  // 统一转到新的角色管理弹窗以避免运行期错误。
+  const showDemoteUserModal = showPromoteUserModal;
 
   const showEnableDisableUserModal = (user, action) => {
     setModalUser(user);
@@ -103,14 +100,12 @@ const UsersTable = (usersData) => {
   };
 
   // Modal confirm handlers
-  const handlePromoteConfirm = () => {
-    manageUser(modalUser.id, 'promote', modalUser);
+  // 新版 Role 弹窗会把目标角色传给 onConfirm；沿用 ManageUser API 但使用新 action=set_role。
+  const handlePromoteConfirm = (targetRole) => {
+    if (modalUser && typeof targetRole === 'number') {
+      manageUser(modalUser.id, 'set_role', { ...modalUser, value: targetRole });
+    }
     setShowPromoteModal(false);
-  };
-
-  const handleDemoteConfirm = () => {
-    manageUser(modalUser.id, 'demote', modalUser);
-    setShowDemoteModal(false);
   };
 
   const handleEnableDisableConfirm = () => {
@@ -201,19 +196,12 @@ const UsersTable = (usersData) => {
       />
 
       {/* Modal components */}
-      <PromoteUserModal
+      <RoleManagementModal
         visible={showPromoteModal}
         onCancel={() => setShowPromoteModal(false)}
         onConfirm={handlePromoteConfirm}
         user={modalUser}
-        t={t}
-      />
-
-      <DemoteUserModal
-        visible={showDemoteModal}
-        onCancel={() => setShowDemoteModal(false)}
-        onConfirm={handleDemoteConfirm}
-        user={modalUser}
+        currentUserRole={usersData.currentUserRole}
         t={t}
       />
 

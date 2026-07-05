@@ -129,6 +129,18 @@ func main() {
 	// all currently alive nodes in multi-instance deployments.
 	service.StartSystemInstanceReporter()
 
+	// Group monitoring aggregation (Redis counter → snapshot pipeline)
+	service.StartGroupMonitoringAggregation()
+
+	// Risk control center (async rules engine + gateway block checks)
+	service.StartRiskControlCenter()
+
+	// Moderation center (async OpenAI omni-moderation; never blocks relay)
+	service.StartModerationCenter()
+
+	// Ticket attachment orphan cleanup (master-node only)
+	service.StartTicketAttachmentCleanupTask()
+
 	// Wire task polling adaptor factory (breaks service -> relay import cycle).
 	// Must run before the system task runner starts: the async_task_poll handler
 	// calls service.RunTaskPollingOnce, which needs this factory set.
@@ -169,6 +181,10 @@ func main() {
 
 	// Initialize HTTP server
 	server := gin.New()
+	// Keep Gin's default ForwardedByClientIP = true so deployments behind reverse
+	// proxies (Nginx / Cloudflare) see real client IPs via X-Forwarded-For out of
+	// the box. Admins who need stricter IP trust can enable "Trusted IP Header"
+	// in risk-control settings — GetClientIP will then only honor that header.
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{

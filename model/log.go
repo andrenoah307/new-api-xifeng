@@ -9,6 +9,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -311,7 +312,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 		Group:            group,
 		Ip: func() string {
 			if needRecordIp {
-				return c.ClientIP()
+				return requestip.GetClientIP(c)
 			}
 			return ""
 		}(),
@@ -322,6 +323,18 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	err := createLog(log)
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
+	}
+	if common.GroupMonitoringHook != nil {
+		sc := 0
+		if v, ok := other["status_code"]; ok {
+			switch n := v.(type) {
+			case int:
+				sc = n
+			case float64:
+				sc = int(n)
+			}
+		}
+		common.GroupMonitoringHook(group, channelId, false, 0, 0, useTimeSeconds*1000, 0, modelName, sc, content)
 	}
 }
 
@@ -375,7 +388,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		Group:            params.Group,
 		Ip: func() string {
 			if needRecordIp {
-				return c.ClientIP()
+				return requestip.GetClientIP(c)
 			}
 			return ""
 		}(),
@@ -400,6 +413,28 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			ChannelID: params.ChannelId,
 			NodeName:  common.NodeName,
 		})
+	}
+	if common.GroupMonitoringHook != nil {
+		frtMs := 0
+		if frt, ok := params.Other["frt"]; ok {
+			if v, ok := frt.(float64); ok {
+				frtMs = int(v)
+			}
+		}
+		cacheTokens := 0
+		if ct, ok := params.Other["cache_tokens"]; ok {
+			switch v := ct.(type) {
+			case int:
+				cacheTokens = v
+			case float64:
+				cacheTokens = int(v)
+			}
+		}
+		monitorPromptTokens := params.PromptTokens
+		if sem, ok := params.Other["usage_semantic"]; ok && sem == "anthropic" && cacheTokens > 0 {
+			monitorPromptTokens += cacheTokens
+		}
+		common.GroupMonitoringHook(params.Group, params.ChannelId, true, monitorPromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "")
 	}
 }
 

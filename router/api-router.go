@@ -80,6 +80,7 @@ func SetApiRouter(router *gin.Engine) {
 			selfRoute := userRoute.Group("/")
 			selfRoute.Use(middleware.UserAuth())
 			{
+				selfRoute.POST("/risk_warning/ack", controller.AcknowledgeRiskWarning)
 				selfRoute.GET("/self/groups", controller.GetUserGroups)
 				selfRoute.GET("/self", controller.GetSelf)
 				selfRoute.GET("/models", controller.GetUserModels)
@@ -93,6 +94,9 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/passkey/verify/finish", controller.PasskeyVerifyFinish)
 				selfRoute.DELETE("/passkey", controller.PasskeyDelete)
 				selfRoute.GET("/aff", controller.GetAffCode)
+				selfRoute.GET("/invitation_codes", controller.GetMyInvitationCodes)
+				selfRoute.GET("/invitation_codes/quota", controller.GetMyInvitationCodeQuota)
+				selfRoute.POST("/invitation_codes", controller.GenerateMyInvitationCode)
 				selfRoute.GET("/topup/info", controller.GetTopUpInfo)
 				selfRoute.GET("/topup/self", controller.GetUserTopUps)
 				selfRoute.POST("/topup", middleware.CriticalRateLimit(), controller.TopUp)
@@ -181,6 +185,49 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/subscription/epay/notify", controller.SubscriptionEpayNotify)
 		apiRouter.GET("/subscription/epay/return", controller.SubscriptionEpayReturn)
 		apiRouter.POST("/subscription/epay/return", anonymousRequestBodyLimit, controller.SubscriptionEpayReturn)
+
+		ticketRoute := apiRouter.Group("/ticket")
+		ticketRoute.Use(middleware.UserAuth())
+		{
+			ticketRoute.POST("/", controller.CreateTicket)
+			ticketRoute.GET("/self", controller.GetUserTickets)
+			ticketRoute.GET("/self/:id", controller.GetUserTicket)
+			ticketRoute.POST("/self/:id/message", controller.CreateUserTicketMessage)
+			ticketRoute.PUT("/self/:id/close", controller.CloseUserTicket)
+			ticketRoute.GET("/invoice/eligible_orders", controller.GetEligibleInvoiceOrders)
+			ticketRoute.POST("/invoice/", controller.CreateInvoiceTicket)
+			ticketRoute.POST("/refund/", controller.CreateRefundTicket)
+			ticketRoute.POST("/attachment", middleware.CriticalRateLimit(), controller.UploadTicketAttachment)
+			ticketRoute.DELETE("/attachment/:id", controller.DeleteTicketAttachment)
+		}
+
+		// 附件预览/下载独立路由：浏览器直接发起的 <img src> / <a href> 无法注入自定义
+		// 请求头，因此使用 SessionAuth（cookie-only）而非 UserAuth。
+		// 仅幂等的 GET 资源放在这里。
+		ticketAttachmentDownloadRoute := apiRouter.Group("/ticket/attachment")
+		ticketAttachmentDownloadRoute.Use(middleware.SessionAuth())
+		{
+			ticketAttachmentDownloadRoute.GET("/:id", controller.DownloadTicketAttachment)
+		}
+
+		// 工单后台路由：客服（role=5）可以访问，客服仅能处理分配给自己或所在组未分配的工单，
+		// 这层可见性在 controller 里通过 ensureTicketAccessible 二次校验。
+		ticketAdminRoute := apiRouter.Group("/ticket/admin")
+		ticketAdminRoute.Use(middleware.TicketStaffAuth())
+		{
+			ticketAdminRoute.GET("/", controller.GetAllTickets)
+			ticketAdminRoute.GET("/staff", controller.ListTicketStaff)
+			ticketAdminRoute.GET("/:id", controller.GetTicket)
+			ticketAdminRoute.GET("/:id/user-profile", controller.GetTicketUserProfile)
+			ticketAdminRoute.POST("/:id/message", controller.CreateAdminTicketMessage)
+			ticketAdminRoute.PUT("/:id/status", controller.UpdateTicketStatus)
+			ticketAdminRoute.PUT("/:id/assign", controller.AssignTicket)
+			ticketAdminRoute.GET("/:id/invoice", controller.GetTicketInvoice)
+			ticketAdminRoute.PUT("/:id/invoice/status", controller.UpdateInvoiceStatus)
+			ticketAdminRoute.GET("/:id/refund", controller.GetTicketRefund)
+			ticketAdminRoute.PUT("/:id/refund/status", controller.UpdateRefundStatus)
+		}
+
 		optionRoute := apiRouter.Group("/option")
 		optionRoute.Use(middleware.RootAuth())
 		{
@@ -196,6 +243,9 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.POST("/waffo-pancake/save", controller.SaveWaffoPancake)
 			optionRoute.POST("/waffo-pancake/subscription-product", controller.CreateWaffoPancakeSubscriptionProduct)
 			optionRoute.GET("/waffo-pancake/subscription-product-options", controller.ListWaffoPancakeSubscriptionProductOptions)
+			optionRoute.GET("/email_templates", controller.ListEmailTemplates)
+			optionRoute.POST("/email_templates/preview", controller.PreviewEmailTemplate)
+			optionRoute.POST("/email_templates/reset", controller.ResetEmailTemplate)
 		}
 
 		// Custom OAuth provider management (root only)
@@ -224,6 +274,62 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			ratioSyncRoute.GET("/channels", controller.GetSyncableChannels)
 			ratioSyncRoute.POST("/fetch", controller.FetchUpstreamRatios)
+		}
+		riskRoute := apiRouter.Group("/risk")
+		riskRoute.Use(middleware.AdminAuth())
+		{
+			riskRoute.GET("/overview", controller.GetRiskCenterOverview)
+			riskRoute.GET("/config", controller.GetRiskCenterConfig)
+			riskRoute.GET("/detect-ip", controller.DetectRiskIP)
+			riskRoute.PUT("/config", controller.UpdateRiskCenterConfig)
+			riskRoute.GET("/groups", controller.GetRiskGroups)
+			riskRoute.GET("/rules", controller.GetRiskRules)
+			riskRoute.POST("/rules", controller.CreateRiskRule)
+			riskRoute.PUT("/rules/:id", controller.UpdateRiskRule)
+			riskRoute.DELETE("/rules/:id", controller.DeleteRiskRule)
+			riskRoute.GET("/subjects", controller.GetRiskSubjects)
+			riskRoute.POST("/subjects/:scope/:id/unblock", controller.UnblockRiskSubject)
+			riskRoute.GET("/incidents", controller.GetRiskIncidents)
+
+			// omni-moderation tab
+			riskRoute.GET("/moderation/config", controller.GetModerationConfig)
+			riskRoute.PUT("/moderation/config", controller.UpdateModerationConfig)
+			riskRoute.GET("/moderation/overview", controller.GetModerationOverview)
+			riskRoute.GET("/moderation/incidents", controller.GetModerationIncidents)
+			riskRoute.GET("/moderation/incidents/:id", controller.GetModerationIncidentDetail)
+			riskRoute.POST("/moderation/debug", controller.SubmitModerationDebug)
+			riskRoute.GET("/moderation/debug/:id", controller.GetModerationDebugResult)
+			riskRoute.GET("/moderation/categories", controller.GetModerationCategories)
+			riskRoute.GET("/moderation/rules", controller.GetModerationRules)
+			riskRoute.POST("/moderation/rules", controller.CreateModerationRule)
+			riskRoute.PUT("/moderation/rules/:id", controller.UpdateModerationRule)
+			riskRoute.DELETE("/moderation/rules/:id", controller.DeleteModerationRule)
+			riskRoute.GET("/moderation/queue_stats", controller.GetModerationQueueStats)
+
+			// enforcement layer (unified post-hit handling)
+			riskRoute.GET("/enforcement/config", controller.GetEnforcementConfig)
+			riskRoute.PUT("/enforcement/config", controller.UpdateEnforcementConfig)
+			riskRoute.GET("/enforcement/overview", controller.GetEnforcementOverview)
+			riskRoute.GET("/enforcement/incidents", controller.GetEnforcementIncidents)
+			riskRoute.GET("/enforcement/counters", controller.GetEnforcementCounters)
+			riskRoute.POST("/enforcement/users/:id/reset_counter", controller.ResetEnforcementCounter)
+			riskRoute.POST("/enforcement/users/:id/unban", controller.UnbanEnforcementUser)
+			riskRoute.POST("/enforcement/test_email", controller.SendEnforcementTestEmail)
+		}
+		monitoringAdminRoute := apiRouter.Group("/monitoring/admin")
+		monitoringAdminRoute.Use(middleware.AdminAuth())
+		{
+			monitoringAdminRoute.GET("/groups", controller.GetAdminMonitoringGroups)
+			monitoringAdminRoute.GET("/groups/:group", controller.GetAdminMonitoringGroupDetail)
+			monitoringAdminRoute.GET("/groups/:group/history", controller.GetAdminMonitoringGroupHistory)
+			monitoringAdminRoute.POST("/refresh", middleware.CriticalRateLimit(), controller.RefreshMonitoringData)
+			monitoringAdminRoute.DELETE("/groups/:group/records", controller.DeleteMonitoringGroupRecords)
+		}
+		monitoringPublicRoute := apiRouter.Group("/monitoring/public")
+		monitoringPublicRoute.Use(middleware.TryUserAuth())
+		{
+			monitoringPublicRoute.GET("/groups", controller.GetPublicMonitoringGroups)
+			monitoringPublicRoute.GET("/groups/:group/history", controller.GetPublicMonitoringGroupHistory)
 		}
 		registerChannelRoutes(apiRouter)
 		registerAuthzRoutes(apiRouter)
@@ -261,6 +367,18 @@ func SetApiRouter(router *gin.Engine) {
 			redemptionRoute.PUT("/", controller.UpdateRedemption)
 			redemptionRoute.DELETE("/invalid", controller.DeleteInvalidRedemption)
 			redemptionRoute.DELETE("/:id", controller.DeleteRedemption)
+		}
+		invitationCodeRoute := apiRouter.Group("/invitation_code")
+		invitationCodeRoute.Use(middleware.AdminAuth())
+		{
+			invitationCodeRoute.GET("/", controller.GetAllInvitationCodes)
+			invitationCodeRoute.GET("/search", controller.SearchInvitationCodes)
+			invitationCodeRoute.GET("/:id", controller.GetInvitationCode)
+			invitationCodeRoute.GET("/:id/usages", controller.GetInvitationCodeUsages)
+			invitationCodeRoute.POST("/", controller.AddInvitationCode)
+			invitationCodeRoute.PUT("/", controller.UpdateInvitationCode)
+			invitationCodeRoute.DELETE("/invalid", controller.DeleteInvalidInvitationCodes)
+			invitationCodeRoute.DELETE("/:id", controller.DeleteInvitationCode)
 		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), controller.GetAllLogs)

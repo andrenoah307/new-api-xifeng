@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -184,9 +185,62 @@ func UserAuth() func(c *gin.Context) {
 	}
 }
 
+// SessionAuth 仅基于 cookie session 鉴权，不要求 New-Api-User 请求头。
+// 用于浏览器直发、无法注入自定义头的场景（如 <img src>、<a href> 下载链接）。
+// 与 UserAuth 的区别：跳过 CSRF 防护层的 New-Api-User 校验；因此应只用于幂等、只读的 GET 资源。
+func SessionAuth() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		id := session.Get("id")
+		role := session.Get("role")
+		status := session.Get("status")
+		username := session.Get("username")
+		if id == nil || role == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgAuthNotLoggedIn),
+			})
+			c.Abort()
+			return
+		}
+		if s, ok := status.(int); ok && s == common.UserStatusDisabled {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgAuthUserBanned),
+			})
+			c.Abort()
+			return
+		}
+		roleInt, ok := role.(int)
+		if !ok || roleInt < common.RoleCommonUser {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": common.TranslateMessage(c, i18n.MsgAuthInsufficientPrivilege),
+			})
+			c.Abort()
+			return
+		}
+		c.Set("id", id)
+		c.Set("role", roleInt)
+		if username != nil {
+			c.Set("username", username)
+		}
+		c.Next()
+	}
+}
+
 func AdminAuth() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		authHelper(c, common.RoleAdminUser)
+	}
+}
+
+// TicketStaffAuth 允许角色 >= 客服（RoleCustomerServiceUser）访问。
+// 用于工单后台接口：既覆盖原有管理员（role=10+），也放行专门的客服账号（role=5）。
+// 是否允许具体用户处理某张工单，由 controller / service 根据分配规则再做一次细粒度判断。
+func TicketStaffAuth() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		authHelper(c, common.RoleCustomerServiceUser)
 	}
 }
 
@@ -377,7 +431,7 @@ func TokenAuth() func(c *gin.Context) {
 
 		allowIps := token.GetIpLimits()
 		if len(allowIps) > 0 {
-			clientIp := c.ClientIP()
+			clientIp := requestip.GetClientIP(c)
 			logger.LogDebug(c, "Token has IP restrictions, checking client IP %s", clientIp)
 			ip := net.ParseIP(clientIp)
 			if ip == nil {

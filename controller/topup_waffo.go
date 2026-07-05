@@ -415,6 +415,7 @@ func handleWaffoPayment(c *gin.Context, wh *core.WebhookHandler, result *core.Pa
 	}
 
 	logger.LogInfo(c.Request.Context(), fmt.Sprintf("Waffo 充值成功 trade_no=%s client_ip=%s", merchantOrderId, c.ClientIP()))
+	service.NotifyTopUpSuccessByTradeNo(merchantOrderId)
 	sendWaffoWebhookResponse(c, wh, true, "")
 }
 

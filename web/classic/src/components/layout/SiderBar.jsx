@@ -25,7 +25,7 @@ import { ChevronLeft } from 'lucide-react';
 import { useSidebarCollapsed } from '../../hooks/common/useSidebarCollapsed';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
-import { isAdmin, isRoot, showError } from '../../helpers';
+import { isAdmin, isRoot, isTicketStaff, showError } from '../../helpers';
 import SkeletonWrapper from './components/SkeletonWrapper';
 
 import { Nav, Divider, Button } from '@douyinfe/semi-ui';
@@ -35,9 +35,15 @@ const routerMap = {
   channel: '/console/channel',
   token: '/console/token',
   redemption: '/console/redemption',
+  invitation_code: '/console/invitation_code',
   topup: '/console/topup',
+  topup_history: '/console/topup_history',
+  ticket: '/console/ticket',
   user: '/console/user',
+  risk: '/console/risk',
+  monitoring: '/console/monitoring',
   subscription: '/console/subscription',
+  ticket_admin: '/console/ticket_admin',
   log: '/console/log',
   midjourney: '/console/midjourney',
   setting: '/console/setting',
@@ -51,7 +57,7 @@ const routerMap = {
   personal: '/console/personal',
 };
 
-const SiderBar = ({ onNavigate = () => {} }) => {
+const SiderBar = ({ onNavigate = () => { } }) => {
   const { t } = useTranslation();
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const {
@@ -105,6 +111,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         className:
           localStorage.getItem('enable_task') === 'true' ? '' : 'tableHiddle',
       },
+      {
+        text: t('分组监控'),
+        itemKey: 'monitoring',
+        to: '/console/monitoring',
+      },
     ];
 
     // 根据配置过滤项目
@@ -128,6 +139,16 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('钱包管理'),
         itemKey: 'topup',
         to: '/topup',
+      },
+      {
+        text: t('充值账单'),
+        itemKey: 'topup_history',
+        to: '/topup_history',
+      },
+      {
+        text: t('工单支持'),
+        itemKey: 'ticket',
+        to: '/ticket',
       },
       {
         text: t('个人设置'),
@@ -160,9 +181,22 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
+        text: t('工单管理'),
+        itemKey: 'ticket_admin',
+        to: '/ticket_admin',
+        // 工单管理对客服（role=5）也可见；其它管理员菜单项仍仅对 role>=10 可见。
+        className: isTicketStaff() ? '' : 'tableHiddle',
+      },
+      {
         text: t('模型管理'),
         itemKey: 'models',
         to: '/console/models',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('风控中心'),
+        itemKey: 'risk',
+        to: '/console/risk',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
@@ -175,6 +209,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('兑换码管理'),
         itemKey: 'redemption',
         to: '/redemption',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('邀请码管理'),
+        itemKey: 'invitation_code',
+        to: '/invitation_code',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {
@@ -198,7 +238,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
     });
 
     return filteredItems;
-  }, [isAdmin(), isRoot(), t, isModuleVisible]);
+  }, [isAdmin(), isRoot(), isTicketStaff(), t, isModuleVisible]);
 
   const chatMenuItems = useMemo(() => {
     const items = [
@@ -290,6 +330,13 @@ const SiderBar = ({ onNavigate = () => {} }) => {
       } else {
         matchingKey = 'chat';
       }
+    }
+
+    if (!matchingKey && currentPath.startsWith('/console/ticket_admin/')) {
+      matchingKey = 'ticket_admin';
+    }
+    if (!matchingKey && currentPath.startsWith('/console/ticket/')) {
+      matchingKey = 'ticket';
     }
 
     // 如果找到匹配的键，更新选中的键
@@ -402,7 +449,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         type='sidebar'
         className=''
         collapsed={collapsed}
-        showAdmin={isAdmin()}
+        showAdmin={isTicketStaff()}
       >
         <Nav
           className='sidebar-nav'
@@ -479,8 +526,8 @@ const SiderBar = ({ onNavigate = () => {} }) => {
             </>
           )}
 
-          {/* 管理员区域 - 只在管理员时显示且配置允许时显示 */}
-          {isAdmin() && hasSectionVisibleModules('admin') && (
+          {/* 管理员区域 - 管理员完整可见；客服仅看得到工单管理一项（在 adminItems 过滤中控制）。 */}
+          {isTicketStaff() && hasSectionVisibleModules('admin') && (
             <>
               <Divider className='sidebar-divider' />
               <div>

@@ -145,6 +145,10 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 			return newApiErr
 		}
 
+		if retryErr := service.StreamAbortRetryError(info); retryErr != nil {
+			return retryErr
+		}
+
 		service.PostTextConsumeQuota(c, info, usage, nil)
 		return nil
 	}
@@ -216,6 +220,10 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		// reset status code 重置状态码
 		service.ResetStatusCode(newAPIError, statusCodeMappingStr)
 		return newAPIError
+	}
+
+	if retryErr := service.StreamAbortRetryError(info); retryErr != nil {
+		return retryErr
 	}
 
 	service.PostTextConsumeQuota(c, info, usage.(*dto.Usage), nil)

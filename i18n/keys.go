@@ -71,6 +71,21 @@ const (
 	MsgRedemptionExpireTimeInvalid = "redemption.expire_time_invalid"
 )
 
+// Invitation code related messages
+const (
+	MsgInvitationCodeRequired             = "invitation_code.required"
+	MsgInvitationCodeInvalid              = "invitation_code.invalid"
+	MsgInvitationCodeExhausted            = "invitation_code.exhausted"
+	MsgInvitationCodeExpired              = "invitation_code.expired"
+	MsgInvitationCodeDisabled             = "invitation_code.disabled"
+	MsgInvitationCodeNameLength           = "invitation_code.name_length"
+	MsgInvitationCodeCountMax             = "invitation_code.count_max"
+	MsgInvitationCodeCreateFailed         = "invitation_code.create_failed"
+	MsgInvitationCodeQuotaExceeded        = "invitation_code.quota_exceeded"
+	MsgInvitationCodeAccountTooYoung      = "invitation_code.account_too_young"
+	MsgInvitationCodeUserGenerateDisabled = "invitation_code.user_generate_disabled"
+)
+
 // User related messages
 const (
 	MsgUserPasswordLoginDisabled     = "user.password_login_disabled"
@@ -138,6 +153,36 @@ const (
 	MsgSubscriptionPurchaseMax      = "subscription.purchase_max"
 	MsgSubscriptionInvalidId        = "subscription.invalid_id"
 	MsgSubscriptionInvalidUserId    = "subscription.invalid_user_id"
+)
+
+// Ticket related messages
+const (
+	MsgTicketSubjectEmpty          = "ticket.subject_empty"
+	MsgTicketContentEmpty          = "ticket.content_empty"
+	MsgTicketNotFound              = "ticket.not_found"
+	MsgTicketClosed                = "ticket.closed"
+	MsgTicketInvalidStatus         = "ticket.invalid_status"
+	MsgTicketInvalidType           = "ticket.invalid_type"
+	MsgTicketInvoiceNotFound       = "ticket.invoice_not_found"
+	MsgTicketInvoiceStatusInvalid  = "ticket.invoice_status_invalid"
+	MsgTicketInvoiceOrderEmpty     = "ticket.invoice_order_empty"
+	MsgTicketInvoiceOrderInvalid   = "ticket.invoice_order_invalid"
+	MsgTicketInvoiceOrderDuplicate = "ticket.invoice_order_duplicate"
+	MsgTicketInvoiceCompanyEmpty   = "ticket.invoice_company_empty"
+	MsgTicketInvoiceTaxNumberEmpty = "ticket.invoice_tax_number_empty"
+	MsgTicketInvoiceEmailEmpty     = "ticket.invoice_email_empty"
+	MsgTicketRefundNotFound        = "ticket.refund_not_found"
+	MsgTicketRefundStatusInvalid   = "ticket.refund_status_invalid"
+	MsgTicketRefundQuotaInvalid    = "ticket.refund_quota_invalid"
+	MsgTicketRefundQuotaExceed     = "ticket.refund_quota_exceed"
+	MsgTicketRefundPayeeTypeEmpty  = "ticket.refund_payee_type_empty"
+	MsgTicketRefundPayeeNameEmpty  = "ticket.refund_payee_name_empty"
+	MsgTicketRefundPayeeAccountEmpty = "ticket.refund_payee_account_empty"
+	MsgTicketRefundPayeeBankEmpty  = "ticket.refund_payee_bank_empty"
+	MsgTicketRefundContactEmpty    = "ticket.refund_contact_empty"
+	MsgTicketRefundNotPending      = "ticket.refund_not_pending"
+	MsgTicketRefundQuotaModeInvalid = "ticket.refund_quota_mode_invalid"
+	MsgTicketAssigneeInvalid        = "ticket.assignee_invalid"
 )
 
 // Payment related messages

@@ -41,6 +41,7 @@ const (
 	ErrorCodeInvalidRequest         ErrorCode = "invalid_request"
 	ErrorCodeSensitiveWordsDetected ErrorCode = "sensitive_words_detected"
 	ErrorCodeViolationFeeGrokCSAM   ErrorCode = "violation_fee.grok.csam"
+	ErrorCodeRiskControlBlocked     ErrorCode = "risk_control_blocked"
 
 	// new api error
 	ErrorCodeCountTokenFailed   ErrorCode = "count_token_failed"
@@ -59,6 +60,7 @@ const (
 	ErrorCodeChannelAwsClientError        ErrorCode = "channel:aws_client_error"
 	ErrorCodeChannelInvalidKey            ErrorCode = "channel:invalid_key"
 	ErrorCodeChannelResponseTimeExceeded  ErrorCode = "channel:response_time_exceeded"
+	ErrorCodeChannelRateLimited           ErrorCode = "channel:rate_limited"
 
 	// client request error
 	ErrorCodeReadRequestBodyFailed ErrorCode = "read_request_body_failed"
@@ -91,6 +93,7 @@ type NewAPIError struct {
 	Err            error
 	RelayError     any
 	skipRetry      bool
+	forceRetry     bool
 	recordErrorLog *bool
 	errorType      ErrorType
 	errorCode      ErrorCode
@@ -174,7 +177,61 @@ func (e *NewAPIError) MaskSensitiveErrorWithStatusCode() string {
 }
 
 func (e *NewAPIError) SetMessage(message string) {
+	if e == nil {
+		return
+	}
 	e.Err = errors.New(message)
+	switch relayErr := e.RelayError.(type) {
+	case OpenAIError:
+		relayErr.Message = message
+		e.RelayError = relayErr
+	case *OpenAIError:
+		if relayErr != nil {
+			relayErr.Message = message
+		}
+	case ClaudeError:
+		relayErr.Message = message
+		e.RelayError = relayErr
+	case *ClaudeError:
+		if relayErr != nil {
+			relayErr.Message = message
+		}
+	}
+}
+
+func (e *NewAPIError) SetStatusCode(code int) {
+	if e == nil {
+		return
+	}
+	e.StatusCode = code
+}
+
+func (e *NewAPIError) SetSkipRetry(v bool) {
+	if e == nil {
+		return
+	}
+	e.skipRetry = v
+}
+
+func (e *NewAPIError) IsSkipRetry() bool {
+	if e == nil {
+		return false
+	}
+	return e.skipRetry
+}
+
+func (e *NewAPIError) SetForceRetry(v bool) {
+	if e == nil {
+		return
+	}
+	e.forceRetry = v
+}
+
+func (e *NewAPIError) IsForceRetry() bool {
+	if e == nil {
+		return false
+	}
+	return e.forceRetry
 }
 
 func (e *NewAPIError) ToOpenAIError() OpenAIError {
@@ -375,7 +432,7 @@ func IsSkipRetryError(err *NewAPIError) bool {
 		return false
 	}
 
-	return err.skipRetry
+	return err.IsSkipRetry()
 }
 
 func ErrOptionWithSkipRetry() NewAPIErrorOptions {

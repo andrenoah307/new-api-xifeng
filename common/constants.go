@@ -90,6 +90,9 @@ var WeChatAuthEnabled = false
 var TelegramOAuthEnabled = false
 var TurnstileCheckEnabled = false
 var RegisterEnabled = true
+var InvitationCodeEnabled = false
+var InvitationCodeOAuthRequired = false
+var InvitationCodeUserGenerateEnabled = false
 
 var EmailDomainRestrictionEnabled = false // 是否启用邮箱域名限制
 var EmailAliasRestrictionEnabled = false  // 是否启用邮箱别名限制
@@ -126,6 +129,15 @@ var SMTPForceAuthLogin = false
 var SMTPAccount = ""
 var SMTPFrom = ""
 var SMTPToken = ""
+
+// 工单邮件通知配置
+var TicketNotifyEnabled = false
+var TicketAdminEmail = "" // 多个邮箱使用分号(;)分隔
+
+// 支付成功邮件通知配置
+var PaymentNotifyUserEnabled = false  // 支付成功后通知下单用户
+var PaymentNotifyAdminEnabled = false // 支付成功后通知管理员
+var PaymentAdminEmail = ""            // 管理员收件邮箱，多个以分号分隔
 
 var GitHubClientId = ""
 var GitHubClientSecret = ""
@@ -198,14 +210,33 @@ const (
 )
 
 const (
-	RoleGuestUser  = 0
-	RoleCommonUser = 1
-	RoleAdminUser  = 10
-	RoleRootUser   = 100
+	RoleGuestUser           = 0
+	RoleCommonUser          = 1
+	RoleCustomerServiceUser = 5 // 客服：只能访问工单相关管理功能
+	RoleAdminUser           = 10
+	RoleRootUser            = 100
 )
 
 func IsValidateRole(role int) bool {
-	return role == RoleGuestUser || role == RoleCommonUser || role == RoleAdminUser || role == RoleRootUser
+	return role == RoleGuestUser || role == RoleCommonUser || role == RoleCustomerServiceUser || role == RoleAdminUser || role == RoleRootUser
+}
+
+// RoleLabel 返回角色的中文可读名称，主要用于日志/通知场景。
+func RoleLabel(role int) string {
+	switch role {
+	case RoleGuestUser:
+		return "访客"
+	case RoleCommonUser:
+		return "普通用户"
+	case RoleCustomerServiceUser:
+		return "客服"
+	case RoleAdminUser:
+		return "管理员"
+	case RoleRootUser:
+		return "超级管理员"
+	default:
+		return "未知"
+	}
 }
 
 var (

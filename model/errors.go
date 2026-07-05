@@ -24,3 +24,15 @@ var ErrRedeemFailed = errors.New("redeem.failed")
 
 // 2FA errors
 var ErrTwoFANotEnabled = errors.New("2fa not enabled")
+
+// Invitation code errors
+var (
+	ErrInvitationCodeRequired             = errors.New("invitation_code.required")
+	ErrInvitationCodeInvalid              = errors.New("invitation_code.invalid")
+	ErrInvitationCodeExhausted            = errors.New("invitation_code.exhausted")
+	ErrInvitationCodeExpired              = errors.New("invitation_code.expired")
+	ErrInvitationCodeDisabled             = errors.New("invitation_code.disabled")
+	ErrInvitationCodeQuotaExceeded        = errors.New("invitation_code.quota_exceeded")
+	ErrInvitationCodeAccountTooYoung      = errors.New("invitation_code.account_too_young")
+	ErrInvitationCodeUserGenerateDisabled = errors.New("invitation_code.user_generate_disabled")
+)

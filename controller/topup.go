@@ -405,6 +405,7 @@ func EpayNotify(c *gin.Context) {
 			}
 			logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 充值成功 trade_no=%s user_id=%d client_ip=%s quota_to_add=%d money=%.2f topup=%q", topUp.TradeNo, topUp.UserId, c.ClientIP(), quotaToAdd, topUp.Money, common.GetJsonString(topUp)))
 			model.RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%f", logger.LogQuota(quotaToAdd), topUp.Money), c.ClientIP(), topUp.PaymentMethod, "epay")
+			service.NotifyTopUpSuccess(topUp)
 		}
 	} else {
 		logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 webhook 忽略事件 trade_no=%s callback_type=%s trade_status=%s client_ip=%s verify_info=%q", verifyInfo.ServiceTradeNo, verifyInfo.Type, verifyInfo.TradeStatus, c.ClientIP(), common.GetJsonString(verifyInfo)))
@@ -440,18 +441,9 @@ func RequestAmount(c *gin.Context) {
 func GetUserTopUps(c *gin.Context) {
 	userId := c.GetInt("id")
 	pageInfo := common.GetPageQuery(c)
-	keyword := c.Query("keyword")
+	filter := parseTopUpFilter(c)
 
-	var (
-		topups []*model.TopUp
-		total  int64
-		err    error
-	)
-	if keyword != "" {
-		topups, total, err = model.SearchUserTopUps(userId, keyword, pageInfo)
-	} else {
-		topups, total, err = model.GetUserTopUps(userId, pageInfo)
-	}
+	topups, total, err := model.GetUserTopUps(userId, filter, pageInfo)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -465,18 +457,9 @@ func GetUserTopUps(c *gin.Context) {
 // GetAllTopUps 管理员获取全平台充值记录
 func GetAllTopUps(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
-	keyword := c.Query("keyword")
+	filter := parseTopUpFilter(c)
 
-	var (
-		topups []*model.TopUp
-		total  int64
-		err    error
-	)
-	if keyword != "" {
-		topups, total, err = model.SearchAllTopUps(keyword, pageInfo)
-	} else {
-		topups, total, err = model.GetAllTopUps(pageInfo)
-	}
+	topups, total, err := model.GetAllTopUps(filter, pageInfo)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -485,6 +468,21 @@ func GetAllTopUps(c *gin.Context) {
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(topups)
 	common.ApiSuccess(c, pageInfo)
+}
+
+// parseTopUpFilter extracts keyword / status / time-range query params.
+func parseTopUpFilter(c *gin.Context) model.TopUpFilter {
+	filter := model.TopUpFilter{
+		Keyword: c.Query("keyword"),
+		Status:  c.Query("status"),
+	}
+	if v, err := strconv.ParseInt(c.Query("start_time"), 10, 64); err == nil {
+		filter.StartTime = v
+	}
+	if v, err := strconv.ParseInt(c.Query("end_time"), 10, 64); err == nil {
+		filter.EndTime = v
+	}
+	return filter
 }
 
 type AdminCompleteTopupRequest struct {

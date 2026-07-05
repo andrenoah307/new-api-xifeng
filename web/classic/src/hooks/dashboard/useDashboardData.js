@@ -36,6 +36,11 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
   const [loading, setLoading] = useState(false);
   const [greetingVisible, setGreetingVisible] = useState(false);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
+  // riskWarningVisible: vague-on-purpose login modal triggered by the risk
+  // control engine. The flag is server-driven via GET /api/user/self
+  // response.risk_warning_pending; we only mirror it here so the dashboard
+  // shell can render the modal without prop-drilling.
+  const [riskWarningVisible, setRiskWarningVisible] = useState(false);
   const showLoading = useMinimumLoadingTime(loading);
 
   // ========== 输入状态 ==========
@@ -239,10 +244,27 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
     const { success, message, data } = res.data;
     if (success) {
       userDispatch({ type: 'login', payload: data });
+      // The server is the only source of truth for the warning flag — we
+      // never cache "dismissed" client-side, so a subsequent fresh enforce
+      // decision will pop the modal again on the next dashboard load.
+      if (data && data.risk_warning_pending) {
+        setRiskWarningVisible(true);
+      }
     } else {
       showError(message);
     }
   }, [userDispatch]);
+
+  const acknowledgeRiskWarning = useCallback(async () => {
+    setRiskWarningVisible(false);
+    try {
+      await API.post('/api/user/self/risk_warning/ack');
+    } catch (err) {
+      // Acknowledgement failure is non-fatal; the user already saw the
+      // modal and will simply see it again next login.
+      console.warn('risk warning ack failed', err);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     const data = await loadQuotaData();
@@ -281,6 +303,8 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
     loading: showLoading,
     greetingVisible,
     searchModalVisible,
+    riskWarningVisible,
+    acknowledgeRiskWarning,
 
     // 输入状态
     inputs,

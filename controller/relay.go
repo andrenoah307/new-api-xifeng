@@ -21,6 +21,7 @@ import (
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/channel_limiter"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -122,11 +123,27 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
 		return
 	}
+	c.Set("risk_audit", relayInfo.RiskAudit)
+	if riskErr := service.RiskControlBeforeRelay(c, relayInfo); riskErr != nil {
+		newAPIError = riskErr
+		c.Set("risk_audit", relayInfo.RiskAudit)
+		service.RecordRiskBlockedAccess(c, relayInfo, service.GetBlockingDecisionFromAudit(relayInfo.RiskAudit))
+		return
+	}
+	// meta is hoisted above the defer so the moderation hook can reference it.
+	var meta *types.TokenCountMeta
+	defer func() {
+		c.Set("risk_audit", relayInfo.RiskAudit)
+		service.RiskControlAfterRelay(c, relayInfo, newAPIError)
+		// Async OpenAI moderation scoring; never blocks the relay path.
+		// Failed-upstream requests (no client output) are filtered inside
+		// EnqueueModerationFromRelay via the relay error.
+		service.EnqueueModerationFromRelay(c, relayInfo, meta, newAPIError)
+	}()
 
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
 	needCountToken := constant.CountToken
 	// Avoid building huge CombineText (strings.Join) when token counting and sensitive check are both disabled.
-	var meta *types.TokenCountMeta
 	if needSensitiveCheck || needCountToken {
 		meta = request.GetTokenCountMeta()
 	} else {
@@ -188,8 +205,22 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
 
+	// Channel rate-limit token from current iteration. We release it at the top of
+	// the next iteration (before acquiring a new one) and via defer on function exit.
+	// Token.Release uses sync.Once so double-release is safe.
+	var rateLimitToken *channel_limiter.Token
+	defer func() {
+		if rateLimitToken != nil {
+			rateLimitToken.Release()
+		}
+	}()
+
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
 		relayInfo.RetryIndex = retryParam.GetRetry()
+		if rateLimitToken != nil {
+			rateLimitToken.Release()
+			rateLimitToken = nil
+		}
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
 			logger.LogError(c, channelErr.Error())
@@ -198,6 +229,46 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		addUsedChannel(c, channel.Id)
+
+		// Channel-level rate limit (RPM / concurrency).
+		if rateLimitCfg := channel.GetSetting().RateLimit; channel_limiter.IsActive(rateLimitCfg) {
+			token, decision := channel_limiter.Acquire(c.Request.Context(), channel.Id, rateLimitCfg)
+			if decision.Allowed {
+				rateLimitToken = token
+			} else {
+				// Hard affinity (SkipRetryOnFailure=true) demands that requests
+				// stay on the original channel even at the cost of failing.
+				// Honor that by overriding skip/queue with reject so we 429
+				// instead of silently routing to a different channel.
+				effectiveOnLimit := rateLimitCfg.OnLimit
+				if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
+					effectiveOnLimit = channel_limiter.OnLimitReject
+				}
+
+				logger.LogWarn(c, fmt.Sprintf("channel %d (%s) rate-limited: reason=%s, action=%s", channel.Id, channel.Name, decision.Reason, effectiveOnLimit))
+				rlErr := types.NewErrorWithStatusCode(
+					fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
+					types.ErrorCodeChannelRateLimited,
+					http.StatusTooManyRequests,
+				)
+				relayInfo.LastError = rlErr
+				if effectiveOnLimit == channel_limiter.OnLimitReject {
+					newAPIError = types.NewErrorWithStatusCode(
+						fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
+						types.ErrorCodeChannelRateLimited,
+						http.StatusTooManyRequests,
+						types.ErrOptionWithSkipRetry(),
+					)
+					break
+				}
+				// skip / queue-timeout / queue-full: signal the affinity layer
+				// that this detour is rate-limit driven so it won't displace
+				// the original cache-friendly channel via SwitchOnSuccess.
+				common.SetContextKey(c, constant.ContextKeyRateLimitSkipped, true)
+				continue
+			}
+		}
+
 		bodyStorage, bodyErr := common.GetBodyStorage(c)
 		if bodyErr != nil {
 			// Ensure consistent 413 for oversized bodies even when error occurs later (e.g., retry path)
@@ -226,7 +297,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			return
 		}
 
+		matchStatusCode, matchErrorCode, matchMessage := getErrorFilterMatchInput(newAPIError)
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
+		applyChannelErrorFilter(newAPIError, channel.GetSetting().ErrorFilterRules, matchStatusCode, matchErrorCode, matchMessage)
 		relayInfo.LastError = newAPIError
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
@@ -322,9 +395,52 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 	return channel, nil
 }
 
+func getErrorFilterMatchInput(apiErr *types.NewAPIError) (statusCode int, errorCode string, message string) {
+	if apiErr == nil {
+		return 0, "", ""
+	}
+	oaiErr := apiErr.ToOpenAIError()
+	if oaiErr.Code == nil {
+		return apiErr.StatusCode, "", oaiErr.Message
+	}
+	return apiErr.StatusCode, fmt.Sprintf("%v", oaiErr.Code), oaiErr.Message
+}
+
+func applyChannelErrorFilter(apiErr *types.NewAPIError, rules []dto.ErrorFilterRule, statusCode int, errorCode string, message string) {
+	if apiErr == nil || len(rules) == 0 {
+		return
+	}
+
+	matched, rule := service.MatchErrorFilter(rules, statusCode, errorCode, message)
+	if !matched || rule == nil {
+		return
+	}
+
+	switch strings.ToLower(strings.TrimSpace(rule.Action)) {
+	case "rewrite":
+		if rule.RewriteMessage != "" {
+			apiErr.SetMessage(rule.RewriteMessage)
+		}
+		apiErr.SetSkipRetry(true)
+	case "replace":
+		if rule.ReplaceStatusCode > 0 {
+			apiErr.SetStatusCode(rule.ReplaceStatusCode)
+		}
+		if rule.ReplaceMessage != "" {
+			apiErr.SetMessage(rule.ReplaceMessage)
+		}
+		apiErr.SetSkipRetry(true)
+	case "retry":
+		apiErr.SetForceRetry(true)
+	}
+}
+
 func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
 	if openaiErr == nil {
 		return false
+	}
+	if openaiErr.IsForceRetry() {
+		return true
 	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
 		return false
@@ -358,7 +474,7 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, common.LocalLogPreview(err.Error())))
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
-	if service.ShouldDisableChannel(err) && channelError.AutoBan {
+	if !err.IsSkipRetry() && service.ShouldDisableChannel(err) && channelError.AutoBan {
 		gopool.Go(func() {
 			service.DisableChannel(channelError, err.ErrorWithStatusCode())
 		})
@@ -391,6 +507,11 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		}
 		service.AppendChannelAffinityAdminInfo(c, adminInfo)
 		other["admin_info"] = adminInfo
+		if rawAudit, ok := c.Get("risk_audit"); ok {
+			if audit, ok := rawAudit.(*types.RiskAudit); ok {
+				service.AppendRiskAuditToOther(other, audit)
+			}
+		}
 		startTime := common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)
 		if startTime.IsZero() {
 			startTime = time.Now()
