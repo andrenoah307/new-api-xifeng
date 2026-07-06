@@ -1693,7 +1693,6 @@
     "已切换为 {{scope}} 作用域，不兼容的指标已自动替换为 {{metric}}。": "",
     "已切换为Assistant角色": "Đã chuyển sang vai trò Assistant",
     "已切换为System角色": "Đã chuyển sang vai trò System",
-    "已切换到新版前端，正在刷新页面": "Đã chuyển sang frontend mới, đang làm mới trang",
     "已切换至最优倍率视图，每个模型使用其最低倍率分组": "Đã chuyển sang chế độ xem tỷ lệ tối ưu, mỗi mô hình sử dụng nhóm tỷ lệ thấp nhất của nó",
     "已初始化": "Đã khởi tạo",
     "已删除": "Đã xóa",
@@ -5319,6 +5318,7 @@
     "SSL/TLS": "SSL/TLS",
     "STARTTLS": "STARTTLS",
     "无加密": "Không mã hóa",
-    "请选择一种 SMTP 传输加密方式": "Vui lòng chọn một chế độ bảo mật truyền tải SMTP"
+    "请选择一种 SMTP 传输加密方式": "Vui lòng chọn một chế độ bảo mật truyền tải SMTP",
+    "已切换到新版前端，正在跳转首页": "Đã chuyển sang frontend mới, đang chuyển đến trang chủ"
   }
 }

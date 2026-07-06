@@ -1708,7 +1708,6 @@
     "已切换为 {{scope}} 作用域，不兼容的指标已自动替换为 {{metric}}。": "",
     "已切换为Assistant角色": "Basculé vers le rôle Assistant",
     "已切换为System角色": "Basculé vers le rôle Système",
-    "已切换到新版前端，正在刷新页面": "Passage au nouveau frontend effectué, actualisation de la page",
     "已切换至最优倍率视图，每个模型使用其最低倍率分组": "Passé à la vue de ratio optimal, chaque modèle utilise son groupe de ratio le plus bas",
     "已初始化": "Initialisé",
     "已删除": "Supprimé",
@@ -4808,6 +4807,7 @@
     "SSL/TLS": "SSL/TLS",
     "STARTTLS": "STARTTLS",
     "无加密": "Aucun chiffrement",
-    "请选择一种 SMTP 传输加密方式": "Veuillez sélectionner un mode de sécurité de transport SMTP"
+    "请选择一种 SMTP 传输加密方式": "Veuillez sélectionner un mode de sécurité de transport SMTP",
+    "已切换到新版前端，正在跳转首页": "Passage au nouveau frontend effectué, redirection vers l'accueil"
   }
 }

@@ -19,11 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQuery } from '@tanstack/react-query'
 import { FileWarning } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+
+import { PublicLayout } from '@/components/layout'
+import { RichContent } from '@/components/rich-content'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Markdown } from '@/components/ui/markdown'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PublicLayout } from '@/components/layout'
+import { isHttpUrl, isLikelyHtml } from '@/lib/content-format'
+
 import type { LegalDocumentResponse } from './types'
 
 type LegalDocumentProps = {
@@ -33,19 +36,7 @@ type LegalDocumentProps = {
   emptyMessage: string
 }
 
-function isValidUrl(value: string) {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
-function isLikelyHtml(value: string) {
-  return /<\/?[a-z][\s\S]*>/i.test(value)
-}
-
+// fork: inline variant rendered inside the register-page consent dialog
 type LegalDocumentInlineProps = {
   rawContent: string
   emptyMessage?: string
@@ -64,7 +55,7 @@ export function LegalDocumentInline({
       </p>
     )
   }
-  if (isValidUrl(trimmed)) {
+  if (isHttpUrl(trimmed)) {
     return (
       <div className='space-y-3'>
         <p className='text-muted-foreground text-sm'>
@@ -80,18 +71,11 @@ export function LegalDocumentInline({
       </div>
     )
   }
-  if (isLikelyHtml(trimmed)) {
-    return (
-      <div
-        className='prose prose-neutral dark:prose-invert max-w-none text-sm'
-        dangerouslySetInnerHTML={{ __html: trimmed }}
-      />
-    )
-  }
   return (
-    <Markdown className='prose-neutral dark:prose-invert max-w-none text-sm'>
-      {trimmed}
-    </Markdown>
+    <RichContent
+      mode={isLikelyHtml(trimmed) ? 'html' : 'markdown'}
+      content={trimmed}
+    />
   )
 }
 
@@ -110,8 +94,8 @@ export function LegalDocument({
 
   const rawContent = data?.data?.trim() ?? ''
   const hasContent = rawContent.length > 0
-  const isUrl = hasContent && isValidUrl(rawContent)
-  const isHtml = hasContent && !isUrl && isLikelyHtml(rawContent)
+  const isUrl = hasContent && isHttpUrl(rawContent)
+  const contentIsHtml = hasContent && isLikelyHtml(rawContent)
   const success = data?.success ?? false
 
   if (isLoading) {
@@ -182,23 +166,26 @@ export function LegalDocument({
   }
 
   return (
-    <PublicLayout>
-      <div className='mx-auto max-w-4xl space-y-6 py-12'>
-        <div className='space-y-2'>
-          <h1 className='text-3xl font-semibold tracking-tight'>{title}</h1>
-        </div>
+    <PublicLayout showMainContainer={!contentIsHtml}>
+      {contentIsHtml ? (
+        <RichContent
+          mode='html'
+          htmlVariant='isolated'
+          content={rawContent}
+        />
+      ) : (
+        <div className='mx-auto max-w-4xl space-y-6 py-12'>
+          <div className='space-y-2'>
+            <h1 className='text-3xl font-semibold tracking-tight'>{title}</h1>
+          </div>
 
-        {isHtml ? (
-          <div
-            className='prose prose-neutral dark:prose-invert max-w-none'
-            dangerouslySetInnerHTML={{ __html: rawContent }}
+          <RichContent
+            mode='markdown'
+            content={rawContent}
+            className='prose-neutral dark:prose-invert max-w-none'
           />
-        ) : (
-          <Markdown className='prose-neutral dark:prose-invert max-w-none'>
-            {rawContent}
-          </Markdown>
-        )}
-      </div>
+        </div>
+      )}
     </PublicLayout>
   )
 }

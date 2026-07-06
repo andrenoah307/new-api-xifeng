@@ -2,7 +2,6 @@ package model
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -75,6 +74,7 @@ type User struct {
 	EnforcementBanEmailWindowStartAt int64 `json:"enforcement_ban_email_window_start_at" gorm:"bigint;default:0"`
 	EnforcementBanEmailCountInWindow int   `json:"enforcement_ban_email_count_in_window" gorm:"default:0"`
 	EnforcementAutoBannedAt          int64 `json:"enforcement_auto_banned_at" gorm:"bigint;default:0;index"`
+	AdminPermissions map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -104,7 +104,7 @@ func (user *User) SetAccessToken(token string) {
 func (user *User) GetSetting() dto.UserSetting {
 	setting := dto.UserSetting{}
 	if user.Setting != "" {
-		err := json.Unmarshal([]byte(user.Setting), &setting)
+		err := common.Unmarshal([]byte(user.Setting), &setting)
 		if err != nil {
 			common.SysLog("failed to unmarshal setting: " + err.Error())
 		}
@@ -113,12 +113,27 @@ func (user *User) GetSetting() dto.UserSetting {
 }
 
 func (user *User) SetSetting(setting dto.UserSetting) {
-	settingBytes, err := json.Marshal(setting)
+	settingBytes, err := common.Marshal(setting)
 	if err != nil {
 		common.SysLog("failed to marshal setting: " + err.Error())
 		return
 	}
 	user.Setting = string(settingBytes)
+}
+
+func UpdateUserSetting(userId int, setting dto.UserSetting) error {
+	if userId == 0 {
+		return errors.New("id 为空！")
+	}
+	settingBytes, err := common.Marshal(setting)
+	if err != nil {
+		return err
+	}
+	settingValue := string(settingBytes)
+	if err = DB.Model(&User{}).Where("id = ?", userId).Update("setting", settingValue).Error; err != nil {
+		return err
+	}
+	return updateUserSettingCache(userId, settingValue)
 }
 
 // 根据用户角色生成默认的边栏配置
@@ -181,7 +196,7 @@ func generateDefaultSidebarConfigForRole(userRole int) string {
 	// 普通用户不包含admin区域
 
 	// 转换为JSON字符串
-	configBytes, err := json.Marshal(defaultConfig)
+	configBytes, err := common.Marshal(defaultConfig)
 	if err != nil {
 		common.SysLog("生成默认边栏配置失败: " + err.Error())
 		return ""
@@ -240,7 +255,7 @@ func GetAllUsers(pageInfo *common.PageInfo) (users []*User, total int64, err err
 	}
 
 	// Get paginated users within same transaction
-	err = tx.Unscoped().Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Omit("password").Find(&users).Error
+	err = tx.Unscoped().Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Omit("password", "access_token").Find(&users).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
@@ -308,7 +323,7 @@ func SearchUsers(keyword string, group string, role *int, status *int, startIdx 
 	}
 
 	// 获取分页数据
-	err = query.Omit("password").Order("id desc").Limit(num).Offset(startIdx).Find(&users).Error
+	err = query.Omit("password", "access_token").Order("id desc").Limit(num).Offset(startIdx).Find(&users).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err
@@ -359,7 +374,7 @@ func GetUserById(id int, selectAll bool) (*User, error) {
 	if selectAll {
 		err = DB.First(&user, "id = ?", id).Error
 	} else {
-		err = DB.Omit("password").First(&user, "id = ?", id).Error
+		err = DB.Omit("password", "access_token").First(&user, "id = ?", id).Error
 	}
 	return &user, err
 }
@@ -479,6 +494,11 @@ func (user *User) Insert(inviterId int) error {
 		return result.Error
 	}
 
+	user.finishInsert(inviterId)
+	return nil
+}
+
+func (user *User) finishInsert(inviterId int) {
 	// 用户创建成功后，根据角色初始化边栏配置
 	// 需要重新获取用户以确保有正确的ID和Role
 	var createdUser User
@@ -509,7 +529,10 @@ func (user *User) Insert(inviterId int) error {
 			RecordLog(inviterId, LogTypeSystem, fmt.Sprintf("邀请用户赠送 %s", logger.LogQuota(common.QuotaForInviter)))
 		}
 	}
-	return nil
+}
+
+func (user *User) FinishInsert(inviterId int) {
+	user.finishInsert(inviterId)
 }
 
 // InsertWithTx inserts a new user within an existing transaction.
@@ -590,6 +613,15 @@ var userProtectedColumns = []string{
 }
 
 func (user *User) Update(updatePassword bool) error {
+	if err := user.UpdateWithTx(DB, updatePassword); err != nil {
+		return err
+	}
+	// 失效缓存而非整 hash 覆盖：updateUserCache 会用旧 quota 快照覆盖 RedisHIncrBy 的
+	// 原子自减，造成缓存侧 Lost Update。失效后下次读自动从库重建。
+	return invalidateUserCache(user.Id)
+}
+
+func (user *User) UpdateWithTx(tx *gorm.DB, updatePassword bool) error {
 	var err error
 	if updatePassword {
 		user.Password, err = common.Password2Hash(user.Password)
@@ -598,18 +630,26 @@ func (user *User) Update(updatePassword bool) error {
 		}
 	}
 	newUser := *user
-	DB.First(&user, user.Id)
-	// 用 Omit 排除原子计数列，避免旧快照覆盖并发扣费；其余字段照常更新。
-	if err = DB.Model(user).Omit(userProtectedColumns...).Updates(newUser).Error; err != nil {
+	current := User{}
+	if err = tx.First(&current, user.Id).Error; err != nil {
 		return err
 	}
-
-	// 失效缓存而非整 hash 覆盖：updateUserCache 会用旧 quota 快照覆盖 RedisHIncrBy 的
-	// 原子自减，造成缓存侧 Lost Update。失效后下次读自动从库重建。
-	return invalidateUserCache(user.Id)
+	// 用 Omit 排除原子计数列，避免旧快照覆盖并发扣费；其余字段照常更新。
+	if err = tx.Model(&current).Omit(userProtectedColumns...).Updates(newUser).Error; err != nil {
+		return err
+	}
+	return tx.First(user, user.Id).Error
 }
 
 func (user *User) Edit(updatePassword bool) error {
+	if err := user.EditWithTx(DB, updatePassword); err != nil {
+		return err
+	}
+	// 失效缓存而非整 hash 覆盖 Quota（Lost Update，详见 User.Update）。
+	return invalidateUserCache(user.Id)
+}
+
+func (user *User) EditWithTx(tx *gorm.DB, updatePassword bool) error {
 	var err error
 	if updatePassword {
 		user.Password, err = common.Password2Hash(user.Password)
@@ -630,13 +670,14 @@ func (user *User) Edit(updatePassword bool) error {
 		updates["password"] = newUser.Password
 	}
 
-	DB.First(&user, user.Id)
-	if err = DB.Model(user).Updates(updates).Error; err != nil {
+	current := User{}
+	if err = tx.First(&current, user.Id).Error; err != nil {
 		return err
 	}
-
-	// 失效缓存而非整 hash 覆盖 Quota（Lost Update，详见 User.Update）。
-	return invalidateUserCache(user.Id)
+	if err = tx.Model(&current).Updates(updates).Error; err != nil {
+		return err
+	}
+	return tx.First(user, user.Id).Error
 }
 
 func (user *User) ClearBinding(bindingType string) error {
