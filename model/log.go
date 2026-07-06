@@ -36,8 +36,9 @@ type Log struct {
 	TokenId          int    `json:"token_id" gorm:"default:0;index"`
 	Group            string `json:"group" gorm:"index;index:idx_logs_group_created_at,priority:1"`
 	Ip               string `json:"ip" gorm:"index;default:''"`
-	RequestId        string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
-	Other            string `json:"other"`
+	RequestId         string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
+	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
+	Other             string `json:"other"`
 }
 
 // don't use iota, avoid change log type value
@@ -148,6 +149,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	logger.LogInfo(c, fmt.Sprintf("record error log: userId=%d, channelId=%d, modelName=%s, tokenName=%s, content=%s", userId, channelId, modelName, tokenName, content))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
+	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
 	otherStr := common.MapToJsonStr(other)
 	// 判断是否需要记录 IP
 	needRecordIp := common.ForceRecordIPEnabled
@@ -180,8 +182,9 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 			}
 			return ""
 		}(),
-		RequestId: requestId,
-		Other:     otherStr,
+		RequestId:         requestId,
+		UpstreamRequestId: upstreamRequestId,
+		Other:             otherStr,
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
@@ -236,6 +239,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	logger.LogInfo(c, fmt.Sprintf("record consume log: userId=%d, params=%s", userId, common.GetJsonString(params)))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
+	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
 	otherStr := common.MapToJsonStr(params.Other)
 	// 判断是否需要记录 IP
 	needRecordIp := common.ForceRecordIPEnabled
@@ -268,8 +272,9 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			}
 			return ""
 		}(),
-		RequestId: requestId,
-		Other:     otherStr,
+		RequestId:         requestId,
+		UpstreamRequestId: upstreamRequestId,
+		Other:             otherStr,
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
@@ -325,7 +330,7 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 	}
 }
 
-func buildAllLogsQuery(logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId string) *gorm.DB {
+func buildAllLogsQuery(logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId, upstreamRequestId string) *gorm.DB {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
@@ -344,6 +349,9 @@ func buildAllLogsQuery(logType int, startTimestamp, endTimestamp int64, modelNam
 	if requestId != "" {
 		tx = tx.Where("logs.request_id = ?", requestId)
 	}
+	if upstreamRequestId != "" {
+		tx = tx.Where("logs.upstream_request_id = ?", upstreamRequestId)
+	}
 	if startTimestamp != 0 {
 		tx = tx.Where("logs.created_at >= ?", startTimestamp)
 	}
@@ -359,7 +367,7 @@ func buildAllLogsQuery(logType int, startTimestamp, endTimestamp int64, modelNam
 	return tx
 }
 
-func buildUserLogsQuery(userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId string) *gorm.DB {
+func buildUserLogsQuery(userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId, upstreamRequestId string) *gorm.DB {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
 		tx = LOG_DB.Where("logs.user_id = ?", userId)
@@ -378,6 +386,9 @@ func buildUserLogsQuery(userId int, logType int, startTimestamp, endTimestamp in
 	}
 	if requestId != "" {
 		tx = tx.Where("logs.request_id = ?", requestId)
+	}
+	if upstreamRequestId != "" {
+		tx = tx.Where("logs.upstream_request_id = ?", upstreamRequestId)
 	}
 	if startTimestamp != 0 {
 		tx = tx.Where("logs.created_at >= ?", startTimestamp)
@@ -431,8 +442,8 @@ func resolveChannelNames(logs []*Log) {
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
-	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId)
+func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
+	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, upstreamRequestId)
 
 	if cachedTotal > 0 {
 		total = cachedTotal
@@ -455,8 +466,8 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	return logs, total, err
 }
 
-func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
-	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId)
+func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, upstreamRequestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
+	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, upstreamRequestId)
 
 	if cachedTotal > 0 {
 		total = cachedTotal
@@ -482,12 +493,12 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 }
 
 func ExportAllLogs(ctx context.Context, logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId string, callback func([]*Log) error) error {
-	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId)
+	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, "")
 	return streamLogs(ctx, tx, true, callback)
 }
 
 func ExportUserLogs(ctx context.Context, userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId string, callback func([]*Log) error) error {
-	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId)
+	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, "")
 	return streamLogs(ctx, tx, false, callback)
 }
 

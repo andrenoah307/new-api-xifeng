@@ -26,14 +26,15 @@ func GetAllLogs(c *gin.Context) {
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	group := c.Query("group")
 	requestId := c.Query("request_id")
-	if startTimestamp == 0 && requestId == "" {
+	upstreamRequestId := c.Query("upstream_request_id")
+	if startTimestamp == 0 && requestId == "" && upstreamRequestId == "" {
 		startTimestamp = time.Now().AddDate(0, 0, -30).Unix()
 	}
 	cachedTotal, _ := strconv.ParseInt(c.Query("total_count"), 10, 64)
 	if cachedTotal < 0 || cachedTotal > 1000000 {
 		cachedTotal = 0
 	}
-	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, cachedTotal)
+	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId, cachedTotal)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -54,14 +55,15 @@ func GetUserLogs(c *gin.Context) {
 	modelName := c.Query("model_name")
 	group := c.Query("group")
 	requestId := c.Query("request_id")
-	if startTimestamp == 0 && requestId == "" {
+	upstreamRequestId := c.Query("upstream_request_id")
+	if startTimestamp == 0 && requestId == "" && upstreamRequestId == "" {
 		startTimestamp = time.Now().AddDate(0, 0, -30).Unix()
 	}
 	cachedTotal, _ := strconv.ParseInt(c.Query("total_count"), 10, 64)
 	if cachedTotal < 0 || cachedTotal > 1000000 {
 		cachedTotal = 0
 	}
-	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, requestId, cachedTotal)
+	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, requestId, upstreamRequestId, cachedTotal)
 	if err != nil {
 		common.ApiError(c, err)
 		return
