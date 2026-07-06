@@ -365,6 +365,10 @@ export type OperationsSettings = {
   WorkerAllowHttpImageRequestEnabled: boolean
   LogConsumeEnabled: boolean
   ForceRecordIPEnabled: boolean
+  'risk_control.ip_mode': string
+  'risk_control.trusted_ip_header': string
+  'risk_control.trusted_ip_header_enabled': boolean
+  'risk_control.xff_index': number
   'performance_setting.disk_cache_enabled': boolean
   'performance_setting.disk_cache_threshold_mb': number
   'performance_setting.disk_cache_max_size_mb': number

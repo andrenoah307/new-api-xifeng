@@ -14,6 +14,14 @@ const (
 	// RiskControlAutoGroup is reserved and must never appear in EnabledGroups /
 	// GroupModes — auto is resolved to a real group during distribute.
 	RiskControlAutoGroup = "auto"
+
+	// Client IP detection modes. Empty string means "not explicitly set" and
+	// falls back to the legacy TrustedIPHeaderEnabled-derived behavior — see
+	// EffectiveIPMode.
+	IPModeAuto          = "auto"
+	IPModeTrustedHeader = "trusted_header"
+	IPModeXFF           = "xff"
+	IPModeRemoteAddr    = "remote_addr"
 )
 
 type RiskControlSetting struct {
@@ -21,6 +29,14 @@ type RiskControlSetting struct {
 	Mode                   string `json:"mode"`
 	TrustedIPHeaderEnabled bool   `json:"trusted_ip_header_enabled"`
 	TrustedIPHeader        string `json:"trusted_ip_header"`
+	// IPMode selects how the real client IP is derived for all modules that
+	// call requestip.GetClientIP (logs, rate limit, token allow_ips, risk
+	// control, region restriction). "" keeps the legacy behavior derived from
+	// TrustedIPHeaderEnabled.
+	IPMode string `json:"ip_mode"`
+	// XFFIndex picks which entry of X-Forwarded-For to use in IPModeXFF:
+	// 0 = leftmost (first), -1 = last, -N = N-th from the end.
+	XFFIndex int `json:"xff_index"`
 	EventQueueSize         int    `json:"event_queue_size"`
 	WorkerCount            int    `json:"worker_count"`
 	LocalCacheSeconds      int    `json:"local_cache_seconds"`
@@ -142,6 +158,24 @@ func NormalizeRiskControlSetting(setting *RiskControlSetting) {
 		setting.DefaultResponseMessage = "当前请求触发风控，请稍后再试"
 	}
 	setting.TrustedIPHeader = strings.TrimSpace(setting.TrustedIPHeader)
+	setting.IPMode = strings.TrimSpace(setting.IPMode)
+	switch setting.IPMode {
+	case "", IPModeAuto, IPModeTrustedHeader, IPModeXFF, IPModeRemoteAddr:
+	default:
+		setting.IPMode = ""
+	}
+	// Keep the legacy toggle in sync with an explicitly chosen mode so that the
+	// risk-center panel and requestip agree on a single source of truth. "" is
+	// left untouched to preserve the compat derivation in EffectiveIPMode.
+	if setting.IPMode != "" {
+		setting.TrustedIPHeaderEnabled = setting.IPMode == IPModeTrustedHeader
+	}
+	if setting.XFFIndex < -16 {
+		setting.XFFIndex = -16
+	}
+	if setting.XFFIndex > 16 {
+		setting.XFFIndex = 16
+	}
 	if !isValidRiskControlMode(setting.Mode) || setting.Mode == "" {
 		setting.Mode = RiskControlModeObserveOnly
 	}
@@ -159,6 +193,24 @@ func init() {
 func GetRiskControlSetting() *RiskControlSetting {
 	NormalizeRiskControlSetting(&riskControlSetting)
 	return &riskControlSetting
+}
+
+// EffectiveIPMode resolves the client IP detection mode, applying the legacy
+// compat derivation when IPMode is unset: TrustedIPHeaderEnabled maps to
+// trusted_header, everything else to auto. This is the single semantic source
+// shared by requestip and the diagnosis endpoint.
+func EffectiveIPMode(s *RiskControlSetting) string {
+	if s == nil {
+		return IPModeAuto
+	}
+	switch s.IPMode {
+	case IPModeAuto, IPModeTrustedHeader, IPModeXFF, IPModeRemoteAddr:
+		return s.IPMode
+	}
+	if s.TrustedIPHeaderEnabled {
+		return IPModeTrustedHeader
+	}
+	return IPModeAuto
 }
 
 // IsRiskControlEnabledForGroup returns true when the global switch is on AND the

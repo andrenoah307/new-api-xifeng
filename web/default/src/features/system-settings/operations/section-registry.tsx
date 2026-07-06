@@ -105,6 +105,12 @@ const OPERATIONS_SECTIONS = [
       <LogSettingsSection
         defaultEnabled={Boolean(settings.LogConsumeEnabled)}
         forceRecordIpEnabled={Boolean(settings.ForceRecordIPEnabled)}
+        ipMode={settings['risk_control.ip_mode'] ?? ''}
+        trustedIpHeader={settings['risk_control.trusted_ip_header'] ?? ''}
+        trustedIpHeaderEnabled={Boolean(
+          settings['risk_control.trusted_ip_header_enabled']
+        )}
+        xffIndex={Number(settings['risk_control.xff_index'] ?? -1)}
       />
     ),
   },

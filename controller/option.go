@@ -245,6 +245,16 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "risk_control.ip_mode":
+		switch option.Value {
+		case "", "auto", "trusted_header", "xff", "remote_addr":
+		default:
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "无效的客户端 IP 判定方式，可选值：auto、trusted_header、xff、remote_addr",
+			})
+			return
+		}
 	case "GroupRatio":
 		err = ratio_setting.CheckGroupRatio(option.Value.(string))
 		if err != nil {

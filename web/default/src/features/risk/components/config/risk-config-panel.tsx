@@ -118,6 +118,11 @@ export function RiskConfigPanel({ config, saving, onSave }: Props) {
               placeholder="X-Forwarded-For"
               className="h-8"
             />
+            <p className="text-muted-foreground text-xs">
+              {t(
+                'Client IP detection mode can be configured under Operations Settings → Log Maintenance'
+              )}
+            </p>
           </div>
         </div>
         <Separator />

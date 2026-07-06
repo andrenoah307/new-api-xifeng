@@ -21,6 +21,8 @@ export interface RiskConfig {
   default_recover_mode: string
   trusted_ip_header: string
   trusted_ip_header_enabled: boolean
+  ip_mode: string
+  xff_index: number
   enabled_groups: string[]
   group_modes: Record<string, string>
   event_queue_size: number
@@ -102,15 +104,36 @@ export interface RiskGroup {
   high_risk_subject_count: number
 }
 
+export interface IPDiagnosisItem {
+  name: string
+  source: string
+  raw_value: string
+  parsed_ip: string
+  present: boolean
+  valid: boolean
+  classification: string
+  is_current: boolean
+}
+
+export interface IPModePreview {
+  mode: string
+  ip: string
+  source: string
+  is_current: boolean
+}
+
 export interface IPDiagnosis {
   current_mode: string
   current_header: string
+  current_xff_index: number
   effective_client_ip: string
   effective_source: string
   recommended_mode: string
   recommended_header: string
   recommendation_message: string
-  items: { header: string; value: string; source: string }[]
+  mode_previews: IPModePreview[]
+  xff_ips: string[]
+  items: IPDiagnosisItem[]
 }
 
 // ─── Moderation Types ───

@@ -3215,11 +3215,13 @@ const RiskCenter = () => {
         ...prev,
         trusted_ip_header_enabled: true,
         trusted_ip_header: ipDiagnosis.recommended_header,
+        ip_mode: 'trusted_header',
       }));
     } else {
       setConfig((prev) => ({
         ...prev,
         trusted_ip_header_enabled: false,
+        ip_mode: '',
       }));
     }
     showSuccess(t('已应用诊断推荐，请保存全局策略'));
@@ -3927,6 +3929,8 @@ const RiskCenter = () => {
                       setConfig((prev) => ({
                         ...prev,
                         trusted_ip_header_enabled: value,
+                        // 与「客户端 IP 判定方式」保持同源：开=信任指定头，关=回到默认（自动）
+                        ip_mode: value ? 'trusted_header' : '',
                       }))
                     }
                   />
@@ -3942,7 +3946,7 @@ const RiskCenter = () => {
                           '当前已开启“信任上游 IP 头”。系统会优先读取你填写的请求头作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
                         )
                       : t(
-                          '当前未开启“信任上游 IP 头”。系统会统一使用 TCP RemoteAddr 作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。',
+                          '当前未开启“信任上游 IP 头”。系统会自动扫描常见代理头并取第一个公网 IP（取不到时退回 TCP RemoteAddr），并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。更多判定方式可在「运营设置 → 日志设置」中配置。',
                         )
                   }
                 />
@@ -4045,9 +4049,12 @@ const RiskCenter = () => {
                               }
                               size='large'
                             >
-                              {ipDiagnosis.current_mode === 'trusted_header'
-                                ? t('信任请求头')
-                                : 'RemoteAddr'}
+                              {{
+                                auto: t('自动扫描代理头'),
+                                trusted_header: t('信任请求头'),
+                                xff: 'X-Forwarded-For',
+                                remote_addr: 'RemoteAddr',
+                              }[ipDiagnosis.current_mode] || 'RemoteAddr'}
                             </Tag>
                           </div>
                         </Col>
