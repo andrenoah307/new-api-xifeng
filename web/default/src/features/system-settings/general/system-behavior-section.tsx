@@ -29,7 +29,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -41,10 +40,8 @@ import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useResetForm } from '../hooks/use-reset-form'
 import { useUpdateOption } from '../hooks/use-update-option'
-import { safeNumberFieldProps } from '../utils/numeric-field'
 
 const behaviorSchema = z.object({
-  RetryTimes: z.coerce.number().min(0).max(10),
   DefaultCollapseSidebar: z.boolean(),
   DemoSiteEnabled: z.boolean(),
   SelfUseModeEnabled: z.boolean(),
@@ -88,28 +85,6 @@ export function SystemBehaviorSection({
             onSave={form.handleSubmit(onSubmit)}
             isSaving={updateOption.isPending}
           />
-          <FormField
-            control={form.control}
-            name='RetryTimes'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Retry Times')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    min='0'
-                    max='10'
-                    {...safeNumberFieldProps(field)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Number of times to retry failed requests (0-10)')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           <FormField
             control={form.control}
             name='DefaultCollapseSidebar'
