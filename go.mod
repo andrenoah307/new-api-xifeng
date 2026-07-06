@@ -63,6 +63,8 @@ require (
 	gorm.io/gorm v1.25.2
 )
 
+require github.com/waffo-com/waffo-pancake-sdk-go v0.2.0
+
 require (
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20260609051939-e360f3d0315b // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
