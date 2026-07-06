@@ -76,6 +76,13 @@ func newSMTPClient(addr string) (*smtp.Client, error) {
 }
 
 func SendEmail(subject string, receiver string, content string) error {
+	if EmailSendMethod == "cloudflare" {
+		err := sendEmailViaCloudflare(subject, receiver, content)
+		if err != nil {
+			SysError(fmt.Sprintf("failed to send email to %s via cloudflare: %v", receiver, err))
+		}
+		return err
+	}
 	if SMTPFrom == "" { // for compatibility
 		SMTPFrom = SMTPAccount
 	}

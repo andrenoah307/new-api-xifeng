@@ -75,6 +75,11 @@ const OPERATIONS_SECTIONS = [
           SMTPStartTLSEnabled: settings.SMTPStartTLSEnabled,
           SMTPInsecureSkipVerify: settings.SMTPInsecureSkipVerify,
           SMTPForceAuthLogin: settings.SMTPForceAuthLogin,
+          EmailSendMethod:
+            settings.EmailSendMethod === 'cloudflare' ? 'cloudflare' : 'smtp',
+          CloudflareEmailAccountId: settings.CloudflareEmailAccountId,
+          CloudflareEmailAPIToken: settings.CloudflareEmailAPIToken,
+          CloudflareEmailFrom: settings.CloudflareEmailFrom,
         }}
       />
     ),

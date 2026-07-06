@@ -134,6 +134,12 @@ var SMTPAccount = ""
 var SMTPFrom = ""
 var SMTPToken = ""
 
+// 邮件发送方式："smtp"（默认）或 "cloudflare"（Cloudflare Email Service REST API）
+var EmailSendMethod = "smtp"
+var CloudflareEmailAccountId = ""
+var CloudflareEmailAPIToken = ""
+var CloudflareEmailFrom = "" // 为空时回退 SMTPFrom / SMTPAccount
+
 // 工单邮件通知配置
 var TicketNotifyEnabled = false
 var TicketAdminEmail = "" // 多个邮箱使用分号(;)分隔

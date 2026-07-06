@@ -5231,7 +5231,19 @@
     "Deleted stale instance": "Deleted stale instance",
     "Initial quota given to new users ({{formattedQuota}})": "Initial quota given to new users ({{formattedQuota}})",
     "Quota given to invited users ({{formattedQuota}})": "Quota given to invited users ({{formattedQuota}})",
-    "Quota given to users who invite others ({{formattedQuota}})": "Quota given to users who invite others ({{formattedQuota}})"
+    "Quota given to users who invite others ({{formattedQuota}})": "Quota given to users who invite others ({{formattedQuota}})",
+    "Cloudflare Account ID": "Cloudflare Account ID",
+    "Cloudflare account ID that owns the Email Sending service": "Cloudflare account ID that owns the Email Sending service",
+    "Cloudflare API Token": "Cloudflare API Token",
+    "Cloudflare Email API": "Cloudflare Email API",
+    "Cloudflare Email API sends via HTTPS and does not add a Received header with your server IP": "Cloudflare Email API sends via HTTPS and does not add a Received header with your server IP",
+    "Cloudflare From Address": "Cloudflare From Address",
+    "Email Send Method": "Email Send Method",
+    "Message Keywords": "消息包含关键词",
+    "Must be on a verified Cloudflare sending domain; falls back to SMTP From Address when blank": "Must be on a verified Cloudflare sending domain; falls back to SMTP From Address when blank",
+    "Search by subject, username, ID, company name or payee...": "搜索主题、用户名、ID、公司名或收款人...",
+    "Select send method": "Select send method",
+    "SMTP": "SMTP"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?",
   "User role updated successfully": "User role updated successfully"

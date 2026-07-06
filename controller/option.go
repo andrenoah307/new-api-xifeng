@@ -222,6 +222,21 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "EmailSendMethod":
+		if option.Value != "smtp" && option.Value != "cloudflare" {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "无效的邮件发送方式，可选值：smtp、cloudflare",
+			})
+			return
+		}
+		if option.Value == "cloudflare" && (common.CloudflareEmailAccountId == "" || common.CloudflareEmailAPIToken == "") {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "无法切换到 Cloudflare 邮件服务，请先填入 Cloudflare Account ID 以及 API Token！",
+			})
+			return
+		}
 	case "theme.frontend":
 		if option.Value != "default" && option.Value != "classic" {
 			c.JSON(http.StatusOK, gin.H{

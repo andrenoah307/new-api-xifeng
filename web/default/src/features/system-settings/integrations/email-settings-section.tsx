@@ -33,6 +33,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 
 import {
@@ -47,6 +55,7 @@ import { useUpdateOption } from '../hooks/use-update-option'
 
 const createEmailSchema = (t: (key: string) => string) =>
   z.object({
+    EmailSendMethod: z.enum(['smtp', 'cloudflare']),
     SMTPServer: z.string(),
     SMTPPort: z.string().refine((value) => {
       const trimmed = value.trim()
@@ -64,6 +73,13 @@ const createEmailSchema = (t: (key: string) => string) =>
     SMTPStartTLSEnabled: z.boolean(),
     SMTPInsecureSkipVerify: z.boolean(),
     SMTPForceAuthLogin: z.boolean(),
+    CloudflareEmailAccountId: z.string(),
+    CloudflareEmailAPIToken: z.string(),
+    CloudflareEmailFrom: z.string().refine((value) => {
+      const trimmed = value.trim()
+      if (!trimmed) return true
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
+    }, t('Enter a valid email or leave blank')),
   })
 
 type EmailFormValues = z.infer<ReturnType<typeof createEmailSchema>>
@@ -97,9 +113,12 @@ export function EmailSettingsSection({
 
   useResetForm(form, defaultValues)
 
+  const method = form.watch('EmailSendMethod')
+
   const onSubmit = async (values: EmailFormValues) => {
     const securityMode = getSmtpSecurityMode(values)
     const sanitized = {
+      EmailSendMethod: values.EmailSendMethod,
       SMTPServer: values.SMTPServer.trim(),
       SMTPPort: values.SMTPPort.trim(),
       SMTPAccount: values.SMTPAccount.trim(),
@@ -109,9 +128,13 @@ export function EmailSettingsSection({
       SMTPStartTLSEnabled: securityMode === 'starttls',
       SMTPInsecureSkipVerify: values.SMTPInsecureSkipVerify,
       SMTPForceAuthLogin: values.SMTPForceAuthLogin,
+      CloudflareEmailAccountId: values.CloudflareEmailAccountId.trim(),
+      CloudflareEmailAPIToken: values.CloudflareEmailAPIToken.trim(),
+      CloudflareEmailFrom: values.CloudflareEmailFrom.trim(),
     }
 
     const initial = {
+      EmailSendMethod: defaultValues.EmailSendMethod,
       SMTPServer: defaultValues.SMTPServer.trim(),
       SMTPPort: defaultValues.SMTPPort.trim(),
       SMTPAccount: defaultValues.SMTPAccount.trim(),
@@ -121,6 +144,9 @@ export function EmailSettingsSection({
       SMTPStartTLSEnabled: defaultValues.SMTPStartTLSEnabled,
       SMTPInsecureSkipVerify: defaultValues.SMTPInsecureSkipVerify,
       SMTPForceAuthLogin: defaultValues.SMTPForceAuthLogin,
+      CloudflareEmailAccountId: defaultValues.CloudflareEmailAccountId.trim(),
+      CloudflareEmailAPIToken: defaultValues.CloudflareEmailAPIToken.trim(),
+      CloudflareEmailFrom: defaultValues.CloudflareEmailFrom.trim(),
     }
 
     const updates: Array<{ key: string; value: string | boolean }> = []
@@ -173,6 +199,40 @@ export function EmailSettingsSection({
       })
     }
 
+    if (
+      sanitized.CloudflareEmailAccountId !== initial.CloudflareEmailAccountId
+    ) {
+      updates.push({
+        key: 'CloudflareEmailAccountId',
+        value: sanitized.CloudflareEmailAccountId,
+      })
+    }
+
+    if (
+      sanitized.CloudflareEmailAPIToken &&
+      sanitized.CloudflareEmailAPIToken !== initial.CloudflareEmailAPIToken
+    ) {
+      updates.push({
+        key: 'CloudflareEmailAPIToken',
+        value: sanitized.CloudflareEmailAPIToken,
+      })
+    }
+
+    if (sanitized.CloudflareEmailFrom !== initial.CloudflareEmailFrom) {
+      updates.push({
+        key: 'CloudflareEmailFrom',
+        value: sanitized.CloudflareEmailFrom,
+      })
+    }
+
+    // EmailSendMethod 必须最后推送：后端切换到 cloudflare 时会校验凭证已保存
+    if (sanitized.EmailSendMethod !== initial.EmailSendMethod) {
+      updates.push({
+        key: 'EmailSendMethod',
+        value: sanitized.EmailSendMethod,
+      })
+    }
+
     for (const update of updates) {
       await updateOption.mutateAsync(update)
     }
@@ -189,222 +249,348 @@ export function EmailSettingsSection({
           />
           <FormField
             control={form.control}
-            name='SMTPServer'
+            name='EmailSendMethod'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>{t('SMTP Host')}</FormLabel>
+                <FormLabel>{t('Email Send Method')}</FormLabel>
                 <FormControl>
-                  <Input
-                    autoComplete='off'
-                    placeholder={t('smtp.example.com')}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
+                  <Select
+                    items={[
+                      { value: 'smtp', label: t('SMTP') },
+                      { value: 'cloudflare', label: t('Cloudflare Email API') },
+                    ]}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('Select send method')} />
+                    </SelectTrigger>
+                    <SelectContent alignItemWithTrigger={false}>
+                      <SelectGroup>
+                        <SelectItem value='smtp'>{t('SMTP')}</SelectItem>
+                        <SelectItem value='cloudflare'>
+                          {t('Cloudflare Email API')}
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </FormControl>
                 <FormDescription>
-                  {t('Hostname or IP of your SMTP provider')}
+                  {t(
+                    'Cloudflare Email API sends via HTTPS and does not add a Received header with your server IP'
+                  )}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
 
-          <div className='grid gap-6 md:grid-cols-2'>
-            <FormField
-              control={form.control}
-              name='SMTPPort'
-              render={({ field }) => (
+          {method === 'smtp' && (
+            <>
+              <FormField
+                control={form.control}
+                name='SMTPServer'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('SMTP Host')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        placeholder={t('smtp.example.com')}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t('Hostname or IP of your SMTP provider')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className='grid gap-6 md:grid-cols-2'>
+                <FormField
+                  control={form.control}
+                  name='SMTPPort'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Port')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          autoComplete='off'
+                          type='number'
+                          placeholder='587'
+                          {...field}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('Common ports include 25, 465, and 587')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormItem>
-                  <FormLabel>{t('Port')}</FormLabel>
+                  <FormLabel>{t('SMTP encryption')}</FormLabel>
                   <FormControl>
-                    <Input
-                      autoComplete='off'
-                      type='number'
-                      placeholder='587'
-                      {...field}
-                      onChange={(event) => field.onChange(event.target.value)}
-                    />
+                    <RadioGroup
+                      value={getSmtpSecurityMode({
+                        SMTPSSLEnabled: form.watch('SMTPSSLEnabled'),
+                        SMTPStartTLSEnabled: form.watch('SMTPStartTLSEnabled'),
+                      })}
+                      onValueChange={(value) => {
+                        const mode = value as SmtpSecurityMode
+                        form.setValue('SMTPSSLEnabled', mode === 'ssl_tls', {
+                          shouldDirty: true,
+                        })
+                        form.setValue(
+                          'SMTPStartTLSEnabled',
+                          mode === 'starttls',
+                          {
+                            shouldDirty: true,
+                          }
+                        )
+                      }}
+                      className='gap-3'
+                    >
+                      <div className='flex items-center gap-2'>
+                        <RadioGroupItem value='none' id='smtp-security-none' />
+                        <Label
+                          htmlFor='smtp-security-none'
+                          className='cursor-pointer font-normal'
+                        >
+                          {t('No encryption')}
+                        </Label>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        <RadioGroupItem
+                          value='ssl_tls'
+                          id='smtp-security-ssl-tls'
+                        />
+                        <Label
+                          htmlFor='smtp-security-ssl-tls'
+                          className='cursor-pointer font-normal'
+                        >
+                          {t('SSL/TLS')}
+                        </Label>
+                      </div>
+                      <div className='flex items-center gap-2'>
+                        <RadioGroupItem
+                          value='starttls'
+                          id='smtp-security-starttls'
+                        />
+                        <Label
+                          htmlFor='smtp-security-starttls'
+                          className='cursor-pointer font-normal'
+                        >
+                          {t('STARTTLS')}
+                        </Label>
+                      </div>
+                    </RadioGroup>
                   </FormControl>
                   <FormDescription>
-                    {t('Common ports include 25, 465, and 587')}
+                    {t('Choose one SMTP transport security mode')}
                   </FormDescription>
-                  <FormMessage />
                 </FormItem>
-              )}
-            />
 
-            <FormItem>
-              <FormLabel>{t('SMTP encryption')}</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  value={getSmtpSecurityMode({
-                    SMTPSSLEnabled: form.watch('SMTPSSLEnabled'),
-                    SMTPStartTLSEnabled: form.watch('SMTPStartTLSEnabled'),
-                  })}
-                  onValueChange={(value) => {
-                    const mode = value as SmtpSecurityMode
-                    form.setValue('SMTPSSLEnabled', mode === 'ssl_tls', {
-                      shouldDirty: true,
-                    })
-                    form.setValue('SMTPStartTLSEnabled', mode === 'starttls', {
-                      shouldDirty: true,
-                    })
-                  }}
-                  className='gap-3'
-                >
-                  <div className='flex items-center gap-2'>
-                    <RadioGroupItem value='none' id='smtp-security-none' />
-                    <Label
-                      htmlFor='smtp-security-none'
-                      className='cursor-pointer font-normal'
-                    >
-                      {t('No encryption')}
-                    </Label>
-                  </div>
-                  <div className='flex items-center gap-2'>
-                    <RadioGroupItem
-                      value='ssl_tls'
-                      id='smtp-security-ssl-tls'
-                    />
-                    <Label
-                      htmlFor='smtp-security-ssl-tls'
-                      className='cursor-pointer font-normal'
-                    >
-                      {t('SSL/TLS')}
-                    </Label>
-                  </div>
-                  <div className='flex items-center gap-2'>
-                    <RadioGroupItem
-                      value='starttls'
-                      id='smtp-security-starttls'
-                    />
-                    <Label
-                      htmlFor='smtp-security-starttls'
-                      className='cursor-pointer font-normal'
-                    >
-                      {t('STARTTLS')}
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </FormControl>
-              <FormDescription>
-                {t('Choose one SMTP transport security mode')}
-              </FormDescription>
-            </FormItem>
+                <FormField
+                  control={form.control}
+                  name='SMTPInsecureSkipVerify'
+                  render={({ field }) => (
+                    <SettingsSwitchItem>
+                      <SettingsSwitchContent>
+                        <FormLabel>
+                          {t('Skip SMTP TLS certificate verification')}
+                        </FormLabel>
+                        <FormDescription>
+                          {t(
+                            'Allow self-signed or hostname-mismatched SMTP certificates'
+                          )}
+                        </FormDescription>
+                      </SettingsSwitchContent>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </SettingsSwitchItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name='SMTPInsecureSkipVerify'
-              render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>
-                      {t('Skip SMTP TLS certificate verification')}
-                    </FormLabel>
+                <FormField
+                  control={form.control}
+                  name='SMTPForceAuthLogin'
+                  render={({ field }) => (
+                    <SettingsSwitchItem>
+                      <SettingsSwitchContent>
+                        <FormLabel>{t('Force AUTH LOGIN')}</FormLabel>
+                        <FormDescription>
+                          {t(
+                            'Force SMTP authentication using AUTH LOGIN method'
+                          )}
+                        </FormDescription>
+                      </SettingsSwitchContent>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </SettingsSwitchItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name='SMTPAccount'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Username')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        placeholder={t('noreply@example.com')}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
                     <FormDescription>
                       {t(
-                        'Allow self-signed or hostname-mismatched SMTP certificates'
+                        'Account used when authenticating with the SMTP server'
                       )}
                     </FormDescription>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name='SMTPForceAuthLogin'
-              render={({ field }) => (
-                <SettingsSwitchItem>
-                  <SettingsSwitchContent>
-                    <FormLabel>{t('Force AUTH LOGIN')}</FormLabel>
+              <FormField
+                control={form.control}
+                name='SMTPFrom'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('From Address')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        placeholder={t('New API &lt;noreply@example.com&gt;')}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
                     <FormDescription>
-                      {t('Force SMTP authentication using AUTH LOGIN method')}
+                      {t('Display name and email used in outgoing messages')}
                     </FormDescription>
-                  </SettingsSwitchContent>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </SettingsSwitchItem>
-              )}
-            />
-          </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name='SMTPAccount'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Username')}</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete='off'
-                    placeholder={t('noreply@example.com')}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Account used when authenticating with the SMTP server')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name='SMTPToken'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Password / Access Token')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        type='password'
+                        placeholder={t('Enter new token to update')}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t('Leave blank to keep the existing credential')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
 
-          <FormField
-            control={form.control}
-            name='SMTPFrom'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('From Address')}</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete='off'
-                    placeholder={t('New API &lt;noreply@example.com&gt;')}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Display name and email used in outgoing messages')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {method === 'cloudflare' && (
+            <>
+              <FormField
+                control={form.control}
+                name='CloudflareEmailAccountId'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Cloudflare Account ID')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Cloudflare account ID that owns the Email Sending service'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name='SMTPToken'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Password / Access Token')}</FormLabel>
-                <FormControl>
-                  <Input
-                    autoComplete='off'
-                    type='password'
-                    placeholder={t('Enter new token to update')}
-                    {...field}
-                    onChange={(event) => field.onChange(event.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Leave blank to keep the existing credential')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name='CloudflareEmailAPIToken'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Cloudflare API Token')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        type='password'
+                        placeholder={t('Enter new token to update')}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t('Leave blank to keep the existing credential')}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='CloudflareEmailFrom'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Cloudflare From Address')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        autoComplete='off'
+                        placeholder={t('noreply@example.com')}
+                        {...field}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t(
+                        'Must be on a verified Cloudflare sending domain; falls back to SMTP From Address when blank'
+                      )}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </>
+          )}
         </SettingsForm>
       </Form>
     </SettingsSection>

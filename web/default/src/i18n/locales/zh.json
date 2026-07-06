@@ -5233,7 +5233,17 @@
     "Deleted stale instance": "已删除失联实例",
     "Initial quota given to new users ({{formattedQuota}})": "授予新用户的初始配额（{{formattedQuota}}）",
     "Quota given to invited users ({{formattedQuota}})": "授予被邀请用户的配额（{{formattedQuota}}）",
-    "Quota given to users who invite others ({{formattedQuota}})": "授予邀请其他用户的配额（{{formattedQuota}}）"
+    "Quota given to users who invite others ({{formattedQuota}})": "授予邀请其他用户的配额（{{formattedQuota}}）",
+    "Cloudflare Account ID": "Cloudflare 账户 ID",
+    "Cloudflare account ID that owns the Email Sending service": "开通了 Email Sending 服务的 Cloudflare 账户 ID",
+    "Cloudflare API Token": "Cloudflare API Token",
+    "Cloudflare Email API": "Cloudflare 邮件 API",
+    "Cloudflare Email API sends via HTTPS and does not add a Received header with your server IP": "Cloudflare 邮件 API 通过 HTTPS 发送，不会在邮件头中添加带有服务器 IP 的 Received 记录",
+    "Cloudflare From Address": "Cloudflare 发件地址",
+    "Email Send Method": "邮件发送方式",
+    "Must be on a verified Cloudflare sending domain; falls back to SMTP From Address when blank": "必须是 Cloudflare 已验证发信域名下的地址；留空时回退使用 SMTP 发送者邮箱",
+    "Select send method": "选择发送方式",
+    "SMTP": "SMTP"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？",
   "User role updated successfully": "用户角色更新成功"

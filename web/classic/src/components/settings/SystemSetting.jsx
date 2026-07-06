@@ -73,6 +73,10 @@ const SystemSetting = () => {
     SMTPAccount: '',
     SMTPFrom: '',
     SMTPToken: '',
+    EmailSendMethod: 'smtp',
+    CloudflareEmailAccountId: '',
+    CloudflareEmailAPIToken: '',
+    CloudflareEmailFrom: '',
     WorkerUrl: '',
     WorkerValidKey: '',
     WorkerAllowHttpImageRequestEnabled: '',
@@ -506,9 +510,42 @@ const SystemSetting = () => {
         value: nextSMTPStartTLSEnabled,
       });
     }
+    if (
+      originInputs['CloudflareEmailAccountId'] !==
+      inputs.CloudflareEmailAccountId
+    ) {
+      options.push({
+        key: 'CloudflareEmailAccountId',
+        value: inputs.CloudflareEmailAccountId,
+      });
+    }
+    if (
+      originInputs['CloudflareEmailAPIToken'] !==
+        inputs.CloudflareEmailAPIToken &&
+      inputs.CloudflareEmailAPIToken !== ''
+    ) {
+      options.push({
+        key: 'CloudflareEmailAPIToken',
+        value: inputs.CloudflareEmailAPIToken,
+      });
+    }
+    if (originInputs['CloudflareEmailFrom'] !== inputs.CloudflareEmailFrom) {
+      options.push({
+        key: 'CloudflareEmailFrom',
+        value: inputs.CloudflareEmailFrom,
+      });
+    }
 
     if (options.length > 0) {
       await updateOptions(options);
+    }
+    // EmailSendMethod 必须在凭证保存之后单独提交：
+    // 后端切换到 cloudflare 时会校验 Account ID / API Token 已保存，
+    // 而 updateOptions 内部对非 checkbox 项是并行请求，无法保证顺序
+    if (originInputs['EmailSendMethod'] !== inputs.EmailSendMethod) {
+      await updateOptions([
+        { key: 'EmailSendMethod', value: inputs.EmailSendMethod },
+      ]);
     }
   };
 
@@ -1883,6 +1920,26 @@ const SystemSetting = () => {
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
                   >
                     <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Select
+                        field='EmailSendMethod'
+                        label={t('邮件发送方式')}
+                        optionList={[
+                          { label: 'SMTP', value: 'smtp' },
+                          {
+                            label: t('Cloudflare 邮件 API'),
+                            value: 'cloudflare',
+                          },
+                        ]}
+                        extraText={t(
+                          'Cloudflare 邮件 API 通过 HTTPS 发送，邮件头中不会出现本服务器 IP',
+                        )}
+                      />
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
                       <Form.Input
                         field='SMTPServer'
                         label={t('SMTP 服务器地址')}
@@ -1947,6 +2004,35 @@ const SystemSetting = () => {
                       >
                         {t('强制使用 AUTH LOGIN')}
                       </Form.Checkbox>
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='CloudflareEmailAccountId'
+                        label={t('Cloudflare Account ID')}
+                        extraText={t('开通了 Email Sending 服务的账户 ID')}
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='CloudflareEmailAPIToken'
+                        label={t('Cloudflare API Token')}
+                        type='password'
+                        placeholder='敏感信息不会发送到前端显示'
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Input
+                        field='CloudflareEmailFrom'
+                        label={t('Cloudflare 发件地址')}
+                        extraText={t(
+                          '须为 Cloudflare 已验证发信域名下的地址，留空时使用 SMTP 发送者邮箱',
+                        )}
+                      />
                     </Col>
                   </Row>
                   <Button onClick={submitSMTP}>{t('保存 SMTP 设置')}</Button>

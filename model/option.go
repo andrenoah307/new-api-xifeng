@@ -80,6 +80,10 @@ func InitOptionMap() {
 	common.OptionMap["SMTPStartTLSEnabled"] = strconv.FormatBool(common.SMTPStartTLSEnabled)
 	common.OptionMap["SMTPInsecureSkipVerify"] = strconv.FormatBool(common.SMTPInsecureSkipVerify)
 	common.OptionMap["SMTPForceAuthLogin"] = strconv.FormatBool(common.SMTPForceAuthLogin)
+	common.OptionMap["EmailSendMethod"] = common.EmailSendMethod
+	common.OptionMap["CloudflareEmailAccountId"] = ""
+	common.OptionMap["CloudflareEmailAPIToken"] = ""
+	common.OptionMap["CloudflareEmailFrom"] = ""
 	common.OptionMap["TicketNotifyEnabled"] = strconv.FormatBool(common.TicketNotifyEnabled)
 	common.OptionMap["TicketAdminEmail"] = common.TicketAdminEmail
 	common.OptionMap["TicketAttachmentEnabled"] = strconv.FormatBool(setting.TicketAttachmentEnabled)
@@ -450,6 +454,14 @@ func updateOptionMap(key string, value string) (err error) {
 		common.SMTPFrom = value
 	case "SMTPToken":
 		common.SMTPToken = value
+	case "EmailSendMethod":
+		common.EmailSendMethod = value
+	case "CloudflareEmailAccountId":
+		common.CloudflareEmailAccountId = value
+	case "CloudflareEmailAPIToken":
+		common.CloudflareEmailAPIToken = value
+	case "CloudflareEmailFrom":
+		common.CloudflareEmailFrom = value
 	case "TicketAdminEmail":
 		common.TicketAdminEmail = value
 	case "TicketAttachmentMaxSize":
