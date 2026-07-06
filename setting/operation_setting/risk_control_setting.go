@@ -36,7 +36,7 @@ type RiskControlSetting struct {
 	IPMode string `json:"ip_mode"`
 	// XFFIndex picks which entry of X-Forwarded-For to use in IPModeXFF:
 	// 0 = leftmost (first), -1 = last, -N = N-th from the end.
-	XFFIndex int `json:"xff_index"`
+	XFFIndex               int    `json:"xff_index"`
 	EventQueueSize         int    `json:"event_queue_size"`
 	WorkerCount            int    `json:"worker_count"`
 	LocalCacheSeconds      int    `json:"local_cache_seconds"`
@@ -60,10 +60,13 @@ type RiskControlSetting struct {
 }
 
 var riskControlSetting = RiskControlSetting{
-	Enabled:                 true,
-	Mode:                    RiskControlModeObserveOnly,
-	TrustedIPHeaderEnabled:  false,
-	TrustedIPHeader:         "X-Real-IP",
+	Enabled:                true,
+	Mode:                   RiskControlModeObserveOnly,
+	TrustedIPHeaderEnabled: false,
+	TrustedIPHeader:        "X-Real-IP",
+	// -1 = last X-Forwarded-For entry (appended by your own proxy, not
+	// client-forgeable) — the safe default for xff mode.
+	XFFIndex:                -1,
 	EventQueueSize:          8192,
 	WorkerCount:             2,
 	LocalCacheSeconds:       2,
