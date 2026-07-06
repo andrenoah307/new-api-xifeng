@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { RateLimitSection } from '../request-limits/rate-limit-section'
 import { SensitiveWordsSection } from '../request-limits/sensitive-words-section'
 import { SSRFSection } from '../request-limits/ssrf-section'
+import { TokenLimitSection } from '../request-limits/token-limit-section'
 import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
 import { GroupModelBlacklistSection } from './group-model-blacklist-section'
@@ -120,6 +121,18 @@ const SECURITY_SECTIONS = [
             settings['group_model_blacklist.block_message'],
           'group_model_blacklist.blocked_models':
             settings['group_model_blacklist.blocked_models'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'token-limits',
+    titleKey: 'Token Limits',
+    build: (settings: SecuritySettings) => (
+      <TokenLimitSection
+        defaultValues={{
+          'token_setting.max_user_tokens':
+            settings['token_setting.max_user_tokens'],
         }}
       />
     ),

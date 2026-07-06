@@ -53,6 +53,7 @@ const defaultSecuritySettings: SecuritySettings = {
   'group_model_blacklist.block_relay': true,
   'group_model_blacklist.block_message': '',
   'group_model_blacklist.blocked_models': '{}',
+  'token_setting.max_user_tokens': 1000,
 }
 
 export function SecuritySettings() {

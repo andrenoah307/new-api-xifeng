@@ -82,7 +82,7 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
   - PostgreSQL uses `"column"` quoting, while MySQL/SQLite use `` `column` ``.
   - Use `commonGroupCol`, `commonKeyCol` from `model/main.go` for reserved-word columns like `group` and `key`.
   - Use `commonTrueVal`/`commonFalseVal` for boolean values.
-  - Use `common.UsingPostgreSQL`, `common.UsingSQLite`, and `common.UsingMySQL` flags for DB-specific branches.
+  - Use `common.UsingMainDatabase(...)` for primary database branches and `common.UsingLogDatabase(...)` for log database branches.
 - Do not use database-specific features without cross-DB fallback, including MySQL-only functions, PostgreSQL-only operators, SQLite-unsupported `ALTER COLUMN`, or database-specific JSON column types without a `TEXT` fallback.
 - Migrations must work on all three databases. For SQLite, use `ALTER TABLE ... ADD COLUMN` instead of `ALTER COLUMN` (see `model/main.go` for patterns).
 - Avoid GORM boolean default tags such as `gorm:"default:true"` when the default is a business rule already enforced by code. MySQL and PostgreSQL can normalize boolean defaults differently, causing GORM `AutoMigrate` to repeatedly issue `ALTER TABLE` on restart. Prefer setting these defaults in request/model normalization, hooks, constructors, or service logic; do not replace `default:true` with `default:1` unless the behavior is verified across SQLite, MySQL, and PostgreSQL.
@@ -119,6 +119,13 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
 - Frontend UI text must support i18n with `i18next`/`react-i18next`. Use flat JSON locale files in `web/default/src/i18n/locales/{lang}.json`, with English source strings as keys.
 - In React components, use `useTranslation()` and call `t('English key')` for user-facing text.
 - Follow `web/default/AGENTS.md` for detailed frontend conventions, including TypeScript, component structure, styling, accessibility, testing, and build checks.
+
+**Modal best practices (web/classic, Semi Design):** All Modal dialogs (Semi Design `<Modal>`) MUST follow these conventions to prevent the modal itself from scrolling with the page:
+
+- **Always** add `centered` prop — fixes the modal in the viewport center, prevents it from scrolling with the page.
+- **Body scroll only**: set `bodyStyle={{ maxHeight: 'calc(80vh - 120px)', overflowY: 'auto', overflowX: 'hidden' }}` so only the modal body scrolls, not the entire modal.
+- **Width**: use an appropriate width for content density (e.g. `width={860}` for complex forms), add `style={{ maxWidth: '92vw' }}` for mobile safety.
+- **Select dropdowns inside scrollable modals**: Semi `<Select>` dropdowns may be clipped by `overflow: auto`. If this happens, add `getPopupContainer={() => document.body}` to render the dropdown outside the modal's scroll container.
 
 ### Project Governance
 

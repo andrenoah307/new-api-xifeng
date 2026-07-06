@@ -27,6 +27,7 @@ import {
   ListTodo,
   MessageSquare,
   Radio,
+  ServerCog,
   Settings,
   Ticket,
   TicketPercent,
@@ -36,6 +37,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
+import { ROLE } from '@/lib/roles'
 import { type SidebarData } from '@/components/layout/types'
 import { getCustomAdminItems, getCustomGeneralItems } from './use-custom-sidebar-items'
 
@@ -147,9 +149,15 @@ export function useSidebarData(): SidebarData {
             icon: TicketPercent,
           },
           {
-            title: t('Subscription Management'),
+            title: t('Subscriptions'),
             url: '/subscriptions',
             icon: CreditCard,
+          },
+          {
+            title: t('System Info'),
+            url: '/system-info',
+            icon: ServerCog,
+            requiredRole: ROLE.SUPER_ADMIN,
           },
           {
             title: t('System Settings'),

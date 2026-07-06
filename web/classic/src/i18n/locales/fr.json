@@ -4803,6 +4803,11 @@
     "开启后，亲和到的渠道被禁用，或不再适用于当前分组/模型时，仍保留这条亲和；关闭时会删除并重新选择渠道。": "Lorsque cette option est activée, conserver l'entrée d'affinité même si le canal d'affinité est désactivé ou n'est plus utilisable pour le groupe/modèle actuel. Lorsqu'elle est désactivée, l'entrée sera supprimée et un autre canal sera sélectionné.",
     "渠道禁用后保留亲和": "Conserver l'affinité lorsque le canal est désactivé",
     "MjProxy 任务记录": "Tâches MjProxy",
-    "当前未开启 MjProxy 回调，部分项目可能无法获得绘图结果，可在运营设置中开启。": "Le rappel MjProxy actuel n'est pas activé, certains projets peuvent ne pas être en mesure d'obtenir des résultats de dessin, qui peuvent être activés dans les paramètres de fonctionnement."
+    "当前未开启 MjProxy 回调，部分项目可能无法获得绘图结果，可在运营设置中开启。": "Le rappel MjProxy actuel n'est pas activé, certains projets peuvent ne pas être en mesure d'obtenir des résultats de dessin, qui peuvent être activés dans les paramètres de fonctionnement.",
+    "SMTP 加密方式": "Chiffrement SMTP",
+    "SSL/TLS": "SSL/TLS",
+    "STARTTLS": "STARTTLS",
+    "无加密": "Aucun chiffrement",
+    "请选择一种 SMTP 传输加密方式": "Veuillez sélectionner un mode de sécurité de transport SMTP"
   }
 }

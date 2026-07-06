@@ -68,6 +68,27 @@ const (
 	LogTypeLogin   = 7
 )
 
+func ensureLogRequestId(log *Log) {
+	if log != nil && log.RequestId == "" {
+		log.RequestId = common.NewRequestId()
+	}
+}
+
+func createLog(log *Log) error {
+	ensureLogRequestId(log)
+	return LOG_DB.Create(log).Error
+}
+
+func clickHouseLogOrder(prefix string) string {
+	return prefix + "created_at desc, " + prefix + "request_id desc"
+}
+
+func assignDisplayLogIds(logs []*Log, startIdx int) {
+	for i := range logs {
+		logs[i].Id = startIdx + i + 1
+	}
+}
+
 func formatUserLogs(logs []*Log, startIdx int) {
 	for i := range logs {
 		logs[i].ChannelName = ""
@@ -82,12 +103,16 @@ func formatUserLogs(logs []*Log, startIdx int) {
 			delete(otherMap, "stream_status")
 		}
 		logs[i].Other = common.MapToJsonStr(otherMap)
-		logs[i].Id = startIdx + i + 1
 	}
+	assignDisplayLogIds(logs, startIdx)
 }
 
 func GetLogByTokenId(tokenId int) (logs []*Log, err error) {
-	err = LOG_DB.Model(&Log{}).Where("token_id = ?", tokenId).Order("id desc").Limit(common.MaxRecentItems).Find(&logs).Error
+	order := "id desc"
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		order = clickHouseLogOrder("")
+	}
+	err = LOG_DB.Model(&Log{}).Where("token_id = ?", tokenId).Order(order).Limit(common.MaxRecentItems).Find(&logs).Error
 	formatUserLogs(logs, 0)
 	return logs, err
 }
@@ -104,7 +129,7 @@ func RecordLog(userId int, logType int, content string) {
 		Type:      logType,
 		Content:   content,
 	}
-	err := LOG_DB.Create(log).Error
+	err := createLog(log)
 	if err != nil {
 		common.SysLog("failed to record log: " + err.Error())
 	}
@@ -129,7 +154,7 @@ func RecordLogWithAdminInfo(userId int, logType int, content string, adminInfo m
 		}
 		log.Other = common.MapToJsonStr(other)
 	}
-	if err := LOG_DB.Create(log).Error; err != nil {
+	if err := createLog(log); err != nil {
 		common.SysLog("failed to record log: " + err.Error())
 	}
 }
@@ -166,7 +191,7 @@ func RecordLoginLog(userId int, username string, content string, ip string, acti
 		Ip:        ip,
 		Other:     common.MapToJsonStr(other),
 	}
-	if err := LOG_DB.Create(log).Error; err != nil {
+	if err := createLog(log); err != nil {
 		common.SysLog("failed to record login log: " + err.Error())
 	}
 }
@@ -197,7 +222,7 @@ func RecordOperationAuditLog(logUserId int, content string, ip string, action st
 		Ip:        ip,
 		Other:     common.MapToJsonStr(other),
 	}
-	if err := LOG_DB.Create(log).Error; err != nil {
+	if err := createLog(log); err != nil {
 		common.SysLog("failed to record operation audit log: " + err.Error())
 	}
 }
@@ -224,7 +249,7 @@ func RecordTopupLog(userId int, content string, callerIp string, paymentMethod s
 		Ip:        callerIp,
 		Other:     common.MapToJsonStr(other),
 	}
-	err := LOG_DB.Create(log).Error
+	err := createLog(log)
 	if err != nil {
 		common.SysLog("failed to record topup log: " + err.Error())
 	}
@@ -272,7 +297,7 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 		UpstreamRequestId: upstreamRequestId,
 		Other:             otherStr,
 	}
-	err := LOG_DB.Create(log).Error
+	err := createLog(log)
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
 	}
@@ -363,7 +388,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		UpstreamRequestId: upstreamRequestId,
 		Other:             otherStr,
 	}
-	err := LOG_DB.Create(log).Error
+	err := createLog(log)
 	if err != nil {
 		logger.LogError(c, "failed to record log: "+err.Error())
 	}
@@ -423,7 +448,7 @@ func RecordTaskBillingLog(params RecordTaskBillingLogParams) {
 		Group:     params.Group,
 		Other:     common.MapToJsonStr(params.Other),
 	}
-	err := LOG_DB.Create(log).Error
+	err := createLog(log)
 	if err != nil {
 		common.SysLog("failed to record task billing log: " + err.Error())
 	}
@@ -566,9 +591,16 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 			return nil, 0, err
 		}
 	}
-	err = tx.Order("logs.created_at desc, logs.id desc").Limit(num).Offset(startIdx).Find(&logs).Error
+	order := "logs.created_at desc, logs.id desc"
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		order = clickHouseLogOrder("logs.")
+	}
+	err = tx.Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
 		return nil, 0, err
+	}
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		assignDisplayLogIds(logs, startIdx)
 	}
 
 	resolveChannelNames(logs)
@@ -594,7 +626,11 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 			total = int64(common.LogSearchCountLimit)
 		}
 	}
-	err = tx.Order("logs.created_at desc, logs.id desc").Limit(num).Offset(startIdx).Find(&logs).Error
+	order := "logs.id desc"
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		order = clickHouseLogOrder("logs.")
+	}
+	err = tx.Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
 		common.SysError("failed to search user logs: " + err.Error())
 		return nil, 0, errors.New("查询日志失败")
@@ -670,10 +706,10 @@ type Stat struct {
 }
 
 func SumUsedQuota(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {
-	tx := LOG_DB.Table("logs").Select("sum(quota) quota")
+	tx := LOG_DB.Table("logs").Select("COALESCE(sum(quota), 0) quota")
 
 	// 为rpm和tpm创建单独的查询
-	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, sum(prompt_tokens) + sum(completion_tokens) tpm")
+	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0) tpm")
 
 	if userId > 0 {
 		tx = tx.Where("user_id = ?", userId)
@@ -731,7 +767,7 @@ func SumUsedQuota(userId int, logType int, startTimestamp int64, endTimestamp in
 }
 
 func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string) (token int) {
-	tx := LOG_DB.Table("logs").Select("ifnull(sum(prompt_tokens),0) + ifnull(sum(completion_tokens),0)")
+	tx := LOG_DB.Table("logs").Select("COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0)")
 	if username != "" {
 		tx = tx.Where("username = ?", username)
 	}
@@ -751,7 +787,55 @@ func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelNa
 	return token
 }
 
+func CountOldLog(ctx context.Context, targetTimestamp int64) (int64, error) {
+	var total int64
+	if err := LOG_DB.WithContext(ctx).Model(&Log{}).Where("created_at < ?", targetTimestamp).Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func DeleteOldLogBatch(ctx context.Context, targetTimestamp int64, limit int) (int64, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if nil != ctx.Err() {
+		return 0, ctx.Err()
+	}
+
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		// ClickHouse DELETE is a heavy mutation that rewrites data parts, so
+		// per-batch mutations would be pathologically slow. Remove all matching
+		// rows in a single synchronous mutation regardless of limit; the reported
+		// count lets the caller's progress loop complete in one pass.
+		total, err := CountOldLog(ctx, targetTimestamp)
+		if err != nil {
+			return 0, err
+		}
+		if total == 0 {
+			return 0, nil
+		}
+		if err := LOG_DB.WithContext(ctx).Exec(
+			"ALTER TABLE logs DELETE WHERE created_at < ? SETTINGS mutations_sync = 1",
+			targetTimestamp,
+		).Error; err != nil {
+			return 0, err
+		}
+		return total, nil
+	}
+
+	result := LOG_DB.WithContext(ctx).Where("created_at < ?", targetTimestamp).Limit(limit).Delete(&Log{})
+	if nil != result.Error {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
 func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+
 	var total int64 = 0
 
 	for {
@@ -759,14 +843,14 @@ func DeleteOldLog(ctx context.Context, targetTimestamp int64, limit int) (int64,
 			return total, ctx.Err()
 		}
 
-		result := LOG_DB.Where("created_at < ?", targetTimestamp).Limit(limit).Delete(&Log{})
-		if nil != result.Error {
-			return total, result.Error
+		rowsAffected, err := DeleteOldLogBatch(ctx, targetTimestamp, limit)
+		if nil != err {
+			return total, err
 		}
 
-		total += result.RowsAffected
+		total += rowsAffected
 
-		if result.RowsAffected < int64(limit) {
+		if rowsAffected < int64(limit) {
 			break
 		}
 	}

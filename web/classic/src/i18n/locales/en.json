@@ -5002,6 +5002,11 @@
     "开启后，亲和到的渠道被禁用，或不再适用于当前分组/模型时，仍保留这条亲和；关闭时会删除并重新选择渠道。": "When enabled, keep the affinity entry even if the affinity channel is disabled or no longer usable for the current group/model. When disabled, the entry will be deleted and another channel will be selected.",
     "渠道禁用后保留亲和": "Keep Affinity When Channel Is Disabled",
     "MjProxy 任务记录": "MjProxy Task Records",
-    "当前未开启 MjProxy 回调，部分项目可能无法获得绘图结果，可在运营设置中开启。": "Current MjProxy callback is not enabled, some projects may not be able to obtain drawing results, which can be enabled in the operation settings."
+    "当前未开启 MjProxy 回调，部分项目可能无法获得绘图结果，可在运营设置中开启。": "Current MjProxy callback is not enabled, some projects may not be able to obtain drawing results, which can be enabled in the operation settings.",
+    "SMTP 加密方式": "SMTP encryption",
+    "SSL/TLS": "SSL/TLS",
+    "STARTTLS": "STARTTLS",
+    "无加密": "No encryption",
+    "请选择一种 SMTP 传输加密方式": "Please select one SMTP transport security mode"
   }
 }
