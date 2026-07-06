@@ -402,9 +402,6 @@ func GetChannelById(id int, selectAll bool) (*Channel, error) {
 	if err != nil {
 		return nil, err
 	}
-	if channel == nil {
-		return nil, errors.New("channel not found")
-	}
 	return channel, nil
 }
 
@@ -761,7 +758,7 @@ func EditChannelByTag(tag string, newTag *string, modelMapping *string, models *
 		updateData.Tag = newTag
 		updatedTag = *newTag
 	}
-	if modelMapping != nil && *modelMapping != "" {
+	if modelMapping != nil {
 		updateData.ModelMapping = modelMapping
 	}
 	if models != nil && *models != "" {
