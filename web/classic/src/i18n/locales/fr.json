@@ -4808,6 +4808,11 @@
     "STARTTLS": "STARTTLS",
     "无加密": "Aucun chiffrement",
     "请选择一种 SMTP 传输加密方式": "Veuillez sélectionner un mode de sécurité de transport SMTP",
-    "已切换到新版前端，正在跳转首页": "Passage au nouveau frontend effectué, redirection vers l'accueil"
+    "已切换到新版前端，正在跳转首页": "Passage au nouveau frontend effectué, redirection vers l'accueil",
+    "你正在使用旧版前端，该版本即将停止维护，部分功能可能无法使用。建议切换到新版前端以获得完整体验。": "Vous utilisez le frontend classique. Cette version ne sera bientôt plus maintenue et certaines fonctionnalités peuvent être indisponibles. Passez au nouveau frontend pour profiter de l’expérience complète.",
+    "你正在使用旧版前端，该版本即将停止维护，部分功能可能无法使用。请联系管理员切换到新版前端。": "Vous utilisez le frontend classique. Cette version ne sera bientôt plus maintenue et certaines fonctionnalités peuvent être indisponibles. Contactez un administrateur pour passer au nouveau frontend.",
+    "提示：如果切换后页面无法正常渲染，请清空浏览器缓存后重试。": "Conseil : si la page ne s’affiche pas correctement après le changement, videz le cache du navigateur puis réessayez.",
+    "旧版前端即将停止维护": "Le frontend classique ne sera bientôt plus maintenu",
+    "该条历史记录缺少审计字段。当前版本已支持记录服务器 IP、回调 IP、支付方式与系统版本等审计信息；这些字段仅会写入后续新产生的记录，历史记录无法自动补齐。": "Cet enregistrement historique date d'avant le suivi des informations d'audit et ne peut pas être complété rétroactivement. La version actuelle enregistre déjà l'IP du serveur, l'IP de rappel, le mode de paiement et la version du système pour les nouveaux paiements à venir."
   }
 }
