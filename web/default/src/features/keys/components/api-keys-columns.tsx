@@ -29,6 +29,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { BadgeCell, TruncatedCell } from '@/components/data-table'
 import { GroupBadge } from '@/components/group-badge'
 import { StatusBadge } from '@/components/status-badge'
 import { useStatus } from '@/hooks/use-status'
@@ -49,9 +50,9 @@ function getQuotaProgressColor(percentage: number): string {
 
 function useGroupRatios(): Record<string, number> {
   const { data } = useQuery({
-    queryKey: ['user-self-groups'],
+    queryKey: ['user-groups'],
     queryFn: getUserGroups,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
     select: (res) => {
       if (!res.success || !res.data) return {}
       const ratios: Record<string, number> = {}
@@ -101,9 +102,7 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
       accessorKey: 'name',
       header: t('Name'),
       cell: ({ row }) => (
-        <div className='max-w-[200px] truncate font-medium'>
-          {row.getValue('name')}
-        </div>
+        <span className='font-medium'>{row.getValue('name')}</span>
       ),
       size: 180,
       meta: { mobileTitle: true },
@@ -204,9 +203,7 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
           return (
             <Tooltip>
               <TooltipTrigger
-                render={
-                  <span className='inline-flex items-center gap-1.5 text-xs' />
-                }
+                render={<BadgeCell className='gap-1.5 text-xs' />}
               >
                 <GroupBadge group='auto' />
                 {apiKey.cross_group_retry && (
@@ -229,7 +226,13 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
         }
         return (
           <div className='flex flex-col gap-1'>
-            <GroupBadge group={group} ratio={ratio} />
+            <TruncatedCell
+              className='-ml-1.5'
+              tooltipContent={group || '-'}
+              tooltipClassName='break-all'
+            >
+              <GroupBadge group={group} ratio={ratio} />
+            </TruncatedCell>
             {regionBlockedGroups.includes(group) && (
               <span className='text-xs text-destructive'>
                 {t('Not available in current region')}
