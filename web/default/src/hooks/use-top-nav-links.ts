@@ -20,76 +20,14 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
 import { useStatus } from '@/hooks/use-status'
+import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
 
 export type TopNavLink = {
   title: string
   href: string
   disabled?: boolean
+  requiresAuth?: boolean
   external?: boolean
-}
-
-// Default navigation configuration
-const DEFAULT_HEADER_NAV_MODULES = {
-  home: true,
-  console: true,
-  pricing: { enabled: true, requireAuth: false },
-  rankings: { enabled: true, requireAuth: false },
-  monitoring: true,
-  docs: true,
-  about: true,
-}
-
-function parseAccessModule(
-  raw: unknown,
-  fallback: { enabled: boolean; requireAuth: boolean }
-) {
-  if (
-    typeof raw === 'boolean' ||
-    typeof raw === 'string' ||
-    typeof raw === 'number'
-  ) {
-    return {
-      enabled: raw === true || raw === 'true' || raw === '1' || raw === 1,
-      requireAuth: fallback.requireAuth,
-    }
-  }
-  if (raw && typeof raw === 'object') {
-    const record = raw as Record<string, unknown>
-    return {
-      enabled:
-        typeof record.enabled === 'boolean' ? record.enabled : fallback.enabled,
-      requireAuth:
-        typeof record.requireAuth === 'boolean'
-          ? record.requireAuth
-          : fallback.requireAuth,
-    }
-  }
-  return { ...fallback }
-}
-
-function parseHeaderNavModules(
-  raw: unknown
-): typeof DEFAULT_HEADER_NAV_MODULES {
-  if (!raw || String(raw).trim() === '') {
-    return DEFAULT_HEADER_NAV_MODULES
-  }
-  try {
-    const parsed = JSON.parse(String(raw)) as Record<string, unknown>
-    return {
-      ...DEFAULT_HEADER_NAV_MODULES,
-      ...parsed,
-      pricing: parseAccessModule(
-        parsed.pricing,
-        DEFAULT_HEADER_NAV_MODULES.pricing
-      ),
-      rankings: parseAccessModule(
-        parsed.rankings,
-        DEFAULT_HEADER_NAV_MODULES.rankings
-      ),
-    }
-  } catch {
-    return DEFAULT_HEADER_NAV_MODULES
-  }
 }
 
 /**
@@ -111,8 +49,10 @@ export function useTopNavLinks(): TopNavLink[] {
 
   // Parse HeaderNavModules
   const modules = useMemo(() => {
-    return parseHeaderNavModules(status?.HeaderNavModules)
-  }, [status?.HeaderNavModules])
+    return parseHeaderNavModulesFromStatus(
+      status as Record<string, unknown> | null
+    )
+  }, [status])
 
   // Documentation link (may be external)
   const docsLink: string | undefined = status?.docs_link as string | undefined
@@ -134,8 +74,8 @@ export function useTopNavLinks(): TopNavLink[] {
   // Pricing
   const pricing = modules?.pricing
   if (pricing && typeof pricing === 'object' && pricing.enabled) {
-    const disabled = pricing.requireAuth && !isAuthed
-    links.push({ title: t('Model Square'), href: '/pricing', disabled })
+    const requiresAuth = pricing.requireAuth && !isAuthed
+    links.push({ title: t('Model Square'), href: '/pricing', requiresAuth })
   }
 
   // Rankings (admin only)
