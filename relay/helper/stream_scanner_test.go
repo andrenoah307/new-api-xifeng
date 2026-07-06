@@ -211,11 +211,13 @@ func TestStreamScannerHandler_DataWithExtraSpaces(t *testing.T) {
 	assert.Equal(t, "{\"trimmed\":true}", got)
 }
 
-// TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns pins the
-// disconnect contract: when the client goes away, the handler must return
-// promptly (all goroutines joined, so the gin.Context can never leak into a
-// pooled reuse), the upstream body must be closed to stop token generation,
-// and no data received after the disconnect may be processed or written.
+// TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns pins this
+// fork's disconnect contract, which deliberately differs from upstream's:
+// when the client goes away, the handler keeps draining the upstream for up
+// to DrainAfterClientGone so the trailing usage frame can still be captured
+// for billing (see the drain logic in stream_scanner.go). The handler must
+// still return promptly once the upstream stream finishes ([DONE]/EOF), all
+// goroutines joined, with the end reason recording the client disconnect.
 func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -238,6 +240,7 @@ func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T)
 
 	var count atomic.Int64
 	firstHandled := make(chan struct{})
+	usageHandled := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
 		StreamScannerHandler(c, resp, info, func(data string, sr *StreamResult) {
@@ -245,6 +248,9 @@ func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T)
 			_ = StringData(c, data)
 			if data == "first" {
 				close(firstHandled)
+			}
+			if data == "usage" {
+				close(usageHandled)
 			}
 		})
 		close(done)
@@ -261,20 +267,33 @@ func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T)
 
 	cancel()
 
-	// The handler must return without any further upstream input: cleanup
-	// closes resp.Body, which unblocks the scanner goroutine.
+	// Client is gone, but the drain window keeps the upstream open: a trailing
+	// usage frame must still be processed so settlement can bill actual usage.
+	_, err = fmt.Fprint(pw, "data: usage\n")
+	require.NoError(t, err, "upstream should stay readable during the drain window")
+
+	select {
+	case <-usageHandled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for post-disconnect usage chunk (drain window)")
+	}
+
+	// Once upstream finishes, the handler must return promptly.
+	_, err = fmt.Fprint(pw, "data: [DONE]\n")
+	require.NoError(t, err)
+
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("handler did not return after client disconnect")
+		t.Fatal("handler did not return after upstream finished")
 	}
 
-	// Upstream read side must be closed so the provider stops generating
-	// (and billing) for a request nobody is listening to.
+	// After cleanup the upstream body must be closed so the provider stops
+	// generating for a request nobody is listening to.
 	_, err = fmt.Fprint(pw, "data: second\n")
-	require.ErrorIs(t, err, io.ErrClosedPipe, "upstream body should be closed after client disconnect")
+	require.ErrorIs(t, err, io.ErrClosedPipe, "upstream body should be closed after handler returns")
 
-	assert.Equal(t, int64(1), count.Load(), "no chunk after disconnect should be processed")
+	assert.Equal(t, int64(2), count.Load(), "first + drained usage chunk should be processed")
 	require.NotNil(t, info.StreamStatus)
 	assert.Equal(t, relaycommon.StreamEndReasonClientGone, info.StreamStatus.EndReason)
 
