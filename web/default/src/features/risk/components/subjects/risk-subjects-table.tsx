@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { DataTablePagination } from '@/components/data-table/pagination'
+import { DataTablePagination } from '@/components/data-table/core/pagination'
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
 import { formatTimestamp } from '@/lib/format'
 import { getRiskSubjects, unblockSubject } from '../../api'

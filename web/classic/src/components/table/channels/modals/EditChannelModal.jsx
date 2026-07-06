@@ -63,7 +63,6 @@ import {
 import ModelSelectModal from './ModelSelectModal';
 import SingleModelSelectModal from './SingleModelSelectModal';
 import OllamaModelModal from './OllamaModelModal';
-import CodexOAuthModal from './CodexOAuthModal';
 import ParamOverrideEditorModal from './ParamOverrideEditorModal';
 import JSONEditor from '../../../common/ui/JSONEditor';
 import SecureVerificationModal from '../../../common/modals/SecureVerificationModal';
@@ -465,7 +464,6 @@ const EditChannelModal = (props) => {
   }, [inputs.param_override, t]);
   const [isIonetChannel, setIsIonetChannel] = useState(false);
   const [ionetMetadata, setIonetMetadata] = useState(null);
-  const [codexOAuthModalVisible, setCodexOAuthModalVisible] = useState(false);
   const [codexCredentialRefreshing, setCodexCredentialRefreshing] =
     useState(false);
   const [paramOverrideEditorVisible, setParamOverrideEditorVisible] =
@@ -1351,11 +1349,6 @@ const EditChannelModal = (props) => {
       console.error('Failed to view channel key:', error);
       showError(error.message || t('获取密钥失败'));
     }
-  };
-
-  const handleCodexOAuthGenerated = (key) => {
-    handleInputChange('key', key);
-    formatJsonField('key');
   };
 
   const handleRefreshCodexCredential = async () => {
@@ -3261,17 +3254,6 @@ const EditChannelModal = (props) => {
                                     </Text>
 
                                     <Space wrap spacing='tight'>
-                                      <Button
-                                        size='small'
-                                        type='primary'
-                                        theme='outline'
-                                        onClick={() =>
-                                          setCodexOAuthModalVisible(true)
-                                        }
-                                        disabled={isIonetLocked}
-                                      >
-                                        {t('Codex 授权')}
-                                      </Button>
                                       {isEdit && (
                                         <Button
                                           size='small'
@@ -3310,14 +3292,6 @@ const EditChannelModal = (props) => {
                                 }
                                 autosize
                                 showClear
-                              />
-
-                              <CodexOAuthModal
-                                visible={codexOAuthModalVisible}
-                                onCancel={() =>
-                                  setCodexOAuthModalVisible(false)
-                                }
-                                onSuccess={handleCodexOAuthGenerated}
                               />
                             </>
                           ) : inputs.type === 41 &&

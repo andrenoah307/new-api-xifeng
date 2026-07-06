@@ -60,14 +60,10 @@ const en = {
   Block: 'Block',
   Observe: 'Observe',
   Allow: 'Allow',
-  'Create Rule': 'Create Rule',
-  'Edit Rule': 'Edit Rule',
   'Rule Name': 'Rule Name',
-  'Match Mode': 'Match Mode',
   'All (AND)': 'All (AND)',
   'Any (OR)': 'Any (OR)',
   'Score Weight': 'Score Weight',
-  'Add Condition': 'Add Condition',
   'Auto Block': 'Auto Block',
   'Auto Recover': 'Auto Recover',
   'Recovery Seconds': 'Recovery Seconds',
@@ -137,7 +133,6 @@ const en = {
   'Delete Rule': 'Delete Rule',
 
   // Monitoring
-  Online: 'Online',
   Offline: 'Offline',
   'Average Availability': 'Average Availability',
   'Search groups': 'Search groups',
@@ -333,7 +328,6 @@ const en = {
   'Add Field': 'Add Field',
   'Data Source': 'Data Source',
   'Header Name': 'Header Name',
-  Source: 'Source',
   'Custom Value': 'Custom Value',
   'No fields configured': 'No fields configured',
   'Configure HTTP headers sent to upstream for risk identification':

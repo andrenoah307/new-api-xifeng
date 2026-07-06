@@ -25,7 +25,7 @@ import {
   TableEmpty,
   MobileCardList,
 } from '@/components/data-table'
-import { DataTablePagination } from '@/components/data-table/pagination'
+import { DataTablePagination } from '@/components/data-table/core/pagination'
 import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
 import {
   Select,
@@ -218,7 +218,7 @@ export default function TicketAdminListPage() {
             searchPlaceholder={t('Search by subject, username, ID, company name or payee...')}
             additionalSearch={
               <div className="flex flex-wrap items-center gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
                   <SelectTrigger className="h-8 w-[120px]">
                     <SelectValue placeholder={t('Status')} />
                   </SelectTrigger>
@@ -231,7 +231,7 @@ export default function TicketAdminListPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <Select value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
                   <SelectTrigger className="h-8 w-[130px]">
                     <SelectValue placeholder={t('Type')} />
                   </SelectTrigger>

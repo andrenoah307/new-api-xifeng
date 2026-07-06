@@ -62,15 +62,11 @@ const zh: Record<string, string> = {
   Observe: '观察',
   Allow: '放行',
   Unblock: '解封',
-  'Create Rule': '新建规则',
-  'Edit Rule': '编辑规则',
   'Rule Name': '规则名称',
   Scope: '作用域',
-  'Match Mode': '匹配模式',
   'All (AND)': '全部 (AND)',
   'Any (OR)': '任一 (OR)',
   'Score Weight': '权重分',
-  'Add Condition': '添加条件',
   Conditions: '条件',
   'Auto Block': '自动封禁',
   'Auto Recover': '自动恢复',
@@ -145,7 +141,6 @@ const zh: Record<string, string> = {
   Rule: '规则',
 
   // Monitoring
-  Online: '在线',
   Offline: '离线',
   'Average Availability': '平均可用率',
   'Search groups': '搜索分组',
@@ -345,7 +340,6 @@ const zh: Record<string, string> = {
   'Add Field': '添加字段',
   'Data Source': '数据来源',
   'Header Name': '头部名称',
-  Source: '来源',
   'Custom Value': '自定义值',
   'No fields configured': '暂无字段',
   'Configure HTTP headers sent to upstream for risk identification':

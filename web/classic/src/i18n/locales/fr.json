@@ -27,7 +27,6 @@
     "0 表示无限": "",
     "0.002-1之间的小数": "Décimal entre 0,002-1",
     "0.1以上的小数": "Décimal supérieur à 0,1",
-    "1) 点击「打开授权页面」完成登录；2) 浏览器会跳转到 localhost（页面打不开也没关系）；3) 复制地址栏完整 URL 粘贴到下方；4) 点击「生成并填入」。": "1) Cliquez sur « Ouvrir la page d'autorisation » pour vous connecter ; 2) Le navigateur redirigera vers localhost (ce n'est pas grave si la page ne s'ouvre pas) ; 3) Copiez l'URL complète de la barre d'adresse et collez-la ci-dessous ; 4) Cliquez sur « Générer et remplir ».",
     "1. 管理员在此创建分组并设置倍率": "1. Admin creates groups and sets ratios here",
     "10 - 最高": "10 - La plus haute",
     "10分钟 IP": "",
@@ -110,7 +109,6 @@
     "Claude请求头追加": "Ajout des en-tetes de requete Claude",
     "Client ID": "ID client",
     "Client Secret": "Secret client",
-    "Codex 授权": "Autorisation Codex",
     "Codex 渠道不支持批量创建": "Le canal Codex ne prend pas en charge la création par lot",
     "Completion tokens": "Completion tokens",
     "Configuration": "Configuration",
@@ -1465,7 +1463,6 @@
     "复制所有模型": "Copier tous les modèles",
     "复制所选令牌": "Copier le jeton sélectionné",
     "复制所选兑换码到剪贴板": "Copier les codes d'échange sélectionnés dans le presse-papiers",
-    "复制授权链接": "Copier le lien d'autorisation",
     "复制提示词": "",
     "复制日志": "Copy Logs",
     "复制渠道的所有信息": "Copier toutes les informations d'un canal",
@@ -1777,7 +1774,6 @@
     "已忽略模型": "",
     "已恢复默认": "",
     "已成功开始测试所有已启用通道，请刷新页面查看结果。": "Le test de tous les canaux activés a démarré avec succès. Veuillez actualiser la page pour voir les résultats.",
-    "已打开授权页面": "Page d'autorisation ouverte",
     "已打开支付页面": "Page de paiement ouverte",
     "已批量处理上游模型更新：渠道 {{channels}} 个，加入 {{added}} 个，删除 {{removed}} 个，失败 {{fails}} 个": "",
     "已提交": "Soumis",
@@ -1803,7 +1799,6 @@
     "已清理 {{count}} 个日志文件，释放 {{size}}_other": "",
     "已清空": "Vidé",
     "已清空测试结果": "Résultats de test effacés",
-    "已生成授权凭据": "Identifiants d'autorisation générés",
     "已用": "Used",
     "已用/剩余": "Utilisé/Restant",
     "已用尽": "",
@@ -2058,7 +2053,6 @@
     "手机号或邮箱，便于管理员联系": "",
     "打开 CC Switch": "Ouvrir CC Switch",
     "打开侧边栏": "Ouvrir la barre latérale",
-    "打开授权页面": "Ouvrir la page d'autorisation",
     "扣减金额超过用户解冻后的可用余额": "La déduction dépasse le solde de l'utilisateur après dégel",
     "扣费": "Déduction",
     "执行 GC": "Exécuter le GC",
@@ -4807,6 +4801,8 @@
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "运营和收费行为产生的法律责任": "operation and charging behavior",
     "，": ", ",
-    "、": ", "
+    "、": ", ",
+    "开启后，亲和到的渠道被禁用，或不再适用于当前分组/模型时，仍保留这条亲和；关闭时会删除并重新选择渠道。": "Lorsque cette option est activée, conserver l'entrée d'affinité même si le canal d'affinité est désactivé ou n'est plus utilisable pour le groupe/modèle actuel. Lorsqu'elle est désactivée, l'entrée sera supprimée et un autre canal sera sélectionné.",
+    "渠道禁用后保留亲和": "Conserver l'affinité lorsque le canal est désactivé"
   }
 }

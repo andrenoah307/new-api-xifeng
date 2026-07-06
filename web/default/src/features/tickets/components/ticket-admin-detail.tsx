@@ -245,7 +245,7 @@ export default function TicketAdminDetailPage({
               {t('Claim Ticket')}
             </Button>
           )}
-          <Select value={statusValue} onValueChange={setStatusValue}>
+          <Select value={statusValue} onValueChange={(v) => v !== null && setStatusValue(v)}>
             <SelectTrigger className="h-8 w-[120px]">
               <SelectValue />
             </SelectTrigger>
@@ -257,7 +257,7 @@ export default function TicketAdminDetailPage({
               ))}
             </SelectContent>
           </Select>
-          <Select value={priorityValue} onValueChange={setPriorityValue}>
+          <Select value={priorityValue} onValueChange={(v) => v !== null && setPriorityValue(v)}>
             <SelectTrigger className="h-8 w-[120px]">
               <SelectValue />
             </SelectTrigger>

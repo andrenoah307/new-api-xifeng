@@ -24,7 +24,7 @@ import {
   TableEmpty,
   MobileCardList,
 } from '@/components/data-table'
-import { DataTablePagination } from '@/components/data-table/pagination'
+import { DataTablePagination } from '@/components/data-table/core/pagination'
 import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import {
@@ -147,7 +147,7 @@ export default function TicketListPage() {
         <SectionPageLayout.Content>
           <div className="space-y-3 sm:space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
                 <SelectTrigger className="h-8 w-[120px]">
                   <SelectValue placeholder={t('Status')} />
                 </SelectTrigger>
@@ -160,7 +160,7 @@ export default function TicketListPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <Select value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
                 <SelectTrigger className="h-8 w-[130px]">
                   <SelectValue placeholder={t('Type')} />
                 </SelectTrigger>

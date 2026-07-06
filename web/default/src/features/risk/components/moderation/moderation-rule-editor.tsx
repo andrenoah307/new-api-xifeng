@@ -143,7 +143,7 @@ export function ModerationRuleEditorDialog({
               <Select
                 value={form.match_mode}
                 onValueChange={(v) =>
-                  setForm((p) => ({ ...p, match_mode: v }))
+                  v !== null && setForm((p) => ({ ...p, match_mode: v }))
                 }
               >
                 <SelectTrigger>
@@ -160,7 +160,7 @@ export function ModerationRuleEditorDialog({
               <Select
                 value={form.action}
                 onValueChange={(v) =>
-                  setForm((p) => ({ ...p, action: v }))
+                  v !== null && setForm((p) => ({ ...p, action: v }))
                 }
               >
                 <SelectTrigger>

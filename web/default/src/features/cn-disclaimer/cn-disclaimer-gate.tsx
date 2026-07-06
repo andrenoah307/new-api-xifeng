@@ -62,10 +62,10 @@ export function CnDisclaimerGate() {
 
   return (
     <Dialog open modal>
+      {/* controlled `open` without onOpenChange: outside clicks and Esc cannot dismiss */}
       <DialogContent
         className='flex max-h-[80vh] max-w-2xl flex-col gap-0 p-0 [&>button.absolute]:hidden'
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        showCloseButton={false}
       >
         <DialogHeader className='border-b px-6 py-4'>
           <DialogTitle>{data.title}</DialogTitle>

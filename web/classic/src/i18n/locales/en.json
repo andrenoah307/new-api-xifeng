@@ -25,7 +25,6 @@
     "0.002-1之间的小数": "Decimal between 0.002-1",
     "0.1以上的小数": "Decimal above 0.1",
     "0=周日 1=周一 2=周二 3=周三 4=周四 5=周五 6=周六": "0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat",
-    "1) 点击「打开授权页面」完成登录；2) 浏览器会跳转到 localhost（页面打不开也没关系）；3) 复制地址栏完整 URL 粘贴到下方；4) 点击「生成并填入」。": "1) Click \"Open Authorization Page\" to complete login; 2) The browser will redirect to localhost (it's OK if the page doesn't load); 3) Copy the full URL from the address bar and paste it below; 4) Click \"Generate and Fill\".",
     "1. 管理员在此创建分组并设置倍率": "1. Admin creates groups and sets ratios here",
     "10 - 最高": "10 - Highest",
     "10分钟 IP": "",
@@ -111,7 +110,6 @@
     "Claude请求头追加": "Claude request header append",
     "Client ID": "Client ID",
     "Client Secret": "Client Secret",
-    "Codex 授权": "Codex Authorization",
     "Codex 渠道不支持批量创建": "Codex channel does not support batch creation",
     "Completion tokens": "Completion tokens",
     "Configuration": "Configuration",
@@ -1490,7 +1488,6 @@
     "复制所有模型": "Copy all models",
     "复制所选令牌": "Copy selected token",
     "复制所选兑换码到剪贴板": "Copy selected redemption codes to clipboard",
-    "复制授权链接": "Copy Authorization Link",
     "复制提示词": "",
     "复制日志": "Copy Logs",
     "复制渠道的所有信息": "Copy all information for a channel",
@@ -1813,7 +1810,6 @@
     "已忽略模型": "",
     "已恢复默认": "",
     "已成功开始测试所有已启用通道，请刷新页面查看结果。": "Successfully started testing all enabled channels. Please refresh page to view results.",
-    "已打开授权页面": "Authorization page opened",
     "已打开支付页面": "Payment page opened",
     "已批量处理上游模型更新：渠道 {{channels}} 个，加入 {{added}} 个，删除 {{removed}} 个，失败 {{fails}} 个": "",
     "已提交": "Submitted",
@@ -1836,7 +1832,6 @@
     "已清理 {{count}} 个日志文件，释放 {{size}}_other": "",
     "已清空": "Cleared",
     "已清空测试结果": "Cleared test results",
-    "已生成授权凭据": "Authorization credentials generated",
     "已用": "Used",
     "已用/剩余": "Used/Remaining",
     "已用尽": "Exhausted",
@@ -2097,7 +2092,6 @@
     "手机号或邮箱，便于管理员联系": "",
     "打开 CC Switch": "Open CC Switch",
     "打开侧边栏": "Open sidebar",
-    "打开授权页面": "Open Authorization Page",
     "扣减金额超过用户解冻后的可用余额": "Deduction exceeds the user's balance after unfreezing",
     "扣费": "Charge",
     "执行 GC": "Run GC",
@@ -5006,6 +5000,8 @@
     "并确认自行承担部署": "confirm that I bear legal responsibility arising from deployment",
     "运营和收费行为产生的法律责任": "operation and charging behavior",
     "，": ", ",
-    "、": ", "
+    "、": ", ",
+    "开启后，亲和到的渠道被禁用，或不再适用于当前分组/模型时，仍保留这条亲和；关闭时会删除并重新选择渠道。": "When enabled, keep the affinity entry even if the affinity channel is disabled or no longer usable for the current group/model. When disabled, the entry will be deleted and another channel will be selected.",
+    "渠道禁用后保留亲和": "Keep Affinity When Channel Is Disabled"
   }
 }

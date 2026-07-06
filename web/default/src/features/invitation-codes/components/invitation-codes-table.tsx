@@ -25,7 +25,7 @@ import {
   TableEmpty,
   MobileCardList,
 } from '@/components/data-table'
-import { DataTablePagination } from '@/components/data-table/pagination'
+import { DataTablePagination } from '@/components/data-table/core/pagination'
 import { PageFooterPortal } from '@/components/layout'
 import { getInvitationCodes, searchInvitationCodes } from '../api'
 import { DEFAULT_PAGE_SIZE } from '../constants'
