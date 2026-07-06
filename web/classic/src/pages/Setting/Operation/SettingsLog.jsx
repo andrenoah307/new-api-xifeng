@@ -230,10 +230,30 @@ export default function SettingsLog(props) {
       );
     }
     currentInputs['historyTimestamp'] = inputs.historyTimestamp;
-    setInputs(Object.assign(inputs, currentInputs));
+    setInputs({ ...inputs, ...currentInputs });
     setInputsRow(structuredClone(currentInputs));
     refForm.current.setValues(currentInputs);
   }, [props.options]);
+
+  // 请求头名称 / XFF 位置 是随判定方式切换而挂载/卸载的条件字段。
+  // 加载数据时 setValues 无法写入尚未挂载的字段，导致刷新后这两项显示为空
+  // （inputs 里其实有正确值）。这里在方式切换、字段挂载完成后从 inputs 回填一次显示值。
+  useEffect(() => {
+    if (!refForm.current) return;
+    const mode = inputs['risk_control.ip_mode'];
+    if (mode === 'trusted_header') {
+      refForm.current.setValue(
+        'risk_control.trusted_ip_header',
+        inputs['risk_control.trusted_ip_header'],
+      );
+    } else if (mode === 'xff') {
+      refForm.current.setValue(
+        'risk_control.xff_index',
+        inputs['risk_control.xff_index'],
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputs['risk_control.ip_mode']]);
 
   async function fetchIpDiagnosis() {
     setIpDetectLoading(true);
