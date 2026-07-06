@@ -148,6 +148,8 @@ export function RechargeFormCard({
     }
   }
 
+  const minTopup = getMinTopupAmount(topupInfo)
+
   const handleAmountBlur = useCallback(() => {
     const numValue = parseInt(localAmount) || 0
     if (numValue < minTopup) {
@@ -170,7 +172,6 @@ export function RechargeFormCard({
     Array.isArray(topupInfo?.pay_methods) && topupInfo.pay_methods.length > 0
   const hasWaffoPaymentMethods =
     Array.isArray(waffoPayMethods) && waffoPayMethods.length > 0
-  const minTopup = getMinTopupAmount(topupInfo)
   const redemptionEnabled = topupInfo?.enable_redemption !== false
 
   if (loading) {

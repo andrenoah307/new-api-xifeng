@@ -239,7 +239,8 @@ export default function MonitoringDashboard() {
     refreshMutation.mutate()
   }, [refreshMutation])
 
-  const handleSortChange = useCallback((value: string) => {
+  const handleSortChange = useCallback((value: string | null) => {
+    if (!value) return
     const mode = value as SortMode
     setSortMode(mode)
     saveSortMode(mode)

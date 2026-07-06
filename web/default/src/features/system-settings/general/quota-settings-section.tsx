@@ -22,7 +22,6 @@ import type { Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -36,6 +35,14 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
+import {
+  SettingsForm,
+  SettingsSwitchContent,
+  SettingsSwitchItem,
+  SettingsFormGrid,
+  SettingsFormGridItem,
+} from '../components/settings-form-layout'
+import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
 import { useSettingsForm } from '../hooks/use-settings-form'
 import { useUpdateOption } from '../hooks/use-update-option'
@@ -99,10 +106,7 @@ export function QuotaSettingsSection({
     })
 
   return (
-    <SettingsSection
-      title={t('Quota Settings')}
-      description={t('Configure user quota allocation and rewards')}
-    >
+    <SettingsSection title={t('Quota Settings')}>
       <FormNavigationGuard when={isDirty} />
 
       {!complianceConfirmed ? (
@@ -116,317 +120,312 @@ export function QuotaSettingsSection({
       ) : null}
 
       <Form {...form}>
-        <form onSubmit={handleSubmit} className='space-y-6'>
+        <SettingsForm onSubmit={handleSubmit}>
+          <SettingsPageFormActions
+            onSave={handleSubmit}
+            isSaving={updateOption.isPending || isSubmitting}
+          />
           <FormDirtyIndicator isDirty={isDirty} />
-          <FormField
-            control={form.control}
-            name='QuotaForNewUser'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('New User Quota')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    value={field.value ?? ''}
-                    onChange={handleNumberChange(field.onChange)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Initial quota given to new users')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <SettingsFormGrid>
+            <FormField
+              control={form.control}
+              name='QuotaForNewUser'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('New User Quota')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      value={field.value ?? ''}
+                      onChange={handleNumberChange(field.onChange)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Initial quota given to new users')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='PreConsumedQuota'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Pre-Consumed Quota')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    value={field.value ?? ''}
-                    onChange={handleNumberChange(field.onChange)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Quota consumed before charging users')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='PreConsumedQuota'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Pre-Consumed Quota')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      value={field.value ?? ''}
+                      onChange={handleNumberChange(field.onChange)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Quota consumed before charging users')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='QuotaForInviter'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Inviter Reward')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    value={field.value ?? ''}
-                    onChange={handleNumberChange(field.onChange)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Quota given to users who invite others')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='QuotaForInviter'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Inviter Reward')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      value={field.value ?? ''}
+                      onChange={handleNumberChange(field.onChange)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Quota given to users who invite others')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='QuotaForInvitee'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Invitee Reward')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    value={field.value ?? ''}
-                    onChange={handleNumberChange(field.onChange)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Quota given to invited users')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='QuotaForInvitee'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Invitee Reward')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      value={field.value ?? ''}
+                      onChange={handleNumberChange(field.onChange)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Quota given to invited users')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='TopUpCommissionRate'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Top-Up Commission Rate (%)')}</FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    step='0.1'
-                    value={field.value as number}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
-                    'Percentage of top-up amount rewarded to the inviter as commission. Set to 0 to disable.'
-                  )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='TopUpCommissionManualEnabled'
-            render={({ field }) => (
-              <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
-                <div className='space-y-0.5'>
-                  <FormLabel className='text-base'>
-                    {t('Manual Top-Up Commission')}
-                  </FormLabel>
+            <FormField
+              control={form.control}
+              name='TopUpCommissionRate'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Top-Up Commission Rate (%)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      step='0.1'
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
                   <FormDescription>
                     {t(
-                      'When enabled, admin manual top-ups also trigger commission for the inviter.'
+                      'Percentage of top-up amount rewarded to the inviter as commission. Set to 0 to disable.'
                     )}
                   </FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={updateOption.isPending}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='AffTransferCooldownHours'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('Top-Up Commission Cooldown (hours)')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    step={1}
-                    value={field.value as number}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
-                    'Hours before top-up commissions become transferable. Set to 0 to disable cooldown.'
-                  )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='InviteRewardCooldownHours'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('Invite Reward Cooldown (hours)')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    step={1}
-                    value={field.value as number}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
-                    'Hours before invite registration rewards become transferable. Set to 0 to disable cooldown.'
-                  )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='MinTransferAmount'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  {t('Minimum Transfer Amount')}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    type='number'
-                    step={0.01}
-                    value={field.value as number}
-                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    name={field.name}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
-                    'Minimum amount (in currency units) required for affiliate reward transfers. Set to 0 for no minimum.'
-                  )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name='quota_setting.enable_free_model_pre_consume'
-            render={({ field }) => (
-              <FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
-                <div className='space-y-0.5'>
-                  <FormLabel className='text-base'>
-                    {t('Pre-Consume for Free Models')}
+            <FormField
+              control={form.control}
+              name='AffTransferCooldownHours'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('Top-Up Commission Cooldown (hours)')}
                   </FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      step={1}
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
                   <FormDescription>
                     {t(
-                      'When enabled, zero-cost models also pre-consume quota before final settlement.'
+                      'Hours before top-up commissions become transferable. Set to 0 to disable cooldown.'
                     )}
                   </FormDescription>
-                </div>
-                <FormControl>
-                  <Switch
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    disabled={updateOption.isPending}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='TopUpLink'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Top-Up Link')}</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t('https://example.com/topup')}
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('External link for users to purchase quota')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='InviteRewardCooldownHours'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Invite Reward Cooldown (hours)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      step={1}
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Hours before invite registration rewards become transferable. Set to 0 to disable cooldown.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <FormField
-            control={form.control}
-            name='general_setting.docs_link'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Documentation Link')}</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder={t('https://docs.example.com')}
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t('Link to your documentation site')}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name='MinTransferAmount'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Minimum Transfer Amount')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      step={0.01}
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Minimum amount (in currency units) required for affiliate reward transfers. Set to 0 for no minimum.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <Button
-            type='submit'
-            disabled={updateOption.isPending || isSubmitting}
-          >
-            {updateOption.isPending ? t('Saving...') : t('Save Changes')}
-          </Button>
-        </form>
+            <SettingsFormGridItem span='full'>
+              <FormField
+                control={form.control}
+                name='TopUpCommissionManualEnabled'
+                render={({ field }) => (
+                  <SettingsSwitchItem>
+                    <SettingsSwitchContent>
+                      <FormLabel>{t('Manual Top-Up Commission')}</FormLabel>
+                      <FormDescription>
+                        {t(
+                          'When enabled, admin manual top-ups also trigger commission for the inviter.'
+                        )}
+                      </FormDescription>
+                    </SettingsSwitchContent>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={updateOption.isPending}
+                      />
+                    </FormControl>
+                  </SettingsSwitchItem>
+                )}
+              />
+            </SettingsFormGridItem>
+
+            <SettingsFormGridItem span='full'>
+              <FormField
+                control={form.control}
+                name='quota_setting.enable_free_model_pre_consume'
+                render={({ field }) => (
+                  <SettingsSwitchItem>
+                    <SettingsSwitchContent>
+                      <FormLabel>{t('Pre-Consume for Free Models')}</FormLabel>
+                      <FormDescription>
+                        {t(
+                          'When enabled, zero-cost models also pre-consume quota before final settlement.'
+                        )}
+                      </FormDescription>
+                    </SettingsSwitchContent>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={updateOption.isPending}
+                      />
+                    </FormControl>
+                  </SettingsSwitchItem>
+                )}
+              />
+            </SettingsFormGridItem>
+
+            <FormField
+              control={form.control}
+              name='TopUpLink'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Top-Up Link')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t('https://example.com/topup')}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('External link for users to purchase quota')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='general_setting.docs_link'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Documentation Link')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder={t('https://docs.example.com')}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Link to your documentation site')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </SettingsFormGrid>
+        </SettingsForm>
       </Form>
     </SettingsSection>
   )

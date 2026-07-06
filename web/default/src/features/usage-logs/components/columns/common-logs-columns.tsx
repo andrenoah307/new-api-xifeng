@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/tooltip'
 import { DataTableColumnHeader } from '@/components/data-table'
 import { StatusBadge, type StatusBadgeProps } from '@/components/status-badge'
+import { LOG_TYPE_ALL_VALUE } from '../../constants'
 import type { UsageLog } from '../../data/schema'
 import {
   formatModelName,
@@ -282,7 +283,8 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         )
       },
       filterFn: (row, _id, value) => {
-        if (!value || value.length === 0) return true
+        if (!Array.isArray(value) || value.length === 0) return true
+        if (value.includes(LOG_TYPE_ALL_VALUE)) return true
         return value.includes(String(row.original.type))
       },
       enableHiding: false,
@@ -356,7 +358,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     )}
                   </div>
                   {log.channel_name && (
-                    <span className='text-muted-foreground/70 truncate text-[11px]'>
+                    <span className='text-muted-foreground/70 truncate !text-xs [font-family:var(--font-body)]'>
                       {channelName}
                     </span>
                   )}
@@ -442,9 +444,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     {sensitiveVisible ? log.username : '••••'}
                   </TooltipTrigger>
                   {sensitiveVisible && log.username.length > 12 && (
-                    <TooltipContent side='top'>
-                      {log.username}
-                    </TooltipContent>
+                    <TooltipContent side='top'>{log.username}</TooltipContent>
                   )}
                 </Tooltip>
               </TooltipProvider>
@@ -485,18 +485,14 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         <div className='flex max-w-[200px] flex-col gap-0.5'>
           <TooltipProvider delay={300}>
             <Tooltip>
-              <TooltipTrigger
-                render={
-                  <div className='max-w-full' />
-                }
-              >
+              <TooltipTrigger render={<div className='max-w-full' />}>
                 <StatusBadge
                   label={displayName}
                   icon={KeyRound}
                   copyText={sensitiveVisible ? tokenName : undefined}
                   size='sm'
                   showDot={false}
-                  className='border-border/60 bg-muted/30 text-foreground max-w-full overflow-hidden rounded-md border px-1.5 py-0.5 font-mono'
+                  className='border-border/60 bg-muted/30 text-foreground h-6 max-w-full gap-1.5 overflow-hidden rounded-md border px-2 py-0.5 [font-family:var(--font-body)]'
                 />
               </TooltipTrigger>
               {sensitiveVisible && tokenName.length > 16 && (
@@ -507,7 +503,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
             </Tooltip>
           </TooltipProvider>
           {metaParts.length > 0 && (
-            <span className='text-muted-foreground/60 truncate text-[11px]'>
+            <span className='text-muted-foreground/60 truncate !text-xs [font-family:var(--font-body)]'>
               {metaParts.join(' · ')}
             </span>
           )}
@@ -531,7 +527,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         const modelInfo = formatModelName(log)
 
         return (
-          <div className='flex max-w-[220px] flex-col gap-0.5'>
+          <div className='flex w-fit flex-col gap-0.5'>
             <ModelBadge
               modelName={modelInfo.name}
               actualModel={modelInfo.actualModel}
@@ -561,68 +557,55 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
         const timeVariant = getResponseTimeColor(useTime, log.completion_tokens)
         const frtVariant = frt ? getFirstResponseTimeColor(frt / 1000) : null
 
-        const pillBg: Record<string, string> = {
+        const timingBgMap: Record<string, string> = {
           success:
             'border border-emerald-200/40 bg-emerald-50/35 dark:border-emerald-900/40 dark:bg-emerald-950/15',
           warning:
             'border border-amber-200/45 bg-amber-50/35 dark:border-amber-900/40 dark:bg-amber-950/15',
           danger:
             'border border-rose-200/50 bg-rose-50/35 dark:border-rose-900/40 dark:bg-rose-950/15',
-        }
-        const pillText: Record<string, string> = {
-          success: 'text-emerald-700/85 dark:text-emerald-400/85',
-          warning: 'text-amber-700/85 dark:text-amber-400/85',
-          danger: 'text-rose-700/85 dark:text-rose-400/85',
-        }
-        const pillDot: Record<string, string> = {
-          success: 'bg-emerald-500/80',
-          warning: 'bg-amber-500/80',
-          danger: 'bg-rose-500/80',
+          neutral:
+            'border border-border/60 bg-muted/30 dark:border-border/40 dark:bg-muted/20',
         }
 
         return (
           <div className='flex flex-col gap-1'>
             <div className='flex items-center gap-1.5'>
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-xs font-medium',
-                  pillBg[timeVariant],
-                  pillText[timeVariant]
-                )}
-              >
-                <span
-                  className={cn(
-                    'size-1.5 shrink-0 rounded-full',
-                    pillDot[timeVariant]
-                  )}
-                  aria-hidden='true'
-                />
-                {formatUseTime(useTime)}
-              </span>
+              <StatusBadge
+                label={formatUseTime(useTime)}
+                variant={timeVariant as StatusBadgeProps['variant']}
+                size='sm'
+                copyable={false}
+                className={cn('font-mono', timingBgMap[timeVariant])}
+              />
               {log.is_stream &&
                 (frt != null && frt > 0 ? (
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded-md px-1.5 py-0.5 font-mono text-xs font-medium',
-                      pillBg[frtVariant!],
-                      pillText[frtVariant!]
-                    )}
-                  >
-                    {formatUseTime(frt / 1000)}
-                  </span>
+                  <StatusBadge
+                    label={formatUseTime(frt / 1000)}
+                    variant={frtVariant as StatusBadgeProps['variant']}
+                    size='sm'
+                    showDot={false}
+                    copyable={false}
+                    className={cn('font-mono', frtVariant ? timingBgMap[frtVariant] : undefined)}
+                  />
                 ) : (
-                  <span className='border-border/60 text-muted-foreground/50 inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px]'>
-                    N/A
-                  </span>
+                  <StatusBadge
+                    label='N/A'
+                    variant='neutral'
+                    size='sm'
+                    showDot={false}
+                    copyable={false}
+                    className={timingBgMap.neutral}
+                  />
                 ))}
             </div>
-            <div className='flex items-center gap-1 text-[11px]'>
-              <span className='text-muted-foreground/60'>
+            <div className='flex items-center gap-1 !text-xs leading-none [font-family:var(--font-body)]'>
+              <span className='text-muted-foreground/60 !text-xs leading-none [font-family:var(--font-body)]'>
                 {log.is_stream ? t('Stream') : t('Non-stream')}
                 {tokensPerSecond != null && (
                   <>
                     {' · '}
-                    <span className='font-mono tabular-nums'>
+                    <span className='tabular-nums'>
                       {Math.round(tokensPerSecond)}
                     </span>
                     {' t/s'}
@@ -739,15 +722,15 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
               <Tooltip>
                 <TooltipTrigger
                   render={
-                    <span className='inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' />
+                    <StatusBadge
+                      label={t('Subscription')}
+                      variant='success'
+                      size='sm'
+                      copyable={false}
+                      className='cursor-help'
+                    />
                   }
-                >
-                  <span
-                    className='size-1.5 rounded-full bg-emerald-500'
-                    aria-hidden='true'
-                  />
-                  {t('Subscription')}
-                </TooltipTrigger>
+                />
                 <TooltipContent>
                   <span>
                     {t('Deducted by subscription')}: {formatLogQuota(quota)}
@@ -762,7 +745,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
 
         return (
           <div className='flex flex-col gap-0.5'>
-            <span className='border-border/80 bg-muted/60 inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 font-mono text-xs font-semibold tabular-nums'>
+            <span className='border-border/80 bg-muted/60 inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 font-semibold tabular-nums [font-family:var(--font-body)]'>
               {quotaStr}
             </span>
           </div>
