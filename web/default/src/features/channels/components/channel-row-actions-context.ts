@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2025 QuantumNous
+Copyright (C) 2023-2026 QuantumNous
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -16,14 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { createContext } from 'react'
 
-import React from 'react';
-import MjLogsTable from '../../components/table/mj-logs';
+/**
+ * Where the channel row actions are being rendered. In the card view we
+ * surface the "Test Connection" action as an inline button next to the quick
+ * test; in the table it stays inside the overflow menu.
+ */
+export type ChannelRowActionsLayout = 'table' | 'card'
 
-const MjProxy = () => (
-  <div className='mt-[60px] px-2'>
-    <MjLogsTable />
-  </div>
-);
-
-export default MjProxy;
+export const ChannelRowActionsLayoutContext =
+  createContext<ChannelRowActionsLayout>('table')

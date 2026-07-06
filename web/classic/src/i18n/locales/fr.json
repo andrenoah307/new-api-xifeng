@@ -183,7 +183,6 @@
     "LinuxDO ID": "ID LinuxDO",
     "Logo 图片地址": "Adresse de l'image du logo",
     "MIT许可证": "Licence MIT",
-    "Midjourney 任务记录": "Tâches Midjourney",
     "New API项目仓库地址：": "Adresse du référentiel du projet New API : ",
     "NewAPI 默认不会将入口请求的 User-Agent 透传到上游渠道；该条件仅用于识别访问本站点的客户端。": "NewAPI ne transmet pas le User-Agent de la requête entrante aux canaux en amont par défaut ; cette condition sert uniquement à identifier les clients accédant à ce site.",
     "OAuth / 微信注册要求邀请码": "",
@@ -1934,7 +1933,6 @@
     "当前旧格式不是 JSON 对象，无法追加模板": "L'ancien format actuel n'est pas un objet JSON, impossible d'ajouter le modèle",
     "当前时间": "Heure actuelle",
     "当前未启用，需要时再打开即可。": "Ce champ est actuellement désactivé. Activez-le si nécessaire.",
-    "当前未开启Midjourney回调，部分项目可能无法获得绘图结果，可在运营设置中开启。": "Le rappel Midjourney actuel n'est pas activé, certains projets peuvent ne pas être en mesure d'obtenir des résultats de dessin, qui peuvent être activés dans les paramètres de fonctionnement.",
     "当前未开启“信任上游 IP 头”。系统会统一使用 TCP RemoteAddr 作为真实 IP，并统一应用到限流、邮箱验证码限流、Turnstile、令牌 IP 白名单、日志记录和风控事件。": "",
     "当前查看的分组为：{{group}}，倍率为：{{ratio}}": "Groupe actuel : {{group}}, ratio : {{ratio}}",
     "当前模型列表为该标签下所有渠道模型列表最长的一个，并非所有渠道的并集，请注意可能导致某些渠道模型丢失。": "La liste de modèles actuelle est la plus longue liste de modèles de canal sous cette étiquette, pas l'union de tous les canaux. Veuillez noter que cela peut entraîner la perte de certains modèles de canal.",
@@ -4803,6 +4801,8 @@
     "，": ", ",
     "、": ", ",
     "开启后，亲和到的渠道被禁用，或不再适用于当前分组/模型时，仍保留这条亲和；关闭时会删除并重新选择渠道。": "Lorsque cette option est activée, conserver l'entrée d'affinité même si le canal d'affinité est désactivé ou n'est plus utilisable pour le groupe/modèle actuel. Lorsqu'elle est désactivée, l'entrée sera supprimée et un autre canal sera sélectionné.",
-    "渠道禁用后保留亲和": "Conserver l'affinité lorsque le canal est désactivé"
+    "渠道禁用后保留亲和": "Conserver l'affinité lorsque le canal est désactivé",
+    "MjProxy 任务记录": "Tâches MjProxy",
+    "当前未开启 MjProxy 回调，部分项目可能无法获得绘图结果，可在运营设置中开启。": "Le rappel MjProxy actuel n'est pas activé, certains projets peuvent ne pas être en mesure d'obtenir des résultats de dessin, qui peuvent être activés dans les paramètres de fonctionnement."
   }
 }

@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useState, useCallback, useMemo } from 'react'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
-import { type Table } from '@tanstack/react-table'
+import type { Table } from '@tanstack/react-table'
 import { Download, CloudDownload, Eye, EyeOff, ListTodo } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
@@ -405,24 +405,6 @@ export function CommonLogsFilterBar<TData>(
           </TooltipContent>
         </Tooltip>
       )}
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant='ghost'
-              size='icon'
-              onClick={() => setSensitiveVisible(!sensitiveVisible)}
-              aria-label={sensitiveVisible ? t('Hide') : t('Show')}
-              className='text-muted-foreground hover:text-foreground size-7'
-            />
-          }
-        >
-          {sensitiveVisible ? <Eye /> : <EyeOff />}
-        </TooltipTrigger>
-        <TooltipContent>
-          {sensitiveVisible ? t('Hide') : t('Show')}
-        </TooltipContent>
-      </Tooltip>
       {offlineExportEnabled && (
         <>
           <OfflineExportDialog
@@ -438,6 +420,26 @@ export function CommonLogsFilterBar<TData>(
         </>
       )}
     </div>
+  )
+  const sensitiveToggle = (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={() => setSensitiveVisible(!sensitiveVisible)}
+            aria-label={sensitiveVisible ? t('Hide') : t('Show')}
+            className='text-muted-foreground hover:text-foreground size-7'
+          />
+        }
+      >
+        {sensitiveVisible ? <Eye /> : <EyeOff />}
+      </TooltipTrigger>
+      <TooltipContent>
+        {sensitiveVisible ? t('Hide') : t('Show')}
+      </TooltipContent>
+    </Tooltip>
   )
 
   const dateRangeFilter = (
@@ -564,6 +566,7 @@ export function CommonLogsFilterBar<TData>(
     <LogsFilterToolbar
       table={props.table}
       stats={statsBar}
+      actionStart={sensitiveToggle}
       primaryFilters={
         <>
           {dateRangeFilter}

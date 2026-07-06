@@ -53,6 +53,8 @@ type ChannelsContextType = {
   setEnableTagMode: (enabled: boolean) => void
   idSort: boolean
   setIdSort: (enabled: boolean) => void
+  sensitiveVisible: boolean
+  setSensitiveVisible: (visible: boolean) => void
   upstream: UpstreamUpdateState
 }
 
@@ -78,6 +80,7 @@ export function ChannelsProvider({ children }: { children: React.ReactNode }) {
   const [idSort, setIdSort] = useState(() => {
     return localStorage.getItem('channels-id-sort') === 'true'
   })
+  const [sensitiveVisible, setSensitiveVisible] = useState(true)
 
   const queryClient = useQueryClient()
   const refreshChannels = useCallback(async () => {
@@ -98,6 +101,8 @@ export function ChannelsProvider({ children }: { children: React.ReactNode }) {
         setEnableTagMode,
         idSort,
         setIdSort,
+        sensitiveVisible,
+        setSensitiveVisible,
         upstream,
       }}
     >
