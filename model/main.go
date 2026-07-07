@@ -316,9 +316,6 @@ func migrateDB() error {
 		&EnforcementIncident{},
 		&ModerationIncident{},
 		&ModerationRule{},
-		&ChannelMonitoringStat{},
-		&GroupMonitoringStat{},
-		&MonitoringHistory{},
 		&PerfMetric{},
 		&CommissionRecord{},
 		&DiscountCode{},
@@ -339,8 +336,14 @@ func migrateDB() error {
 		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
 			return err
 		}
+		if err := ensureMonitoringTablesSQLite(); err != nil {
+			return err
+		}
 	} else {
 		if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
+			return err
+		}
+		if err := DB.AutoMigrate(&ChannelMonitoringStat{}, &GroupMonitoringStat{}, &MonitoringHistory{}); err != nil {
 			return err
 		}
 	}
@@ -394,9 +397,6 @@ func migrateDBFast() error {
 		{&EnforcementIncident{}, "EnforcementIncident"},
 		{&ModerationIncident{}, "ModerationIncident"},
 		{&ModerationRule{}, "ModerationRule"},
-		{&ChannelMonitoringStat{}, "ChannelMonitoringStat"},
-		{&GroupMonitoringStat{}, "GroupMonitoringStat"},
-		{&MonitoringHistory{}, "MonitoringHistory"},
 		{&TicketAttachment{}, "TicketAttachment"},
 		{&PerfMetric{}, "PerfMetric"},
 		{&CommissionRecord{}, "CommissionRecord"},
@@ -436,8 +436,14 @@ func migrateDBFast() error {
 		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
 			return err
 		}
+		if err := ensureMonitoringTablesSQLite(); err != nil {
+			return err
+		}
 	} else {
 		if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
+			return err
+		}
+		if err := DB.AutoMigrate(&ChannelMonitoringStat{}, &GroupMonitoringStat{}, &MonitoringHistory{}); err != nil {
 			return err
 		}
 	}
@@ -620,6 +626,125 @@ PRIMARY KEY (` + "`id`" + `)
 		}
 		if err := DB.Exec("ALTER TABLE `" + tableName + "` ADD COLUMN " + col.DDL).Error; err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// ensureMonitoringTablesSQLite creates/upgrades the monitoring stat tables by
+// hand on SQLite. Their decimal(p,s) columns make GORM's SQLite DDL parser
+// fail with "invalid DDL, unbalanced brackets" whenever AutoMigrate revisits
+// an existing table (the same driver limitation
+// ensureSubscriptionPlanTableSQLite works around), which bricked every SQLite
+// deployment on restart. These tables must never go through AutoMigrate on
+// SQLite.
+func ensureMonitoringTablesSQLite() error {
+	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
+		return nil
+	}
+	tables := []struct {
+		name      string
+		columns   []sqliteColumnDef
+		dedupeSQL string
+		indexSQL  []string
+	}{
+		{
+			name: "channel_monitoring_stats",
+			columns: []sqliteColumnDef{
+				{Name: "group_name", DDL: "`group_name` varchar(64)"},
+				{Name: "channel_id", DDL: "`channel_id` integer"},
+				{Name: "availability_rate", DDL: "`availability_rate` decimal(8,4) DEFAULT -1"},
+				{Name: "cache_hit_rate", DDL: "`cache_hit_rate` decimal(8,4) DEFAULT -1"},
+				{Name: "avg_response_time", DDL: "`avg_response_time` integer DEFAULT 0"},
+				{Name: "avg_frt", DDL: "`avg_frt` integer DEFAULT 0"},
+				{Name: "last_test_time", DDL: "`last_test_time` integer DEFAULT 0"},
+				{Name: "last_test_model", DDL: "`last_test_model` varchar(255) DEFAULT ''"},
+				{Name: "is_online", DDL: "`is_online` numeric DEFAULT false"},
+				{Name: "updated_at", DDL: "`updated_at` integer"},
+			},
+			dedupeSQL: "DELETE FROM `channel_monitoring_stats` WHERE `id` NOT IN (SELECT MAX(`id`) FROM `channel_monitoring_stats` GROUP BY `group_name`, `channel_id`)",
+			indexSQL: []string{
+				"CREATE UNIQUE INDEX IF NOT EXISTS `idx_cms_group_channel` ON `channel_monitoring_stats`(`group_name`,`channel_id`)",
+			},
+		},
+		{
+			name: "group_monitoring_stats",
+			columns: []sqliteColumnDef{
+				{Name: "group_name", DDL: "`group_name` varchar(64)"},
+				{Name: "availability_rate", DDL: "`availability_rate` decimal(8,4) DEFAULT -1"},
+				{Name: "cache_hit_rate", DDL: "`cache_hit_rate` decimal(8,4) DEFAULT -1"},
+				{Name: "avg_response_time", DDL: "`avg_response_time` integer DEFAULT 0"},
+				{Name: "avg_frt", DDL: "`avg_frt` integer DEFAULT 0"},
+				{Name: "online_channels", DDL: "`online_channels` integer DEFAULT 0"},
+				{Name: "total_channels", DDL: "`total_channels` integer DEFAULT 0"},
+				{Name: "group_ratio", DDL: "`group_ratio` decimal(10,4) DEFAULT 1"},
+				{Name: "last_test_model", DDL: "`last_test_model` varchar(255) DEFAULT ''"},
+				{Name: "updated_at", DDL: "`updated_at` integer"},
+			},
+			dedupeSQL: "DELETE FROM `group_monitoring_stats` WHERE `id` NOT IN (SELECT MAX(`id`) FROM `group_monitoring_stats` GROUP BY `group_name`)",
+			indexSQL: []string{
+				"CREATE UNIQUE INDEX IF NOT EXISTS `idx_gms_group` ON `group_monitoring_stats`(`group_name`)",
+			},
+		},
+		{
+			name: "monitoring_histories",
+			columns: []sqliteColumnDef{
+				{Name: "group_name", DDL: "`group_name` varchar(64)"},
+				{Name: "availability_rate", DDL: "`availability_rate` decimal(8,4) DEFAULT -1"},
+				{Name: "cache_hit_rate", DDL: "`cache_hit_rate` decimal(8,4) DEFAULT -1"},
+				{Name: "avg_frt", DDL: "`avg_frt` integer DEFAULT 0"},
+				{Name: "request_count", DDL: "`request_count` integer DEFAULT 0"},
+				{Name: "recorded_at", DDL: "`recorded_at` integer"},
+			},
+			dedupeSQL: "DELETE FROM `monitoring_histories` WHERE `id` NOT IN (SELECT MAX(`id`) FROM `monitoring_histories` GROUP BY `group_name`, `recorded_at`)",
+			indexSQL: []string{
+				"CREATE UNIQUE INDEX IF NOT EXISTS `idx_mh_group_recorded` ON `monitoring_histories`(`group_name`,`recorded_at`)",
+				"CREATE INDEX IF NOT EXISTS `idx_mh_time` ON `monitoring_histories`(`recorded_at`)",
+			},
+		},
+	}
+	for _, tbl := range tables {
+		if !DB.Migrator().HasTable(tbl.name) {
+			colDefs := make([]string, 0, len(tbl.columns)+2)
+			colDefs = append(colDefs, "`id` integer")
+			for _, c := range tbl.columns {
+				colDefs = append(colDefs, c.DDL)
+			}
+			colDefs = append(colDefs, "PRIMARY KEY (`id`)")
+			createSQL := "CREATE TABLE `" + tbl.name + "` (" + strings.Join(colDefs, ",") + ")"
+			if err := DB.Exec(createSQL).Error; err != nil {
+				return err
+			}
+		} else {
+			var cols []struct {
+				Name string `gorm:"column:name"`
+			}
+			if err := DB.Raw("PRAGMA table_info(`" + tbl.name + "`)").Scan(&cols).Error; err != nil {
+				return err
+			}
+			existing := make(map[string]struct{}, len(cols))
+			for _, c := range cols {
+				existing[c.Name] = struct{}{}
+			}
+			for _, col := range tbl.columns {
+				if _, ok := existing[col.Name]; ok {
+					continue
+				}
+				if err := DB.Exec("ALTER TABLE `" + tbl.name + "` ADD COLUMN " + col.DDL).Error; err != nil {
+					return err
+				}
+			}
+		}
+		// The unique indexes back GORM's ON CONFLICT upserts. Older broken
+		// migrations could leave duplicate stat rows behind; drop all but the
+		// newest per key so index creation cannot fail.
+		if err := DB.Exec(tbl.dedupeSQL).Error; err != nil {
+			return err
+		}
+		for _, idx := range tbl.indexSQL {
+			if err := DB.Exec(idx).Error; err != nil {
+				return err
+			}
 		}
 	}
 	return nil
