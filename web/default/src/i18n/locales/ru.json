@@ -5170,7 +5170,17 @@
     "Reset quota": "Сбросить квоту",
     "Reset subscription quota": "Сбросить квоту подписки",
     "Select active subscription plan": "Выберите активный тариф подписки",
-    "Underflow": "Переполнение снизу"
+    "Underflow": "Переполнение снизу",
+    "Delete {{count}} stale instance records? Online instances will not be deleted.": "Удалить {{count}} записей устаревших экземпляров? Онлайн-экземпляры не будут удалены.",
+    "Delete all stale": "Удалить все устаревшие",
+    "Delete stale instance": "Удалить устаревший экземпляр",
+    "Delete stale instance \"{{name}}\"? If it has reported again, it will not be deleted.": "Удалить устаревший экземпляр \"{{name}}\"? Если он снова отправил отчет, он не будет удален.",
+    "Delete stale instances": "Удалить устаревшие экземпляры",
+    "Deleted {{count}} stale instances": "Удалено устаревших экземпляров: {{count}}",
+    "Deleted stale instance": "Устаревший экземпляр удален",
+    "Initial quota given to new users ({{formattedQuota}})": "Начальная квота, предоставляемая новым пользователям ({{formattedQuota}})",
+    "Quota given to invited users ({{formattedQuota}})": "Квота, предоставляемая приглашенным пользователям ({{formattedQuota}})",
+    "Quota given to users who invite others ({{formattedQuota}})": "Квота, предоставляемая пользователям, которые приглашают других ({{formattedQuota}})"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Закрытие разморозит замороженную квоту возврата. Вы уверены?",
   "User role updated successfully": "Роль пользователя успешно обновлена"

@@ -5170,7 +5170,17 @@
     "Reset quota": "クォータをリセット",
     "Reset subscription quota": "サブスクリプションのクォータをリセット",
     "Select active subscription plan": "有効なサブスクリプションプランを選択",
-    "Underflow": "アンダーフロー"
+    "Underflow": "アンダーフロー",
+    "Delete {{count}} stale instance records? Online instances will not be deleted.": "期限切れインスタンスレコードを {{count}} 件削除しますか？オンラインのインスタンスは削除されません。",
+    "Delete all stale": "期限切れをすべて削除",
+    "Delete stale instance": "期限切れインスタンスを削除",
+    "Delete stale instance \"{{name}}\"? If it has reported again, it will not be deleted.": "期限切れインスタンス \"{{name}}\" を削除しますか？再度報告されている場合は削除されません。",
+    "Delete stale instances": "期限切れインスタンスを削除",
+    "Deleted {{count}} stale instances": "期限切れインスタンスを {{count}} 件削除しました",
+    "Deleted stale instance": "期限切れインスタンスを削除しました",
+    "Initial quota given to new users ({{formattedQuota}})": "新規ユーザーに付与される初期クォータ（{{formattedQuota}}）",
+    "Quota given to invited users ({{formattedQuota}})": "招待されたユーザーに付与されるクォータ（{{formattedQuota}}）",
+    "Quota given to users who invite others ({{formattedQuota}})": "他のユーザーを招待したユーザーに付与されるクォータ（{{formattedQuota}}）"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？",
   "User role updated successfully": "ユーザーロールを更新しました"

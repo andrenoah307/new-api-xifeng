@@ -48,6 +48,12 @@ export function TransferDialog({
 }: TransferDialogProps) {
   const { t } = useTranslation()
   const [displayAmount, setDisplayAmount] = useState(minTransferAmount)
+  const minTransferQuota = parseQuotaFromDollars(minTransferAmount)
+  const transferQuota = parseQuotaFromDollars(displayAmount)
+  const canTransfer =
+    Number.isFinite(displayAmount) &&
+    transferQuota >= minTransferQuota &&
+    transferQuota <= availableQuota
 
   useEffect(() => {
     if (open) {
@@ -59,8 +65,9 @@ export function TransferDialog({
   const availableDisplayAmount = quotaUnitsToDollars(availableQuota)
 
   const handleConfirm = async () => {
-    const quotaAmount = parseQuotaFromDollars(displayAmount)
-    const success = await onConfirm(quotaAmount)
+    if (!canTransfer) return
+
+    const success = await onConfirm(transferQuota)
     if (success) {
       onOpenChange(false)
     }
@@ -86,7 +93,10 @@ export function TransferDialog({
           >
             {t('Cancel')}
           </Button>
-          <Button onClick={handleConfirm} disabled={transferring}>
+          <Button
+            onClick={handleConfirm}
+            disabled={transferring || !canTransfer}
+          >
             {transferring && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             {t('Transfer')}
           </Button>
@@ -121,8 +131,7 @@ export function TransferDialog({
             className='font-mono text-lg'
           />
           <p className='text-muted-foreground text-xs'>
-            {t('Minimum:')}{' '}
-            {formatQuota(parseQuotaFromDollars(minTransferAmount))}
+            {t('Minimum:')} {formatQuota(minTransferQuota)}
           </p>
         </div>
       </div>

@@ -5221,7 +5221,17 @@
     "Reset quota": "Reset quota",
     "Reset subscription quota": "Reset subscription quota",
     "Select active subscription plan": "Select active subscription plan",
-    "Underflow": "Underflow"
+    "Underflow": "Underflow",
+    "Delete {{count}} stale instance records? Online instances will not be deleted.": "Delete {{count}} stale instance records? Online instances will not be deleted.",
+    "Delete all stale": "Delete all stale",
+    "Delete stale instance": "Delete stale instance",
+    "Delete stale instance \"{{name}}\"? If it has reported again, it will not be deleted.": "Delete stale instance \"{{name}}\"? If it has reported again, it will not be deleted.",
+    "Delete stale instances": "Delete stale instances",
+    "Deleted {{count}} stale instances": "Deleted {{count}} stale instances",
+    "Deleted stale instance": "Deleted stale instance",
+    "Initial quota given to new users ({{formattedQuota}})": "Initial quota given to new users ({{formattedQuota}})",
+    "Quota given to invited users ({{formattedQuota}})": "Quota given to invited users ({{formattedQuota}})",
+    "Quota given to users who invite others ({{formattedQuota}})": "Quota given to users who invite others ({{formattedQuota}})"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?",
   "User role updated successfully": "User role updated successfully"

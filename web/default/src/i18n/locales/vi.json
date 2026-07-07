@@ -5170,7 +5170,17 @@
     "Reset quota": "Đặt lại hạn mức",
     "Reset subscription quota": "Đặt lại hạn mức gói đăng ký",
     "Select active subscription plan": "Chọn gói đăng ký đang hoạt động",
-    "Underflow": "Tràn dưới"
+    "Underflow": "Tràn dưới",
+    "Delete {{count}} stale instance records? Online instances will not be deleted.": "Xóa {{count}} bản ghi phiên bản mất kết nối? Các phiên bản đang trực tuyến sẽ không bị xóa.",
+    "Delete all stale": "Xóa tất cả mất kết nối",
+    "Delete stale instance": "Xóa phiên bản mất kết nối",
+    "Delete stale instance \"{{name}}\"? If it has reported again, it will not be deleted.": "Xóa phiên bản mất kết nối \"{{name}}\"? Nếu phiên bản này đã báo cáo lại, nó sẽ không bị xóa.",
+    "Delete stale instances": "Xóa các phiên bản mất kết nối",
+    "Deleted {{count}} stale instances": "Đã xóa {{count}} phiên bản mất kết nối",
+    "Deleted stale instance": "Đã xóa phiên bản mất kết nối",
+    "Initial quota given to new users ({{formattedQuota}})": "Hạn mức ban đầu cấp cho người dùng mới ({{formattedQuota}})",
+    "Quota given to invited users ({{formattedQuota}})": "Hạn mức cấp cho người dùng được mời ({{formattedQuota}})",
+    "Quota given to users who invite others ({{formattedQuota}})": "Hạn mức cấp cho người dùng mời người khác ({{formattedQuota}})"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?",
   "User role updated successfully": "Cập nhật vai trò người dùng thành công"

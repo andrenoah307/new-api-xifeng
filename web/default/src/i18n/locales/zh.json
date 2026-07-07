@@ -5223,7 +5223,17 @@
     "Reset quota": "重置额度",
     "Reset subscription quota": "重置订阅额度",
     "Select active subscription plan": "选择有效订阅套餐",
-    "Underflow": "下溢"
+    "Underflow": "下溢",
+    "Delete {{count}} stale instance records? Online instances will not be deleted.": "删除 {{count}} 条失联实例记录？在线实例不会被删除。",
+    "Delete all stale": "删除所有失联",
+    "Delete stale instance": "删除失联实例",
+    "Delete stale instance \"{{name}}\"? If it has reported again, it will not be deleted.": "删除失联实例 \"{{name}}\"？如果它已经重新上报，将不会被删除。",
+    "Delete stale instances": "删除失联实例",
+    "Deleted {{count}} stale instances": "已删除 {{count}} 个失联实例",
+    "Deleted stale instance": "已删除失联实例",
+    "Initial quota given to new users ({{formattedQuota}})": "授予新用户的初始配额（{{formattedQuota}}）",
+    "Quota given to invited users ({{formattedQuota}})": "授予被邀请用户的配额（{{formattedQuota}}）",
+    "Quota given to users who invite others ({{formattedQuota}})": "授予邀请其他用户的配额（{{formattedQuota}}）"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？",
   "User role updated successfully": "用户角色更新成功"

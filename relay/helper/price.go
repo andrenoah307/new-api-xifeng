@@ -35,6 +35,11 @@ func modelPriceNotConfiguredError(modelName string, userId int) error {
 // https://docs.claude.com/en/docs/build-with-claude/prompt-caching#1-hour-cache-duration
 const claudeCacheCreation1hMultiplier = 6 / 3.75
 
+// defaultTieredPreConsumeMaxTokens is the fallback completion-token estimate
+// used for tiered expression pre-consume when the client omits max_tokens, so
+// the pre-consumed quota still reflects a plausible output cost in paid groups.
+const defaultTieredPreConsumeMaxTokens = 8192
+
 // HandleGroupRatio checks for "auto_group" in the context and updates the group ratio and relayInfo.UsingGroup if present
 func HandleGroupRatio(ctx *gin.Context, relayInfo *relaycommon.RelayInfo) types.GroupRatioInfo {
 	groupRatioInfo := types.GroupRatioInfo{
@@ -266,6 +271,9 @@ func modelPriceHelperTiered(c *gin.Context, info *relaycommon.RelayInfo, promptT
 	if meta.MaxTokens != 0 {
 		// 钳制客户端 max_tokens（同 ModelPriceHelper），避免预扣估算被异常大的 max_tokens 顶穿
 		estimatedCompletionTokens = common.ClampPreConsumeCompletionTokens(meta.MaxTokens)
+	} else if groupRatioInfo.GroupRatio != 0 {
+		// 上游 rc.20：客户端未传 max_tokens 时用默认估算值，避免阶梯计费预扣为 0
+		estimatedCompletionTokens = defaultTieredPreConsumeMaxTokens
 	}
 
 	requestInput, err := ResolveIncomingBillingExprRequestInput(c, info)
