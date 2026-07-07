@@ -114,14 +114,14 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		audioRatio = ratio_setting.GetAudioRatio(info.OriginModelName)
 		audioCompletionRatio = ratio_setting.GetAudioCompletionRatio(info.OriginModelName)
 		ratio := modelRatio * groupRatioInfo.GroupRatio
-		preConsumedQuota = int(float64(preConsumedTokens) * ratio)
+		preConsumedQuota = common.QuotaFromFloat(float64(preConsumedTokens) * ratio)
 		// 部分预扣下限：仅输入（prompt）的预估成本（坑点 #137）
 		promptOnlyTokens := common.Max(promptTokens, common.PreConsumedQuota)
-		minPreConsumedQuota = int(float64(promptOnlyTokens) * ratio)
+		minPreConsumedQuota = common.QuotaFromFloat(float64(promptOnlyTokens) * ratio)
 		if !success {
 			// 坑点 #137：未配置倍率哨兵（GetModelRatio 返回 37.5）不得驱动预扣，
 			// 否则预扣虚高 7.5×+ 误拒；改用保守小额，真实计费仍以结算为准。
-			conservative := int(float64(common.PreConsumedQuota) * groupRatioInfo.GroupRatio)
+			conservative := common.QuotaFromFloat(float64(common.PreConsumedQuota) * groupRatioInfo.GroupRatio)
 			preConsumedQuota = conservative
 			minPreConsumedQuota = conservative
 		}
@@ -129,7 +129,7 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		if meta.ImagePriceRatio != 0 {
 			modelPrice = modelPrice * meta.ImagePriceRatio
 		}
-		preConsumedQuota = int(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		preConsumedQuota = common.QuotaFromFloat(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
 		// 按次价无单独输入下限，min 等于预扣额
 		minPreConsumedQuota = preConsumedQuota
 	}
@@ -212,7 +212,7 @@ func ModelPriceHelperPerCall(c *gin.Context, info *relaycommon.RelayInfo) (types
 	freeModel := false
 
 	if usePrice {
-		quota = int(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		quota = common.QuotaFromFloat(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
 		if !operation_setting.GetQuotaSetting().EnableFreeModelPreConsume {
 			if groupRatioInfo.GroupRatio == 0 || modelPrice == 0 {
 				quota = 0
@@ -221,7 +221,7 @@ func ModelPriceHelperPerCall(c *gin.Context, info *relaycommon.RelayInfo) (types
 		}
 	} else {
 		// 按量计费：以模型倍率的一半作为预扣额度
-		quota = int(modelRatio / 2 * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		quota = common.QuotaFromFloat(modelRatio / 2 * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
 		modelPrice = -1
 		if !operation_setting.GetQuotaSetting().EnableFreeModelPreConsume {
 			if groupRatioInfo.GroupRatio == 0 || modelRatio == 0 {
