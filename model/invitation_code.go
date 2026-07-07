@@ -94,11 +94,7 @@ func GetUsableInvitationCodeWithTx(tx *gorm.DB, code string) (*InvitationCode, e
 		return nil, ErrInvitationCodeRequired
 	}
 	invitationCode := &InvitationCode{}
-	query := tx
-	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
-		query = query.Set("gorm:query_option", "FOR UPDATE")
-	}
-	if err := query.Where("code = ?", trimmedCode).First(invitationCode).Error; err != nil {
+	if err := lockForUpdate(tx).Where("code = ?", trimmedCode).First(invitationCode).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrInvitationCodeInvalid
 		}
