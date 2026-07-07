@@ -5223,5 +5223,6 @@
     "Select active subscription plan": "Select active subscription plan",
     "Underflow": "Underflow"
   },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?"
+  "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?",
+  "User role updated successfully": "User role updated successfully"
 }

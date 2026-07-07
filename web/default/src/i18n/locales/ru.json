@@ -5172,5 +5172,6 @@
     "Select active subscription plan": "Выберите активный тариф подписки",
     "Underflow": "Переполнение снизу"
   },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "Закрытие разморозит замороженную квоту возврата. Вы уверены?"
+  "Closing will unfreeze the frozen refund quota. Are you sure?": "Закрытие разморозит замороженную квоту возврата. Вы уверены?",
+  "User role updated successfully": "Роль пользователя успешно обновлена"
 }

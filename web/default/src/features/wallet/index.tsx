@@ -23,7 +23,6 @@ import { getSelf } from '@/lib/api'
 import { SectionPageLayout } from '@/components/layout'
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
-import { getSelf } from '@/lib/api'
 
 import { AffiliateRewardsCard } from './components/affiliate-rewards-card'
 import { CommissionRecordsTable } from './components/commission-records-table'

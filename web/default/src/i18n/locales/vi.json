@@ -5172,5 +5172,6 @@
     "Select active subscription plan": "Chọn gói đăng ký đang hoạt động",
     "Underflow": "Tràn dưới"
   },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?"
+  "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?",
+  "User role updated successfully": "Cập nhật vai trò người dùng thành công"
 }

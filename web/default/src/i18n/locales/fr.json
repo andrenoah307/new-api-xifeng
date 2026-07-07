@@ -5172,5 +5172,6 @@
     "Select active subscription plan": "Sélectionner un forfait actif",
     "Underflow": "Sous-dépassement"
   },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "La fermeture dégelera le quota de remboursement gelé. Êtes-vous sûr ?"
+  "Closing will unfreeze the frozen refund quota. Are you sure?": "La fermeture dégelera le quota de remboursement gelé. Êtes-vous sûr ?",
+  "User role updated successfully": "Rôle de l'utilisateur mis à jour avec succès"
 }

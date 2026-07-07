@@ -5172,5 +5172,6 @@
     "Select active subscription plan": "有効なサブスクリプションプランを選択",
     "Underflow": "アンダーフロー"
   },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？"
+  "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？",
+  "User role updated successfully": "ユーザーロールを更新しました"
 }

@@ -22,8 +22,6 @@ import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 import { getFreshModuleAccess } from '@/lib/nav-modules'
 import { Rankings } from '@/features/rankings'
-import { getFreshModuleAccess } from '@/lib/nav-modules'
-import { useAuthStore } from '@/stores/auth-store'
 
 const rankingsSearchSchema = z.object({
   period: z
