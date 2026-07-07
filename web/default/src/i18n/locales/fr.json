@@ -5155,7 +5155,22 @@
     "Users of vip, when billed as premium, pay ratio": "Les utilisateurs de vip, facturés sous premium, paient le taux",
     "Visible": "Visible",
     "When billed as {{group}}": "Facturé sous {{group}}",
-    "Worked example": "Exemple détaillé"
+    "Worked example": "Exemple détaillé",
+    "Advance next reset time": "Avancer la prochaine réinitialisation",
+    "Clamped to": "Limité à",
+    "Invalid (NaN)": "Invalide (NaN)",
+    "Kind": "Type",
+    "Original value": "Valeur d'origine",
+    "Overflow": "Débordement",
+    "Quota clamped": "Quota plafonné",
+    "Quota saturation protection triggered": "Protection contre la saturation du quota déclenchée",
+    "Reset {{count}} active subscriptions": "{{count}} abonnements actifs réinitialisés",
+    "Reset active {{plan}} subscriptions for this user?": "Réinitialiser les abonnements {{plan}} actifs de cet utilisateur ?",
+    "Reset all active subscriptions under {{plan}}?": "Réinitialiser tous les abonnements actifs de {{plan}} ?",
+    "Reset quota": "Réinitialiser le quota",
+    "Reset subscription quota": "Réinitialiser le quota d'abonnement",
+    "Select active subscription plan": "Sélectionner un forfait actif",
+    "Underflow": "Sous-dépassement"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "La fermeture dégelera le quota de remboursement gelé. Êtes-vous sûr ?"
 }

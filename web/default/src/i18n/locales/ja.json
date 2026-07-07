@@ -5155,7 +5155,22 @@
     "Users of vip, when billed as premium, pay ratio": "vip グループのユーザーが premium として課金されるときの倍率は",
     "Visible": "表示",
     "When billed as {{group}}": "{{group}} として課金時",
-    "Worked example": "具体例"
+    "Worked example": "具体例",
+    "Advance next reset time": "次回リセット時刻を進める",
+    "Clamped to": "制限後の値",
+    "Invalid (NaN)": "無効 (NaN)",
+    "Kind": "種類",
+    "Original value": "元の値",
+    "Overflow": "オーバーフロー",
+    "Quota clamped": "クォータ制限適用",
+    "Quota saturation protection triggered": "クォータ飽和保護が作動しました",
+    "Reset {{count}} active subscriptions": "{{count}} 件の有効なサブスクリプションをリセットしました",
+    "Reset active {{plan}} subscriptions for this user?": "このユーザーの有効な {{plan}} サブスクリプションをリセットしますか？",
+    "Reset all active subscriptions under {{plan}}?": "{{plan}} のすべての有効なサブスクリプションをリセットしますか？",
+    "Reset quota": "クォータをリセット",
+    "Reset subscription quota": "サブスクリプションのクォータをリセット",
+    "Select active subscription plan": "有効なサブスクリプションプランを選択",
+    "Underflow": "アンダーフロー"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？"
 }

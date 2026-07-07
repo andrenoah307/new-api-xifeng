@@ -528,7 +528,8 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 	}
 	defer tx.Rollback()
 
-	err = tx.Set("gorm:query_option", "FOR UPDATE").First(&user, user.Id).Error
+	// 加锁查询用户以确保数据一致性
+	err = lockForUpdate(tx).First(&user, user.Id).Error
 	if err != nil {
 		return err
 	}

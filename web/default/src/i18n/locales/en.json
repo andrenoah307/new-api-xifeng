@@ -5206,7 +5206,22 @@
     "Users of vip, when billed as premium, pay ratio": "Users of vip, when billed as premium, pay ratio",
     "Visible": "Visible",
     "When billed as {{group}}": "When billed as {{group}}",
-    "Worked example": "Worked example"
+    "Worked example": "Worked example",
+    "Advance next reset time": "Advance next reset time",
+    "Clamped to": "Clamped to",
+    "Invalid (NaN)": "Invalid (NaN)",
+    "Kind": "Kind",
+    "Original value": "Original value",
+    "Overflow": "Overflow",
+    "Quota clamped": "Quota clamped",
+    "Quota saturation protection triggered": "Quota saturation protection triggered",
+    "Reset {{count}} active subscriptions": "Reset {{count}} active subscriptions",
+    "Reset active {{plan}} subscriptions for this user?": "Reset active {{plan}} subscriptions for this user?",
+    "Reset all active subscriptions under {{plan}}?": "Reset all active subscriptions under {{plan}}?",
+    "Reset quota": "Reset quota",
+    "Reset subscription quota": "Reset subscription quota",
+    "Select active subscription plan": "Select active subscription plan",
+    "Underflow": "Underflow"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?"
 }

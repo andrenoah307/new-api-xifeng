@@ -5155,7 +5155,22 @@
     "Users of vip, when billed as premium, pay ratio": "Пользователи vip при тарификации по premium платят коэффициент",
     "Visible": "Видима",
     "When billed as {{group}}": "При тарификации по {{group}}",
-    "Worked example": "Разобранный пример"
+    "Worked example": "Разобранный пример",
+    "Advance next reset time": "Перенести следующее время сброса",
+    "Clamped to": "Ограничено до",
+    "Invalid (NaN)": "Недопустимо (NaN)",
+    "Kind": "Тип",
+    "Original value": "Исходное значение",
+    "Overflow": "Переполнение",
+    "Quota clamped": "Квота ограничена",
+    "Quota saturation protection triggered": "Сработала защита от переполнения квоты",
+    "Reset {{count}} active subscriptions": "Сброшено активных подписок: {{count}}",
+    "Reset active {{plan}} subscriptions for this user?": "Сбросить активные подписки {{plan}} для этого пользователя?",
+    "Reset all active subscriptions under {{plan}}?": "Сбросить все активные подписки по {{plan}}?",
+    "Reset quota": "Сбросить квоту",
+    "Reset subscription quota": "Сбросить квоту подписки",
+    "Select active subscription plan": "Выберите активный тариф подписки",
+    "Underflow": "Переполнение снизу"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "Закрытие разморозит замороженную квоту возврата. Вы уверены?"
 }

@@ -5208,7 +5208,22 @@
     "Users of vip, when billed as premium, pay ratio": "vip 分组的用户，按 premium 计费时，倍率用",
     "Visible": "可见",
     "When billed as {{group}}": "按 {{group}} 计费时",
-    "Worked example": "完整示例"
+    "Worked example": "完整示例",
+    "Advance next reset time": "推进下次重置时间",
+    "Clamped to": "钳制为",
+    "Invalid (NaN)": "无效 (NaN)",
+    "Kind": "类型",
+    "Original value": "原始值",
+    "Overflow": "上溢",
+    "Quota clamped": "额度已钳制",
+    "Quota saturation protection triggered": "额度饱和保护已触发",
+    "Reset {{count}} active subscriptions": "已重置 {{count}} 个有效订阅",
+    "Reset active {{plan}} subscriptions for this user?": "要重置该用户的有效 {{plan}} 订阅吗？",
+    "Reset all active subscriptions under {{plan}}?": "要重置 {{plan}} 下的所有有效订阅吗？",
+    "Reset quota": "重置额度",
+    "Reset subscription quota": "重置订阅额度",
+    "Select active subscription plan": "选择有效订阅套餐",
+    "Underflow": "下溢"
   },
   "Closing will unfreeze the frozen refund quota. Are you sure?": "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？"
 }
