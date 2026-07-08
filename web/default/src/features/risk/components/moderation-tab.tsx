@@ -834,7 +834,7 @@ export function ModerationTab() {
 
       {/* Incident Detail Dialog */}
       <Dialog open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)}>
-        <DialogContent className="max-h-[85vh] overflow-x-hidden overflow-y-auto sm:max-w-2xl">
+        <DialogContent className="no-scrollbar max-h-[85vh] overflow-x-hidden overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('Incident Detail')}</DialogTitle>
           </DialogHeader>
