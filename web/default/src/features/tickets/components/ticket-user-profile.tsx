@@ -46,7 +46,8 @@ export function TicketUserProfileButton({
           {t('User Profile')}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      {/* no-scrollbar：滚动条会盖住弹窗右侧圆角，隐藏它（滚轮/触摸滚动不受影响） */}
+      <DialogContent className="no-scrollbar max-h-[85vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-4 w-4" />
