@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { StatusBadge } from '@/components/status-badge'
 import { formatQuota } from '@/lib/format'
 import { formatTimestampToDate } from '@/lib/format'
@@ -46,24 +47,25 @@ export function TicketUserProfileButton({
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader className="flex flex-row items-center justify-between pr-8">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-4 w-4" />
             {t('User Profile')}
           </DialogTitle>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() =>
-              queryClient.invalidateQueries({
-                queryKey: ticketQueryKeys.adminUserProfile(ticketId),
-              })
-            }
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </Button>
         </DialogHeader>
+        {/* absolute top-2 right-12 + icon-sm 与内置关闭按钮（top-2 right-2）同排同尺寸 */}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-2 right-12"
+          onClick={() =>
+            queryClient.invalidateQueries({
+              queryKey: ticketQueryKeys.adminUserProfile(ticketId),
+            })
+          }
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </Button>
 
         {isLoading ? (
           <div className="space-y-3 py-4">
@@ -272,6 +274,7 @@ function TopUpSection({
 }) {
   const [page, setPage] = useState(1)
   const pageSize = 5
+  const { copyToClipboard } = useCopyToClipboard()
   const { data, isLoading } = useQuery({
     queryKey: ticketQueryKeys.adminUserTopUps(ticketId, page),
     queryFn: () => getAdminUserTopUps(ticketId, page, pageSize),
@@ -293,6 +296,9 @@ function TopUpSection({
         <table className="w-full text-xs">
           <thead className="bg-muted/30">
             <tr>
+              <th className="px-2 py-1.5 text-left font-medium">
+                {t('Order Number')}
+              </th>
               <th className="px-2 py-1.5 text-left font-medium">{t('Time')}</th>
               <th className="px-2 py-1.5 text-right font-medium">
                 {t('Payment Amount')}
@@ -308,14 +314,14 @@ function TopUpSection({
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={4} className="px-2 py-6">
+                <td colSpan={5} className="px-2 py-6">
                   <Skeleton className="h-4 w-full" />
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="text-muted-foreground px-2 py-6 text-center"
                 >
                   {t('No top-up records')}
@@ -326,6 +332,18 @@ function TopUpSection({
                 const cfg = STATUS_CONFIG[tp.status]
                 return (
                   <tr key={tp.id} className="border-t">
+                    <td className="max-w-[140px] px-2 py-1.5">
+                      <button
+                        type="button"
+                        className="block w-full cursor-pointer truncate text-left font-mono hover:underline"
+                        onClick={() =>
+                          tp.trade_no && copyToClipboard(tp.trade_no)
+                        }
+                        title={tp.trade_no}
+                      >
+                        {tp.trade_no || '-'}
+                      </button>
+                    </td>
                     <td className="text-muted-foreground px-2 py-1.5 font-mono">
                       {formatTimestampToDate(
                         tp.complete_time > 0
