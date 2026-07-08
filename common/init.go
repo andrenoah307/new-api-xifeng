@@ -152,6 +152,9 @@ func InitEnv() {
 
 func initConstantEnv() {
 	constant.StreamingTimeout = GetEnvOrDefault("STREAMING_TIMEOUT", 300)
+	// 客户端断流后有界续读上游以捕获末尾 usage 块的窗口（秒）。
+	// 默认 15；<=0 关闭 drain（断流立即止损）。仅当已产出输出时才 drain。
+	constant.StreamDrainAfterClientGoneSeconds = GetEnvOrDefault("STREAM_DRAIN_AFTER_CLIENT_GONE_SECONDS", 15)
 	constant.DifyDebug = GetEnvOrDefaultBool("DIFY_DEBUG", true)
 	constant.MaxFileDownloadMB = GetEnvOrDefault("MAX_FILE_DOWNLOAD_MB", 64)
 	constant.StreamScannerMaxBufferMB = GetEnvOrDefault("STREAM_SCANNER_MAX_BUFFER_MB", 128)
