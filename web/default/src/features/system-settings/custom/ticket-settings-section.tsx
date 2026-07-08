@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
@@ -125,6 +126,22 @@ export function TicketSettingsSection({ settings }: Props) {
     return cfg
   })
 
+  const [regularFeeRate, setRegularFeeRate] = useState(
+    settings.InvoiceRegularFeeRate ?? '0'
+  )
+  const [regularDescription, setRegularDescription] = useState(
+    settings.InvoiceRegularDescription ?? ''
+  )
+  const [specialEnabled, setSpecialEnabled] = useState(
+    settings.InvoiceSpecialEnabled === 'true'
+  )
+  const [specialFeeRate, setSpecialFeeRate] = useState(
+    settings.InvoiceSpecialFeeRate ?? '0'
+  )
+  const [specialDescription, setSpecialDescription] = useState(
+    settings.InvoiceSpecialDescription ?? ''
+  )
+
   const [saving, setSaving] = useState(false)
 
   const updateAssignRule = (
@@ -188,6 +205,38 @@ export function TicketSettingsSection({ settings }: Props) {
     }
   }
 
+  const saveInvoice = async () => {
+    const regularRate = parseFloat(regularFeeRate)
+    const specialRate = parseFloat(specialFeeRate)
+    if (
+      Number.isNaN(regularRate) ||
+      regularRate < 0 ||
+      Number.isNaN(specialRate) ||
+      specialRate < 0
+    ) {
+      toast.error(t('Fee rate must be a non-negative number'))
+      return
+    }
+    setSaving(true)
+    try {
+      const updates: Array<{ key: string; value: string }> = [
+        { key: 'InvoiceRegularFeeRate', value: String(regularRate) },
+        { key: 'InvoiceRegularDescription', value: regularDescription },
+        { key: 'InvoiceSpecialEnabled', value: String(specialEnabled) },
+        { key: 'InvoiceSpecialFeeRate', value: String(specialRate) },
+        { key: 'InvoiceSpecialDescription', value: specialDescription },
+      ]
+      for (const u of updates) {
+        await updateOption.mutateAsync(u)
+      }
+      toast.success(t('Config saved'))
+    } catch {
+      toast.error(t('Operation failed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const saveAttachment = async () => {
     setSaving(true)
     try {
@@ -232,6 +281,9 @@ export function TicketSettingsSection({ settings }: Props) {
           </TabsTrigger>
           <TabsTrigger value='attachment'>
             {t('Attachment Settings')}
+          </TabsTrigger>
+          <TabsTrigger value='invoice'>
+            {t('Invoice Settings')}
           </TabsTrigger>
         </TabsList>
 
@@ -470,6 +522,83 @@ export function TicketSettingsSection({ settings }: Props) {
           )}
 
           <Button onClick={saveAttachment} disabled={saving}>
+            {saving ? t('Saving...') : t('Save')}
+          </Button>
+        </TabsContent>
+
+        <TabsContent value='invoice' className='space-y-4 pt-4'>
+          <div className='space-y-4 rounded-lg border p-4'>
+            <Label className='text-base'>{t('Regular Invoice')}</Label>
+            <div className='space-y-1'>
+              <Label>{t('Fee Rate (%)')}</Label>
+              <Input
+                type='number'
+                min='0'
+                step='0.1'
+                className='w-40'
+                value={regularFeeRate}
+                onChange={(e) => setRegularFeeRate(e.target.value)}
+              />
+            </div>
+            <div className='space-y-1'>
+              <Label>{t('Invoice Type Description')}</Label>
+              <Textarea
+                rows={3}
+                value={regularDescription}
+                onChange={(e) => setRegularDescription(e.target.value)}
+                placeholder={t(
+                  'e.g. Regular invoice - min 50 CNY - 0% tax - issuer tax ID varies'
+                )}
+              />
+              <p className='text-muted-foreground text-xs'>
+                {t('Shown to users when selecting this invoice type')}
+              </p>
+            </div>
+          </div>
+
+          <div className='space-y-4 rounded-lg border p-4'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <Label className='text-base'>{t('VAT Special Invoice')}</Label>
+                <p className='text-muted-foreground text-sm'>
+                  {t(
+                    'Users can apply for VAT special invoices only when enabled'
+                  )}
+                </p>
+              </div>
+              <Switch
+                checked={specialEnabled}
+                onCheckedChange={setSpecialEnabled}
+              />
+            </div>
+            <div className='space-y-1'>
+              <Label>{t('Fee Rate (%)')}</Label>
+              <Input
+                type='number'
+                min='0'
+                step='0.1'
+                className='w-40'
+                value={specialFeeRate}
+                onChange={(e) => setSpecialFeeRate(e.target.value)}
+              />
+            </div>
+            <div className='space-y-1'>
+              <Label>{t('Invoice Type Description')}</Label>
+              <Textarea
+                rows={3}
+                value={specialDescription}
+                onChange={(e) => setSpecialDescription(e.target.value)}
+                placeholder={t(
+                  'e.g. VAT special invoice - min 500 CNY - 6% tax - slower issuing'
+                )}
+              />
+              <p className='text-muted-foreground text-xs'>
+                {t('Shown to users when selecting this invoice type')}
+              </p>
+            </div>
+          </div>
+
+          <Button onClick={saveInvoice} disabled={saving}>
             {saving ? t('Saving...') : t('Save')}
           </Button>
         </TabsContent>

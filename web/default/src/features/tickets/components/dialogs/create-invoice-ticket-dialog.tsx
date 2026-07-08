@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { cn } from '@/lib/utils'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -37,6 +38,7 @@ import { formatTimestampToDate } from '@/lib/format'
 import {
   createInvoiceTicket,
   getEligibleInvoiceOrders,
+  getInvoiceProfile,
   getTicketLimitStatus,
   checkInvoiceRefundConflict,
   type TicketInvoiceOrder,
@@ -60,6 +62,10 @@ function createSchema(t: (key: string) => string) {
       ),
     email: z.string().email(),
     content: z.string().max(100).optional(),
+    bank_name: z.string().optional(),
+    bank_account: z.string().optional(),
+    company_address: z.string().optional(),
+    company_phone: z.string().optional(),
   })
 }
 
@@ -82,7 +88,35 @@ export function CreateInvoiceTicketDialog({
   const schema = useMemo(() => createSchema(t), [t])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [refundConflictAcked, setRefundConflictAcked] = useState(false)
+  const [invoiceType, setInvoiceType] = useState(1)
   const minInvoiceAmount = Number(status?.min_invoice_amount) || 0
+  const specialEnabled = status?.invoice_special_enabled === true
+  const regularFeeRate = Number(status?.invoice_regular_fee_rate) || 0
+  const specialFeeRate = Number(status?.invoice_special_fee_rate) || 0
+
+  // 票种选项：普票恒可用，增票需管理员在后台开放；说明文本由管理员自由撰写
+  const invoiceTypeOptions = useMemo(
+    () => [
+      {
+        value: 1,
+        label: t('Regular Invoice'),
+        feeRate: regularFeeRate,
+        description: String(status?.invoice_regular_description ?? ''),
+      },
+      ...(specialEnabled
+        ? [
+            {
+              value: 2,
+              label: t('VAT Special Invoice'),
+              feeRate: specialFeeRate,
+              description: String(status?.invoice_special_description ?? ''),
+            },
+          ]
+        : []),
+    ],
+    [t, regularFeeRate, specialFeeRate, specialEnabled, status]
+  )
+  const selectedFeeRate = invoiceType === 2 ? specialFeeRate : regularFeeRate
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ticketQueryKeys.eligibleOrders(),
@@ -99,6 +133,12 @@ export function CreateInvoiceTicketDialog({
   const { data: limitStatus } = useQuery({
     queryKey: ['ticket', 'limit-status'],
     queryFn: getTicketLimitStatus,
+    enabled: open,
+  })
+
+  const { data: invoiceProfile } = useQuery({
+    queryKey: ['ticket', 'invoice-profile'],
+    queryFn: getInvoiceProfile,
     enabled: open,
   })
 
@@ -143,8 +183,32 @@ export function CreateInvoiceTicketDialog({
       tax_number: '',
       email: '',
       content: '',
+      bank_name: '',
+      bank_account: '',
+      company_address: '',
+      company_phone: '',
     },
   })
+
+  // 默认填充最近一次申请的发票抬头（仅在表单还是空白时，避免覆盖用户已输入内容）
+  useEffect(() => {
+    if (!open || !invoiceProfile) return
+    const { company_name, tax_number, email } = form.getValues()
+    if (company_name || tax_number || email) return
+    form.reset({
+      company_name: invoiceProfile.company_name ?? '',
+      tax_number: invoiceProfile.tax_number ?? '',
+      email: invoiceProfile.email ?? '',
+      content: '',
+      bank_name: invoiceProfile.bank_name ?? '',
+      bank_account: invoiceProfile.bank_account ?? '',
+      company_address: invoiceProfile.company_address ?? '',
+      company_phone: invoiceProfile.company_phone ?? '',
+    })
+    if (invoiceProfile.invoice_type === 2 && specialEnabled) {
+      setInvoiceType(2)
+    }
+  }, [open, invoiceProfile, form, specialEnabled])
 
   const mutation = useMutation({
     mutationFn: createInvoiceTicket,
@@ -156,6 +220,9 @@ export function CreateInvoiceTicketDialog({
       })
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.eligibleOrders(),
+      })
+      queryClient.invalidateQueries({
+        queryKey: ['ticket', 'invoice-profile'],
       })
       onOpenChange(false)
       form.reset()
@@ -181,12 +248,33 @@ export function CreateInvoiceTicketDialog({
         return
       }
 
+      // 增票（增值税专用发票）按规定需要完整的开户与联系信息
+      if (
+        invoiceType === 2 &&
+        (!values.bank_name?.trim() ||
+          !values.bank_account?.trim() ||
+          !values.company_address?.trim() ||
+          !values.company_phone?.trim())
+      ) {
+        toast.error(
+          t(
+            'VAT special invoice requires bank name, bank account, company address and phone'
+          )
+        )
+        return
+      }
+
       mutation.mutate({
         subject: t('Invoice Application'),
         company_name: values.company_name,
         tax_number: values.tax_number,
         email: values.email ?? '',
         content: values.content ?? '',
+        invoice_type: invoiceType,
+        bank_name: values.bank_name?.trim() ?? '',
+        bank_account: values.bank_account?.trim() ?? '',
+        company_address: values.company_address?.trim() ?? '',
+        company_phone: values.company_phone?.trim() ?? '',
         topup_order_ids: Array.from(selectedIds),
         refund_conflict_acknowledged: refundConflictAcked,
       })
@@ -196,6 +284,7 @@ export function CreateInvoiceTicketDialog({
       selectedIds,
       minInvoiceAmount,
       invoiceAmount,
+      invoiceType,
       mutation,
       t,
       refundConflictAcked,
@@ -342,6 +431,16 @@ export function CreateInvoiceTicketDialog({
                     ¥{invoiceAmount.toFixed(2)}
                   </span>
                 </span>
+                {selectedFeeRate > 0 && (
+                  <span>
+                    <span className="text-muted-foreground mr-1">
+                      {t('Fee ({{rate}}%)', { rate: selectedFeeRate })}:
+                    </span>
+                    <span className="font-medium">
+                      ¥{((invoiceAmount * selectedFeeRate) / 100).toFixed(2)}
+                    </span>
+                  </span>
+                )}
                 {minInvoiceAmount > 0 && (
                   <span className="text-muted-foreground text-xs">
                     （
@@ -355,10 +454,46 @@ export function CreateInvoiceTicketDialog({
             </div>
           </div>
 
-          {/* Step 2: Invoice details form */}
+          {/* Step 2: Invoice type selection */}
           <div>
             <h4 className="mb-2 text-sm font-medium">
-              2. {t('Fill in Invoice Header')}
+              2. {t('Select Invoice Type')}
+            </h4>
+            <div className="space-y-2">
+              {invoiceTypeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setInvoiceType(option.value)}
+                  className={cn(
+                    'w-full rounded-md border p-3 text-left transition-colors',
+                    invoiceType === option.value
+                      ? 'border-primary ring-primary ring-1'
+                      : 'hover:border-muted-foreground/40'
+                  )}
+                >
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-sm font-medium">{option.label}</span>
+                    {option.feeRate > 0 && (
+                      <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-xs">
+                        {t('Fee rate {{rate}}%', { rate: option.feeRate })}
+                      </span>
+                    )}
+                  </div>
+                  {option.description && (
+                    <p className="text-muted-foreground mt-1 text-xs whitespace-pre-wrap">
+                      {option.description}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Step 3: Invoice details form */}
+          <div>
+            <h4 className="mb-2 text-sm font-medium">
+              3. {t('Fill in Invoice Header')}
             </h4>
             <Form {...form}>
               <form
@@ -432,6 +567,67 @@ export function CreateInvoiceTicketDialog({
                     )}
                   />
                 </div>
+                {/* 增票需要完整开户与联系信息（普票选填，隐藏以保持表单简洁） */}
+                {invoiceType === 2 && (
+                  <>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField
+                        control={form.control}
+                        name="bank_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('Bank Name')}</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="bank_account"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('Bank Account')}</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField
+                        control={form.control}
+                        name="company_address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('Company Address')}</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="company_phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('Company Phone')}</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </>
+                )}
                 <FormField
                   control={form.control}
                   name="content"

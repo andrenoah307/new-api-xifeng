@@ -134,6 +134,11 @@ func InitOptionMap() {
 	common.OptionMap["USDExchangeRate"] = strconv.FormatFloat(operation_setting.USDExchangeRate, 'f', -1, 64)
 	common.OptionMap["MinTopUp"] = strconv.Itoa(operation_setting.MinTopUp)
 	common.OptionMap["MinInvoiceAmount"] = strconv.Itoa(operation_setting.MinInvoiceAmount)
+	common.OptionMap["InvoiceRegularFeeRate"] = strconv.FormatFloat(operation_setting.InvoiceRegularFeeRate, 'f', -1, 64)
+	common.OptionMap["InvoiceRegularDescription"] = operation_setting.InvoiceRegularDescription
+	common.OptionMap["InvoiceSpecialEnabled"] = strconv.FormatBool(operation_setting.InvoiceSpecialEnabled)
+	common.OptionMap["InvoiceSpecialFeeRate"] = strconv.FormatFloat(operation_setting.InvoiceSpecialFeeRate, 'f', -1, 64)
+	common.OptionMap["InvoiceSpecialDescription"] = operation_setting.InvoiceSpecialDescription
 	common.OptionMap["StripeMinTopUp"] = strconv.Itoa(setting.StripeMinTopUp)
 	common.OptionMap["StripeApiSecret"] = setting.StripeApiSecret
 	common.OptionMap["StripeWebhookSecret"] = setting.StripeWebhookSecret
@@ -552,6 +557,16 @@ func updateOptionMap(key string, value string) (err error) {
 		operation_setting.MinTopUp, _ = strconv.Atoi(value)
 	case "MinInvoiceAmount":
 		operation_setting.MinInvoiceAmount, _ = strconv.Atoi(value)
+	case "InvoiceRegularFeeRate":
+		operation_setting.InvoiceRegularFeeRate, _ = strconv.ParseFloat(value, 64)
+	case "InvoiceRegularDescription":
+		operation_setting.InvoiceRegularDescription = value
+	case "InvoiceSpecialEnabled":
+		operation_setting.InvoiceSpecialEnabled = value == "true"
+	case "InvoiceSpecialFeeRate":
+		operation_setting.InvoiceSpecialFeeRate, _ = strconv.ParseFloat(value, 64)
+	case "InvoiceSpecialDescription":
+		operation_setting.InvoiceSpecialDescription = value
 	case "StripeApiSecret":
 		setting.StripeApiSecret = value
 	case "StripeWebhookSecret":

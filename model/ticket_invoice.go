@@ -21,6 +21,11 @@ const (
 	InvoiceStatusCancelled = 4 // 用户主动取消（关闭开票工单），释放占用的充值订单
 )
 
+const (
+	InvoiceTypeRegular = 1 // 普票（增值税普通发票）
+	InvoiceTypeSpecial = 2 // 增票（增值税专用发票），需管理员开启后才可申请
+)
+
 type TicketInvoice struct {
 	Id             int     `json:"id"`
 	TicketId       int     `json:"ticket_id" gorm:"uniqueIndex;not null"`
@@ -33,6 +38,8 @@ type TicketInvoice struct {
 	CompanyPhone   string  `json:"company_phone" gorm:"type:varchar(32)"`
 	Email          string  `json:"email" gorm:"type:varchar(128);not null"`
 	TopUpOrderIds  string  `json:"topup_order_ids" gorm:"type:text;not null"`
+	InvoiceType    int     `json:"invoice_type" gorm:"type:int;default:1"`
+	FeeRate        float64 `json:"fee_rate"` // 申请时管理员配置的手续费率快照（%），仅展示用
 	TotalMoney     float64 `json:"total_money"`
 	InvoiceStatus  int     `json:"invoice_status" gorm:"type:int;default:1"`
 	IssuedTime     int64   `json:"issued_time" gorm:"bigint;default:0"`
@@ -52,6 +59,7 @@ type CreateInvoiceTicketParams struct {
 	CompanyAddress string
 	CompanyPhone   string
 	Email          string
+	InvoiceType    int
 	TopUpOrderIds  []int
 }
 
@@ -119,6 +127,19 @@ func GetTicketInvoiceByTicketId(ticketId int) (*TicketInvoice, error) {
 	if err := DB.Where("ticket_id = ?", ticketId).First(&invoice).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrTicketInvoiceNotFound
+		}
+		return nil, err
+	}
+	return &invoice, nil
+}
+
+// GetLatestInvoiceProfile 返回用户最近一次发票申请（含抬头信息），用于新申请时预填。
+// 未申请过时返回 (nil, nil)。
+func GetLatestInvoiceProfile(userId int) (*TicketInvoice, error) {
+	var invoice TicketInvoice
+	if err := DB.Where("user_id = ?", userId).Order("id DESC").First(&invoice).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
 		}
 		return nil, err
 	}
@@ -214,14 +235,25 @@ func GetEligibleInvoiceOrders(userId int) ([]*TopUp, error) {
 	return topUps, nil
 }
 
-func buildInvoiceSummaryMessage(params CreateInvoiceTicketParams, orderIds []int, totalMoney float64) string {
+func invoiceTypeName(invoiceType int) string {
+	if invoiceType == InvoiceTypeSpecial {
+		return "增票（增值税专用发票）"
+	}
+	return "普票（增值税普通发票）"
+}
+
+func buildInvoiceSummaryMessage(params CreateInvoiceTicketParams, orderIds []int, totalMoney float64, feeRate float64) string {
 	lines := []string{
 		"发票申请信息：",
+		fmt.Sprintf("票种：%s", invoiceTypeName(params.InvoiceType)),
 		fmt.Sprintf("公司名称：%s", strings.TrimSpace(params.CompanyName)),
 		fmt.Sprintf("税号：%s", strings.TrimSpace(params.TaxNumber)),
 		fmt.Sprintf("接收邮箱：%s", strings.TrimSpace(params.Email)),
 		fmt.Sprintf("关联订单：%v", orderIds),
 		fmt.Sprintf("申请金额：%.2f", totalMoney),
+	}
+	if feeRate > 0 {
+		lines = append(lines, fmt.Sprintf("手续费率：%g%%（约 %.2f 元）", feeRate, totalMoney*feeRate/100))
 	}
 	if bankName := strings.TrimSpace(params.BankName); bankName != "" {
 		lines = append(lines, fmt.Sprintf("开户行：%s", bankName))
@@ -256,6 +288,24 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 	params.TaxNumber = strings.ToUpper(taxNumber)
 	if strings.TrimSpace(params.Email) == "" {
 		return nil, nil, nil, nil, ErrTicketInvoiceEmailEmpty
+	}
+	if params.InvoiceType == 0 {
+		params.InvoiceType = InvoiceTypeRegular
+	}
+	var feeRate float64
+	switch params.InvoiceType {
+	case InvoiceTypeRegular:
+		feeRate = operation_setting.InvoiceRegularFeeRate
+	case InvoiceTypeSpecial:
+		if !operation_setting.InvoiceSpecialEnabled {
+			return nil, nil, nil, nil, ErrTicketInvoiceTypeDisabled
+		}
+		feeRate = operation_setting.InvoiceSpecialFeeRate
+	default:
+		return nil, nil, nil, nil, ErrTicketInvoiceTypeInvalid
+	}
+	if feeRate < 0 {
+		feeRate = 0
 	}
 
 	orderIds, err := normalizeTopUpOrderIDs(params.TopUpOrderIds)
@@ -327,6 +377,8 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			CompanyAddress: strings.TrimSpace(params.CompanyAddress),
 			CompanyPhone:   strings.TrimSpace(params.CompanyPhone),
 			Email:          strings.TrimSpace(params.Email),
+			InvoiceType:    params.InvoiceType,
+			FeeRate:        feeRate,
 			TotalMoney:     totalMoney,
 			InvoiceStatus:  InvoiceStatusPending,
 			CreatedTime:    now,
@@ -343,7 +395,7 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			UserId:      params.UserId,
 			Username:    strings.TrimSpace(params.Username),
 			Role:        common.RoleCommonUser,
-			Content:     buildInvoiceSummaryMessage(params, orderIds, totalMoney),
+			Content:     buildInvoiceSummaryMessage(params, orderIds, totalMoney, feeRate),
 			CreatedTime: now,
 		}
 		if err := tx.Create(message).Error; err != nil {
@@ -456,6 +508,8 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 
 type InvoiceExportItem struct {
 	TicketId      int     `json:"ticket_id" gorm:"column:ticket_id"`
+	InvoiceType   int     `json:"invoice_type" gorm:"column:invoice_type"`
+	FeeRate       float64 `json:"fee_rate" gorm:"column:fee_rate"`
 	CompanyName   string  `json:"company_name" gorm:"column:company_name"`
 	TaxNumber     string  `json:"tax_number" gorm:"column:tax_number"`
 	Email         string  `json:"email" gorm:"column:email"`
@@ -478,7 +532,7 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	items := make([]*InvoiceExportItem, 0)
 
 	query := DB.Table("tickets t").
-		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time").
+		Select("t.id AS ticket_id, ti.invoice_type, ti.fee_rate, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time").
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
 		Where("t.type = ? AND t.deleted_at IS NULL", TicketTypeInvoice)
 

@@ -122,6 +122,11 @@ export interface SystemStatus {
     quota_per_unit?: number
     min_transfer_amount?: number
     min_invoice_amount?: number
+    invoice_regular_fee_rate?: number
+    invoice_regular_description?: string
+    invoice_special_enabled?: boolean
+    invoice_special_fee_rate?: number
+    invoice_special_description?: string
     quota_display_type?: string
     usd_exchange_rate?: number
     custom_currency_symbol?: string

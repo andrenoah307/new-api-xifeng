@@ -90,6 +90,11 @@ func GetStatus(c *gin.Context) {
 		"quota_per_unit":                   common.QuotaPerUnit,
 		"min_transfer_amount":              common.MinTransferAmount,
 		"min_invoice_amount":               operation_setting.MinInvoiceAmount,
+		"invoice_regular_fee_rate":         operation_setting.InvoiceRegularFeeRate,
+		"invoice_regular_description":      operation_setting.InvoiceRegularDescription,
+		"invoice_special_enabled":          operation_setting.InvoiceSpecialEnabled,
+		"invoice_special_fee_rate":         operation_setting.InvoiceSpecialFeeRate,
+		"invoice_special_description":      operation_setting.InvoiceSpecialDescription,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
 		"quota_display_type":            operation_setting.GetQuotaDisplayType(),

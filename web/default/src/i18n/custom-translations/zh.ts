@@ -507,6 +507,29 @@ const zh: Record<string, string> = {
   'Submitting...': '提交中…',
   'Invoice Application': '发票申请',
   'Invoice ticket submitted': '发票申请已提交',
+  'Select Invoice Type': '选择票种',
+  'Invoice Type': '票种',
+  'Regular Invoice': '普票（增值税普通发票）',
+  'VAT Special Invoice': '增票（增值税专用发票）',
+  'Regular Invoice Short': '普票',
+  'VAT Special Invoice Short': '增票',
+  'Fee rate {{rate}}%': '手续费率 {{rate}}%',
+  'Fee ({{rate}}%)': '手续费（{{rate}}%）',
+  'VAT special invoice requires bank name, bank account, company address and phone':
+    '申请增票需填写开户行、银行账号、注册地址和联系电话',
+  'Invoice Settings': '开票设置',
+  'Fee Rate (%)': '手续费率（%）',
+  'Invoice Type Description': '票种说明',
+  'Shown to users when selecting this invoice type':
+    '用户选择票种时会看到这段说明',
+  'Users can apply for VAT special invoices only when enabled':
+    '开启后用户才可以申请增票（增值税专用发票）',
+  'Fee rate must be a non-negative number':
+    '手续费率必须是不小于 0 的数字',
+  'e.g. Regular invoice - min 50 CNY - 0% tax - issuer tax ID varies':
+    '例如：普票-项目名称xxx1-50起开-税点0%-常用发票，开票主体随机91 92 税号 介意勿拍',
+  'e.g. VAT special invoice - min 500 CNY - 6% tax - slower issuing':
+    '例如：增票-项目名称xxx2-500起开-税点6%-增值税专用票，开票主体随机91 92 税号，开票较慢',
 
   // Create Ticket Dialog
   'Ticket Type': '工单类型',

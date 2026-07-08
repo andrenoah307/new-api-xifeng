@@ -47,6 +47,20 @@ export function InvoiceDetail({
       <CardContent className="space-y-4">
         <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
           <div>
+            <dt className="text-muted-foreground">{t('Invoice Type')}</dt>
+            <dd className="font-medium">
+              {invoice.invoice_type === 2
+                ? t('VAT Special Invoice')
+                : t('Regular Invoice')}
+              {(invoice.fee_rate ?? 0) > 0 && (
+                <span className="text-muted-foreground ml-2 text-xs font-normal">
+                  {t('Fee rate {{rate}}%', { rate: invoice.fee_rate })}（¥
+                  {((invoice.total_money * (invoice.fee_rate ?? 0)) / 100).toFixed(2)}）
+                </span>
+              )}
+            </dd>
+          </div>
+          <div>
             <dt className="text-muted-foreground">{t('Company Name')}</dt>
             <dd className="font-medium">{invoice.company_name}</dd>
           </div>

@@ -72,6 +72,8 @@ function generateInvoiceCSV(
   const BOM = '﻿'
   const headers = [
     '工单ID',
+    '票种',
+    '手续费率',
     '电子邮箱',
     '数量',
     '单价',
@@ -86,6 +88,8 @@ function generateInvoiceCSV(
       : item.company_name
     const row = [
       item.ticket_id,
+      item.invoice_type === 2 ? '增票' : '普票',
+      item.fee_rate > 0 ? `${item.fee_rate}%` : '',
       item.email,
       '',
       '',
@@ -312,6 +316,7 @@ export function ExportInvoiceDialog({
                   />
                 </TableHead>
                 <TableHead className="w-16">ID</TableHead>
+                <TableHead>{t('Invoice Type')}</TableHead>
                 <TableHead>{t('Company Name')}</TableHead>
                 <TableHead>{t('Email')}</TableHead>
                 <TableHead className="text-right">
@@ -327,13 +332,13 @@ export function ExportInvoiceDialog({
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     {t('Loading...')}
                   </TableCell>
                 </TableRow>
               ) : items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={9} className="text-center py-8">
                     {t('No data')}
                   </TableCell>
                 </TableRow>
@@ -348,6 +353,16 @@ export function ExportInvoiceDialog({
                     </TableCell>
                     <TableCell className="font-mono text-xs">
                       #{item.ticket_id}
+                    </TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {item.invoice_type === 2
+                        ? t('VAT Special Invoice Short')
+                        : t('Regular Invoice Short')}
+                      {item.fee_rate > 0 && (
+                        <span className="text-muted-foreground ml-1">
+                          {item.fee_rate}%
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="max-w-[160px] truncate text-xs">
                       {item.company_name}

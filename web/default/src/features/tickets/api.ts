@@ -49,10 +49,24 @@ export interface TicketInvoice {
   bank_account: string
   company_address: string
   company_phone: string
+  invoice_type?: number
+  fee_rate?: number
   invoice_status: number
   total_money: number
   issued_time: number
   created_time: number
+}
+
+// 最近一次发票申请的抬头信息，用于新申请时预填
+export interface InvoiceProfile {
+  company_name: string
+  tax_number: string
+  email: string
+  bank_name: string
+  bank_account: string
+  company_address: string
+  company_phone: string
+  invoice_type: number
 }
 
 export interface TicketInvoiceOrder {
@@ -244,10 +258,20 @@ export async function createInvoiceTicket(data: {
   tax_number: string
   content: string
   email: string
+  invoice_type?: number
+  bank_name?: string
+  bank_account?: string
+  company_address?: string
+  company_phone?: string
   topup_order_ids: number[]
   refund_conflict_acknowledged?: boolean
 }): Promise<{ id: number } | null> {
   const res = await api.post('/api/ticket/invoice/', data)
+  return res.data?.data ?? null
+}
+
+export async function getInvoiceProfile(): Promise<InvoiceProfile | null> {
+  const res = await api.get('/api/ticket/invoice/profile')
   return res.data?.data ?? null
 }
 
@@ -415,6 +439,8 @@ export function getAttachmentUrl(id: number, inline = false): string {
 
 export interface InvoiceExportItem {
   ticket_id: number
+  invoice_type: number
+  fee_rate: number
   company_name: string
   tax_number: string
   email: string

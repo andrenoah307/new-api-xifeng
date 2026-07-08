@@ -178,3 +178,58 @@ func TestCloseInvoiceTicketReleasesOrdersForReinvoicing(t *testing.T) {
 	assert.NotEqual(t, invoice.Id, invoice2.Id)
 	assert.Equal(t, InvoiceStatusPending, invoice2.InvoiceStatus)
 }
+
+func TestCreateInvoiceTicketInvoiceType(t *testing.T) {
+	truncateTables(t)
+	oldMinInvoiceAmount := operation_setting.MinInvoiceAmount
+	oldSpecialEnabled := operation_setting.InvoiceSpecialEnabled
+	oldRegularFeeRate := operation_setting.InvoiceRegularFeeRate
+	oldSpecialFeeRate := operation_setting.InvoiceSpecialFeeRate
+	operation_setting.MinInvoiceAmount = 0
+	operation_setting.InvoiceRegularFeeRate = 0
+	operation_setting.InvoiceSpecialFeeRate = 6
+	defer func() {
+		operation_setting.MinInvoiceAmount = oldMinInvoiceAmount
+		operation_setting.InvoiceSpecialEnabled = oldSpecialEnabled
+		operation_setting.InvoiceRegularFeeRate = oldRegularFeeRate
+		operation_setting.InvoiceSpecialFeeRate = oldSpecialFeeRate
+	}()
+
+	const userId = 910010
+	cleanupInvoiceTicketData(t, userId)
+	defer cleanupInvoiceTicketData(t, userId)
+	user := insertInvoiceTicketUser(t, userId)
+
+	// 未指定票种时默认普票，费率取普票配置
+	topUpId := seedInvoiceTicketTopUp(t, user.Id, "invoice-type-default-910010", 100)
+	_, invoice, _, _, err := CreateInvoiceTicket(createInvoiceTicketParams(user, []int{topUpId}))
+	require.NoError(t, err)
+	assert.Equal(t, InvoiceTypeRegular, invoice.InvoiceType)
+	assert.Equal(t, float64(0), invoice.FeeRate)
+
+	// 增票未开放时拒绝
+	operation_setting.InvoiceSpecialEnabled = false
+	topUpId2 := seedInvoiceTicketTopUp(t, user.Id, "invoice-type-disabled-910010", 100)
+	params := createInvoiceTicketParams(user, []int{topUpId2})
+	params.InvoiceType = InvoiceTypeSpecial
+	_, _, _, _, err = CreateInvoiceTicket(params)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrTicketInvoiceTypeDisabled))
+
+	// 增票开放后成功，费率快照取增票配置
+	operation_setting.InvoiceSpecialEnabled = true
+	_, invoice2, message2, _, err := CreateInvoiceTicket(params)
+	require.NoError(t, err)
+	assert.Equal(t, InvoiceTypeSpecial, invoice2.InvoiceType)
+	assert.Equal(t, float64(6), invoice2.FeeRate)
+	assert.Contains(t, message2.Content, "增值税专用发票")
+	assert.Contains(t, message2.Content, "手续费率：6%")
+
+	// 非法票种拒绝
+	topUpId3 := seedInvoiceTicketTopUp(t, user.Id, "invoice-type-invalid-910010", 100)
+	params3 := createInvoiceTicketParams(user, []int{topUpId3})
+	params3.InvoiceType = 99
+	_, _, _, _, err = CreateInvoiceTicket(params3)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrTicketInvoiceTypeInvalid))
+}

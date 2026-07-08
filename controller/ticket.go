@@ -70,6 +70,7 @@ type CreateInvoiceTicketRequest struct {
 	CompanyAddress             string `json:"company_address"`
 	CompanyPhone               string `json:"company_phone"`
 	Email                      string `json:"email"`
+	InvoiceType                int    `json:"invoice_type"`
 	TopUpOrderIds              []int  `json:"topup_order_ids"`
 	RefundConflictAcknowledged bool   `json:"refund_conflict_acknowledged"`
 }
@@ -201,6 +202,10 @@ func handleTicketError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceEmailEmpty)
 	case errors.Is(err, model.ErrTicketInvoiceAmountBelowMin):
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceAmountBelowMin, map[string]any{"Amount": operation_setting.MinInvoiceAmount})
+	case errors.Is(err, model.ErrTicketInvoiceTypeInvalid):
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceTypeInvalid)
+	case errors.Is(err, model.ErrTicketInvoiceTypeDisabled):
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceTypeDisabled)
 	case errors.Is(err, model.ErrTicketRefundNotFound):
 		common.ApiErrorI18n(c, i18n.MsgTicketRefundNotFound)
 	case errors.Is(err, model.ErrTicketRefundStatusInvalid):
@@ -762,6 +767,29 @@ func GetEligibleInvoiceOrders(c *gin.Context) {
 	common.ApiSuccess(c, topUps)
 }
 
+// GetInvoiceProfile 返回当前用户最近一次发票申请的抬头信息，供新申请预填；从未申请过时 data 为 null。
+func GetInvoiceProfile(c *gin.Context) {
+	invoice, err := model.GetLatestInvoiceProfile(c.GetInt("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	if invoice == nil {
+		common.ApiSuccess(c, nil)
+		return
+	}
+	common.ApiSuccess(c, gin.H{
+		"company_name":    invoice.CompanyName,
+		"tax_number":      invoice.TaxNumber,
+		"email":           invoice.Email,
+		"bank_name":       invoice.BankName,
+		"bank_account":    invoice.BankAccount,
+		"company_address": invoice.CompanyAddress,
+		"company_phone":   invoice.CompanyPhone,
+		"invoice_type":    invoice.InvoiceType,
+	})
+}
+
 func CheckInvoiceRefundConflict(c *gin.Context) {
 	currentUser, err := getTicketCurrentUser(c)
 	if err != nil {
@@ -823,6 +851,7 @@ func CreateInvoiceTicket(c *gin.Context) {
 		CompanyAddress: req.CompanyAddress,
 		CompanyPhone:   req.CompanyPhone,
 		Email:          req.Email,
+		InvoiceType:    req.InvoiceType,
 		TopUpOrderIds:  req.TopUpOrderIds,
 	})
 	if err != nil {

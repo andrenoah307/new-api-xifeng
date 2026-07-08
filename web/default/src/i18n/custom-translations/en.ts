@@ -501,6 +501,29 @@ const en = {
   'Submitting...': 'Submitting...',
   'Invoice Application': 'Invoice Application',
   'Invoice ticket submitted': 'Invoice ticket submitted',
+  'Select Invoice Type': 'Select Invoice Type',
+  'Invoice Type': 'Invoice Type',
+  'Regular Invoice': 'Regular Invoice',
+  'VAT Special Invoice': 'VAT Special Invoice',
+  'Regular Invoice Short': 'Regular',
+  'VAT Special Invoice Short': 'VAT Special',
+  'Fee rate {{rate}}%': 'Fee rate {{rate}}%',
+  'Fee ({{rate}}%)': 'Fee ({{rate}}%)',
+  'VAT special invoice requires bank name, bank account, company address and phone':
+    'VAT special invoice requires bank name, bank account, company address and phone',
+  'Invoice Settings': 'Invoice Settings',
+  'Fee Rate (%)': 'Fee Rate (%)',
+  'Invoice Type Description': 'Invoice Type Description',
+  'Shown to users when selecting this invoice type':
+    'Shown to users when selecting this invoice type',
+  'Users can apply for VAT special invoices only when enabled':
+    'Users can apply for VAT special invoices only when enabled',
+  'Fee rate must be a non-negative number':
+    'Fee rate must be a non-negative number',
+  'e.g. Regular invoice - min 50 CNY - 0% tax - issuer tax ID varies':
+    'e.g. Regular invoice - min 50 CNY - 0% tax - issuer tax ID varies',
+  'e.g. VAT special invoice - min 500 CNY - 6% tax - slower issuing':
+    'e.g. VAT special invoice - min 500 CNY - 6% tax - slower issuing',
 
   // Create Ticket Dialog
   'Ticket Type': 'Ticket Type',

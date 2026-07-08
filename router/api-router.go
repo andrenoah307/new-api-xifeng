@@ -202,6 +202,7 @@ func SetApiRouter(router *gin.Engine) {
 			ticketRoute.POST("/self/:id/message", controller.CreateUserTicketMessage)
 			ticketRoute.PUT("/self/:id/close", controller.CloseUserTicket)
 			ticketRoute.GET("/invoice/eligible_orders", controller.GetEligibleInvoiceOrders)
+			ticketRoute.GET("/invoice/profile", controller.GetInvoiceProfile)
 			ticketRoute.POST("/invoice/", controller.CreateInvoiceTicket)
 			ticketRoute.GET("/refund/invoice-check", controller.CheckRefundInvoiceConflict)
 			ticketRoute.GET("/invoice/refund-check", controller.CheckInvoiceRefundConflict)
