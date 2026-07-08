@@ -26,6 +26,7 @@ const zhTW: Record<string, string> = {
   'Enforcement Incidents': '處罰事件',
   'Enforcement Counters': '處罰計數器',
   'Test Email': '測試郵件',
+  'Email prefix': '信箱前綴',
   'Unblock Subject': '解封主體',
   'Reset Counter': '重置計數器',
   'Unban User': '解封使用者',

@@ -24,6 +24,7 @@ const en = {
   'Enforcement Incidents': 'Enforcement Incidents',
   'Enforcement Counters': 'Enforcement Counters',
   'Test Email': 'Test Email',
+  'Email prefix': 'Email prefix',
   'Unblock Subject': 'Unblock Subject',
   'Reset Counter': 'Reset Counter',
   'Unban User': 'Unban User',

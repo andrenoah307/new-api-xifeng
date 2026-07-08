@@ -38,6 +38,14 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { register, wechatLoginByCode } from '@/features/auth/api'
 import { LegalConsent } from '@/features/auth/components/legal-consent'
 import { OAuthProviders } from '@/features/auth/components/oauth-providers'
@@ -101,6 +109,46 @@ export function SignUpForm({
 
   const emailValue = form.watch('email')
   const emailVerificationRequired = !!status?.email_verification
+
+  // 管理员启用邮箱域名白名单时，邮箱拆成“前缀 + 固定域名下拉”，避免填了不允许的域名才报错
+  const emailDomainOptions = useMemo(() => {
+    if (!status?.email_domain_restriction_enabled) return []
+    const list = status?.email_domain_whitelist
+    if (!Array.isArray(list)) return []
+    return list.filter(
+      (d): d is string => typeof d === 'string' && d.trim() !== ''
+    )
+  }, [status])
+  const emailDomainLocked = emailDomainOptions.length > 0
+  const [emailLocalPart, setEmailLocalPart] = useState('')
+  const [emailDomain, setEmailDomain] = useState('')
+  const emailDomainItems = useMemo(
+    () => emailDomainOptions.map((d) => ({ value: d, label: d })),
+    [emailDomainOptions]
+  )
+
+  useEffect(() => {
+    if (emailDomainLocked && !emailDomainOptions.includes(emailDomain)) {
+      setEmailDomain(emailDomainOptions[0])
+    }
+  }, [emailDomainLocked, emailDomainOptions, emailDomain])
+
+  useEffect(() => {
+    if (!emailDomainLocked) return
+    form.setValue(
+      'email',
+      emailLocalPart && emailDomain ? `${emailLocalPart}@${emailDomain}` : ''
+    )
+  }, [emailDomainLocked, emailLocalPart, emailDomain, form])
+
+  const handleEmailLocalPartChange = (raw: string) => {
+    // 粘贴完整邮箱时拆出前缀；域名在白名单内则自动选中
+    const [local, domain] = raw.split('@')
+    setEmailLocalPart(local.trim())
+    if (domain && emailDomainOptions.includes(domain.trim())) {
+      setEmailDomain(domain.trim())
+    }
+  }
   const oauthRegisterEnabled =
     status?.oauth_register_enabled ??
     status?.data?.oauth_register_enabled ??
@@ -293,11 +341,44 @@ export function SignUpForm({
                     {t('Email (required for verification)')}
                   </FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder={t('name@example.com')}
-                      type='email'
-                      {...field}
-                    />
+                    {emailDomainLocked ? (
+                      <div className='flex items-center gap-2'>
+                        <Input
+                          placeholder={t('Email prefix')}
+                          className='flex-1'
+                          autoComplete='off'
+                          value={emailLocalPart}
+                          onChange={(e) =>
+                            handleEmailLocalPartChange(e.target.value)
+                          }
+                        />
+                        <span className='text-muted-foreground'>@</span>
+                        <Select
+                          items={emailDomainItems}
+                          value={emailDomain}
+                          onValueChange={(v) => v && setEmailDomain(v)}
+                        >
+                          <SelectTrigger className='w-[150px]'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent alignItemWithTrigger={false}>
+                            <SelectGroup>
+                              {emailDomainOptions.map((domain) => (
+                                <SelectItem key={domain} value={domain}>
+                                  {domain}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <Input
+                        placeholder={t('name@example.com')}
+                        type='email'
+                        {...field}
+                      />
+                    )}
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -53,33 +53,43 @@ func GetStatus(c *gin.Context) {
 	cnDisclaimerSetting := system_setting.GetCnDisclaimerSettings()
 	clientCountry := requestip.GetClientCountry(c)
 
+	// 域名白名单下发给注册页，用于把邮箱输入拆成“前缀 + 固定域名”避免用户填了不允许的域名才报错
+	emailDomainWhitelist := make([]string, 0, len(common.EmailDomainWhitelist))
+	for _, domain := range common.EmailDomainWhitelist {
+		if domain = strings.TrimSpace(domain); domain != "" {
+			emailDomainWhitelist = append(emailDomainWhitelist, domain)
+		}
+	}
+
 	data := gin.H{
-		"version":                     common.Version,
-		"start_time":                  common.StartTime,
-		"redis_enabled":               common.RedisEnabled,
-		"email_verification":          common.EmailVerificationEnabled,
-		"github_oauth":                common.GitHubOAuthEnabled,
-		"github_client_id":            common.GitHubClientId,
-		"discord_oauth":               system_setting.GetDiscordSettings().Enabled,
-		"discord_client_id":           system_setting.GetDiscordSettings().ClientId,
-		"linuxdo_oauth":               common.LinuxDOOAuthEnabled,
-		"linuxdo_client_id":           common.LinuxDOClientId,
-		"linuxdo_minimum_trust_level": common.LinuxDOMinimumTrustLevel,
-		"telegram_oauth":              common.TelegramOAuthEnabled,
-		"telegram_bot_name":           common.TelegramBotName,
-		"theme":                       system_setting.GetThemeSettings().Frontend,
-		"system_name":                 common.SystemName,
-		"logo":                        common.Logo,
-		"footer_html":                 common.Footer,
-		"wechat_qrcode":               common.WeChatAccountQRCodeImageURL,
-		"wechat_login":                common.WeChatAuthEnabled,
-		"server_address":              system_setting.ServerAddress,
-		"turnstile_check":             common.TurnstileCheckEnabled,
-		"turnstile_site_key":          common.TurnstileSiteKey,
-		"docs_link":                   operation_setting.GetGeneralSetting().DocsLink,
-		"quota_per_unit":              common.QuotaPerUnit,
-		"min_transfer_amount":         common.MinTransferAmount,
-		"min_invoice_amount":          operation_setting.MinInvoiceAmount,
+		"version":                          common.Version,
+		"start_time":                       common.StartTime,
+		"redis_enabled":                    common.RedisEnabled,
+		"email_verification":               common.EmailVerificationEnabled,
+		"email_domain_restriction_enabled": common.EmailDomainRestrictionEnabled,
+		"email_domain_whitelist":           emailDomainWhitelist,
+		"github_oauth":                     common.GitHubOAuthEnabled,
+		"github_client_id":                 common.GitHubClientId,
+		"discord_oauth":                    system_setting.GetDiscordSettings().Enabled,
+		"discord_client_id":                system_setting.GetDiscordSettings().ClientId,
+		"linuxdo_oauth":                    common.LinuxDOOAuthEnabled,
+		"linuxdo_client_id":                common.LinuxDOClientId,
+		"linuxdo_minimum_trust_level":      common.LinuxDOMinimumTrustLevel,
+		"telegram_oauth":                   common.TelegramOAuthEnabled,
+		"telegram_bot_name":                common.TelegramBotName,
+		"theme":                            system_setting.GetThemeSettings().Frontend,
+		"system_name":                      common.SystemName,
+		"logo":                             common.Logo,
+		"footer_html":                      common.Footer,
+		"wechat_qrcode":                    common.WeChatAccountQRCodeImageURL,
+		"wechat_login":                     common.WeChatAuthEnabled,
+		"server_address":                   system_setting.ServerAddress,
+		"turnstile_check":                  common.TurnstileCheckEnabled,
+		"turnstile_site_key":               common.TurnstileSiteKey,
+		"docs_link":                        operation_setting.GetGeneralSetting().DocsLink,
+		"quota_per_unit":                   common.QuotaPerUnit,
+		"min_transfer_amount":              common.MinTransferAmount,
+		"min_invoice_amount":               operation_setting.MinInvoiceAmount,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
 		"quota_display_type":            operation_setting.GetQuotaDisplayType(),
@@ -135,13 +145,13 @@ func GetStatus(c *gin.Context) {
 		"invitation_code_user_generate_enabled": common.InvitationCodeUserGenerateEnabled,
 
 		// 工单附件配置下发给前端，避免选文件后才发现不支持。
-		"ticket_attachment_enabled":       setting.TicketAttachmentEnabled,
-		"ticket_attachment_max_size":      setting.TicketAttachmentMaxSize,
-		"ticket_attachment_max_count":     setting.TicketAttachmentMaxCount,
-		"ticket_attachment_allowed_exts":  setting.TicketAttachmentAllowedExts,
+		"ticket_attachment_enabled":      setting.TicketAttachmentEnabled,
+		"ticket_attachment_max_size":     setting.TicketAttachmentMaxSize,
+		"ticket_attachment_max_count":    setting.TicketAttachmentMaxCount,
+		"ticket_attachment_allowed_exts": setting.TicketAttachmentAllowedExts,
 
-		"region_blocked_groups":    operation_setting.GetBlockedGroupsForCountry(clientCountry),
-		"region_detected_country":  clientCountry,
+		"region_blocked_groups":   operation_setting.GetBlockedGroupsForCountry(clientCountry),
+		"region_detected_country": clientCountry,
 
 		"cn_disclaimer_enabled":  cnDisclaimerSetting.Enabled,
 		"cn_disclaimer_required": system_setting.IsCnDisclaimerCountry(clientCountry),
@@ -250,7 +260,7 @@ func GetCnDisclaimer(c *gin.Context) {
 	s := system_setting.GetCnDisclaimerSettings()
 	hash := ""
 	if s.Content != "" {
-		hash = common.Sha1([]byte(s.Title+"|"+s.Content+"|"+strings.Join(s.BlockedCountries, ",")))[:8]
+		hash = common.Sha1([]byte(s.Title + "|" + s.Content + "|" + strings.Join(s.BlockedCountries, ",")))[:8]
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success":           true,

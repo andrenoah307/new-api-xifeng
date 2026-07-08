@@ -24,6 +24,7 @@ const zh: Record<string, string> = {
   'Enforcement Incidents': '处罚事件',
   'Enforcement Counters': '处罚计数器',
   'Test Email': '测试邮件',
+  'Email prefix': '邮箱前缀',
   'Unblock Subject': '解封主体',
   'Reset Counter': '重置计数器',
   'Unban User': '解封用户',
