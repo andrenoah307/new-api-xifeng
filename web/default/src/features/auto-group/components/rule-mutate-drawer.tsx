@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -322,18 +323,20 @@ export function RuleMutateDrawer({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent alignItemWithTrigger={false}>
-                      {groupOptions.map((g) => (
-                        <SelectItem key={g.value} value={g.value}>
-                          <span className='flex items-center gap-2'>
-                            <span>{g.value}</span>
-                            {g.desc !== g.value && (
-                              <span className='text-muted-foreground text-xs'>
-                                {g.desc}
-                              </span>
-                            )}
-                          </span>
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        {groupOptions.map((g) => (
+                          <SelectItem key={g.value} value={g.value}>
+                            <span className='flex items-center gap-2'>
+                              <span>{g.value}</span>
+                              {g.desc !== g.value && (
+                                <span className='text-muted-foreground text-xs'>
+                                  {g.desc}
+                                </span>
+                              )}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                   <FormDescription>
@@ -361,8 +364,10 @@ export function RuleMutateDrawer({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent alignItemWithTrigger={false}>
-                      <SelectItem value='all'>{t('Match All (AND)')}</SelectItem>
-                      <SelectItem value='any'>{t('Match Any (OR)')}</SelectItem>
+                      <SelectGroup>
+                        <SelectItem value='all'>{t('Match All (AND)')}</SelectItem>
+                        <SelectItem value='any'>{t('Match Any (OR)')}</SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -428,11 +433,13 @@ export function RuleMutateDrawer({
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent alignItemWithTrigger={false}>
-                                  {METRICS.map((m) => (
-                                    <SelectItem key={m.key} value={m.key}>
-                                      {t(m.labelKey)}
-                                    </SelectItem>
-                                  ))}
+                                  <SelectGroup>
+                                    {METRICS.map((m) => (
+                                      <SelectItem key={m.key} value={m.key}>
+                                        {t(m.labelKey)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -456,14 +463,16 @@ export function RuleMutateDrawer({
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent alignItemWithTrigger={false}>
-                                  {(isStringMetric ? STRING_OPS : OPS).map((op) => (
-                                    <SelectItem
-                                      key={op.value}
-                                      value={op.value}
-                                    >
-                                      {op.label}
-                                    </SelectItem>
-                                  ))}
+                                  <SelectGroup>
+                                    {(isStringMetric ? STRING_OPS : OPS).map((op) => (
+                                      <SelectItem
+                                        key={op.value}
+                                        value={op.value}
+                                      >
+                                        {op.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectGroup>
                                 </SelectContent>
                               </Select>
                               <FormMessage />
@@ -490,18 +499,20 @@ export function RuleMutateDrawer({
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent alignItemWithTrigger={false}>
-                                    {groupOptions.map((g) => (
-                                      <SelectItem key={g.value} value={g.value}>
-                                        <span className='flex items-center gap-2'>
-                                          <span>{g.value}</span>
-                                          {g.desc !== g.value && (
-                                            <span className='text-muted-foreground text-xs'>
-                                              {g.desc}
-                                            </span>
-                                          )}
-                                        </span>
-                                      </SelectItem>
-                                    ))}
+                                    <SelectGroup>
+                                      {groupOptions.map((g) => (
+                                        <SelectItem key={g.value} value={g.value}>
+                                          <span className='flex items-center gap-2'>
+                                            <span>{g.value}</span>
+                                            {g.desc !== g.value && (
+                                              <span className='text-muted-foreground text-xs'>
+                                                {g.desc}
+                                              </span>
+                                            )}
+                                          </span>
+                                        </SelectItem>
+                                      ))}
+                                    </SelectGroup>
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />

@@ -22,6 +22,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -354,10 +355,12 @@ export function ModerationTab() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
-                    <SelectItem value="enforce">{t('Enforce')}</SelectItem>
-                    <SelectItem value="observe_only">
-                      {t('Observe Only')}
-                    </SelectItem>
+                    <SelectGroup>
+                      <SelectItem value="enforce">{t('Enforce')}</SelectItem>
+                      <SelectItem value="observe_only">
+                        {t('Observe Only')}
+                      </SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
               </div>
@@ -627,12 +630,14 @@ export function ModerationTab() {
                 <SelectValue placeholder={t('Group')} />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                <SelectItem value="__default__">{t('Default')}</SelectItem>
-                {groupNames.map((g) => (
-                  <SelectItem key={g} value={g}>
-                    {g}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectItem value="__default__">{t('Default')}</SelectItem>
+                  {groupNames.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {g}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
             <Button
@@ -670,12 +675,14 @@ export function ModerationTab() {
                 <SelectValue placeholder={t('Group')} />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                <SelectItem value="__all__">{t('All')}</SelectItem>
-                {groupNames.map((g) => (
-                  <SelectItem key={g} value={g}>
-                    {g}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectItem value="__all__">{t('All')}</SelectItem>
+                  {groupNames.map((g) => (
+                    <SelectItem key={g} value={g}>
+                      {g}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
             <Select
@@ -689,9 +696,11 @@ export function ModerationTab() {
                 <SelectValue placeholder={t('Flagged')} />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                <SelectItem value="__all__">{t('All')}</SelectItem>
-                <SelectItem value="true">{t('Flagged')}</SelectItem>
-                <SelectItem value="false">{t('Clean')}</SelectItem>
+                <SelectGroup>
+                  <SelectItem value="__all__">{t('All')}</SelectItem>
+                  <SelectItem value="true">{t('Flagged')}</SelectItem>
+                  <SelectItem value="false">{t('Clean')}</SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
             <Input

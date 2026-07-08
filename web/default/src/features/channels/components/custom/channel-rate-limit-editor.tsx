@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -95,9 +96,11 @@ export function ChannelRateLimitEditor({ form }: Props) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
-              <SelectItem value="skip">{t('Skip')}</SelectItem>
-              <SelectItem value="queue">{t('Queue')}</SelectItem>
-              <SelectItem value="reject">{t('Reject')}</SelectItem>
+              <SelectGroup>
+                <SelectItem value="skip">{t('Skip')}</SelectItem>
+                <SelectItem value="queue">{t('Queue')}</SelectItem>
+                <SelectItem value="reject">{t('Reject')}</SelectItem>
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>

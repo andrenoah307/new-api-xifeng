@@ -30,6 +30,7 @@ import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -168,12 +169,14 @@ export default function TicketListPage() {
                   <SelectValue placeholder={t('Status')} />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value="__all__">{t('All')}</SelectItem>
-                  {getStatusOptions().map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value="__all__">{t('All')}</SelectItem>
+                    {getStatusOptions().map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {t(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               <Select items={typeItems} value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
@@ -181,12 +184,14 @@ export default function TicketListPage() {
                   <SelectValue placeholder={t('Type')} />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value="__all__">{t('All')}</SelectItem>
-                  {getTypeOptions(true).map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value="__all__">{t('All')}</SelectItem>
+                    {getTypeOptions(true).map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {t(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

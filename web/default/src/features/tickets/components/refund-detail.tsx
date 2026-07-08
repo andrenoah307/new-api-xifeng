@@ -21,6 +21,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -367,11 +368,13 @@ export function RefundDetail({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value="write_off">
-                    {t('Write Off (Recommended)')}
-                  </SelectItem>
-                  <SelectItem value="subtract">{t('Subtract')}</SelectItem>
-                  <SelectItem value="override">{t('Override')}</SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="write_off">
+                      {t('Write Off (Recommended)')}
+                    </SelectItem>
+                    <SelectItem value="subtract">{t('Subtract')}</SelectItem>
+                    <SelectItem value="override">{t('Override')}</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

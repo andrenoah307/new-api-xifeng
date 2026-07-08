@@ -19,6 +19,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -231,11 +232,13 @@ export function RuleEditorDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {SCOPE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {SCOPE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {t(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -250,11 +253,13 @@ export function RuleEditorDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {MATCH_MODE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {MATCH_MODE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {t(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -269,11 +274,13 @@ export function RuleEditorDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {ACTION_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {ACTION_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {t(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -323,11 +330,13 @@ export function RuleEditorDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
-                    {availableMetrics.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
-                        {t(m.label)}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {availableMetrics.map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          {t(m.label)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <Select
@@ -339,11 +348,13 @@ export function RuleEditorDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
-                    {OP_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {OP_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <Input

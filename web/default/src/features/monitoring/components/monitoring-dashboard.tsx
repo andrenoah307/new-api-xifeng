@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -372,15 +373,17 @@ export default function MonitoringDashboard() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                <SelectItem value="status">
-                  {t('Sort by status')}
-                </SelectItem>
-                <SelectItem value="name">
-                  {t('Sort by name')}
-                </SelectItem>
-                <SelectItem value="availability">
-                  {t('Sort by availability')}
-                </SelectItem>
+                <SelectGroup>
+                  <SelectItem value="status">
+                    {t('Sort by status')}
+                  </SelectItem>
+                  <SelectItem value="name">
+                    {t('Sort by name')}
+                  </SelectItem>
+                  <SelectItem value="availability">
+                    {t('Sort by availability')}
+                  </SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
             <RefreshButton

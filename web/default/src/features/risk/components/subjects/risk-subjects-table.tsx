@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -125,12 +126,14 @@ export function RiskSubjectsTable() {
             <SelectValue placeholder={t('Scope')} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
-            <SelectItem value="__all__">{t('All')}</SelectItem>
-            {SCOPE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {t(o.label)}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="__all__">{t('All')}</SelectItem>
+              {SCOPE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {t(o.label)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
         <Select
@@ -144,10 +147,12 @@ export function RiskSubjectsTable() {
             <SelectValue placeholder={t('Status')} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
-            <SelectItem value="__all__">{t('All')}</SelectItem>
-            <SelectItem value="blocked">{t('Blocked')}</SelectItem>
-            <SelectItem value="observe">{t('Observing')}</SelectItem>
-            <SelectItem value="normal">{t('Normal')}</SelectItem>
+            <SelectGroup>
+              <SelectItem value="__all__">{t('All')}</SelectItem>
+              <SelectItem value="blocked">{t('Blocked')}</SelectItem>
+              <SelectItem value="observe">{t('Observing')}</SelectItem>
+              <SelectItem value="normal">{t('Normal')}</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
         <Input

@@ -17,6 +17,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -173,8 +174,10 @@ export function ModerationRuleEditorDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value="or">OR</SelectItem>
-                  <SelectItem value="and">AND</SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="or">OR</SelectItem>
+                    <SelectItem value="and">AND</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -191,11 +194,13 @@ export function ModerationRuleEditorDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {MODERATION_ACTION_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {MODERATION_ACTION_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {t(o.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -246,11 +251,13 @@ export function ModerationRuleEditorDialog({
                     <SelectValue placeholder={t('Category')} />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.name} value={cat.name}>
-                        {cat.label}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.name} value={cat.name}>
+                          {cat.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <Select
@@ -262,11 +269,13 @@ export function ModerationRuleEditorDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
-                    {OP_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {OP_OPTIONS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <Input

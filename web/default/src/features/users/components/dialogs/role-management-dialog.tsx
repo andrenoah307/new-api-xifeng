@@ -14,6 +14,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -112,16 +113,18 @@ export function RoleManagementDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {roleOptions.map((r) => (
-                    <SelectItem key={r} value={String(r)}>
-                      <span className="flex items-center gap-2">
-                        <span>{t(ROLE_META[r].labelKey)}</span>
-                        <span className="text-muted-foreground text-xs">
-                          — {t(ROLE_META[r].descKey)}
+                  <SelectGroup>
+                    {roleOptions.map((r) => (
+                      <SelectItem key={r} value={String(r)}>
+                        <span className="flex items-center gap-2">
+                          <span>{t(ROLE_META[r].labelKey)}</span>
+                          <span className="text-muted-foreground text-xs">
+                            — {t(ROLE_META[r].descKey)}
+                          </span>
                         </span>
-                      </span>
-                    </SelectItem>
-                  ))}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

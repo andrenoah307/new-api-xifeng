@@ -15,6 +15,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -283,11 +284,13 @@ export function ExportInvoiceDialog({
               <SelectValue placeholder={t('Status')} />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
-              {TICKET_STATUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {TICKET_STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {t(o.label)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <CompactDateTimeRangePicker

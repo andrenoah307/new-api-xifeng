@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -106,12 +107,14 @@ export function RiskIncidentsTable() {
             <SelectValue placeholder={t('Scope')} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
-            <SelectItem value="__all__">{t('All')}</SelectItem>
-            {SCOPE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {t(o.label)}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="__all__">{t('All')}</SelectItem>
+              {SCOPE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {t(o.label)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
         <Select
@@ -125,9 +128,11 @@ export function RiskIncidentsTable() {
             <SelectValue placeholder={t('Decision')} />
           </SelectTrigger>
           <SelectContent alignItemWithTrigger={false}>
-            <SelectItem value="__all__">{t('All')}</SelectItem>
-            <SelectItem value="block">{t('Block')}</SelectItem>
-            <SelectItem value="observe">{t('Observe')}</SelectItem>
+            <SelectGroup>
+              <SelectItem value="__all__">{t('All')}</SelectItem>
+              <SelectItem value="block">{t('Block')}</SelectItem>
+              <SelectItem value="observe">{t('Observe')}</SelectItem>
+            </SelectGroup>
           </SelectContent>
         </Select>
         <Input

@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/status-badge'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -114,15 +115,17 @@ export function RiskGroupsPanel({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent alignItemWithTrigger={false}>
-                        <SelectItem value="__inherit__">
-                          {t('Inherit Global')}
-                        </SelectItem>
-                        <SelectItem value="enforce">
-                          {t('Enforce')}
-                        </SelectItem>
-                        <SelectItem value="observe_only">
-                          {t('Observe Only')}
-                        </SelectItem>
+                        <SelectGroup>
+                          <SelectItem value="__inherit__">
+                            {t('Inherit Global')}
+                          </SelectItem>
+                          <SelectItem value="enforce">
+                            {t('Enforce')}
+                          </SelectItem>
+                          <SelectItem value="observe_only">
+                            {t('Observe Only')}
+                          </SelectItem>
+                        </SelectGroup>
                       </SelectContent>
                     </Select>
                   </TableCell>

@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -269,11 +270,13 @@ export default function TicketAdminDetailPage({
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
-              {getStatusOptions(true).map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {getStatusOptions(true).map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {t(o.label)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <Select items={priorityItems} value={priorityValue} onValueChange={(v) => v !== null && setPriorityValue(v)}>
@@ -281,11 +284,13 @@ export default function TicketAdminDetailPage({
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
-              {getPriorityOptions().map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {getPriorityOptions().map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {t(o.label)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <Button

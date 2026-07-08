@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -232,11 +233,13 @@ export function TopupTable() {
                   <SelectValue placeholder={t('Status')} />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {TOPUP_STATUS_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {t(opt.label)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {TOPUP_STATUS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {t(opt.label)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
               <CompactDateTimeRangePicker

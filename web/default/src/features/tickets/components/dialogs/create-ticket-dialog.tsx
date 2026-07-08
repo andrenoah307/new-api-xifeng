@@ -30,6 +30,7 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -316,12 +317,14 @@ export function CreateTicketDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value="general">
-                    {t('General Ticket')}
-                  </SelectItem>
-                  <SelectItem value="refund">
-                    {t('Refund Ticket')}
-                  </SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="general">
+                      {t('General Ticket')}
+                    </SelectItem>
+                    <SelectItem value="refund">
+                      {t('Refund Ticket')}
+                    </SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -422,9 +425,11 @@ export function CreateTicketDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent alignItemWithTrigger={false}>
-                      <SelectItem value="1">{t('High Priority')}</SelectItem>
-                      <SelectItem value="2">{t('Normal Priority')}</SelectItem>
-                      <SelectItem value="3">{t('Low Priority')}</SelectItem>
+                      <SelectGroup>
+                        <SelectItem value="1">{t('High Priority')}</SelectItem>
+                        <SelectItem value="2">{t('Normal Priority')}</SelectItem>
+                        <SelectItem value="3">{t('Low Priority')}</SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -477,11 +482,13 @@ export function CreateTicketDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent alignItemWithTrigger={false}>
-                          {PAYEE_TYPE_OPTIONS.map((o) => (
-                            <SelectItem key={o.value} value={o.value}>
-                              {t(o.label)}
-                            </SelectItem>
-                          ))}
+                          <SelectGroup>
+                            {PAYEE_TYPE_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {t(o.label)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
                         </SelectContent>
                       </Select>
                       <FormMessage />

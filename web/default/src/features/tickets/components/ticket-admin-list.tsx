@@ -30,6 +30,7 @@ import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -238,12 +239,14 @@ export default function TicketAdminListPage() {
                     <SelectValue placeholder={t('Status')} />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
-                    <SelectItem value="__all__">{t('All')}</SelectItem>
-                    {getStatusOptions(true).map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {t(o.label)}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectItem value="__all__">{t('All')}</SelectItem>
+                      {getStatusOptions(true).map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {t(o.label)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <Select items={typeItems} value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
@@ -251,12 +254,14 @@ export default function TicketAdminListPage() {
                     <SelectValue placeholder={t('Type')} />
                   </SelectTrigger>
                   <SelectContent alignItemWithTrigger={false}>
-                    <SelectItem value="__all__">{t('All')}</SelectItem>
-                    {getTypeOptions(true).map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {t(o.label)}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      <SelectItem value="__all__">{t('All')}</SelectItem>
+                      {getTypeOptions(true).map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {t(o.label)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <Button

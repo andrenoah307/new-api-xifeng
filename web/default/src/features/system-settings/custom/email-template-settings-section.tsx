@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -196,16 +197,18 @@ export function EmailTemplateSettingsSection() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent alignItemWithTrigger={false}>
-              {templates.map((tpl) => (
-                <SelectItem key={tpl.key} value={tpl.key}>
-                  {tpl.name}
-                  {tpl.customized && (
-                    <Badge variant='outline' className='ml-2 text-[10px]'>
-                      {t('Customized')}
-                    </Badge>
-                  )}
-                </SelectItem>
-              ))}
+              <SelectGroup>
+                {templates.map((tpl) => (
+                  <SelectItem key={tpl.key} value={tpl.key}>
+                    {tpl.name}
+                    {tpl.customized && (
+                      <Badge variant='outline' className='ml-2 text-[10px]'>
+                        {t('Customized')}
+                      </Badge>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           {current?.customized && (

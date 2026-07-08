@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -170,9 +171,11 @@ export function ErrorFilterRulesEditor({ form }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value="retry">{t('Retry')}</SelectItem>
-                  <SelectItem value="rewrite">{t('Rewrite')}</SelectItem>
-                  <SelectItem value="replace">{t('Replace')}</SelectItem>
+                  <SelectGroup>
+                    <SelectItem value="retry">{t('Retry')}</SelectItem>
+                    <SelectItem value="rewrite">{t('Rewrite')}</SelectItem>
+                    <SelectItem value="replace">{t('Replace')}</SelectItem>
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

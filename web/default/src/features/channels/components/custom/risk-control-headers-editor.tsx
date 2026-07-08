@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -150,11 +151,13 @@ export function RiskControlHeadersEditor({ form }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  {ALLOWED_SOURCES.map((src) => (
-                    <SelectItem key={src} value={src}>
-                      {t(`header_source_${src}`, src)}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {ALLOWED_SOURCES.map((src) => (
+                      <SelectItem key={src} value={src}>
+                        {t(`header_source_${src}`, src)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>

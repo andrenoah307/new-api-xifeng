@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -262,10 +263,12 @@ export function TicketSettingsSection({ settings }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                <SelectItem value='none'>{t('None')}</SelectItem>
-                <SelectItem value='general_group'>
-                  {t('General Group')}
-                </SelectItem>
+                <SelectGroup>
+                  <SelectItem value='none'>{t('None')}</SelectItem>
+                  <SelectItem value='general_group'>
+                    {t('General Group')}
+                  </SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
@@ -289,11 +292,13 @@ export function TicketSettingsSection({ settings }: Props) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent alignItemWithTrigger={false}>
-                      {STRATEGIES.map((s) => (
-                        <SelectItem key={s} value={s}>
-                          {t(s)}
-                        </SelectItem>
-                      ))}
+                      <SelectGroup>
+                        {STRATEGIES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {t(s)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
@@ -414,11 +419,13 @@ export function TicketSettingsSection({ settings }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                {STORAGE_BACKENDS.map((b) => (
-                  <SelectItem key={b} value={b}>
-                    {b.toUpperCase()}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  {STORAGE_BACKENDS.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b.toUpperCase()}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>

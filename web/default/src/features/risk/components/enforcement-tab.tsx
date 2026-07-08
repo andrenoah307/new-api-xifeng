@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -583,12 +584,14 @@ export function EnforcementTab() {
                 <SelectValue placeholder={t('Source')} />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                <SelectItem value="__all__">{t('All')}</SelectItem>
-                {ENFORCEMENT_SOURCE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {t(o.label)}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectItem value="__all__">{t('All')}</SelectItem>
+                  {ENFORCEMENT_SOURCE_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {t(o.label)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
             <Select
@@ -602,12 +605,14 @@ export function EnforcementTab() {
                 <SelectValue placeholder={t('Action')} />
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
-                <SelectItem value="__all__">{t('All')}</SelectItem>
-                {ENFORCEMENT_ACTION_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {t(o.label)}
-                  </SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectItem value="__all__">{t('All')}</SelectItem>
+                  {ENFORCEMENT_ACTION_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {t(o.label)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
             <Input
