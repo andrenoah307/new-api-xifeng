@@ -49,6 +49,22 @@ export function RiskIncidentsTable() {
     [page, filters]
   )
 
+  const scopeItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      ...SCOPE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    ],
+    [t]
+  )
+  const decisionItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      { value: 'block', label: t('Block') },
+      { value: 'observe', label: t('Observe') },
+    ],
+    [t]
+  )
+
   const { data, isLoading } = useQuery({
     queryKey: riskQueryKeys.incidents(params),
     queryFn: () => getRiskIncidents(params),
@@ -80,6 +96,7 @@ export function RiskIncidentsTable() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Select
+          items={scopeItems}
           value={filters.scope}
           onValueChange={(v) =>
             setFilters((p) => ({ ...p, scope: v }))
@@ -98,6 +115,7 @@ export function RiskIncidentsTable() {
           </SelectContent>
         </Select>
         <Select
+          items={decisionItems}
           value={filters.action}
           onValueChange={(v) =>
             setFilters((p) => ({ ...p, action: v }))

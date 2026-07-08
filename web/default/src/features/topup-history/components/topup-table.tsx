@@ -196,6 +196,12 @@ export function TopupTable() {
     ensurePageInRange(pageCount)
   }, [pageCount, ensurePageInRange])
 
+  const statusItems = useMemo(
+    () =>
+      TOPUP_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.label) })),
+    [t]
+  )
+
   const handleDateChange = useCallback(
     (range: { start?: Date; end?: Date }) => {
       navigate({
@@ -221,7 +227,7 @@ export function TopupTable() {
           searchPlaceholder={t(admin ? 'Search by order number, username or user ID...' : 'Search by order number...')}
           additionalSearch={
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select items={statusItems} value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="h-8 w-[120px]">
                   <SelectValue placeholder={t('Status')} />
                 </SelectTrigger>

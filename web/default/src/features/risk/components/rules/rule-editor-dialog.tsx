@@ -156,6 +156,27 @@ export function RuleEditorDialog({
     [form.scope]
   )
 
+  const scopeItems = useMemo(
+    () => SCOPE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    [t]
+  )
+  const matchModeItems = useMemo(
+    () => MATCH_MODE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    [t]
+  )
+  const actionItems = useMemo(
+    () => ACTION_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    [t]
+  )
+  const metricItems = useMemo(
+    () => availableMetrics.map((m) => ({ value: m.value, label: t(m.label) })),
+    [availableMetrics, t]
+  )
+  const opItems = useMemo(
+    () => OP_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+    []
+  )
+
   const handleSubmit = () => {
     if (!form.name.trim()) {
       toast.error(t('Rule name is required'))
@@ -202,6 +223,7 @@ export function RuleEditorDialog({
             <div className="space-y-1">
               <Label>{t('Scope')}</Label>
               <Select
+                items={scopeItems}
                 value={form.scope}
                 onValueChange={(v) => updateField('scope', v)}
               >
@@ -220,6 +242,7 @@ export function RuleEditorDialog({
             <div className="space-y-1">
               <Label>{t('Match Mode')}</Label>
               <Select
+                items={matchModeItems}
                 value={form.match_mode}
                 onValueChange={(v) => updateField('match_mode', v)}
               >
@@ -238,6 +261,7 @@ export function RuleEditorDialog({
             <div className="space-y-1">
               <Label>{t('Action')}</Label>
               <Select
+                items={actionItems}
                 value={form.action}
                 onValueChange={(v) => updateField('action', v)}
               >
@@ -291,6 +315,7 @@ export function RuleEditorDialog({
             {form.conditions.map((c, i) => (
               <div key={i} className="flex items-center gap-2">
                 <Select
+                  items={metricItems}
                   value={c.metric}
                   onValueChange={(v) => updateCondition(i, 'metric', v)}
                 >
@@ -306,6 +331,7 @@ export function RuleEditorDialog({
                   </SelectContent>
                 </Select>
                 <Select
+                  items={opItems}
                   value={c.op}
                   onValueChange={(v) => updateCondition(i, 'op', v)}
                 >

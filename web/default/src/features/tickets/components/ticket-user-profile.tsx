@@ -45,7 +45,7 @@ export function TicketUserProfileButton({
           {t('User Profile')}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader className="flex flex-row items-center justify-between pr-8">
           <DialogTitle className="flex items-center gap-2">
             <User className="h-4 w-4" />

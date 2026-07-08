@@ -100,6 +100,21 @@ export function EnforcementTab() {
     [incidentPage, incidentFilters]
   )
 
+  const sourceItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      ...ENFORCEMENT_SOURCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    ],
+    [t]
+  )
+  const actionItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      ...ENFORCEMENT_ACTION_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    ],
+    [t]
+  )
+
   const { data: incidentsData, isLoading: incidentsLoading } = useQuery({
     queryKey: riskQueryKeys.enforcement.incidents(incidentParams),
     queryFn: () => getEnforcementIncidents(incidentParams),
@@ -558,6 +573,7 @@ export function EnforcementTab() {
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Select
+              items={sourceItems}
               value={incidentFilters.source}
               onValueChange={(v) =>
                 setIncidentFilters((p) => ({ ...p, source: v }))
@@ -576,6 +592,7 @@ export function EnforcementTab() {
               </SelectContent>
             </Select>
             <Select
+              items={actionItems}
               value={incidentFilters.action}
               onValueChange={(v) =>
                 setIncidentFilters((p) => ({ ...p, action: v }))

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MODE_OPTIONS, optionLabelKey } from '../../constants'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -35,6 +36,15 @@ export function RiskGroupsPanel({
   saving,
 }: Props) {
   const { t } = useTranslation()
+
+  const modeItems = useMemo(
+    () => [
+      { value: '__inherit__', label: t('Inherit Global') },
+      { value: 'enforce', label: t('Enforce') },
+      { value: 'observe_only', label: t('Observe Only') },
+    ],
+    [t]
+  )
 
   const enabledGroups = new Set(
     Array.isArray(config.enabled_groups)
@@ -96,6 +106,7 @@ export function RiskGroupsPanel({
                   </TableCell>
                   <TableCell>
                     <Select
+                      items={modeItems}
                       value={groupModes[g.name] ?? '__inherit__'}
                       onValueChange={(v) => setGroupMode(g.name, v)}
                     >

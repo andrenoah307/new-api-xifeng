@@ -84,6 +84,21 @@ export default function TicketListPage() {
     [pagination, statusFilter, typeFilter]
   )
 
+  const statusItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      ...getStatusOptions().map((o) => ({ value: o.value, label: t(o.label) })),
+    ],
+    [t]
+  )
+  const typeItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      ...getTypeOptions(true).map((o) => ({ value: o.value, label: t(o.label) })),
+    ],
+    [t]
+  )
+
   const { data, isLoading } = useQuery({
     queryKey: ticketQueryKeys.userList(queryParams),
     queryFn: () => getUserTickets(queryParams),
@@ -148,7 +163,7 @@ export default function TicketListPage() {
         <SectionPageLayout.Content>
           <div className="space-y-3 sm:space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
+              <Select items={statusItems} value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
                 <SelectTrigger className="h-8 w-[120px]">
                   <SelectValue placeholder={t('Status')} />
                 </SelectTrigger>
@@ -161,7 +176,7 @@ export default function TicketListPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
+              <Select items={typeItems} value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
                 <SelectTrigger className="h-8 w-[130px]">
                   <SelectValue placeholder={t('Type')} />
                 </SelectTrigger>

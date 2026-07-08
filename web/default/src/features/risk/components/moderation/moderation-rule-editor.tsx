@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -119,6 +119,27 @@ export function ModerationRuleEditorDialog({
     saveMutation.mutate(form)
   }
 
+  const logicItems = useMemo(
+    () => [
+      { value: 'or', label: 'OR' },
+      { value: 'and', label: 'AND' },
+    ],
+    []
+  )
+  const actionItems = useMemo(
+    () =>
+      MODERATION_ACTION_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    [t]
+  )
+  const categoryItems = useMemo(
+    () => categories.map((cat) => ({ value: cat.name, label: cat.label })),
+    [categories]
+  )
+  const opItems = useMemo(
+    () => OP_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+    []
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
@@ -142,6 +163,7 @@ export function ModerationRuleEditorDialog({
             <div className="space-y-1">
               <Label>{t('Logic')}</Label>
               <Select
+                items={logicItems}
                 value={form.match_mode}
                 onValueChange={(v) =>
                   v !== null && setForm((p) => ({ ...p, match_mode: v }))
@@ -159,6 +181,7 @@ export function ModerationRuleEditorDialog({
             <div className="space-y-1">
               <Label>{t('Action')}</Label>
               <Select
+                items={actionItems}
                 value={form.action}
                 onValueChange={(v) =>
                   v !== null && setForm((p) => ({ ...p, action: v }))
@@ -213,6 +236,7 @@ export function ModerationRuleEditorDialog({
             {form.conditions.map((c, i) => (
               <div key={i} className="flex items-center gap-2">
                 <Select
+                  items={categoryItems}
                   value={c.category}
                   onValueChange={(v) =>
                     updateCondition(i, 'category', v)
@@ -230,6 +254,7 @@ export function ModerationRuleEditorDialog({
                   </SelectContent>
                 </Select>
                 <Select
+                  items={opItems}
                   value={c.op}
                   onValueChange={(v) => updateCondition(i, 'op', v)}
                 >

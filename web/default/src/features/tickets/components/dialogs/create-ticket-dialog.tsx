@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -108,6 +108,27 @@ export function CreateTicketDialog({
   })
 
   const isLimited = limitStatus?.limited === true
+
+  const ticketTypeItems = useMemo(
+    () => [
+      { value: 'general', label: t('General Ticket') },
+      { value: 'refund', label: t('Refund Ticket') },
+    ],
+    [t]
+  )
+  const priorityItems = useMemo(
+    () => [
+      { value: '1', label: t('High Priority') },
+      { value: '2', label: t('Normal Priority') },
+      { value: '3', label: t('Low Priority') },
+    ],
+    [t]
+  )
+  const payeeTypeItems = useMemo(
+    () =>
+      PAYEE_TYPE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    [t]
+  )
 
   const balanceDollars = userQuota?.quota != null
     ? quotaUnitsToDollars(userQuota.quota)
@@ -287,6 +308,7 @@ export function CreateTicketDialog({
             <div>
               <FormLabel>{t('Ticket Type')}</FormLabel>
               <Select
+                items={ticketTypeItems}
                 value={ticketType}
                 onValueChange={(v) => setTicketType(v as 'general' | 'refund')}
               >
@@ -390,6 +412,7 @@ export function CreateTicketDialog({
                 <FormItem>
                   <FormLabel>{t('Priority')}</FormLabel>
                   <Select
+                    items={priorityItems}
                     value={String(field.value)}
                     onValueChange={(v) => field.onChange(Number(v))}
                   >
@@ -444,6 +467,7 @@ export function CreateTicketDialog({
                         <span className="text-destructive ml-0.5">*</span>
                       </FormLabel>
                       <Select
+                        items={payeeTypeItems}
                         value={field.value}
                         onValueChange={field.onChange}
                       >

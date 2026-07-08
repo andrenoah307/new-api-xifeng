@@ -26,10 +26,16 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         header: t('User'),
         cell: ({ row }) => {
           const { username, user_id } = row.original
+          const copyValue = username || String(user_id ?? '')
           return (
-            <span className="font-mono text-xs">
+            <button
+              type="button"
+              className="text-foreground cursor-pointer truncate font-mono text-xs hover:underline"
+              onClick={() => copyValue && copyToClipboard(copyValue)}
+              title={copyValue}
+            >
               {username ? `${username} (${user_id})` : String(user_id ?? '-')}
-            </span>
+            </button>
           )
         },
         size: 140,

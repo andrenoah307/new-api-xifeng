@@ -156,6 +156,21 @@ export default function TicketAdminListPage() {
   const items = useMemo(() => data?.items ?? [], [data])
   const totalCount = data?.total ?? 0
 
+  const statusItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      ...getStatusOptions(true).map((o) => ({ value: o.value, label: t(o.label) })),
+    ],
+    [t]
+  )
+  const typeItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      ...getTypeOptions(true).map((o) => ({ value: o.value, label: t(o.label) })),
+    ],
+    [t]
+  )
+
   const columns = useTicketColumns({
     admin: true,
     showAssignee: viewerIsAdmin,
@@ -218,7 +233,7 @@ export default function TicketAdminListPage() {
             searchPlaceholder={t('Search by subject, username, ID, company name or payee...')}
             additionalSearch={
               <div className="flex flex-wrap items-center gap-2">
-                <Select value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
+                <Select items={statusItems} value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
                   <SelectTrigger className="h-8 w-[120px]">
                     <SelectValue placeholder={t('Status')} />
                   </SelectTrigger>
@@ -231,7 +246,7 @@ export default function TicketAdminListPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
+                <Select items={typeItems} value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
                   <SelectTrigger className="h-8 w-[130px]">
                     <SelectValue placeholder={t('Type')} />
                   </SelectTrigger>

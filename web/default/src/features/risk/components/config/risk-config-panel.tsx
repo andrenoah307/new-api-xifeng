@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,11 @@ export function RiskConfigPanel({ config, saving, onSave }: Props) {
     setLocal((prev) => ({ ...prev, [field]: value }))
   }
 
+  const modeItems = useMemo(
+    () => MODE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
+    [t]
+  )
+
   return (
     <Card>
       <CardHeader>
@@ -51,6 +56,7 @@ export function RiskConfigPanel({ config, saving, onSave }: Props) {
           <div className="space-y-1">
             <Label>{t('Mode')}</Label>
             <Select
+              items={modeItems}
               value={local.mode}
               onValueChange={(v) => update('mode', v)}
             >

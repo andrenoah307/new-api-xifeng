@@ -288,6 +288,15 @@ export default function MonitoringDashboard() {
 
   const loading = groupsLoading && groups.length === 0
 
+  const sortItems = useMemo(
+    () => [
+      { value: 'status', label: t('Sort by status') },
+      { value: 'name', label: t('Sort by name') },
+      { value: 'availability', label: t('Sort by availability') },
+    ],
+    [t]
+  )
+
   return (
     <div className="px-4 pb-12 sm:px-8 lg:px-10">
       <div className="mx-auto w-full max-w-[1440px]">
@@ -358,7 +367,7 @@ export default function MonitoringDashboard() {
                 </button>
               )}
             </div>
-            <Select value={sortMode} onValueChange={handleSortChange}>
+            <Select items={sortItems} value={sortMode} onValueChange={handleSortChange}>
               <SelectTrigger className="h-9 w-[130px]">
                 <SelectValue />
               </SelectTrigger>

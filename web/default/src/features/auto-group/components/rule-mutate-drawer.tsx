@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -111,6 +111,30 @@ export function RuleMutateDrawer({
     queryKey: ['groups-with-desc'],
     queryFn: getGroupOptions,
   })
+
+  const groupItems = useMemo(
+    () => groupOptions.map((g) => ({ value: g.value, label: g.value })),
+    [groupOptions]
+  )
+  const matchModeItems = useMemo(
+    () => [
+      { value: 'all', label: t('Match All (AND)') },
+      { value: 'any', label: t('Match Any (OR)') },
+    ],
+    [t]
+  )
+  const metricItems = useMemo(
+    () => METRICS.map((m) => ({ value: m.key, label: t(m.labelKey) })),
+    [t]
+  )
+  const numericOpItems = useMemo(
+    () => OPS.map((op) => ({ value: op.value, label: op.label })),
+    []
+  )
+  const stringOpItems = useMemo(
+    () => STRING_OPS.map((op) => ({ value: op.value, label: op.label })),
+    []
+  )
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -291,7 +315,7 @@ export function RuleMutateDrawer({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('Target Group')}</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select items={groupItems} value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder={t('Select target group')} />
@@ -327,6 +351,7 @@ export function RuleMutateDrawer({
                 <FormItem>
                   <FormLabel>{t('Match Mode')}</FormLabel>
                   <Select
+                    items={matchModeItems}
                     value={field.value}
                     onValueChange={field.onChange}
                   >
@@ -378,6 +403,7 @@ export function RuleMutateDrawer({
                           render={({ field: f }) => (
                             <FormItem className='col-span-2 sm:col-span-1'>
                               <Select
+                                items={metricItems}
                                 value={f.value}
                                 onValueChange={(v) => {
                                   const wasString = STRING_METRICS.has(f.value)
@@ -420,6 +446,7 @@ export function RuleMutateDrawer({
                           render={({ field: f }) => (
                             <FormItem>
                               <Select
+                                items={isStringMetric ? stringOpItems : numericOpItems}
                                 value={f.value}
                                 onValueChange={f.onChange}
                               >
@@ -451,6 +478,7 @@ export function RuleMutateDrawer({
                             render={({ field: f }) => (
                               <FormItem>
                                 <Select
+                                  items={groupItems}
                                   value={f.value || ''}
                                   onValueChange={f.onChange}
                                 >

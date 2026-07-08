@@ -227,6 +227,36 @@ export function ModerationTab() {
     return config?.config?.enabled_groups ?? []
   }, [config])
 
+  const modeItems = useMemo(
+    () => [
+      { value: 'enforce', label: t('Enforce') },
+      { value: 'observe_only', label: t('Observe Only') },
+    ],
+    [t]
+  )
+  const debugGroupItems = useMemo(
+    () => [
+      { value: '__default__', label: t('Default') },
+      ...groupNames.map((g: string) => ({ value: g, label: g })),
+    ],
+    [t, groupNames]
+  )
+  const incidentGroupItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      ...groupNames.map((g: string) => ({ value: g, label: g })),
+    ],
+    [t, groupNames]
+  )
+  const flaggedItems = useMemo(
+    () => [
+      { value: '__all__', label: t('All') },
+      { value: 'true', label: t('Flagged') },
+      { value: 'false', label: t('Clean') },
+    ],
+    [t]
+  )
+
   return (
     <div className="space-y-6">
       <Alert>
@@ -314,6 +344,7 @@ export function ModerationTab() {
               <div className="space-y-1">
                 <Label>{t('Mode')}</Label>
                 <Select
+                  items={modeItems}
                   value={localConfig.mode}
                   onValueChange={(v) =>
                     setLocalConfig((p) => p && { ...p, mode: v })
@@ -591,7 +622,7 @@ export function ModerationTab() {
               placeholder={t('Enter text to test...')}
               rows={2}
             />
-            <Select value={debugGroup} onValueChange={setDebugGroup}>
+            <Select items={debugGroupItems} value={debugGroup} onValueChange={setDebugGroup}>
               <SelectTrigger className="h-8">
                 <SelectValue placeholder={t('Group')} />
               </SelectTrigger>
@@ -629,6 +660,7 @@ export function ModerationTab() {
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Select
+              items={incidentGroupItems}
               value={incidentFilters.group}
               onValueChange={(v) =>
                 setIncidentFilters((p) => ({ ...p, group: v }))
@@ -647,6 +679,7 @@ export function ModerationTab() {
               </SelectContent>
             </Select>
             <Select
+              items={flaggedItems}
               value={incidentFilters.flagged}
               onValueChange={(v) =>
                 setIncidentFilters((p) => ({ ...p, flagged: v }))
@@ -792,7 +825,7 @@ export function ModerationTab() {
 
       {/* Incident Detail Dialog */}
       <Dialog open={detailId !== null} onOpenChange={(open) => !open && setDetailId(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-x-hidden overflow-y-auto">
+        <DialogContent className="max-h-[85vh] overflow-x-hidden overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{t('Incident Detail')}</DialogTitle>
           </DialogHeader>

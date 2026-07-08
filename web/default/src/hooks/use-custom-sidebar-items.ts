@@ -14,14 +14,14 @@ import { ROLE } from '@/lib/roles'
 export function getCustomAdminItems(t: TFunction): NavItem[] {
   return [
     {
+      title: t('Ticket Admin'),
+      url: '/ticket-admin',
+      icon: HeadsetIcon,
+    },
+    {
       title: t('Risk Control'),
       url: '/risk',
       icon: Shield,
-    },
-    {
-      title: t('Group Monitoring'),
-      url: '/monitoring',
-      icon: Activity,
     },
     {
       title: t('Invitation Codes'),
@@ -51,9 +51,15 @@ export function getCustomGeneralItems(
       url: '/topup-history',
       icon: History,
     },
+    {
+      title: t('Group Monitoring'),
+      url: '/monitoring',
+      icon: Activity,
+    },
   ]
 
-  if (role >= ROLE.TICKET_STAFF) {
+  // Ticket staff below admin cannot see the admin group, so keep their entry here.
+  if (role >= ROLE.TICKET_STAFF && role < ROLE.ADMIN) {
     items.push({
       title: t('Ticket Admin'),
       url: '/ticket-admin',

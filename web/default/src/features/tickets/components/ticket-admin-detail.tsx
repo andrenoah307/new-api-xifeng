@@ -89,6 +89,17 @@ export default function TicketAdminDetailPage({
     return messages
   }, [messages, isRefund, isInvoice])
 
+  const statusItems = useMemo(
+    () =>
+      getStatusOptions(true).map((o) => ({ value: o.value, label: t(o.label) })),
+    [t]
+  )
+  const priorityItems = useMemo(
+    () =>
+      getPriorityOptions().map((o) => ({ value: o.value, label: t(o.label) })),
+    [t]
+  )
+
   const { data: invoiceData } = useQuery({
     queryKey: ticketQueryKeys.adminInvoice(ticketId),
     queryFn: () => getAdminInvoiceDetail(ticketId),
@@ -253,7 +264,7 @@ export default function TicketAdminDetailPage({
               {t('Claim Ticket')}
             </Button>
           )}
-          <Select value={statusValue} onValueChange={(v) => v !== null && setStatusValue(v)}>
+          <Select items={statusItems} value={statusValue} onValueChange={(v) => v !== null && setStatusValue(v)}>
             <SelectTrigger className="h-8 w-[120px]">
               <SelectValue />
             </SelectTrigger>
@@ -265,7 +276,7 @@ export default function TicketAdminDetailPage({
               ))}
             </SelectContent>
           </Select>
-          <Select value={priorityValue} onValueChange={(v) => v !== null && setPriorityValue(v)}>
+          <Select items={priorityItems} value={priorityValue} onValueChange={(v) => v !== null && setPriorityValue(v)}>
             <SelectTrigger className="h-8 w-[120px]">
               <SelectValue />
             </SelectTrigger>
