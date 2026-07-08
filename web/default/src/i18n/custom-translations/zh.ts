@@ -736,6 +736,14 @@ const zh: Record<string, string> = {
   // Invoice content (Chinese fapiao line item)
   '*Production and Living Services*Technical Service Fee':
     '*生产生活服务*技术服务费',
+
+  // Redemption codes bulk delete
+  'Delete selected codes': '删除选中的兑换码',
+  'Delete {{count}} redemption code(s)?': '删除 {{count}} 个兑换码？',
+  'You are about to delete {{count}} redemption code(s).':
+    '即将删除 {{count}} 个兑换码。',
+  'Successfully deleted {{count}} redemption code(s)':
+    '成功删除 {{count}} 个兑换码',
 }
 
 export default zh

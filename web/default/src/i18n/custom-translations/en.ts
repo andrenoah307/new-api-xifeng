@@ -730,6 +730,14 @@ const en = {
   // Invoice content (Chinese fapiao line item)
   '*Production and Living Services*Technical Service Fee':
     '*Production and Living Services*Technical Service Fee',
+
+  // Redemption codes bulk delete
+  'Delete selected codes': 'Delete selected codes',
+  'Delete {{count}} redemption code(s)?': 'Delete {{count}} redemption code(s)?',
+  'You are about to delete {{count}} redemption code(s).':
+    'You are about to delete {{count}} redemption code(s).',
+  'Successfully deleted {{count}} redemption code(s)':
+    'Successfully deleted {{count}} redemption code(s)',
 } as const
 
 export default en

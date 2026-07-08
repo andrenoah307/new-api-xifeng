@@ -738,6 +738,14 @@ const zhTW: Record<string, string> = {
   // Invoice content (Chinese fapiao line item)
   '*Production and Living Services*Technical Service Fee':
     '*生產生活服務*技術服務費',
+
+  // Redemption codes bulk delete
+  'Delete selected codes': '刪除選取的兌換碼',
+  'Delete {{count}} redemption code(s)?': '刪除 {{count}} 個兌換碼？',
+  'You are about to delete {{count}} redemption code(s).':
+    '即將刪除 {{count}} 個兌換碼。',
+  'Successfully deleted {{count}} redemption code(s)':
+    '成功刪除 {{count}} 個兌換碼',
 }
 
 export default zhTW

@@ -178,6 +178,28 @@ func UpdateRedemption(c *gin.Context) {
 	return
 }
 
+type RedemptionBatch struct {
+	Ids []int `json:"ids"`
+}
+
+func DeleteRedemptionBatch(c *gin.Context) {
+	batch := RedemptionBatch{}
+	if err := c.ShouldBindJSON(&batch); err != nil || len(batch.Ids) == 0 {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	count, err := model.BatchDeleteRedemptions(batch.Ids)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data":    count,
+	})
+}
+
 func DeleteInvalidRedemption(c *gin.Context) {
 	rows, err := model.DeleteInvalidRedemptions()
 	if err != nil {
