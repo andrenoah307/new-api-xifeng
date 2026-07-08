@@ -46,3 +46,4 @@ export const CUSTOM_SECTION_IDS = customRegistry.sectionIds
 export const CUSTOM_DEFAULT_SECTION = customRegistry.defaultSection
 export const getCustomSectionNavItems = customRegistry.getSectionNavItems
 export const getCustomSectionContent = customRegistry.getSectionContent
+export const getCustomSectionMeta = customRegistry.getSectionMeta

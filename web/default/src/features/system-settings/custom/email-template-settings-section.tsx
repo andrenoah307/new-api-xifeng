@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { SettingsControlGroup } from '../components/settings-form-layout'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { api } from '@/lib/api'
@@ -190,7 +191,8 @@ export function EmailTemplateSettingsSection() {
       title={t('Email Templates')}
       description={t('Configure email notification templates')}
     >
-      <div className='space-y-4'>
+      {/* SettingsControlGroup 提供标准的圆角边框卡片，与其他设置页外观一致 */}
+      <SettingsControlGroup className='space-y-4'>
         <div className='flex items-center gap-3'>
           <Select value={selectedKey} onValueChange={selectTemplate}>
             <SelectTrigger className='w-64'>
@@ -274,10 +276,11 @@ export function EmailTemplateSettingsSection() {
             {t('Template Preview')}
           </Button>
         </div>
-      </div>
+      </SettingsControlGroup>
 
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className='max-w-2xl'>
+        {/* sm: 前缀：基础 DialogContent 的 sm:max-w-sm 在 ≥640px 会盖过无前缀的 max-w-* */}
+        <DialogContent className='sm:max-w-2xl'>
           <DialogHeader>
             <DialogTitle>{t('Template Preview')}</DialogTitle>
           </DialogHeader>

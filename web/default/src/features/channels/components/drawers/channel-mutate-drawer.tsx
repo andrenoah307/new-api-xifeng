@@ -37,6 +37,7 @@ import {
   Eye,
   RefreshCw,
   Code,
+  Puzzle,
   Route,
   Settings,
   SlidersHorizontal,
@@ -239,12 +240,14 @@ const CHANNEL_EDITOR_SECTION_IDS = {
   credentials: 'channel-section-credentials',
   models: 'channel-section-models',
   advanced: 'channel-section-advanced',
+  custom: 'channel-section-custom',
 } as const
 const CHANNEL_EDITOR_MAIN_SECTION_IDS = [
   CHANNEL_EDITOR_SECTION_IDS.identity,
   CHANNEL_EDITOR_SECTION_IDS.credentials,
   CHANNEL_EDITOR_SECTION_IDS.models,
   CHANNEL_EDITOR_SECTION_IDS.advanced,
+  CHANNEL_EDITOR_SECTION_IDS.custom,
 ]
 const ADVANCED_SETTINGS_SECTION_IDS = {
   routingStrategy: 'channel-section-advanced-routing-strategy',
@@ -1032,6 +1035,13 @@ export function ChannelMutateDrawer({
       icon: <Settings className='h-4 w-4' aria-hidden='true' />,
       configured: advancedConfigured,
       children: advancedNavChildren,
+    },
+    {
+      id: CHANNEL_EDITOR_SECTION_IDS.custom,
+      title: t('Custom Extensions'),
+      statusLabel: t('Custom Extensions'),
+      status: 'idle',
+      icon: <Puzzle className='h-4 w-4' aria-hidden='true' />,
     },
   ]
 
@@ -4497,11 +4507,16 @@ export function ChannelMutateDrawer({
                   </div>
                 </div>
               )}
-              {/* fork: custom channel extensions */}
-              <ChannelCustomSections
-                form={form}
-                channelId={channelId ?? undefined}
-              />
+              {/* fork: custom channel extensions（挂锚点进左侧节导航，避免埋在长表单底部找不到） */}
+              <div
+                id={CHANNEL_EDITOR_SECTION_IDS.custom}
+                className='scroll-mt-4'
+              >
+                <ChannelCustomSections
+                  form={form}
+                  channelId={channelId ?? undefined}
+                />
+              </div>
             </form>
           </Form>
 

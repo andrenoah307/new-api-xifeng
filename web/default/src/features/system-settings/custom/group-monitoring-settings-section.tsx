@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { MultiSelect } from '@/components/multi-select'
 import { TagInput } from '@/components/tag-input'
+import { SettingsControlGroup } from '../components/settings-form-layout'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { api } from '@/lib/api'
@@ -159,7 +160,8 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
       title={t('Group Monitoring Settings')}
       description={t('Configure group monitoring parameters')}
     >
-      <div className='space-y-4'>
+      {/* SettingsControlGroup 提供标准的圆角边框卡片，与其他设置页外观一致 */}
+      <SettingsControlGroup className='space-y-4'>
         <div className='space-y-1'>
           <Label>{t('Monitored Groups')}</Label>
           <MultiSelect
@@ -238,7 +240,7 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
             {t('Refresh now')}
           </Button>
         </div>
-      </div>
+      </SettingsControlGroup>
     </SettingsSection>
   )
 }
