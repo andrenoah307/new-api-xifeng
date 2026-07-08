@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, Settings } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Settings, Wallet } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -46,6 +46,26 @@ export function MessageError({ message, className = '' }: MessageErrorProps) {
               {t('Go to Settings')}
             </Button>
           )}
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (message.errorCode === 'insufficient_user_quota') {
+    return (
+      <Alert variant='default' className={className}>
+        <AlertTriangle className='text-amber-500' />
+        <AlertTitle>{t('Insufficient Balance')}</AlertTitle>
+        <AlertDescription className='space-y-2'>
+          <p>{errorContent}</p>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => window.open('/console/wallet', '_blank')}
+          >
+            <Wallet className='mr-1 h-3.5 w-3.5' />
+            {t('Top up')}
+          </Button>
         </AlertDescription>
       </Alert>
     )

@@ -4004,6 +4004,8 @@
     "请求参数": "",
     "请求参数无效": "Invalid request parameters",
     "请求发生错误": "An error occurred with the request",
+    "余额不足": "Insufficient Balance",
+    "去充值": "Top up",
     "请求发生错误: ": "An error occurred with the request: ",
     "请求后端接口失败：": "Failed to request the backend interface: ",
     "请求失败": "Request failed",

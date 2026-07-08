@@ -21,7 +21,7 @@ import React, { useRef, useEffect } from 'react';
 import { Typography, TextArea, Button } from '@douyinfe/semi-ui';
 import MarkdownRenderer from '../common/markdown/MarkdownRenderer';
 import ThinkingContent from './ThinkingContent';
-import { Loader2, Check, X, Settings, AlertTriangle } from 'lucide-react';
+import { Loader2, Check, X, Settings, AlertTriangle, Wallet } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isAdmin } from '../../helpers/utils';
 
@@ -98,6 +98,42 @@ const MessageContent = ({
                 {t('前往设置')}
               </Button>
             )}
+          </div>
+        </div>
+      );
+    }
+
+    if (message.errorCode === 'insufficient_user_quota') {
+      return (
+        <div className={`${className}`}>
+          <div
+            className='rounded-lg p-3 space-y-2'
+            style={{
+              background: 'var(--semi-color-bg-0)',
+              border: '1px solid var(--semi-color-border)',
+            }}
+          >
+            <div className='flex items-center gap-2'>
+              <AlertTriangle size={16} className='text-amber-500 shrink-0' />
+              <Typography.Text strong className='!text-[var(--semi-color-text-0)]'>
+                {t('余额不足')}
+              </Typography.Text>
+            </div>
+            <Typography.Paragraph
+              className='!text-[var(--semi-color-text-1)] !text-sm !mb-0'
+              style={{ wordBreak: 'break-word' }}
+            >
+              {errorText}
+            </Typography.Paragraph>
+            <Button
+              size='small'
+              theme='light'
+              type='warning'
+              icon={<Wallet size={14} />}
+              onClick={() => window.open('/console/topup', '_blank')}
+            >
+              {t('去充值')}
+            </Button>
           </div>
         </div>
       );

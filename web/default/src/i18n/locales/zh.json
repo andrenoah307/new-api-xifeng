@@ -1487,6 +1487,8 @@
     "Epay secret key": "Epay 密钥",
     "Equals": "等于",
     "Error": "错误",
+    "Insufficient Balance": "余额不足",
+    "Top up": "去充值",
     "Error Code (optional)": "错误代码（可选）",
     "Error Codes": "错误码",
     "Error Filter Rules": "上游错误过滤",

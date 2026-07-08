@@ -336,6 +336,24 @@ func (s *BillingSession) syncRelayInfo() {
 }
 
 // ---------------------------------------------------------------------------
+// buildInsufficientQuotaMessage 组装「余额/令牌额度不足」的友好错误串，用于预扣硬拒。
+// 预扣 403 携 ErrOptionWithNoRecordErrorLog 不落盘（坑点 #138），因此把模型 / 分组(倍率) /
+// 上下文估算 / 最低需预扣成本 / 当前余额都写进错误串——既让终端用户理解并自助（充值或减小
+// 上下文 / 降低 max_tokens），也让双前端据此渲染友好提示，并为事后取证保留关键量。
+func buildInsufficientQuotaMessage(info *relaycommon.RelayInfo, remainQuota, minQuota int, isToken bool) string {
+	group := info.UsingGroup
+	if group == "" {
+		group = info.UserGroup
+	}
+	subject, remainLabel := "用户额度不足", "当前余额"
+	if isToken {
+		subject, remainLabel = "令牌额度不足", "令牌剩余额度"
+	}
+	return fmt.Sprintf("%s：模型 %s（分组 %s，分组倍率 %g），预估上下文约 %d tokens，最低需预扣 %s，%s %s。请充值，或减小上下文 / 降低 max_tokens 后重试。",
+		subject, info.OriginModelName, group, info.PriceData.GroupRatioInfo.GroupRatio,
+		info.GetEstimatePromptTokens(), logger.FormatQuota(minQuota), remainLabel, logger.FormatQuota(remainQuota))
+}
+
 // NewBillingSession 工厂 — 根据计费偏好创建会话并处理回退
 // ---------------------------------------------------------------------------
 
@@ -401,7 +419,7 @@ func (s *BillingSession) reconcileTokenReject(c *gin.Context, userQuota, fullQuo
 	target, ok := resolveFreshTokenTarget(token.UnlimitedQuota, userQuota, fullQuota, minQuota)
 	if !ok {
 		return 0, types.NewErrorWithStatusCode(
-			fmt.Errorf("令牌额度不足, 令牌剩余额度: %s, 需要预扣费额度: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(minQuota)),
+			fmt.Errorf("%s", buildInsufficientQuotaMessage(s.relayInfo, token.RemainQuota, minQuota, true)),
 			types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
 			types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 	}
@@ -454,7 +472,7 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 			switch reject {
 			case preConsumeRejectWallet:
 				return nil, types.NewErrorWithStatusCode(
-					fmt.Errorf("用户额度不足, 剩余额度: %s, 需要预扣费额度: %s", logger.FormatQuota(userQuota), logger.FormatQuota(minPreConsumedQuota)),
+					fmt.Errorf("%s", buildInsufficientQuotaMessage(relayInfo, userQuota, minPreConsumedQuota, false)),
 					types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
 					types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 			case preConsumeRejectToken:

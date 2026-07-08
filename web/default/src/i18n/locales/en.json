@@ -1487,6 +1487,8 @@
     "Epay secret key": "Epay secret key",
     "Equals": "Equals",
     "Error": "Error",
+    "Insufficient Balance": "Insufficient Balance",
+    "Top up": "Top up",
     "Error Code (optional)": "Error Code (optional)",
     "Error Codes": "Error Codes",
     "Error Filter Rules": "Error Filter Rules",
