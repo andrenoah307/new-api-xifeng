@@ -120,10 +120,12 @@ function ProfileContent({
         <div>
           <dt className="text-muted-foreground text-xs">{t('Status')}</dt>
           <dd className="mt-0.5">
+            {/* showDot：基础 StatusBadge 默认无图标，gap+padding 看起来像空的图标占位 */}
             <StatusBadge
               label={statusLabel}
               variant={statusVariant}
               size="sm"
+              showDot
               copyable={false}
             />
           </dd>
@@ -151,6 +153,8 @@ function ProfileContent({
           value={formatQuota(profile.pending_refund_quota)}
         />
       </div>
+
+      <TopUpSection ticketId={ticketId} t={t} />
 
       {profile.recent_logs && profile.recent_logs.length > 0 && (
         <div>
@@ -261,7 +265,6 @@ function ProfileContent({
         </div>
       )}
 
-      <TopUpSection ticketId={ticketId} t={t} />
     </div>
   )
 }
