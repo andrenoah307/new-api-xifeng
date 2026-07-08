@@ -53,10 +53,10 @@ func GetEnforcementOverview(c *gin.Context) {
 func GetEnforcementIncidents(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	q := model.EnforcementIncidentQuery{
-		Group:   c.Query("group"),
-		Source:  c.Query("source"),
-		Action:  c.Query("action"),
-		Keyword: c.Query("keyword"),
+		Group:    c.Query("group"),
+		SourceIn: common.SplitQueryValues(c.Query("source")),
+		ActionIn: common.SplitQueryValues(c.Query("action")),
+		Keyword:  c.Query("keyword"),
 	}
 	if v := strings.TrimSpace(c.Query("user_id")); v != "" {
 		if uid, err := strconv.Atoi(v); err == nil {

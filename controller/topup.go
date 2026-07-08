@@ -509,8 +509,8 @@ func GetAllTopUps(c *gin.Context) {
 // parseTopUpFilter extracts keyword / status / time-range query params.
 func parseTopUpFilter(c *gin.Context) model.TopUpFilter {
 	filter := model.TopUpFilter{
-		Keyword: c.Query("keyword"),
-		Status:  c.Query("status"),
+		Keyword:  c.Query("keyword"),
+		StatusIn: common.SplitQueryValues(c.Query("status")),
 	}
 	if v, err := strconv.ParseInt(c.Query("start_time"), 10, 64); err == nil {
 		filter.StartTime = v

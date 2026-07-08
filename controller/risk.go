@@ -137,10 +137,10 @@ func DeleteRiskRule(c *gin.Context) {
 func GetRiskSubjects(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	query := model.RiskSubjectQuery{
-		Scope:   c.Query("scope"),
-		Status:  c.Query("status"),
-		Keyword: c.Query("keyword"),
-		Group:   c.Query("group"),
+		ScopeIn:  common.SplitQueryValues(c.Query("scope")),
+		StatusIn: common.SplitQueryValues(c.Query("status")),
+		Keyword:  c.Query("keyword"),
+		Group:    c.Query("group"),
 	}
 	items, total, err := service.ListRiskSubjectSnapshots(query, pageInfo)
 	if err != nil {
@@ -155,10 +155,10 @@ func GetRiskSubjects(c *gin.Context) {
 func GetRiskIncidents(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	query := model.RiskIncidentQuery{
-		Scope:   c.Query("scope"),
-		Action:  c.Query("action"),
-		Keyword: c.Query("keyword"),
-		Group:   c.Query("group"),
+		ScopeIn:  common.SplitQueryValues(c.Query("scope")),
+		ActionIn: common.SplitQueryValues(c.Query("action")),
+		Keyword:  c.Query("keyword"),
+		Group:    c.Query("group"),
 	}
 	items, total, err := service.ListRiskIncidents(query, pageInfo)
 	if err != nil {

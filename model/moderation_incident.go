@@ -29,7 +29,7 @@ type ModerationIncident struct {
 	Categories        string  `json:"categories" gorm:"type:text"`
 	AppliedTypes      string  `json:"applied_types" gorm:"type:text"`
 	InputSummary      string  `json:"input_summary" gorm:"type:text"`
-	UpstreamLatencyMS int `json:"upstream_latency_ms" gorm:"default:0"`
+	UpstreamLatencyMS int     `json:"upstream_latency_ms" gorm:"default:0"`
 	// Source distinguishes traffic events ("relay") from admin debug runs
 	// ("debug") so debug calls don't pollute production sensitivity tuning.
 	Source string `json:"source" gorm:"type:varchar(16);index;default:'relay'"`
@@ -47,7 +47,8 @@ type ModerationIncident struct {
 }
 
 type ModerationIncidentQuery struct {
-	Group   string
+	// GroupIn 为逗号分隔多值筛选（?group=default,vip）；空表示不过滤。
+	GroupIn []string
 	Source  string
 	Flagged *bool
 	Keyword string
@@ -76,8 +77,8 @@ func ListModerationIncidents(query ModerationIncidentQuery, startIdx, pageSize i
 	var rows []*ModerationIncident
 	var total int64
 	tx := DB.Model(&ModerationIncident{})
-	if query.Group != "" {
-		tx = tx.Where(commonGroupCol+" = ?", query.Group)
+	if len(query.GroupIn) > 0 {
+		tx = tx.Where(commonGroupCol+" IN ?", query.GroupIn)
 	}
 	if query.Source != "" {
 		tx = tx.Where("source = ?", query.Source)

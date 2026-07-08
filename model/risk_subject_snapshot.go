@@ -8,13 +8,13 @@ import (
 )
 
 type RiskSubjectSnapshot struct {
-	Id          int    `json:"id"`
-	SubjectType string `json:"subject_type" gorm:"type:varchar(16);uniqueIndex:idx_risk_subject_unique_v2;index"`
-	SubjectID   int    `json:"subject_id" gorm:"uniqueIndex:idx_risk_subject_unique_v2;index"`
-	UserID      int    `json:"user_id" gorm:"index"`
-	TokenID     int    `json:"token_id" gorm:"index"`
-	Username    string `json:"username" gorm:"type:varchar(64);index;default:''"`
-	TokenName   string `json:"token_name" gorm:"type:varchar(128);index;default:''"`
+	Id             int    `json:"id"`
+	SubjectType    string `json:"subject_type" gorm:"type:varchar(16);uniqueIndex:idx_risk_subject_unique_v2;index"`
+	SubjectID      int    `json:"subject_id" gorm:"uniqueIndex:idx_risk_subject_unique_v2;index"`
+	UserID         int    `json:"user_id" gorm:"index"`
+	TokenID        int    `json:"token_id" gorm:"index"`
+	Username       string `json:"username" gorm:"type:varchar(64);index;default:''"`
+	TokenName      string `json:"token_name" gorm:"type:varchar(128);index;default:''"`
 	TokenMaskedKey string `json:"token_masked_key" gorm:"type:varchar(64);default:''"`
 	// Group is part of the unique key so that the same (scope, subjectID) can
 	// have separate risk states across groups (vip vs free). Empty group rows
@@ -47,10 +47,11 @@ type RiskSubjectSnapshot struct {
 }
 
 type RiskSubjectQuery struct {
-	Scope   string
-	Status  string
-	Keyword string
-	Group   string
+	// ScopeIn/StatusIn 为逗号分隔多值筛选（?scope=user,token）；空表示不过滤。
+	ScopeIn  []string
+	StatusIn []string
+	Keyword  string
+	Group    string
 }
 
 func UpsertRiskSubjectSnapshot(snapshot *RiskSubjectSnapshot) error {
@@ -116,11 +117,11 @@ func ListRiskSubjectSnapshots(query RiskSubjectQuery, startIdx int, pageSize int
 	var snapshots []*RiskSubjectSnapshot
 	var total int64
 	tx := DB.Model(&RiskSubjectSnapshot{})
-	if query.Scope != "" {
-		tx = tx.Where("subject_type = ?", query.Scope)
+	if len(query.ScopeIn) > 0 {
+		tx = tx.Where("subject_type IN ?", query.ScopeIn)
 	}
-	if query.Status != "" {
-		tx = tx.Where("status = ?", query.Status)
+	if len(query.StatusIn) > 0 {
+		tx = tx.Where("status IN ?", query.StatusIn)
 	}
 	if query.Group != "" {
 		tx = tx.Where(commonGroupCol+" = ?", query.Group)

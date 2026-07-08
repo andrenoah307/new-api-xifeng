@@ -39,10 +39,11 @@ type RiskIncident struct {
 }
 
 type RiskIncidentQuery struct {
-	Scope   string
-	Action  string
-	Keyword string
-	Group   string
+	// ScopeIn/ActionIn 为逗号分隔多值筛选（?scope=user,token）；空表示不过滤。
+	ScopeIn  []string
+	ActionIn []string
+	Keyword  string
+	Group    string
 }
 
 func CreateRiskIncident(incident *RiskIncident) error {
@@ -59,11 +60,11 @@ func ListRiskIncidents(query RiskIncidentQuery, startIdx int, pageSize int) ([]*
 	var incidents []*RiskIncident
 	var total int64
 	tx := DB.Model(&RiskIncident{})
-	if query.Scope != "" {
-		tx = tx.Where("subject_type = ?", query.Scope)
+	if len(query.ScopeIn) > 0 {
+		tx = tx.Where("subject_type IN ?", query.ScopeIn)
 	}
-	if query.Action != "" {
-		tx = tx.Where("action = ?", query.Action)
+	if len(query.ActionIn) > 0 {
+		tx = tx.Where("action IN ?", query.ActionIn)
 	}
 	if query.Group != "" {
 		tx = tx.Where(commonGroupCol+" = ?", query.Group)

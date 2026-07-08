@@ -25,7 +25,7 @@ func GetModerationConfig(c *gin.Context) {
 		masked.APIKeys = append(masked.APIKeys, operation_setting.MaskModerationKey(k))
 	}
 	common.ApiSuccess(c, gin.H{
-		"config":   masked,
+		"config":    masked,
 		"key_count": len(cfg.APIKeys),
 	})
 }
@@ -203,12 +203,13 @@ func GetModerationIncidentDetail(c *gin.Context) {
 func GetModerationIncidents(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	query := model.ModerationIncidentQuery{
-		Group:   c.Query("group"),
+		GroupIn: common.SplitQueryValues(c.Query("group")),
 		Source:  c.Query("source"),
 		Keyword: c.Query("keyword"),
 	}
-	if v := strings.TrimSpace(c.Query("flagged")); v != "" {
-		flagged := v == "true" || v == "1"
+	// flagged 支持多值：恰好一个值时才过滤，true,false 两个都选等于不过滤
+	if flaggedValues := common.SplitQueryValues(c.Query("flagged")); len(flaggedValues) == 1 {
+		flagged := flaggedValues[0] == "true" || flaggedValues[0] == "1"
 		query.Flagged = &flagged
 	}
 	if v := strings.TrimSpace(c.Query("user_id")); v != "" {

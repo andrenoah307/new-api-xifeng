@@ -63,10 +63,12 @@ type Ticket struct {
 }
 
 type TicketQueryOptions struct {
-	UserId  int
-	Status  int
-	Type    string
-	Keyword string
+	UserId int
+	Status int
+	// StatusIn 限定状态在给定列表中；仅在 Status 为 0 时生效（与 TypeIn 同语义）。
+	StatusIn []int
+	Type     string
+	Keyword  string
 	// AssigneeId 用于客服视角：只返回分配给指定用户的工单；值为 -1 表示"未分配"。
 	// 0 表示不按分配过滤。
 	AssigneeId int
@@ -203,6 +205,8 @@ func applyTicketFilters(query *gorm.DB, options TicketQueryOptions) *gorm.DB {
 	}
 	if options.Status > 0 {
 		query = query.Where("tickets.status = ?", options.Status)
+	} else if len(options.StatusIn) > 0 {
+		query = query.Where("tickets.status IN ?", options.StatusIn)
 	}
 	if ticketType != "" {
 		query = query.Where("tickets.type = ?", ticketType)

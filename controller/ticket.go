@@ -3,6 +3,7 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -319,18 +320,43 @@ func CreateTicket(c *gin.Context) {
 	})
 }
 
+// parseTicketListFilters 解析工单列表接口的 status/type 查询参数，两者都接受逗号分隔多值
+// （?status=1,2&type=general,refund）；单值请求语义不变。type 含非法值时返回 400（ok=false）。
+// 恰好一个 type 时走单值 Type（保留 keyword 联表裁剪等既有语义），多个走 TypeIn。
+func parseTicketListFilters(c *gin.Context) (statusIn []int, ticketType string, typeIn []string, ok bool) {
+	for _, raw := range common.SplitQueryValues(c.Query("status")) {
+		if v, err := strconv.Atoi(raw); err == nil && v > 0 {
+			statusIn = append(statusIn, v)
+		}
+	}
+	var types []string
+	for _, raw := range common.SplitQueryValues(c.Query("type")) {
+		normalized, valid := normalizeTicketTypeOrError(c, raw)
+		if !valid {
+			return nil, "", nil, false
+		}
+		if normalized != "" {
+			types = append(types, normalized)
+		}
+	}
+	if len(types) == 1 {
+		return statusIn, types[0], nil, true
+	}
+	return statusIn, "", types, true
+}
+
 func GetUserTickets(c *gin.Context) {
-	ticketType, ok := normalizeTicketTypeOrError(c, c.Query("type"))
+	statusIn, ticketType, typeIn, ok := parseTicketListFilters(c)
 	if !ok {
 		return
 	}
-	status, _ := strconv.Atoi(c.Query("status"))
 	pageInfo := common.GetPageQuery(c)
 
 	tickets, total, err := model.ListTicketsWithSummary(model.TicketQueryOptions{
-		UserId: c.GetInt("id"),
-		Status: status,
-		Type:   ticketType,
+		UserId:   c.GetInt("id"),
+		StatusIn: statusIn,
+		Type:     ticketType,
+		TypeIn:   typeIn,
 	}, pageInfo)
 	if err != nil {
 		common.ApiError(c, err)
@@ -446,18 +472,18 @@ func CloseUserTicket(c *gin.Context) {
 //   - 管理员及以上：全部工单；支持 scope=mine / scope=unassigned 过滤
 //   - 客服：自己被分配的工单 + 同组待认领工单；scope=mine 仅自己的；scope=unassigned 仅本组未分配
 func GetAllTickets(c *gin.Context) {
-	ticketType, ok := normalizeTicketTypeOrError(c, c.Query("type"))
+	statusIn, ticketType, typeIn, ok := parseTicketListFilters(c)
 	if !ok {
 		return
 	}
-	status, _ := strconv.Atoi(c.Query("status"))
 	scope := strings.ToLower(strings.TrimSpace(c.Query("scope"))) // "" / mine / unassigned
 	pageInfo := common.GetPageQuery(c)
 
 	opts := model.TicketQueryOptions{
-		Status:  status,
-		Type:    ticketType,
-		Keyword: c.Query("keyword"),
+		StatusIn: statusIn,
+		Type:     ticketType,
+		TypeIn:   typeIn,
+		Keyword:  c.Query("keyword"),
 	}
 
 	role := c.GetInt("role")
@@ -481,12 +507,32 @@ func GetAllTickets(c *gin.Context) {
 		case "unassigned":
 			opts.AssigneeId = -1
 			myTypes := setting.TicketTypesForUser(currentUserId)
-			if opts.Type == "" && len(myTypes) > 0 {
-				opts.TypeIn = myTypes
-			}
 			if len(myTypes) == 0 {
 				// 未加入任何分组的客服 —— 没有可认领的工单，强制返回空结果。
+				opts.Type = ""
 				opts.TypeIn = []string{"__none__"}
+				break
+			}
+			// 请求带类型筛选时与自己负责的类型取交集：职责外的类型必须看到空，
+			// 而不是放大到全部；不带筛选则维持"只看自己负责类型的池子"。
+			requested := opts.TypeIn
+			if opts.Type != "" {
+				requested = []string{opts.Type}
+			}
+			if len(requested) == 0 {
+				opts.TypeIn = myTypes
+			} else {
+				allowed := make([]string, 0, len(requested))
+				for _, t := range requested {
+					if slices.Contains(myTypes, t) {
+						allowed = append(allowed, t)
+					}
+				}
+				if len(allowed) == 0 {
+					allowed = []string{"__none__"}
+				}
+				opts.Type = ""
+				opts.TypeIn = allowed
 			}
 		default:
 			opts.AssigneeId = currentUserId

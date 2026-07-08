@@ -174,8 +174,9 @@ const searchTopUpCountHardLimit = 10000
 
 // TopUpFilter holds optional filter conditions for topup queries.
 type TopUpFilter struct {
-	Keyword   string
-	Status    string
+	Keyword string
+	// StatusIn 限定状态在给定列表中（?status=success,pending 逗号分隔多值）；空表示不过滤。
+	StatusIn  []string
 	StartTime int64
 	EndTime   int64
 
@@ -331,8 +332,8 @@ func applyTopUpAdminFilters(query *gorm.DB, filter TopUpFilter) (*gorm.DB, error
 			query = query.Where("(top_ups.trade_no LIKE ? ESCAPE '!' OR users.username LIKE ? ESCAPE '!')", pattern, pattern)
 		}
 	}
-	if filter.Status != "" {
-		query = query.Where("top_ups.status = ?", filter.Status)
+	if len(filter.StatusIn) > 0 {
+		query = query.Where("top_ups.status IN ?", filter.StatusIn)
 	}
 	if filter.StartTime > 0 {
 		query = query.Where("top_ups.create_time >= ?", filter.StartTime)
@@ -352,8 +353,8 @@ func applyTopUpQueryFilters(query *gorm.DB, filter TopUpFilter) (*gorm.DB, error
 		}
 		query = query.Where("trade_no LIKE ? ESCAPE '!'", pattern)
 	}
-	if filter.Status != "" {
-		query = query.Where("status = ?", filter.Status)
+	if len(filter.StatusIn) > 0 {
+		query = query.Where("status IN ?", filter.StatusIn)
 	}
 	if filter.StartTime > 0 {
 		query = query.Where("create_time >= ?", filter.StartTime)

@@ -382,3 +382,18 @@ func multipartMemoryLimit() int64 {
 	}
 	return int64(limitMB) << 20
 }
+
+// SplitQueryValues splits a comma-separated query param into trimmed,
+// non-empty values. A missing/empty param yields nil (no filter).
+func SplitQueryValues(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var values []string
+	for _, part := range strings.Split(raw, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			values = append(values, part)
+		}
+	}
+	return values
+}

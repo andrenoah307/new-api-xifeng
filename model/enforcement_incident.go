@@ -47,11 +47,12 @@ const (
 )
 
 type EnforcementIncidentQuery struct {
-	UserID  int
-	Group   string
-	Source  string
-	Action  string
-	Keyword string
+	UserID int
+	Group  string
+	// SourceIn/ActionIn 为逗号分隔多值筛选；空表示不过滤。
+	SourceIn []string
+	ActionIn []string
+	Keyword  string
 }
 
 func CreateEnforcementIncident(incident *EnforcementIncident) error {
@@ -74,11 +75,11 @@ func ListEnforcementIncidents(query EnforcementIncidentQuery, startIdx, pageSize
 	if query.Group != "" {
 		tx = tx.Where(commonGroupCol+" = ?", query.Group)
 	}
-	if query.Source != "" {
-		tx = tx.Where("source = ?", query.Source)
+	if len(query.SourceIn) > 0 {
+		tx = tx.Where("source IN ?", query.SourceIn)
 	}
-	if query.Action != "" {
-		tx = tx.Where("action = ?", query.Action)
+	if len(query.ActionIn) > 0 {
+		tx = tx.Where("action IN ?", query.ActionIn)
 	}
 	if keyword := strings.TrimSpace(query.Keyword); keyword != "" {
 		pattern := "%" + keyword + "%"
