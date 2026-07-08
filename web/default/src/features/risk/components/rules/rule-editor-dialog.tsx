@@ -230,7 +230,7 @@ export function RuleEditorDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {SCOPE_OPTIONS.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {t(o.label)}
@@ -249,7 +249,7 @@ export function RuleEditorDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {MATCH_MODE_OPTIONS.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {t(o.label)}
@@ -268,7 +268,7 @@ export function RuleEditorDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {ACTION_OPTIONS.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {t(o.label)}
@@ -322,7 +322,7 @@ export function RuleEditorDialog({
                   <SelectTrigger className="w-[180px]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     {availableMetrics.map((m) => (
                       <SelectItem key={m.value} value={m.value}>
                         {t(m.label)}
@@ -338,7 +338,7 @@ export function RuleEditorDialog({
                   <SelectTrigger className="w-[80px]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     {OP_OPTIONS.map((o) => (
                       <SelectItem key={o.value} value={o.value}>
                         {o.label}

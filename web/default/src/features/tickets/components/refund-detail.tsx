@@ -366,7 +366,7 @@ export function RefundDetail({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   <SelectItem value="write_off">
                     {t('Write Off (Recommended)')}
                   </SelectItem>

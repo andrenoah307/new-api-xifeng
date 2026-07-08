@@ -63,7 +63,7 @@ export function RiskConfigPanel({ config, saving, onSave }: Props) {
               <SelectTrigger className="h-8">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent alignItemWithTrigger={false}>
                 {MODE_OPTIONS.map((o) => (
                   <SelectItem key={o.value} value={o.value}>
                     {t(o.label)}

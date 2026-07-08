@@ -315,7 +315,7 @@ export function CreateTicketDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   <SelectItem value="general">
                     {t('General Ticket')}
                   </SelectItem>
@@ -421,7 +421,7 @@ export function CreateTicketDialog({
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false}>
                       <SelectItem value="1">{t('High Priority')}</SelectItem>
                       <SelectItem value="2">{t('Normal Priority')}</SelectItem>
                       <SelectItem value="3">{t('Low Priority')}</SelectItem>
@@ -476,7 +476,7 @@ export function CreateTicketDialog({
                             <SelectValue />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent alignItemWithTrigger={false}>
                           {PAYEE_TYPE_OPTIONS.map((o) => (
                             <SelectItem key={o.value} value={o.value}>
                               {t(o.label)}

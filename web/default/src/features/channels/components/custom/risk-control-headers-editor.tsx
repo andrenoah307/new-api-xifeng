@@ -149,7 +149,7 @@ export function RiskControlHeadersEditor({ form }: Props) {
                 <SelectTrigger className="h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {ALLOWED_SOURCES.map((src) => (
                     <SelectItem key={src} value={src}>
                       {t(`header_source_${src}`, src)}

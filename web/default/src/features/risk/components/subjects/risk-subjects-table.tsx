@@ -124,7 +124,7 @@ export function RiskSubjectsTable() {
           <SelectTrigger className="h-8 w-[120px]">
             <SelectValue placeholder={t('Scope')} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent alignItemWithTrigger={false}>
             <SelectItem value="__all__">{t('All')}</SelectItem>
             {SCOPE_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
@@ -143,7 +143,7 @@ export function RiskSubjectsTable() {
           <SelectTrigger className="h-8 w-[120px]">
             <SelectValue placeholder={t('Status')} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent alignItemWithTrigger={false}>
             <SelectItem value="__all__">{t('All')}</SelectItem>
             <SelectItem value="blocked">{t('Blocked')}</SelectItem>
             <SelectItem value="observe">{t('Observing')}</SelectItem>

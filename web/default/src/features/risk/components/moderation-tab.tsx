@@ -353,7 +353,7 @@ export function ModerationTab() {
                   <SelectTrigger className="h-8">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     <SelectItem value="enforce">{t('Enforce')}</SelectItem>
                     <SelectItem value="observe_only">
                       {t('Observe Only')}
@@ -626,7 +626,7 @@ export function ModerationTab() {
               <SelectTrigger className="h-8">
                 <SelectValue placeholder={t('Group')} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent alignItemWithTrigger={false}>
                 <SelectItem value="__default__">{t('Default')}</SelectItem>
                 {groupNames.map((g) => (
                   <SelectItem key={g} value={g}>
@@ -669,7 +669,7 @@ export function ModerationTab() {
               <SelectTrigger className="h-8 w-[130px]">
                 <SelectValue placeholder={t('Group')} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent alignItemWithTrigger={false}>
                 <SelectItem value="__all__">{t('All')}</SelectItem>
                 {groupNames.map((g) => (
                   <SelectItem key={g} value={g}>
@@ -688,7 +688,7 @@ export function ModerationTab() {
               <SelectTrigger className="h-8 w-[120px]">
                 <SelectValue placeholder={t('Flagged')} />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent alignItemWithTrigger={false}>
                 <SelectItem value="__all__">{t('All')}</SelectItem>
                 <SelectItem value="true">{t('Flagged')}</SelectItem>
                 <SelectItem value="false">{t('Clean')}</SelectItem>

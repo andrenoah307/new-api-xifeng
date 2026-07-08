@@ -195,7 +195,7 @@ export function EmailTemplateSettingsSection() {
             <SelectTrigger className='w-64'>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent alignItemWithTrigger={false}>
               {templates.map((tpl) => (
                 <SelectItem key={tpl.key} value={tpl.key}>
                   {tpl.name}

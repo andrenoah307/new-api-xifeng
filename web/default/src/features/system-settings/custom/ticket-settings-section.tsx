@@ -261,7 +261,7 @@ export function TicketSettingsSection({ settings }: Props) {
               <SelectTrigger className='w-48'>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent alignItemWithTrigger={false}>
                 <SelectItem value='none'>{t('None')}</SelectItem>
                 <SelectItem value='general_group'>
                   {t('General Group')}
@@ -288,7 +288,7 @@ export function TicketSettingsSection({ settings }: Props) {
                     <SelectTrigger className='w-40'>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false}>
                       {STRATEGIES.map((s) => (
                         <SelectItem key={s} value={s}>
                           {t(s)}
@@ -413,7 +413,7 @@ export function TicketSettingsSection({ settings }: Props) {
               <SelectTrigger className='w-40'>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent alignItemWithTrigger={false}>
                 {STORAGE_BACKENDS.map((b) => (
                   <SelectItem key={b} value={b}>
                     {b.toUpperCase()}

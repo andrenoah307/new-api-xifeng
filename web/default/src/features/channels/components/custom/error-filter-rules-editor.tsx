@@ -169,7 +169,7 @@ export function ErrorFilterRulesEditor({ form }: Props) {
                 <SelectTrigger className="h-7 text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   <SelectItem value="retry">{t('Retry')}</SelectItem>
                   <SelectItem value="rewrite">{t('Rewrite')}</SelectItem>
                   <SelectItem value="replace">{t('Replace')}</SelectItem>

@@ -321,7 +321,7 @@ export function RuleMutateDrawer({
                         <SelectValue placeholder={t('Select target group')} />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false}>
                       {groupOptions.map((g) => (
                         <SelectItem key={g.value} value={g.value}>
                           <span className='flex items-center gap-2'>
@@ -360,7 +360,7 @@ export function RuleMutateDrawer({
                         <SelectValue />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
+                    <SelectContent alignItemWithTrigger={false}>
                       <SelectItem value='all'>{t('Match All (AND)')}</SelectItem>
                       <SelectItem value='any'>{t('Match Any (OR)')}</SelectItem>
                     </SelectContent>
@@ -427,7 +427,7 @@ export function RuleMutateDrawer({
                                     />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent alignItemWithTrigger={false}>
                                   {METRICS.map((m) => (
                                     <SelectItem key={m.key} value={m.key}>
                                       {t(m.labelKey)}
@@ -455,7 +455,7 @@ export function RuleMutateDrawer({
                                     <SelectValue placeholder={t('Op')} />
                                   </SelectTrigger>
                                 </FormControl>
-                                <SelectContent>
+                                <SelectContent alignItemWithTrigger={false}>
                                   {(isStringMetric ? STRING_OPS : OPS).map((op) => (
                                     <SelectItem
                                       key={op.value}
@@ -489,7 +489,7 @@ export function RuleMutateDrawer({
                                       />
                                     </SelectTrigger>
                                   </FormControl>
-                                  <SelectContent>
+                                  <SelectContent alignItemWithTrigger={false}>
                                     {groupOptions.map((g) => (
                                       <SelectItem key={g.value} value={g.value}>
                                         <span className='flex items-center gap-2'>

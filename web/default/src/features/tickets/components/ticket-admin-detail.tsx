@@ -268,7 +268,7 @@ export default function TicketAdminDetailPage({
             <SelectTrigger className="h-8 w-[120px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent alignItemWithTrigger={false}>
               {getStatusOptions(true).map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {t(o.label)}
@@ -280,7 +280,7 @@ export default function TicketAdminDetailPage({
             <SelectTrigger className="h-8 w-[120px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent alignItemWithTrigger={false}>
               {getPriorityOptions().map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {t(o.label)}

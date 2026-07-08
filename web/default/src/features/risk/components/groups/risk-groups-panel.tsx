@@ -113,7 +113,7 @@ export function RiskGroupsPanel({
                       <SelectTrigger className="h-7 w-[140px]">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent alignItemWithTrigger={false}>
                         <SelectItem value="__inherit__">
                           {t('Inherit Global')}
                         </SelectItem>

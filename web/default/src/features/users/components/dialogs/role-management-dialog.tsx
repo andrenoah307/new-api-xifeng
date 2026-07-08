@@ -111,7 +111,7 @@ export function RoleManagementDialog({
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {roleOptions.map((r) => (
                     <SelectItem key={r} value={String(r)}>
                       <span className="flex items-center gap-2">

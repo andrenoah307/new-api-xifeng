@@ -282,7 +282,7 @@ export function ExportInvoiceDialog({
             <SelectTrigger className="h-8 w-[130px]">
               <SelectValue placeholder={t('Status')} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent alignItemWithTrigger={false}>
               {TICKET_STATUS_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={o.value}>
                   {t(o.label)}

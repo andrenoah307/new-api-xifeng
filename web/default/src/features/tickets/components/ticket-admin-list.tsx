@@ -237,7 +237,7 @@ export default function TicketAdminListPage() {
                   <SelectTrigger className="h-8 w-[120px]">
                     <SelectValue placeholder={t('Status')} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     <SelectItem value="__all__">{t('All')}</SelectItem>
                     {getStatusOptions(true).map((o) => (
                       <SelectItem key={o.value} value={o.value}>
@@ -250,7 +250,7 @@ export default function TicketAdminListPage() {
                   <SelectTrigger className="h-8 w-[130px]">
                     <SelectValue placeholder={t('Type')} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     <SelectItem value="__all__">{t('All')}</SelectItem>
                     {getTypeOptions(true).map((o) => (
                       <SelectItem key={o.value} value={o.value}>

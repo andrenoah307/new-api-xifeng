@@ -94,7 +94,7 @@ export function ChannelRateLimitEditor({ form }: Props) {
             <SelectTrigger className="h-8">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent alignItemWithTrigger={false}>
               <SelectItem value="skip">{t('Skip')}</SelectItem>
               <SelectItem value="queue">{t('Queue')}</SelectItem>
               <SelectItem value="reject">{t('Reject')}</SelectItem>

@@ -172,7 +172,7 @@ export function ModerationRuleEditorDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   <SelectItem value="or">OR</SelectItem>
                   <SelectItem value="and">AND</SelectItem>
                 </SelectContent>
@@ -190,7 +190,7 @@ export function ModerationRuleEditorDialog({
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {MODERATION_ACTION_OPTIONS.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {t(o.label)}
@@ -245,7 +245,7 @@ export function ModerationRuleEditorDialog({
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder={t('Category')} />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     {categories.map((cat) => (
                       <SelectItem key={cat.name} value={cat.name}>
                         {cat.label}
@@ -261,7 +261,7 @@ export function ModerationRuleEditorDialog({
                   <SelectTrigger className="w-[80px]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent alignItemWithTrigger={false}>
                     {OP_OPTIONS.map((o) => (
                       <SelectItem key={o.value} value={o.value}>
                         {o.label}

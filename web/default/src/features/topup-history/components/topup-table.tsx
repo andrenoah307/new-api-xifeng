@@ -231,7 +231,7 @@ export function TopupTable() {
                 <SelectTrigger className="h-8 w-[120px]">
                   <SelectValue placeholder={t('Status')} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent alignItemWithTrigger={false}>
                   {TOPUP_STATUS_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {t(opt.label)}

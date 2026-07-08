@@ -371,7 +371,7 @@ export default function MonitoringDashboard() {
               <SelectTrigger className="h-9 w-[130px]">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent alignItemWithTrigger={false}>
                 <SelectItem value="status">
                   {t('Sort by status')}
                 </SelectItem>
