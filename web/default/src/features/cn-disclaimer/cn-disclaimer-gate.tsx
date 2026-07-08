@@ -64,7 +64,7 @@ export function CnDisclaimerGate() {
     <Dialog open modal>
       {/* controlled `open` without onOpenChange: outside clicks and Esc cannot dismiss */}
       <DialogContent
-        className='flex max-h-[80vh] max-w-2xl flex-col gap-0 p-0 [&>button.absolute]:hidden'
+        className='flex max-h-[80vh] flex-col gap-0 p-0 sm:max-w-2xl [&>button.absolute]:hidden'
         showCloseButton={false}
       >
         <DialogHeader className='border-b px-6 py-4'>
@@ -75,7 +75,8 @@ export function CnDisclaimerGate() {
             {data.content}
           </div>
         </div>
-        <DialogFooter className='flex-col items-stretch gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between'>
+        {/* mx-0 mb-0 cancels the base footer's -mx-4 -mb-4, which assumes the default p-4 content and bleeds outside this p-0 dialog */}
+        <DialogFooter className='mx-0 mb-0 flex-col items-stretch gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between'>
           <div className='flex items-start gap-2'>
             <Checkbox
               id='cn-disclaimer-agree'
