@@ -3258,17 +3258,6 @@ const EditChannelModal = (props) => {
                                     </Text>
 
                                     <Space wrap spacing='tight'>
-                                      <Button
-                                        size='small'
-                                        type='primary'
-                                        theme='outline'
-                                        onClick={() =>
-                                          setCodexOAuthModalVisible(true)
-                                        }
-                                        disabled={isIonetLocked}
-                                      >
-                                        {t('Codex 授权')}
-                                      </Button>
                                       {isEdit && (
                                         <Button
                                           size='small'
@@ -3307,14 +3296,6 @@ const EditChannelModal = (props) => {
                                 }
                                 autosize
                                 showClear
-                              />
-
-                              <CodexOAuthModal
-                                visible={codexOAuthModalVisible}
-                                onCancel={() =>
-                                  setCodexOAuthModalVisible(false)
-                                }
-                                onSuccess={handleCodexOAuthGenerated}
                               />
                             </>
                           ) : inputs.type === 41 &&
