@@ -34,6 +34,7 @@ import {
   renderModelTag,
   renderModelPriceSimple,
   renderTieredModelPriceSimple,
+  stripLocalRequestId,
 } from '../../../helpers';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
 import { CircleAlert, Route, Sparkles } from 'lucide-react';
@@ -789,15 +790,37 @@ export const getLogsColumns = ({
       key: COLUMN_KEYS.COMPLETION,
       title: t('输出'),
       dataIndex: 'completion_tokens',
-      render: (text, record, index) => {
-        return parseInt(text) > 0 &&
-          (record.type === 0 ||
-            record.type === 2 ||
-            record.type === 5 ||
-            record.type === 6) ? (
-          <>{<span> {text} </span>}</>
-        ) : (
-          <></>
+      render: (text, record) => {
+        const completionTokens = parseInt(text);
+        if (!(completionTokens > 0 && (record.type === 0 || record.type === 2 || record.type === 5 || record.type === 6))) {
+          return <></>;
+        }
+        const useTime = record.use_time;
+        const throughput = completionTokens > 0 && useTime > 0 ? completionTokens / useTime : null;
+
+        return (
+          <div
+            style={{
+              display: 'inline-flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              lineHeight: 1.2,
+            }}
+          >
+            <span>{text}</span>
+            {throughput != null && (
+              <span
+                style={{
+                  marginTop: 2,
+                  fontSize: 11,
+                  color: 'var(--semi-color-text-2)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {throughput < 1 ? '< 1' : Math.round(throughput)} token/s
+              </span>
+            )}
+          </div>
         );
       },
     },
@@ -905,9 +928,10 @@ export const getLogsColumns = ({
       fixed: 'right',
       width: 200,
       render: (text, record, index) => {
+        const cleanText = stripLocalRequestId(text);
         const detailSummary = getUsageLogDetailSummary(
           record,
-          text,
+          cleanText,
           billingDisplayMode,
           t,
         );
@@ -924,7 +948,7 @@ export const getLogsColumns = ({
               }}
               style={{ maxWidth: 200, marginBottom: 0 }}
             >
-              {text}
+              {cleanText}
             </Typography.Paragraph>
           );
         }

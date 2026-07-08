@@ -194,11 +194,8 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	summary.IsClaudeUsageSemantic = summary.UsageSemantic == "anthropic"
 
 	if usage == nil {
-		usage = &dto.Usage{
-			PromptTokens:     relayInfo.GetEstimatePromptTokens(),
-			CompletionTokens: 0,
-			TotalTokens:      relayInfo.GetEstimatePromptTokens(),
-		}
+		usage = &dto.Usage{}
+		common.SetContextKey(ctx, constant.ContextKeyLocalCountTokens, true)
 	}
 
 	summary.PromptTokens = usage.PromptTokens
@@ -316,7 +313,9 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 
 	if summary.TotalTokens == 0 {
 		summary.Quota = 0
-	} else if !ratio.IsZero() && summary.Quota == 0 {
+	} else if !ratio.IsZero() && summary.Quota == 0 && !common.GetContextKeyBool(ctx, constant.ContextKeyLocalCountTokens) {
+		// 保底 1 quota 仅适用于上游 usage 可信路径；当 ContextKeyLocalCountTokens=true 表示上游 usage 不全，
+		// 已被上游 handler 显式置零（坑点 #94 / #122），不应再绕过零计费意图保底 1。
 		summary.Quota = 1
 	}
 
@@ -387,6 +386,8 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	if err := SettleBilling(ctx, relayInfo, summary.Quota); err != nil {
 		logger.LogError(ctx, "error settling billing: "+err.Error())
 	}
+
+	NotifyAutoGroupEvaluation(relayInfo.UserId)
 
 	logModel := summary.ModelName
 	if strings.HasPrefix(logModel, "gpt-4-gizmo") {

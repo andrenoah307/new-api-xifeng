@@ -94,6 +94,16 @@ func (s *StreamStatus) IsNormalEnd() bool {
 		s.EndReason == StreamEndReasonHandlerStop
 }
 
+// IsServerSideError returns true when the stream ended abnormally due to
+// server-side causes (timeout, scanner error, ping failure, panic).
+// Client-initiated disconnects return false — the user chose to stop.
+func (s *StreamStatus) IsServerSideError() bool {
+	if s == nil {
+		return false
+	}
+	return !s.IsNormalEnd() && s.EndReason != StreamEndReasonClientGone
+}
+
 func (s *StreamStatus) Summary() string {
 	if s == nil {
 		return "StreamStatus<nil>"

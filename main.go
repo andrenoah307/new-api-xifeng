@@ -23,11 +23,13 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/pkg/geoip"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	"github.com/QuantumNous/new-api/relay"
 	"github.com/QuantumNous/new-api/router"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	_ "github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
@@ -129,6 +131,29 @@ func main() {
 	// all currently alive nodes in multi-instance deployments.
 	service.StartSystemInstanceReporter()
 
+	// Group monitoring aggregation (Redis counter → snapshot pipeline)
+	service.StartGroupMonitoringAggregation()
+
+	// Risk control center (async rules engine + gateway block checks)
+	service.StartRiskControlCenter()
+
+	// Moderation center (async OpenAI omni-moderation; never blocks relay)
+	service.StartModerationCenter()
+
+	// Ticket attachment orphan cleanup (master-node only)
+	service.StartTicketAttachmentCleanupTask()
+
+	// Pressure cooling recovery loop (master-node only)
+	service.StartPressureCoolingRecovery()
+
+	service.StartAutoGroupEngine()
+
+	// Offline log export worker pool (DB-backed queue, gzip CSV generation)
+	service.InitLogExportWorker()
+
+	// GeoIP database for region-based model restrictions
+	geoip.Init(operation_setting.GetRegionRestrictionSetting().XdbPath)
+
 	// Wire task polling adaptor factory (breaks service -> relay import cycle).
 	// Must run before the system task runner starts: the async_task_poll handler
 	// calls service.RunTaskPollingOnce, which needs this factory set.
@@ -169,6 +194,10 @@ func main() {
 
 	// Initialize HTTP server
 	server := gin.New()
+	// Keep Gin's default ForwardedByClientIP = true so deployments behind reverse
+	// proxies (Nginx / Cloudflare) see real client IPs via X-Forwarded-For out of
+	// the box. Admins who need stricter IP trust can enable "Trusted IP Header"
+	// in risk-control settings — GetClientIP will then only honor that header.
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{

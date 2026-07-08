@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { parseCurrencyDisplayType } from '@/lib/currency'
 
 import { CheckinSettingsSection } from '../general/checkin-settings-section'
+import { DiscountCodeSettingsSection } from './discount-code-settings-section'
 import { PricingSection } from '../general/pricing-section'
 import { QuotaSettingsSection } from '../general/quota-settings-section'
 import { PaymentSettingsSection } from '../integrations/payment-settings-section'
@@ -62,6 +63,11 @@ const BILLING_SECTIONS = [
           PreConsumedQuota: settings.PreConsumedQuota,
           QuotaForInviter: settings.QuotaForInviter,
           QuotaForInvitee: settings.QuotaForInvitee,
+          TopUpCommissionRate: settings.TopUpCommissionRate,
+          TopUpCommissionManualEnabled: settings.TopUpCommissionManualEnabled,
+          AffTransferCooldownHours: settings.AffTransferCooldownHours,
+          InviteRewardCooldownHours: settings.InviteRewardCooldownHours,
+          MinTransferAmount: settings.MinTransferAmount,
           TopUpLink: settings.TopUpLink,
           general_setting: {
             docs_link: settings['general_setting.docs_link'],
@@ -138,6 +144,7 @@ const BILLING_SECTIONS = [
           EpayKey: settings.EpayKey,
           Price: settings.Price,
           MinTopUp: settings.MinTopUp,
+          MinInvoiceAmount: settings.MinInvoiceAmount,
           CustomCallbackAddress: settings.CustomCallbackAddress,
           PayMethods: settings.PayMethods,
           AmountOptions: settings['payment_setting.amount_options'],
@@ -196,6 +203,18 @@ const BILLING_SECTIONS = [
           enabled: settings['checkin_setting.enabled'],
           minQuota: settings['checkin_setting.min_quota'],
           maxQuota: settings['checkin_setting.max_quota'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'discount-code',
+    titleKey: 'Discount Code',
+    descriptionKey: 'Configure discount code feature for user wallet',
+    build: (settings: BillingSettings) => (
+      <DiscountCodeSettingsSection
+        defaultValues={{
+          enabled: settings['discount_code_setting.enabled'],
         }}
       />
     ),

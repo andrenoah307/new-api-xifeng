@@ -32,6 +32,10 @@ import {
   onDiscordOAuthClicked,
   onCustomOAuthClicked,
 } from '../../helpers';
+import {
+  getReadStatus as getLegalReadStatus,
+  markRead as markLegalRead,
+} from '../../helpers/legalConsentStorage';
 import Turnstile from 'react-turnstile';
 import {
   Button,
@@ -40,6 +44,7 @@ import {
   Divider,
   Form,
   Icon,
+  Input,
   Modal,
 } from '@douyinfe/semi-ui';
 import Title from '@douyinfe/semi-ui/lib/es/typography/title';
@@ -80,6 +85,7 @@ const RegisterForm = () => {
     email: '',
     verification_code: '',
     wechat_verification_code: '',
+    invitation_code: '',
   });
   const { username, password, password2 } = inputs;
   const [userState, userDispatch] = useContext(UserContext);
@@ -103,9 +109,23 @@ const RegisterForm = () => {
   const [customOAuthLoading, setCustomOAuthLoading] = useState({});
   const [disableButton, setDisableButton] = useState(false);
   const [countdown, setCountdown] = useState(30);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [hasUserAgreement, setHasUserAgreement] = useState(false);
   const [hasPrivacyPolicy, setHasPrivacyPolicy] = useState(false);
+  const [legalDocHash, setLegalDocHash] = useState('');
+  const [legalDocContent, setLegalDocContent] = useState('');
+  const [legalAgreed, setLegalAgreed] = useState({
+    'user-agreement': false,
+    'privacy-policy': false,
+    'terms-of-service': false,
+  });
+  const [legalModalDoc, setLegalModalDoc] = useState(null);
+  const consentRequired = hasUserAgreement || hasPrivacyPolicy;
+  const allAgreedToTerms = !consentRequired
+    ? true
+    : Boolean(legalDocHash) &&
+      legalAgreed['user-agreement'] &&
+      legalAgreed['privacy-policy'] &&
+      legalAgreed['terms-of-service'];
   const [githubButtonState, setGithubButtonState] = useState('idle');
   const [githubButtonDisabled, setGithubButtonDisabled] = useState(false);
   const githubTimeoutRef = useRef(null);
@@ -113,11 +133,13 @@ const RegisterForm = () => {
 
   const logo = getLogo();
   const systemName = getSystemName();
-
-  let affCode = new URLSearchParams(window.location.search).get('aff');
-  if (affCode) {
-    localStorage.setItem('aff', affCode);
-  }
+  const urlSearchParams = useMemo(
+    () => new URLSearchParams(window.location.search),
+    [],
+  );
+  const affCodeFromUrl = urlSearchParams.get('aff') || '';
+  const invitationCodeFromUrl =
+    urlSearchParams.get('code') || urlSearchParams.get('invitation_code') || '';
 
   const status = useMemo(() => {
     if (statusState?.status) return statusState.status;
@@ -142,6 +164,34 @@ const RegisterForm = () => {
   );
 
   const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const invitationCodeValue = inputs.invitation_code.trim();
+  const showPasswordInvitationInput = Boolean(
+    status.invitation_code_enabled || invitationCodeValue,
+  );
+  const showOAuthInvitationInput = Boolean(
+    status.invitation_code_oauth_required || invitationCodeValue,
+  );
+
+  useEffect(() => {
+    if (affCodeFromUrl) {
+      localStorage.setItem('aff', affCodeFromUrl);
+    }
+  }, [affCodeFromUrl]);
+
+  useEffect(() => {
+    if (!invitationCodeFromUrl) {
+      return;
+    }
+    setInputs((prev) => {
+      if (prev.invitation_code) {
+        return prev;
+      }
+      return {
+        ...prev,
+        invitation_code: invitationCodeFromUrl,
+      };
+    });
+  }, [invitationCodeFromUrl]);
 
   useEffect(() => {
     setShowEmailVerification(!!status?.email_verification);
@@ -154,6 +204,138 @@ const RegisterForm = () => {
     setHasUserAgreement(status?.user_agreement_enabled || false);
     setHasPrivacyPolicy(status?.privacy_policy_enabled || false);
   }, [status]);
+
+  useEffect(() => {
+    if (!consentRequired) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await API.get('/api/user-agreement');
+        if (cancelled) return;
+        const data = res?.data || {};
+        const content = data.data || '';
+        const hash = data.hash || '';
+        setLegalDocContent(content);
+        setLegalDocHash(hash);
+        if (hash) {
+          setLegalAgreed({
+            'user-agreement': getLegalReadStatus('user-agreement', hash),
+            'privacy-policy': getLegalReadStatus('privacy-policy', hash),
+            'terms-of-service': getLegalReadStatus('terms-of-service', hash),
+          });
+        } else {
+          setLegalAgreed({
+            'user-agreement': false,
+            'privacy-policy': false,
+            'terms-of-service': false,
+          });
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [consentRequired]);
+
+  const showLegalConsentError = () =>
+    showInfo(t('请先阅读并同意用户协议、隐私政策和服务条款'));
+
+  const handleLegalCheckboxToggle = (docKey, nextValue) => {
+    if (nextValue) {
+      setLegalModalDoc(docKey);
+    } else {
+      setLegalAgreed((prev) => ({ ...prev, [docKey]: false }));
+    }
+  };
+
+  const handleLegalModalConfirm = () => {
+    if (!legalModalDoc || !legalDocHash) {
+      setLegalModalDoc(null);
+      return;
+    }
+    markLegalRead(legalModalDoc, legalDocHash);
+    setLegalAgreed((prev) => ({ ...prev, [legalModalDoc]: true }));
+    setLegalModalDoc(null);
+  };
+
+  const legalModalTitleMap = {
+    'user-agreement': t('用户协议'),
+    'privacy-policy': t('隐私政策'),
+    'terms-of-service': t('服务条款'),
+  };
+
+  const renderLegalConsentBlock = () => {
+    if (!consentRequired) return null;
+    const items = [
+      { key: 'user-agreement', label: t('用户协议') },
+      { key: 'privacy-policy', label: t('隐私政策') },
+      { key: 'terms-of-service', label: t('服务条款') },
+    ];
+    return (
+      <div className='space-y-2'>
+        {items.map((item) => (
+          <Checkbox
+            key={item.key}
+            checked={legalAgreed[item.key]}
+            disabled={!legalDocHash}
+            onChange={(e) =>
+              handleLegalCheckboxToggle(item.key, e.target.checked)
+            }
+          >
+            <Text size='small' className='text-gray-600'>
+              {t('我已阅读并同意')}
+              <a
+                href='#'
+                onClick={(ev) => {
+                  ev.preventDefault();
+                  setLegalModalDoc(item.key);
+                }}
+                className='text-blue-600 hover:text-blue-800 mx-1'
+              >
+                《{item.label}》
+              </a>
+            </Text>
+          </Checkbox>
+        ))}
+      </div>
+    );
+  };
+
+  const renderLegalConsentModal = () => {
+    if (!consentRequired) return null;
+    return (
+      <Modal
+        title={legalModalDoc ? legalModalTitleMap[legalModalDoc] : ''}
+        visible={legalModalDoc !== null}
+        maskClosable={true}
+        onOk={handleLegalModalConfirm}
+        onCancel={() => setLegalModalDoc(null)}
+        okText={t('我已阅读')}
+        cancelText={t('关闭')}
+        centered={true}
+        width={640}
+        style={{ maxWidth: '92vw' }}
+        bodyStyle={{
+          maxHeight: 'calc(80vh - 120px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
+        getPopupContainer={() => document.body}
+        okButtonProps={{ disabled: !legalDocHash }}
+      >
+        {legalDocContent ? (
+          <div
+            className='text-sm whitespace-pre-wrap break-words'
+            dangerouslySetInnerHTML={{ __html: legalDocContent }}
+          />
+        ) : (
+          <Text type='secondary'>{t('文档尚未配置')}</Text>
+        )}
+      </Modal>
+    );
+  };
 
   useEffect(() => {
     let countdownInterval = null;
@@ -177,21 +359,34 @@ const RegisterForm = () => {
   }, []);
 
   const onWeChatLoginClicked = () => {
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
+      return;
+    }
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setWechatLoading(true);
     setShowWeChatLoginModal(true);
     setWechatLoading(false);
   };
 
   const onSubmitWeChatVerificationCode = async () => {
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     if (turnstileEnabled && turnstileToken === '') {
       showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
       return;
     }
     setWechatCodeSubmitLoading(true);
     try {
-      const res = await API.get(
-        `/api/oauth/wechat?code=${inputs.wechat_verification_code}`,
-      );
+      const params = new URLSearchParams();
+      params.set('code', inputs.wechat_verification_code);
+      if (invitationCodeValue) {
+        params.set('invitation_code', invitationCodeValue);
+      }
+      const res = await API.get(`/api/oauth/wechat?${params.toString()}`);
       const { success, message, data } = res.data;
       if (success) {
         userDispatch({ type: 'login', payload: data });
@@ -215,7 +410,29 @@ const RegisterForm = () => {
     setInputs((inputs) => ({ ...inputs, [name]: value }));
   }
 
+  const ensureOAuthInvitationCode = () => {
+    if (!status.invitation_code_oauth_required || invitationCodeValue) {
+      return true;
+    }
+    showInfo('请输入邀请码');
+    return false;
+  };
+
+  const getOAuthOptions = () => {
+    const options = {
+      shouldLogout: true,
+    };
+    if (invitationCodeValue) {
+      options.invitationCode = invitationCodeValue;
+    }
+    return options;
+  };
+
   async function handleSubmit(e) {
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
+      return;
+    }
     if (password.length < 8) {
       showInfo('密码长度不得小于 8 位！');
       return;
@@ -225,19 +442,25 @@ const RegisterForm = () => {
       return;
     }
     if (username && password) {
+      if (status.invitation_code_enabled && !invitationCodeValue) {
+        showInfo('请输入邀请码');
+        return;
+      }
       if (turnstileEnabled && turnstileToken === '') {
         showInfo('请稍后几秒重试，Turnstile 正在检查用户环境！');
         return;
       }
       setRegisterLoading(true);
       try {
-        if (!affCode) {
-          affCode = localStorage.getItem('aff');
-        }
-        inputs.aff_code = affCode;
+        const affCode = affCodeFromUrl || localStorage.getItem('aff') || '';
+        const payload = {
+          ...inputs,
+          aff_code: affCode,
+          invitation_code: invitationCodeValue,
+        };
         const res = await API.post(
           `/api/user/register?turnstile=${turnstileToken}`,
-          inputs,
+          payload,
         );
         const { success, message } = res.data;
         if (success) {
@@ -280,6 +503,13 @@ const RegisterForm = () => {
   };
 
   const handleGitHubClick = () => {
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
+      return;
+    }
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     if (githubButtonDisabled) {
       return;
     }
@@ -295,29 +525,43 @@ const RegisterForm = () => {
       setGithubButtonDisabled(true);
     }, 20000);
     try {
-      onGitHubOAuthClicked(status.github_client_id, { shouldLogout: true });
+      onGitHubOAuthClicked(status.github_client_id, getOAuthOptions());
     } finally {
       setTimeout(() => setGithubLoading(false), 3000);
     }
   };
 
   const handleDiscordClick = () => {
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
+      return;
+    }
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setDiscordLoading(true);
     try {
-      onDiscordOAuthClicked(status.discord_client_id, { shouldLogout: true });
+      onDiscordOAuthClicked(status.discord_client_id, getOAuthOptions());
     } finally {
       setTimeout(() => setDiscordLoading(false), 3000);
     }
   };
 
   const handleOIDCClick = () => {
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
+      return;
+    }
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setOidcLoading(true);
     try {
       onOIDCClicked(
         status.oidc_authorization_endpoint,
         status.oidc_client_id,
         false,
-        { shouldLogout: true },
+        getOAuthOptions(),
       );
     } finally {
       setTimeout(() => setOidcLoading(false), 3000);
@@ -325,18 +569,32 @@ const RegisterForm = () => {
   };
 
   const handleLinuxDOClick = () => {
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
+      return;
+    }
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setLinuxdoLoading(true);
     try {
-      onLinuxDOOAuthClicked(status.linuxdo_client_id, { shouldLogout: true });
+      onLinuxDOOAuthClicked(status.linuxdo_client_id, getOAuthOptions());
     } finally {
       setTimeout(() => setLinuxdoLoading(false), 3000);
     }
   };
 
   const handleCustomOAuthClick = (provider) => {
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
+      return;
+    }
+    if (!ensureOAuthInvitationCode()) {
+      return;
+    }
     setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: true }));
     try {
-      onCustomOAuthClicked(provider, { shouldLogout: true });
+      onCustomOAuthClicked(provider, getOAuthOptions());
     } finally {
       setTimeout(() => {
         setCustomOAuthLoading((prev) => ({ ...prev, [provider.slug]: false }));
@@ -357,6 +615,10 @@ const RegisterForm = () => {
   };
 
   const onTelegramLoginClicked = async (response) => {
+    if (!allAgreedToTerms) {
+      showLegalConsentError();
+      return;
+    }
     const fields = [
       'id',
       'first_name',
@@ -410,6 +672,20 @@ const RegisterForm = () => {
             </div>
             <div className='px-2 py-8'>
               <div className='space-y-3'>
+                {showOAuthInvitationInput && (
+                  <div className='space-y-2'>
+                    <Text>{t('邀请码')}</Text>
+                    <Input
+                      placeholder={t('请输入邀请码')}
+                      value={inputs.invitation_code}
+                      onChange={(value) =>
+                        handleChange('invitation_code', value)
+                      }
+                      prefix={<IconKey />}
+                    />
+                  </div>
+                )}
+
                 {status.wechat_login && (
                   <Button
                     theme='outline'
@@ -637,41 +913,21 @@ const RegisterForm = () => {
                   </>
                 )}
 
+                {showPasswordInvitationInput && (
+                  <Form.Input
+                    field='invitation_code'
+                    label={t('邀请码')}
+                    placeholder={t('请输入邀请码')}
+                    name='invitation_code'
+                    value={inputs.invitation_code}
+                    onChange={(value) => handleChange('invitation_code', value)}
+                    prefix={<IconKey />}
+                  />
+                )}
+
                 {(hasUserAgreement || hasPrivacyPolicy) && (
                   <div className='pt-4'>
-                    <Checkbox
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                    >
-                      <Text size='small' className='text-gray-600'>
-                        {t('我已阅读并同意')}
-                        {hasUserAgreement && (
-                          <>
-                            <a
-                              href='/user-agreement'
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='text-blue-600 hover:text-blue-800 mx-1'
-                            >
-                              {t('用户协议')}
-                            </a>
-                          </>
-                        )}
-                        {hasUserAgreement && hasPrivacyPolicy && t('和')}
-                        {hasPrivacyPolicy && (
-                          <>
-                            <a
-                              href='/privacy-policy'
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='text-blue-600 hover:text-blue-800 mx-1'
-                            >
-                              {t('隐私政策')}
-                            </a>
-                          </>
-                        )}
-                      </Text>
-                    </Checkbox>
+                    {renderLegalConsentBlock()}
                   </div>
                 )}
 
@@ -683,9 +939,7 @@ const RegisterForm = () => {
                     htmlType='submit'
                     onClick={handleSubmit}
                     loading={registerLoading}
-                    disabled={
-                      (hasUserAgreement || hasPrivacyPolicy) && !agreedToTerms
-                    }
+                    disabled={!allAgreedToTerms}
                   >
                     {t('注册')}
                   </Button>
@@ -786,6 +1040,7 @@ const RegisterForm = () => {
           ? renderEmailRegisterForm()
           : renderOAuthOptions()}
         {renderWeChatLoginModal()}
+        {renderLegalConsentModal()}
 
         {turnstileEnabled && (
           <div className='flex justify-center mt-6'>

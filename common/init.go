@@ -115,13 +115,19 @@ func InitEnv() {
 	GeminiSafetySetting = GetEnvOrDefaultString("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
 	CohereSafetySetting = GetEnvOrDefaultString("COHERE_SAFETY_SETTING", "NONE")
 
-	// Initialize rate limit variables
-	GlobalApiRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_API_RATE_LIMIT_ENABLE", true)
-	GlobalApiRateLimitNum = GetEnvOrDefault("GLOBAL_API_RATE_LIMIT", 360)
+	// Initialize rate limit variables.
+	// Note: Global API / Web rate limits are IP-based and can be problematic behind
+	// reverse proxies when proxy IP detection is misconfigured (all users share one
+	// rate-limit bucket → 429 storm). Default to OFF; admins can enable via env var
+	// or by verifying trusted IP header setup first.
+	// CriticalRateLimit (login/register) stays ON by default since it protects
+	// sensitive endpoints from brute-force even with shared IP bucketing.
+	GlobalApiRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_API_RATE_LIMIT_ENABLE", false)
+	GlobalApiRateLimitNum = GetEnvOrDefault("GLOBAL_API_RATE_LIMIT", 180)
 	GlobalApiRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_API_RATE_LIMIT_DURATION", 180))
 
-	GlobalWebRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_WEB_RATE_LIMIT_ENABLE", true)
-	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 120)
+	GlobalWebRateLimitEnable = GetEnvOrDefaultBool("GLOBAL_WEB_RATE_LIMIT_ENABLE", false)
+	GlobalWebRateLimitNum = GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT", 60)
 	GlobalWebRateLimitDuration = int64(GetEnvOrDefault("GLOBAL_WEB_RATE_LIMIT_DURATION", 180))
 
 	CriticalRateLimitEnable = GetEnvOrDefaultBool("CRITICAL_RATE_LIMIT_ENABLE", true)
@@ -131,6 +137,16 @@ func InitEnv() {
 	SearchRateLimitEnable = GetEnvOrDefaultBool("SEARCH_RATE_LIMIT_ENABLE", true)
 	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
 	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
+
+	LogQueryRateLimitEnable = GetEnvOrDefaultBool("LOG_QUERY_RATE_LIMIT_ENABLE", true)
+	LogQueryRateLimitNum = GetEnvOrDefault("LOG_QUERY_RATE_LIMIT", 20)
+	LogQueryRateLimitDuration = int64(GetEnvOrDefault("LOG_QUERY_RATE_LIMIT_DURATION", 60))
+
+	DashboardDataRateLimitEnable = GetEnvOrDefaultBool("DASHBOARD_DATA_RATE_LIMIT_ENABLE", true)
+	DashboardDataRateLimitNum = GetEnvOrDefault("DASHBOARD_DATA_RATE_LIMIT", 15)
+	DashboardDataRateLimitDuration = int64(GetEnvOrDefault("DASHBOARD_DATA_RATE_LIMIT_DURATION", 60))
+
+	LogSearchCountLimit = GetEnvOrDefault("LOG_SEARCH_COUNT_LIMIT", 1000)
 	initConstantEnv()
 }
 
@@ -151,6 +167,7 @@ func initConstantEnv() {
 	constant.AzureDefaultAPIVersion = GetEnvOrDefaultString("AZURE_DEFAULT_API_VERSION", "2025-04-01-preview")
 	constant.NotifyLimitCount = GetEnvOrDefault("NOTIFY_LIMIT_COUNT", 2)
 	constant.NotificationLimitDurationMinute = GetEnvOrDefault("NOTIFICATION_LIMIT_DURATION_MINUTE", 10)
+	MaxPreConsumeCompletionTokens = GetEnvOrDefault("MAX_PRE_CONSUME_COMPLETION_TOKENS", MaxPreConsumeCompletionTokens)
 	// GenerateDefaultToken 是否生成初始令牌，默认关闭。
 	constant.GenerateDefaultToken = GetEnvOrDefaultBool("GENERATE_DEFAULT_TOKEN", false)
 	// 是否启用错误日志

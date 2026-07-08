@@ -17,7 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { useContext, useState } from 'react';
+import { Tabs, TabPane } from '@douyinfe/semi-ui';
 import CardPro from '../../common/ui/CardPro';
 import LogsTable from './UsageLogsTable';
 import LogsActions from './UsageLogsActions';
@@ -26,27 +27,81 @@ import ColumnSelectorModal from './modals/ColumnSelectorModal';
 import UserInfoModal from './modals/UserInfoModal';
 import ChannelAffinityUsageCacheModal from './modals/ChannelAffinityUsageCacheModal';
 import ParamOverrideModal from './modals/ParamOverrideModal';
+import OfflineExportModal from './modals/OfflineExportModal';
+import ExportTasksModal from './modals/ExportTasksModal';
+import AdminExportPanel from './AdminExportPanel';
 import { useLogsData } from '../../../hooks/usage-logs/useUsageLogsData';
+import { useOfflineExport } from '../../../hooks/usage-logs/useOfflineExport';
 import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import { createCardProPagination } from '../../../helpers/utils';
+import { StatusContext } from '../../../context/Status';
+import { UserContext } from '../../../context/User';
+import { useTranslation } from 'react-i18next';
 
 const LogsPage = () => {
   const logsData = useLogsData();
   const isMobile = useIsMobile();
+  const [statusState] = useContext(StatusContext);
+  const [userState] = useContext(UserContext);
+  const offlineExportEnabled = !!statusState?.status?.enable_log_export_offline;
+  const isAdmin = userState?.user?.role >= 10;
+  const showAdminExport = isAdmin && offlineExportEnabled;
+  const { t } = useTranslation();
+  const [activeTab, setActiveTab] = useState('logs');
 
-  return (
+  const offlineExport = useOfflineExport();
+
+  // Build filters from current form state for offline export
+  const buildOfflineFilters = () => {
+    const formValues = logsData.formApi ? logsData.formApi.getValues() : {};
+    const dateRange = formValues.dateRange || [];
+    return {
+      start_timestamp: dateRange[0] ? Math.floor(Date.parse(dateRange[0]) / 1000) : undefined,
+      end_timestamp: dateRange[1] ? Math.floor(Date.parse(dateRange[1]) / 1000) : undefined,
+      model_name: formValues.model_name || undefined,
+      token_name: formValues.token_name || undefined,
+      channel: formValues.channel || undefined,
+    };
+  };
+
+  const logsContent = (
     <>
       {/* Modals */}
       <ColumnSelectorModal {...logsData} />
       <UserInfoModal {...logsData} />
       <ChannelAffinityUsageCacheModal {...logsData} />
       <ParamOverrideModal {...logsData} />
+      <OfflineExportModal
+        visible={offlineExport.modalOpen}
+        onClose={() => offlineExport.setModalOpen(false)}
+        onSubmit={offlineExport.submitOfflineExport}
+        submitting={offlineExport.submitting}
+        filters={buildOfflineFilters()}
+        userEmail={userState?.user?.email || ''}
+      />
+      <ExportTasksModal
+        visible={offlineExport.tasksModalOpen}
+        onClose={() => offlineExport.setTasksModalOpen(false)}
+        tasks={offlineExport.tasks}
+        total={offlineExport.tasksTotal}
+        page={offlineExport.tasksPage}
+        loading={offlineExport.tasksLoading}
+        onPageChange={(p) => offlineExport.fetchTasks(p)}
+        onRefresh={offlineExport.fetchTasks}
+      />
 
       {/* Main Content */}
       <CardPro
         type='type2'
         statsArea={<LogsActions {...logsData} />}
-        searchArea={<LogsFilters {...logsData} />}
+        searchArea={
+          <LogsFilters
+            {...logsData}
+            offlineExportEnabled={offlineExportEnabled}
+            onOfflineExport={() => offlineExport.setModalOpen(true)}
+            onShowExportTasks={() => offlineExport.setTasksModalOpen(true)}
+          />
+        }
         paginationArea={createCardProPagination({
           currentPage: logsData.activePage,
           pageSize: logsData.pageSize,
@@ -54,6 +109,7 @@ const LogsPage = () => {
           onPageChange: logsData.handlePageChange,
           onPageSizeChange: logsData.handlePageSizeChange,
           isMobile: isMobile,
+          isAdmin: logsData.isAdminUser,
           t: logsData.t,
         })}
         t={logsData.t}
@@ -61,6 +117,19 @@ const LogsPage = () => {
         <LogsTable {...logsData} />
       </CardPro>
     </>
+  );
+
+  if (!showAdminExport) return logsContent;
+
+  return (
+    <Tabs activeKey={activeTab} onChange={setActiveTab}>
+      <TabPane tab={t('使用日志')} itemKey="logs">
+        {logsContent}
+      </TabPane>
+      <TabPane tab={t('导出管理')} itemKey="export">
+        {activeTab === 'export' && <AdminExportPanel />}
+      </TabPane>
+    </Tabs>
   );
 };
 

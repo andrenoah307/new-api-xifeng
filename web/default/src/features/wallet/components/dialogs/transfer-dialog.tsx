@@ -40,6 +40,7 @@ interface TransferDialogProps {
   onConfirm: (amount: number) => Promise<boolean>
   availableQuota: number
   transferring: boolean
+  minTransferAmount?: number
 }
 
 export function TransferDialog({
@@ -48,17 +49,23 @@ export function TransferDialog({
   onConfirm,
   availableQuota,
   transferring,
+  minTransferAmount = 1,
 }: TransferDialogProps) {
   const { t } = useTranslation()
   const currencyConfig = useSystemConfigStore(
     (state) => state.config.currency
   )
-  const minimumQuota = Math.ceil(
+  const configuredMinimumQuota = Math.ceil(
     currencyConfig.quotaPerUnit > 0
       ? currencyConfig.quotaPerUnit
       : DEFAULT_CURRENCY_CONFIG.quotaPerUnit
   )
-  const minimumAmount = quotaUnitsToDollars(minimumQuota)
+  // 尊重二开传入的最小转账额 minTransferAmount，同时遵守配置的 quota units 下限
+  const minimumAmount = Math.max(
+    quotaUnitsToDollars(configuredMinimumQuota),
+    minTransferAmount
+  )
+  const minimumQuota = parseQuotaFromDollars(minimumAmount)
   const maximumAmount = quotaUnitsToDollars(availableQuota)
   const [amount, setAmount] = useState(minimumAmount)
   const transferQuota = parseQuotaFromDollars(amount)
@@ -116,7 +123,7 @@ export function TransferDialog({
       <div className='space-y-4 py-3 sm:space-y-6 sm:py-4'>
         <div className='space-y-2'>
           <Label className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
-            {t('Available Rewards')}
+            {t('Transferable Rewards')}
           </Label>
           <div className='text-2xl font-semibold'>
             {formatQuota(availableQuota)}

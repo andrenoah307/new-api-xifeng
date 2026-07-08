@@ -6,13 +6,76 @@ import (
 	"strings"
 )
 
+type ErrorFilterRule struct {
+	// 匹配条件（多条件 AND，同类条件内 OR）
+	StatusCodes     []int    `json:"status_codes,omitempty"`
+	MessageContains []string `json:"message_contains,omitempty"`
+	ErrorCodes      []string `json:"error_codes,omitempty"`
+
+	// 执行动作
+	Action string `json:"action"`
+
+	// Action=rewrite：透传上游状态码，改写返回消息
+	RewriteMessage string `json:"rewrite_message,omitempty"`
+
+	// Action=replace：完全拦截，自定义状态码和消息
+	ReplaceStatusCode int    `json:"replace_status_code,omitempty"`
+	ReplaceMessage    string `json:"replace_message,omitempty"`
+}
+
+// RiskControlHeaderRule 用于将 new-api 内部的请求级数据（用户名、用户 ID、令牌 ID 等）
+// 透传给上游，便于上游基于这些标识做风控/审计/限流。
+//
+// Source 取值：
+//   - "username"     => new-api 内部用户名
+//   - "user_id"      => new-api 用户 ID
+//   - "user_email"   => 用户邮箱
+//   - "user_group"   => 用户所属分组
+//   - "using_group"  => 实际使用的分组（可能因 auto 跨组重试而变动）
+//   - "token_id"     => 令牌 ID
+//   - "request_id"   => 当前请求 ID
+//   - "custom"       => 使用 Value 中的内容，支持占位符（详见 risk control 实现）
+type RiskControlHeaderRule struct {
+	Name   string `json:"name"`
+	Source string `json:"source,omitempty"`
+	Value  string `json:"value,omitempty"`
+}
+
+type PressureCoolingOverride struct {
+	Enabled                  *bool `json:"enabled,omitempty"`
+	FRTThresholdMs           *int  `json:"frt_threshold_ms,omitempty"`
+	TriggerPercent           *int  `json:"trigger_percent,omitempty"`
+	CooldownSeconds          *int  `json:"cooldown_seconds,omitempty"`
+	ObservationWindowSeconds *int  `json:"observation_window_seconds,omitempty"`
+}
+
 type ChannelSettings struct {
-	ForceFormat            bool   `json:"force_format,omitempty"`
-	ThinkingToContent      bool   `json:"thinking_to_content,omitempty"`
-	Proxy                  string `json:"proxy"`
-	PassThroughBodyEnabled bool   `json:"pass_through_body_enabled,omitempty"`
-	SystemPrompt           string `json:"system_prompt,omitempty"`
-	SystemPromptOverride   bool   `json:"system_prompt_override,omitempty"`
+	ForceFormat            bool                     `json:"force_format,omitempty"`
+	ThinkingToContent      bool                     `json:"thinking_to_content,omitempty"`
+	Proxy                  string                   `json:"proxy"`
+	PassThroughBodyEnabled bool                     `json:"pass_through_body_enabled,omitempty"`
+	StripRequestId         bool                     `json:"strip_request_id,omitempty"`
+	SystemPrompt           string                   `json:"system_prompt,omitempty"`
+	SystemPromptOverride   bool                     `json:"system_prompt_override,omitempty"`
+	ErrorFilterRules       []ErrorFilterRule        `json:"error_filter_rules,omitempty"`
+	RiskControlHeaders     []RiskControlHeaderRule  `json:"risk_control_headers,omitempty"`
+	RateLimit              *ChannelRateLimit        `json:"rate_limit,omitempty"`
+	PressureCooling        *PressureCoolingOverride `json:"pressure_cooling,omitempty"`
+}
+
+// ChannelRateLimit 渠道级 RPM / 并发限流配置
+//
+// OnLimit 取值：
+//   - "skip"   => 满载后跳过该渠道，由 retry 路由到同分组其他渠道（默认）
+//   - "queue"  => 满载后串行排队等待，超 QueueMaxWaitMs 或队列深度 QueueDepth 后回退为 skip
+//   - "reject" => 满载后直接返回 429，不再 retry 其他渠道
+type ChannelRateLimit struct {
+	Enabled        bool   `json:"enabled,omitempty"`
+	RPM            int    `json:"rpm,omitempty"`         // 每分钟最大请求数，0 = 不限
+	Concurrency    int    `json:"concurrency,omitempty"` // 同时在飞请求数上限，0 = 不限
+	OnLimit        string `json:"on_limit,omitempty"`
+	QueueMaxWaitMs int    `json:"queue_max_wait_ms,omitempty"`
+	QueueDepth     int    `json:"queue_depth,omitempty"`
 }
 
 type VertexKeyType string

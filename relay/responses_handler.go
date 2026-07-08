@@ -55,12 +55,10 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 		)
 	}
 
-	request, err := common.DeepCopy(responsesReq)
-	if err != nil {
-		return types.NewError(fmt.Errorf("failed to copy request to GeneralOpenAIRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
-	}
+	copied := *responsesReq
+	request := &copied
 
-	err = helper.ModelMappedHelper(c, info, request)
+	err := helper.ModelMappedHelper(c, info, request)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
 	}
@@ -77,6 +75,12 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 			return types.NewError(err, types.ErrorCodeReadRequestBodyFailed, types.ErrOptionWithSkipRetry())
 		}
 		requestBody = common.ReaderOnly(storage)
+		// 坑点 #134：Responses 透传同样跳过 ConvertOpenAIResponsesRequest，需在此补写 info.ReasoningEffort，否则日志丢思考等级
+		if info.RelayMode == relayconstant.RelayModeResponses {
+			if effort := relaycommon.ResolveResponsesReasoningEffortForPassthrough(request.Model, request.Reasoning); effort != "" {
+				info.ReasoningEffort = effort
+			}
+		}
 	} else {
 		convertedRequest, err := adaptor.ConvertOpenAIResponsesRequest(c, info, *request)
 		if err != nil {

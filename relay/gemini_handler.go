@@ -59,13 +59,10 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected *dto.GeminiChatRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	request, err := common.DeepCopy(geminiReq)
-	if err != nil {
-		return types.NewError(fmt.Errorf("failed to copy request to GeminiChatRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
-	}
+	copied := *geminiReq
+	request := &copied
 
-	// model mapped 模型映射
-	err = helper.ModelMappedHelper(c, info, request)
+	err := helper.ModelMappedHelper(c, info, request)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
 	}
@@ -96,6 +93,12 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	adaptor.Init(info)
 
 	if info.ChannelSetting.SystemPrompt != "" {
+		if request.SystemInstructions != nil {
+			clonedSI := *request.SystemInstructions
+			clonedSI.Parts = make([]dto.GeminiPart, len(request.SystemInstructions.Parts))
+			copy(clonedSI.Parts, request.SystemInstructions.Parts)
+			request.SystemInstructions = &clonedSI
+		}
 		if request.SystemInstructions == nil {
 			request.SystemInstructions = &dto.GeminiChatContent{
 				Parts: []dto.GeminiPart{
@@ -142,6 +145,10 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 			return types.NewErrorWithStatusCode(err, types.ErrorCodeReadRequestBodyFailed, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 		}
 		requestBody = common.ReaderOnly(storage)
+		// 坑点 #134：Gemini 透传同样跳过 convert，从模型后缀补写思考等级
+		if level := relaycommon.ResolveGeminiReasoningEffortForPassthrough(info.UpstreamModelName); level != "" {
+			info.ReasoningEffort = level
+		}
 	} else {
 		// 使用 ConvertGeminiRequest 转换请求格式
 		convertedRequest, err := adaptor.ConvertGeminiRequest(c, info, request)
@@ -198,6 +205,10 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	if openaiErr != nil {
 		service.ResetStatusCode(openaiErr, statusCodeMappingStr)
 		return openaiErr
+	}
+
+	if retryErr := service.StreamAbortRetryError(info); retryErr != nil {
+		return retryErr
 	}
 
 	service.PostTextConsumeQuota(c, info, usage.(*dto.Usage), nil)

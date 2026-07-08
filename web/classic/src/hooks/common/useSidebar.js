@@ -42,16 +42,23 @@ export const DEFAULT_ADMIN_CONFIG = {
   personal: {
     enabled: true,
     topup: true,
+    topup_history: true,
+    ticket: true,
     personal: true,
   },
   admin: {
     enabled: true,
     channel: true,
     models: true,
+    risk: true,
+    auto_group: true,
     deployment: true,
     redemption: true,
+    discount_code: true,
+    invitation_code: true,
     user: true,
     subscription: true,
+    ticket_admin: true,
     setting: true,
   },
 };
@@ -114,6 +121,34 @@ export const useSidebar = () => {
       }
 
       const res = await API.get('/api/user/self');
+      // 同步最新的角色/状态到 localStorage：
+      //   isAdmin() / isTicketStaff() 这类 helper 是读 localStorage 判断权限的，
+      //   如果管理员在其它标签页刚刚升/降级了当前用户，页面刷新后需要本地 user.role 也更新，
+      //   否则侧边栏可见性会与后端权限脱节（典型症状：CS 改角色后仍然看不到工单管理菜单）。
+      if (res.data?.success && res.data.data) {
+        try {
+          const fresh = res.data.data;
+          const raw = localStorage.getItem('user');
+          if (raw) {
+            const cached = JSON.parse(raw);
+            const nextRole = typeof fresh.role === 'number' ? fresh.role : cached.role;
+            const nextStatus =
+              typeof fresh.status === 'number' ? fresh.status : cached.status;
+            if (cached.role !== nextRole || cached.status !== nextStatus) {
+              localStorage.setItem(
+                'user',
+                JSON.stringify({
+                  ...cached,
+                  role: nextRole,
+                  status: nextStatus,
+                }),
+              );
+            }
+          }
+        } catch (e) {
+          // 解析失败时静默，保守保留旧值。
+        }
+      }
       if (res.data.success && res.data.data.sidebar_modules) {
         let config;
         // 检查sidebar_modules是字符串还是对象

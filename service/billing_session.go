@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
@@ -290,8 +291,8 @@ func (s *BillingSession) shouldTrust(c *gin.Context) bool {
 		return false
 	}
 
-	// 检查令牌是否充足
-	tokenTrusted := s.relayInfo.TokenUnlimited
+	// 检查令牌是否充足（坑点 #139：操练场合成令牌与无限令牌一样不参与令牌门控）
+	tokenTrusted := tokenNonGating(s.relayInfo.TokenUnlimited, s.relayInfo.IsPlayground)
 	if !tokenTrusted {
 		tokenQuota := c.GetInt("token_quota")
 		tokenTrusted = tokenQuota > trustQuota
@@ -338,8 +339,80 @@ func (s *BillingSession) syncRelayInfo() {
 // NewBillingSession 工厂 — 根据计费偏好创建会话并处理回退
 // ---------------------------------------------------------------------------
 
+// preConsumeReject 标记优雅部分预扣的拒绝归因（坑点 #138）。
+type preConsumeReject int
+
+const (
+	preConsumeOK           preConsumeReject = iota
+	preConsumeRejectWallet                  // 钱包余额连输入下限都付不起
+	preConsumeRejectToken                   // 令牌额度连输入下限都付不起
+)
+
+// tokenNonGating 判定令牌是否不参与预扣硬门控（坑点 #139）。
+// 无限令牌（TokenUnlimited）与操练场合成令牌（IsPlayground，无 Key/token_quota=0）均不以令牌额度卡预扣：
+// 前者本就无限；后者令牌消费在 PreConsumeTokenQuota/reserveToken/preConsume 回滚已按 IsPlayground 跳过，
+// 门控侧须对齐，否则操练场令牌分支必拒并触发空 Key 的 reconcileTokenReject 硬拒。
+func tokenNonGating(tokenUnlimited, isPlayground bool) bool {
+	return tokenUnlimited || isPlayground
+}
+
+// computePartialTarget 计算非受信任用户的实际预扣目标额（坑点 #137 优雅部分预扣）。
+// 当余额/令牌不足以覆盖最坏估算 fullQuota、但仍能覆盖仅输入的预扣下限 minQuota 时，
+// 预扣「可用额」而非硬拒；结算回真（可短暂走负，有界，下一请求 userQuota<=0 兜底）。
+// 返回 (target, reject)；reject 标记连输入下限都付不起时的拒绝归因。
+func computePartialTarget(userQuota, tokenQuota int, tokenUnlimited bool, fullQuota, minQuota int) (int, preConsumeReject) {
+	target := fullQuota
+	if userQuota < target {
+		if userQuota < minQuota {
+			return 0, preConsumeRejectWallet
+		}
+		target = userQuota
+	}
+	if !tokenUnlimited && tokenQuota < target {
+		if tokenQuota < minQuota {
+			return 0, preConsumeRejectToken
+		}
+		target = tokenQuota
+	}
+	return target, preConsumeOK
+}
+
+// resolveFreshTokenTarget 依据 fresh 令牌的真实无限状态，决定令牌分支拒绝后的目标额（坑点 #138）。
+// tokenUnlimited=true：令牌实为无限（上下文/缓存曾过期误判为限额），令牌不参与门控，
+// 仅按钱包口径 computePartialTarget(userQuota,0,true,...) 计算目标，ok=true。
+// tokenUnlimited=false：令牌确为限额且余额不足以覆盖输入下限，ok=false（调用方报「令牌额度不足」）。
+func resolveFreshTokenTarget(tokenUnlimited bool, userQuota, fullQuota, minQuota int) (int, bool) {
+	if !tokenUnlimited {
+		return 0, false
+	}
+	target, reject := computePartialTarget(userQuota, 0, true, fullQuota, minQuota)
+	return target, reject == preConsumeOK
+}
+
+// reconcileTokenReject 在令牌分支即将硬拒时，用 fresh DB 令牌复核真实无限状态（坑点 #138）。
+// fromDB=true 绕过可能过期的 Redis 令牌缓存，并借 GetTokenByKey 的 defer 自愈缓存。
+// 真无限：修复 relayInfo.TokenUnlimited 与上下文，令下游 PreConsumeTokenQuota 一并跳过令牌校验；返回钱包口径目标。
+// 真限额：返回「令牌额度不足」错误，正确归因到令牌而非钱包。
+func (s *BillingSession) reconcileTokenReject(c *gin.Context, userQuota, fullQuota, minQuota int) (int, *types.NewAPIError) {
+	token, err := model.GetTokenByKey(s.relayInfo.TokenKey, true)
+	if err != nil {
+		return 0, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+	}
+	target, ok := resolveFreshTokenTarget(token.UnlimitedQuota, userQuota, fullQuota, minQuota)
+	if !ok {
+		return 0, types.NewErrorWithStatusCode(
+			fmt.Errorf("令牌额度不足, 令牌剩余额度: %s, 需要预扣费额度: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(minQuota)),
+			types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+			types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+	}
+	// 令牌实为无限：修复过期标志（下游 PreConsumeTokenQuota 用 relayInfo.TokenUnlimited 判跳过）
+	s.relayInfo.TokenUnlimited = true
+	c.Set(string(constant.ContextKeyTokenUnlimited), true)
+	return target, nil
+}
+
 // NewBillingSession 根据用户计费偏好创建 BillingSession，处理 subscription_first / wallet_first 的回退。
-func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preConsumedQuota int) (*BillingSession, *types.NewAPIError) {
+func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preConsumedQuota int, minPreConsumedQuota int) (*BillingSession, *types.NewAPIError) {
 	if relayInfo == nil {
 		return nil, types.NewError(fmt.Errorf("relayInfo is nil"), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 	}
@@ -358,19 +431,46 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
 				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 		}
-		if userQuota-preConsumedQuota < 0 {
-			return nil, types.NewErrorWithStatusCode(
-				fmt.Errorf("预扣费额度失败, 用户剩余额度: %s, 需要预扣费额度: %s", logger.FormatQuota(userQuota), logger.FormatQuota(preConsumedQuota)),
-				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
-		}
+		// 必须在 shouldTrust 之前赋值：shouldTrust 依赖 relayInfo.UserQuota 判定信任旁路。
 		relayInfo.UserQuota = userQuota
 
 		session := &BillingSession{
 			relayInfo: relayInfo,
 			funding:   &WalletFunding{userId: relayInfo.UserId},
 		}
-		if apiErr := session.preConsume(c, preConsumedQuota); apiErr != nil {
+
+		// 预扣硬门控必须放在信任判定之后。受信任用户（余额 > TrustQuota 且令牌额度充足）
+		// 实际预扣为 0，真实成本由结算补正，不能因为「虚高的预扣估算 > 当前余额」而误杀
+		// （历史 bug：大输入估算冲高时，余额上百的信任用户仍被拒 "预扣费额度失败"）。
+		// 仅当用户不被信任时，才用预扣估算去卡余额。
+		preConsumeTarget := preConsumedQuota
+		if !session.shouldTrust(c) {
+			// 坑点 #137：优雅部分预扣——余额/令牌不足以覆盖最坏估算但能覆盖输入下限时，
+			// 预扣可用额而非硬拒，避免临界拒绝与「末位余额不可花费」。
+			tokenQuota := c.GetInt("token_quota")
+			// 坑点 #139：操练场合成令牌（无 Key/非无限/token_quota=0）令牌侧不参与门控，
+			// 否则令牌分支必拒并触发空 Key 的 reconcileTokenReject 硬拒；与既有 IsPlayground 跳过一致。
+			target, reject := computePartialTarget(userQuota, tokenQuota, tokenNonGating(relayInfo.TokenUnlimited, relayInfo.IsPlayground), preConsumedQuota, minPreConsumedQuota)
+			switch reject {
+			case preConsumeRejectWallet:
+				return nil, types.NewErrorWithStatusCode(
+					fmt.Errorf("用户额度不足, 剩余额度: %s, 需要预扣费额度: %s", logger.FormatQuota(userQuota), logger.FormatQuota(minPreConsumedQuota)),
+					types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+					types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			case preConsumeRejectToken:
+				// 坑点 #138：令牌分支拒绝时上下文 token_quota 可能过期，以 fresh DB 令牌为权威复核，
+				// 避免误拒钱包充裕用户，并正确归因（限额耗尽报令牌，无限则放行并修复标志）。
+				freshTarget, apiErr := session.reconcileTokenReject(c, userQuota, preConsumedQuota, minPreConsumedQuota)
+				if apiErr != nil {
+					return nil, apiErr
+				}
+				preConsumeTarget = freshTarget
+			default:
+				preConsumeTarget = target
+			}
+		}
+
+		if apiErr := session.preConsume(c, preConsumeTarget); apiErr != nil {
 			return nil, apiErr
 		}
 		return session, nil

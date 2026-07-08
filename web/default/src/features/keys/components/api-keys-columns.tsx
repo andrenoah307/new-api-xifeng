@@ -30,6 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useStatus } from '@/hooks/use-status'
 import { getUserGroups } from '@/lib/api'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -72,6 +73,9 @@ function useGroupRatios(): Record<string, number> {
 export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
   const { t } = useTranslation()
   const groupRatios = useGroupRatios()
+  const { status } = useStatus()
+  const regionBlockedGroups: string[] =
+    status?.region_blocked_groups ?? []
   return [
     {
       id: 'select',
@@ -223,13 +227,20 @@ export function useApiKeysColumns(): ColumnDef<ApiKey>[] {
           )
         }
         return (
-          <TruncatedCell
-            className='-ml-1.5'
-            tooltipContent={group || '-'}
-            tooltipClassName='break-all'
-          >
-            <GroupBadge group={group} ratio={ratio} />
-          </TruncatedCell>
+          <div className='flex flex-col gap-1'>
+            <TruncatedCell
+              className='-ml-1.5'
+              tooltipContent={group || '-'}
+              tooltipClassName='break-all'
+            >
+              <GroupBadge group={group} ratio={ratio} />
+            </TruncatedCell>
+            {regionBlockedGroups.includes(group) && (
+              <span className='text-xs text-destructive'>
+                {t('Not available in current region')}
+              </span>
+            )}
+          </div>
         )
       },
       size: 160,

@@ -117,6 +117,11 @@ export type SiteSettings = {
   ServerAddress: string
   'legal.user_agreement': string
   'legal.privacy_policy': string
+  'cn_disclaimer.enabled': string
+  'cn_disclaimer.title': string
+  'cn_disclaimer.content': string
+  'cn_disclaimer.blocked_countries': string
+  'cn_disclaimer.silence_minutes': string
   HeaderNavModules: string
   SidebarModulesAdmin: string
 }
@@ -229,6 +234,7 @@ export type ModelSettings = {
   AutomaticDisableChannelEnabled: boolean
   AutomaticEnableChannelEnabled: boolean
   AutomaticDisableKeywords: string
+  AutomaticDisableWhitelist: string
   AutomaticDisableStatusCodes: string
   AutomaticRetryStatusCodes: string
   'monitor_setting.auto_test_channel_enabled': boolean
@@ -249,6 +255,11 @@ export type BillingSettings = {
   PreConsumedQuota: number
   QuotaForInviter: number
   QuotaForInvitee: number
+  TopUpCommissionRate: number
+  TopUpCommissionManualEnabled: boolean
+  AffTransferCooldownHours: number
+  InviteRewardCooldownHours: number
+  MinTransferAmount: number
   TopUpLink: string
   'general_setting.docs_link': string
   'quota_setting.enable_free_model_pre_consume': boolean
@@ -283,6 +294,7 @@ export type BillingSettings = {
   EpayKey: string
   Price: number
   MinTopUp: number
+  MinInvoiceAmount: number
   CustomCallbackAddress: string
   PayMethods: string
   'payment_setting.amount_options': string
@@ -327,6 +339,7 @@ export type BillingSettings = {
   'checkin_setting.enabled': boolean
   'checkin_setting.min_quota': number
   'checkin_setting.max_quota': number
+  'discount_code_setting.enabled': boolean
 }
 
 export type OperationsSettings = {
@@ -347,6 +360,7 @@ export type OperationsSettings = {
   WorkerValidKey: string
   WorkerAllowHttpImageRequestEnabled: boolean
   LogConsumeEnabled: boolean
+  ForceRecordIPEnabled: boolean
   'performance_setting.disk_cache_enabled': boolean
   'performance_setting.disk_cache_threshold_mb': number
   'performance_setting.disk_cache_max_size_mb': number
@@ -359,6 +373,7 @@ export type OperationsSettings = {
   'perf_metrics_setting.flush_interval': number
   'perf_metrics_setting.bucket_time': 'hour' | 'minute' | '5min'
   'perf_metrics_setting.retention_days': number
+  HiddenModels: string
 }
 
 export type SecuritySettings = {
@@ -379,6 +394,18 @@ export type SecuritySettings = {
   'fetch_setting.allowed_ports': number[]
   'fetch_setting.apply_ip_filter_for_domain': boolean
   'token_setting.max_user_tokens': number
+  'region_restriction.enabled': boolean
+  'region_restriction.filter_console': boolean
+  'region_restriction.block_relay': boolean
+  'region_restriction.xdb_path': string
+  'region_restriction.block_message': string
+  'region_restriction.blocked_models': string
+  'region_restriction.blocked_groups': string
+  'group_model_blacklist.enabled': boolean
+  'group_model_blacklist.filter_console': boolean
+  'group_model_blacklist.block_relay': boolean
+  'group_model_blacklist.block_message': string
+  'group_model_blacklist.blocked_models': string
 }
 
 export type UpstreamChannel = {

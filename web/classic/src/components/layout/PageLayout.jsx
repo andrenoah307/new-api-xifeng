@@ -55,10 +55,14 @@ const PageLayout = () => {
     '/console/channel',
     '/console/log',
     '/console/redemption',
+    '/console/invitation_code',
     '/console/user',
+    '/console/risk',
     '/console/token',
     '/console/midjourney',
     '/console/task',
+    '/console/ticket',
+    '/console/ticket_admin',
     '/console/models',
     '/pricing',
   ];
@@ -68,10 +72,20 @@ const PageLayout = () => {
   const shouldInnerPadding =
     location.pathname.includes('/console') &&
     !location.pathname.startsWith('/console/chat') &&
-    location.pathname !== '/console/playground';
+    location.pathname !== '/console/playground' &&
+    location.pathname !== '/console/monitoring';
 
   const isConsoleRoute = location.pathname.startsWith('/console');
-  const showSider = isConsoleRoute && (!isMobile || drawerOpen);
+  // Top-level dashboards reached from the global header nav don't need the
+  // console sidebar — they read better as standalone, full-width pages.
+  // Note: /console/monitoring is intentionally NOT standalone — accessed from
+  // the console sidebar, it should remain embedded with the sidebar visible.
+  // The standalone version is served from the top-level /monitoring route.
+  const standaloneConsoleRoutes = [];
+  const showSider =
+    isConsoleRoute &&
+    !standaloneConsoleRoutes.includes(location.pathname) &&
+    (!isMobile || drawerOpen);
   const isFixedLayout = isConsoleRoute || location.pathname === '/pricing';
 
   useEffect(() => {

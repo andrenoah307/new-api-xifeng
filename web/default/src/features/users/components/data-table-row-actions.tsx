@@ -22,12 +22,13 @@ import {
   Trash2,
   Power,
   PowerOff,
-  ArrowUp,
-  ArrowDown,
+  UserCog,
   KeyRound,
   ShieldAlert,
   Link2,
   CreditCard,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -58,6 +59,7 @@ import {
 import { getUserActionMessage } from '../lib'
 import type { User, ManageUserAction } from '../types'
 import { UserBindingDialog } from './dialogs/user-binding-dialog'
+import { RoleManagementDialog } from './dialogs/role-management-dialog'
 import { useUsers } from './users-provider'
 
 interface DataTableRowActionsProps {
@@ -72,6 +74,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
   const [bindingDialogOpen, setBindingDialogOpen] = useState(false)
   const [subscriptionsDialogOpen, setSubscriptionsDialogOpen] = useState(false)
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false)
 
   const handleEdit = () => {
     setCurrentRow(user)
@@ -179,6 +182,19 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             </DropdownMenuShortcut>
           </DropdownMenuItem>
         )}
+
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault()
+            setRoleDialogOpen(true)
+          }}
+          disabled={isRoot}
+        >
+          {t('Manage Role')}
+          <DropdownMenuShortcut>
+            <UserCog size={16} />
+          </DropdownMenuShortcut>
+        </DropdownMenuItem>
 
         {isAdmin && !isRoot && (
           <DropdownMenuItem onClick={() => handleManage('demote')}>
@@ -299,6 +315,13 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         open={subscriptionsDialogOpen}
         onOpenChange={setSubscriptionsDialogOpen}
         user={{ id: user.id, username: user.username }}
+        onSuccess={triggerRefresh}
+      />
+
+      <RoleManagementDialog
+        open={roleDialogOpen}
+        onOpenChange={setRoleDialogOpen}
+        user={user}
         onSuccess={triggerRefresh}
       />
     </div>

@@ -30,6 +30,10 @@ const (
 	// but connected client (full TCP buffer, no server WriteTimeout) could hang
 	// the handler forever.
 	streamWriteTimeout = 30 * time.Second
+	// DrainAfterClientGone 原用于二开 #95/#132 断流后继续读取上游以捕获 usage；
+	// rc.20 恶性余额修复改为断流即止损（关闭上游 body、不再消费 token），
+	// 故此上限当前保留为语义常量，未在止损路径启用。
+	DrainAfterClientGone = 15 * time.Second
 )
 
 func getScannerBufferSize() int {
@@ -218,13 +222,21 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 		}()
 
 		for scanner.Scan() {
-			// 检查是否需要停止
 			select {
 			case <-stopChan:
 				return
 			case <-ctx.Done():
 				return
 			default:
+				// 客户端断开：立即停止（rc.20 恶性余额修复，止损优先）。
+				// 不再继续读取上游，避免为已放弃的请求消费上游 token。
+				select {
+				case <-c.Request.Context().Done():
+					info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
+					logger.LogInfo(c, "client disconnected, stopping scanner immediately")
+					return
+				default:
+				}
 			}
 
 			ticker.Reset(streamingTimeout)
@@ -277,7 +289,7 @@ func StreamScannerHandler(c *gin.Context, resp *http.Response, info *relaycommon
 		// EndReason already set by the goroutine that triggered stopChan
 	case <-c.Request.Context().Done():
 		// 客户端断开：立即 cleanup 关闭上游 resp.Body，解除 scanner 阻塞并让上游停止生成，
-		// 避免为已放弃的请求继续消费上游 token。
+		// 避免为已放弃的请求继续消费上游 token（rc.20 恶性余额修复，止损优先于 drain 拿 usage）。
 		info.StreamStatus.SetEndReason(relaycommon.StreamEndReasonClientGone, c.Request.Context().Err())
 	}
 

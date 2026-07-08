@@ -31,6 +31,9 @@ import {
   Card,
   Radio,
   Select,
+  Tooltip,
+  InputNumber,
+  Input,
 } from '@douyinfe/semi-ui';
 const { Text } = Typography;
 import {
@@ -43,6 +46,7 @@ import {
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import CustomOAuthSetting from './CustomOAuthSetting';
+import EmailTemplateSetting from './EmailTemplateSetting';
 
 const SystemSetting = () => {
   const { t } = useTranslation();
@@ -93,6 +97,11 @@ const SystemSetting = () => {
     SMTPSSLEnabled: '',
     SMTPStartTLSEnabled: '',
     SMTPForceAuthLogin: '',
+    // Ticket* 相关字段已迁移到顶部"工单设置" Tab（web/src/components/settings/TicketSetting.jsx），
+    // 此处不再声明以避免无意义的 state/提交逻辑。
+    PaymentNotifyUserEnabled: '',
+    PaymentNotifyAdminEnabled: '',
+    PaymentAdminEmail: '',
     EmailDomainWhitelist: [],
     TelegramOAuthEnabled: '',
     TelegramBotToken: '',
@@ -101,6 +110,10 @@ const SystemSetting = () => {
     LinuxDOClientId: '',
     LinuxDOClientSecret: '',
     LinuxDOMinimumTrustLevel: '',
+    InvitationCodeEnabled: '',
+    InvitationCodeOAuthRequired: '',
+    InvitationCodeUserGenerateEnabled: '',
+    InvitationCodePolicy: '',
     ServerAddress: '',
     // SSRF防护配置
     'fetch_setting.enable_ssrf_protection': true,
@@ -111,6 +124,20 @@ const SystemSetting = () => {
     'fetch_setting.ip_list': [],
     'fetch_setting.allowed_ports': [],
     'fetch_setting.apply_ip_filter_for_domain': true,
+    // 地区限制配置
+    'region_restriction.enabled': false,
+    'region_restriction.filter_console': true,
+    'region_restriction.block_relay': true,
+    'region_restriction.xdb_path': 'data/ip2region.xdb',
+    'region_restriction.block_message': '',
+    'region_restriction.blocked_models': '',
+    'region_restriction.blocked_groups': '',
+    // 分组模型黑名单配置
+    'group_model_blacklist.enabled': false,
+    'group_model_blacklist.filter_console': true,
+    'group_model_blacklist.block_relay': true,
+    'group_model_blacklist.block_message': '',
+    'group_model_blacklist.blocked_models': '',
   });
 
   const [originInputs, setOriginInputs] = useState({});
@@ -127,6 +154,15 @@ const SystemSetting = () => {
   const [domainList, setDomainList] = useState([]);
   const [ipList, setIpList] = useState([]);
   const [allowedPorts, setAllowedPorts] = useState([]);
+  const [policyEditorVisible, setPolicyEditorVisible] = useState(false);
+  const [policyEditorData, setPolicyEditorData] = useState({
+    min_account_age_days: 7,
+    default_generate_quota: 5,
+    default_code_max_uses: 1,
+    default_code_valid_days: 30,
+    group_quotas: [],
+    role_quotas: [],
+  });
 
   const getOptions = async () => {
     setLoading(true);
@@ -139,6 +175,13 @@ const SystemSetting = () => {
           case 'TopupGroupRatio':
             item.value = JSON.stringify(JSON.parse(item.value), null, 2);
             break;
+          case 'InvitationCodePolicy':
+            try {
+              item.value = JSON.stringify(JSON.parse(item.value), null, 2);
+            } catch (e) {
+              item.value = item.value || '';
+            }
+            break;
           case 'EmailDomainWhitelist':
             setEmailDomainWhitelist(item.value ? item.value.split(',') : []);
             break;
@@ -148,6 +191,35 @@ const SystemSetting = () => {
           case 'fetch_setting.ip_filter_mode':
           case 'fetch_setting.apply_ip_filter_for_domain':
             item.value = toBoolean(item.value);
+            break;
+          case 'region_restriction.enabled':
+          case 'region_restriction.filter_console':
+          case 'region_restriction.block_relay':
+            item.value = toBoolean(item.value);
+            break;
+          case 'region_restriction.blocked_models':
+          case 'region_restriction.blocked_groups':
+            try {
+              item.value = item.value
+                ? JSON.stringify(JSON.parse(item.value), null, 2)
+                : '';
+            } catch (e) {
+              item.value = item.value || '';
+            }
+            break;
+          case 'group_model_blacklist.enabled':
+          case 'group_model_blacklist.filter_console':
+          case 'group_model_blacklist.block_relay':
+            item.value = toBoolean(item.value);
+            break;
+          case 'group_model_blacklist.blocked_models':
+            try {
+              item.value = item.value
+                ? JSON.stringify(JSON.parse(item.value), null, 2)
+                : '';
+            } catch (e) {
+              item.value = item.value || '';
+            }
             break;
           case 'fetch_setting.domain_list':
             try {
@@ -177,6 +249,9 @@ const SystemSetting = () => {
           case 'PasswordRegisterEnabled':
           case 'EmailVerificationEnabled':
           case 'GitHubOAuthEnabled':
+          case 'InvitationCodeEnabled':
+          case 'InvitationCodeOAuthRequired':
+          case 'InvitationCodeUserGenerateEnabled':
           case 'WeChatAuthEnabled':
           case 'TelegramOAuthEnabled':
           case 'RegisterEnabled':
@@ -186,6 +261,8 @@ const SystemSetting = () => {
           case 'SMTPSSLEnabled':
           case 'SMTPStartTLSEnabled':
           case 'SMTPForceAuthLogin':
+          case 'PaymentNotifyUserEnabled':
+          case 'PaymentNotifyAdminEnabled':
           case 'LinuxDOOAuthEnabled':
           case 'discord.enabled':
           case 'oidc.enabled':
@@ -321,6 +398,74 @@ const SystemSetting = () => {
     await updateOptions([{ key: 'ServerAddress', value: ServerAddress }]);
   };
 
+  const submitInvitationCodePolicy = async () => {
+    let formattedPolicy = inputs.InvitationCodePolicy || '';
+    if (formattedPolicy.trim() === '') {
+      showError(t('邀请码策略 JSON 不能为空'));
+      return;
+    }
+    try {
+      formattedPolicy = JSON.stringify(JSON.parse(formattedPolicy), null, 2);
+    } catch (error) {
+      showError(t('邀请码策略 JSON 格式错误'));
+      return;
+    }
+
+    await updateOptions([
+      {
+        key: 'InvitationCodePolicy',
+        value: formattedPolicy,
+      },
+    ]);
+  };
+
+  const openPolicyEditor = () => {
+    try {
+      const policy = JSON.parse(inputs.InvitationCodePolicy || '{}');
+      setPolicyEditorData({
+        min_account_age_days: policy.min_account_age_days ?? 7,
+        default_generate_quota: policy.default_generate_quota ?? 5,
+        default_code_max_uses: policy.default_code_max_uses ?? 1,
+        default_code_valid_days: policy.default_code_valid_days ?? 30,
+        group_quotas: Object.entries(policy.group_quotas || {}).map(([k, v]) => ({ key: k, value: v })),
+        role_quotas: Object.entries(policy.role_quotas || {}).map(([k, v]) => ({ key: k, value: v })),
+      });
+    } catch (e) {
+      setPolicyEditorData({
+        min_account_age_days: 7,
+        default_generate_quota: 5,
+        default_code_max_uses: 1,
+        default_code_valid_days: 30,
+        group_quotas: [{ key: 'default', value: 5 }],
+        role_quotas: [{ key: '10', value: -1 }],
+      });
+    }
+    setPolicyEditorVisible(true);
+  };
+
+  const savePolicyEditor = () => {
+    const policy = {
+      min_account_age_days: policyEditorData.min_account_age_days,
+      default_generate_quota: policyEditorData.default_generate_quota,
+      default_code_max_uses: policyEditorData.default_code_max_uses,
+      default_code_valid_days: policyEditorData.default_code_valid_days,
+      group_quotas: Object.fromEntries(
+        policyEditorData.group_quotas
+          .filter((item) => item.key && item.key.trim() !== '')
+          .map((item) => [item.key.trim(), item.value]),
+      ),
+      role_quotas: Object.fromEntries(
+        policyEditorData.role_quotas
+          .filter((item) => item.key && item.key.trim() !== '')
+          .map((item) => [item.key.trim(), item.value]),
+      ),
+    };
+    const jsonStr = JSON.stringify(policy, null, 2);
+    formApiRef.current?.setValue('InvitationCodePolicy', jsonStr);
+    setInputs((prev) => ({ ...prev, InvitationCodePolicy: jsonStr }));
+    setPolicyEditorVisible(false);
+  };
+
   const submitSMTP = async () => {
     const options = [];
     const smtpSecurityMode = inputs.SMTPSSLEnabled
@@ -365,6 +510,25 @@ const SystemSetting = () => {
     if (options.length > 0) {
       await updateOptions(options);
     }
+  };
+
+  // 工单通知 / 附件的提交逻辑已随 UI 一起迁移到 TicketSetting.jsx，这里不再保留。
+  const submitPaymentNotify = async () => {
+    const options = [
+      {
+        key: 'PaymentNotifyUserEnabled',
+        value: inputs.PaymentNotifyUserEnabled ? 'true' : 'false',
+      },
+      {
+        key: 'PaymentNotifyAdminEnabled',
+        value: inputs.PaymentNotifyAdminEnabled ? 'true' : 'false',
+      },
+      {
+        key: 'PaymentAdminEmail',
+        value: (inputs.PaymentAdminEmail || '').trim(),
+      },
+    ];
+    await updateOptions(options);
   };
 
   const submitEmailDomainWhitelist = async () => {
@@ -418,6 +582,76 @@ const SystemSetting = () => {
     if (options.length > 0) {
       await updateOptions(options);
     }
+  };
+
+  const submitRegionRestriction = async () => {
+    const bm = inputs['region_restriction.blocked_models'];
+    if (bm && bm.trim()) {
+      try {
+        const parsed = JSON.parse(bm);
+        if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+          showError(t('地区模型黑名单格式错误，必须是JSON对象'));
+          return;
+        }
+      } catch (e) {
+        showError(t('地区模型黑名单JSON格式无效'));
+        return;
+      }
+    }
+    const keys = [
+      'region_restriction.enabled',
+      'region_restriction.filter_console',
+      'region_restriction.block_relay',
+      'region_restriction.xdb_path',
+      'region_restriction.block_message',
+      'region_restriction.blocked_models',
+      'region_restriction.blocked_groups',
+    ];
+    const options = keys
+      .filter((k) => inputs[k] !== originInputs[k])
+      .map((k) => ({
+        key: k,
+        value: typeof inputs[k] === 'boolean' ? String(inputs[k]) : (inputs[k] ?? ''),
+      }));
+    if (!options.length) {
+      showError(t('你似乎并没有修改什么'));
+      return;
+    }
+    await updateOptions(options);
+  };
+
+  const submitGroupModelBlacklist = async () => {
+    const bm = inputs['group_model_blacklist.blocked_models'];
+    if (bm && bm.trim()) {
+      try {
+        const parsed = JSON.parse(bm);
+        if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+          showError(t('分组模型黑名单格式错误，必须是JSON对象'));
+          return;
+        }
+      } catch (e) {
+        showError(t('分组模型黑名单JSON格式无效'));
+        return;
+      }
+    }
+    const keys = [
+      'group_model_blacklist.enabled',
+      'group_model_blacklist.filter_console',
+      'group_model_blacklist.block_relay',
+      'group_model_blacklist.block_message',
+      'group_model_blacklist.blocked_models',
+    ];
+    const options = keys
+      .filter((k) => inputs[k] !== originInputs[k])
+      .map((k) => ({
+        key: k,
+        value: typeof inputs[k] === 'boolean' ? String(inputs[k]) : (inputs[k] ?? ''),
+      }));
+    if (!options.length) {
+      showError(t('你似乎并没有修改什么'));
+      return;
+    }
+    await updateOptions(options);
   };
 
   const handleAddEmail = () => {
@@ -1020,6 +1254,243 @@ const SystemSetting = () => {
               </Card>
 
               <Card>
+                <Form.Section text={t('地区限制设置')}>
+                  <Banner
+                    type='info'
+                    description={t('地区限制开关说明')}
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='region_restriction.enabled'
+                        label={t('启用地区限制')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.enabled': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='region_restriction.filter_console'
+                        label={t('控制台可见性过滤')}
+                        extraText={t('控制台可见性过滤说明')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.filter_console': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='region_restriction.block_relay'
+                        label={t('API中继拦截')}
+                        extraText={t('API中继拦截说明')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.block_relay': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field='region_restriction.xdb_path'
+                        label={t('ip2region数据库路径')}
+                        extraText={t('ip2region数据库路径说明')}
+                        placeholder='data/ip2region.xdb'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.xdb_path': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Input
+                        field='region_restriction.block_message'
+                        label={t('自定义拦截消息')}
+                        extraText={t('自定义拦截消息说明')}
+                        placeholder=''
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.block_message': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.TextArea
+                        field='region_restriction.blocked_models'
+                        label={t('地区模型黑名单')}
+                        extraText={t('地区模型黑名单说明')}
+                        placeholder={'{"CN": ["gpt-4*"], "RU": ["*"]}'}
+                        autosize={{ minRows: 4, maxRows: 12 }}
+                        style={{ fontFamily: 'monospace' }}
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.blocked_models': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.TextArea
+                        field='region_restriction.blocked_groups'
+                        label={t('地区分组黑名单')}
+                        extraText={t('地区分组黑名单说明')}
+                        placeholder={'{"CN": ["default"], "RU": ["*"]}'}
+                        autosize={{ minRows: 4, maxRows: 12 }}
+                        style={{ fontFamily: 'monospace' }}
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'region_restriction.blocked_groups': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Button
+                    onClick={submitRegionRestriction}
+                    style={{ marginTop: 16 }}
+                  >
+                    {t('更新地区限制设置')}
+                  </Button>
+                </Form.Section>
+              </Card>
+
+              <Card>
+                <Form.Section text={t('分组模型黑名单设置')}>
+                  <Banner
+                    type='info'
+                    description={t('分组模型黑名单开关说明')}
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='group_model_blacklist.enabled'
+                        label={t('启用分组模型黑名单')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.enabled': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='group_model_blacklist.filter_console'
+                        label={t('控制台可见性过滤(分组)')}
+                        extraText={t('控制台可见性过滤说明(分组)')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.filter_console': value,
+                          })
+                        }
+                      />
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Switch
+                        field='group_model_blacklist.block_relay'
+                        label={t('API中继拦截(分组)')}
+                        extraText={t('API中继拦截说明(分组)')}
+                        size='default'
+                        checkedText='|'
+                        uncheckedText='〇'
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.block_relay': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.Input
+                        field='group_model_blacklist.block_message'
+                        label={t('自定义拦截消息(分组)')}
+                        extraText={t('自定义拦截消息说明(分组)')}
+                        placeholder=''
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.block_message': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Row style={{ marginTop: 16 }}>
+                    <Col span={24}>
+                      <Form.TextArea
+                        field='group_model_blacklist.blocked_models'
+                        label={t('分组模型黑名单')}
+                        extraText={t('分组模型黑名单说明')}
+                        placeholder={'{"default": ["o1-*"], "vip": ["dall-e-*"]}'}
+                        autosize={{ minRows: 4, maxRows: 12 }}
+                        style={{ fontFamily: 'monospace' }}
+                        onChange={(value) =>
+                          setInputs({
+                            ...inputs,
+                            'group_model_blacklist.blocked_models': value,
+                          })
+                        }
+                      />
+                    </Col>
+                  </Row>
+                  <Button
+                    onClick={submitGroupModelBlacklist}
+                    style={{ marginTop: 16 }}
+                  >
+                    {t('更新分组模型黑名单设置')}
+                  </Button>
+                </Form.Section>
+              </Card>
+
+              <Card>
                 <Form.Section text={t('配置登录注册')}>
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
@@ -1128,6 +1599,86 @@ const SystemSetting = () => {
                       </Form.Checkbox>
                     </Col>
                   </Row>
+                </Form.Section>
+              </Card>
+
+              <Card>
+                <Form.Section text={t('邀请码设置')}>
+                  <Text>{t('控制注册是否需要邀请码，以及普通用户是否可以自助生成邀请码')}</Text>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <Form.Checkbox
+                        field='InvitationCodeEnabled'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('InvitationCodeEnabled', e)
+                        }
+                      >
+                        {t('密码注册要求邀请码')}
+                      </Form.Checkbox>
+                      <Form.Checkbox
+                        field='InvitationCodeOAuthRequired'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange(
+                            'InvitationCodeOAuthRequired',
+                            e,
+                          )
+                        }
+                      >
+                        {t('OAuth / 微信注册要求邀请码')}
+                      </Form.Checkbox>
+                      <Form.Checkbox
+                        field='InvitationCodeUserGenerateEnabled'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange(
+                            'InvitationCodeUserGenerateEnabled',
+                            e,
+                          )
+                        }
+                      >
+                        {t('允许普通用户生成邀请码')}
+                      </Form.Checkbox>
+                    </Col>
+                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: 4,
+                        }}
+                      >
+                        <Text strong style={{ fontSize: 14 }}>
+                          {t('邀请码策略 JSON')}
+                        </Text>
+                        <Button
+                          size='small'
+                          theme='borderless'
+                          type='primary'
+                          onClick={openPolicyEditor}
+                        >
+                          {t('可视化编辑')}
+                        </Button>
+                      </div>
+                      <Form.TextArea
+                        field='InvitationCodePolicy'
+                        noLabel
+                        rows={12}
+                        placeholder={`{\n  "min_account_age_days": 7,\n  "default_generate_quota": 5,\n  "default_code_max_uses": 1,\n  "default_code_valid_days": 30,\n  "group_quotas": {\n    "default": 5\n  },\n  "role_quotas": {\n    "10": -1\n  }\n}`}
+                        extraText={t(
+                          '支持配置最小账龄、默认生成配额、默认可用次数、默认有效期，以及按分组/角色覆盖配额',
+                        )}
+                      />
+                    </Col>
+                  </Row>
+                  <Button onClick={submitInvitationCodePolicy} style={{ marginTop: 16 }}>
+                    {t('保存邀请码策略')}
+                  </Button>
                 </Form.Section>
               </Card>
 
@@ -1401,6 +1952,61 @@ const SystemSetting = () => {
                   <Button onClick={submitSMTP}>{t('保存 SMTP 设置')}</Button>
                 </Form.Section>
               </Card>
+              {/* 工单相关设置已全部迁移至顶部独立的"工单设置" Tab。 */}
+              <Card>
+                <Form.Section text={t('支付成功邮件通知')}>
+                  <Text>
+                    {t(
+                      '依赖上方 SMTP 配置。启用后，用户在线充值成功时，会向用户绑定邮箱（或通知邮箱）和/或管理员邮箱发送订单详情。',
+                    )}
+                  </Text>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Checkbox
+                        field='PaymentNotifyUserEnabled'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('PaymentNotifyUserEnabled', e)
+                        }
+                      >
+                        {t('通知下单用户')}
+                      </Form.Checkbox>
+                    </Col>
+                    <Col xs={24} sm={24} md={8} lg={8} xl={8}>
+                      <Form.Checkbox
+                        field='PaymentNotifyAdminEnabled'
+                        noLabel
+                        onChange={(e) =>
+                          handleCheckboxChange('PaymentNotifyAdminEnabled', e)
+                        }
+                      >
+                        {t('通知管理员')}
+                      </Form.Checkbox>
+                    </Col>
+                  </Row>
+                  <Row
+                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Col xs={24} sm={24} md={24} lg={24} xl={24}>
+                      <Form.Input
+                        field='PaymentAdminEmail'
+                        label={t('管理员收件邮箱')}
+                        placeholder={t(
+                          '多个邮箱使用分号(;)或逗号分隔，仅在勾选"通知管理员"时生效',
+                        )}
+                      />
+                    </Col>
+                  </Row>
+                  <Button onClick={submitPaymentNotify}>
+                    {t('保存支付通知设置')}
+                  </Button>
+                </Form.Section>
+              </Card>
+              <EmailTemplateSetting />
               <Card>
                 <Form.Section text={t('配置 OIDC')}>
                   <Text>
@@ -1717,6 +2323,268 @@ const SystemSetting = () => {
           <Spin size='large' />
         </div>
       )}
+      <Modal
+        title={t('可视化编辑邀请码策略')}
+        visible={policyEditorVisible}
+        onOk={savePolicyEditor}
+        onCancel={() => setPolicyEditorVisible(false)}
+        okText={t('确认')}
+        cancelText={t('取消')}
+        width={600}
+      >
+        <div style={{ padding: '0 4px' }}>
+          <Text
+            strong
+            style={{
+              display: 'block',
+              marginBottom: 12,
+              color: 'var(--semi-color-text-2)',
+            }}
+          >
+            基本限制
+          </Text>
+          <Row gutter={16}>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <Tooltip content='用户账户至少存在多少天才能生成邀请码，0 表示无限制'>
+                  <Text style={{ marginBottom: 4, display: 'block' }}>
+                    最小账龄（天）
+                  </Text>
+                </Tooltip>
+                <InputNumber
+                  value={policyEditorData.min_account_age_days}
+                  onChange={(v) =>
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      min_account_age_days: v ?? 0,
+                    }))
+                  }
+                  min={0}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </Col>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <Tooltip content='邀请码的默认有效天数，0 表示永久有效'>
+                  <Text style={{ marginBottom: 4, display: 'block' }}>
+                    邀请码有效期（天）
+                  </Text>
+                </Tooltip>
+                <InputNumber
+                  value={policyEditorData.default_code_valid_days}
+                  onChange={(v) =>
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      default_code_valid_days: v ?? 0,
+                    }))
+                  }
+                  min={0}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </Col>
+          </Row>
+
+          <Text
+            strong
+            style={{
+              display: 'block',
+              marginBottom: 12,
+              marginTop: 4,
+              color: 'var(--semi-color-text-2)',
+            }}
+          >
+            配额设置
+          </Text>
+          <Row gutter={16}>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <Tooltip content='每位用户默认可生成多少个邀请码，-1 表示无限制'>
+                  <Text style={{ marginBottom: 4, display: 'block' }}>
+                    默认生成配额
+                  </Text>
+                </Tooltip>
+                <InputNumber
+                  value={policyEditorData.default_generate_quota}
+                  onChange={(v) =>
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      default_generate_quota: v ?? 0,
+                    }))
+                  }
+                  min={-1}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </Col>
+            <Col span={12}>
+              <div style={{ marginBottom: 16 }}>
+                <Tooltip content='每个邀请码默认最多被使用多少次'>
+                  <Text style={{ marginBottom: 4, display: 'block' }}>
+                    单码最大使用次数
+                  </Text>
+                </Tooltip>
+                <InputNumber
+                  value={policyEditorData.default_code_max_uses}
+                  onChange={(v) =>
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      default_code_max_uses: v ?? 1,
+                    }))
+                  }
+                  min={1}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </Col>
+          </Row>
+
+          <div style={{ marginBottom: 8, marginTop: 4 }}>
+            <Tooltip content='对特定用户组设置不同的生成配额，覆盖默认值。-1 表示无限制'>
+              <Text strong>分组配额覆盖</Text>
+            </Tooltip>
+          </div>
+          {policyEditorData.group_quotas.map((item, index) => (
+            <Row key={index} gutter={8} style={{ marginBottom: 8 }}>
+              <Col span={11}>
+                <Input
+                  placeholder='分组名称（如 default、vip）'
+                  value={item.key}
+                  onChange={(v) => {
+                    const updated = [...policyEditorData.group_quotas];
+                    updated[index] = { ...updated[index], key: v };
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      group_quotas: updated,
+                    }));
+                  }}
+                />
+              </Col>
+              <Col span={9}>
+                <InputNumber
+                  placeholder='配额（-1 无限制）'
+                  value={item.value}
+                  min={-1}
+                  onChange={(v) => {
+                    const updated = [...policyEditorData.group_quotas];
+                    updated[index] = { ...updated[index], value: v ?? 0 };
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      group_quotas: updated,
+                    }));
+                  }}
+                  style={{ width: '100%' }}
+                />
+              </Col>
+              <Col span={4}>
+                <Button
+                  type='danger'
+                  theme='borderless'
+                  onClick={() => {
+                    const updated = policyEditorData.group_quotas.filter(
+                      (_, i) => i !== index,
+                    );
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      group_quotas: updated,
+                    }));
+                  }}
+                >
+                  删除
+                </Button>
+              </Col>
+            </Row>
+          ))}
+          <Button
+            theme='light'
+            size='small'
+            style={{ marginBottom: 20 }}
+            onClick={() =>
+              setPolicyEditorData((d) => ({
+                ...d,
+                group_quotas: [...d.group_quotas, { key: '', value: 0 }],
+              }))
+            }
+          >
+            + 添加分组
+          </Button>
+
+          <div style={{ marginBottom: 8 }}>
+            <Tooltip content='对特定角色设置不同的生成配额，覆盖默认值。角色等级：1=普通用户，10=管理员，100=超级管理员。-1 表示无限制'>
+              <Text strong>角色配额覆盖</Text>
+            </Tooltip>
+          </div>
+          {policyEditorData.role_quotas.map((item, index) => (
+            <Row key={index} gutter={8} style={{ marginBottom: 8 }}>
+              <Col span={11}>
+                <Select
+                  placeholder='选择角色'
+                  value={item.key}
+                  onChange={(v) => {
+                    const updated = [...policyEditorData.role_quotas];
+                    updated[index] = { ...updated[index], key: v };
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      role_quotas: updated,
+                    }));
+                  }}
+                  style={{ width: '100%' }}
+                >
+                  <Select.Option value='1'>普通用户（1）</Select.Option>
+                  <Select.Option value='10'>管理员（10）</Select.Option>
+                  <Select.Option value='100'>超级管理员（100）</Select.Option>
+                </Select>
+              </Col>
+              <Col span={9}>
+                <InputNumber
+                  placeholder='配额（-1 无限制）'
+                  value={item.value}
+                  min={-1}
+                  onChange={(v) => {
+                    const updated = [...policyEditorData.role_quotas];
+                    updated[index] = { ...updated[index], value: v ?? 0 };
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      role_quotas: updated,
+                    }));
+                  }}
+                  style={{ width: '100%' }}
+                />
+              </Col>
+              <Col span={4}>
+                <Button
+                  type='danger'
+                  theme='borderless'
+                  onClick={() => {
+                    const updated = policyEditorData.role_quotas.filter(
+                      (_, i) => i !== index,
+                    );
+                    setPolicyEditorData((d) => ({
+                      ...d,
+                      role_quotas: updated,
+                    }));
+                  }}
+                >
+                  删除
+                </Button>
+              </Col>
+            </Row>
+          ))}
+          <Button
+            theme='light'
+            size='small'
+            onClick={() =>
+              setPolicyEditorData((d) => ({
+                ...d,
+                role_quotas: [...d.role_quotas, { key: '1', value: -1 }],
+              }))
+            }
+          >
+            + 添加角色
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

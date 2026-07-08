@@ -19,6 +19,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel/ollama"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/QuantumNous/new-api/service/channel_limiter"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -470,6 +471,35 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 		return fmt.Errorf("渠道额外设置[channel setting] 格式错误：%s", err.Error())
 	}
 
+	// 渠道限流配置校验
+	if rl := channel.GetSetting().RateLimit; rl != nil {
+		if rl.RPM < 0 {
+			return fmt.Errorf("渠道限流 RPM 不能为负数")
+		}
+		if rl.Concurrency < 0 {
+			return fmt.Errorf("渠道限流并发数不能为负数")
+		}
+		if rl.RPM > 1000000 {
+			return fmt.Errorf("渠道限流 RPM 不能超过 1000000")
+		}
+		if rl.Concurrency > 100000 {
+			return fmt.Errorf("渠道限流并发数不能超过 100000")
+		}
+		switch rl.OnLimit {
+		case "", "skip", "queue", "reject":
+		default:
+			return fmt.Errorf("渠道限流满载策略仅支持 skip / queue / reject")
+		}
+		if rl.OnLimit == "queue" {
+			if rl.QueueMaxWaitMs < 0 || rl.QueueMaxWaitMs > 60000 {
+				return fmt.Errorf("渠道限流排队等待时长须在 0~60000 毫秒之间")
+			}
+			if rl.QueueDepth < 0 || rl.QueueDepth > 10000 {
+				return fmt.Errorf("渠道限流队列深度须在 0~10000 之间")
+			}
+		}
+	}
+
 	// 如果是添加操作，检查 channel 和 key 是否为空
 	if isAdd {
 		if channel == nil || channel.Key == "" {
@@ -686,6 +716,7 @@ func AddChannel(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	model.InitChannelCache()
 	service.ResetProxyClientCache()
 	recordManageAudit(c, "channel.create", map[string]interface{}{
 		"name":  addChannelRequest.Channel.Name,
@@ -1050,6 +1081,9 @@ func UpdateChannel(c *gin.Context) {
 	if err != nil {
 		common.ApiError(c, err)
 		return
+	}
+	if originChannel.Status != common.ChannelStatusEnabled && channel.Status == common.ChannelStatusEnabled {
+		service.ResetPressureCoolingState(channel.Id)
 	}
 	model.InitChannelCache()
 	service.ResetProxyClientCache()
@@ -2167,4 +2201,25 @@ func OllamaVersion(c *gin.Context) {
 			"version": version,
 		},
 	})
+}
+
+func GetChannelRateLimitStats(c *gin.Context) {
+	var rows []model.Channel
+	if err := model.DB.Model(&model.Channel{}).Select("id, setting").Where("status = ?", common.ChannelStatusEnabled).Find(&rows).Error; err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+	cfgs := make(map[int]*dto.ChannelRateLimit)
+	for i := range rows {
+		setting := rows[i].GetSetting()
+		if channel_limiter.IsActive(setting.RateLimit) {
+			cfgs[rows[i].Id] = setting.RateLimit
+		}
+	}
+	if len(cfgs) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{}})
+		return
+	}
+	stats := channel_limiter.GetStats(c.Request.Context(), cfgs)
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": stats})
 }

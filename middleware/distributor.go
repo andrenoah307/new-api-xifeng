@@ -13,13 +13,16 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 )
@@ -73,6 +76,43 @@ func Distribute() func(c *gin.Context) {
 				if _, ok := tokenModelLimit[matchName]; !ok {
 					abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorTokenModelForbidden, map[string]any{"Model": modelRequest.Model}))
 					return
+				}
+			}
+
+			if rs := operation_setting.GetRegionRestrictionSetting(); rs.Enabled && rs.BlockRelay {
+				cc := requestip.GetClientCountry(c)
+				if cc != "" {
+					tokenGroup := c.GetString("group")
+					if tokenGroup != "" && tokenGroup != "auto" && operation_setting.IsGroupBlockedForCountry(cc, tokenGroup) {
+						blockMsg := rs.BlockMessage
+						if blockMsg == "" {
+							blockMsg = "Group '" + tokenGroup + "' is not available in your region"
+						}
+						abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
+						return
+					}
+					if operation_setting.IsModelBlockedForCountry(cc, modelRequest.Model) {
+						blockMsg := rs.BlockMessage
+						if blockMsg == "" {
+							blockMsg = "Model '" + modelRequest.Model + "' is not available in your region"
+						}
+						abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
+						return
+					}
+				}
+			}
+
+			if gmbs := operation_setting.GetGroupModelBlacklistSetting(); gmbs.Enabled && gmbs.BlockRelay {
+				tokenGroup := c.GetString("group")
+				if tokenGroup != "" && tokenGroup != "auto" {
+					if operation_setting.IsModelBlockedForGroup(tokenGroup, modelRequest.Model) {
+						blockMsg := gmbs.BlockMessage
+						if blockMsg == "" {
+							blockMsg = "Model '" + modelRequest.Model + "' is not available for your group"
+						}
+						abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
+						return
+					}
 				}
 			}
 
@@ -165,6 +205,16 @@ func Distribute() func(c *gin.Context) {
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			service.RecordChannelAffinity(c, channel.Id)
+		}
+		if frtMs, exists := c.Get("relay_frt_ms"); exists {
+			if frt, ok := frtMs.(int64); ok && frt > 0 {
+				chId := c.GetInt("channel_id")
+				if chId > 0 {
+					gopool.Go(func() {
+						service.CheckPressureCooling(chId, frt)
+					})
+				}
+			}
 		}
 	}
 }

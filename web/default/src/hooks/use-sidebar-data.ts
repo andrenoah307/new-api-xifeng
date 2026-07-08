@@ -30,14 +30,17 @@ import {
   ServerCog,
   Settings,
   Ticket,
+  TicketPercent,
   User,
   Users,
   Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
+import { useAuthStore } from '@/stores/auth-store'
 import { type SidebarData } from '@/components/layout/types'
 import { ROLE } from '@/lib/roles'
+import { getCustomAdminItems, getCustomGeneralItems } from './use-custom-sidebar-items'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -47,6 +50,7 @@ import { ROLE } from '@/lib/roles'
  */
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
+  const userRole = useAuthStore((s) => s.auth.user?.role ?? 0)
 
   return {
     navGroups: [
@@ -97,6 +101,7 @@ export function useSidebarData(): SidebarData {
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
             icon: ListTodo,
           },
+          ...getCustomGeneralItems(t, userRole),
         ],
       },
       {
@@ -140,6 +145,11 @@ export function useSidebarData(): SidebarData {
             icon: Ticket,
           },
           {
+            title: t('Discount Codes'),
+            url: '/discount-codes',
+            icon: TicketPercent,
+          },
+          {
             title: t('Subscriptions'),
             url: '/subscriptions',
             icon: CreditCard,
@@ -156,6 +166,7 @@ export function useSidebarData(): SidebarData {
             activeUrls: ['/system-settings'],
             icon: Settings,
           },
+          ...getCustomAdminItems(t),
         ],
       },
     ],

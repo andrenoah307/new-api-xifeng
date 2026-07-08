@@ -118,9 +118,13 @@ export function ApiKeysMutateDrawer({
     staleTime: 0,
   })
 
-  const models = modelsData?.data || []
+  const models = Array.isArray(modelsData?.data) ? modelsData.data : []
   const groupsRaw = groupsData?.data || {}
-  const groups: ApiKeyGroupOption[] = Object.entries(groupsRaw).map(
+  const regionBlockedGroups: string[] =
+    status?.region_blocked_groups ?? []
+  const groups: ApiKeyGroupOption[] = Object.entries(groupsRaw)
+    .filter(([key]) => !regionBlockedGroups.includes(key))
+    .map(
     ([key, info]) => ({
       value: key,
       label: key,

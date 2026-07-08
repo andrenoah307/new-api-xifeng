@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import '@/lib/polyfills'
 import {
   QueryCache,
   QueryClient,
@@ -40,6 +41,7 @@ import { DirectionProvider } from './context/direction-provider'
 import { FontProvider } from './context/font-provider'
 import { ThemeProvider } from './context/theme-provider'
 import './i18n/config'
+import './i18n/custom-translations'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
 
@@ -105,7 +107,7 @@ const router = createRouter({
   routeTree,
   context: { queryClient },
   defaultPreload: 'intent',
-  defaultPreloadStaleTime: 0,
+  defaultPreloadStaleTime: 30_000,
 })
 
 // Register the router instance for type safety

@@ -126,10 +126,12 @@ func GetTopUpInfo(c *gin.Context) {
 type EpayRequest struct {
 	Amount        int64  `json:"amount"`
 	PaymentMethod string `json:"payment_method"`
+	DiscountCode  string `json:"discount_code"`
 }
 
 type AmountRequest struct {
-	Amount int64 `json:"amount"`
+	Amount       int64  `json:"amount"`
+	DiscountCode string `json:"discount_code"`
 }
 
 func GetEpayClient() *epay.Client {
@@ -210,13 +212,32 @@ func RequestEpay(c *gin.Context) {
 		return
 	}
 
+	var discountCodeId int
+	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		discountCodeId = dc.Id
+		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
+		if payMoney < 0.01 {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣后充值金额过低"})
+			return
+		}
+	}
+
 	if !operation_setting.ContainsPayMethod(req.PaymentMethod) {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "支付方式不存在"})
 		return
 	}
 
 	callBackAddress := service.GetCallbackAddress()
-	returnUrl, _ := url.Parse(paymentReturnPath("/console/log"))
+	returnUrl, _ := url.Parse(service.GetPaymentReturnURL("billing", ""))
 	notifyUrl, _ := url.Parse(callBackAddress + "/api/user/epay/notify")
 	tradeNo := fmt.Sprintf("%s%d", common.GetRandomString(6), time.Now().Unix())
 	tradeNo = fmt.Sprintf("USR%dNO%s", id, tradeNo)
@@ -254,6 +275,7 @@ func RequestEpay(c *gin.Context) {
 		PaymentProvider: model.PaymentProviderEpay,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
+		DiscountCodeId:  discountCodeId,
 	}
 	err = topUp.Insert()
 	if err != nil {
@@ -388,16 +410,19 @@ func EpayNotify(c *gin.Context) {
 				topUp.PaymentMethod = verifyInfo.Type
 			}
 			topUp.Status = common.TopUpStatusSuccess
+			dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
+			var quotaToAdd int
+			if topUp.DiscountCodeId > 0 {
+				quotaToAdd = int(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).IntPart())
+			} else {
+				quotaToAdd = int(decimal.NewFromInt(int64(topUp.Amount)).Mul(dQuotaPerUnit).IntPart())
+			}
+			topUp.QuotaGranted = int64(quotaToAdd)
 			err := topUp.Update()
 			if err != nil {
 				logger.LogError(c.Request.Context(), fmt.Sprintf("易支付 更新充值订单失败 trade_no=%s user_id=%d client_ip=%s error=%q topup=%q", topUp.TradeNo, topUp.UserId, c.ClientIP(), err.Error(), common.GetJsonString(topUp)))
 				return
 			}
-			//user, _ := model.GetUserById(topUp.UserId, false)
-			//user.Quota += topUp.Amount * 500000
-			dAmount := decimal.NewFromInt(int64(topUp.Amount))
-			dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
-			quotaToAdd := int(dAmount.Mul(dQuotaPerUnit).IntPart())
 			err = model.IncreaseUserQuota(topUp.UserId, quotaToAdd, true)
 			if err != nil {
 				logger.LogError(c.Request.Context(), fmt.Sprintf("易支付 更新用户额度失败 trade_no=%s user_id=%d client_ip=%s quota_to_add=%d error=%q topup=%q", topUp.TradeNo, topUp.UserId, c.ClientIP(), quotaToAdd, err.Error(), common.GetJsonString(topUp)))
@@ -405,6 +430,10 @@ func EpayNotify(c *gin.Context) {
 			}
 			logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 充值成功 trade_no=%s user_id=%d client_ip=%s quota_to_add=%d money=%.2f topup=%q", topUp.TradeNo, topUp.UserId, c.ClientIP(), quotaToAdd, topUp.Money, common.GetJsonString(topUp)))
 			model.RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%f", logger.LogQuota(quotaToAdd), topUp.Money), c.ClientIP(), topUp.PaymentMethod, "epay")
+			service.NotifyTopUpSuccess(topUp)
+			service.NotifyAutoGroupEvaluation(topUp.UserId)
+			model.GrantTopUpCommission(topUp, false)
+			model.ProcessDiscountCodeBonus(topUp)
 		}
 	} else {
 		logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 webhook 忽略事件 trade_no=%s callback_type=%s trade_status=%s client_ip=%s verify_info=%q", verifyInfo.ServiceTradeNo, verifyInfo.Type, verifyInfo.TradeStatus, c.ClientIP(), common.GetJsonString(verifyInfo)))
@@ -430,6 +459,14 @@ func RequestAmount(c *gin.Context) {
 		return
 	}
 	payMoney := getPayMoney(req.Amount, group)
+	if req.DiscountCode != "" {
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
+	}
 	if payMoney <= 0.01 {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "充值金额过低"})
 		return
@@ -440,18 +477,9 @@ func RequestAmount(c *gin.Context) {
 func GetUserTopUps(c *gin.Context) {
 	userId := c.GetInt("id")
 	pageInfo := common.GetPageQuery(c)
-	keyword := c.Query("keyword")
+	filter := parseTopUpFilter(c)
 
-	var (
-		topups []*model.TopUp
-		total  int64
-		err    error
-	)
-	if keyword != "" {
-		topups, total, err = model.SearchUserTopUps(userId, keyword, pageInfo)
-	} else {
-		topups, total, err = model.GetUserTopUps(userId, pageInfo)
-	}
+	topups, total, err := model.GetUserTopUps(userId, filter, pageInfo)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -465,18 +493,9 @@ func GetUserTopUps(c *gin.Context) {
 // GetAllTopUps 管理员获取全平台充值记录
 func GetAllTopUps(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
-	keyword := c.Query("keyword")
+	filter := parseTopUpFilter(c)
 
-	var (
-		topups []*model.TopUp
-		total  int64
-		err    error
-	)
-	if keyword != "" {
-		topups, total, err = model.SearchAllTopUps(keyword, pageInfo)
-	} else {
-		topups, total, err = model.GetAllTopUps(pageInfo)
-	}
+	topups, total, err := model.GetAllTopUpsWithUsername(filter, pageInfo)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -485,6 +504,21 @@ func GetAllTopUps(c *gin.Context) {
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(topups)
 	common.ApiSuccess(c, pageInfo)
+}
+
+// parseTopUpFilter extracts keyword / status / time-range query params.
+func parseTopUpFilter(c *gin.Context) model.TopUpFilter {
+	filter := model.TopUpFilter{
+		Keyword: c.Query("keyword"),
+		Status:  c.Query("status"),
+	}
+	if v, err := strconv.ParseInt(c.Query("start_time"), 10, 64); err == nil {
+		filter.StartTime = v
+	}
+	if v, err := strconv.ParseInt(c.Query("end_time"), 10, 64); err == nil {
+		filter.EndTime = v
+	}
+	return filter
 }
 
 type AdminCompleteTopupRequest struct {

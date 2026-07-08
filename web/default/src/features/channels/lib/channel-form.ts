@@ -189,6 +189,7 @@ export const channelFormSchema = z
     thinking_to_content: z.boolean().optional(),
     proxy: z.string().optional(),
     pass_through_body_enabled: z.boolean().optional(),
+    strip_request_id: z.boolean().optional(),
     system_prompt: z.string().optional(),
     system_prompt_override: z.boolean().optional(),
     // Type-specific settings (stored in settings JSON)
@@ -209,6 +210,11 @@ export const channelFormSchema = z
     upstream_model_update_check_enabled: z.boolean().optional(),
     upstream_model_update_auto_sync_enabled: z.boolean().optional(),
     upstream_model_update_ignored_models: z.string().optional(),
+    // --- Custom extensions (fork) ---
+    pressure_cooling: z.string().optional(),
+    channel_rate_limit: z.string().optional(),
+    error_filter_rules: z.string().optional(),
+    risk_control_headers: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if ([3, 8, 36, 45].includes(data.type) && !data.base_url?.trim()) {
@@ -329,6 +335,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   thinking_to_content: false,
   proxy: '',
   pass_through_body_enabled: false,
+  strip_request_id: false,
   system_prompt: '',
   system_prompt_override: false,
   // Type-specific settings
@@ -367,9 +374,12 @@ export function transformChannelToFormDefaults(
     thinking_to_content: false,
     proxy: '',
     pass_through_body_enabled: false,
+    strip_request_id: false,
     system_prompt: '',
     system_prompt_override: false,
   }
+  // --- Custom extensions (fork) ---
+  const customExtensions: Record<string, string> = {}
 
   if (channel.setting) {
     try {
@@ -379,9 +389,15 @@ export function transformChannelToFormDefaults(
         thinking_to_content: parsed.thinking_to_content || false,
         proxy: parsed.proxy || '',
         pass_through_body_enabled: parsed.pass_through_body_enabled || false,
+        strip_request_id: parsed.strip_request_id || false,
         system_prompt: parsed.system_prompt || '',
         system_prompt_override: parsed.system_prompt_override || false,
       }
+      // --- Custom extensions (fork) ---
+      if (parsed.pressure_cooling) customExtensions.pressure_cooling = JSON.stringify(parsed.pressure_cooling)
+      if (parsed.rate_limit) customExtensions.channel_rate_limit = JSON.stringify(parsed.rate_limit)
+      if (parsed.error_filter_rules) customExtensions.error_filter_rules = JSON.stringify(parsed.error_filter_rules)
+      if (parsed.risk_control_headers) customExtensions.risk_control_headers = JSON.stringify(parsed.risk_control_headers)
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to parse channel setting:', error)
@@ -484,6 +500,8 @@ export function transformChannelToFormDefaults(
     upstream_model_update_auto_sync_enabled: upstreamModelUpdateAutoSyncEnabled,
     upstream_model_update_ignored_models: upstreamModelUpdateIgnoredModels,
     advanced_custom: advancedCustom,
+    // --- Custom extensions (fork) ---
+    ...customExtensions,
   }
 }
 
@@ -491,14 +509,20 @@ export function transformChannelToFormDefaults(
  * Build the setting JSON string from form extra settings
  */
 function buildSettingJSON(formData: ChannelFormValues): string {
-  const settingObj = {
+  const settingObj: Record<string, unknown> = {
     force_format: formData.force_format || false,
     thinking_to_content: formData.thinking_to_content || false,
     proxy: formData.proxy || '',
     pass_through_body_enabled: formData.pass_through_body_enabled || false,
+    strip_request_id: formData.strip_request_id || false,
     system_prompt: formData.system_prompt || '',
     system_prompt_override: formData.system_prompt_override || false,
   }
+  // --- Custom extensions (fork) ---
+  try { if (formData.pressure_cooling) settingObj.pressure_cooling = JSON.parse(formData.pressure_cooling) } catch { /* skip */ }
+  try { if (formData.channel_rate_limit) settingObj.rate_limit = JSON.parse(formData.channel_rate_limit) } catch { /* skip */ }
+  try { if (formData.error_filter_rules) settingObj.error_filter_rules = JSON.parse(formData.error_filter_rules) } catch { /* skip */ }
+  try { if (formData.risk_control_headers) settingObj.risk_control_headers = JSON.parse(formData.risk_control_headers) } catch { /* skip */ }
   return JSON.stringify(settingObj)
 }
 
@@ -647,31 +671,24 @@ export function transformFormDataToCreatePayload(formData: ChannelFormValues): {
     type: formData.type,
     base_url: normalizeBaseUrl(formData.base_url) || null,
     key: formData.key,
-    openai_organization: formData.openai_organization || null,
+    openai_organization: formData.openai_organization ?? null,
     models: formData.models,
     group: formatGroups(formData.group),
-    model_mapping: formData.model_mapping || null,
-    priority: formData.priority || null,
-    weight: formData.weight || null,
-    test_model: formData.test_model || null,
+    model_mapping: formData.model_mapping ?? null,
+    priority: formData.priority ?? null,
+    weight: formData.weight ?? null,
+    test_model: formData.test_model ?? null,
     auto_ban: formData.auto_ban ?? 1,
     status: formData.status,
-    status_code_mapping: formData.status_code_mapping || null,
-    tag: formData.tag || null,
-    remark: formData.remark || '',
+    status_code_mapping: formData.status_code_mapping ?? null,
+    tag: formData.tag ?? null,
+    remark: formData.remark ?? '',
     setting: buildSettingJSON(formData),
-    param_override: formData.param_override || null,
-    header_override: formData.header_override || null,
+    param_override: formData.param_override ?? null,
+    header_override: formData.header_override ?? null,
     settings: buildSettingsJSON(formData),
-    other: formData.other || '',
+    other: formData.other ?? '',
   }
-
-  // Clean up empty strings to null for optional fields
-  Object.keys(channel).forEach((key) => {
-    if (channel[key as keyof typeof channel] === '') {
-      ;(channel as Record<string, unknown>)[key] = null
-    }
-  })
 
   return {
     mode,
@@ -703,14 +720,15 @@ export function transformFormDataToUpdatePayload(
     weight: formData.weight ?? 0,
     test_model: formData.test_model || null,
     auto_ban: formData.auto_ban ?? 1,
+    status: formData.status,
     status_code_mapping: formData.status_code_mapping || null,
     tag: formData.tag || null,
     remark: formData.remark || '',
     setting: buildSettingJSON(formData),
-    param_override: formData.param_override || null,
-    header_override: formData.header_override || null,
+    param_override: formData.param_override ?? null,
+    header_override: formData.header_override ?? null,
     settings: buildSettingsJSON(formData),
-    other: formData.other || '',
+    other: formData.other ?? '',
   }
 
   // Only include key if it was changed (not empty)

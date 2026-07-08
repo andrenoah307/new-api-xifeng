@@ -38,6 +38,7 @@ import { cn, getPageNumbers } from '@/lib/utils'
 
 type DataTablePaginationProps<TData> = {
   table: Table<TData>
+  totalRows?: number
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 40, 50, 100] as const
@@ -48,6 +49,7 @@ const PAGE_SIZE_SELECT_ITEMS = PAGE_SIZE_OPTIONS.map((pageSize) => ({
 
 export function DataTablePagination<TData>({
   table,
+  totalRows,
 }: DataTablePaginationProps<TData>) {
   const { t } = useTranslation()
   const pagination = table.getState().pagination
@@ -56,6 +58,8 @@ export function DataTablePagination<TData>({
   const totalPages = table.getPageCount()
   const totalRows = table.getRowCount()
   const pageNumbers = getPageNumbers(currentPage, totalPages)
+  const isCapped = totalRows != null && totalRows > 0 && totalRows % 1000 === 0
+  const displayTotal = isCapped ? `${totalPages}+` : String(totalPages)
 
   return (
     <div

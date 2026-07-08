@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/pkg/cachex"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -718,7 +719,12 @@ func RecordChannelAffinity(c *gin.Context, channelID int) {
 	if setting == nil || !setting.Enabled {
 		return
 	}
-	if setting.SwitchOnSuccess && c != nil {
+	// Channel-level rate limiting may have diverted this request to a non-affinity
+	// channel temporarily. In that case we must NOT let SwitchOnSuccess displace
+	// the original cache-friendly channel — otherwise a 2-second burst on A
+	// permanently moves the user's affinity (and prompt cache) to B.
+	rateLimitSkipped := c != nil && common.GetContextKeyBool(c, constant.ContextKeyRateLimitSkipped)
+	if setting.SwitchOnSuccess && c != nil && !rateLimitSkipped {
 		if successChannelID := c.GetInt("channel_id"); successChannelID > 0 {
 			channelID = successChannelID
 		}

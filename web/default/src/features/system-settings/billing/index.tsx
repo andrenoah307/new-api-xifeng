@@ -29,6 +29,11 @@ const defaultBillingSettings: BillingSettings = {
   PreConsumedQuota: 0,
   QuotaForInviter: 0,
   QuotaForInvitee: 0,
+  TopUpCommissionRate: 0,
+  TopUpCommissionManualEnabled: false,
+  AffTransferCooldownHours: 0,
+  InviteRewardCooldownHours: 0,
+  MinTransferAmount: 0,
   TopUpLink: '',
   'general_setting.docs_link': '',
   'quota_setting.enable_free_model_pre_consume': true,
@@ -63,6 +68,7 @@ const defaultBillingSettings: BillingSettings = {
   EpayKey: '',
   Price: 7.3,
   MinTopUp: 1,
+  MinInvoiceAmount: 0,
   CustomCallbackAddress: '',
   PayMethods: '',
   'payment_setting.amount_options': '',
@@ -105,6 +111,7 @@ const defaultBillingSettings: BillingSettings = {
   'checkin_setting.enabled': false,
   'checkin_setting.min_quota': 1000,
   'checkin_setting.max_quota': 10000,
+  'discount_code_setting.enabled': false,
 }
 
 export function BillingSettings() {

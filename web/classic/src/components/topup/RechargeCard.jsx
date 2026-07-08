@@ -34,6 +34,7 @@ import {
   Tag,
   Tabs,
   TabPane,
+  Input,
 } from '@douyinfe/semi-ui';
 import { SiAlipay, SiWechat, SiStripe } from 'react-icons/si';
 import {
@@ -42,19 +43,20 @@ import {
   Wallet,
   BarChart2,
   TrendingUp,
-  Receipt,
   Sparkles,
 } from 'lucide-react';
 import { IconGift } from '@douyinfe/semi-icons';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { useActualTheme } from '../../context/Theme';
 import { getCurrencyConfig } from '../../helpers/render';
+import { API, showError } from '../../helpers';
 import SubscriptionPlansCard from './SubscriptionPlansCard';
 
 const { Text } = Typography;
 
 const RechargeCard = ({
   t,
+  discountCodeEnabled,
   enableOnlineTopUp,
   enableStripeTopUp,
   enableCreemTopUp,
@@ -98,6 +100,9 @@ const RechargeCard = ({
   allSubscriptions = [],
   reloadSubscriptionSelf,
   enableRedemption = true,
+  discountCodeRef,
+  discountCodeInfoRef,
+  requestAmountByPayment,
 }) => {
   const onlineFormApiRef = useRef(null);
   const redeemFormApiRef = useRef(null);
@@ -108,6 +113,61 @@ const RechargeCard = ({
   const shouldShowSubscription =
     !subscriptionLoading && subscriptionPlans.length > 0;
   const regularPayMethods = payMethods || [];
+
+  // Discount code state
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountCodeInfo, setDiscountCodeInfo] = useState(null);
+  const [validatingDiscountCode, setValidatingDiscountCode] = useState(false);
+
+  // Reset discount code state when amount or payment method changes
+  useEffect(() => {
+    setDiscountCodeInfo(null);
+    setDiscountCode('');
+    if (discountCodeRef) discountCodeRef.current = '';
+    if (discountCodeInfoRef) discountCodeInfoRef.current = null;
+  }, [topUpCount, payWay]);
+
+  // Sync validated discount code to parent ref and recalculate amount
+  const discountMountedRef = useRef(false);
+  useEffect(() => {
+    if (discountCodeRef) {
+      discountCodeRef.current = discountCodeInfo ? discountCode.trim() : '';
+    }
+    if (discountCodeInfoRef) {
+      discountCodeInfoRef.current = discountCodeInfo;
+    }
+    if (!discountMountedRef.current) {
+      discountMountedRef.current = true;
+      return;
+    }
+    if (requestAmountByPayment) {
+      requestAmountByPayment(payWay);
+    }
+  }, [discountCodeInfo]);
+
+  const validateDiscountCode = async () => {
+    if (!discountCode.trim()) {
+      showError(t('请输入折扣码'));
+      return;
+    }
+    setValidatingDiscountCode(true);
+    try {
+      const res = await API.post('/api/user/discount_code/validate', {
+        code: discountCode.trim(),
+      });
+      const { success, message, data } = res.data;
+      if (success) {
+        setDiscountCodeInfo(data);
+      } else {
+        setDiscountCodeInfo(null);
+        showError(message || t('折扣码无效'));
+      }
+    } catch (error) {
+      setDiscountCodeInfo(null);
+      showError(error.message || t('验证失败'));
+    }
+    setValidatingDiscountCode(false);
+  };
 
   useEffect(() => {
     if (initialTabSetRef.current) return;
@@ -263,18 +323,22 @@ const RechargeCard = ({
                       max={999999999}
                       step={1}
                       precision={0}
-                      onChange={async (value) => {
+                      onChange={(value) => {
                         if (value && value >= 1) {
                           setTopUpCount(value);
                           setSelectedPreset(null);
-                          await getAmount(value);
                         }
                       }}
                       onBlur={(e) => {
                         const value = parseInt(e.target.value);
-                        if (!value || value < 1) {
-                          setTopUpCount(1);
-                          getAmount(1);
+                        if (!value || value < minTopUp) {
+                          setTopUpCount(minTopUp);
+                          getAmount(minTopUp);
+                          if (value && value < minTopUp) {
+                            showError(t('充值数量不能小于') + renderQuotaWithAmount(minTopUp));
+                          }
+                        } else {
+                          getAmount(value);
                         }
                       }}
                       formatter={(value) => (value ? `${value}` : '')}
@@ -537,6 +601,67 @@ const RechargeCard = ({
                 </Form.Slot>
               )}
 
+              {/* 折扣码输入区域 */}
+              {discountCodeEnabled &&
+                (enableOnlineTopUp ||
+                enableStripeTopUp ||
+                enableWaffoTopUp ||
+                enableWaffoPancakeTopUp) && (
+                <Form.Slot label={t('折扣码')}>
+                  <div className='space-y-2'>
+                    <div className='flex items-center gap-2'>
+                      <Input
+                        placeholder={t('输入折扣码享受折扣')}
+                        value={discountCode}
+                        onChange={(val) => setDiscountCode(val)}
+                        onEnterPress={validateDiscountCode}
+                        showClear
+                        onClear={() => {
+                          setDiscountCode('');
+                          setDiscountCodeInfo(null);
+                        }}
+                        style={{ flex: 1 }}
+                      />
+                      <Button
+                        onClick={validateDiscountCode}
+                        loading={validatingDiscountCode}
+                        disabled={!discountCode.trim()}
+                      >
+                        {t('验证')}
+                      </Button>
+                    </div>
+                    {discountCodeInfo && (
+                      <Banner
+                        type='success'
+                        description={
+                          t('折扣码有效') +
+                          ', ' +
+                          t('折扣率') +
+                          ': ' +
+                          discountCodeInfo.discount_rate +
+                          '%' +
+                          ' (' +
+                          t('实付') +
+                          ' ' +
+                          discountCodeInfo.discount_rate +
+                          '%)'
+                        }
+                        className='!rounded-lg'
+                        closeIcon={null}
+                      />
+                    )}
+                    {enableCreemTopUp && (
+                      <Banner
+                        type='info'
+                        description={t('该支付方式不支持折扣码')}
+                        className='!rounded-lg'
+                        closeIcon={null}
+                      />
+                    )}
+                  </div>
+                </Form.Slot>
+              )}
+
               {/* Creem 充值区域 */}
               {enableCreemTopUp && creemProducts.length > 0 && (
                 <Form.Slot label={t('Creem 充值')}>
@@ -656,13 +781,6 @@ const RechargeCard = ({
             <div className='text-xs'>{t('多种充值方式，安全便捷')}</div>
           </div>
         </div>
-        <Button
-          icon={<Receipt size={16} />}
-          theme='solid'
-          onClick={onOpenHistory}
-        >
-          {t('账单')}
-        </Button>
       </div>
 
       {shouldShowSubscription ? (

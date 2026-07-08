@@ -16,8 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Gift, ExternalLink, Loader2, Receipt, WalletCards } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
+import {
+  Gift,
+  ExternalLink,
+  Loader2,
+  Receipt,
+  WalletCards,
+  TicketPercent,
+  Check,
+} from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -50,6 +59,7 @@ import type {
   CreemProduct,
   WaffoPayMethod,
 } from '../types'
+import type { DiscountInfo } from '../hooks/use-discount-code'
 import { CreemProductsSection } from './creem-products-section'
 
 interface RechargeFormCardProps {
@@ -59,6 +69,7 @@ interface RechargeFormCardProps {
   onSelectPreset: (preset: PresetAmount) => void
   topupAmount: number
   onTopupAmountChange: (amount: number) => void
+  onTopupAmountBlur?: (amount: number) => void
   paymentAmount: number
   calculating: boolean
   onPaymentMethodSelect: (method: PaymentMethod) => void
@@ -80,6 +91,12 @@ interface RechargeFormCardProps {
   waffoMinTopup?: number
   onWaffoMethodSelect?: (method: WaffoPayMethod, index: number) => void
   enableWaffoPancakeTopup?: boolean
+  discountCode?: string
+  onDiscountCodeChange?: (code: string) => void
+  onValidateDiscountCode?: () => void
+  discountValidating?: boolean
+  discountInfo?: DiscountInfo | null
+  selectedPaymentMethodType?: string
 }
 
 export function RechargeFormCard({
@@ -89,6 +106,7 @@ export function RechargeFormCard({
   onSelectPreset,
   topupAmount,
   onTopupAmountChange,
+  onTopupAmountBlur,
   paymentAmount,
   calculating,
   onPaymentMethodSelect,
@@ -110,6 +128,12 @@ export function RechargeFormCard({
   waffoMinTopup,
   onWaffoMethodSelect,
   enableWaffoPancakeTopup,
+  discountCode,
+  onDiscountCodeChange,
+  onValidateDiscountCode,
+  discountValidating,
+  discountInfo,
+  selectedPaymentMethodType,
 }: RechargeFormCardProps) {
   const { t } = useTranslation()
   const [localAmount, setLocalAmount] = useState(topupAmount.toString())
@@ -125,6 +149,18 @@ export function RechargeFormCard({
       onTopupAmountChange(numValue)
     }
   }
+
+  const handleAmountBlur = useCallback(() => {
+    const numValue = parseInt(localAmount) || 0
+    if (numValue < minTopup) {
+      toast.error(t('Minimum topup amount: {{amount}}', { amount: minTopup }))
+      setLocalAmount(minTopup.toString())
+      onTopupAmountChange(minTopup)
+      onTopupAmountBlur?.(minTopup)
+    } else {
+      onTopupAmountBlur?.(numValue)
+    }
+  }, [localAmount, minTopup, onTopupAmountChange, onTopupAmountBlur, t])
 
   const hasConfigurableTopup =
     topupInfo?.enable_online_topup ||
@@ -287,6 +323,7 @@ export function RechargeFormCard({
                     type='number'
                     value={localAmount}
                     onChange={(e) => handleAmountChange(e.target.value)}
+                    onBlur={handleAmountBlur}
                     min={minTopup}
                     placeholder={`Minimum ${minTopup}`}
                     className='h-9 text-base sm:h-10 sm:text-lg'
@@ -299,7 +336,7 @@ export function RechargeFormCard({
                       <Skeleton className='h-5 w-16' />
                     ) : (
                       <span className='text-sm font-semibold'>
-                        {formatCurrency(paymentAmount)}
+                        {paymentAmount > 0 ? formatCurrency(paymentAmount) : '--'}
                       </span>
                     )}
                   </div>
@@ -485,6 +522,75 @@ export function RechargeFormCard({
             />
           </div>
         )}
+
+      {/* Discount Code Section */}
+      {onDiscountCodeChange && onValidateDiscountCode && (
+        <div className='space-y-2.5 border-t pt-4 sm:space-y-3 sm:pt-6'>
+          <div className='flex items-center gap-2'>
+            <TicketPercent className='text-muted-foreground h-4 w-4' />
+            <Label
+              htmlFor='discount-code'
+              className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
+            >
+              {t('Discount Code')}
+            </Label>
+          </div>
+          {selectedPaymentMethodType === 'creem' ? (
+            <Alert>
+              <AlertDescription>
+                {t('This payment method does not support discount codes')}
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-2'>
+                <Input
+                  id='discount-code'
+                  value={discountCode || ''}
+                  onChange={(e) => onDiscountCodeChange(e.target.value)}
+                  placeholder={t('Enter discount code')}
+                  className='h-9 min-w-0'
+                  disabled={!!discountInfo}
+                />
+                {discountInfo ? (
+                  <Button
+                    onClick={() => {
+                      onDiscountCodeChange('')
+                    }}
+                    variant='outline'
+                    className='h-9 px-4'
+                  >
+                    {t('Clear')}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={onValidateDiscountCode}
+                    disabled={discountValidating || !discountCode?.trim()}
+                    variant='outline'
+                    className='h-9 px-4'
+                  >
+                    {discountValidating && (
+                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                    )}
+                    {t('Validate')}
+                  </Button>
+                )}
+              </div>
+              {discountInfo && (
+                <Alert>
+                  <Check className='h-4 w-4' />
+                  <AlertDescription>
+                    {t('Discount code valid: {{off}}% off (pay {{rate}}%)', {
+                      off: 100 - discountInfo.discount_rate,
+                      rate: discountInfo.discount_rate,
+                    })}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* Redemption Code Section */}
       {redemptionEnabled ? (

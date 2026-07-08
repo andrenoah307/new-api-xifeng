@@ -71,6 +71,8 @@ func SearchRedemptions(keyword string, status string, startIdx int, num int) (re
 		}
 	}()
 
+	// Build query based on keyword type
+	redemptions = make([]*Redemption, 0)
 	query := tx.Model(&Redemption{})
 
 	if keyword != "" {
@@ -104,7 +106,7 @@ func SearchRedemptions(keyword string, status string, startIdx int, num int) (re
 	}
 
 	// Get total count
-	err = query.Count(&total).Error
+	err = query.Session(&gorm.Session{}).Count(&total).Error
 	if err != nil {
 		tx.Rollback()
 		return nil, 0, err

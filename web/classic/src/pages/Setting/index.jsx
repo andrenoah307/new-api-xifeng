@@ -34,6 +34,7 @@ import {
   CreditCard,
   Server,
   Activity,
+  Ticket as TicketIcon,
 } from 'lucide-react';
 
 import SystemSetting from '../../components/settings/SystemSetting';
@@ -49,6 +50,7 @@ import DrawingSetting from '../../components/settings/DrawingSetting';
 import PaymentSetting from '../../components/settings/PaymentSetting';
 import ModelDeploymentSetting from '../../components/settings/ModelDeploymentSetting';
 import PerformanceSetting from '../../components/settings/PerformanceSetting';
+import TicketSetting from '../../components/settings/TicketSetting';
 
 const Setting = () => {
   const { t } = useTranslation();
@@ -157,6 +159,16 @@ const Setting = () => {
       ),
       content: <PerformanceSetting />,
       itemKey: 'performance',
+    });
+    panes.push({
+      tab: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <TicketIcon size={18} />
+          {t('工单设置')}
+        </span>
+      ),
+      content: <TicketSetting />,
+      itemKey: 'ticket',
     });
     panes.push({
       tab: (

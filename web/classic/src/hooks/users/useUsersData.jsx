@@ -120,15 +120,20 @@ export const useUsersData = () => {
     setSearching(false);
   };
 
-  // Manage user operations (promote, demote, enable, disable, delete)
+  // Manage user operations (promote, demote, enable, disable, delete, set_role)
+  // record.value 会在 set_role 场景下携带目标角色值；其它 action 忽略。
   const manageUser = async (userId, action, record) => {
     // Trigger loading state to force table re-render
     setLoading(true);
 
-    const res = await API.post('/api/user/manage', {
+    const payload = {
       id: userId,
       action,
-    });
+    };
+    if (action === 'set_role' && record && typeof record.value === 'number') {
+      payload.value = record.value;
+    }
+    const res = await API.post('/api/user/manage', payload);
 
     const { success, message } = res.data;
     if (success) {

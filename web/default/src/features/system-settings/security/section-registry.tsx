@@ -22,6 +22,8 @@ import { SSRFSection } from '../request-limits/ssrf-section'
 import { TokenLimitSection } from '../request-limits/token-limit-section'
 import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { GroupModelBlacklistSection } from './group-model-blacklist-section'
+import { RegionRestrictionSection } from './region-restriction-section'
 
 const SECURITY_SECTIONS = [
   {
@@ -86,6 +88,51 @@ const SECURITY_SECTIONS = [
         defaultValues={{
           'token_setting.max_user_tokens':
             settings['token_setting.max_user_tokens'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'region-restriction',
+    titleKey: 'Region Restriction',
+    descriptionKey: 'Control model access based on geographic region',
+    build: (settings: SecuritySettings) => (
+      <RegionRestrictionSection
+        defaultValues={{
+          'region_restriction.enabled': settings['region_restriction.enabled'],
+          'region_restriction.filter_console':
+            settings['region_restriction.filter_console'],
+          'region_restriction.block_relay':
+            settings['region_restriction.block_relay'],
+          'region_restriction.xdb_path':
+            settings['region_restriction.xdb_path'],
+          'region_restriction.block_message':
+            settings['region_restriction.block_message'],
+          'region_restriction.blocked_models':
+            settings['region_restriction.blocked_models'],
+          'region_restriction.blocked_groups':
+            settings['region_restriction.blocked_groups'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'group-model-blacklist',
+    titleKey: 'Group Model Blacklist',
+    descriptionKey: 'Control model access based on user group',
+    build: (settings: SecuritySettings) => (
+      <GroupModelBlacklistSection
+        defaultValues={{
+          'group_model_blacklist.enabled':
+            settings['group_model_blacklist.enabled'],
+          'group_model_blacklist.filter_console':
+            settings['group_model_blacklist.filter_console'],
+          'group_model_blacklist.block_relay':
+            settings['group_model_blacklist.block_relay'],
+          'group_model_blacklist.block_message':
+            settings['group_model_blacklist.block_message'],
+          'group_model_blacklist.blocked_models':
+            settings['group_model_blacklist.blocked_models'],
         }}
       />
     ),

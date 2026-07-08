@@ -153,6 +153,12 @@ type RelayInfo struct {
 	RuntimeHeadersOverride                map[string]interface{}
 	UseRuntimeHeadersOverride             bool
 	ParamOverrideAudit                    []string
+	RiskAudit                             *types.RiskAudit
+	// RiskGroup is a snapshot of UsingGroup taken when RiskControlBeforeRelay
+	// runs, so the after-relay defer (and any auto cross-group retry that
+	// rewrites UsingGroup) still records the start/finish pair against the
+	// same group bucket.
+	RiskGroup string
 
 	// UpstreamRequestBodySize is the byte size of the marshaled upstream request
 	// body. It is set when the body is wrapped in a BodyStorage (see

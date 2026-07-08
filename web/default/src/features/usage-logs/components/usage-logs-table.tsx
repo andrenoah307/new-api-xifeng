@@ -78,6 +78,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
 
+  const lastTotalRef = useRef(0)
+  const lastFiltersRef = useRef('')
+
   const {
     columnFilters,
     onColumnFiltersChange,
@@ -128,6 +131,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       t,
     ],
     queryFn: async () => {
+      const currentFilters = JSON.stringify({ searchParams, columnFilters, logCategory })
+      const totalCount = currentFilters === lastFiltersRef.current ? lastTotalRef.current : 0
+
       const result = await fetchLogsByCategory({
         logCategory,
         isAdmin,
@@ -135,6 +141,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
         pageSize: pagination.pageSize,
         searchParams,
         columnFilters,
+        totalCount,
       })
 
       if (!result?.success) {
@@ -182,6 +189,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       columns={columns as ColumnDef<Record<string, unknown>>[]}
       isLoading={isLoadingData}
       isFetching={isFetching}
+      totalRows={data?.total}
       emptyTitle={t('No Logs Found')}
       emptyDescription={t(
         'No usage logs available. Logs will appear here once API calls are made.'

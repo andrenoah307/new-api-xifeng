@@ -21,9 +21,10 @@ import React, { lazy, Suspense, useContext, useMemo } from 'react';
 import { Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Loading from './components/common/ui/Loading';
 import User from './pages/User';
-import { AuthRedirect, PrivateRoute, AdminRoute } from './helpers';
+import { AuthRedirect, PrivateRoute, AdminRoute, TicketStaffRoute } from './helpers';
 import RegisterForm from './components/auth/RegisterForm';
 import LoginForm from './components/auth/LoginForm';
+import CnDisclaimerGate from './components/CnDisclaimerGate';
 import NotFound from './pages/NotFound';
 import Forbidden from './pages/Forbidden';
 import Setting from './pages/Setting';
@@ -34,8 +35,14 @@ import PasswordResetConfirm from './components/auth/PasswordResetConfirm';
 import Channel from './pages/Channel';
 import Token from './pages/Token';
 import Redemption from './pages/Redemption';
+import DiscountCode from './pages/DiscountCode';
+import InvitationCode from './pages/InvitationCode';
 import TopUp from './pages/TopUp';
+import TopupHistory from './pages/TopupHistory';
 import Log from './pages/Log';
+import Ticket from './pages/Ticket';
+import TicketDetail from './pages/TicketDetail';
+import TicketAdmin from './pages/TicketAdmin';
 import Chat from './pages/Chat';
 import Chat2Link from './pages/Chat2Link';
 import MjProxy from './pages/Midjourney';
@@ -45,6 +52,10 @@ import ModelPage from './pages/Model';
 import ModelDeploymentPage from './pages/ModelDeployment';
 import Playground from './pages/Playground';
 import Subscription from './pages/Subscription';
+import RiskCenter from './pages/Risk';
+import AutoGroup from './pages/AutoGroup';
+import GroupMonitoring from './pages/GroupMonitoring';
+import Rankings from './pages/Rankings';
 import OAuth2Callback from './components/auth/OAuth2Callback';
 import PersonalSetting from './components/settings/PersonalSetting';
 import Setup from './pages/Setup';
@@ -156,10 +167,58 @@ function App() {
           }
         />
         <Route
+          path='/console/risk'
+          element={
+            <AdminRoute>
+              <RiskCenter />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/auto_group'
+          element={
+            <AdminRoute>
+              <AutoGroup />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/monitoring'
+          element={
+            <PrivateRoute>
+              <GroupMonitoring />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/monitoring'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <GroupMonitoring />
+            </Suspense>
+          }
+        />
+        <Route
           path='/console/redemption'
           element={
             <AdminRoute>
               <Redemption />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/discount_code'
+          element={
+            <AdminRoute>
+              <DiscountCode />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path='/console/invitation_code'
+          element={
+            <AdminRoute>
+              <InvitationCode />
             </AdminRoute>
           }
         />
@@ -278,6 +337,56 @@ function App() {
           }
         />
         <Route
+          path='/console/topup_history'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <TopupHistory />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/ticket'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <Ticket />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/ticket/:id'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <TicketDetail />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/ticket_admin'
+          element={
+            <TicketStaffRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <TicketAdmin />
+              </Suspense>
+            </TicketStaffRoute>
+          }
+        />
+        <Route
+          path='/console/ticket_admin/:id'
+          element={
+            <TicketStaffRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <TicketAdmin />
+              </Suspense>
+            </TicketStaffRoute>
+          }
+        />
+        <Route
           path='/console/log'
           element={
             <PrivateRoute>
@@ -335,6 +444,19 @@ function App() {
           }
         />
         <Route
+          path='/rankings'
+          element={
+            <AdminRoute>
+              <Suspense
+                fallback={<Loading></Loading>}
+                key={location.pathname}
+              >
+                <Rankings />
+              </Suspense>
+            </AdminRoute>
+          }
+        />
+        <Route
           path='/about'
           element={
             <Suspense fallback={<Loading></Loading>} key={location.pathname}>
@@ -379,6 +501,7 @@ function App() {
         />
         <Route path='*' element={<NotFound />} />
       </Routes>
+      <CnDisclaimerGate />
     </SetupCheck>
   );
 }

@@ -490,3 +490,75 @@ func TestTryTieredSettleNoClampInRange(t *testing.T) {
 	require.NotNil(t, result)
 	require.Nil(t, relayInfo.QuotaClamp, "in-range settlement must not record a clamp")
 }
+
+func TestCalculateTextQuotaSummarySkipsMinimumQuotaWhenLocalCountTokens(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	// 模拟上游 handler 已检测到空输出场景：usage 被显式置零 + 标记 LocalCountTokens
+	ctx.Set(string(constant.ContextKeyLocalCountTokens), true)
+
+	relayInfo := &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatOpenAI,
+		OriginModelName: "claude-3-7-sonnet",
+		PriceData: types.PriceData{
+			ModelRatio:      1,
+			CompletionRatio: 2,
+			GroupRatioInfo:  types.GroupRatioInfo{GroupRatio: 1},
+		},
+		StartTime: time.Now(),
+	}
+
+	// PromptTokens=0 / CompletionTokens=0 → TotalTokens=0 → Quota=0 (TotalTokens 分支)
+	usage := &dto.Usage{PromptTokens: 0, CompletionTokens: 0}
+	summary := calculateTextQuotaSummary(ctx, relayInfo, usage)
+	require.Equal(t, 0, summary.Quota, "TotalTokens=0 应当强制 Quota=0")
+}
+
+func TestCalculateTextQuotaSummaryKeepsMinimumQuotaWithoutLocalCountTokens(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	relayInfo := &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatOpenAI,
+		OriginModelName: "tiny-model",
+		PriceData: types.PriceData{
+			ModelRatio:      0.0001,
+			CompletionRatio: 2,
+			GroupRatioInfo:  types.GroupRatioInfo{GroupRatio: 0.0001},
+		},
+		StartTime: time.Now(),
+	}
+
+	// PromptTokens=1 / CompletionTokens=0 → TotalTokens=1，ratio 极小 → quota 计算后为 0
+	// 无 LocalCountTokens 时应当保底 1
+	usage := &dto.Usage{PromptTokens: 1, CompletionTokens: 0}
+	summary := calculateTextQuotaSummary(ctx, relayInfo, usage)
+	require.Equal(t, 1, summary.Quota, "正常路径下 quota=0 必须保底 1")
+}
+
+func TestCalculateTextQuotaSummarySkipsMinimumWhenLocalCountTokensButTokensPresent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	ctx.Set(string(constant.ContextKeyLocalCountTokens), true)
+
+	relayInfo := &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatOpenAI,
+		OriginModelName: "tiny-model",
+		PriceData: types.PriceData{
+			ModelRatio:      0.0001,
+			CompletionRatio: 2,
+			GroupRatioInfo:  types.GroupRatioInfo{GroupRatio: 0.0001},
+		},
+		StartTime: time.Now(),
+	}
+
+	// 模拟边界：上游标记 LocalCountTokens=true 但 prompt 残留（不应保底 1）
+	usage := &dto.Usage{PromptTokens: 1, CompletionTokens: 0}
+	summary := calculateTextQuotaSummary(ctx, relayInfo, usage)
+	require.Equal(t, 0, summary.Quota, "LocalCountTokens=true 时即便 ratio>0、quota=0 也不应保底 1")
+}

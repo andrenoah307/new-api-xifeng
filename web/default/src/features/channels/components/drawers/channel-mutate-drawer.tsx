@@ -183,6 +183,7 @@ import {
   ChannelEditorLoadingState,
   ChannelModelsSection,
 } from './sections'
+import { ChannelCustomSections } from '../custom/channel-custom-sections'
 
 type ChannelMutateDrawerProps = {
   open: boolean
@@ -331,6 +332,7 @@ function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
     values.force_format ||
     values.thinking_to_content ||
     values.pass_through_body_enabled ||
+    values.strip_request_id ||
     values.system_prompt_override ||
     values.claude_beta_query ||
     values.upstream_model_update_check_enabled ||
@@ -4006,6 +4008,31 @@ export function ChannelMutateDrawer({
 
                               <FormField
                                 control={form.control}
+                                name='strip_request_id'
+                                render={({ field }) => (
+                                  <FormItem className='flex items-center justify-between px-4 py-3'>
+                                    <div className='space-y-0.5'>
+                                      <FormLabel>
+                                        {t('Strip Upstream Request ID from Responses')}
+                                      </FormLabel>
+                                      <FormDescription>
+                                        {t(
+                                          "When enabled, strips inherited upstream (request id: ...) from error responses and keeps only this gateway's own request ID. request_ori_id and traceid are untouched."
+                                        )}
+                                      </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                      <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                      />
+                                    </FormControl>
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
                                 name='disable_task_polling_sleep'
                                 render={({ field }) => (
                                   <FormItem className='flex items-center justify-between px-4 py-3'>
@@ -4496,6 +4523,8 @@ export function ChannelMutateDrawer({
                   </div>
                 </div>
               )}
+              {/* fork: custom channel extensions */}
+              <ChannelCustomSections form={form} channelId={channelId ?? undefined} />
             </form>
           </Form>
 

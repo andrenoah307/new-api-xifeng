@@ -80,12 +80,14 @@ import type { LogCleanupTask } from '../types'
 
 const logSettingsSchema = z.object({
   LogConsumeEnabled: z.boolean(),
+  ForceRecordIPEnabled: z.boolean(),
 })
 
 type LogSettingsFormValues = z.infer<typeof logSettingsSchema>
 
 type LogSettingsSectionProps = {
   defaultEnabled: boolean
+  forceRecordIpEnabled: boolean
 }
 
 type ServerLogInfo = {
@@ -141,6 +143,7 @@ function isActiveLogCleanupTask(task: LogCleanupTask | null) {
 
 export function LogSettingsSection({
   defaultEnabled,
+  forceRecordIpEnabled,
 }: LogSettingsSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
@@ -148,6 +151,7 @@ export function LogSettingsSection({
     resolver: zodResolver(logSettingsSchema),
     defaultValues: {
       LogConsumeEnabled: defaultEnabled,
+      ForceRecordIPEnabled: forceRecordIpEnabled,
     },
   })
 
@@ -174,8 +178,11 @@ export function LogSettingsSection({
   }, [])
 
   useEffect(() => {
-    form.reset({ LogConsumeEnabled: defaultEnabled })
-  }, [defaultEnabled, form])
+    form.reset({
+      LogConsumeEnabled: defaultEnabled,
+      ForceRecordIPEnabled: forceRecordIpEnabled,
+    })
+  }, [defaultEnabled, forceRecordIpEnabled, form])
 
   useEffect(() => {
     fetchServerLogInfo()
@@ -257,11 +264,18 @@ export function LogSettingsSection({
   }, [logCleanupActive, logCleanupTaskId, t])
 
   const onSubmit = async (values: LogSettingsFormValues) => {
-    if (values.LogConsumeEnabled === defaultEnabled) return
-    await updateOption.mutateAsync({
-      key: 'LogConsumeEnabled',
-      value: values.LogConsumeEnabled,
-    })
+    if (values.LogConsumeEnabled !== defaultEnabled) {
+      await updateOption.mutateAsync({
+        key: 'LogConsumeEnabled',
+        value: values.LogConsumeEnabled,
+      })
+    }
+    if (values.ForceRecordIPEnabled !== forceRecordIpEnabled) {
+      await updateOption.mutateAsync({
+        key: 'ForceRecordIPEnabled',
+        value: values.ForceRecordIPEnabled,
+      })
+    }
   }
 
   const handleRequestCleanLogs = () => {
@@ -364,6 +378,32 @@ export function LogSettingsSection({
                 </FormControl>
                 <FormMessage />
               </SettingsSwitchItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='ForceRecordIPEnabled'
+            render={({ field }) => (
+              <FormItem className='flex flex-row items-start justify-between rounded-lg border p-4'>
+                <div className='space-y-0.5 pe-4'>
+                  <FormLabel className='text-base'>
+                    {t('Force record IP in all user logs')}
+                  </FormLabel>
+                  <FormDescription>
+                    {t(
+                      'After enabling, all consumption and error logs will record the client IP address regardless of user personal settings'
+                    )}
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
             )}
           />
 

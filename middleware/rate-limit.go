@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,7 +22,7 @@ var defNext = func(c *gin.Context) {
 func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark string) {
 	ctx := context.Background()
 	rdb := common.RDB
-	key := "rateLimit:" + mark + c.ClientIP()
+	key := "rateLimit:" + mark + requestip.GetClientIP(c)
 	listLength, err := rdb.LLen(ctx, key).Result()
 	if err != nil {
 		fmt.Println(err.Error())
@@ -65,7 +66,7 @@ func redisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark st
 }
 
 func memoryRateLimiter(c *gin.Context, maxRequestNum int, duration int64, mark string) {
-	key := mark + c.ClientIP()
+	key := mark + requestip.GetClientIP(c)
 	if !inMemoryRateLimiter.Request(key, maxRequestNum, duration) {
 		c.Status(http.StatusTooManyRequests)
 		c.Abort()
@@ -202,4 +203,58 @@ func SearchRateLimit() func(c *gin.Context) {
 		return defNext
 	}
 	return userRateLimitFactory(common.SearchRateLimitNum, common.SearchRateLimitDuration, "SR")
+}
+
+func LogQueryRateLimit() func(c *gin.Context) {
+	if !common.LogQueryRateLimitEnable {
+		return defNext
+	}
+	limiter := userRateLimitFactory(common.LogQueryRateLimitNum, common.LogQueryRateLimitDuration, "LQ")
+	return func(c *gin.Context) {
+		if c.GetInt("role") >= common.RoleAdminUser {
+			c.Next()
+			return
+		}
+		limiter(c)
+	}
+}
+
+func LogExportRateLimit() func(c *gin.Context) {
+	limiter := userRateLimitFactory(3, 60, "LE")
+	return func(c *gin.Context) {
+		if c.GetInt("role") >= common.RoleAdminUser {
+			c.Next()
+			return
+		}
+		limiter(c)
+	}
+}
+
+func LogOfflineExportRateLimit() func(c *gin.Context) {
+	limiter := userRateLimitFactory(2, 60, "LOE")
+	return func(c *gin.Context) {
+		if c.GetInt("role") >= common.RoleAdminUser {
+			c.Next()
+			return
+		}
+		limiter(c)
+	}
+}
+
+func LogExportDownloadRateLimit() func(c *gin.Context) {
+	limiter := userRateLimitFactory(6, 60, "LED")
+	return func(c *gin.Context) {
+		if c.GetInt("role") >= common.RoleAdminUser {
+			c.Next()
+			return
+		}
+		limiter(c)
+	}
+}
+
+func DashboardDataRateLimit() func(c *gin.Context) {
+	if !common.DashboardDataRateLimitEnable {
+		return defNext
+	}
+	return userRateLimitFactory(common.DashboardDataRateLimitNum, common.DashboardDataRateLimitDuration, "DD")
 }
