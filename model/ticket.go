@@ -525,6 +525,11 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 				return err
 			}
 		}
+		if ticket.Type == TicketTypeInvoice {
+			if err := CancelPendingInvoice(tx, ticket.Id, ticket.UserId); err != nil {
+				return err
+			}
+		}
 
 		ticket.Status = TicketStatusClosed
 		ticket.ClosedTime = now
@@ -573,6 +578,11 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 
 				if ticket.Type == TicketTypeRefund {
 					if err := CancelPendingRefund(tx, ticket.Id, ticket.UserId); err != nil {
+						return err
+					}
+				}
+				if ticket.Type == TicketTypeInvoice {
+					if err := CancelPendingInvoice(tx, ticket.Id, ticket.UserId); err != nil {
 						return err
 					}
 				}

@@ -15,9 +15,10 @@ import (
 var taxNumberRegex = regexp.MustCompile(`^[A-Z0-9]{18}$`)
 
 const (
-	InvoiceStatusPending  = 1
-	InvoiceStatusIssued   = 2
-	InvoiceStatusRejected = 3
+	InvoiceStatusPending   = 1
+	InvoiceStatusIssued    = 2
+	InvoiceStatusRejected  = 3
+	InvoiceStatusCancelled = 4 // 用户主动取消（关闭开票工单），释放占用的充值订单
 )
 
 type TicketInvoice struct {
@@ -134,7 +135,8 @@ func GetUserInvoiceSummaries(userId int) ([]*TicketInvoice, error) {
 
 func getProtectedInvoiceOrderSet(tx *gorm.DB, userId int) (map[int]struct{}, error) {
 	var invoices []*TicketInvoice
-	if err := tx.Where("user_id = ? AND invoice_status <> ?", userId, InvoiceStatusRejected).Find(&invoices).Error; err != nil {
+	if err := tx.Where("user_id = ? AND invoice_status NOT IN ?", userId,
+		[]int{InvoiceStatusRejected, InvoiceStatusCancelled}).Find(&invoices).Error; err != nil {
 		return nil, err
 	}
 
@@ -371,6 +373,15 @@ func GetTicketInvoiceDetail(ticketId int) (*TicketInvoice, []*TopUp, error) {
 	return invoice, orderTopUps(orderIds, topUps), nil
 }
 
+// CancelPendingInvoice 取消指定工单的待开票申请，释放其占用的充值订单以便重新开票。
+// 仅当 invoice_status == InvoiceStatusPending 时生效（已开票/已驳回不受影响）；幂等，并发安全。
+// 设计用于用户主动关闭开票工单或管理员关闭开票工单场景。
+func CancelPendingInvoice(tx *gorm.DB, ticketId, userId int) error {
+	return tx.Model(&TicketInvoice{}).
+		Where("ticket_id = ? AND user_id = ? AND invoice_status = ?", ticketId, userId, InvoiceStatusPending).
+		Update("invoice_status", InvoiceStatusCancelled).Error
+}
+
 // UpdateInvoiceStatus 管理员调整发票状态。
 // 第三个返回值是修改前的工单主状态，供调用方触发状态已变化通知。
 func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketInvoice, *Ticket, int, error) {
@@ -389,6 +400,10 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 				return ErrTicketInvoiceNotFound
 			}
 			return err
+		}
+		// 已取消的申请释放了订单占用，订单可能已被重新申请开票，禁止复活避免重复开票
+		if invoice.InvoiceStatus == InvoiceStatusCancelled {
+			return ErrTicketInvoiceStatusInvalid
 		}
 		if err := tx.First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {

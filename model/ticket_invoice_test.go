@@ -133,3 +133,48 @@ func TestCreateInvoiceTicketMinInvoiceAmountBelow(t *testing.T) {
 	require.NoError(t, DB.Model(&Ticket{}).Where("user_id = ?", user.Id).Count(&ticketCount).Error)
 	assert.Zero(t, ticketCount)
 }
+
+func TestCloseInvoiceTicketReleasesOrdersForReinvoicing(t *testing.T) {
+	truncateTables(t)
+	oldMinInvoiceAmount := operation_setting.MinInvoiceAmount
+	operation_setting.MinInvoiceAmount = 0
+	defer func() { operation_setting.MinInvoiceAmount = oldMinInvoiceAmount }()
+
+	const userId = 910004
+	cleanupInvoiceTicketData(t, userId)
+	defer cleanupInvoiceTicketData(t, userId)
+
+	user := insertInvoiceTicketUser(t, userId)
+	topUpId := seedInvoiceTicketTopUp(t, user.Id, "invoice-cancel-release-910004", 10)
+
+	ticket, invoice, _, _, err := CreateInvoiceTicket(createInvoiceTicketParams(user, []int{topUpId}))
+	require.NoError(t, err)
+	require.NotNil(t, ticket)
+	require.NotNil(t, invoice)
+
+	// 占用期间同一订单不能重复申请
+	_, _, _, _, err = CreateInvoiceTicket(createInvoiceTicketParams(user, []int{topUpId}))
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrTicketInvoiceOrderDuplicate))
+
+	// 用户关闭工单 → 待开票申请转为已取消
+	_, err = CloseUserTicket(ticket.Id, user.Id)
+	require.NoError(t, err)
+
+	var cancelled TicketInvoice
+	require.NoError(t, DB.Where("ticket_id = ?", ticket.Id).First(&cancelled).Error)
+	assert.Equal(t, InvoiceStatusCancelled, cancelled.InvoiceStatus)
+
+	// 已取消的申请禁止复活为已开票，避免订单释放后重复开票
+	_, _, _, err = UpdateInvoiceStatus(ticket.Id, 1, InvoiceStatusIssued)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrTicketInvoiceStatusInvalid))
+
+	// 订单释放后可重新发起开票
+	ticket2, invoice2, _, _, err := CreateInvoiceTicket(createInvoiceTicketParams(user, []int{topUpId}))
+	require.NoError(t, err)
+	require.NotNil(t, ticket2)
+	require.NotNil(t, invoice2)
+	assert.NotEqual(t, invoice.Id, invoice2.Id)
+	assert.Equal(t, InvoiceStatusPending, invoice2.InvoiceStatus)
+}

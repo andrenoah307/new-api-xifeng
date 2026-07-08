@@ -82,6 +82,7 @@ export const INVOICE_STATUS_CONFIG: Record<
   1: { labelKey: 'Pending Issuance', variant: 'warning' },
   2: { labelKey: 'Issued', variant: 'success' },
   3: { labelKey: 'Rejected', variant: 'danger' },
+  4: { labelKey: 'Cancelled', variant: 'neutral' },
 }
 
 // ============================================================================
