@@ -401,33 +401,42 @@ export default function SettingsLog(props) {
 
             <Row gutter={16} style={{ marginTop: 8 }}>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
-                <Form.Select
-                  field={'risk_control.ip_mode'}
-                  label={t('客户端 IP 判定方式')}
-                  style={{ width: '100%' }}
-                  optionList={IP_MODES.map((mode) => ({
-                    value: mode,
-                    label: ipModeLabels[mode],
-                  }))}
-                  onChange={(value) => {
-                    setInputs({
-                      ...inputs,
-                      'risk_control.ip_mode': value,
-                    });
-                  }}
-                  extraText={t(
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Form.Select
+                      field={'risk_control.ip_mode'}
+                      label={t('客户端 IP 判定方式')}
+                      style={{ width: '100%' }}
+                      optionList={IP_MODES.map((mode) => ({
+                        value: mode,
+                        label: ipModeLabels[mode],
+                      }))}
+                      onChange={(value) => {
+                        setInputs({
+                          ...inputs,
+                          'risk_control.ip_mode': value,
+                        });
+                      }}
+                    />
+                  </div>
+                  <Button
+                    size='default'
+                    theme='light'
+                    type='primary'
+                    onClick={openIpDetectModal}
+                  >
+                    {t('检测当前请求')}
+                  </Button>
+                </div>
+                <Text
+                  type='tertiary'
+                  size='small'
+                  style={{ display: 'block', marginTop: 4 }}
+                >
+                  {t(
                     '决定日志、限流、令牌IP白名单、地区限制与风控如何获取真实客户端IP',
                   )}
-                />
-                <Button
-                  size='small'
-                  theme='light'
-                  type='primary'
-                  style={{ marginTop: 4 }}
-                  onClick={openIpDetectModal}
-                >
-                  {t('检测当前请求')}
-                </Button>
+                </Text>
               </Col>
               {currentIpMode === 'trusted_header' && (
                 <Col xs={24} sm={12} md={8} lg={8} xl={8}>
