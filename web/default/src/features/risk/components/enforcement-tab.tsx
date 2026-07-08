@@ -148,7 +148,8 @@ export function EnforcementTab() {
   const configMutation = useMutation({
     mutationFn: (cfg: Partial<EnforcementConfig>) =>
       saveEnforcementConfig(cfg),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Config saved'))
       queryClient.invalidateQueries({
         queryKey: riskQueryKeys.enforcement.all,
@@ -158,7 +159,8 @@ export function EnforcementTab() {
 
   const resetMutation = useMutation({
     mutationFn: (uid: number) => resetEnforcementCounter(uid),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Reset Counter'))
       setResetOpen(false)
       queryClient.invalidateQueries({
@@ -169,7 +171,8 @@ export function EnforcementTab() {
 
   const unbanMutation = useMutation({
     mutationFn: (uid: number) => unbanUser(uid),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Unban User'))
       setUnbanOpen(false)
       queryClient.invalidateQueries({
@@ -180,7 +183,10 @@ export function EnforcementTab() {
 
   const testEmailMutation = useMutation({
     mutationFn: sendTestEmail,
-    onSuccess: () => toast.success(t('Test Email')),
+    onSuccess: (res) => {
+      if (!res?.success) return
+      toast.success(t('Test Email'))
+    },
   })
 
   return (

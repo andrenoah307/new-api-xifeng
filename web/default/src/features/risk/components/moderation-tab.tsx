@@ -153,7 +153,8 @@ export function ModerationTab() {
   const configMutation = useMutation({
     mutationFn: (cfg: Partial<ModerationConfig>) =>
       saveModerationConfig(cfg),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Config saved'))
       queryClient.invalidateQueries({
         queryKey: riskQueryKeys.moderation.all,
@@ -163,7 +164,8 @@ export function ModerationTab() {
 
   const deleteRuleMutation = useMutation({
     mutationFn: (id: number) => deleteModerationRule(id),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Rule deleted'))
       setDeleteOpen(false)
       queryClient.invalidateQueries({
@@ -334,13 +336,20 @@ export function ModerationTab() {
                 <Label>{t('Sampling Rate')}</Label>
                 <Input
                   type="number"
-                  step="0.01"
+                  step="1"
                   min="0"
-                  max="1"
+                  max="100"
                   value={localConfig.sampling_rate_percent}
                   onChange={(e) =>
                     setLocalConfig((p) =>
-                      p && { ...p, sampling_rate_percent: Number(e.target.value) }
+                      p && {
+                        ...p,
+                        // 后端 SamplingRatePercent 为 0-100 整数百分比
+                        sampling_rate_percent: Math.min(
+                          100,
+                          Math.max(0, Math.round(Number(e.target.value) || 0))
+                        ),
+                      }
                     )
                   }
                   className="h-8"

@@ -71,7 +71,8 @@ export default function TicketDetailPage({
       content: string
       attachmentIds: number[]
     }) => sendUserMessage(ticketId, content, attachmentIds),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.userDetail(ticketId),
       })
@@ -80,7 +81,8 @@ export default function TicketDetailPage({
 
   const closeMutation = useMutation({
     mutationFn: () => closeUserTicket(ticketId),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Ticket closed'))
       setCloseOpen(false)
       queryClient.invalidateQueries({
@@ -91,7 +93,9 @@ export default function TicketDetailPage({
 
   const handleReply = useCallback(
     async (content: string, attachmentIds: number[]) => {
-      await replyMutation.mutateAsync({ content, attachmentIds })
+      const ok = await replyMutation.mutateAsync({ content, attachmentIds })
+      // 发送失败时抛错，让回复框保留草稿（拦截器已弹出错误提示）
+      if (!ok) throw new Error('reply failed')
     },
     [replyMutation]
   )

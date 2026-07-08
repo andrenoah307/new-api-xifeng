@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -67,11 +67,14 @@ export default function TicketAdminDetailPage({
   const ticket = data?.ticket
   const messages = data?.messages ?? []
 
-  // Sync local state when ticket loads
-  if (ticket && !statusValue) {
+  // Sync local state when ticket loads or the route switches to another ticket
+  const ticketDbId = ticket?.id
+  useEffect(() => {
+    if (!ticket) return
     setStatusValue(String(ticket.status))
     setPriorityValue(String(ticket.priority))
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticketDbId])
 
   const isInvoice = ticket?.type === 'invoice'
   const isRefund = ticket?.type === 'refund'
@@ -108,7 +111,8 @@ export default function TicketAdminDetailPage({
       content: string
       attachmentIds: number[]
     }) => sendAdminMessage(ticketId, content, attachmentIds),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
       })
@@ -122,7 +126,8 @@ export default function TicketAdminDetailPage({
         Number(statusValue),
         Number(priorityValue)
       ),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Status updated'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
@@ -132,7 +137,8 @@ export default function TicketAdminDetailPage({
 
   const claimMutation = useMutation({
     mutationFn: () => assignTicket(ticketId, accountId, 0),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Ticket claimed'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
@@ -148,7 +154,8 @@ export default function TicketAdminDetailPage({
       status: number
       extra?: { quota_mode?: string; actual_refund_quota?: number }
     }) => updateRefundStatus(ticketId, status, extra),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Operation successful'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminRefund(ticketId),
@@ -161,7 +168,8 @@ export default function TicketAdminDetailPage({
 
   const invoiceStatusMutation = useMutation({
     mutationFn: (status: number) => updateInvoiceStatus(ticketId, status),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Operation successful'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminInvoice(ticketId),
@@ -171,7 +179,9 @@ export default function TicketAdminDetailPage({
 
   const handleReply = useCallback(
     async (content: string, attachmentIds: number[]) => {
-      await replyMutation.mutateAsync({ content, attachmentIds })
+      const ok = await replyMutation.mutateAsync({ content, attachmentIds })
+      // 发送失败时抛错，让回复框保留草稿（拦截器已弹出错误提示）
+      if (!ok) throw new Error('reply failed')
     },
     [replyMutation]
   )

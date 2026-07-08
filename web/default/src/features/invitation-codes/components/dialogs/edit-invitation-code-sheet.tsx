@@ -26,6 +26,10 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import {
+  formatTimestampForInput,
+  parseTimestampFromInput,
+} from '@/lib/format'
+import {
   createInvitationCodes,
   updateInvitationCode,
   getInvitationCode,
@@ -83,9 +87,7 @@ export function EditInvitationCodeSheet() {
         name: loadedCode.name,
         expired_time:
           loadedCode.expired_time && loadedCode.expired_time !== 0
-            ? new Date(loadedCode.expired_time * 1000)
-                .toISOString()
-                .slice(0, 16)
+            ? formatTimestampForInput(loadedCode.expired_time)
             : '',
         max_uses: loadedCode.max_uses,
         owner_user_id: loadedCode.owner_user_id,
@@ -105,24 +107,25 @@ export function EditInvitationCodeSheet() {
   const createMutation = useMutation({
     mutationFn: createInvitationCodes,
     onSuccess: (codes) => {
+      // 创建失败时后端返回空数组（成功批次至少 1 个码）
+      if (codes.length === 0) return
       toast.success(t('Created successfully'))
       queryClient.invalidateQueries({
         queryKey: invitationCodesQueryKeys.lists(),
       })
       closeSheet()
-      if (codes.length > 0) {
-        const text = codes.join('\n')
-        downloadTextFile(
-          text,
-          `${form.getValues('name') || 'invitation-codes'}.txt`
-        )
-      }
+      const text = codes.join('\n')
+      downloadTextFile(
+        text,
+        `${form.getValues('name') || 'invitation-codes'}.txt`
+      )
     },
   })
 
   const updateMutation = useMutation({
     mutationFn: updateInvitationCode,
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Updated successfully'))
       queryClient.invalidateQueries({
         queryKey: invitationCodesQueryKeys.lists(),
@@ -136,7 +139,7 @@ export function EditInvitationCodeSheet() {
   const onSubmit = useCallback(
     (values: FormValues) => {
       const expiredTime = values.expired_time
-        ? Math.floor(new Date(values.expired_time).getTime() / 1000)
+        ? parseTimestampFromInput(values.expired_time)
         : 0
 
       if (isEdit && editingCode) {

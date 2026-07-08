@@ -70,7 +70,8 @@ export function ModerationRuleEditorDialog({
         ? updateModerationRule(data.id, data as Partial<ModerationRule>)
         : createModerationRule(data as Partial<ModerationRule>)
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Rule saved'))
       onSaved()
     },

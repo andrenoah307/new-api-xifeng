@@ -86,7 +86,8 @@ export function RuleEditorDialog({
         ? updateRiskRule(data.id, data)
         : createRiskRule(data)
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Rule saved'))
       onSaved()
     },

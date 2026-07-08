@@ -66,7 +66,8 @@ export function DistributionTab() {
 
   const saveMutation = useMutation({
     mutationFn: (cfg: Partial<RiskConfig>) => saveRiskConfig(cfg),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Config saved'))
       queryClient.invalidateQueries({ queryKey: riskQueryKeys.all })
     },

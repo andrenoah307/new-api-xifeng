@@ -24,13 +24,11 @@ export function useTicketAttachments() {
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  // 进行中的上传数：state 在同步循环内不会更新，靠它保证并发上传不越过 MAX_COUNT
+  const pendingRef = useRef(0)
 
   const validate = useCallback(
     (file: File): boolean => {
-      if (attachments.length >= MAX_COUNT) {
-        toast.error(t('Maximum {{count}} files allowed', { count: MAX_COUNT }))
-        return false
-      }
       if (file.size > MAX_SIZE) {
         toast.error(t('File size exceeds {{size}} MB limit', { size: 50 }))
         return false
@@ -46,12 +44,17 @@ export function useTicketAttachments() {
       }
       return true
     },
-    [attachments.length, t]
+    [t]
   )
 
   const upload = useCallback(
     async (file: File) => {
+      if (attachments.length + pendingRef.current >= MAX_COUNT) {
+        toast.error(t('Maximum {{count}} files allowed', { count: MAX_COUNT }))
+        return
+      }
       if (!validate(file)) return
+      pendingRef.current++
       setUploading(true)
       try {
         const result = await uploadAttachment(file)
@@ -64,15 +67,18 @@ export function useTicketAttachments() {
       } catch {
         toast.error(t('Upload failed'))
       } finally {
-        setUploading(false)
+        pendingRef.current--
+        setUploading(pendingRef.current > 0)
       }
     },
-    [validate, t]
+    [attachments.length, validate, t]
   )
 
   const remove = useCallback(
     async (id: number) => {
-      await deleteAttachment(id)
+      const ok = await deleteAttachment(id).catch(() => false)
+      // 删除失败时保留 UI 条目，避免服务端残留而界面已消失（拦截器已提示错误）
+      if (!ok) return
       setAttachments((prev) => prev.filter((a) => a.id !== id))
     },
     []
@@ -95,9 +101,17 @@ export function useTicketAttachments() {
 
   const handleFiles = useCallback(
     (files: FileList | File[]) => {
-      Array.from(files).forEach((f) => upload(f))
+      const list = Array.from(files)
+      const allowed = Math.max(
+        0,
+        MAX_COUNT - attachments.length - pendingRef.current
+      )
+      if (list.length > allowed) {
+        toast.error(t('Maximum {{count}} files allowed', { count: MAX_COUNT }))
+      }
+      list.slice(0, allowed).forEach((f) => upload(f))
     },
-    [upload]
+    [upload, attachments.length, t]
   )
 
   const handlePaste = useCallback(

@@ -50,7 +50,8 @@ export function DataTableRowActions({ row }: { row: Row<InvitationCode> }) {
         owner_user_id: record.owner_user_id,
         expired_time: record.expired_time,
       }),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Operation successful'))
       queryClient.invalidateQueries({
         queryKey: invitationCodesQueryKeys.lists(),
@@ -60,7 +61,8 @@ export function DataTableRowActions({ row }: { row: Row<InvitationCode> }) {
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteInvitationCodeApi(record.id),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Deleted successfully'))
       setDeleteOpen(false)
       queryClient.invalidateQueries({

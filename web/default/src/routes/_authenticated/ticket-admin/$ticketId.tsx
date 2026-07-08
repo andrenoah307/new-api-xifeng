@@ -18,5 +18,6 @@ export const Route = createFileRoute('/_authenticated/ticket-admin/$ticketId')({
 
 function TicketAdminDetailRoute() {
   const { ticketId } = Route.useParams()
-  return <TicketAdminDetailPage ticketId={Number(ticketId)} />
+  // key 保证跨工单切换时组件重挂载，本地状态（状态/优先级下拉）不会串号
+  return <TicketAdminDetailPage key={ticketId} ticketId={Number(ticketId)} />
 }

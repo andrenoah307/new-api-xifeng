@@ -108,7 +108,8 @@ export function TopupTable() {
 
   const completeMutation = useMutation({
     mutationFn: (tradeNo: string) => completeTopupOrder(tradeNo),
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Operation successful'))
       setConfirmTradeNo(null)
       queryClient.invalidateQueries({

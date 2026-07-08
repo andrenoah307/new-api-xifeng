@@ -149,6 +149,7 @@ export function CreateInvoiceTicketDialog({
   const mutation = useMutation({
     mutationFn: createInvoiceTicket,
     onSuccess: (data) => {
+      if (!data) return
       toast.success(t('Invoice ticket submitted'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.userLists(),

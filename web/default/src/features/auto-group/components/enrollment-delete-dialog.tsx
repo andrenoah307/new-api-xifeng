@@ -30,6 +30,8 @@ export function EnrollmentDeleteDialog() {
         setOpen(null)
         triggerRefresh()
       }
+    } catch {
+      // HTTP 层错误：拦截器已提示
     } finally {
       setIsDeleting(false)
     }

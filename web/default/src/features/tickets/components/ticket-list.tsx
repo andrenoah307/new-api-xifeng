@@ -95,7 +95,8 @@ export default function TicketListPage() {
 
   const closeMutation = useMutation({
     mutationFn: closeUserTicket,
-    onSuccess: () => {
+    onSuccess: (ok) => {
+      if (!ok) return
       toast.success(t('Ticket closed'))
       setCloseTicketId(null)
       queryClient.invalidateQueries({ queryKey: ticketQueryKeys.userLists() })

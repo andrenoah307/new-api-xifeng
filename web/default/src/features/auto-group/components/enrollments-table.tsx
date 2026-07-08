@@ -42,8 +42,14 @@ export function EnrollmentsTable() {
   } = useTableUrlState({
     search: route.useSearch(),
     navigate: route.useNavigate(),
-    pagination: { defaultPage: 1, defaultPageSize: isMobile ? 10 : 20 },
-    globalFilter: { enabled: true, key: 'filter' },
+    // 与规则 tab 使用不同的 URL 参数，避免两个 tab 的筛选/分页互相污染
+    pagination: {
+      defaultPage: 1,
+      defaultPageSize: isMobile ? 10 : 20,
+      pageKey: 'ePage',
+      pageSizeKey: 'ePageSize',
+    },
+    globalFilter: { enabled: true, key: 'eFilter' },
   })
 
   const { data, isLoading, isFetching } = useQuery({

@@ -43,6 +43,8 @@ export function TicketReplyBox({
       await onSubmit(content.trim(), attachmentIds)
       setContent('')
       reset()
+    } catch {
+      // 发送失败：保留草稿和附件（错误提示由拦截器统一弹出）
     } finally {
       submittingRef.current = false
     }

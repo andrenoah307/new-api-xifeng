@@ -53,6 +53,8 @@ export function EnrollDialog() {
         setUserIdsInput('')
         triggerRefresh()
       }
+    } catch {
+      // HTTP 层错误：拦截器已提示，保持对话框打开
     } finally {
       setIsSubmitting(false)
     }

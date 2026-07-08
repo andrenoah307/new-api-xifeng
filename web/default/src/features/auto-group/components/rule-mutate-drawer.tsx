@@ -133,6 +133,8 @@ export function RuleMutateDrawer({
               conditions.length > 0 ? conditions : [DEFAULT_CONDITION],
           })
         }
+      }).catch(() => {
+        // 拉取规则失败：错误提示由拦截器统一弹出
       })
     } else if (open && !isUpdate) {
       form.reset(DEFAULT_VALUES)
@@ -164,6 +166,8 @@ export function RuleMutateDrawer({
           triggerRefresh()
         }
       }
+    } catch {
+      // HTTP 层错误：拦截器已提示，保持表单打开
     } finally {
       setIsSubmitting(false)
     }

@@ -69,7 +69,8 @@ export function RiskSubjectsTable() {
       subject_id: string | number
       group: string
     }) => unblockSubject(record.subject_type, record.subject_id, record.group),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) return
       toast.success(t('Unblock Subject'))
       queryClient.invalidateQueries({ queryKey: riskQueryKeys.all })
     },
@@ -185,7 +186,7 @@ export function RiskSubjectsTable() {
                           {item.subject_type === 'token' ? 'Token' : t('User')}
                         </StatusBadge>
                         <p className="text-muted-foreground text-xs">
-                          #{item.id}
+                          #{item.subject_id}
                         </p>
                       </div>
                     </TableCell>
@@ -237,7 +238,7 @@ export function RiskSubjectsTable() {
                         onClick={() =>
                           unblockMutation.mutate({
                             subject_type: item.subject_type,
-                            subject_id: item.id,
+                            subject_id: item.subject_id,
                             group: item.group,
                           })
                         }

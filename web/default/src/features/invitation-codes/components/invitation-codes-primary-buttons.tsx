@@ -18,6 +18,7 @@ export function InvitationCodesPrimaryButtons() {
   const clearMutation = useMutation({
     mutationFn: clearInvalidInvitationCodes,
     onSuccess: (count) => {
+      if (count == null) return
       setClearOpen(false)
       toast.success(
         t('Deleted {{count}} invalid invitation codes', { count })

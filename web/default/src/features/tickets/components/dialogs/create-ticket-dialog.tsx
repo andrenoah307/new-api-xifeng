@@ -148,6 +148,7 @@ export function CreateTicketDialog({
   const createGeneral = useMutation({
     mutationFn: createGeneralTicket,
     onSuccess: (data) => {
+      if (!data) return
       toast.success(t('Ticket created'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.userLists(),
@@ -162,6 +163,7 @@ export function CreateTicketDialog({
   const createRefund = useMutation({
     mutationFn: createRefundTicket,
     onSuccess: (data) => {
+      if (!data) return
       toast.success(t('Ticket created, quota frozen'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.userLists(),

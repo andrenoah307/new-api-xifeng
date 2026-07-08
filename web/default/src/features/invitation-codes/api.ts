@@ -109,8 +109,9 @@ export async function deleteInvitationCode(id: number): Promise<boolean> {
   return res.data?.success ?? false
 }
 
-export async function clearInvalidInvitationCodes(): Promise<number> {
+export async function clearInvalidInvitationCodes(): Promise<number | null> {
   const res = await api.delete('/api/invitation_code/invalid')
+  if (!res.data?.success) return null
   return typeof res.data?.data === 'number' ? res.data.data : 0
 }
 

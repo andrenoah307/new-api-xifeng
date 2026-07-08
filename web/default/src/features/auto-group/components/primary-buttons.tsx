@@ -20,6 +20,8 @@ export function PrimaryButtons() {
         toast.success(t(SUCCESS_MESSAGES.SWEEP_TRIGGERED))
         triggerRefresh()
       }
+    } catch {
+      // HTTP 层错误：拦截器已提示
     } finally {
       setIsSweeping(false)
     }
