@@ -96,6 +96,15 @@ export function useTicketColumns(opts: {
         ),
         meta: { label: t('Priority'), mobileHidden: true },
       },
+      // 隐藏列：仅为工具栏的类型筛选 chip 提供 table.getColumn('type')，
+      // 类型徽章实际显示在主题列里（columnVisibility 默认 { type: false }）
+      {
+        accessorKey: 'type',
+        header: t('Type'),
+        cell: () => null,
+        enableHiding: true,
+        meta: { label: t('Type'), mobileHidden: true },
+      },
     ]
 
     if (admin) {

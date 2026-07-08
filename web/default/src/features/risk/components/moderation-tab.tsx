@@ -35,8 +35,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { DataTableFacetedFilter } from '@/components/data-table/toolbar/faceted-filter'
 import { DataTablePagination } from '@/components/data-table/core/pagination'
-import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
+import {
+  getCoreRowModel,
+  useReactTable,
+  type ColumnFiltersState,
+} from '@tanstack/react-table'
 import { formatTimestamp } from '@/lib/format'
 import { OverviewCard } from './overview/overview-card'
 import {
@@ -63,6 +68,17 @@ import {
 } from '../constants'
 import { ModerationRuleEditorDialog } from './moderation/moderation-rule-editor'
 
+// 桩列：仅为筛选 chip 提供 table.getColumn()，行由下方手写渲染
+const incidentFilterColumns = [
+  { accessorKey: 'group' },
+  { accessorKey: 'flagged' },
+]
+
+const MODERATION_FLAGGED_OPTIONS = [
+  { label: 'Flagged', value: 'true' },
+  { label: 'Clean', value: 'false' },
+]
+
 export function ModerationTab() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -71,11 +87,9 @@ export function ModerationTab() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deletingRule, setDeletingRule] = useState<ModerationRule | null>(null)
   const [incidentPage, setIncidentPage] = useState(1)
-  const [incidentFilters, setIncidentFilters] = useState({
-    group: '__all__',
-    flagged: '__all__',
-    keyword: '',
-  })
+  const [incidentColumnFilters, setIncidentColumnFilters] =
+    useState<ColumnFiltersState>([])
+  const [incidentKeyword, setIncidentKeyword] = useState('')
   const [debugText, setDebugText] = useState('')
   const [debugGroup, setDebugGroup] = useState('__default__')
   const [debugRunning, setDebugRunning] = useState(false)
@@ -116,15 +130,23 @@ export function ModerationTab() {
     refetchInterval: 15000,
   })
 
+  const incidentFilterValues = (id: string) => {
+    const value = incidentColumnFilters.find((f) => f.id === id)?.value
+    return Array.isArray(value) ? (value as string[]) : []
+  }
+  const incidentGroupFilter = incidentFilterValues('group')
+  const incidentFlaggedFilter = incidentFilterValues('flagged')
+
   const incidentParams = useMemo(
     () => ({
       p: incidentPage,
       page_size: 10,
-      group: incidentFilters.group === '__all__' ? undefined : incidentFilters.group,
-      flagged: incidentFilters.flagged === '__all__' ? undefined : incidentFilters.flagged,
-      keyword: incidentFilters.keyword || undefined,
+      group: incidentGroupFilter.join(',') || undefined,
+      flagged: incidentFlaggedFilter.join(',') || undefined,
+      keyword: incidentKeyword || undefined,
     }),
-    [incidentPage, incidentFilters]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [incidentPage, incidentColumnFilters, incidentKeyword]
   )
 
   const { data: incidentsData, isLoading: incidentsLoading } = useQuery({
@@ -144,9 +166,12 @@ export function ModerationTab() {
 
   const incidentTable = useReactTable({
     data: incidents,
-    columns: [],
+    columns: incidentFilterColumns,
     pageCount: Math.ceil(incidentTotal / 10),
-    state: { pagination: { pageIndex: incidentPage - 1, pageSize: 10 } },
+    state: {
+      pagination: { pageIndex: incidentPage - 1, pageSize: 10 },
+      columnFilters: incidentColumnFilters,
+    },
     onPaginationChange: (updater) => {
       const next =
         typeof updater === 'function'
@@ -154,8 +179,15 @@ export function ModerationTab() {
           : updater
       setIncidentPage(next.pageIndex + 1)
     },
+    onColumnFiltersChange: (updater) => {
+      setIncidentColumnFilters((prev) =>
+        typeof updater === 'function' ? updater(prev) : updater
+      )
+      setIncidentPage(1)
+    },
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
+    manualFiltering: true,
   })
 
   const [localConfig, setLocalConfig] = useState<ModerationConfig | null>(null)
@@ -242,20 +274,9 @@ export function ModerationTab() {
     ],
     [t, groupNames]
   )
-  const incidentGroupItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      ...groupNames.map((g: string) => ({ value: g, label: g })),
-    ],
-    [t, groupNames]
-  )
-  const flaggedItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      { value: 'true', label: t('Flagged') },
-      { value: 'false', label: t('Clean') },
-    ],
-    [t]
+  const incidentGroupOptions = useMemo(
+    () => groupNames.map((g: string) => ({ value: g, label: g })),
+    [groupNames]
   )
 
   return (
@@ -664,54 +685,23 @@ export function ModerationTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Select
-              items={incidentGroupItems}
-              value={incidentFilters.group}
-              onValueChange={(v) =>
-                setIncidentFilters((p) => ({ ...p, group: v }))
-              }
-            >
-              <SelectTrigger className="h-8 w-[130px]">
-                <SelectValue placeholder={t('Group')} />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false}>
-                <SelectGroup>
-                  <SelectItem value="__all__">{t('All')}</SelectItem>
-                  {groupNames.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {g}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <Select
-              items={flaggedItems}
-              value={incidentFilters.flagged}
-              onValueChange={(v) =>
-                setIncidentFilters((p) => ({ ...p, flagged: v }))
-              }
-            >
-              <SelectTrigger className="h-8 w-[120px]">
-                <SelectValue placeholder={t('Flagged')} />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false}>
-                <SelectGroup>
-                  <SelectItem value="__all__">{t('All')}</SelectItem>
-                  <SelectItem value="true">{t('Flagged')}</SelectItem>
-                  <SelectItem value="false">{t('Clean')}</SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <DataTableFacetedFilter
+              column={incidentTable.getColumn('group')}
+              title={t('Group')}
+              options={incidentGroupOptions}
+            />
+            <DataTableFacetedFilter
+              column={incidentTable.getColumn('flagged')}
+              title={t('Flagged')}
+              options={MODERATION_FLAGGED_OPTIONS}
+            />
             <Input
               placeholder={t('Search...')}
-              value={incidentFilters.keyword}
-              onChange={(e) =>
-                setIncidentFilters((p) => ({
-                  ...p,
-                  keyword: e.target.value,
-                }))
-              }
+              value={incidentKeyword}
+              onChange={(e) => {
+                setIncidentKeyword(e.target.value)
+                setIncidentPage(1)
+              }}
               className="h-8 w-[200px]"
             />
           </div>

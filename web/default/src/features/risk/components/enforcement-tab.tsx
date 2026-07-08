@@ -14,14 +14,6 @@ import { Separator } from '@/components/ui/separator'
 import { StatusBadge } from '@/components/status-badge'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,8 +21,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { DataTableFacetedFilter } from '@/components/data-table/toolbar/faceted-filter'
 import { DataTablePagination } from '@/components/data-table/core/pagination'
-import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
+import {
+  getCoreRowModel,
+  useReactTable,
+  type ColumnFiltersState,
+} from '@tanstack/react-table'
 import { formatTimestamp } from '@/lib/format'
 import { OverviewCard } from './overview/overview-card'
 import {
@@ -51,17 +48,21 @@ import {
   optionLabelKey,
 } from '../constants'
 
+// 桩列：仅为筛选 chip 提供 table.getColumn()，行由下方手写渲染
+const incidentFilterColumns = [
+  { accessorKey: 'source' },
+  { accessorKey: 'action' },
+]
+
 export function EnforcementTab() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
   const [counterPage, setCounterPage] = useState(1)
   const [incidentPage, setIncidentPage] = useState(1)
-  const [incidentFilters, setIncidentFilters] = useState({
-    source: '__all__',
-    action: '__all__',
-    keyword: '',
-  })
+  const [incidentColumnFilters, setIncidentColumnFilters] =
+    useState<ColumnFiltersState>([])
+  const [incidentKeyword, setIncidentKeyword] = useState('')
   const [resetOpen, setResetOpen] = useState(false)
   const [unbanOpen, setUnbanOpen] = useState(false)
   const [targetUid, setTargetUid] = useState(0)
@@ -90,30 +91,23 @@ export function EnforcementTab() {
   const counters = countersData?.items ?? []
   const counterTotal = countersData?.total ?? 0
 
+  const incidentFilterValues = (id: string) => {
+    const value = incidentColumnFilters.find((f) => f.id === id)?.value
+    return Array.isArray(value) ? (value as string[]) : []
+  }
+  const incidentSourceFilter = incidentFilterValues('source')
+  const incidentActionFilter = incidentFilterValues('action')
+
   const incidentParams = useMemo(
     () => ({
       p: incidentPage,
       page_size: 10,
-      source: incidentFilters.source === '__all__' ? undefined : incidentFilters.source,
-      action: incidentFilters.action === '__all__' ? undefined : incidentFilters.action,
-      keyword: incidentFilters.keyword || undefined,
+      source: incidentSourceFilter.join(',') || undefined,
+      action: incidentActionFilter.join(',') || undefined,
+      keyword: incidentKeyword || undefined,
     }),
-    [incidentPage, incidentFilters]
-  )
-
-  const sourceItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      ...ENFORCEMENT_SOURCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
-    ],
-    [t]
-  )
-  const actionItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      ...ENFORCEMENT_ACTION_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
-    ],
-    [t]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [incidentPage, incidentColumnFilters, incidentKeyword]
   )
 
   const { data: incidentsData, isLoading: incidentsLoading } = useQuery({
@@ -143,9 +137,12 @@ export function EnforcementTab() {
 
   const incidentTable = useReactTable({
     data: incidents,
-    columns: [],
+    columns: incidentFilterColumns,
     pageCount: Math.ceil(incidentTotal / 10),
-    state: { pagination: { pageIndex: incidentPage - 1, pageSize: 10 } },
+    state: {
+      pagination: { pageIndex: incidentPage - 1, pageSize: 10 },
+      columnFilters: incidentColumnFilters,
+    },
     onPaginationChange: (updater) => {
       const next =
         typeof updater === 'function'
@@ -153,8 +150,15 @@ export function EnforcementTab() {
           : updater
       setIncidentPage(next.pageIndex + 1)
     },
+    onColumnFiltersChange: (updater) => {
+      setIncidentColumnFilters((prev) =>
+        typeof updater === 'function' ? updater(prev) : updater
+      )
+      setIncidentPage(1)
+    },
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
+    manualFiltering: true,
   })
 
   const [localConfig, setLocalConfig] = useState<EnforcementConfig | null>(null)
@@ -573,57 +577,23 @@ export function EnforcementTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Select
-              items={sourceItems}
-              value={incidentFilters.source}
-              onValueChange={(v) =>
-                setIncidentFilters((p) => ({ ...p, source: v }))
-              }
-            >
-              <SelectTrigger className="h-8 w-[150px]">
-                <SelectValue placeholder={t('Source')} />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false}>
-                <SelectGroup>
-                  <SelectItem value="__all__">{t('All')}</SelectItem>
-                  {ENFORCEMENT_SOURCE_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <Select
-              items={actionItems}
-              value={incidentFilters.action}
-              onValueChange={(v) =>
-                setIncidentFilters((p) => ({ ...p, action: v }))
-              }
-            >
-              <SelectTrigger className="h-8 w-[150px]">
-                <SelectValue placeholder={t('Action')} />
-              </SelectTrigger>
-              <SelectContent alignItemWithTrigger={false}>
-                <SelectGroup>
-                  <SelectItem value="__all__">{t('All')}</SelectItem>
-                  {ENFORCEMENT_ACTION_OPTIONS.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {t(o.label)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+            <DataTableFacetedFilter
+              column={incidentTable.getColumn('source')}
+              title={t('Source')}
+              options={ENFORCEMENT_SOURCE_OPTIONS}
+            />
+            <DataTableFacetedFilter
+              column={incidentTable.getColumn('action')}
+              title={t('Action')}
+              options={ENFORCEMENT_ACTION_OPTIONS}
+            />
             <Input
               placeholder={t('Search...')}
-              value={incidentFilters.keyword}
-              onChange={(e) =>
-                setIncidentFilters((p) => ({
-                  ...p,
-                  keyword: e.target.value,
-                }))
-              }
+              value={incidentKeyword}
+              onChange={(e) => {
+                setIncidentKeyword(e.target.value)
+                setIncidentPage(1)
+              }}
               className="h-8 w-[200px]"
             />
           </div>

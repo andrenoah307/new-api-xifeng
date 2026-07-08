@@ -9,8 +9,11 @@ const ticketAdminSearchSchema = z.object({
   pageSize: z.number().optional().catch(10),
   keyword: z.string().optional().catch(''),
   scope: z.enum(['all', 'mine', 'unassigned']).optional().catch(undefined),
-  status: z.string().optional().catch(''),
-  type: z.string().optional().catch(''),
+  status: z.array(z.enum(['1', '2', '3', '4'])).optional().catch([]),
+  type: z
+    .array(z.enum(['general', 'refund', 'invoice']))
+    .optional()
+    .catch([]),
 })
 
 export const Route = createFileRoute('/_authenticated/ticket-admin/')({

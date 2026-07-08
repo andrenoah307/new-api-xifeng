@@ -4,14 +4,6 @@ import { useQuery } from '@tanstack/react-query'
 import { StatusBadge } from '@/components/status-badge'
 import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -19,51 +11,49 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { DataTableFacetedFilter } from '@/components/data-table/toolbar/faceted-filter'
 import { DataTablePagination } from '@/components/data-table/core/pagination'
-import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
+import {
+  getCoreRowModel,
+  useReactTable,
+  type ColumnFiltersState,
+} from '@tanstack/react-table'
 import { formatTimestamp } from '@/lib/format'
 import { getRiskIncidents } from '../../api'
 import {
   riskQueryKeys,
+  ACTION_OPTIONS,
   DECISION_MAP,
   SCOPE_OPTIONS,
 } from '../../constants'
+
+// 桩列：仅为筛选 chip 提供 table.getColumn()，行由下方手写渲染
+const filterColumns = [{ accessorKey: 'scope' }, { accessorKey: 'action' }]
 
 export function RiskIncidentsTable() {
   const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const pageSize = 10
-  const [filters, setFilters] = useState({
-    scope: '__all__',
-    action: '__all__',
-    keyword: '',
-  })
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [keyword, setKeyword] = useState('')
+
+  const filterValues = (id: string) => {
+    const value = columnFilters.find((f) => f.id === id)?.value
+    return Array.isArray(value) ? (value as string[]) : []
+  }
+  const scopeFilter = filterValues('scope')
+  const actionFilter = filterValues('action')
 
   const params = useMemo(
     () => ({
       p: page,
       page_size: pageSize,
-      scope: filters.scope === '__all__' ? undefined : filters.scope,
-      action: filters.action === '__all__' ? undefined : filters.action,
-      keyword: filters.keyword || undefined,
+      scope: scopeFilter.join(',') || undefined,
+      action: actionFilter.join(',') || undefined,
+      keyword: keyword || undefined,
     }),
-    [page, filters]
-  )
-
-  const scopeItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      ...SCOPE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) })),
-    ],
-    [t]
-  )
-  const decisionItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      { value: 'block', label: t('Block') },
-      { value: 'observe', label: t('Observe') },
-    ],
-    [t]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [page, columnFilters, keyword]
   )
 
   const { data, isLoading } = useQuery({
@@ -77,10 +67,11 @@ export function RiskIncidentsTable() {
 
   const table = useReactTable({
     data: items,
-    columns: [],
+    columns: filterColumns,
     pageCount: Math.ceil(total / pageSize),
     state: {
       pagination: { pageIndex: page - 1, pageSize },
+      columnFilters,
     },
     onPaginationChange: (updater) => {
       const next =
@@ -89,58 +80,37 @@ export function RiskIncidentsTable() {
           : updater
       setPage(next.pageIndex + 1)
     },
+    onColumnFiltersChange: (updater) => {
+      setColumnFilters((prev) =>
+        typeof updater === 'function' ? updater(prev) : updater
+      )
+      setPage(1)
+    },
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
+    manualFiltering: true,
   })
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Select
-          items={scopeItems}
-          value={filters.scope}
-          onValueChange={(v) =>
-            setFilters((p) => ({ ...p, scope: v }))
-          }
-        >
-          <SelectTrigger className="h-8 w-[120px]">
-            <SelectValue placeholder={t('Scope')} />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false}>
-            <SelectGroup>
-              <SelectItem value="__all__">{t('All')}</SelectItem>
-              {SCOPE_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {t(o.label)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        <Select
-          items={decisionItems}
-          value={filters.action}
-          onValueChange={(v) =>
-            setFilters((p) => ({ ...p, action: v }))
-          }
-        >
-          <SelectTrigger className="h-8 w-[120px]">
-            <SelectValue placeholder={t('Decision')} />
-          </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false}>
-            <SelectGroup>
-              <SelectItem value="__all__">{t('All')}</SelectItem>
-              <SelectItem value="block">{t('Block')}</SelectItem>
-              <SelectItem value="observe">{t('Observe')}</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <DataTableFacetedFilter
+          column={table.getColumn('scope')}
+          title={t('Scope')}
+          options={SCOPE_OPTIONS}
+        />
+        <DataTableFacetedFilter
+          column={table.getColumn('action')}
+          title={t('Decision')}
+          options={ACTION_OPTIONS}
+        />
         <Input
           placeholder={t('Search...')}
-          value={filters.keyword}
-          onChange={(e) =>
-            setFilters((p) => ({ ...p, keyword: e.target.value }))
-          }
+          value={keyword}
+          onChange={(e) => {
+            setKeyword(e.target.value)
+            setPage(1)
+          }}
           className="h-8 w-[200px]"
         />
       </div>

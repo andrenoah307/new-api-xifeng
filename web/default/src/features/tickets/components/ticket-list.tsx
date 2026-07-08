@@ -7,6 +7,7 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
+  type VisibilityState,
 } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
 import { useMediaQuery } from '@/hooks'
@@ -20,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
+  DataTableToolbar,
   TableSkeleton,
   TableEmpty,
   MobileCardList,
@@ -27,14 +29,6 @@ import {
 import { DataTablePagination } from '@/components/data-table/core/pagination'
 import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { toast } from 'sonner'
 import { getUserTickets, closeUserTicket } from '../api'
@@ -58,13 +52,17 @@ export default function TicketListPage() {
   const queryClient = useQueryClient()
 
   const [createOpen, setCreateOpen] = useState(false)
-  const [statusFilter, setStatusFilter] = useState('__all__')
-  const [typeFilter, setTypeFilter] = useState('__all__')
   const [closeTicketId, setCloseTicketId] = useState<number | null>(null)
+  // type 列只为筛选 chip 提供 column，实际展示在主题列里
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    type: false,
+  })
 
   const {
     pagination,
     onPaginationChange,
+    columnFilters,
+    onColumnFiltersChange,
     ensurePageInRange,
   } = useTableUrlState({
     search: route.useSearch(),
@@ -73,31 +71,29 @@ export default function TicketListPage() {
       defaultPage: 1,
       defaultPageSize: isMobile ? 10 : DEFAULT_PAGE_SIZE,
     },
+    columnFilters: [
+      { columnId: 'status', searchKey: 'status', type: 'array' },
+      { columnId: 'type', searchKey: 'type', type: 'array' },
+    ],
   })
+
+  const statusFilter = useMemo(() => {
+    const value = columnFilters.find((f) => f.id === 'status')?.value
+    return Array.isArray(value) ? (value as string[]) : []
+  }, [columnFilters])
+  const typeFilter = useMemo(() => {
+    const value = columnFilters.find((f) => f.id === 'type')?.value
+    return Array.isArray(value) ? (value as string[]) : []
+  }, [columnFilters])
 
   const queryParams = useMemo(
     () => ({
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
-      status: statusFilter === '__all__' ? undefined : statusFilter,
-      type: typeFilter === '__all__' ? undefined : typeFilter,
+      status: statusFilter.join(',') || undefined,
+      type: typeFilter.join(',') || undefined,
     }),
     [pagination, statusFilter, typeFilter]
-  )
-
-  const statusItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      ...getStatusOptions().map((o) => ({ value: o.value, label: t(o.label) })),
-    ],
-    [t]
-  )
-  const typeItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      ...getTypeOptions(true).map((o) => ({ value: o.value, label: t(o.label) })),
-    ],
-    [t]
   )
 
   const { data, isLoading } = useQuery({
@@ -130,10 +126,13 @@ export default function TicketListPage() {
     data: items,
     columns,
     pageCount: Math.ceil(totalCount / pagination.pageSize),
-    state: { pagination },
+    state: { pagination, columnFilters, columnVisibility },
     onPaginationChange,
+    onColumnFiltersChange,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
+    manualFiltering: true,
   })
 
   const pageCount = table.getPageCount()
@@ -163,38 +162,23 @@ export default function TicketListPage() {
         </SectionPageLayout.Actions>
         <SectionPageLayout.Content>
           <div className="space-y-3 sm:space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Select items={statusItems} value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
-                <SelectTrigger className="h-8 w-[120px]">
-                  <SelectValue placeholder={t('Status')} />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  <SelectGroup>
-                    <SelectItem value="__all__">{t('All')}</SelectItem>
-                    {getStatusOptions().map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {t(o.label)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <Select items={typeItems} value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
-                <SelectTrigger className="h-8 w-[130px]">
-                  <SelectValue placeholder={t('Type')} />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  <SelectGroup>
-                    <SelectItem value="__all__">{t('All')}</SelectItem>
-                    {getTypeOptions(true).map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {t(o.label)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
+            <DataTableToolbar
+              table={table}
+              customSearch={null}
+              hideViewOptions
+              filters={[
+                {
+                  columnId: 'status',
+                  title: t('Status'),
+                  options: getStatusOptions(),
+                },
+                {
+                  columnId: 'type',
+                  title: t('Type'),
+                  options: getTypeOptions(true),
+                },
+              ]}
+            />
             {isMobile ? (
               <MobileCardList table={table} isLoading={isLoading} onRowClick={(row) => handleRowClick(row.original.id)} />
             ) : isLoading && items.length === 0 ? (

@@ -28,21 +28,13 @@ import {
 import { DataTablePagination } from '@/components/data-table/core/pagination'
 import { PageFooterPortal } from '@/components/layout'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { CompactDateTimeRangePicker } from '@/features/usage-logs/components/compact-date-time-range-picker'
 import { toast } from 'sonner'
 import { getTopups, completeTopupOrder } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
-  TOPUP_STATUS_OPTIONS,
+  TOPUP_STATUS_FILTER_OPTIONS,
   topupQueryKeys,
 } from '../constants'
 import { useTopupColumns } from './topup-columns'
@@ -77,10 +69,14 @@ export function TopupTable() {
       defaultPageSize: isMobile ? 10 : DEFAULT_PAGE_SIZE,
     },
     globalFilter: { enabled: true, key: 'keyword' },
+    columnFilters: [{ columnId: 'status', searchKey: 'status', type: 'array' }],
   })
 
   // 状态/日期筛选也进 URL：刷新、返回、分享链接时保留（与 keyword/page 一致）
-  const statusFilter = search.status ?? '__all__'
+  const statusFilter = useMemo(() => {
+    const value = columnFilters.find((f) => f.id === 'status')?.value
+    return Array.isArray(value) ? (value as string[]) : []
+  }, [columnFilters])
   const dateStart = useMemo(
     () => (search.start ? new Date(search.start * 1000) : undefined),
     [search.start]
@@ -88,20 +84,6 @@ export function TopupTable() {
   const dateEnd = useMemo(
     () => (search.end ? new Date(search.end * 1000) : undefined),
     [search.end]
-  )
-
-  const setStatusFilter = useCallback(
-    (v: string | null) => {
-      navigate({
-        search: (prev) => ({
-          ...prev,
-          status: !v || v === '__all__' ? undefined : v,
-          page: undefined,
-        }),
-        replace: true,
-      })
-    },
-    [navigate]
   )
 
   const keyword = globalFilter?.trim() || ''
@@ -112,7 +94,7 @@ export function TopupTable() {
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
       keyword: debouncedKeyword || undefined,
-      status: statusFilter === '__all__' ? undefined : statusFilter,
+      status: statusFilter.join(',') || undefined,
       start_time: dateStart
         ? Math.floor(dateStart.getTime() / 1000)
         : undefined,
@@ -197,12 +179,6 @@ export function TopupTable() {
     ensurePageInRange(pageCount)
   }, [pageCount, ensurePageInRange])
 
-  const statusItems = useMemo(
-    () =>
-      TOPUP_STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: t(opt.label) })),
-    [t]
-  )
-
   const handleDateChange = useCallback(
     (range: { start?: Date; end?: Date }) => {
       navigate({
@@ -226,29 +202,20 @@ export function TopupTable() {
         <DataTableToolbar
           table={table}
           searchPlaceholder={t(admin ? 'Search by order number, username or user ID...' : 'Search by order number...')}
+          filters={[
+            {
+              columnId: 'status',
+              title: t('Status'),
+              options: [...TOPUP_STATUS_FILTER_OPTIONS],
+            },
+          ]}
           additionalSearch={
-            <div className="flex flex-wrap items-center gap-2">
-              <Select items={statusItems} value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-8 w-[120px]">
-                  <SelectValue placeholder={t('Status')} />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  <SelectGroup>
-                    {TOPUP_STATUS_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {t(opt.label)}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <CompactDateTimeRangePicker
-                start={dateStart}
-                end={dateEnd}
-                onChange={handleDateChange}
-                className="w-auto"
-              />
-            </div>
+            <CompactDateTimeRangePicker
+              start={dateStart}
+              end={dateEnd}
+              onChange={handleDateChange}
+              className="w-auto"
+            />
           }
         />
         {isMobile ? (

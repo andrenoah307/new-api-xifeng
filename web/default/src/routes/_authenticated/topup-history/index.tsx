@@ -6,7 +6,10 @@ const topupHistorySearchSchema = z.object({
   page: z.number().optional().catch(1),
   pageSize: z.number().optional().catch(20),
   keyword: z.string().optional().catch(''),
-  status: z.string().optional().catch(undefined),
+  status: z
+    .array(z.enum(['success', 'pending', 'failed', 'expired']))
+    .optional()
+    .catch([]),
   start: z.number().optional().catch(undefined),
   end: z.number().optional().catch(undefined),
 })

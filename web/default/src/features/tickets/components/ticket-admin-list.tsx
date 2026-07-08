@@ -7,6 +7,7 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
+  type VisibilityState,
 } from '@tanstack/react-table'
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
@@ -27,14 +28,6 @@ import {
 } from '@/components/data-table'
 import { DataTablePagination } from '@/components/data-table/core/pagination'
 import { PageFooterPortal, SectionPageLayout } from '@/components/layout'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
@@ -60,10 +53,12 @@ export default function TicketAdminListPage() {
   const routeNavigate = route.useNavigate()
 
   const [exportOpen, setExportOpen] = useState(false)
+  // type 列只为筛选 chip 提供 column，实际展示在主题列里
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    type: false,
+  })
 
   const scope = search.scope ?? (viewerIsAdmin ? 'all' : 'mine')
-  const statusFilter = search.status || '__all__'
-  const typeFilter = search.type || '__all__'
 
   const setScope = useCallback(
     (val: string) => {
@@ -71,32 +66,6 @@ export default function TicketAdminListPage() {
         search: (prev: Record<string, unknown>) => ({
           ...prev,
           scope: val as 'all' | 'mine' | 'unassigned',
-          page: 1,
-        }),
-      })
-    },
-    [routeNavigate]
-  )
-
-  const setStatusFilter = useCallback(
-    (val: string) => {
-      routeNavigate({
-        search: (prev: Record<string, unknown>) => ({
-          ...prev,
-          status: val === '__all__' ? '' : val,
-          page: 1,
-        }),
-      })
-    },
-    [routeNavigate]
-  )
-
-  const setTypeFilter = useCallback(
-    (val: string) => {
-      routeNavigate({
-        search: (prev: Record<string, unknown>) => ({
-          ...prev,
-          type: val === '__all__' ? '' : val,
           page: 1,
         }),
       })
@@ -120,7 +89,20 @@ export default function TicketAdminListPage() {
       defaultPageSize: isMobile ? 10 : DEFAULT_PAGE_SIZE,
     },
     globalFilter: { enabled: true, key: 'keyword' },
+    columnFilters: [
+      { columnId: 'status', searchKey: 'status', type: 'array' },
+      { columnId: 'type', searchKey: 'type', type: 'array' },
+    ],
   })
+
+  const statusFilter = useMemo(() => {
+    const value = columnFilters.find((f) => f.id === 'status')?.value
+    return Array.isArray(value) ? (value as string[]) : []
+  }, [columnFilters])
+  const typeFilter = useMemo(() => {
+    const value = columnFilters.find((f) => f.id === 'type')?.value
+    return Array.isArray(value) ? (value as string[]) : []
+  }, [columnFilters])
 
   const keyword = globalFilter?.trim() || ''
 
@@ -140,8 +122,8 @@ export default function TicketAdminListPage() {
     () => ({
       p: pagination.pageIndex + 1,
       page_size: pagination.pageSize,
-      status: statusFilter === '__all__' ? undefined : statusFilter,
-      type: typeFilter === '__all__' ? undefined : typeFilter,
+      status: statusFilter.join(',') || undefined,
+      type: typeFilter.join(',') || undefined,
       keyword: keyword || undefined,
       scope,
     }),
@@ -157,21 +139,6 @@ export default function TicketAdminListPage() {
   const items = useMemo(() => data?.items ?? [], [data])
   const totalCount = data?.total ?? 0
 
-  const statusItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      ...getStatusOptions(true).map((o) => ({ value: o.value, label: t(o.label) })),
-    ],
-    [t]
-  )
-  const typeItems = useMemo(
-    () => [
-      { value: '__all__', label: t('All') },
-      ...getTypeOptions(true).map((o) => ({ value: o.value, label: t(o.label) })),
-    ],
-    [t]
-  )
-
   const columns = useTicketColumns({
     admin: true,
     showAssignee: viewerIsAdmin,
@@ -182,10 +149,11 @@ export default function TicketAdminListPage() {
     data: items,
     columns,
     pageCount: Math.ceil(totalCount / pagination.pageSize),
-    state: { pagination, globalFilter, columnFilters },
+    state: { pagination, globalFilter, columnFilters, columnVisibility },
     onPaginationChange,
     onGlobalFilterChange,
     onColumnFiltersChange,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualFiltering: true,
@@ -232,47 +200,27 @@ export default function TicketAdminListPage() {
           <DataTableToolbar
             table={table}
             searchPlaceholder={t('Search by subject, username, ID, company name or payee...')}
+            filters={[
+              {
+                columnId: 'status',
+                title: t('Status'),
+                options: getStatusOptions(true),
+              },
+              {
+                columnId: 'type',
+                title: t('Type'),
+                options: getTypeOptions(true),
+              },
+            ]}
             additionalSearch={
-              <div className="flex flex-wrap items-center gap-2">
-                <Select items={statusItems} value={statusFilter} onValueChange={(v) => v !== null && setStatusFilter(v)}>
-                  <SelectTrigger className="h-8 w-[120px]">
-                    <SelectValue placeholder={t('Status')} />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false}>
-                    <SelectGroup>
-                      <SelectItem value="__all__">{t('All')}</SelectItem>
-                      {getStatusOptions(true).map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {t(o.label)}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <Select items={typeItems} value={typeFilter} onValueChange={(v) => v !== null && setTypeFilter(v)}>
-                  <SelectTrigger className="h-8 w-[130px]">
-                    <SelectValue placeholder={t('Type')} />
-                  </SelectTrigger>
-                  <SelectContent alignItemWithTrigger={false}>
-                    <SelectGroup>
-                      <SelectItem value="__all__">{t('All')}</SelectItem>
-                      {getTypeOptions(true).map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {t(o.label)}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setExportOpen(true)}
-                >
-                  <Download className="mr-1.5 h-4 w-4" />
-                  {t('Export Invoice')}
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setExportOpen(true)}
+              >
+                <Download className="mr-1.5 h-4 w-4" />
+                {t('Export Invoice')}
+              </Button>
             }
           />
           {isMobile ? (

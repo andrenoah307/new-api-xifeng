@@ -2,8 +2,7 @@ import type { StatusVariant } from '@/components/status-badge'
 
 export const DEFAULT_PAGE_SIZE = 20
 
-export const TOPUP_STATUS_OPTIONS = [
-  { label: 'All', value: '__all__' },
+export const TOPUP_STATUS_FILTER_OPTIONS = [
   { label: 'Success', value: 'success' },
   { label: 'Pending', value: 'pending' },
   { label: 'Failed', value: 'failed' },

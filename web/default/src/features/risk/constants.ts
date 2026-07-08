@@ -136,6 +136,12 @@ export const SCOPE_OPTIONS = [
   { label: 'User', value: 'user' },
 ]
 
+export const SUBJECT_STATUS_OPTIONS = [
+  { label: 'Blocked', value: 'blocked' },
+  { label: 'Observing', value: 'observe' },
+  { label: 'Normal', value: 'normal' },
+]
+
 export const MODE_OPTIONS = [
   { label: 'Enforce', value: 'enforce' },
   { label: 'Observe Only', value: 'observe_only' },
