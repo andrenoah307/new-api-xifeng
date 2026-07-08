@@ -22,6 +22,8 @@ import {
   riskQueryKeys,
   safeParseJSON,
   METRIC_LABEL_MAP,
+  ACTION_OPTIONS,
+  optionLabelKey,
 } from '../../constants'
 
 interface Props {
@@ -127,7 +129,7 @@ export function RiskRulesTable({ rules, onEdit, enabledGroupSet }: Props) {
                           rule.scope === 'token' ? 'blue' : 'success'
                         }
                       >
-                        {rule.scope === 'token' ? 'Token' : t('User')}
+                        {rule.scope === 'token' ? t('Token') : t('User')}
                       </StatusBadge>
                     </TableCell>
                     <TableCell className="max-w-[300px] truncate text-xs">
@@ -139,7 +141,7 @@ export function RiskRulesTable({ rules, onEdit, enabledGroupSet }: Props) {
                           rule.action === 'block' ? 'danger' : 'warning'
                         }
                       >
-                        {rule.action}
+                        {t(optionLabelKey(ACTION_OPTIONS, rule.action))}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>

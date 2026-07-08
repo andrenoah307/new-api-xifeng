@@ -110,7 +110,7 @@ export function RiskSubjectsTable() {
             <SelectItem value="__all__">{t('All')}</SelectItem>
             {SCOPE_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
-                {o.label}
+                {t(o.label)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -183,7 +183,9 @@ export function RiskSubjectsTable() {
                             item.subject_type === 'token' ? 'blue' : 'success'
                           }
                         >
-                          {item.subject_type === 'token' ? 'Token' : t('User')}
+                          {item.subject_type === 'token'
+                            ? t('Token')
+                            : t('User')}
                         </StatusBadge>
                         <p className="text-muted-foreground text-xs">
                           #{item.subject_id}

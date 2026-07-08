@@ -47,6 +47,7 @@ import {
   riskQueryKeys,
   ENFORCEMENT_SOURCE_OPTIONS,
   ENFORCEMENT_ACTION_OPTIONS,
+  optionLabelKey,
 } from '../constants'
 
 export function EnforcementTab() {
@@ -204,12 +205,16 @@ export function EnforcementTab() {
         <OverviewCard
           title={t('Status')}
           value={overview?.enabled ? t('Enabled') : t('Disabled')}
-          extra={`${t('Window')}: ${localConfig?.count_window_hours ?? '-'}h`}
+          extra={t('Window: {{hours}}h', {
+            hours: localConfig?.count_window_hours ?? '-',
+          })}
         />
         <OverviewCard
           title={t('Hits (24h)')}
           value={overview?.hits_24h ?? 0}
-          extra={`${t('Threshold')}: ${overview?.ban_threshold ?? '-'}`}
+          extra={t('Threshold: {{value}}', {
+            value: overview?.ban_threshold ?? '-',
+          })}
         />
         <OverviewCard
           title={t('Auto Bans (24h)')}
@@ -642,7 +647,12 @@ export function EnforcementTab() {
                       </TableCell>
                       <TableCell>
                         <StatusBadge variant="blue">
-                          {item.source}
+                          {t(
+                            optionLabelKey(
+                              ENFORCEMENT_SOURCE_OPTIONS,
+                              item.source
+                            )
+                          )}
                         </StatusBadge>
                       </TableCell>
                       <TableCell>
@@ -655,7 +665,12 @@ export function EnforcementTab() {
                                 : 'neutral'
                           }
                         >
-                          {item.action}
+                          {t(
+                            optionLabelKey(
+                              ENFORCEMENT_ACTION_OPTIONS,
+                              item.action
+                            )
+                          )}
                         </StatusBadge>
                       </TableCell>
                       <TableCell className="max-w-[300px] truncate text-xs">

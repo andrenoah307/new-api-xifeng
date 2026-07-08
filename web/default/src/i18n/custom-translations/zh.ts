@@ -713,6 +713,29 @@ const zh: Record<string, string> = {
   'JSON map of country codes to blocked model patterns. Example: {"CN": ["gpt-4*"], "RU": ["*"]}':
     '国家代码到封锁模型模式的 JSON 映射。示例：{"CN": ["gpt-4*"], "RU": ["*"]}',
   'Save region restriction settings': '保存地区限制设置',
+
+  // Auto Group toasts
+  'Rule created successfully': '规则创建成功',
+  'Rule updated successfully': '规则更新成功',
+  'Rule deleted successfully': '规则删除成功',
+  'Rule enabled successfully': '规则已启用',
+  'Rule disabled successfully': '规则已禁用',
+  'Users enrolled successfully': '用户纳入成功',
+  'User unenrolled successfully': '已取消纳入用户',
+  'Sweep triggered successfully': '扫描已触发',
+
+  // Interpolated sentences (formerly concatenated fragments)
+  'Global mode: {{mode}}': '全局模式：{{mode}}',
+  'Window: {{hours}}h': '窗口：{{hours}} 小时',
+  'Threshold: {{value}}': '阈值：{{value}}',
+  'This will permanently delete rule "{{name}}". This action cannot be undone.':
+    '将永久删除规则"{{name}}"，此操作不可撤销。',
+  'This will unenroll "{{username}}" and revert their group back to the original group. This action cannot be undone.':
+    '将取消纳入"{{username}}"并把其分组恢复为原始分组，此操作不可撤销。',
+
+  // Invoice content (Chinese fapiao line item)
+  '*Production and Living Services*Technical Service Fee':
+    '*生产生活服务*技术服务费',
 }
 
 export default zh

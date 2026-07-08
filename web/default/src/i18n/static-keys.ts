@@ -540,4 +540,29 @@ export const STATIC_I18N_KEYS = [
   'Failed to load',
   'Expired at',
   'Cancelled at',
+
+  // Auto Group SUCCESS_MESSAGES (constants passed to t at runtime)
+  'Rule created successfully',
+  'Rule updated successfully',
+  'Rule deleted successfully',
+  'Rule enabled successfully',
+  'Rule disabled successfully',
+  'Users enrolled successfully',
+  'User unenrolled successfully',
+  'Sweep triggered successfully',
+
+  // Risk control enum labels (constants passed to t at runtime)
+  'Block',
+  'Observe',
+  'Allow',
+  'Flag',
+  'Enforce',
+  'Observe Only',
+  'All (AND)',
+  'Any (OR)',
+  'Email Reminder',
+  'Counter Increment',
+  'Auto Ban',
+  'Risk Distribution',
+  'Content Moderation',
 ] as const

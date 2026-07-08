@@ -46,12 +46,9 @@ export function EnrollmentDeleteDialog() {
         <AlertDialogHeader>
           <AlertDialogTitle>{t('Unenroll User?')}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t('This will unenroll')}{' '}
-            <span className='font-semibold'>
-              {currentEnrollment?.username}
-            </span>{' '}
             {t(
-              'and revert their group back to the original group. This action cannot be undone.'
+              'This will unenroll "{{username}}" and revert their group back to the original group. This action cannot be undone.',
+              { username: currentEnrollment?.username ?? '' }
             )}
           </AlertDialogDescription>
         </AlertDialogHeader>

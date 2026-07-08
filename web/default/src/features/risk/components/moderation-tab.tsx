@@ -55,6 +55,10 @@ import {
 } from '../api'
 import {
   riskQueryKeys,
+  optionLabelKey,
+  MODE_OPTIONS,
+  MODERATION_ACTION_OPTIONS,
+  DECISION_MAP,
 } from '../constants'
 import { ModerationRuleEditorDialog } from './moderation/moderation-rule-editor'
 
@@ -255,7 +259,11 @@ export function ModerationTab() {
         <OverviewCard
           title={t('Status')}
           value={overview?.enabled ? t('Enabled') : t('Disabled')}
-          extra={t('Global mode: ') + (overview?.mode ?? '-')}
+          extra={t('Global mode: {{mode}}', {
+            mode: overview?.mode
+              ? t(optionLabelKey(MODE_OPTIONS, overview.mode))
+              : '-',
+          })}
         />
         <OverviewCard
           title={t('API Keys')}
@@ -512,7 +520,12 @@ export function ModerationTab() {
                             rule.action === 'block' ? 'danger' : 'warning'
                           }
                         >
-                          {rule.action}
+                          {t(
+                            optionLabelKey(
+                              MODERATION_ACTION_OPTIONS,
+                              rule.action
+                            )
+                          )}
                         </StatusBadge>
                       </TableCell>
                       <TableCell>{rule.priority}</TableCell>
@@ -714,7 +727,9 @@ export function ModerationTab() {
                         </StatusBadge>
                       </TableCell>
                       <TableCell className="text-xs">
-                        {item.decision || '-'}
+                        {item.decision
+                          ? t(DECISION_MAP[item.decision]?.labelKey ?? item.decision)
+                          : '-'}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -782,7 +797,11 @@ export function ModerationTab() {
                   <StatusBadge variant="cyan">{detailData.group || '-'}</StatusBadge>
                 </dd>
                 <dt className="text-muted-foreground">{t('Decision')}</dt>
-                <dd className="min-w-0 overflow-hidden">{detailData.decision || '-'}</dd>
+                <dd className="min-w-0 overflow-hidden">
+                  {detailData.decision
+                    ? t(DECISION_MAP[detailData.decision]?.labelKey ?? detailData.decision)
+                    : '-'}
+                </dd>
                 <dt className="text-muted-foreground">{t('Flagged')}</dt>
                 <dd className="min-w-0 overflow-hidden">
                   <StatusBadge variant={detailData.flagged ? 'danger' : 'success'}>

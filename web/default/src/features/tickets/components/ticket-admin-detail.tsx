@@ -81,11 +81,9 @@ export default function TicketAdminDetailPage({
 
   const conversationMessages = useMemo(() => {
     if (messages.length === 0) return messages
-    const first = messages[0]
-    if (isRefund && first?.content?.startsWith('退款申请信息')) {
-      return messages.slice(1)
-    }
-    if (isInvoice && first?.content?.startsWith('发票申请信息')) {
+    // 退款/发票工单的首条消息是后端在同一事务中生成的申请摘要（按 id asc 必为第一条），
+    // 详情卡片已展示同样信息，按位置剥离即可（不依赖消息文案语言）
+    if (isRefund || isInvoice) {
       return messages.slice(1)
     }
     return messages

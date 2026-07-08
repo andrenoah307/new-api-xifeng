@@ -707,6 +707,29 @@ const en = {
   'JSON map of country codes to blocked model patterns. Example: {"CN": ["gpt-4*"], "RU": ["*"]}':
     'JSON map of country codes to blocked model patterns. Example: {"CN": ["gpt-4*"], "RU": ["*"]}',
   'Save region restriction settings': 'Save region restriction settings',
+
+  // Auto Group toasts
+  'Rule created successfully': 'Rule created successfully',
+  'Rule updated successfully': 'Rule updated successfully',
+  'Rule deleted successfully': 'Rule deleted successfully',
+  'Rule enabled successfully': 'Rule enabled successfully',
+  'Rule disabled successfully': 'Rule disabled successfully',
+  'Users enrolled successfully': 'Users enrolled successfully',
+  'User unenrolled successfully': 'User unenrolled successfully',
+  'Sweep triggered successfully': 'Sweep triggered successfully',
+
+  // Interpolated sentences (formerly concatenated fragments)
+  'Global mode: {{mode}}': 'Global mode: {{mode}}',
+  'Window: {{hours}}h': 'Window: {{hours}}h',
+  'Threshold: {{value}}': 'Threshold: {{value}}',
+  'This will permanently delete rule "{{name}}". This action cannot be undone.':
+    'This will permanently delete rule "{{name}}". This action cannot be undone.',
+  'This will unenroll "{{username}}" and revert their group back to the original group. This action cannot be undone.':
+    'This will unenroll "{{username}}" and revert their group back to the original group. This action cannot be undone.',
+
+  // Invoice content (Chinese fapiao line item)
+  '*Production and Living Services*Technical Service Fee':
+    '*Production and Living Services*Technical Service Fee',
 } as const
 
 export default en

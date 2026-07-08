@@ -190,7 +190,7 @@ export function RuleMutateDrawer({
             {isUpdate
               ? t('Update the auto group rule.')
               : t('Create a new auto group rule.')}{' '}
-            {t('Click save when you&apos;re done.')}
+            {t("Click save when you're done.")}
           </SheetDescription>
         </SheetHeader>
         <Form {...form}>

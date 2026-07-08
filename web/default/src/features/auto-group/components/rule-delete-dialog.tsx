@@ -46,9 +46,10 @@ export function RuleDeleteDialog() {
         <AlertDialogHeader>
           <AlertDialogTitle>{t('Are you sure?')}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t('This will permanently delete rule')}{' '}
-            <span className='font-semibold'>{currentRule?.name}</span>
-            {t('. This action cannot be undone.')}
+            {t(
+              'This will permanently delete rule "{{name}}". This action cannot be undone.',
+              { name: currentRule?.name ?? '' }
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

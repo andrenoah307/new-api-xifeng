@@ -211,7 +211,7 @@ export function RuleEditorDialog({
                 <SelectContent>
                   {SCOPE_OPTIONS.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
-                      {o.label}
+                      {t(o.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>

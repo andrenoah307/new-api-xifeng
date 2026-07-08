@@ -168,6 +168,14 @@ export const ENFORCEMENT_ACTION_OPTIONS = [
   { label: 'Auto Ban', value: 'auto_ban' },
 ]
 
+// 后端枚举值 → 可翻译 label key；未知值回退显示原始值
+export function optionLabelKey(
+  options: { label: string; value: string }[],
+  value: string | null | undefined
+): string {
+  return options.find((o) => o.value === value)?.label ?? (value || '-')
+}
+
 export const riskQueryKeys = {
   all: ['risk'] as const,
   overview: () => [...riskQueryKeys.all, 'overview'] as const,
