@@ -322,26 +322,37 @@ export function CreateInvoiceTicketDialog({
                 </TableBody>
               </Table>
             </div>
-            <div className="bg-muted mt-2 flex items-center justify-between rounded-md px-3 py-2 text-sm">
+            <div className="bg-muted mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-md px-3 py-2 text-sm">
               <span className="text-muted-foreground">
                 {t('Selected')}: {selectedIds.size}/{orders.length} {t('orders_unit')}
               </span>
-              <span>
-                <span className="text-muted-foreground mr-1">
-                  {t('Invoice Amount')}:
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>
+                  <span className="text-muted-foreground mr-1">
+                    {t('Invoice Amount')}:
+                  </span>
+                  {/* 未达最低开票金额时标红，让用户不用点提交就知道差在哪 */}
+                  <span
+                    className={
+                      minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount
+                        ? 'text-destructive font-medium'
+                        : 'font-medium'
+                    }
+                  >
+                    ¥{invoiceAmount.toFixed(2)}
+                  </span>
                 </span>
-                <span className="font-medium">
-                  ¥{invoiceAmount.toFixed(2)}
-                </span>
+                {minInvoiceAmount > 0 && (
+                  <span className="text-muted-foreground text-xs">
+                    （
+                    {t('Minimum invoice amount: {{amount}} CNY', {
+                      amount: minInvoiceAmount,
+                    })}
+                    ）
+                  </span>
+                )}
               </span>
             </div>
-            {minInvoiceAmount > 0 && (
-              <p className="text-muted-foreground mt-2 text-xs">
-                {t('Minimum invoice amount: {{amount}} CNY', {
-                  amount: minInvoiceAmount,
-                })}
-              </p>
-            )}
           </div>
 
           {/* Step 2: Invoice details form */}
