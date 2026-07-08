@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/status-badge'
 import { formatQuota } from '@/lib/format'
 import { formatTimestampToDate } from '@/lib/format'
+import { formatLocalCurrencyAmount } from '@/lib/currency'
 import { getRoleLabelKey } from '@/lib/roles'
 import { STATUS_CONFIG } from '@/features/topup-history/constants'
 import { getAdminUserProfile, getAdminUserTopUps } from '../api'
@@ -333,7 +334,7 @@ function TopUpSection({
                       )}
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono text-red-600 dark:text-red-400">
-                      ¥{tp.money.toFixed(2)}
+                      {formatLocalCurrencyAmount(tp.money)}
                     </td>
                     <td className="px-2 py-1.5 text-right font-mono">
                       {formatQuota(tp.quota_granted)}

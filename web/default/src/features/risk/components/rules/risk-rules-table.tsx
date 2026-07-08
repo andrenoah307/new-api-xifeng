@@ -125,6 +125,7 @@ export function RiskRulesTable({ rules, onEdit, enabledGroupSet }: Props) {
                     </TableCell>
                     <TableCell>
                       <StatusBadge
+                        copyable={false}
                         variant={
                           rule.scope === 'token' ? 'blue' : 'success'
                         }
@@ -137,6 +138,7 @@ export function RiskRulesTable({ rules, onEdit, enabledGroupSet }: Props) {
                     </TableCell>
                     <TableCell>
                       <StatusBadge
+                        copyable={false}
                         variant={
                           rule.action === 'block' ? 'danger' : 'warning'
                         }

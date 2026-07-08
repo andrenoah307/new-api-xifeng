@@ -179,6 +179,7 @@ export function RiskSubjectsTable() {
                     <TableCell>
                       <div className="space-y-0.5">
                         <StatusBadge
+                          copyable={false}
                           variant={
                             item.subject_type === 'token' ? 'blue' : 'success'
                           }
@@ -198,14 +199,17 @@ export function RiskSubjectsTable() {
                       </StatusBadge>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge variant={sc.variant as 'danger' | 'warning' | 'neutral'}>
+                      <StatusBadge
+                        copyable={false}
+                        variant={sc.variant as 'danger' | 'warning' | 'neutral'}
+                      >
                         {t(sc.labelKey)}
                       </StatusBadge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 min-w-[120px]">
                         <Progress
-                          value={item.risk_score ?? 0}
+                          value={Math.min(100, Math.max(0, item.risk_score ?? 0))}
                           className="h-2 flex-1"
                         />
                         <span className="text-xs tabular-nums">

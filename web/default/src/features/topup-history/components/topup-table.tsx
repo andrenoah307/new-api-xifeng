@@ -55,10 +55,10 @@ export function TopupTable() {
   const isMobile = useMediaQuery('(max-width: 640px)')
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
-  const [statusFilter, setStatusFilter] = useState('__all__')
-  const [dateStart, setDateStart] = useState<Date | undefined>()
-  const [dateEnd, setDateEnd] = useState<Date | undefined>()
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
+
+  const search = route.useSearch()
+  const navigate = route.useNavigate()
 
   const {
     globalFilter,
@@ -69,14 +69,39 @@ export function TopupTable() {
     onPaginationChange,
     ensurePageInRange,
   } = useTableUrlState({
-    search: route.useSearch(),
-    navigate: route.useNavigate(),
+    search,
+    navigate,
     pagination: {
       defaultPage: 1,
       defaultPageSize: isMobile ? 10 : DEFAULT_PAGE_SIZE,
     },
     globalFilter: { enabled: true, key: 'keyword' },
   })
+
+  // 状态/日期筛选也进 URL：刷新、返回、分享链接时保留（与 keyword/page 一致）
+  const statusFilter = search.status ?? '__all__'
+  const dateStart = useMemo(
+    () => (search.start ? new Date(search.start * 1000) : undefined),
+    [search.start]
+  )
+  const dateEnd = useMemo(
+    () => (search.end ? new Date(search.end * 1000) : undefined),
+    [search.end]
+  )
+
+  const setStatusFilter = useCallback(
+    (v: string | null) => {
+      navigate({
+        search: (prev) => ({
+          ...prev,
+          status: !v || v === '__all__' ? undefined : v,
+          page: undefined,
+        }),
+        replace: true,
+      })
+    },
+    [navigate]
+  )
 
   const keyword = globalFilter?.trim() || ''
   const debouncedKeyword = useDebounce(keyword, 1000)
@@ -173,10 +198,19 @@ export function TopupTable() {
 
   const handleDateChange = useCallback(
     (range: { start?: Date; end?: Date }) => {
-      setDateStart(range.start)
-      setDateEnd(range.end)
+      navigate({
+        search: (prev) => ({
+          ...prev,
+          start: range.start
+            ? Math.floor(range.start.getTime() / 1000)
+            : undefined,
+          end: range.end ? Math.floor(range.end.getTime() / 1000) : undefined,
+          page: undefined,
+        }),
+        replace: true,
+      })
     },
-    []
+    [navigate]
   )
 
   return (

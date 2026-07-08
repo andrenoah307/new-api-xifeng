@@ -508,6 +508,7 @@ export function EnforcementTab() {
                       <TableCell>{c.enforcement_hit_count_moderation}</TableCell>
                       <TableCell>
                         <StatusBadge
+                          copyable={false}
                           variant={c.enforcement_auto_banned_at > 0 ? 'danger' : 'success'}
                         >
                           {c.enforcement_auto_banned_at > 0 ? t('Banned') : t('Normal')}
@@ -646,7 +647,7 @@ export function EnforcementTab() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge variant="blue">
+                        <StatusBadge copyable={false} variant="blue">
                           {t(
                             optionLabelKey(
                               ENFORCEMENT_SOURCE_OPTIONS,
@@ -657,6 +658,7 @@ export function EnforcementTab() {
                       </TableCell>
                       <TableCell>
                         <StatusBadge
+                          copyable={false}
                           variant={
                             item.action === 'auto_ban'
                               ? 'danger'

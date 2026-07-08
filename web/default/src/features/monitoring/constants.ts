@@ -1,3 +1,21 @@
+// 后端 decimal 字段用 -1 表示"无数据"（model/group_monitoring.go default:-1）。
+// 只有 null/负数才视为无数据，0~3% 的低命中率是真实数值，必须正常显示。
+export function normalizeRate(
+  rate: number | null | undefined
+): number | null {
+  if (rate == null || rate < 0) return null
+  return rate
+}
+
+// 卡片与详情面板统一的口径：优先用历史数据按请求量加权，回退到汇总字段
+export function resolveDisplayRate(
+  history: Parameters<typeof computeRateFromHistory>[0],
+  field: 'availability_rate' | 'cache_hit_rate',
+  summaryRate: number | null | undefined
+): number | null {
+  return computeRateFromHistory(history, field) ?? normalizeRate(summaryRate)
+}
+
 export function rateAccentColor(rate: number | null | undefined): string {
   if (rate == null || rate < 0) return 'var(--muted-foreground)'
   if (rate >= 99) return '#22c55e'
@@ -108,7 +126,8 @@ export function compareGroups<
       const aOn = isGroupOnline(a)
       const bOn = isGroupOnline(b)
       if (aOn !== bOn) return aOn ? 1 : -1
-      return (a.availability_rate ?? 100) - (b.availability_rate ?? 100)
+      // 与 availability 分支一致：无数据（null/-1 哨兵）统一按 -1 排序
+      return (a.availability_rate ?? -1) - (b.availability_rate ?? -1)
     }
   }
 }
@@ -164,7 +183,7 @@ export function segmentLabel(
 export function alignAndFillHistory(
   history: { recorded_at: number; availability_rate?: number | null; cache_hit_rate?: number | null }[],
   intervalMinutes: number
-): { time: string; value: number; type: 'availability' | 'cache' }[] {
+): { time: string; value: number | null; type: 'availability' | 'cache' }[] {
   if (!history || history.length === 0) return []
 
   const sorted = [...history].sort(
@@ -181,29 +200,32 @@ export function alignAndFillHistory(
     byTime[aligned] = h
   }
 
-  const result: { time: string; value: number; type: 'availability' | 'cache' }[] = []
-  let lastAvail: number | null = null
-  let lastCache: number | null = null
+  // 空档产出 null（图上显示为断线）而不是沿用上一个值——
+  // 否则宕机时段会被画成一条正常的直线，低估故障
+  const hasAvail = sorted.some(
+    (h) => h.availability_rate != null && h.availability_rate >= 0
+  )
+  const hasCache = sorted.some(
+    (h) => h.cache_hit_rate != null && h.cache_hit_rate >= 0
+  )
+
+  const result: { time: string; value: number | null; type: 'availability' | 'cache' }[] = []
 
   for (let t = startMs; t <= endMs; t += stepMs) {
     const aligned = Math.round(t / stepMs) * stepMs
     const entry = byTime[aligned]
-    if (entry) {
-      if (entry.availability_rate != null && entry.availability_rate >= 0)
-        lastAvail = entry.availability_rate
-      if (entry.cache_hit_rate != null && entry.cache_hit_rate >= 0)
-        lastCache = entry.cache_hit_rate
-    }
+    const avail = normalizeRate(entry?.availability_rate)
+    const cache = normalizeRate(entry?.cache_hit_rate)
     const timeStr = new Date(aligned).toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
     })
-    if (lastAvail !== null) {
-      result.push({ time: timeStr, value: lastAvail, type: 'availability' })
+    if (hasAvail) {
+      result.push({ time: timeStr, value: avail, type: 'availability' })
     }
-    if (lastCache !== null) {
-      result.push({ time: timeStr, value: lastCache, type: 'cache' })
+    if (hasCache) {
+      result.push({ time: timeStr, value: cache, type: 'cache' })
     }
   }
 

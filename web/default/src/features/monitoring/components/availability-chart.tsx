@@ -11,7 +11,8 @@ interface AvailabilityCacheChartProps {
 }
 
 const VCHART_OPTION = { mode: 'desktop-browser' as const }
-const tooltipValueFn = (datum: { value: number }) => `${datum.value.toFixed(1)}%`
+const tooltipValueFn = (datum: { value: number | null }) =>
+  datum.value != null ? `${datum.value.toFixed(1)}%` : '-'
 const formatPercent = (v: number) => `${v}%`
 
 const AvailabilityCacheChart = memo(function AvailabilityCacheChart({
@@ -28,7 +29,9 @@ const AvailabilityCacheChart = memo(function AvailabilityCacheChart({
 
   const yMin = useMemo(() => {
     if (!chartData || chartData.length === 0) return 0
-    const vals = chartData.map((d) => d.value).filter((v) => v > 0)
+    const vals = chartData
+      .map((d) => d.value)
+      .filter((v): v is number => v != null && v > 0)
     if (vals.length === 0) return 0
     const min = Math.min(...vals)
     return Math.max(0, Math.floor(min / 5) * 5 - 5)
@@ -100,7 +103,15 @@ const AvailabilityCacheChart = memo(function AvailabilityCacheChart({
           content: [{ key: tooltipKeyFn, value: tooltipValueFn }],
         },
       },
-      color: ['#3b82f6', '#22c55e'],
+      // 按 seriesField 取值指定颜色（而非按出现顺序），保证与图例恒定对应
+      color: {
+        specified: {
+          availability: '#3b82f6',
+          cache: '#22c55e',
+        },
+      },
+      // 空档（value 为 null）显示为断线，直观呈现无数据/宕机时段
+      invalidType: 'break' as const,
       crosshair: {
         xField: { visible: true, line: { type: 'line' } },
       },

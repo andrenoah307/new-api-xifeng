@@ -19,6 +19,7 @@ import {
   isGroupOnline,
   rateAccentColor,
   rateVariant,
+  resolveDisplayRate,
 } from '../constants'
 import StatusTimeline from './status-timeline'
 import AvailabilityCacheChart from './availability-chart'
@@ -100,15 +101,19 @@ export default function GroupDetailPanel({
   const loading = detailLoading || historyLoading
 
   const online = group ? isGroupOnline(group) : false
-  const availRate =
-    group?.availability_rate != null && group.availability_rate >= 0
-      ? group.availability_rate
-      : null
-  const cacheRate =
-    group?.cache_hit_rate != null && group.cache_hit_rate >= 0
-      ? group.cache_hit_rate
-      : null
-  const showCache = cacheRate != null && cacheRate >= 3
+  // 与卡片同一口径：历史加权优先、汇总回退，避免点开面板后数字与卡片对不上
+  const availRate = resolveDisplayRate(
+    history,
+    'availability_rate',
+    group?.availability_rate
+  )
+  const cacheRate = resolveDisplayRate(
+    history,
+    'cache_hit_rate',
+    group?.cache_hit_rate
+  )
+  // 只有 null（无数据/-1 哨兵）才隐藏；0~3% 是真实的低命中率，正常显示
+  const showCache = cacheRate != null
 
   const channelData = useMemo(() => {
     if (!detail?.channel_stats) return []
@@ -258,7 +263,8 @@ export default function GroupDetailPanel({
                             <Badge
                               variant={rateVariant(ch.availability_rate)}
                             >
-                              {ch.availability_rate != null
+                              {ch.availability_rate != null &&
+                              ch.availability_rate >= 0
                                 ? `${ch.availability_rate.toFixed(1)}%`
                                 : '-'}
                             </Badge>
@@ -267,13 +273,13 @@ export default function GroupDetailPanel({
                             <Badge
                               variant={
                                 ch.cache_hit_rate != null &&
-                                ch.cache_hit_rate >= 3
+                                ch.cache_hit_rate >= 0
                                   ? rateVariant(ch.cache_hit_rate)
                                   : 'outline'
                               }
                             >
                               {ch.cache_hit_rate != null &&
-                              ch.cache_hit_rate >= 3
+                              ch.cache_hit_rate >= 0
                                 ? `${ch.cache_hit_rate.toFixed(1)}%`
                                 : '—'}
                             </Badge>

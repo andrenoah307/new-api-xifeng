@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { MODE_OPTIONS, optionLabelKey } from '../../constants'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -116,6 +117,7 @@ export function RiskGroupsPanel({
                   </TableCell>
                   <TableCell>
                     <StatusBadge
+                      copyable={false}
                       variant={
                         g.effective_mode === 'enforce'
                           ? 'danger'
@@ -124,7 +126,12 @@ export function RiskGroupsPanel({
                             : 'neutral'
                       }
                     >
-                      {g.effective_mode || config.mode}
+                      {t(
+                        optionLabelKey(
+                          MODE_OPTIONS,
+                          g.effective_mode || config.mode
+                        )
+                      )}
                     </StatusBadge>
                   </TableCell>
                   <TableCell>{g.rule_count_total}</TableCell>

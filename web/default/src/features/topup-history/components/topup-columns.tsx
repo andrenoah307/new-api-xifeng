@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { StatusBadge } from '@/components/status-badge'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatTimestampToDate } from '@/lib/format'
+import { formatLocalCurrencyAmount } from '@/lib/currency'
 import type { TopupRecord } from '../api'
 import {
   STATUS_CONFIG,
@@ -76,7 +77,9 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
             )
           }
           return (
-            <span className="font-mono text-xs">{row.original.amount}</span>
+            <span className="font-mono text-xs">
+              {Number(row.original.amount).toLocaleString()}
+            </span>
           )
         },
         meta: { label: t('Top-up Amount') },
@@ -86,7 +89,7 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         header: t('Payment Amount'),
         cell: ({ row }) => (
           <span className="font-mono text-xs text-red-600 dark:text-red-400">
-            ¥{row.original.money.toFixed(2)}
+            {formatLocalCurrencyAmount(row.original.money)}
           </span>
         ),
         meta: { label: t('Payment Amount') },

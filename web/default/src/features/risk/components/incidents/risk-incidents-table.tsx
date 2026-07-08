@@ -158,6 +158,7 @@ export function RiskIncidentsTable() {
                     <TableCell>
                       <div className="space-y-0.5">
                         <StatusBadge
+                          copyable={false}
                           variant={
                             item.subject_type === 'token'
                               ? 'blue'
@@ -183,6 +184,7 @@ export function RiskIncidentsTable() {
                     </TableCell>
                     <TableCell>
                       <StatusBadge
+                        copyable={false}
                         variant={dc.variant as 'danger' | 'warning' | 'neutral'}
                       >
                         {t(dc.labelKey)}

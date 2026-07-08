@@ -44,13 +44,24 @@ import { useAutoGroup } from './auto-group-provider'
 // Form Schema
 // ============================================================================
 
-const conditionSchema = z.object({
-  metric: z.string().min(1, 'Metric is required'),
-  op: z.string().min(1, 'Operator is required'),
-  value: z.number(),
-  value_str: z.string().optional(),
-  param: z.number().optional(),
-})
+const conditionSchema = z
+  .object({
+    metric: z.string().min(1, 'Metric is required'),
+    op: z.string().min(1, 'Operator is required'),
+    value: z.number(),
+    value_str: z.string().optional(),
+    param: z.number().optional(),
+  })
+  .superRefine((cond, ctx) => {
+    // "近 N 小时"类指标必须提供时间窗口，否则后端拿到 undefined 无法计算
+    if (METRICS_MAP[cond.metric]?.needsParam && !(cond.param && cond.param >= 1)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['param'],
+        message: 'Hours (N) is required for this metric',
+      })
+    }
+  })
 
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),

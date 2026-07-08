@@ -13,7 +13,7 @@ import {
   formatClock,
   isGroupOnline,
   rateAccentColor,
-  computeRateFromHistory,
+  resolveDisplayRate,
 } from '../constants'
 import StatusTimeline from './status-timeline'
 
@@ -33,19 +33,18 @@ const GroupStatusCard = memo(function GroupStatusCard({
   const online = isGroupOnline(group)
   const noData =
     (group.total_channels ?? 0) === 0 && (group.availability_rate == null || group.availability_rate < 0)
-  const historyAvail = computeRateFromHistory(group.history, 'availability_rate')
-  const availRate = historyAvail ?? (
-    group.availability_rate != null && group.availability_rate >= 0
-      ? group.availability_rate
-      : null
+  const availRate = resolveDisplayRate(
+    group.history,
+    'availability_rate',
+    group.availability_rate
   )
-  const historyCacheRate = computeRateFromHistory(group.history, 'cache_hit_rate')
-  const cacheRate = historyCacheRate ?? (
-    group.cache_hit_rate != null && group.cache_hit_rate >= 0
-      ? group.cache_hit_rate
-      : null
+  const cacheRate = resolveDisplayRate(
+    group.history,
+    'cache_hit_rate',
+    group.cache_hit_rate
   )
-  const showCache = cacheRate != null && cacheRate >= 3
+  // 只有 null（无数据/-1 哨兵）才隐藏；0~3% 是真实的低命中率，正常显示
+  const showCache = cacheRate != null
   const frt = group.avg_frt ?? group.first_response_time
 
   const dotColor = noData

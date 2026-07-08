@@ -154,7 +154,7 @@ export default function MonitoringDashboard() {
     staleTime: POLL_INTERVAL_MS - 5_000,
   })
 
-  // 2. Once we have groups, fetch history for each in parallel (only on first load)
+  // 2. Once we have groups, fetch history for each in parallel
   const groupNames = useMemo(
     () => (rawGroups ?? []).map((g) => g.group_name).sort(),
     [rawGroups]
@@ -188,7 +188,9 @@ export default function MonitoringDashboard() {
       return map
     },
     enabled: groupNames.length > 0,
-    staleTime: Infinity, // History only refreshes on manual action
+    // 与分组列表同一节奏自动刷新，兑现"下次自动刷新"倒计时的承诺
+    refetchInterval: POLL_INTERVAL_MS,
+    staleTime: POLL_INTERVAL_MS - 5_000,
   })
 
   // 3. Merge groups + history

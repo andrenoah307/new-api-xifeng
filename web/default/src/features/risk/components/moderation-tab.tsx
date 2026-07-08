@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -79,6 +79,14 @@ export function ModerationTab() {
   const [debugGroup, setDebugGroup] = useState('__default__')
   const [debugRunning, setDebugRunning] = useState(false)
   const [debugResult, setDebugResult] = useState<Record<string, unknown> | null>(null)
+  // 调试轮询最长跑 30 秒，组件卸载后必须停止，避免卸载后 setState
+  const debugMountedRef = useRef(true)
+  useEffect(() => {
+    debugMountedRef.current = true
+    return () => {
+      debugMountedRef.current = false
+    }
+  }, [])
   const [detailId, setDetailId] = useState<number | null>(null)
 
   const { data: config } = useQuery({
@@ -189,6 +197,7 @@ export function ModerationTab() {
       })
       let attempts = 0
       const poll = async (): Promise<void> => {
+        if (!debugMountedRef.current) return
         if (attempts >= 30) {
           setDebugResult({ error: t('Debug timeout') })
           setDebugRunning(false)
@@ -196,6 +205,7 @@ export function ModerationTab() {
         }
         attempts++
         const result = await getModerationDebugResult(request_id)
+        if (!debugMountedRef.current) return
         if (!result.pending || result.result?.error) {
           setDebugResult(result as unknown as Record<string, unknown>)
           setDebugRunning(false)
@@ -206,8 +216,10 @@ export function ModerationTab() {
       }
       await poll()
     } catch {
-      toast.error(t('Debug failed'))
-      setDebugRunning(false)
+      if (debugMountedRef.current) {
+        toast.error(t('Debug failed'))
+        setDebugRunning(false)
+      }
     }
   }, [debugText, debugGroup, t])
 
@@ -503,6 +515,7 @@ export function ModerationTab() {
                     <TableRow key={rule.id}>
                       <TableCell>
                         <StatusBadge
+                          copyable={false}
                           variant={rule.enabled ? 'success' : 'neutral'}
                         >
                           {rule.enabled ? t('On') : t('Off')}
@@ -516,6 +529,7 @@ export function ModerationTab() {
                       </TableCell>
                       <TableCell>
                         <StatusBadge
+                          copyable={false}
                           variant={
                             rule.action === 'block' ? 'danger' : 'warning'
                           }
@@ -721,6 +735,7 @@ export function ModerationTab() {
                       </TableCell>
                       <TableCell>
                         <StatusBadge
+                          copyable={false}
                           variant={item.flagged ? 'danger' : 'success'}
                         >
                           {item.flagged ? t('Flagged') : t('Clean')}
@@ -804,14 +819,21 @@ export function ModerationTab() {
                 </dd>
                 <dt className="text-muted-foreground">{t('Flagged')}</dt>
                 <dd className="min-w-0 overflow-hidden">
-                  <StatusBadge variant={detailData.flagged ? 'danger' : 'success'}>
+                  <StatusBadge
+                    copyable={false}
+                    variant={detailData.flagged ? 'danger' : 'success'}
+                  >
                     {detailData.flagged ? t('Flagged') : t('Clean')}
                   </StatusBadge>
                 </dd>
                 <dt className="text-muted-foreground">{t('Max Category')}</dt>
                 <dd className="min-w-0 overflow-hidden">{detailData.max_category || '-'}</dd>
                 <dt className="text-muted-foreground">{t('Max Score')}</dt>
-                <dd className="min-w-0 overflow-hidden">{detailData.max_score ?? '-'}</dd>
+                <dd className="min-w-0 overflow-hidden">
+                  {detailData.max_score != null
+                    ? detailData.max_score.toFixed(2)
+                    : '-'}
+                </dd>
                 <dt className="text-muted-foreground">{t('Matched Rules')}</dt>
                 <dd className="min-w-0 overflow-hidden">{detailData.matched_rules || '-'}</dd>
                 <dt className="text-muted-foreground">{t('Time')}</dt>

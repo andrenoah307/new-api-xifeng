@@ -39,10 +39,17 @@ import { useInvitationCodes } from '../invitation-codes-provider'
 
 const formSchema = z.object({
   name: z.string().min(1),
-  expired_time: z.string().optional(),
+  expired_time: z
+    .string()
+    .optional()
+    .refine(
+      (v) => !v || parseTimestampFromInput(v) > Math.floor(Date.now() / 1000),
+      { message: 'Expiration time must be in the future' }
+    ),
   max_uses: z.coerce.number().int().min(0),
   owner_user_id: z.coerce.number().int().min(0),
-  count: z.coerce.number().int().min(1),
+  // 后端单次批量生成上限 100（controller/invitation_code.go）
+  count: z.coerce.number().int().min(1).max(100),
 })
 
 type FormValues = z.infer<typeof formSchema>
