@@ -8,6 +8,39 @@ const zh: Record<string, string> = {
   'Ticket Admin': '工单管理',
 
   // Risk Control
+  'Active detection rules': '生效中的检测规则',
+  'Ban Email Body Template': '封禁邮件正文模板',
+  'Ban Email Subject Template': '封禁邮件主题模板',
+  'Category Scores': '分类得分',
+  Decision: '处置',
+  Distribution: '分布检测',
+  'Email on Auto-ban': '自动封禁时发送邮件',
+  'Enabled Sources': '启用来源',
+  'Enabled groups': '启用分组',
+  'Enabled rules not bound to any group': '未绑定任何分组的启用规则',
+  'Groups whitelisted with mode != off': '白名单中模式非关闭的分组',
+  'HTTP Timeout (ms)': 'HTTP 超时（毫秒）',
+  'Incident Detail': '事件详情',
+  'Input Content': '输入内容',
+  'Input Summary': '输入摘要',
+  'Matched Rules': '命中规则',
+  'Max Category': '最高分类',
+  'Max Emails per Window': '窗口内最大邮件数',
+  'Max Score': '最高得分',
+  Moderation: '内容审核',
+  'Multi-key rotation with auto-failover': '多密钥轮换，自动故障切换',
+  Off: '关',
+  On: '开',
+  'Record Unmatched': '记录未命中',
+  'Reuses ticket email channel': '复用工单邮件通道',
+  'Rules whose groups are not whitelisted': '所属分组不在白名单的规则',
+  'Sampling rate': '采样率',
+  Subjects: '主体',
+  'Subjects with risk score >= 60': '风险分 ≥ 60 的主体',
+  Unban: '解封',
+  'Users / API keys currently auto-blocked': '当前被自动封禁的用户 / API 密钥',
+  'Users / API keys currently under high-risk observation':
+    '当前处于高风险观察中的用户 / API 密钥',
   'Risk Overview': '风控概览',
   'Risk Rules': '风控规则',
   'Risk Subjects': '风控主体',
@@ -258,6 +291,10 @@ const zh: Record<string, string> = {
   'Payee Type': '收款方式',
 
   // Invitation Codes
+  'Created successfully': '创建成功',
+  Generate: '生成',
+  'Owner ID': '拥有者 ID',
+  'Used At': '使用时间',
   'Create Invitation Code': '创建邀请码',
   'Create Invitation Codes': '批量创建邀请码',
   'Edit Invitation Code': '编辑邀请码',
@@ -599,6 +636,15 @@ const zh: Record<string, string> = {
   'Search by company name, email or amount...': '搜索公司名称、邮箱或金额...',
   'No data': '暂无数据',
   // Auto Group
+  Enroll: '纳管',
+  Enrollments: '纳管用户',
+  'Enter user IDs to enroll them in auto group. Their groups will be evaluated and assigned automatically.':
+    '输入用户 ID 将其纳入自动分组，系统会自动评估并分配其分组。',
+  'No auto group enrollments yet. Enroll users or trigger a sweep.':
+    '还没有纳管的用户。请纳管用户或触发一次全量扫描。',
+  'No auto group rules available. Create your first rule to get started.':
+    '还没有自动分组规则。创建第一条规则以开始使用。',
+  Unenroll: '取消纳管',
   'Auto Group': '自动分组',
   'Manage automatic user group assignment rules and enrollments':
     '管理自动用户分组规则和纳入记录',

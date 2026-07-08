@@ -8,6 +8,44 @@ const en = {
   'Ticket Admin': 'Ticket Admin',
 
   // Risk Control
+  'Active detection rules': 'Active detection rules',
+  'Ban Email Body Template': 'Ban Email Body Template',
+  'Ban Email Subject Template': 'Ban Email Subject Template',
+  'Category Scores': 'Category Scores',
+  Decision: 'Decision',
+  Distribution: 'Distribution',
+  'Email on Auto-ban': 'Email on Auto-ban',
+  'Enabled Sources': 'Enabled Sources',
+  'Enabled groups': 'Enabled groups',
+  'Enabled rules not bound to any group':
+    'Enabled rules not bound to any group',
+  'Groups whitelisted with mode != off':
+    'Groups whitelisted with mode != off',
+  'HTTP Timeout (ms)': 'HTTP Timeout (ms)',
+  'Incident Detail': 'Incident Detail',
+  'Input Content': 'Input Content',
+  'Input Summary': 'Input Summary',
+  'Matched Rules': 'Matched Rules',
+  'Max Category': 'Max Category',
+  'Max Emails per Window': 'Max Emails per Window',
+  'Max Score': 'Max Score',
+  Moderation: 'Moderation',
+  'Multi-key rotation with auto-failover':
+    'Multi-key rotation with auto-failover',
+  Off: 'Off',
+  On: 'On',
+  'Record Unmatched': 'Record Unmatched',
+  'Reuses ticket email channel': 'Reuses ticket email channel',
+  'Rules whose groups are not whitelisted':
+    'Rules whose groups are not whitelisted',
+  'Sampling rate': 'Sampling rate',
+  Subjects: 'Subjects',
+  'Subjects with risk score >= 60': 'Subjects with risk score >= 60',
+  Unban: 'Unban',
+  'Users / API keys currently auto-blocked':
+    'Users / API keys currently auto-blocked',
+  'Users / API keys currently under high-risk observation':
+    'Users / API keys currently under high-risk observation',
   'Risk Overview': 'Risk Overview',
   'Risk Rules': 'Risk Rules',
   'Risk Subjects': 'Risk Subjects',
@@ -245,6 +283,10 @@ const en = {
   Confirm: 'Confirm',
 
   // Invitation Codes
+  'Created successfully': 'Created successfully',
+  Generate: 'Generate',
+  'Owner ID': 'Owner ID',
+  'Used At': 'Used At',
   'Create Invitation Code': 'Create Invitation Code',
   'Create Invitation Codes': 'Create Invitation Codes',
   'Edit Invitation Code': 'Edit Invitation Code',
@@ -595,6 +637,15 @@ const en = {
     'Search by company name, email or amount...',
   'No data': 'No data',
   // Auto Group
+  Enroll: 'Enroll',
+  Enrollments: 'Enrollments',
+  'Enter user IDs to enroll them in auto group. Their groups will be evaluated and assigned automatically.':
+    'Enter user IDs to enroll them in auto group. Their groups will be evaluated and assigned automatically.',
+  'No auto group enrollments yet. Enroll users or trigger a sweep.':
+    'No auto group enrollments yet. Enroll users or trigger a sweep.',
+  'No auto group rules available. Create your first rule to get started.':
+    'No auto group rules available. Create your first rule to get started.',
+  Unenroll: 'Unenroll',
   'Auto Group': 'Auto Group',
   'Manage automatic user group assignment rules and enrollments':
     'Manage automatic user group assignment rules and enrollments',
