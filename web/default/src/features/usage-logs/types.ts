@@ -124,6 +124,9 @@ export interface LogOtherData {
   billing_mode?: string
   expr_b64?: string
   matched_tier?: string
+  // long_context_tier: backend sets true when the ratio-path long-context
+  // (>272K) tiered billing fired (gpt-5.4/5.6). Drives a friendly billing notice.
+  long_context_tier?: boolean
   reasoning_effort?: string
   image?: boolean
   image_ratio?: number

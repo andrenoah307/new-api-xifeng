@@ -223,6 +223,8 @@
     "RSA 私钥 (沙盒)": "",
     "RSA 私钥 (生产)": "",
     "Reasoning Effort": "Reasoning Effort",
+    "计费提示": "Billing Notice",
+    "已触发长上下文分段计费": "Long-context tiered billing triggered",
     "Recharge Quota": "Recharge Quota",
     "Redis 队列": "",
     "Request ID": "Request ID",

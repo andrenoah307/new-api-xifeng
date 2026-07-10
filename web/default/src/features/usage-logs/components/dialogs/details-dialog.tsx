@@ -835,6 +835,14 @@ export function DetailsDialog(props: DetailsDialogProps) {
               />
             )}
 
+            {/* Long-context tiered billing notice (ratio path >272K) */}
+            {isConsume && other?.long_context_tier && (
+              <div className='flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
+                <AlertTriangle className='size-3.5 shrink-0' />
+                <span>{t('Long-context tiered billing triggered')}</span>
+              </div>
+            )}
+
             {/* Tiered pricing breakdown (when billing_mode is tiered_expr) */}
             {isTieredBilling && other?.expr_b64 && (
               <div className='bg-muted/30 min-w-0 overflow-hidden rounded-md border px-3 max-sm:px-2'>

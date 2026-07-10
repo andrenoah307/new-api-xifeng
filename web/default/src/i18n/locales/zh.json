@@ -2261,6 +2261,7 @@
     "Match Value (optional)": "匹配值（可选）",
     "Matched": "已命中",
     "Matched Tier": "命中阶梯",
+    "Long-context tiered billing triggered": "已触发长上下文分段计费",
     "Matching Rules": "匹配规则",
     "Max Disk Cache Size (MB)": "磁盘缓存最大总量 (MB)",
     "Max Entries": "最大条目数",

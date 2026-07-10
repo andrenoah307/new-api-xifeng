@@ -58,6 +58,7 @@ type textQuotaSummary struct {
 	AudioInputPrice          float64
 	ImageGenerationCallPrice float64
 	ToolCallSurchargeQuota   decimal.Decimal
+	LongContextTierApplied   bool
 }
 
 func cacheWriteTokensTotal(summary textQuotaSummary) int {
@@ -224,6 +225,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		billing_setting.GetBillingMode(summary.ModelName) != billing_setting.BillingModeTieredExpr {
 		summary.ModelRatio *= longContextInputMul
 		summary.CompletionRatio *= longContextOutputMul / longContextInputMul
+		summary.LongContextTierApplied = true
 	}
 	summary.CacheTokens = usage.PromptTokensDetails.CachedTokens
 	summary.CacheCreationTokens = usage.PromptTokensDetails.CachedCreationTokens
@@ -403,6 +405,10 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		}
 	}
 
+	if summary.LongContextTierApplied {
+		extraContent = append(extraContent, "已触发长上下文分段计费")
+	}
+
 	if summary.WebSearchCallCount > 0 {
 		extraContent = append(extraContent, fmt.Sprintf("Web Search 调用 %d 次，调用花费 %s", summary.WebSearchCallCount, decimal.NewFromFloat(summary.WebSearchPrice).Mul(decimal.NewFromInt(int64(summary.WebSearchCallCount))).Div(decimal.NewFromInt(1000)).Mul(decimal.NewFromFloat(summary.GroupRatio)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).String()))
 	}
@@ -459,6 +465,10 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	}
 	if adminRejectReason != "" {
 		other["reject_reason"] = adminRejectReason
+	}
+	if summary.LongContextTierApplied {
+		// long_context_tier: 输入超 272K 触发 ratio 路径长上下文分段计费的可观测标记，供双前端渲染友好提示。
+		other["long_context_tier"] = true
 	}
 	if summary.ImageTokens != 0 {
 		other["image"] = true
