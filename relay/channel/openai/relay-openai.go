@@ -577,6 +577,11 @@ func OpenaiHandlerWithUsage(c *gin.Context, info *relaycommon.RelayInfo, resp *h
 	if usageResp.InputTokensDetails != nil {
 		usageResp.PromptTokensDetails.ImageTokens += usageResp.InputTokensDetails.ImageTokens
 		usageResp.PromptTokensDetails.TextTokens += usageResp.InputTokensDetails.TextTokens
+		// 缓存写入(GPT-5.6+)：以 input_tokens_details 返回时补搬到 prompt_tokens_details；仅 prompt 侧无写入值时拷贝防重复计数。
+		if usageResp.PromptTokensDetails.EffectiveCacheWriteTokens() == 0 {
+			usageResp.PromptTokensDetails.CacheWriteTokens = usageResp.InputTokensDetails.CacheWriteTokens
+			usageResp.PromptTokensDetails.CacheCreationTokens = usageResp.InputTokensDetails.CacheCreationTokens
+		}
 	}
 	applyUsagePostProcessing(info, &usageResp.Usage, responseBody)
 	return &usageResp.Usage, nil

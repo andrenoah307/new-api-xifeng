@@ -29,6 +29,10 @@ func BuildTieredTokenParams(usage *dto.Usage, isClaudeUsageSemantic bool, usedVa
 		cc1h = float64(usage.ClaudeCacheCreation1hTokens)
 		cc5m = float64(usage.ClaudeCacheCreation5mTokens)
 	}
+	// 缓存写入桥接：非 anthropic 且旧字段为0时，回退 OpenAI 缓存写入(cache_write/creation)，使 tiered 表达式的 cc 变量也能计费。
+	if usage.UsageSemantic != "anthropic" && cc5m == 0 {
+		cc5m = float64(usage.PromptTokensDetails.EffectiveCacheWriteTokens())
+	}
 
 	img := float64(usage.PromptTokensDetails.ImageTokens)
 	ai := float64(usage.PromptTokensDetails.AudioTokens)

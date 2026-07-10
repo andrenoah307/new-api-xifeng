@@ -1,0 +1,128 @@
+package service
+
+import (
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/dto"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/setting/billing_setting"
+	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/QuantumNous/new-api/types"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
+)
+
+func newGPT56LongContextInfo(model string) *relaycommon.RelayInfo {
+	return &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatOpenAI,
+		OriginModelName: model,
+		PriceData: types.PriceData{
+			ModelRatio:         1,
+			CompletionRatio:    2,
+			CacheRatio:         0.1,
+			CacheCreationRatio: 1.25,
+			GroupRatioInfo: types.GroupRatioInfo{
+				GroupRatio: 1,
+			},
+		},
+		StartTime: time.Now(),
+	}
+}
+
+func newGPT56LongContextUsage(inputTokens int) *dto.Usage {
+	return &dto.Usage{
+		PromptTokens:     inputTokens,
+		CompletionTokens: 1000,
+		PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens:     100000,
+			CacheWriteTokens: 50000,
+		},
+	}
+}
+
+func calculateGPT56LongContextSummary(t *testing.T, model string, inputTokens int) textQuotaSummary {
+	t.Helper()
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	return calculateTextQuotaSummary(ctx, newGPT56LongContextInfo(model), newGPT56LongContextUsage(inputTokens))
+}
+
+func marshalBillingSettingJSON(t *testing.T, value any) string {
+	t.Helper()
+
+	jsonBytes, err := common.Marshal(value)
+	require.NoError(t, err)
+	return string(jsonBytes)
+}
+
+func setBillingModesForTextQuotaTest(t *testing.T, modes map[string]string) {
+	t.Helper()
+
+	oldModes := billing_setting.GetBillingModeCopy()
+	oldExprs := billing_setting.GetBillingExprCopy()
+	require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{
+		"billing_setting." + billing_setting.BillingModeField: marshalBillingSettingJSON(t, modes),
+		"billing_setting." + billing_setting.BillingExprField: marshalBillingSettingJSON(t, oldExprs),
+	}))
+	t.Cleanup(func() {
+		require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{
+			"billing_setting." + billing_setting.BillingModeField: marshalBillingSettingJSON(t, oldModes),
+			"billing_setting." + billing_setting.BillingExprField: marshalBillingSettingJSON(t, oldExprs),
+		}))
+	})
+}
+
+func TestGPT56LongContextRatioBilling(t *testing.T) {
+	summary := calculateGPT56LongContextSummary(t, "gpt-5.6-terra", 300000)
+
+	require.Equal(t, 2.0, summary.ModelRatio)
+	require.Equal(t, 1.5, summary.CompletionRatio)
+	require.Equal(t, 448000, summary.Quota)
+}
+
+func TestGPT54LongContextRatioBilling(t *testing.T) {
+	summary := calculateGPT56LongContextSummary(t, "gpt-5.4-nano", 300000)
+
+	require.Equal(t, 2.0, summary.ModelRatio)
+}
+
+func TestGPT56LongContextThresholdBoundary(t *testing.T) {
+	atThreshold := calculateGPT56LongContextSummary(t, "gpt-5.6-terra", 272000)
+	overThreshold := calculateGPT56LongContextSummary(t, "gpt-5.6-terra", 272001)
+
+	require.Equal(t, 1.0, atThreshold.ModelRatio)
+	require.Equal(t, 2.0, overThreshold.ModelRatio)
+}
+
+func TestGPT56LongContextShortPromptDoesNotApply(t *testing.T) {
+	summary := calculateGPT56LongContextSummary(t, "gpt-5.6-terra", 200000)
+
+	require.Equal(t, 1.0, summary.ModelRatio)
+}
+
+func TestGPT56LongContextNonTargetModelsDoNotApply(t *testing.T) {
+	tests := []string{"gpt-4o", "gpt-5.7-x"}
+
+	for _, model := range tests {
+		t.Run(model, func(t *testing.T) {
+			summary := calculateGPT56LongContextSummary(t, model, 300000)
+
+			require.Equal(t, 1.0, summary.ModelRatio)
+		})
+	}
+}
+
+func TestGPT55TieredExprSkipsLongContextRatioBilling(t *testing.T) {
+	setBillingModesForTextQuotaTest(t, map[string]string{"gpt-5.5": billing_setting.BillingModeTieredExpr})
+
+	summary := calculateGPT56LongContextSummary(t, "gpt-5.5", 300000)
+
+	require.Equal(t, 1.0, summary.ModelRatio)
+}

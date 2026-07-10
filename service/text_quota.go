@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/setting/billing_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
 
@@ -79,6 +80,17 @@ func isLegacyClaudeDerivedOpenAIUsage(relayInfo *relaycommon.RelayInfo, usage *d
 		return false
 	}
 	return usage.ClaudeCacheCreation5mTokens > 0 || usage.ClaudeCacheCreation1hTokens > 0
+}
+
+// GPT-5.4/5.5/5.6 长上下文分档：输入>阈值时 输入/缓存读/缓存写 ×2、输出 ×1.5。
+const (
+	longContextThreshold = 272000
+	longContextInputMul  = 2.0
+	longContextOutputMul = 1.5
+)
+
+func isLongContextTierModel(name string) bool {
+	return strings.HasPrefix(name, "gpt-5.4") || strings.HasPrefix(name, "gpt-5.5") || strings.HasPrefix(name, "gpt-5.6")
 }
 
 func calculateTextToolCallSurcharge(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, summary *textQuotaSummary) decimal.Decimal {
@@ -180,8 +192,19 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	summary.PromptTokens = usage.PromptTokens
 	summary.CompletionTokens = usage.CompletionTokens
 	summary.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	// GPT-5.4/5.5/5.6 长上下文分档(仅 ratio 路径)：输入>272K 时 ModelRatio×2、CompletionRatio×0.75(输出净1.5×)。
+	// 对 tiered_expr 模型显式 skip：其 quota 由 composeTieredTextQuota 用表达式整体覆盖，改倍率无效且会污染日志倍率、与表达式内 len 分档双重叠加。
+	if summary.PromptTokens > longContextThreshold && isLongContextTierModel(summary.ModelName) &&
+		billing_setting.GetBillingMode(summary.ModelName) != billing_setting.BillingModeTieredExpr {
+		summary.ModelRatio *= longContextInputMul
+		summary.CompletionRatio *= longContextOutputMul / longContextInputMul
+	}
 	summary.CacheTokens = usage.PromptTokensDetails.CachedTokens
 	summary.CacheCreationTokens = usage.PromptTokensDetails.CachedCreationTokens
+	// 兼容 OpenAI/Responses(GPT-5.6+) 缓存写入字段：Claude 走 CachedCreationTokens；OpenAI 走 cache_write/creation，取max不重复计费。
+	if w := usage.PromptTokensDetails.EffectiveCacheWriteTokens(); w > summary.CacheCreationTokens {
+		summary.CacheCreationTokens = w
+	}
 	summary.CacheCreationTokens5m = usage.ClaudeCacheCreation5mTokens
 	summary.CacheCreationTokens1h = usage.ClaudeCacheCreation1hTokens
 	summary.ImageTokens = usage.PromptTokensDetails.ImageTokens
