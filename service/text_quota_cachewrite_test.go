@@ -59,7 +59,7 @@ func TestCacheWriteBillingOpenAI(t *testing.T) {
 
 	relayInfo := &relaycommon.RelayInfo{
 		RelayFormat:     types.RelayFormatOpenAI,
-		OriginModelName: "gpt-5.6-terra",
+		OriginModelName: "gpt-5.5-terra",
 		PriceData: types.PriceData{
 			ModelRatio:         1,
 			CompletionRatio:    2,

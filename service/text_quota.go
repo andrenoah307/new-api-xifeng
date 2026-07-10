@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -91,6 +93,30 @@ const (
 
 func isLongContextTierModel(name string) bool {
 	return strings.HasPrefix(name, "gpt-5.4") || strings.HasPrefix(name, "gpt-5.5") || strings.HasPrefix(name, "gpt-5.6")
+}
+
+var gpt5xVersionRe = regexp.MustCompile(`^gpt-(\d+)(?:\.(\d+))?`)
+
+// isGpt56OrHigherModel 判断模型是否属 gpt-5.6 及更高系列（gpt-5.6/5.7/5.10/6.x…）。
+// 数值比较 major.minor，避免 "5.10 < 5.6" 字典序陷阱；前缀匹配覆盖 gpt-5.6-sol / gpt-5.6[1m] 等后缀变体。
+func isGpt56OrHigherModel(name string) bool {
+	m := gpt5xVersionRe.FindStringSubmatch(name)
+	if m == nil {
+		return false
+	}
+	major, _ := strconv.Atoi(m[1])
+	minor := 0
+	if m[2] != "" {
+		minor, _ = strconv.Atoi(m[2])
+	}
+	if major > 5 {
+		return true
+	}
+	return major == 5 && minor >= 6
+}
+
+func isOpenAITextRelayFormat(format types.RelayFormat) bool {
+	return format == types.RelayFormatOpenAI || format == types.RelayFormatOpenAIResponses
 }
 
 func calculateTextToolCallSurcharge(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, summary *textQuotaSummary) decimal.Decimal {
@@ -209,6 +235,17 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	summary.CacheCreationTokens1h = usage.ClaudeCacheCreation1hTokens
 	summary.ImageTokens = usage.PromptTokensDetails.ImageTokens
 	summary.AudioTokens = usage.PromptTokensDetails.AudioTokens
+	// 坑点 #142：gpt-5.6+ OpenAI/Responses 上游 cache_write_tokens 恒 0（OpenAI 写缓存免费不上报），
+	// 兼容计费：非读输入视为缓存写入按 CacheCreationRatio(1.25x) 计。仅 gpt-5.6+、仅 OpenAI 路径
+	// (!IsClaudeUsageSemantic，anthropic 已报真实值)、仅上游确未报写入 (CacheCreationTokens==0，其上方已取过 max)。
+	// 三桶自然闭合：baseTokens = prompt − read − write = 0（下方减 image/audio 不为负）。
+	if !relayInfo.PriceData.UsePrice && summary.CacheCreationTokens == 0 && !summary.IsClaudeUsageSemantic &&
+		isOpenAITextRelayFormat(relayInfo.GetFinalRequestRelayFormat()) && isGpt56OrHigherModel(summary.ModelName) {
+		reconstructed := summary.PromptTokens - summary.CacheTokens - summary.ImageTokens - summary.AudioTokens
+		if reconstructed > 0 {
+			summary.CacheCreationTokens = reconstructed
+		}
+	}
 	legacyClaudeDerived := isLegacyClaudeDerivedOpenAIUsage(relayInfo, usage)
 	isOpenRouterClaudeBilling := relayInfo.ChannelMeta != nil &&
 		relayInfo.ChannelType == constant.ChannelTypeOpenRouter &&
