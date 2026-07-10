@@ -1667,6 +1667,8 @@ export function renderModelPrice(opts) {
     user_group_ratio,
     cache_tokens: cacheTokens = 0,
     cache_ratio: cacheRatio = 1.0,
+    cache_creation_tokens: cacheCreationTokens = 0,
+    cache_creation_ratio: cacheCreationRatio = 1.0,
     image = false,
     image_ratio: imageRatio = 1.0,
     image_output: imageOutputTokens = 0,
@@ -1718,9 +1720,12 @@ export function renderModelPrice(opts) {
     const inputRatioPrice = modelRatio * 2.0;
     const completionRatioPrice = modelRatio * 2.0 * completionRatio;
     const cacheRatioPrice = modelRatio * 2.0 * cacheRatio;
+    const cacheCreationRatioPrice = modelRatio * 2.0 * cacheCreationRatio;
     const imageRatioPrice = modelRatio * 2.0 * imageRatio;
     let effectiveInputTokens =
-        inputTokens - cacheTokens + cacheTokens * cacheRatio;
+        inputTokens - cacheTokens - cacheCreationTokens +
+        cacheTokens * cacheRatio +
+        cacheCreationTokens * cacheCreationRatio;
     if (image && imageOutputTokens > 0) {
       effectiveInputTokens =
           inputTokens - imageOutputTokens + imageOutputTokens * imageRatio;
@@ -1752,7 +1757,7 @@ export function renderModelPrice(opts) {
       inputDesc = buildBillingText(
           '(输入 {{nonCacheInput}} tokens / 1M tokens * {{symbol}}{{price}} + 缓存 {{cacheInput}} tokens / 1M tokens * {{symbol}}{{cachePrice}}',
           {
-            nonCacheInput: inputTokens - cacheTokens,
+            nonCacheInput: inputTokens - cacheTokens - cacheCreationTokens,
             cacheInput: cacheTokens,
             symbol,
             price: formatBillingDisplayPrice(inputRatioPrice, rate),
@@ -1774,12 +1779,26 @@ export function renderModelPrice(opts) {
       inputDesc = buildBillingPriceText(
           '(输入 {{input}} tokens / 1M tokens * {{symbol}}{{price}}',
           {
-            input: inputTokens,
+            input: inputTokens - cacheCreationTokens,
             symbol,
             usdAmount: inputRatioPrice,
             rate,
           },
       );
+    }
+
+    if (cacheCreationTokens > 0) {
+      inputDesc +=
+          ' + ' +
+          buildBillingPriceText(
+              '缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}',
+              {
+                symbol,
+                usdAmount: cacheCreationRatioPrice,
+                rate,
+                tokens: cacheCreationTokens,
+              },
+          );
     }
 
     const outputDesc = buildBillingText(
@@ -1863,6 +1882,16 @@ export function renderModelPrice(opts) {
               },
           )
           : null,
+      cacheCreationTokens > 0
+          ? buildBillingPriceText(
+              '缓存创建价格：{{symbol}}{{price}} / 1M tokens',
+              {
+                symbol,
+                usdAmount: cacheCreationRatioPrice,
+                rate,
+              },
+          )
+          : null,
       image && imageOutputTokens > 0
           ? buildBillingPriceText(
               '图片输入价格：{{symbol}}{{total}} / 1M tokens',
@@ -1928,6 +1957,7 @@ export function renderModelPrice(opts) {
   const modelRatioValue = formatRatioValue(modelRatio);
   const completionRatioValue = formatRatioValue(completionRatio);
   const cacheRatioValue = formatRatioValue(cacheRatio);
+  const cacheCreationRatioValue = formatRatioValue(cacheCreationRatio);
   const imageRatioValue = formatRatioValue(imageRatio);
   const inputRatioPrice = modelRatio * 2.0;
   const completionRatioPrice = modelRatio * 2.0 * completionRatioValue;
@@ -1937,12 +1967,13 @@ export function renderModelPrice(opts) {
           : null;
 
   const textInputTokens = Math.max(
-      inputTokens - cacheTokens - audioInputTokens,
+      inputTokens - cacheTokens - cacheCreationTokens - audioInputTokens,
       0,
   );
   const imageInputTokens =
       image && imageOutputTokens > 0 ? imageOutputTokens : 0;
   const cacheInputTokens = cacheTokens;
+  const cacheCreationInputTokens = cacheCreationTokens;
 
   const textInputAmount =
       (textInputTokens / 1000000) * inputRatioPrice * groupRatio;
@@ -1950,6 +1981,11 @@ export function renderModelPrice(opts) {
       (cacheInputTokens / 1000000) *
       inputRatioPrice *
       cacheRatioValue *
+      groupRatio;
+  const cacheCreationInputAmount =
+      (cacheCreationInputTokens / 1000000) *
+      inputRatioPrice *
+      cacheCreationRatioValue *
       groupRatio;
   const imageInputAmount =
       (imageInputTokens / 1000000) *
@@ -1969,6 +2005,7 @@ export function renderModelPrice(opts) {
   const totalAmount =
       textInputAmount +
       cacheInputAmount +
+      cacheCreationInputAmount +
       imageInputAmount +
       audioInputAmount +
       completionAmount +
@@ -1987,6 +2024,11 @@ export function renderModelPrice(opts) {
       cacheInputTokens > 0
           ? buildBillingText('缓存倍率 {{cacheRatio}}', {
             cacheRatio: cacheRatioValue,
+          })
+          : null,
+      cacheCreationInputTokens > 0
+          ? buildBillingText('缓存创建倍率 {{cacheCreationRatio}}', {
+            cacheCreationRatio: cacheCreationRatioValue,
           })
           : null,
       imageInputTokens > 0
@@ -2028,6 +2070,19 @@ export function renderModelPrice(opts) {
               ratioType: ratioLabel,
               ratio: groupRatio,
               amount: renderDisplayAmountFromUsd(cacheInputAmount),
+            },
+        )
+        : null,
+    cacheCreationInputTokens > 0
+        ? buildBillingText(
+            '缓存创建：{{tokens}} / 1M * 模型倍率 {{modelRatio}} * 缓存创建倍率 {{cacheCreationRatio}} * {{ratioType}} {{ratio}} = {{amount}}',
+            {
+              tokens: cacheCreationInputTokens,
+              modelRatio: modelRatioValue,
+              cacheCreationRatio: cacheCreationRatioValue,
+              ratioType: ratioLabel,
+              ratio: groupRatio,
+              amount: renderDisplayAmountFromUsd(cacheCreationInputAmount),
             },
         )
         : null,
