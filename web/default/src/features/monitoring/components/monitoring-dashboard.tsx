@@ -49,12 +49,10 @@ const POLL_INTERVAL_MS = 60_000
 
 // Isolated countdown component to avoid re-rendering the entire tree every second
 const RefreshButton = memo(function RefreshButton({
-  admin,
   refreshing,
   onRefresh,
   lastUpdated,
 }: {
-  admin: boolean
   refreshing: boolean
   onRefresh: () => void
   lastUpdated: number | null
@@ -81,12 +79,10 @@ const RefreshButton = memo(function RefreshButton({
     <Button
       variant="ghost"
       size="sm"
-      disabled={!admin || refreshing}
-      onClick={admin ? onRefresh : undefined}
+      disabled={refreshing}
+      onClick={onRefresh}
       title={
-        admin
-          ? t('Refresh now') + ' · ' + t('Next auto refresh {{c}}', { c: label })
-          : t('Next auto refresh {{c}}', { c: label })
+        t('Refresh now') + ' · ' + t('Next auto refresh {{c}}', { c: label })
       }
     >
       <RefreshCw
@@ -377,12 +373,13 @@ export default function MonitoringDashboard() {
                 </SelectItem>
               </SelectContent>
             </Select>
-            <RefreshButton
-              admin={admin}
-              refreshing={refreshMutation.isPending}
-              onRefresh={handleRefresh}
-              lastUpdated={lastUpdated}
-            />
+            {admin && (
+              <RefreshButton
+                refreshing={refreshMutation.isPending}
+                onRefresh={handleRefresh}
+                lastUpdated={lastUpdated}
+              />
+            )}
           </div>
         </div>
 

@@ -360,6 +360,7 @@ export function Wallet(props: WalletProps) {
               user={user}
               affiliateLink={affiliateLink}
               onTransfer={() => setTransferDialogOpen(true)}
+              commissionRate={Number(status?.top_up_commission_rate) || 0}
               complianceConfirmed={
                 topupInfo?.payment_compliance_confirmed !== false
               }

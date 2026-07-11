@@ -20,6 +20,7 @@ import { Share2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -33,6 +34,7 @@ interface AffiliateRewardsCardProps {
   user: UserWalletData | null
   affiliateLink: string
   onTransfer: () => void
+  commissionRate?: number
   complianceConfirmed?: boolean
   loading?: boolean
 }
@@ -41,6 +43,7 @@ export function AffiliateRewardsCard({
   user,
   affiliateLink,
   onTransfer,
+  commissionRate = 0,
   complianceConfirmed = true,
   loading,
 }: AffiliateRewardsCardProps) {
@@ -70,9 +73,18 @@ export function AffiliateRewardsCard({
             <Share2 />
           </IconBadge>
           <div className='min-w-0'>
-            <h3 className='truncate text-sm font-semibold'>
-              {t('Referral Program')}
-            </h3>
+            <div className='flex items-center gap-1.5'>
+              <h3 className='truncate text-sm font-semibold'>
+                {t('Referral Program')}
+              </h3>
+              {commissionRate > 0 && (
+                <StatusBadge
+                  label={`${t('Commission Rate')} ${commissionRate}%`}
+                  variant='info'
+                  copyable={false}
+                />
+              )}
+            </div>
             <p className='text-muted-foreground line-clamp-1 text-xs'>
               {t(
                 'Earn rewards when users join through your referral link. Transfer accumulated rewards to your balance anytime.'
