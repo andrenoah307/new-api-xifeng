@@ -734,11 +734,22 @@ func GetUserModels(c *gin.Context) {
 
 func UpdateUser(c *gin.Context) {
 	var updatedUser model.User
-	err := json.NewDecoder(c.Request.Body).Decode(&updatedUser)
-	if err != nil || updatedUser.Id == 0 {
+	rawBody, err := c.GetRawData()
+	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if err := common.Unmarshal(rawBody, &updatedUser); err != nil || updatedUser.Id == 0 {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	// 区分"未传 inviter_id"（保持不变）与"显式传 0"（清空邀请人）。
+	var requestData map[string]any
+	if err := common.Unmarshal(rawBody, &requestData); err != nil {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	_, inviterIdProvided := requestData["inviter_id"]
 	updatedUser.Username = strings.TrimSpace(updatedUser.Username)
 	if updatedUser.Username == "" {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
@@ -768,6 +779,20 @@ func UpdateUser(c *gin.Context) {
 	}
 	if updatedUser.Password == "$I_LOVE_U" {
 		updatedUser.Password = "" // rollback to what it should be
+	}
+	if !inviterIdProvided {
+		updatedUser.InviterId = originUser.InviterId
+	} else if updatedUser.InviterId != originUser.InviterId {
+		if updatedUser.InviterId < 0 || updatedUser.InviterId == updatedUser.Id {
+			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
+		if updatedUser.InviterId != 0 {
+			if _, err := model.GetUserById(updatedUser.InviterId, false); err != nil {
+				common.ApiErrorMsg(c, "邀请人不存在")
+				return
+			}
+		}
 	}
 	// Check email uniqueness (excluding the user being updated)
 	if updatedUser.Email != "" {

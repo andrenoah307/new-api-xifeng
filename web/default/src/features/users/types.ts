@@ -111,6 +111,7 @@ export interface UserFormData {
   quota?: number // Only used when updating user
   group?: string // Only used when updating user
   remark?: string // Only used when updating user
+  inviter_id?: number // Only used when updating user
   admin_permissions?: AdminPermissionMatrix
 }
 

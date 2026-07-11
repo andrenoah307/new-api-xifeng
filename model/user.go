@@ -65,16 +65,16 @@ type User struct {
 	// FOR UPDATE transaction (see IncrementEnforcementHit) so concurrent hits
 	// on the same user can never lose an increment. Window semantics: when
 	// (now - WindowStart) >= CountWindowHours both source counters are reset.
-	EnforcementHitCountRisk          int   `json:"enforcement_hit_count_risk" gorm:"default:0;index"`
-	EnforcementHitCountModeration    int   `json:"enforcement_hit_count_moderation" gorm:"default:0;index"`
-	EnforcementWindowStartAt         int64 `json:"enforcement_window_start_at" gorm:"bigint;default:0"`
-	EnforcementLastHitAt             int64 `json:"enforcement_last_hit_at" gorm:"bigint;default:0;index"`
-	EnforcementEmailWindowStartAt    int64 `json:"enforcement_email_window_start_at" gorm:"bigint;default:0"`
-	EnforcementEmailCountInWindow    int   `json:"enforcement_email_count_in_window" gorm:"default:0"`
-	EnforcementBanEmailWindowStartAt int64 `json:"enforcement_ban_email_window_start_at" gorm:"bigint;default:0"`
-	EnforcementBanEmailCountInWindow int   `json:"enforcement_ban_email_count_in_window" gorm:"default:0"`
-	EnforcementAutoBannedAt          int64 `json:"enforcement_auto_banned_at" gorm:"bigint;default:0;index"`
-	AdminPermissions map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
+	EnforcementHitCountRisk          int                        `json:"enforcement_hit_count_risk" gorm:"default:0;index"`
+	EnforcementHitCountModeration    int                        `json:"enforcement_hit_count_moderation" gorm:"default:0;index"`
+	EnforcementWindowStartAt         int64                      `json:"enforcement_window_start_at" gorm:"bigint;default:0"`
+	EnforcementLastHitAt             int64                      `json:"enforcement_last_hit_at" gorm:"bigint;default:0;index"`
+	EnforcementEmailWindowStartAt    int64                      `json:"enforcement_email_window_start_at" gorm:"bigint;default:0"`
+	EnforcementEmailCountInWindow    int                        `json:"enforcement_email_count_in_window" gorm:"default:0"`
+	EnforcementBanEmailWindowStartAt int64                      `json:"enforcement_ban_email_window_start_at" gorm:"bigint;default:0"`
+	EnforcementBanEmailCountInWindow int                        `json:"enforcement_ban_email_count_in_window" gorm:"default:0"`
+	EnforcementAutoBannedAt          int64                      `json:"enforcement_auto_banned_at" gorm:"bigint;default:0;index"`
+	AdminPermissions                 map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -788,6 +788,8 @@ func (user *User) EditWithTx(tx *gorm.DB, updatePassword bool) error {
 		"group":        newUser.Group,
 		"remark":       newUser.Remark,
 		"email":        newUser.Email,
+		// 管理员可修改邀请人；0 表示清空。合法性（存在、非自己）由 controller 校验。
+		"inviter_id": newUser.InviterId,
 	}
 	if updatePassword {
 		updates["password"] = newUser.Password
