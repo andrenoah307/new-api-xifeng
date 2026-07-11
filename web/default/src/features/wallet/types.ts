@@ -307,6 +307,9 @@ export interface CommissionRecord {
   commission_rate: number
   commission_quota: number
   is_manual: boolean
+  // 'topup' | 'invite' | 'refund_clawback'（扣回为负数记录）
+  type?: string
+  remark?: string
   created_at: number
 }
 

@@ -193,6 +193,7 @@ const en = {
   'General Ticket': 'General Ticket',
   'Refund Ticket': 'Refund Ticket',
   'Invoice Ticket': 'Invoice Ticket',
+  Date: 'Date',
   'Priority Low': 'Low',
   'Priority Medium': 'Medium',
   'Priority High': 'High',

@@ -4,9 +4,15 @@ import { cn } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { StatusBadge } from '@/components/status-badge'
 import { CopyButton } from '@/components/copy-button'
-import { formatTimestampToDate, formatQuota, parseQuotaFromDollars } from '@/lib/format'
+import {
+  formatTimestampToDate,
+  formatQuota,
+  parseQuotaFromDollars,
+  quotaUnitsToDollars,
+} from '@/lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -26,17 +32,28 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { getUserQuota, type TicketRefund, type TicketInvoice } from '../api'
+import {
+  getUserQuota,
+  type TicketRefund,
+  type TicketInvoice,
+  type RefundCommissionInfo,
+} from '../api'
 import { REFUND_STATUS, REFUND_STATUS_CONFIG, PAYEE_TYPE_LABELS, INVOICE_STATUS_CONFIG } from '../constants'
 
 interface RefundDetailProps {
   refund: TicketRefund
   userInvoices?: TicketInvoice[]
+  commissionInfo?: RefundCommissionInfo | null
   readonly?: boolean
   loading?: boolean
   onStatusChange?: (
     status: number,
-    extra?: { quota_mode?: string; actual_refund_quota?: number }
+    extra?: {
+      quota_mode?: string
+      actual_refund_quota?: number
+      claw_back_commission?: boolean
+      claw_back_quota?: number
+    }
   ) => void
   onSendMessage?: (content: string) => void
 }
@@ -111,6 +128,11 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
                       copyable={false}
                     />
                   )}
+                  {(inv.invoice_status === 1 || inv.invoice_status === 2) && (
+                    <span className="ml-1 text-[11px] text-amber-600 dark:text-amber-400">
+                      {t('Needs manual handling (reject / offline red invoice)')}
+                    </span>
+                  )}
                 </td>
               </tr>
             )
@@ -132,9 +154,73 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
   )
 }
 
+function CommissionInfoCard({ info }: { info: RefundCommissionInfo }) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div className="border-border bg-muted/50 mb-4 inline-block rounded-lg border p-3">
+      <p className="text-sm font-medium mb-2">
+        {t('Commission from this user')} · {t('Inviter')}:{' '}
+        {info.inviter_username} ({info.inviter_id})
+      </p>
+      <table className="text-xs border-collapse">
+        <thead>
+          <tr>
+            <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium whitespace-nowrap">{t('Date')}</th>
+            <th className="text-muted-foreground px-2 py-1 text-right text-xs font-medium">{t('Top-Up Amount')}</th>
+            <th className="text-muted-foreground px-2 py-1 text-right text-xs font-medium">{t('Commission')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {info.records.map((record, i) => {
+            const hidden = !expanded && i > 2
+            const isClawback = record.type === 'refund_clawback'
+            return (
+              <tr key={record.id} className={hidden ? 'collapse' : undefined}>
+                <td className="text-muted-foreground px-2 py-1 whitespace-nowrap">
+                  {formatTimestampToDate(record.created_at)}
+                </td>
+                <td className="px-2 py-1 font-mono text-right whitespace-nowrap">
+                  {isClawback ? '-' : `¥${record.topup_money?.toFixed(2)}`}
+                </td>
+                <td
+                  className={cn(
+                    'px-2 py-1 font-mono text-right whitespace-nowrap',
+                    isClawback && 'text-red-600 dark:text-red-400'
+                  )}
+                  title={record.remark || undefined}
+                >
+                  {formatQuota(record.commission_quota)}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      {info.records.length > 3 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-primary hover:underline mt-1"
+        >
+          {expanded ? t('Collapse') : t('Show all ({{count}})', { count: info.records.length })}
+        </button>
+      )}
+      <p className="text-muted-foreground mt-2 text-xs">
+        {t('Total commission')}: {formatQuota(info.total_commission_quota)} ·{' '}
+        {t('Clawed back')}: {formatQuota(info.clawed_back_quota)} ·{' '}
+        {t('Clawback available')}: {formatQuota(info.clawbackable_quota)} ·{' '}
+        {t('Inviter aff balance')}: {formatQuota(info.inviter_aff_quota)}
+      </p>
+    </div>
+  )
+}
+
 export function RefundDetail({
   refund,
   userInvoices,
+  commissionInfo,
   readonly,
   loading,
   onStatusChange,
@@ -148,13 +234,22 @@ export function RefundDetail({
   const [quotaMode, setQuotaMode] = useState('write_off')
   const [customAmount, setCustomAmount] = useState('')
   const [rejectReason, setRejectReason] = useState('')
+  const clawbackAvailable = (commissionInfo?.clawbackable_quota ?? 0) > 0
+  const [clawbackEnabled, setClawbackEnabled] = useState(true)
+  const [clawbackAmount, setClawbackAmount] = useState('')
 
   useEffect(() => {
     if (resolveOpen) {
       setQuotaMode('write_off')
       setCustomAmount('')
+      setClawbackEnabled(true)
+      setClawbackAmount(
+        commissionInfo?.suggested_clawback_quota
+          ? String(quotaUnitsToDollars(commissionInfo.suggested_clawback_quota))
+          : ''
+      )
     }
-  }, [resolveOpen])
+  }, [resolveOpen, commissionInfo])
 
   const { data: targetUser } = useQuery({
     queryKey: ['user', 'quota', refund.user_id],
@@ -195,7 +290,16 @@ export function RefundDetail({
     return ''
   }, [quotaMode, parsedCustomQuota, targetUserQuota, frozenQ, t])
 
+  const parsedClawbackQuota = parseQuotaInput(clawbackAmount)
+
   const isResolveEnabled = useMemo(() => {
+    if (
+      clawbackAvailable &&
+      clawbackEnabled &&
+      (parsedClawbackQuota === null || parsedClawbackQuota <= 0)
+    ) {
+      return false
+    }
     if (quotaMode === 'write_off') return true
     if (parsedCustomQuota === null) return false
     if (quotaMode === 'subtract') {
@@ -207,14 +311,33 @@ export function RefundDetail({
       return true
     }
     return parsedCustomQuota >= 0
-  }, [quotaMode, parsedCustomQuota, targetUserQuota, frozenQ])
+  }, [
+    quotaMode,
+    parsedCustomQuota,
+    targetUserQuota,
+    frozenQ,
+    clawbackAvailable,
+    clawbackEnabled,
+    parsedClawbackQuota,
+  ])
 
   const handleResolve = () => {
-    const extra: { quota_mode: string; actual_refund_quota?: number } = {
+    const extra: {
+      quota_mode: string
+      actual_refund_quota?: number
+      claw_back_commission?: boolean
+      claw_back_quota?: number
+    } = {
       quota_mode: quotaMode,
     }
     if (quotaMode !== 'write_off') {
       extra.actual_refund_quota = parsedCustomQuota ?? 0
+    }
+    if (clawbackAvailable) {
+      extra.claw_back_commission = clawbackEnabled
+      if (clawbackEnabled) {
+        extra.claw_back_quota = parsedClawbackQuota ?? 0
+      }
     }
     onStatusChange?.(REFUND_STATUS.REFUNDED, extra)
     setResolveOpen(false)
@@ -247,6 +370,7 @@ export function RefundDetail({
           {userInvoices && userInvoices.length > 0 && (
             <InvoiceHistoryAlert invoices={userInvoices} />
           )}
+          {commissionInfo && <CommissionInfoCard info={commissionInfo} />}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-muted/50 rounded-lg p-3 text-center">
               <div className="text-muted-foreground text-xs">
@@ -398,6 +522,39 @@ export function RefundDetail({
             {resolvePreviewText && (
               <div className="text-muted-foreground text-sm">
                 {resolvePreviewText}
+              </div>
+            )}
+
+            {clawbackAvailable && commissionInfo && (
+              <div className="border-border space-y-2 rounded-lg border p-3">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <Checkbox
+                    checked={clawbackEnabled}
+                    onCheckedChange={(v) => setClawbackEnabled(!!v)}
+                  />
+                  {t('Claw back inviter commission')}
+                </label>
+                <p className="text-muted-foreground text-xs">
+                  {t('Inviter')}: {commissionInfo.inviter_username} (
+                  {commissionInfo.inviter_id}) · {t('Clawback available')}:{' '}
+                  {formatQuota(commissionInfo.clawbackable_quota)}
+                </p>
+                {clawbackEnabled && (
+                  <div>
+                    <Label>{t('Clawback amount')}</Label>
+                    <Input
+                      type="number"
+                      value={clawbackAmount}
+                      onChange={(e) => setClawbackAmount(e.target.value)}
+                      min={0}
+                    />
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      {t(
+                        'Amount exceeding the clawback limit will be capped automatically. A negative commission record will be visible to the inviter.'
+                      )}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -18,8 +18,13 @@ const zhTW: Record<string, string> = {
   'Left to right: old to new': '從左到右：由舊到新',
 
   // Tickets
+  'Invoice Ticket': '發票工單',
+  'Apply for Invoice': '申請開票',
+  Date: '日期',
   'Not Invoiced': '未開票',
   'Invoice Status': '開票狀態',
+  'Pending Issuance': '待開具',
+  Issued: '已開具',
 
   // Channel extensions
   'Pressure cooling, rate limiting, error filtering and risk-control headers for this channel.':
@@ -33,6 +38,8 @@ const zhTW: Record<string, string> = {
   'Needs manual handling (reject / offline red invoice)':
     '需人工處理（駁回/線下紅沖）',
   'Commission from this user': '該使用者產生的返傭',
+  'Top-Up Amount': '儲值金額',
+  Commission: '返傭',
   'Total commission': '返傭合計',
   'Clawed back': '已扣回',
   'Clawback available': '可扣回',

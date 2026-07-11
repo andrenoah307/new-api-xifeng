@@ -27,6 +27,10 @@ type TopUp struct {
 	Status          string  `json:"status"`
 	Source          string  `json:"source" gorm:"type:varchar(50);default:''"`
 	DiscountCodeId  int     `json:"discount_code_id" gorm:"default:0"`
+
+	// InvoiceStatus 是列表查询时按发票关联回填的展示字段（不落库）：
+	// 0=未开票，InvoiceStatusPending=开票中，InvoiceStatusIssued=已开票。
+	InvoiceStatus int `json:"invoice_status" gorm:"-"`
 }
 
 type TopUpWithUsername struct {
@@ -182,6 +186,58 @@ type TopUpFilter struct {
 	ExcludeSources []string
 }
 
+// attachTopUpInvoiceStatus 为当前页的充值记录回填开票状态：订单被
+// 开票中/已开票的发票覆盖时标记对应状态，其余保持 0（未开票）。
+// TopUpOrderIds 是 JSON 数组文本、无法 SQL JOIN，沿用
+// getProtectedInvoiceOrderSet 的 Go 侧展开方式；这是纯展示字段，
+// 单张发票解析失败只记日志跳过，不让列表整体失败。
+func attachTopUpInvoiceStatus(tx *gorm.DB, topups []*TopUp) error {
+	if len(topups) == 0 {
+		return nil
+	}
+	userIdSet := make(map[int]struct{}, len(topups))
+	userIds := make([]int, 0, len(topups))
+	for _, topup := range topups {
+		if _, ok := userIdSet[topup.UserId]; ok {
+			continue
+		}
+		userIdSet[topup.UserId] = struct{}{}
+		userIds = append(userIds, topup.UserId)
+	}
+
+	var invoices []*TicketInvoice
+	if err := tx.Model(&TicketInvoice{}).
+		Select("user_id, top_up_order_ids, invoice_status").
+		Where("user_id IN ? AND invoice_status IN ?", userIds,
+			[]int{InvoiceStatusPending, InvoiceStatusIssued}).
+		Find(&invoices).Error; err != nil {
+		return err
+	}
+
+	orderStatus := make(map[int]int)
+	for _, invoice := range invoices {
+		orderIds, err := invoice.GetTopUpOrderIDs()
+		if err != nil {
+			common.SysError(fmt.Sprintf("failed to parse invoice order ids (invoice user %d): %s", invoice.UserId, err.Error()))
+			continue
+		}
+		for _, orderId := range orderIds {
+			// 活跃发票之间不会共享订单；防御性地让已开票优先于开票中
+			if existing, ok := orderStatus[orderId]; ok && existing == InvoiceStatusIssued {
+				continue
+			}
+			orderStatus[orderId] = invoice.InvoiceStatus
+		}
+	}
+
+	for _, topup := range topups {
+		if status, ok := orderStatus[topup.Id]; ok {
+			topup.InvoiceStatus = status
+		}
+	}
+	return nil
+}
+
 // GetUserTopUps 查询某用户的充值记录（分页 + COUNT 上限防 DoS）。
 func GetUserTopUps(userId int, filter TopUpFilter, pageInfo *common.PageInfo) (topups []*TopUp, total int64, err error) {
 	tx := DB.Begin()
@@ -211,6 +267,12 @@ func GetUserTopUps(userId int, filter TopUpFilter, pageInfo *common.PageInfo) (t
 	if err = query.Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error; err != nil {
 		tx.Rollback()
 		common.SysError("failed to query user topups: " + err.Error())
+		return nil, 0, errors.New("查询充值记录失败")
+	}
+
+	if err = attachTopUpInvoiceStatus(tx, topups); err != nil {
+		tx.Rollback()
+		common.SysError("failed to attach invoice status: " + err.Error())
 		return nil, 0, errors.New("查询充值记录失败")
 	}
 
@@ -249,6 +311,12 @@ func GetAllTopUps(filter TopUpFilter, pageInfo *common.PageInfo) (topups []*TopU
 	if err = query.Order("id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error; err != nil {
 		tx.Rollback()
 		common.SysError("failed to query topups: " + err.Error())
+		return nil, 0, errors.New("查询充值记录失败")
+	}
+
+	if err = attachTopUpInvoiceStatus(tx, topups); err != nil {
+		tx.Rollback()
+		common.SysError("failed to attach invoice status: " + err.Error())
 		return nil, 0, errors.New("查询充值记录失败")
 	}
 
@@ -301,6 +369,16 @@ func GetAllTopUpsWithUsername(filter TopUpFilter, pageInfo *common.PageInfo) (to
 	if err = dataQuery.Order("top_ups.id desc").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&topups).Error; err != nil {
 		tx.Rollback()
 		common.SysError("failed to query topups: " + err.Error())
+		return nil, 0, errors.New("查询充值记录失败")
+	}
+
+	plainTopups := make([]*TopUp, len(topups))
+	for i := range topups {
+		plainTopups[i] = &topups[i].TopUp
+	}
+	if err = attachTopUpInvoiceStatus(tx, plainTopups); err != nil {
+		tx.Rollback()
+		common.SysError("failed to attach invoice status: " + err.Error())
 		return nil, 0, errors.New("查询充值记录失败")
 	}
 

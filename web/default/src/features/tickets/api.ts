@@ -296,9 +296,34 @@ export async function getAdminInvoiceDetail(
   return res.data?.data ?? null
 }
 
-export async function getAdminRefundDetail(
-  ticketId: number
-): Promise<{ refund: TicketRefund; user_invoices: TicketInvoice[] } | null> {
+export interface RefundCommissionRecord {
+  id: number
+  topup_id: number
+  topup_money: number
+  commission_rate: number
+  commission_quota: number
+  type: string
+  remark?: string
+  created_at: number
+}
+
+export interface RefundCommissionInfo {
+  inviter_id: number
+  inviter_username: string
+  records: RefundCommissionRecord[]
+  total_commission_quota: number
+  clawed_back_quota: number
+  clawbackable_quota: number
+  inviter_aff_quota: number
+  total_topup_money: number
+  suggested_clawback_quota: number
+}
+
+export async function getAdminRefundDetail(ticketId: number): Promise<{
+  refund: TicketRefund
+  user_invoices: TicketInvoice[]
+  commission_info?: RefundCommissionInfo | null
+} | null> {
   const res = await api.get(`/api/ticket/admin/${ticketId}/refund`)
   return res.data?.data ?? null
 }
@@ -365,7 +390,12 @@ export async function assignTicket(
 export async function updateRefundStatus(
   ticketId: number,
   refundStatus: number,
-  extra?: { quota_mode?: string; actual_refund_quota?: number }
+  extra?: {
+    quota_mode?: string
+    actual_refund_quota?: number
+    claw_back_commission?: boolean
+    claw_back_quota?: number
+  }
 ): Promise<boolean> {
   const res = await api.put(`/api/ticket/admin/${ticketId}/refund/status`, {
     refund_status: refundStatus,

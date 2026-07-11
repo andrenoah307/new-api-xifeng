@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Paperclip, Send, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { useStatus } from '@/hooks/use-status'
 import { useTicketAttachments } from '../hooks/use-ticket-attachments'
 import { humanFileSize } from '../constants'
 
@@ -20,6 +21,8 @@ export function TicketReplyBox({
   placeholder,
 }: TicketReplyBoxProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const attachmentEnabled = status?.ticket_attachment_enabled === true
   const [content, setContent] = useState('')
   const {
     attachments,
@@ -57,7 +60,10 @@ export function TicketReplyBox({
   )
 
   return (
-    <div className="border-border rounded-lg border" onPasteCapture={handlePaste}>
+    <div
+      className="border-border rounded-lg border"
+      onPasteCapture={attachmentEnabled ? handlePaste : undefined}
+    >
       <Textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
@@ -95,25 +101,32 @@ export function TicketReplyBox({
       )}
       <div className="border-border flex items-center justify-between border-t px-3 py-2">
         <div>
-          <input
-            type="file"
-            multiple
-            className="hidden"
-            id="ticket-file-input"
-            onChange={handleFileInput}
-            disabled={disabled}
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={disabled || uploading}
-            render={
-              <label htmlFor='ticket-file-input' className='cursor-pointer' />
-            }
-          >
-            <Paperclip className="mr-1.5 h-4 w-4" />
-            {uploading ? t('Uploading...') : t('Attach')}
-          </Button>
+          {attachmentEnabled && (
+            <>
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                id="ticket-file-input"
+                onChange={handleFileInput}
+                disabled={disabled}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={disabled || uploading}
+                render={
+                  <label
+                    htmlFor='ticket-file-input'
+                    className='cursor-pointer'
+                  />
+                }
+              >
+                <Paperclip className="mr-1.5 h-4 w-4" />
+                {uploading ? t('Uploading...') : t('Attach')}
+              </Button>
+            </>
+          )}
         </div>
         <Button
           size="sm"

@@ -10,6 +10,8 @@ export interface TopupRecord {
   money: number
   status: string
   create_time: number
+  // 0=未开票 1=开票中 2=已开票（仅 success 订单有意义）
+  invoice_status?: number
 }
 
 interface TopupListResponse {

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -65,13 +65,14 @@ export default function TicketAdminDetailPage({
   })
 
   const ticket = data?.ticket
-  const messages = data?.messages ?? []
+  const messages = useMemo(() => data?.messages ?? [], [data?.messages])
 
   // Sync local state when ticket loads
-  if (ticket && !statusValue) {
+  useEffect(() => {
+    if (!ticket) return
     setStatusValue(String(ticket.status))
     setPriorityValue(String(ticket.priority))
-  }
+  }, [ticket])
 
   const isInvoice = ticket?.type === 'invoice'
   const isRefund = ticket?.type === 'refund'
@@ -146,7 +147,12 @@ export default function TicketAdminDetailPage({
       extra,
     }: {
       status: number
-      extra?: { quota_mode?: string; actual_refund_quota?: number }
+      extra?: {
+        quota_mode?: string
+        actual_refund_quota?: number
+        claw_back_commission?: boolean
+        claw_back_quota?: number
+      }
     }) => updateRefundStatus(ticketId, status, extra),
     onSuccess: () => {
       toast.success(t('Operation successful'))
@@ -179,7 +185,12 @@ export default function TicketAdminDetailPage({
   const handleRefundStatusChange = useCallback(
     (
       status: number,
-      extra?: { quota_mode?: string; actual_refund_quota?: number }
+      extra?: {
+        quota_mode?: string
+        actual_refund_quota?: number
+        claw_back_commission?: boolean
+        claw_back_quota?: number
+      }
     ) => {
       refundStatusMutation.mutate({ status, extra })
     },
@@ -211,6 +222,31 @@ export default function TicketAdminDetailPage({
     )
   }
 
+  let assigneeBadge = (
+    <StatusBadge
+      label={`${t('Processing')} · #${ticket.assignee_id}`}
+      variant="info"
+      copyable={false}
+    />
+  )
+  if (ticket.assignee_id === 0) {
+    assigneeBadge = (
+      <StatusBadge
+        label={t('Unassigned')}
+        variant="neutral"
+        copyable={false}
+      />
+    )
+  } else if (ticket.assignee_id === accountId) {
+    assigneeBadge = (
+      <StatusBadge
+        label={t('Assigned to me')}
+        variant="success"
+        copyable={false}
+      />
+    )
+  }
+
   return (
     <SectionPageLayout>
       <SectionPageLayout.Title>
@@ -225,13 +261,7 @@ export default function TicketAdminDetailPage({
           <span className="truncate">{ticket.subject}</span>
           <TicketStatusBadge status={ticket.status} />
           <TicketTypeBadge type={ticket.type} />
-          {ticket.assignee_id === 0 ? (
-            <StatusBadge label={t('Unassigned')} variant="neutral" copyable={false} />
-          ) : ticket.assignee_id === accountId ? (
-            <StatusBadge label={t('Assigned to me')} variant="success" copyable={false} />
-          ) : (
-            <StatusBadge label={`${t('Processing')} · #${ticket.assignee_id}`} variant="info" copyable={false} />
-          )}
+          {assigneeBadge}
         </div>
       </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
@@ -333,6 +363,7 @@ export default function TicketAdminDetailPage({
             <RefundDetail
               refund={refundData.refund}
               userInvoices={refundData.user_invoices}
+              commissionInfo={refundData.commission_info}
               onStatusChange={handleRefundStatusChange}
               onSendMessage={handleSendSystemMessage}
               loading={refundStatusMutation.isPending}
