@@ -5,7 +5,6 @@ import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -103,7 +102,7 @@ export function RiskControlHeadersEditor({ form }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">
+        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
           {t('Risk Control Headers')}
         </h4>
         <Button type="button" variant="outline" size="sm" onClick={addRule}>
@@ -186,7 +185,6 @@ export function RiskControlHeadersEditor({ form }: Props) {
           {t('No fields configured')}
         </p>
       )}
-      <Separator />
     </div>
   )
 }

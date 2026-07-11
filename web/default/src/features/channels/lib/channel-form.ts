@@ -720,7 +720,8 @@ export function transformFormDataToUpdatePayload(
     weight: formData.weight ?? 0,
     test_model: formData.test_model || null,
     auto_ban: formData.auto_ban ?? 1,
-    status: formData.status,
+    // status 不随更新载荷提交：后端 UpdateChannel 会拒绝带 status 的请求
+    // （无效的参数），状态变更走专用端点 POST /api/channel/:id/status。
     status_code_mapping: formData.status_code_mapping || null,
     tag: formData.tag || null,
     remark: formData.remark || '',
