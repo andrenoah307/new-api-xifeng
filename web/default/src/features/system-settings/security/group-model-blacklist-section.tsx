@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import { MapPatternsField } from '../components/map-patterns-field'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
@@ -231,11 +231,12 @@ export function GroupModelBlacklistSection({
               <FormItem>
                 <FormLabel>{t('Group-Model Blacklist')}</FormLabel>
                 <FormControl>
-                  <Textarea
-                    rows={6}
-                    placeholder='{"default": ["o1-*"], "vip": ["dall-e-*"]}'
-                    className='font-mono text-sm'
-                    {...field}
+                  <MapPatternsField
+                    value={field.value}
+                    onChange={field.onChange}
+                    keyPlaceholder='default'
+                    patternsPlaceholder='o1-*, dall-e-*'
+                    jsonPlaceholder='{"default": ["o1-*"], "vip": ["dall-e-*"]}'
                   />
                 </FormControl>
                 <FormDescription>
