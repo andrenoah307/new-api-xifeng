@@ -70,6 +70,12 @@ func OaiResponsesToChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		usage = service.ResponseText2Usage(c, text, info.UpstreamModelName, info.GetEstimatePromptTokens())
 		chatResp.Usage = *usage
 	}
+	if info.RelayFormat == types.RelayFormatOpenAI {
+		if v, ok, _ := service.ReconstructGpt56CacheWrite(info, usage); ok {
+			usage.PromptTokensDetails.CacheWriteTokens = v
+			chatResp.Usage = *usage
+		}
+	}
 
 	var responseBody []byte
 	switch info.RelayFormat {
@@ -473,6 +479,11 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 					}
 					if streamResp.Response.Usage.CompletionTokenDetails.ReasoningTokens != 0 {
 						usage.CompletionTokenDetails.ReasoningTokens = streamResp.Response.Usage.CompletionTokenDetails.ReasoningTokens
+					}
+					if info.RelayFormat == types.RelayFormatOpenAI {
+						if v, ok, _ := service.ReconstructGpt56CacheWrite(info, usage); ok {
+							usage.PromptTokensDetails.CacheWriteTokens = v
+						}
 					}
 				}
 			}

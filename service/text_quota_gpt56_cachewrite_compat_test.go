@@ -115,7 +115,7 @@ func TestGpt56CacheWriteCompat_RealValueWins(t *testing.T) {
 	require.Equal(t, 200, summary.CacheCreationTokens)
 }
 
-func TestGpt56CacheWriteCompat_SkipsAnthropic(t *testing.T) {
+func TestGpt56CacheWriteCompat_AnthropicSemanticReconstructs(t *testing.T) {
 	usage := &dto.Usage{
 		PromptTokens:     1000,
 		CompletionTokens: 100,
@@ -128,7 +128,38 @@ func TestGpt56CacheWriteCompat_SkipsAnthropic(t *testing.T) {
 	summary := calculateGpt56CacheWriteCompatSummary(t, "gpt-5.6-terra", usage)
 
 	require.True(t, summary.IsClaudeUsageSemantic)
-	require.Equal(t, 0, summary.CacheCreationTokens)
+	require.Equal(t, 1000, summary.CacheCreationTokens)
+}
+
+func TestGpt56CacheWriteCompat_AnthropicProductionReconcile(t *testing.T) {
+	relayInfo := &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatClaude,
+		OriginModelName: "gpt-5.6-sol",
+		PriceData: types.PriceData{
+			ModelRatio:         2.5,
+			CompletionRatio:    6,
+			CacheRatio:         0.1,
+			CacheCreationRatio: 1.25,
+			GroupRatioInfo: types.GroupRatioInfo{
+				GroupRatio: 0.35,
+			},
+		},
+		StartTime: time.Now(),
+	}
+	usage := &dto.Usage{
+		PromptTokens:     6045,
+		CompletionTokens: 330,
+		UsageSemantic:    "anthropic",
+		PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens: 83456,
+		},
+	}
+
+	summary := calculateTextQuotaSummary(newGpt56CacheWriteCompatContext(t), relayInfo, usage)
+
+	require.True(t, summary.IsClaudeUsageSemantic)
+	require.Equal(t, 6045, summary.CacheCreationTokens)
+	require.Equal(t, 15647, summary.Quota)
 }
 
 func TestGpt56CacheWriteCompat_SkipsLowerModels(t *testing.T) {

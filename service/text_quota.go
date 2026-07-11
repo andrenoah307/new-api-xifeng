@@ -117,7 +117,7 @@ func isGpt56OrHigherModel(name string) bool {
 }
 
 func isOpenAITextRelayFormat(format types.RelayFormat) bool {
-	return format == types.RelayFormatOpenAI || format == types.RelayFormatOpenAIResponses
+	return format == types.RelayFormatOpenAI || format == types.RelayFormatOpenAIResponses || format == types.RelayFormatOpenAIResponsesCompaction
 }
 
 func calculateTextToolCallSurcharge(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, summary *textQuotaSummary) decimal.Decimal {
@@ -237,15 +237,12 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	summary.CacheCreationTokens1h = usage.ClaudeCacheCreation1hTokens
 	summary.ImageTokens = usage.PromptTokensDetails.ImageTokens
 	summary.AudioTokens = usage.PromptTokensDetails.AudioTokens
-	// 坑点 #142：gpt-5.6+ OpenAI/Responses 上游 cache_write_tokens 恒 0（OpenAI 写缓存免费不上报），
-	// 兼容计费：非读输入视为缓存写入按 CacheCreationRatio(1.25x) 计。仅 gpt-5.6+、仅 OpenAI 路径
-	// (!IsClaudeUsageSemantic，anthropic 已报真实值)、仅上游确未报写入 (CacheCreationTokens==0，其上方已取过 max)。
-	// 三桶自然闭合：baseTokens = prompt − read − write = 0（下方减 image/audio 不为负）。
-	if !relayInfo.PriceData.UsePrice && summary.CacheCreationTokens == 0 && !summary.IsClaudeUsageSemantic &&
-		isOpenAITextRelayFormat(relayInfo.GetFinalRequestRelayFormat()) && isGpt56OrHigherModel(summary.ModelName) {
-		reconstructed := summary.PromptTokens - summary.CacheTokens - summary.ImageTokens - summary.AudioTokens
-		if reconstructed > 0 {
-			summary.CacheCreationTokens = reconstructed
+	// 坑点 #142/#150：gpt-5.6+ OpenAI/Responses 漏报 cache_write_tokens 时，计费与下游响应共用同源重构逻辑。
+	reclaimCacheCreationFromBase := false
+	if summary.CacheCreationTokens == 0 {
+		if v, ok, reclaim := ReconstructGpt56CacheWrite(relayInfo, usage); ok {
+			summary.CacheCreationTokens = v
+			reclaimCacheCreationFromBase = reclaim
 		}
 	}
 	legacyClaudeDerived := isLegacyClaudeDerivedOpenAIUsage(relayInfo, usage)
@@ -311,6 +308,9 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 				cachedCreationTokensWithRatio = decimal.NewFromInt(int64(remaining)).Mul(dCacheCreationRatio)
 				cachedCreationTokensWithRatio = cachedCreationTokensWithRatio.Add(decimal.NewFromInt(int64(summary.CacheCreationTokens5m)).Mul(dCacheCreationRatio5m))
 				cachedCreationTokensWithRatio = cachedCreationTokensWithRatio.Add(decimal.NewFromInt(int64(summary.CacheCreationTokens1h)).Mul(dCacheCreationRatio1h))
+				if reclaimCacheCreationFromBase {
+					baseTokens = baseTokens.Sub(dCachedCreationTokens)
+				}
 			}
 		}
 

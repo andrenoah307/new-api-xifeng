@@ -171,6 +171,7 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 
 	if info.RelayFormat == types.RelayFormatOpenAI {
 		if shouldSendLastResp {
+			lastStreamData = patchGpt56CacheWriteStr(lastStreamData, info, usage, "usage", "prompt_tokens_details")
 			_ = sendStreamData(c, info, lastStreamData, info.ChannelSetting.ForceFormat, info.ChannelSetting.ThinkingToContent)
 		}
 	}
@@ -265,9 +266,8 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 			if err != nil {
 				return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
 			}
-		} else {
-			break
 		}
+		responseBody = patchGpt56CacheWriteBytes(responseBody, info, &simpleResponse.Usage, "usage", "prompt_tokens_details")
 	case types.RelayFormatClaude:
 		claudeResp := service.ResponseOpenAI2Claude(&simpleResponse, info)
 		claudeRespStr, err := common.Marshal(claudeResp)
@@ -560,6 +560,8 @@ func OpenaiHandlerWithUsage(c *gin.Context, info *relaycommon.RelayInfo, resp *h
 	if err != nil {
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
+
+	responseBody = patchGpt56CacheWriteBytes(responseBody, info, &usageResp.Usage, "usage", "prompt_tokens_details")
 
 	// 写入新的 response body
 	service.IOCopyBytesGracefully(c, resp, responseBody)

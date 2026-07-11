@@ -40,6 +40,8 @@ func OaiResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		c.Set("image_generation_call_size", responsesResponse.GetSize())
 	}
 
+	responseBody = patchGpt56CacheWriteBytes(responseBody, info, responsesResponse.Usage, "usage", "input_tokens_details")
+
 	// 写入新的 response body
 	service.IOCopyBytesGracefully(c, resp, responseBody)
 
@@ -89,6 +91,9 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			logger.LogError(c, "failed to unmarshal stream response: "+err.Error())
 			sr.Error(err)
 			return
+		}
+		if streamResponse.Type == "response.completed" && streamResponse.Response != nil {
+			data = patchGpt56CacheWriteStr(data, info, streamResponse.Response.Usage, "response.usage", "input_tokens_details")
 		}
 		sendResponsesStreamData(c, streamResponse, data)
 		switch streamResponse.Type {

@@ -1,11 +1,18 @@
 package claude
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/QuantumNous/new-api/types"
+
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -126,4 +133,107 @@ func TestBuildMessageDeltaPatchUsage(t *testing.T) {
 		require.EqualValues(t, 50, usage.CacheCreation.Ephemeral5mInputTokens)
 		require.EqualValues(t, 0, usage.CacheCreation.Ephemeral1hInputTokens)
 	})
+}
+
+func newGpt56ClaudePatchRelayInfo(model string, passThrough bool) *relaycommon.RelayInfo {
+	return &relaycommon.RelayInfo{
+		RelayFormat:     types.RelayFormatClaude,
+		OriginModelName: model,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{PassThroughBodyEnabled: passThrough},
+		},
+	}
+}
+
+func newClaudePatchTestContext(t *testing.T) (*gin.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	return ctx, w
+}
+
+func extractClaudeStreamData(t *testing.T, body string) string {
+	t.Helper()
+
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "data: ") {
+			return strings.TrimPrefix(line, "data: ")
+		}
+	}
+	t.Fatalf("missing data line in stream body: %q", body)
+	return ""
+}
+
+func TestHandleStreamResponseDataGpt56AnthropicCacheCreationPatch(t *testing.T) {
+	originGlobalPassThrough := model_setting.GetGlobalSettings().PassThroughRequestEnabled
+	t.Cleanup(func() {
+		model_setting.GetGlobalSettings().PassThroughRequestEnabled = originGlobalPassThrough
+	})
+	model_setting.GetGlobalSettings().PassThroughRequestEnabled = false
+
+	for _, passThrough := range []bool{false, true} {
+		t.Run("pass_through="+strconv.FormatBool(passThrough), func(t *testing.T) {
+			ctx, recorder := newClaudePatchTestContext(t)
+			info := newGpt56ClaudePatchRelayInfo("gpt-5.6-sol", passThrough)
+			claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+			data := `{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"input_tokens":6045,"cache_read_input_tokens":83456,"cache_creation_input_tokens":0,"output_tokens":330}}`
+
+			err := HandleStreamResponseData(ctx, info, claudeInfo, data)
+
+			require.Nil(t, err)
+			patchedData := extractClaudeStreamData(t, recorder.Body.String())
+			require.EqualValues(t, 6045, gjson.Get(patchedData, "usage.cache_creation_input_tokens").Int())
+			require.EqualValues(t, 6045, claudeInfo.Usage.PromptTokens)
+			require.EqualValues(t, 83456, claudeInfo.Usage.PromptTokensDetails.CachedTokens)
+		})
+	}
+}
+
+func TestHandleStreamResponseDataGpt56AnthropicCacheCreationPatchGuards(t *testing.T) {
+	originGlobalPassThrough := model_setting.GetGlobalSettings().PassThroughRequestEnabled
+	t.Cleanup(func() {
+		model_setting.GetGlobalSettings().PassThroughRequestEnabled = originGlobalPassThrough
+	})
+	model_setting.GetGlobalSettings().PassThroughRequestEnabled = false
+
+	t.Run("upstream value wins", func(t *testing.T) {
+		ctx, recorder := newClaudePatchTestContext(t)
+		info := newGpt56ClaudePatchRelayInfo("gpt-5.6-sol", true)
+		claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+		data := `{"type":"message_delta","usage":{"input_tokens":6045,"cache_read_input_tokens":83456,"cache_creation_input_tokens":777,"output_tokens":330}}`
+
+		err := HandleStreamResponseData(ctx, info, claudeInfo, data)
+
+		require.Nil(t, err)
+		patchedData := extractClaudeStreamData(t, recorder.Body.String())
+		require.EqualValues(t, 777, gjson.Get(patchedData, "usage.cache_creation_input_tokens").Int())
+	})
+
+	t.Run("lower model skips", func(t *testing.T) {
+		ctx, recorder := newClaudePatchTestContext(t)
+		info := newGpt56ClaudePatchRelayInfo("gpt-5.5-sol", true)
+		claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+		data := `{"type":"message_delta","usage":{"input_tokens":6045,"cache_read_input_tokens":83456,"cache_creation_input_tokens":0,"output_tokens":330}}`
+
+		err := HandleStreamResponseData(ctx, info, claudeInfo, data)
+
+		require.Nil(t, err)
+		patchedData := extractClaudeStreamData(t, recorder.Body.String())
+		require.EqualValues(t, 0, gjson.Get(patchedData, "usage.cache_creation_input_tokens").Int())
+	})
+}
+
+func TestHandleClaudeResponseDataGpt56AnthropicCacheCreationPatch(t *testing.T) {
+	ctx, recorder := newClaudePatchTestContext(t)
+	info := newGpt56ClaudePatchRelayInfo("gpt-5.6-sol", true)
+	claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+	upstream := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}}
+	data := []byte(`{"id":"msg_1","type":"message","role":"assistant","model":"gpt-5.6-sol","content":[{"type":"text","text":"ok"}],"stop_reason":"end_turn","usage":{"input_tokens":6045,"cache_read_input_tokens":83456,"cache_creation_input_tokens":0,"output_tokens":330}}`)
+
+	err := HandleClaudeResponseData(ctx, info, claudeInfo, upstream, data)
+
+	require.Nil(t, err)
+	require.EqualValues(t, 6045, gjson.Get(recorder.Body.String(), "usage.cache_creation_input_tokens").Int())
 }
