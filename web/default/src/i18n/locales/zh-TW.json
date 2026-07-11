@@ -5180,7 +5180,7 @@
     "Upstream Response (billing-usage-openai)": "上游返回（billing-usage-openai）",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "填寫客戶端請求裡的精確 model 名，多個用英文逗號分隔。不支援前綴或萬用字元。",
     "Use exact model names such as gpt-4o, or regex rules prefixed with re: such as re:^gemini-.": "可以填寫 gpt-4o 這類精確模型名，也可以填寫 re:^gemini- 這類以 re: 開頭的正則規則。",
-    "Use this callback URL pattern when registering a custom OAuth provider.": "註冊自訂 OAuth 提供商時使用此回呼 URL 格式。"
-  },
-  "User role updated successfully": "用戶角色更新成功"
+    "Use this callback URL pattern when registering a custom OAuth provider.": "註冊自訂 OAuth 提供商時使用此回呼 URL 格式。",
+    "User role updated successfully": "用戶角色更新成功"
+  }
 }

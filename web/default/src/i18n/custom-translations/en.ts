@@ -191,6 +191,21 @@ const en = {
   Failure: 'Failure',
   'Slow Response': 'Slow Response',
   'No data available': 'No data available',
+  'Next auto refresh {{c}}': 'Next auto refresh {{c}}',
+  'Refresh successful': 'Refresh successful',
+  'Configure in System Settings - Group Monitoring': 'Configure in System Settings - Group Monitoring',
+  'No groups matching "{{kw}}"': 'No groups matching "{{kw}}"',
+  'CNY/USD': 'CNY/USD',
+  'No history data': 'No history data',
+  'Group Detail': 'Group Detail',
+  'Status Timeline': 'Status Timeline',
+  'Channel Details': 'Channel Details',
+  'No channel data': 'No channel data',
+  'Cache Rate': 'Cache Rate',
+  'Last Test': 'Last Test',
+  'History (latest)': 'History (latest)',
+  'History ({{n}} entries)': 'History ({{n}} entries)',
+  'Left to right: old to new': 'Left to right: old to new',
 
   // Tickets
   'Create Ticket': 'Create Ticket',
@@ -246,6 +261,8 @@ const en = {
   'Reject Application': 'Reject Application',
   'Pending Issuance': 'Pending Issuance',
   Issued: 'Issued',
+  'Not Invoiced': 'Not Invoiced',
+  'Invoice Status': 'Invoice Status',
   Rejected: 'Rejected',
   'Applied Amount': 'Applied Amount',
   'Completion Time': 'Completion Time',
@@ -393,6 +410,7 @@ const en = {
   'Replace Status Code': 'Replace Status Code',
   'Replace Message': 'Replace Message',
   'Custom Extensions': 'Custom Extensions',
+  'Pressure cooling, rate limiting, error filtering and risk-control headers for this channel.': 'Pressure cooling, rate limiting, error filtering and risk-control headers for this channel.',
   'Redis is not enabled. Rate limiting requires Redis.':
     'Redis is not enabled. Rate limiting requires Redis.',
 
@@ -611,6 +629,9 @@ const en = {
   'Manual Top-Up Commission': 'Manual Top-Up Commission',
   'When enabled, admin manual top-ups also trigger commission for the inviter.':
     'When enabled, admin manual top-ups also trigger commission for the inviter.',
+  'Commission Rate': 'Commission Rate',
+  'Minimum Transfer Amount': 'Minimum Transfer Amount',
+  'Minimum amount (in currency units) required for affiliate reward transfers. Set to 0 for no minimum.': 'Minimum amount (in currency units) required for affiliate reward transfers. Set to 0 for no minimum.',
 
   // Detail page metadata
   'Assigned to me': 'Assigned to me',
@@ -761,6 +782,21 @@ const en = {
   'Hide invoices': 'Hide',
   'Active invoices summary': '{{count}} active invoice(s), total {{amount}}',
   'Active refunds summary': '{{count}} active refund(s), total {{amount}}',
+  'Needs manual handling (reject / offline red invoice)': 'Needs manual handling (reject / offline red invoice)',
+  'Commission from this user': 'Commission from this user',
+  'Total commission': 'Total commission',
+  'Clawed back': 'Clawed back',
+  'Clawback available': 'Clawback available',
+  'Inviter aff balance': 'Inviter aff balance',
+  'Show all ({{count}})': 'Show all ({{count}})',
+  'Claw back inviter commission': 'Claw back inviter commission',
+  'Clawback amount': 'Clawback amount',
+  'Amount exceeding the clawback limit will be capped automatically. A negative commission record will be visible to the inviter.': 'Amount exceeding the clawback limit will be capped automatically. A negative commission record will be visible to the inviter.',
+  'Refund Clawback': 'Refund Clawback',
+  'Add Entry': 'Add Entry',
+  'Invalid JSON — fix it here before switching to visual mode':
+    'Invalid JSON — fix it here before switching to visual mode',
+  'Inviter user ID. Set to 0 to clear the inviter.': 'Inviter user ID. Set to 0 to clear the inviter.',
 
   // Monitoring - Whitelist
   'Whitelist keywords': 'Whitelist keywords',

@@ -5359,8 +5359,8 @@
     "Upstream Response (billing-usage-openai)": "上游返回（billing-usage-openai）",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "填写客户端请求里的精确 model 名，多个用英文逗号分隔。不支持前缀或通配符。",
     "Use exact model names such as gpt-4o, or regex rules prefixed with re: such as re:^gemini-.": "可以填写 gpt-4o 这类精确模型名，也可以填写 re:^gemini- 这类以 re: 开头的正则规则。",
-    "Use this callback URL pattern when registering a custom OAuth provider.": "注册自定义 OAuth 提供商时使用此回调 URL 格式。"
-  },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？",
-  "User role updated successfully": "用户角色更新成功"
+    "Use this callback URL pattern when registering a custom OAuth provider.": "注册自定义 OAuth 提供商时使用此回调 URL 格式。",
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "关闭退款工单将解冻已冻结的退款额度，确认关闭吗？",
+    "User role updated successfully": "用户角色更新成功"
+  }
 }

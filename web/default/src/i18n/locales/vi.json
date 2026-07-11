@@ -5359,8 +5359,8 @@
     "Upstream Response (billing-usage-openai)": "Phản hồi upstream (billing-usage-openai)",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "Nhập tên model chính xác từ yêu cầu client, ngăn cách bằng dấu phẩy. Không hỗ trợ tiền tố hoặc ký tự đại diện.",
     "Use exact model names such as gpt-4o, or regex rules prefixed with re: such as re:^gemini-.": "Dùng tên model chính xác như gpt-4o, hoặc quy tắc regex có tiền tố re: như re:^gemini-.",
-    "Use this callback URL pattern when registering a custom OAuth provider.": "Dùng mẫu URL callback này khi đăng ký nhà cung cấp OAuth tùy chỉnh."
-  },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?",
-  "User role updated successfully": "Cập nhật vai trò người dùng thành công"
+    "Use this callback URL pattern when registering a custom OAuth provider.": "Dùng mẫu URL callback này khi đăng ký nhà cung cấp OAuth tùy chỉnh.",
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?",
+    "User role updated successfully": "Cập nhật vai trò người dùng thành công"
+  }
 }

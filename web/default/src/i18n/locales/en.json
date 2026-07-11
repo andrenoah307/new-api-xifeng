@@ -5359,8 +5359,8 @@
     "Upstream Response (billing-usage-openai)": "Upstream Response (billing-usage-openai)",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.",
     "Use exact model names such as gpt-4o, or regex rules prefixed with re: such as re:^gemini-.": "Use exact model names such as gpt-4o, or regex rules prefixed with re: such as re:^gemini-.",
-    "Use this callback URL pattern when registering a custom OAuth provider.": "Use this callback URL pattern when registering a custom OAuth provider."
-  },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?",
-  "User role updated successfully": "User role updated successfully"
+    "Use this callback URL pattern when registering a custom OAuth provider.": "Use this callback URL pattern when registering a custom OAuth provider.",
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?",
+    "User role updated successfully": "User role updated successfully"
+  }
 }

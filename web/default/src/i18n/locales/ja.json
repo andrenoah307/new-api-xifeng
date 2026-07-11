@@ -5359,8 +5359,8 @@
     "Upstream Response (billing-usage-openai)": "アップストリームレスポンス (billing-usage-openai)",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "クライアントの正確なモデル名をカンマ区切りで入力します。プレフィックスやワイルドカードは使えません。",
     "Use exact model names such as gpt-4o, or regex rules prefixed with re: such as re:^gemini-.": "gpt-4o のような完全一致のモデル名、または re:^gemini- のように re: で始まる正規表現ルールを使えます。",
-    "Use this callback URL pattern when registering a custom OAuth provider.": "カスタム OAuth プロバイダーを登録するときは、このコールバック URL 形式を使用します。"
-  },
-  "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？",
-  "User role updated successfully": "ユーザーロールを更新しました"
+    "Use this callback URL pattern when registering a custom OAuth provider.": "カスタム OAuth プロバイダーを登録するときは、このコールバック URL 形式を使用します。",
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？",
+    "User role updated successfully": "ユーザーロールを更新しました"
+  }
 }
