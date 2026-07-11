@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import { MapPatternsField } from '../components/map-patterns-field'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 
@@ -274,11 +274,12 @@ export function RegionRestrictionSection({
               <FormItem>
                 <FormLabel>{t('Region-Model Blacklist')}</FormLabel>
                 <FormControl>
-                  <Textarea
-                    rows={6}
-                    placeholder='{"CN": ["gpt-4*"], "RU": ["*"]}'
-                    className='font-mono text-sm'
-                    {...field}
+                  <MapPatternsField
+                    value={field.value}
+                    onChange={field.onChange}
+                    keyPlaceholder='CN'
+                    patternsPlaceholder='gpt-4*, *'
+                    jsonPlaceholder='{"CN": ["gpt-4*"], "RU": ["*"]}'
                   />
                 </FormControl>
                 <FormDescription>
@@ -298,11 +299,12 @@ export function RegionRestrictionSection({
               <FormItem>
                 <FormLabel>{t('Region-Group Blacklist')}</FormLabel>
                 <FormControl>
-                  <Textarea
-                    rows={6}
-                    placeholder='{"CN": ["default"], "RU": ["*"]}'
-                    className='font-mono text-sm'
-                    {...field}
+                  <MapPatternsField
+                    value={field.value}
+                    onChange={field.onChange}
+                    keyPlaceholder='CN'
+                    patternsPlaceholder='default, *'
+                    jsonPlaceholder='{"CN": ["default"], "RU": ["*"]}'
                   />
                 </FormControl>
                 <FormDescription>
