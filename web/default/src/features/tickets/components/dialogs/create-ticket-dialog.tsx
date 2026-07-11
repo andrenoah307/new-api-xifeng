@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -43,6 +44,7 @@ import {
   getTicketLimitStatus,
   checkRefundInvoiceConflict,
 } from '../../api'
+import { useStatus } from '@/hooks/use-status'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
 import { PAYEE_TYPE_OPTIONS, humanFileSize } from '../../constants'
 import { useTicketAttachments } from '../../hooks/use-ticket-attachments'
@@ -75,7 +77,10 @@ export function CreateTicketDialog({
   onCreated,
 }: CreateTicketDialogProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { status } = useStatus()
+  const attachmentEnabled = status?.ticket_attachment_enabled === true
   const [ticketType, setTicketType] = useState<'general' | 'refund'>('general')
   const [invoiceConflictAcked, setInvoiceConflictAcked] = useState(false)
 
@@ -114,6 +119,7 @@ export function CreateTicketDialog({
     () => [
       { value: 'general', label: t('General Ticket') },
       { value: 'refund', label: t('Refund Ticket') },
+      { value: 'invoice', label: t('Invoice Ticket') },
     ],
     [t]
   )
@@ -288,7 +294,7 @@ export function CreateTicketDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-h-[85vh] overflow-y-auto sm:max-w-lg"
-        onPasteCapture={handlePaste}
+        onPasteCapture={attachmentEnabled ? handlePaste : undefined}
       >
         <DialogHeader>
           <DialogTitle>{t('Create Ticket')}</DialogTitle>
@@ -311,7 +317,18 @@ export function CreateTicketDialog({
               <Select
                 items={ticketTypeItems}
                 value={ticketType}
-                onValueChange={(v) => setTicketType(v as 'general' | 'refund')}
+                onValueChange={(v: string | null) => {
+                  if (v === 'invoice') {
+                    // 开票走 充值记录-申请开票 流程（选择充值订单后生成开票工单）
+                    onOpenChange(false)
+                    void navigate({
+                      to: '/topup-history',
+                      search: { applyInvoice: true },
+                    })
+                    return
+                  }
+                  setTicketType(v as 'general' | 'refund')
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -323,6 +340,9 @@ export function CreateTicketDialog({
                     </SelectItem>
                     <SelectItem value="refund">
                       {t('Refund Ticket')}
+                    </SelectItem>
+                    <SelectItem value="invoice">
+                      {t('Invoice Ticket')}
                     </SelectItem>
                   </SelectGroup>
                 </SelectContent>
@@ -625,6 +645,7 @@ export function CreateTicketDialog({
                 />
 
                 {/* Attachment area */}
+                {attachmentEnabled && (
                 <div>
                   <FormLabel>{t('Attachment (Optional)')}</FormLabel>
                   <div className="mt-1.5 flex items-center gap-2">
@@ -680,6 +701,7 @@ export function CreateTicketDialog({
                     </div>
                   )}
                 </div>
+                )}
               </>
             )}
 

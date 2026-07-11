@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { formatQuota, formatTimestampToDate } from '@/lib/format'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -88,18 +89,39 @@ export function CommissionRecordsTable() {
                       {formatTimestampToDate(r.created_at)}
                     </TableCell>
                     <TableCell className='font-mono text-xs'>
-                      ${r.topup_money.toFixed(2)}
+                      {r.type === 'refund_clawback'
+                        ? '-'
+                        : `$${r.topup_money.toFixed(2)}`}
                     </TableCell>
                     <TableCell className='text-xs'>
-                      {r.commission_rate}%
+                      {r.type === 'refund_clawback'
+                        ? '-'
+                        : `${r.commission_rate}%`}
                     </TableCell>
-                    <TableCell className='font-mono text-xs font-medium text-green-600 dark:text-green-400'>
-                      +{formatQuota(r.commission_quota)}
+                    <TableCell
+                      className={cn(
+                        'font-mono text-xs font-medium',
+                        r.commission_quota >= 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      )}
+                    >
+                      {r.commission_quota >= 0 ? '+' : ''}
+                      {formatQuota(r.commission_quota)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={r.is_manual ? 'secondary' : 'outline'}>
-                        {r.is_manual ? t('Manual') : t('Online')}
-                      </Badge>
+                      {r.type === 'refund_clawback' ? (
+                        <Badge
+                          variant='destructive'
+                          title={r.remark || undefined}
+                        >
+                          {t('Refund Clawback')}
+                        </Badge>
+                      ) : (
+                        <Badge variant={r.is_manual ? 'secondary' : 'outline'}>
+                          {r.is_manual ? t('Manual') : t('Online')}
+                        </Badge>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

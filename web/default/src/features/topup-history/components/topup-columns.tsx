@@ -9,6 +9,7 @@ import { formatLocalCurrencyAmount } from '@/lib/currency'
 import type { TopupRecord } from '../api'
 import {
   STATUS_CONFIG,
+  INVOICE_STATUS_CONFIG,
   PAYMENT_METHOD_MAP,
   isSubscriptionTopup,
 } from '../constants'
@@ -116,6 +117,27 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
           )
         },
         meta: { label: t('Status'), mobileBadge: true },
+      },
+      {
+        accessorKey: 'invoice_status',
+        header: t('Invoice Status'),
+        cell: ({ row }) => {
+          if (row.original.status !== 'success') {
+            return <span className="text-muted-foreground text-xs">-</span>
+          }
+          const cfg = INVOICE_STATUS_CONFIG[row.original.invoice_status ?? 0]
+          if (!cfg) {
+            return <span className="text-muted-foreground text-xs">-</span>
+          }
+          return (
+            <StatusBadge
+              label={t(cfg.labelKey)}
+              variant={cfg.variant}
+              copyable={false}
+            />
+          )
+        },
+        meta: { label: t('Invoice Status'), mobileHidden: true },
       },
       {
         accessorKey: 'create_time',

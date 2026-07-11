@@ -93,9 +93,11 @@ type CreateRefundTicketRequest struct {
 }
 
 type UpdateRefundStatusRequest struct {
-	RefundStatus      int    `json:"refund_status"`
-	QuotaMode         string `json:"quota_mode"`
-	ActualRefundQuota *int   `json:"actual_refund_quota,omitempty"`
+	RefundStatus       int    `json:"refund_status"`
+	QuotaMode          string `json:"quota_mode"`
+	ActualRefundQuota  *int   `json:"actual_refund_quota,omitempty"`
+	ClawBackCommission bool   `json:"claw_back_commission,omitempty"`
+	ClawBackQuota      *int   `json:"claw_back_quota,omitempty"`
 }
 
 func getTicketCurrentUser(c *gin.Context) (*model.User, error) {
@@ -228,6 +230,8 @@ func handleTicketError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgTicketRefundNotPending)
 	case errors.Is(err, model.ErrTicketRefundQuotaModeInvalid):
 		common.ApiErrorI18n(c, i18n.MsgTicketRefundQuotaModeInvalid)
+	case errors.Is(err, model.ErrTicketRefundClawbackQuotaInvalid):
+		common.ApiErrorI18n(c, i18n.MsgTicketRefundClawbackQuotaInvalid)
 	case errors.Is(err, model.ErrTicketAssigneeInvalid):
 		common.ApiErrorI18n(c, i18n.MsgTicketAssigneeInvalid)
 	case errors.Is(err, model.ErrAttachmentNotFound):
@@ -1019,9 +1023,16 @@ func GetTicketRefund(c *gin.Context) {
 		return
 	}
 	invoices, _ := model.GetUserInvoiceSummaries(refund.UserId)
+	// 返佣信息属于辅助展示，查询失败不影响退款主数据。
+	commissionInfo, ciErr := model.GetRefundCommissionInfo(refund)
+	if ciErr != nil {
+		common.SysError("failed to load refund commission info: " + ciErr.Error())
+		commissionInfo = nil
+	}
 	common.ApiSuccess(c, gin.H{
-		"refund":        refund,
-		"user_invoices": invoices,
+		"refund":          refund,
+		"user_invoices":   invoices,
+		"commission_info": commissionInfo,
 	})
 }
 
@@ -1055,8 +1066,12 @@ func UpdateRefundStatus(c *gin.Context) {
 	if req.ActualRefundQuota != nil {
 		params.ActualRefundQuota = *req.ActualRefundQuota
 	}
+	params.ClawBackCommission = req.ClawBackCommission
+	if req.ClawBackQuota != nil {
+		params.ClawBackQuota = *req.ClawBackQuota
+	}
 
-	refund, ticket, prevStatus, err := model.UpdateRefundStatus(params)
+	refund, ticket, prevStatus, clawback, err := model.UpdateRefundStatus(params)
 	if err != nil {
 		handleTicketError(c, err)
 		return
@@ -1076,8 +1091,9 @@ func UpdateRefundStatus(c *gin.Context) {
 	}
 
 	common.ApiSuccess(c, gin.H{
-		"refund": refund,
-		"ticket": ticket,
+		"refund":   refund,
+		"ticket":   ticket,
+		"clawback": clawback,
 	})
 }
 

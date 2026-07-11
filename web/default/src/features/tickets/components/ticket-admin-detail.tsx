@@ -162,7 +162,12 @@ export default function TicketAdminDetailPage({
       extra,
     }: {
       status: number
-      extra?: { quota_mode?: string; actual_refund_quota?: number }
+      extra?: {
+        quota_mode?: string
+        actual_refund_quota?: number
+        claw_back_commission?: boolean
+        claw_back_quota?: number
+      }
     }) => updateRefundStatus(ticketId, status, extra),
     onSuccess: (ok) => {
       if (!ok) return
@@ -199,7 +204,12 @@ export default function TicketAdminDetailPage({
   const handleRefundStatusChange = useCallback(
     (
       status: number,
-      extra?: { quota_mode?: string; actual_refund_quota?: number }
+      extra?: {
+        quota_mode?: string
+        actual_refund_quota?: number
+        claw_back_commission?: boolean
+        claw_back_quota?: number
+      }
     ) => {
       refundStatusMutation.mutate({ status, extra })
     },
@@ -347,6 +357,7 @@ export default function TicketAdminDetailPage({
             <RefundDetail
               refund={refundData.refund}
               userInvoices={refundData.user_invoices}
+              commissionInfo={refundData.commission_info}
               onStatusChange={handleRefundStatusChange}
               onSendMessage={handleSendSystemMessage}
               loading={refundStatusMutation.isPending}
