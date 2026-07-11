@@ -41,6 +41,7 @@ export const userFormSchema = z.object({
   quota_dollars: z.number().min(0).optional(),
   group: z.string().optional(),
   remark: z.string().optional(),
+  inviter_id: z.number().int().min(0).optional(),
   admin_permissions: z
     .record(z.string(), z.record(z.string(), z.boolean()))
     .optional(),
@@ -60,6 +61,7 @@ export const USER_FORM_DEFAULT_VALUES: UserFormValues = {
   quota_dollars: 0,
   group: DEFAULT_GROUP,
   remark: '',
+  inviter_id: 0,
   // Filled against the backend catalog at render time; see UsersMutateDrawer.
   admin_permissions: {},
 }
@@ -101,6 +103,8 @@ export function transformFormDataToPayload(
     // For update: quota is adjusted atomically via /api/user/manage, not sent here
     payload.group = data.group
     payload.remark = data.remark || undefined
+    // 始终携带 inviter_id：后端把"缺席"当作保持不变，显式 0 才是清空。
+    payload.inviter_id = data.inviter_id ?? 0
     payload.id = userId
   }
 
@@ -121,6 +125,7 @@ export function transformUserToFormDefaults(user: User): UserFormValues {
     quota_dollars: quotaUnitsToDollars(user.quota),
     group: user.group || DEFAULT_GROUP,
     remark: user.remark || '',
+    inviter_id: user.inviter_id ?? 0,
     admin_permissions: user.admin_permissions ?? {},
   }
 }

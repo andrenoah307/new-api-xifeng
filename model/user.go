@@ -792,6 +792,8 @@ func (user *User) EditWithTx(tx *gorm.DB, updatePassword bool) error {
 		"group":        newUser.Group,
 		"remark":       newUser.Remark,
 		"email":        newUser.Email,
+		// 管理员可修改邀请人；0 表示清空。合法性（存在、非自己）由 controller 校验。
+		"inviter_id": newUser.InviterId,
 	}
 	if updatePassword {
 		updates["password"] = newUser.Password

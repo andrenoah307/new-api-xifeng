@@ -430,6 +430,35 @@ export function UsersMutateDrawer({
 
                   <FormField
                     control={form.control}
+                    name='inviter_id'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('Inviter')}</FormLabel>
+                        <FormControl>
+                          <Input
+                            type='number'
+                            min={0}
+                            step={1}
+                            value={field.value ?? 0}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === ''
+                                  ? 0
+                                  : Math.max(0, Math.trunc(Number(e.target.value)))
+                              )
+                            }
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {t('Inviter user ID. Set to 0 to clear the inviter.')}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name='remark'
                     render={({ field }) => (
                       <FormItem>
