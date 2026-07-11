@@ -5278,6 +5278,7 @@
     "Body text of the disclaimer. Line breaks are preserved.": "免責事項本文。改行はそのまま保持されます。",
     "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "ISO国コードを大文字で、1行に1つまたはカンマ区切りで入力。既定値はCN。",
     "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = 毎回表示；60 = 確認後60分間は再表示しない。",
-    "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？"
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "閉じると凍結された返金額が解凍されます。よろしいですか？",
+    "User role updated successfully": "ユーザーロールを更新しました"
   }
 }

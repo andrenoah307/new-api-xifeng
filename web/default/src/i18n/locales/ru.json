@@ -5279,6 +5279,7 @@
     "Body text of the disclaimer. Line breaks are preserved.": "Текст отказа; переносы строк сохраняются.",
     "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "Коды ISO стран (заглавные), по одному в строке или через запятую. По умолчанию CN.",
     "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = показывать каждый раз; 60 = тишина 60 минут после подтверждения.",
-    "Closing will unfreeze the frozen refund quota. Are you sure?": "Закрытие разморозит замороженную квоту возврата. Вы уверены?"
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "Закрытие разморозит замороженную квоту возврата. Вы уверены?",
+    "User role updated successfully": "Роль пользователя успешно обновлена"
   }
 }

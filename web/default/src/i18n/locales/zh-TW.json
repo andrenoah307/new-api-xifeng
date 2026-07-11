@@ -5179,6 +5179,8 @@
     "Zhipu": "智譜",
     "Zhipu V4": "智譜 V4",
     "Zoom": "縮放",
-    "Earn rewards when your referrals add funds. Transfer accumulated rewards to your balance anytime.": "當您的推薦人儲值時即可獲得獎勵。隨時將累計獎勵轉移到您的餘額。"
+    "Earn rewards when your referrals add funds. Transfer accumulated rewards to your balance anytime.": "當您的推薦人儲值時即可獲得獎勵。隨時將累計獎勵轉移到您的餘額。",
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "關閉退款工單將解凍已凍結的退款額度，確認關閉嗎？",
+    "User role updated successfully": "用戶角色更新成功"
   }
 }

@@ -5279,6 +5279,7 @@
     "Body text of the disclaimer. Line breaks are preserved.": "Texte de l'avertissement. Les sauts de ligne sont conservés.",
     "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "Codes pays ISO (majuscules), un par ligne ou séparés par des virgules. Par défaut CN.",
     "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = afficher à chaque visite ; 60 = masquer pendant 60 minutes après confirmation.",
-    "Closing will unfreeze the frozen refund quota. Are you sure?": "La fermeture dégelera le quota de remboursement gelé. Êtes-vous sûr ?"
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "La fermeture dégelera le quota de remboursement gelé. Êtes-vous sûr ?",
+    "User role updated successfully": "Rôle de l’utilisateur mis à jour avec succès"
   }
 }

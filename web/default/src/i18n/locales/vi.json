@@ -5279,6 +5279,7 @@
     "Body text of the disclaimer. Line breaks are preserved.": "Nội dung tuyên bố; giữ nguyên ngắt dòng.",
     "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "Mã quốc gia ISO (chữ hoa), mỗi dòng một mã hoặc cách bởi dấu phẩy. Mặc định CN.",
     "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = hiển thị mỗi lần truy cập; 60 = im lặng trong 60 phút sau khi người dùng xác nhận.",
-    "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?"
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "Đóng sẽ giải phóng số dư hoàn tiền đã đóng băng. Bạn có chắc không?",
+    "User role updated successfully": "Cập nhật vai trò người dùng thành công"
   }
 }

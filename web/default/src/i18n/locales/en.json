@@ -5334,6 +5334,7 @@
     "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.": "ISO country codes (uppercase), one per line or comma-separated. Defaults to CN.",
     "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.": "0 = show on every visit. 60 = silence the modal for 60 minutes after a user acknowledges.",
     "This record was written by a pre-upgrade instance and lacks audit info. Upgrade the instance to record server IP, callback IP, payment method and system version.": "This record was written by a pre-upgrade instance and lacks audit info. Upgrade the instance to record server IP, callback IP, payment method and system version.",
-    "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?"
+    "Closing will unfreeze the frozen refund quota. Are you sure?": "Closing will unfreeze the frozen refund quota. Are you sure?",
+    "User role updated successfully": "User role updated successfully"
   }
 }

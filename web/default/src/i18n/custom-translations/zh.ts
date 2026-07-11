@@ -165,6 +165,22 @@ const zh: Record<string, string> = {
   Failure: '故障',
   'Slow Response': '响应缓慢',
   'No data available': '暂无数据',
+  'Next auto refresh {{c}}': '下次自动刷新 {{c}}',
+  'Refresh successful': '刷新成功',
+  'Configure in System Settings - Group Monitoring':
+    '请在 系统设置 - 分组监控 中配置',
+  'No groups matching "{{kw}}"': '没有匹配 "{{kw}}" 的分组',
+  'CNY/USD': '人民币/美元',
+  'No history data': '暂无历史数据',
+  'Group Detail': '分组详情',
+  'Status Timeline': '状态时间线',
+  'Channel Details': '渠道明细',
+  'No channel data': '暂无渠道数据',
+  'Cache Rate': '缓存率',
+  'Last Test': '最近测试',
+  'History (latest)': '历史（最新）',
+  'History ({{n}} entries)': '历史（{{n}} 条）',
+  'Left to right: old to new': '从左到右：由旧到新',
 
   // Tickets
   'Create Ticket': '创建工单',
@@ -215,6 +231,8 @@ const zh: Record<string, string> = {
   'Reject Application': '驳回申请',
   'Pending Issuance': '待开具',
   Issued: '已开具',
+  'Not Invoiced': '未开票',
+  'Invoice Status': '开票状态',
   Rejected: '已驳回',
   'Applied Amount': '申请金额',
   'Completion Time': '完成时间',
@@ -362,6 +380,8 @@ const zh: Record<string, string> = {
   'Replace Status Code': '替换状态码',
   'Replace Message': '替换消息',
   'Custom Extensions': '自定义扩展',
+  'Pressure cooling, rate limiting, error filtering and risk-control headers for this channel.':
+    '本渠道的压力冷却、渠道限流、上游错误过滤与风控识别头部配置。',
   'Redis is not enabled. Rate limiting requires Redis.':
     'Redis 未启用，限流功能需要 Redis。',
 
@@ -554,6 +574,10 @@ const zh: Record<string, string> = {
   'Manual Top-Up Commission': '手动充值返佣',
   'When enabled, admin manual top-ups also trigger commission for the inviter.':
     '开启后，管理员手动充值也会触发邀请者返佣。',
+  'Commission Rate': '返佣比例',
+  'Minimum Transfer Amount': '最低转出金额',
+  'Minimum amount (in currency units) required for affiliate reward transfers. Set to 0 for no minimum.':
+    '推荐奖励转出到余额的最低金额（按货币单位）。设为 0 则不限制。',
 
   // Detail page metadata
   'Assigned to me': '分配给我',
@@ -688,6 +712,22 @@ const zh: Record<string, string> = {
   'Hide invoices': '收起',
   'Active invoices summary': '进行中的发票申请：{{count}} 张，合计 {{amount}}',
   'Active refunds summary': '进行中的退款申请：{{count}} 笔，合计 {{amount}}',
+  'Needs manual handling (reject / offline red invoice)': '需人工处理（驳回/线下红冲）',
+  'Commission from this user': '该用户产生的返佣',
+  'Total commission': '返佣合计',
+  'Clawed back': '已扣回',
+  'Clawback available': '可扣回',
+  'Inviter aff balance': '邀请人返佣余额',
+  'Show all ({{count}})': '展开全部（{{count}} 条）',
+  'Claw back inviter commission': '扣回邀请人返佣',
+  'Clawback amount': '扣回金额',
+  'Amount exceeding the clawback limit will be capped automatically. A negative commission record will be visible to the inviter.':
+    '超出可扣回上限的金额会被自动封顶；扣回会生成一条负数返佣记录，邀请人可在钱包中看到。',
+  'Refund Clawback': '退款扣回',
+  'Add Entry': '添加条目',
+  'Invalid JSON — fix it here before switching to visual mode':
+    'JSON 无效——请先在此修复后再切换到可视化模式',
+  'Inviter user ID. Set to 0 to clear the inviter.': '邀请人的用户 ID。填 0 表示清除邀请人。',
 
   // Monitoring - Whitelist
   'Whitelist keywords': '关键词白名单',

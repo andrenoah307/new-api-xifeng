@@ -1,6 +1,7 @@
 import i18n from 'i18next'
 import en from './en'
 import zh from './zh'
+import zhTW from './zhTW'
 import fr from './fr'
 import ja from './ja'
 import ru from './ru'
@@ -8,7 +9,8 @@ import vi from './vi'
 
 const customResources: Record<string, Record<string, string>> = {
   en,
-  zh,
+  zhCN: zh,
+  zhTW,
   fr,
   ja,
   ru,
