@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBuildInsufficientQuotaMessage 锁定预扣拒绝错误串的信息契约：必须携带模型、分组、
-// 分组倍率、上下文估算与「充值/减小上下文」建议，供双前端友好展示与事后取证（预扣 403
+// TestBuildInsufficientQuotaMessage 锁定预扣拒绝错误串的信息契约：必须携带模型、
+// 上下文估算与「充值/减小上下文」建议，供双前端友好展示与事后取证（预扣 403
 // 不落盘，坑点 #138）。钱包/令牌两种归因的主语正确区分。
 func TestBuildInsufficientQuotaMessage(t *testing.T) {
 	info := &relaycommon.RelayInfo{
@@ -25,10 +25,11 @@ func TestBuildInsufficientQuotaMessage(t *testing.T) {
 	wallet := buildInsufficientQuotaMessage(info, 4870043, 53350590, false)
 	assert.Contains(t, wallet, "用户额度不足")
 	assert.Contains(t, wallet, "claude-opus-4-7")
-	assert.Contains(t, wallet, "default")
 	assert.Contains(t, wallet, "200000")
 	assert.Contains(t, wallet, "充值")
 	assert.NotContains(t, wallet, "令牌剩余额度")
+	assert.NotContains(t, wallet, "分组")
+	assert.NotContains(t, wallet, "分组倍率")
 
 	token := buildInsufficientQuotaMessage(info, 100, 53350590, true)
 	assert.True(t, strings.HasPrefix(token, "令牌额度不足"))

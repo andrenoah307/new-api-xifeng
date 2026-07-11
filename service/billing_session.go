@@ -337,20 +337,17 @@ func (s *BillingSession) syncRelayInfo() {
 
 // ---------------------------------------------------------------------------
 // buildInsufficientQuotaMessage 组装「余额/令牌额度不足」的友好错误串，用于预扣硬拒。
-// 预扣 403 携 ErrOptionWithNoRecordErrorLog 不落盘（坑点 #138），因此把模型 / 分组(倍率) /
-// 上下文估算 / 最低需预扣成本 / 当前余额都写进错误串——既让终端用户理解并自助（充值或减小
-// 上下文 / 降低 max_tokens），也让双前端据此渲染友好提示，并为事后取证保留关键量。
+// 预扣 403 携 ErrOptionWithNoRecordErrorLog 不落盘（坑点 #138），因此把模型 / 上下文估算 /
+// 最低需预扣成本 / 当前余额都写进错误串（分组名与分组倍率不外泄，避免代理商调用暴露分组信息）——
+// 既让终端用户理解并自助（充值或减小上下文 / 降低 max_tokens），也让双前端据此渲染友好提示，
+// 并为事后取证保留关键量。
 func buildInsufficientQuotaMessage(info *relaycommon.RelayInfo, remainQuota, minQuota int, isToken bool) string {
-	group := info.UsingGroup
-	if group == "" {
-		group = info.UserGroup
-	}
 	subject, remainLabel := "用户额度不足", "当前余额"
 	if isToken {
 		subject, remainLabel = "令牌额度不足", "令牌剩余额度"
 	}
-	return fmt.Sprintf("%s：模型 %s（分组 %s，分组倍率 %g），预估上下文约 %d tokens，最低需预扣 %s，%s %s。请充值，或减小上下文 / 降低 max_tokens 后重试。",
-		subject, info.OriginModelName, group, info.PriceData.GroupRatioInfo.GroupRatio,
+	return fmt.Sprintf("%s：模型 %s，预估上下文约 %d tokens，最低需预扣 %s，%s %s。请充值，或减小上下文 / 降低 max_tokens 后重试。",
+		subject, info.OriginModelName,
 		info.GetEstimatePromptTokens(), logger.FormatQuota(minQuota), remainLabel, logger.FormatQuota(remainQuota))
 }
 
