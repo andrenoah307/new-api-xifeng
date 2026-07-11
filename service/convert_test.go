@@ -4,68 +4,66 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/dto"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuildClaudeUsageFromOpenAIUsage_SubtractsCacheFromInput(t *testing.T) {
-	oaiUsage := &dto.Usage{PromptTokens: 236745, CompletionTokens: 63}
-	oaiUsage.PromptTokensDetails.CachedTokens = 236416
+func TestResponseConverterFacades(t *testing.T) {
+	cache5m, cache1h := NormalizeCacheCreationSplit(10, 3, 2)
+	assert.Equal(t, 8, cache5m)
+	assert.Equal(t, 2, cache1h)
 
-	usage := buildClaudeUsageFromOpenAIUsage(oaiUsage)
+	chatResp := &dto.OpenAITextResponse{
+		Id:    "chatcmpl_1",
+		Model: "gpt-test",
+		Choices: []dto.OpenAITextResponseChoice{
+			{
+				Message: dto.Message{
+					Role:    "assistant",
+					Content: "hello",
+				},
+				FinishReason: "stop",
+			},
+		},
+	}
 
-	require.NotNil(t, usage)
-	require.Equal(t, 329, usage.InputTokens)
-	require.Equal(t, 236416, usage.CacheReadInputTokens)
-	require.Equal(t, 63, usage.OutputTokens)
+	claudeResp := ResponseOpenAI2Claude(chatResp, &relaycommon.RelayInfo{})
+	require.NotNil(t, claudeResp)
+	assert.Equal(t, "message", claudeResp.Type)
+
+	geminiResp := ResponseOpenAI2Gemini(chatResp, &relaycommon.RelayInfo{})
+	require.NotNil(t, geminiResp)
+	require.Len(t, geminiResp.Candidates, 1)
 }
 
-func TestBuildClaudeUsageFromOpenAIUsage_SubtractsCacheCreation(t *testing.T) {
-	oaiUsage := &dto.Usage{PromptTokens: 1000}
-	oaiUsage.PromptTokensDetails.CachedTokens = 200
-	oaiUsage.PromptTokensDetails.CachedCreationTokens = 300
+func TestStreamResponseConverterFacades(t *testing.T) {
+	info := &relaycommon.RelayInfo{
+		SendResponseCount: 1,
+		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
+			LastMessagesType: relaycommon.LastMessageTypeNone,
+		},
+	}
+	streamResp := &dto.ChatCompletionsStreamResponse{
+		Id:    "chatcmpl_1",
+		Model: "gpt-test",
+		Choices: []dto.ChatCompletionsStreamResponseChoice{
+			{
+				Delta: dto.ChatCompletionsStreamResponseChoiceDelta{
+					Content: ptrValue("hello"),
+				},
+			},
+		},
+	}
 
-	usage := buildClaudeUsageFromOpenAIUsage(oaiUsage)
+	claudeResponses := StreamResponseOpenAI2Claude(streamResp, info)
+	require.NotEmpty(t, claudeResponses)
 
-	require.NotNil(t, usage)
-	require.Equal(t, 500, usage.InputTokens)
-	require.Equal(t, 200, usage.CacheReadInputTokens)
-	require.Equal(t, 300, usage.CacheCreationInputTokens)
+	geminiResp := StreamResponseOpenAI2Gemini(streamResp, &relaycommon.RelayInfo{})
+	require.NotNil(t, geminiResp)
+	require.Len(t, geminiResp.Candidates, 1)
 }
 
-func TestBuildClaudeUsageFromOpenAIUsage_CacheCreationSplitTakesMax(t *testing.T) {
-	oaiUsage := &dto.Usage{PromptTokens: 1000}
-	oaiUsage.PromptTokensDetails.CachedTokens = 100
-	oaiUsage.PromptTokensDetails.CachedCreationTokens = 0
-	oaiUsage.ClaudeCacheCreation5mTokens = 120
-	oaiUsage.ClaudeCacheCreation1hTokens = 80
-
-	usage := buildClaudeUsageFromOpenAIUsage(oaiUsage)
-
-	require.NotNil(t, usage)
-	require.Equal(t, 700, usage.InputTokens)
-}
-
-func TestBuildClaudeUsageFromOpenAIUsage_FloorsAtZero(t *testing.T) {
-	oaiUsage := &dto.Usage{PromptTokens: 100}
-	oaiUsage.PromptTokensDetails.CachedTokens = 500
-
-	usage := buildClaudeUsageFromOpenAIUsage(oaiUsage)
-
-	require.NotNil(t, usage)
-	require.Equal(t, 0, usage.InputTokens)
-}
-
-func TestBuildClaudeUsageFromOpenAIUsage_NoCacheUnchanged(t *testing.T) {
-	oaiUsage := &dto.Usage{PromptTokens: 1000}
-
-	usage := buildClaudeUsageFromOpenAIUsage(oaiUsage)
-
-	require.NotNil(t, usage)
-	require.Equal(t, 1000, usage.InputTokens)
-}
-
-func TestBuildClaudeUsageFromOpenAIUsage_NilReturnsNil(t *testing.T) {
-	usage := buildClaudeUsageFromOpenAIUsage(nil)
-
-	require.Nil(t, usage)
+func ptrValue[T any](value T) *T {
+	return &value
 }

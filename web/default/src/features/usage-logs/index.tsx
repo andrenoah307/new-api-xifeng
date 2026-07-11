@@ -29,7 +29,9 @@ import { CacheStatsDialog } from '@/features/system-settings/general/channel-aff
 import { AdminExportTab } from './components/admin-export-tab'
 import { UserInfoDialog } from './components/dialogs/user-info-dialog'
 import {
+  type LogsViewScope,
   UsageLogsProvider,
+  useLogsViewScope,
   useUsageLogsContext,
 } from './components/usage-logs-provider'
 import { UsageLogsTable } from './components/usage-logs-table'
@@ -77,6 +79,7 @@ function UsageLogsContent() {
     affinityDialogOpen,
     setAffinityDialogOpen,
   } = useUsageLogsContext()
+  const { canManageScope, viewScope, setViewScope } = useLogsViewScope()
   const tabNavGroups = useMemo<NavGroup[]>(
     () => [
       {
@@ -118,6 +121,15 @@ function UsageLogsContent() {
     [navigate]
   )
 
+  const handleViewScopeChange = useCallback(
+    (scope: string) => {
+      if (scope === 'all' || scope === 'self') {
+        setViewScope(scope as LogsViewScope)
+      }
+    },
+    [setViewScope]
+  )
+
   const pageMeta =
     activeCategory === 'common'
       ? SECTION_META.common
@@ -133,6 +145,16 @@ function UsageLogsContent() {
         <SectionPageLayout.Title>
           {t(pageMeta.titleKey)}
         </SectionPageLayout.Title>
+        {canManageScope && (
+          <SectionPageLayout.Actions>
+            <Tabs value={viewScope} onValueChange={handleViewScopeChange}>
+              <TabsList>
+                <TabsTrigger value='all'>{t('All')}</TabsTrigger>
+                <TabsTrigger value='self'>{t('Only Mine')}</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </SectionPageLayout.Actions>
+        )}
         <SectionPageLayout.Content>
           <div className='flex h-full min-h-0 flex-col gap-4'>
             {showTaskSwitcher && (

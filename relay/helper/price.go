@@ -119,8 +119,13 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		audioRatio = ratio_setting.GetAudioRatio(info.OriginModelName)
 		audioCompletionRatio = ratio_setting.GetAudioCompletionRatio(info.OriginModelName)
 		ratio := modelRatio * groupRatioInfo.GroupRatio
-		preConsumedQuota = common.QuotaFromFloat(float64(preConsumedTokens) * ratio)
+		quota, err := common.QuotaFromFloatStrict(float64(preConsumedTokens) * ratio)
+		if err != nil {
+			return types.PriceData{}, err
+		}
+		preConsumedQuota = quota
 		// 部分预扣下限：仅输入（prompt）的预估成本（坑点 #137）
+		// min 是 ≤ 全额的下界，全额溢出已在上面报错返回，这里用非报错版转换即可
 		promptOnlyTokens := common.Max(promptTokens, common.PreConsumedQuota)
 		minPreConsumedQuota = common.QuotaFromFloat(float64(promptOnlyTokens) * ratio)
 		if !success {
@@ -134,9 +139,6 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		if meta.ImagePriceRatio != 0 {
 			modelPrice = modelPrice * meta.ImagePriceRatio
 		}
-		preConsumedQuota = common.QuotaFromFloat(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
-		// 按次价无单独输入下限，min 等于预扣额
-		minPreConsumedQuota = preConsumedQuota
 	}
 
 	// check if free model pre-consume is disabled
@@ -178,6 +180,19 @@ func ModelPriceHelper(c *gin.Context, info *relaycommon.RelayInfo, promptTokens 
 		QuotaToPreConsume:    preConsumedQuota,
 		QuotaToPreConsumeMin: minPreConsumedQuota,
 	}
+	if usePrice {
+		for name, ratio := range meta.BillingRatios {
+			priceData.AddOtherRatio(name, ratio)
+		}
+		quotaToPreConsume := priceData.ApplyOtherRatiosToFloat(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		quota, err := common.QuotaFromFloatStrict(quotaToPreConsume)
+		if err != nil {
+			return types.PriceData{}, err
+		}
+		priceData.QuotaToPreConsume = quota
+		// 按次价无单独输入下限，min 等于预扣额
+		priceData.QuotaToPreConsumeMin = quota
+	}
 
 	if common.DebugEnabled {
 		logger.LogDebug(c, "model_price_helper result: %s", priceData.ToSetting())
@@ -217,7 +232,11 @@ func ModelPriceHelperPerCall(c *gin.Context, info *relaycommon.RelayInfo) (types
 	freeModel := false
 
 	if usePrice {
-		quota = common.QuotaFromFloat(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		var err error
+		quota, err = common.QuotaFromFloatStrict(modelPrice * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		if err != nil {
+			return types.PriceData{}, err
+		}
 		if !operation_setting.GetQuotaSetting().EnableFreeModelPreConsume {
 			if groupRatioInfo.GroupRatio == 0 || modelPrice == 0 {
 				quota = 0
@@ -226,7 +245,11 @@ func ModelPriceHelperPerCall(c *gin.Context, info *relaycommon.RelayInfo) (types
 		}
 	} else {
 		// 按量计费：以模型倍率的一半作为预扣额度
-		quota = common.QuotaFromFloat(modelRatio / 2 * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		var err error
+		quota, err = common.QuotaFromFloatStrict(modelRatio / 2 * common.QuotaPerUnit * groupRatioInfo.GroupRatio)
+		if err != nil {
+			return types.PriceData{}, err
+		}
 		modelPrice = -1
 		if !operation_setting.GetQuotaSetting().EnableFreeModelPreConsume {
 			if groupRatioInfo.GroupRatio == 0 || modelRatio == 0 {
@@ -292,7 +315,10 @@ func modelPriceHelperTiered(c *gin.Context, info *relaycommon.RelayInfo, promptT
 
 	// Expression coefficients are $/1M tokens prices; convert to quota the same way per-call billing does.
 	quotaBeforeGroup := rawCost / 1_000_000 * common.QuotaPerUnit
-	preConsumedQuota := billingexpr.QuotaRound(quotaBeforeGroup * groupRatioInfo.GroupRatio)
+	preConsumedQuota, err := billingexpr.QuotaRoundStrict(quotaBeforeGroup * groupRatioInfo.GroupRatio)
+	if err != nil {
+		return types.PriceData{}, err
+	}
 
 	// 部分预扣下限：仅输入（C=0）的预估成本（坑点 #137）
 	minPreConsumedQuota := preConsumedQuota
