@@ -4,7 +4,6 @@ import type { UseFormReturn } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
 import type { ChannelFormValues } from '../../lib/channel-form'
 
 interface PressureCooling {
@@ -46,7 +45,9 @@ export function PressureCoolingEditor({ form }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">{t('Pressure Cooling')}</h4>
+        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          {t('Pressure Cooling')}
+        </h4>
         <Switch
           checked={data.enabled ?? false}
           onCheckedChange={(v) => update('enabled', v)}
@@ -66,9 +67,20 @@ export function PressureCoolingEditor({ form }: Props) {
           <Label className="text-xs">{t('Trigger Percent')}</Label>
           <Input
             type="number"
-            step="0.01"
+            step="1"
+            min="0"
+            max="100"
             value={data.trigger_percent ?? ''}
-            onChange={(e) => update('trigger_percent', e.target.value ? Number(e.target.value) : null)}
+            // 后端 trigger_percent 是整数（*int），小数会让整个渠道设置反序列化失败
+            onChange={(e) => {
+              const value = e.target.valueAsNumber
+              update(
+                'trigger_percent',
+                Number.isFinite(value)
+                  ? Math.min(100, Math.max(0, Math.round(value)))
+                  : null
+              )
+            }}
             className="h-8"
           />
         </div>
@@ -91,7 +103,6 @@ export function PressureCoolingEditor({ form }: Props) {
           />
         </div>
       </div>
-      <Separator />
     </div>
   )
 }

@@ -4,7 +4,6 @@ import type { UseFormReturn } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
 import {
   Select,
   SelectContent,
@@ -60,7 +59,9 @@ export function ChannelRateLimitEditor({ form }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">{t('Channel Rate Limit')}</h4>
+        <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          {t('Channel Rate Limit')}
+        </h4>
         <Switch
           checked={data.enabled}
           onCheckedChange={(v) => update('enabled', v)}
@@ -113,7 +114,6 @@ export function ChannelRateLimitEditor({ form }: Props) {
           />
         </div>
       </div>
-      <Separator />
     </div>
   )
 }

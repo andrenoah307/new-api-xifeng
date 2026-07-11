@@ -35,6 +35,7 @@ import {
   FileText,
   Eraser,
   Plus,
+  Puzzle,
   Eye,
   RefreshCw,
   Code,
@@ -245,12 +246,14 @@ const CHANNEL_EDITOR_SECTION_IDS = {
   credentials: 'channel-section-credentials',
   models: 'channel-section-models',
   advanced: 'channel-section-advanced',
+  custom: 'channel-section-custom',
 } as const
 const CHANNEL_EDITOR_MAIN_SECTION_IDS = [
   CHANNEL_EDITOR_SECTION_IDS.identity,
   CHANNEL_EDITOR_SECTION_IDS.credentials,
   CHANNEL_EDITOR_SECTION_IDS.models,
   CHANNEL_EDITOR_SECTION_IDS.advanced,
+  CHANNEL_EDITOR_SECTION_IDS.custom,
 ]
 const ADVANCED_SETTINGS_SECTION_IDS = {
   routingStrategy: 'channel-section-advanced-routing-strategy',
@@ -262,6 +265,15 @@ const ADVANCED_SETTINGS_SECTION_IDS = {
 } as const
 const ADVANCED_SETTINGS_CHILD_SECTION_IDS: string[] = Object.values(
   ADVANCED_SETTINGS_SECTION_IDS
+)
+const CUSTOM_SETTINGS_SECTION_IDS = {
+  pressureCooling: 'channel-section-custom-pressure-cooling',
+  rateLimit: 'channel-section-custom-rate-limit',
+  errorFilter: 'channel-section-custom-error-filter',
+  riskHeaders: 'channel-section-custom-risk-headers',
+} as const
+const CUSTOM_SETTINGS_CHILD_SECTION_IDS: string[] = Object.values(
+  CUSTOM_SETTINGS_SECTION_IDS
 )
 const ADVANCED_CUSTOM_ROUTE_TYPE_PREVIEW_LIMIT = 3
 const UPSTREAM_DETECTED_MODEL_PREVIEW_LIMIT = 8
@@ -636,6 +648,10 @@ export function ChannelMutateDrawer({
   >(null)
   const channelFormRef = useRef<HTMLFormElement>(null)
   const advancedNavScrollPendingRef = useRef(false)
+  // 滚向自定义扩展期间抑制 scroll-spy 的高级设置自动展开；否则途经
+  // advanced 激活区时 DOM 重排会劫持滚动终点，表现为需要点击两次。
+  const customNavScrollPendingRef = useRef(false)
+  const customNavScrollTimerRef = useRef<number | null>(null)
   const [activeEditorSectionId, setActiveEditorSectionId] = useState<string>(
     CHANNEL_EDITOR_SECTION_IDS.identity
   )
@@ -755,6 +771,10 @@ export function ChannelMutateDrawer({
   const currentAllowInferenceGeo = form.watch('allow_inference_geo')
   const currentAllowSpeed = form.watch('allow_speed')
   const currentClaudeBetaQuery = form.watch('claude_beta_query')
+  const currentPressureCooling = form.watch('pressure_cooling')
+  const currentChannelRateLimit = form.watch('channel_rate_limit')
+  const currentErrorFilterRules = form.watch('error_filter_rules')
+  const currentRiskControlHeaders = form.watch('risk_control_headers')
   const currentUpstreamModelUpdateAutoSyncEnabled = form.watch(
     'upstream_model_update_auto_sync_enabled'
   )
@@ -1044,6 +1064,43 @@ export function ChannelMutateDrawer({
     fieldPassthroughConfigured ||
     upstreamModelDetectionConfigured
   )
+  const pressureCoolingConfigured = Boolean(currentPressureCooling?.trim())
+  const rateLimitConfigured = Boolean(currentChannelRateLimit?.trim())
+  const errorFilterConfigured = Boolean(
+    currentErrorFilterRules?.trim() && currentErrorFilterRules.trim() !== '[]'
+  )
+  const riskHeadersConfigured = Boolean(
+    currentRiskControlHeaders?.trim() &&
+    currentRiskControlHeaders.trim() !== '[]'
+  )
+  const customConfigured = Boolean(
+    pressureCoolingConfigured ||
+    rateLimitConfigured ||
+    errorFilterConfigured ||
+    riskHeadersConfigured
+  )
+  const customNavChildren: ChannelEditorNavChildItem[] = [
+    {
+      id: CUSTOM_SETTINGS_SECTION_IDS.pressureCooling,
+      title: t('Pressure Cooling'),
+      configured: pressureCoolingConfigured,
+    },
+    {
+      id: CUSTOM_SETTINGS_SECTION_IDS.rateLimit,
+      title: t('Channel Rate Limit'),
+      configured: rateLimitConfigured,
+    },
+    {
+      id: CUSTOM_SETTINGS_SECTION_IDS.errorFilter,
+      title: t('Error Filter Rules'),
+      configured: errorFilterConfigured,
+    },
+    {
+      id: CUSTOM_SETTINGS_SECTION_IDS.riskHeaders,
+      title: t('Risk Control Headers'),
+      configured: riskHeadersConfigured,
+    },
+  ]
   const advancedNavChildren: ChannelEditorNavChildItem[] = [
     {
       id: ADVANCED_SETTINGS_SECTION_IDS.routingStrategy,
@@ -1114,6 +1171,15 @@ export function ChannelMutateDrawer({
       icon: <Settings className='h-4 w-4' aria-hidden='true' />,
       configured: advancedConfigured,
       children: advancedNavChildren,
+    },
+    {
+      id: CHANNEL_EDITOR_SECTION_IDS.custom,
+      title: t('Custom Extensions'),
+      statusLabel: t('Custom Extensions'),
+      status: 'idle',
+      icon: <Puzzle className='h-4 w-4' aria-hidden='true' />,
+      configured: customConfigured,
+      children: customNavChildren,
     },
   ]
 
@@ -1725,12 +1791,31 @@ export function ChannelMutateDrawer({
       const isAdvancedTarget =
         targetId === CHANNEL_EDITOR_SECTION_IDS.advanced ||
         ADVANCED_SETTINGS_CHILD_SECTION_IDS.includes(targetId)
+      const isCustomTarget =
+        targetId === CHANNEL_EDITOR_SECTION_IDS.custom ||
+        CUSTOM_SETTINGS_CHILD_SECTION_IDS.includes(targetId)
+
+      customNavScrollPendingRef.current = false
+      if (customNavScrollTimerRef.current !== null) {
+        window.clearTimeout(customNavScrollTimerRef.current)
+        customNavScrollTimerRef.current = null
+      }
 
       if (isAdvancedTarget) {
         advancedNavScrollPendingRef.current = true
         handleAdvancedSettingsOpenChange(true)
         setActiveEditorSectionId(CHANNEL_EDITOR_SECTION_IDS.advanced)
         setExpandedEditorNavItemId(CHANNEL_EDITOR_SECTION_IDS.advanced)
+      } else if (isCustomTarget) {
+        advancedNavScrollPendingRef.current = false
+        customNavScrollPendingRef.current = true
+        // 内容不足以让 custom 越过激活线时，超时恢复 scroll-spy。
+        customNavScrollTimerRef.current = window.setTimeout(() => {
+          customNavScrollPendingRef.current = false
+          customNavScrollTimerRef.current = null
+        }, 1200)
+        setActiveEditorSectionId(CHANNEL_EDITOR_SECTION_IDS.custom)
+        setExpandedEditorNavItemId(CHANNEL_EDITOR_SECTION_IDS.custom)
       } else {
         advancedNavScrollPendingRef.current = false
         setActiveEditorSectionId(targetId)
@@ -1772,6 +1857,17 @@ export function ChannelMutateDrawer({
       }
     }
 
+    // 滚向 custom 途中不接管导航状态：抵达 custom 时解除守卫并走正常
+    // 流程；途经 advanced 等区段时忽略本次 scroll-spy 结果。
+    if (customNavScrollPendingRef.current) {
+      if (nextActiveSectionId !== CHANNEL_EDITOR_SECTION_IDS.custom) return
+      customNavScrollPendingRef.current = false
+      if (customNavScrollTimerRef.current !== null) {
+        window.clearTimeout(customNavScrollTimerRef.current)
+        customNavScrollTimerRef.current = null
+      }
+    }
+
     setActiveEditorSectionId((current) =>
       current === nextActiveSectionId ? current : nextActiveSectionId
     )
@@ -1782,6 +1878,9 @@ export function ChannelMutateDrawer({
       if (!advancedSettingsOpen) {
         handleAdvancedSettingsOpenChange(true)
       }
+    } else if (nextActiveSectionId === CHANNEL_EDITOR_SECTION_IDS.custom) {
+      advancedNavScrollPendingRef.current = false
+      setExpandedEditorNavItemId(CHANNEL_EDITOR_SECTION_IDS.custom)
     } else if (!advancedNavScrollPendingRef.current) {
       setExpandedEditorNavItemId(undefined)
     }
@@ -1821,6 +1920,11 @@ export function ChannelMutateDrawer({
       if (!v) {
         form.reset(CHANNEL_FORM_DEFAULT_VALUES)
         advancedNavScrollPendingRef.current = false
+        customNavScrollPendingRef.current = false
+        if (customNavScrollTimerRef.current !== null) {
+          window.clearTimeout(customNavScrollTimerRef.current)
+          customNavScrollTimerRef.current = null
+        }
         setActiveEditorSectionId(CHANNEL_EDITOR_SECTION_IDS.identity)
         setExpandedEditorNavItemId(undefined)
         setAdvancedSettingsOpen(false)
@@ -4650,11 +4754,27 @@ export function ChannelMutateDrawer({
                         )}
                       </ChannelAdvancedSection>
                     </div>
+
+                    {/* fork: custom channel extensions（在内容列内渲染并挂锚点进左侧节导航） */}
+                    <div
+                      id={CHANNEL_EDITOR_SECTION_IDS.custom}
+                      className='scroll-mt-4'
+                    >
+                      <ChannelCustomSections
+                        form={form}
+                        channelId={channelId ?? undefined}
+                        sectionIds={CUSTOM_SETTINGS_SECTION_IDS}
+                        configured={{
+                          pressureCooling: pressureCoolingConfigured,
+                          rateLimit: rateLimitConfigured,
+                          errorFilter: errorFilterConfigured,
+                          riskHeaders: riskHeadersConfigured,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
-              {/* fork: custom channel extensions */}
-              <ChannelCustomSections form={form} channelId={channelId ?? undefined} />
             </form>
           </Form>
 
