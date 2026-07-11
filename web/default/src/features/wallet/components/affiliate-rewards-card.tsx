@@ -20,11 +20,13 @@ import { Share2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { CopyButton } from '@/components/copy-button'
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useStatus } from '@/hooks/use-status'
 import { formatQuota } from '@/lib/format'
 
 import type { UserWalletData } from '../types'
@@ -45,6 +47,8 @@ export function AffiliateRewardsCard({
   loading,
 }: AffiliateRewardsCardProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const commissionRate = Number(status?.top_up_commission_rate ?? 0)
   if (loading) {
     return (
       <Card data-card-hover='false' className='bg-muted/20 py-0'>
@@ -70,9 +74,18 @@ export function AffiliateRewardsCard({
             <Share2 />
           </IconBadge>
           <div className='min-w-0'>
-            <h3 className='truncate text-sm font-semibold'>
-              {t('Referral Program')}
-            </h3>
+            <div className='flex items-center gap-1.5'>
+              <h3 className='truncate text-sm font-semibold'>
+                {t('Referral Program')}
+              </h3>
+              {commissionRate > 0 && (
+                <StatusBadge
+                  label={`${t('Commission Rate')} ${commissionRate}%`}
+                  variant='info'
+                  copyable={false}
+                />
+              )}
+            </div>
             <p className='text-muted-foreground line-clamp-1 text-xs'>
               {t(
                 'Earn rewards when users join through your referral link. Transfer accumulated rewards to your balance anytime.'

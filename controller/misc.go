@@ -89,6 +89,7 @@ func GetStatus(c *gin.Context) {
 		"docs_link":                        operation_setting.GetGeneralSetting().DocsLink,
 		"quota_per_unit":                   common.QuotaPerUnit,
 		"min_transfer_amount":              common.MinTransferAmount,
+		"top_up_commission_rate":           common.TopUpCommissionRate,
 		"min_invoice_amount":               operation_setting.MinInvoiceAmount,
 		"invoice_regular_fee_rate":         operation_setting.InvoiceRegularFeeRate,
 		"invoice_regular_description":      operation_setting.InvoiceRegularDescription,
