@@ -38,6 +38,7 @@ export interface RegisterPayload {
   email?: string
   verification_code?: string
   aff_code?: string
+  invitation_code?: string
   turnstile?: string
 }
 
@@ -117,6 +118,8 @@ export interface SystemStatus {
     display_in_currency?: boolean
     display_token_stat_enabled?: boolean
     quota_per_unit?: number
+    min_transfer_amount?: number
+    min_invoice_amount?: number
     quota_display_type?: string
     usd_exchange_rate?: number
     custom_currency_symbol?: string
@@ -172,6 +175,10 @@ export interface SystemStatus {
   password_login_enabled?: boolean
   password_register_enabled?: boolean
   custom_oauth_providers?: CustomOAuthProviderInfo[]
+  region_blocked_groups?: string[]
+  region_detected_country?: string
+  cn_disclaimer_enabled?: boolean
+  cn_disclaimer_required?: boolean
   [key: string]: unknown
 }
 

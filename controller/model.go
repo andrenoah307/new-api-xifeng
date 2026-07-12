@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/relay"
 	"github.com/QuantumNous/new-api/relay/channel/ai360"
 	"github.com/QuantumNous/new-api/relay/channel/lingyiwanwu"
@@ -126,6 +127,70 @@ func channelOwnerName(channelType int) string {
 		return name
 	}
 	return strings.ToLower(constant.GetChannelTypeName(channelType))
+}
+
+func filterRegionBlockedOpenAIModels(c *gin.Context, models []dto.OpenAIModels) []dto.OpenAIModels {
+	rs := operation_setting.GetRegionRestrictionSetting()
+	if !rs.Enabled || !rs.FilterConsole {
+		return models
+	}
+	cc := requestip.GetClientCountry(c)
+	if cc == "" {
+		return models
+	}
+	filtered := make([]dto.OpenAIModels, 0, len(models))
+	for _, m := range models {
+		if !operation_setting.IsModelBlockedForCountry(cc, m.Id) {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered
+}
+
+func filterRegionBlockedUserModels(c *gin.Context, models []string) []string {
+	regionSetting := operation_setting.GetRegionRestrictionSetting()
+	if !regionSetting.Enabled || !regionSetting.FilterConsole {
+		return models
+	}
+	country := requestip.GetClientCountry(c)
+	if country == "" {
+		return models
+	}
+	filtered := make([]string, 0, len(models))
+	for _, modelName := range models {
+		if !operation_setting.IsModelBlockedForCountry(country, modelName) {
+			filtered = append(filtered, modelName)
+		}
+	}
+	return filtered
+}
+
+func filterGroupBlockedOpenAIModels(group string, models []dto.OpenAIModels) []dto.OpenAIModels {
+	gmbs := operation_setting.GetGroupModelBlacklistSetting()
+	if !gmbs.Enabled || !gmbs.FilterConsole || group == "" || group == "auto" {
+		return models
+	}
+	filtered := make([]dto.OpenAIModels, 0, len(models))
+	for _, m := range models {
+		if !operation_setting.IsModelBlockedForGroup(group, m.Id) {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered
+}
+
+func filterGroupBlockedUserModels(group string, models []string) []string {
+	blacklistSetting := operation_setting.GetGroupModelBlacklistSetting()
+	if !blacklistSetting.Enabled || !blacklistSetting.FilterConsole || group == "" || group == "auto" {
+		return models
+	}
+	filtered := make([]string, 0, len(models))
+	for _, modelName := range models {
+		if !operation_setting.IsModelBlockedForGroup(group, modelName) {
+			filtered = append(filtered, modelName)
+		}
+	}
+	return filtered
 }
 
 func getPreferredModelOwners(modelNames []string, groups []string) map[string]string {
@@ -276,6 +341,9 @@ func ListModels(c *gin.Context, modelType int) {
 	for _, modelName := range userModelNames {
 		userOpenAiModels = append(userOpenAiModels, buildOpenAIModel(modelName, ownerByModel))
 	}
+
+	userOpenAiModels = filterRegionBlockedOpenAIModels(c, userOpenAiModels)
+	userOpenAiModels = filterGroupBlockedOpenAIModels(c.GetString("group"), userOpenAiModels)
 
 	switch modelType {
 	case constant.ChannelTypeAnthropic:

@@ -87,7 +87,7 @@ func TestPreConsumeBillingRejectsSaturatedQuotaBeforeDeduction(t *testing.T) {
 		},
 	}
 
-	apiErr := PreConsumeBilling(c, common.MaxQuota, info)
+	apiErr := PreConsumeBilling(c, common.MaxQuota, common.MaxQuota, info)
 
 	require.NotNil(t, apiErr)
 	require.Equal(t, types.ErrorCodeModelPriceError, apiErr.GetErrorCode())
@@ -104,7 +104,7 @@ func TestPreConsumeBillingRejectsNegativeQuotaBeforeDeduction(t *testing.T) {
 	c, _ := gin.CreateTestContext(nil)
 	info := &relaycommon.RelayInfo{}
 
-	apiErr := PreConsumeBilling(c, -1, info)
+	apiErr := PreConsumeBilling(c, -1, -1, info)
 
 	require.NotNil(t, apiErr)
 	require.Equal(t, types.ErrorCodeModelPriceError, apiErr.GetErrorCode())

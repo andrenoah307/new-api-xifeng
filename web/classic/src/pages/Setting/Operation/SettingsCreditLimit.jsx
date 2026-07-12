@@ -36,6 +36,11 @@ export default function SettingsCreditLimit(props) {
     PreConsumedQuota: '',
     QuotaForInviter: '',
     QuotaForInvitee: '',
+    TopUpCommissionRate: '',
+    TopUpCommissionManualEnabled: false,
+    AffTransferCooldownHours: '',
+    InviteRewardCooldownHours: '',
+    MinTransferAmount: '',
     'quota_setting.enable_free_model_pre_consume': true,
   });
   const refForm = useRef();
@@ -179,6 +184,91 @@ export default function SettingsCreditLimit(props) {
                     setInputs({
                       ...inputs,
                       QuotaForInvitee: String(value),
+                    })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('充值返佣比例 (%)')}
+                  field={'TopUpCommissionRate'}
+                  step={0.1}
+                  min={0}
+                  max={100}
+                  suffix={'%'}
+                  extraText={t('被邀请者充值时，邀请者获得的返佣百分比，设为 0 则关闭')}
+                  placeholder={'0'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      TopUpCommissionRate: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  label={t('管理员手动充值返佣')}
+                  field={'TopUpCommissionManualEnabled'}
+                  extraText={t('开启后，管理员手动充值也会触发邀请者返佣')}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      TopUpCommissionManualEnabled: value,
+                    })
+                  }
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('充值返佣冷却时间（小时）')}
+                  field={'AffTransferCooldownHours'}
+                  step={1}
+                  min={0}
+                  suffix={t('小时')}
+                  extraText={t('充值返利在此时间后才可划转到余额，设为 0 关闭冷却')}
+                  placeholder={'72'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      AffTransferCooldownHours: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('邀请奖励冷却时间（小时）')}
+                  field={'InviteRewardCooldownHours'}
+                  step={1}
+                  min={0}
+                  suffix={t('小时')}
+                  extraText={t('邀请注册奖励在此时间后才可划转到余额，设为 0 关闭冷却')}
+                  placeholder={'72'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      InviteRewardCooldownHours: String(value),
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  label={t('最低划转金额')}
+                  field={'MinTransferAmount'}
+                  step={0.01}
+                  min={0}
+                  extraText={t('划转邀请奖励到余额的最低金额（货币单位），设为 0 无限制')}
+                  placeholder={'1.00'}
+                  onChange={(value) =>
+                    setInputs({
+                      ...inputs,
+                      MinTransferAmount: String(value),
                     })
                   }
                 />

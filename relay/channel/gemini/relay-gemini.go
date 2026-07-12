@@ -177,7 +177,10 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 		if info.ReceivedResponseCount > 0 {
 			usage = service.ResponseText2Usage(c, responseText.String(), info.UpstreamModelName, info.GetEstimatePromptTokens())
 		} else {
+			// 空响应兜底：上游 usage 显示 output=0 且整段流无任何响应文本，
+			// 视为上游 usage 不全（坑点 #94 / #122 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
 			usage = &dto.Usage{}
+			common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 		}
 		if imageCount != 0 && usage.CompletionTokens == 0 {
 			usage.CompletionTokens = imageCount * 1400
@@ -296,6 +299,19 @@ func GeminiChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *
 	return usage, nil
 }
 
+func openaiResponseHasContent(response *dto.OpenAITextResponse) bool {
+	if response == nil {
+		return false
+	}
+	for index := range response.Choices {
+		message := &response.Choices[index].Message
+		if len(message.ToolCalls) > 0 || message.GetReasoningContent() != "" || message.StringContent() != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -346,6 +362,13 @@ func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 	fullTextResponse := responseGeminiChat2OpenAI(c, &geminiResponse)
 	fullTextResponse.Model = info.UpstreamModelName
 	usage := buildUsageFromGeminiResponse(c, info, &geminiResponse)
+
+	// 空输出兜底：上游 OutputTokens=0 且转换后 OpenAI Choices 无任何文本/工具调用，
+	// 视为上游 usage 不全（坑点 #94 / #122 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
+	if usage.CompletionTokens == 0 && !openaiResponseHasContent(fullTextResponse) {
+		usage = dto.Usage{}
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
+	}
 
 	fullTextResponse.Usage = usage
 

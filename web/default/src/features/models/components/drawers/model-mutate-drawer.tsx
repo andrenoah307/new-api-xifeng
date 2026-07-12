@@ -207,6 +207,7 @@ export function ModelMutateDrawer({
       AutomaticDisableChannelEnabled: false,
       AutomaticEnableChannelEnabled: false,
       AutomaticDisableKeywords: '',
+      AutomaticDisableWhitelist: '',
       AutomaticDisableStatusCodes: '401',
       AutomaticRetryStatusCodes:
         '100-199,300-399,401-407,409-499,500-503,505-523,525-599',

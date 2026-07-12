@@ -43,6 +43,19 @@ export const THEME_PRESETS = [
     swatches: ['oklch(0.15 0 0)', 'oklch(0.99 0 0)'],
   },
   {
+    // Inspired by Anthropic's official brand language: warm cream canvas
+    // (#faf9f5) paired with clay/coral (#d97757) as the single accent.
+    // Swatches preview the canvas → accent gradient that defines the system.
+    value: 'anthropic',
+    name: 'Anthropic',
+    swatches: ['oklch(0.984 0.005 95)', 'oklch(0.685 0.142 38)'],
+  },
+  {
+    value: 'simple-large',
+    name: 'Simple Large-font',
+    swatches: ['oklch(0.15 0 0)', 'oklch(0.99 0 0)'],
+  },
+  {
     value: 'underground',
     name: 'Underground',
     swatches: ['oklch(0.5315 0.0694 156.19)', 'oklch(0.5748 0.0862 336.52)'],

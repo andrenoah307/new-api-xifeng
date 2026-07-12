@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { type ColumnDef } from '@tanstack/react-table'
+import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -78,6 +79,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
 
+  const lastTotalRef = useRef(0)
+  const lastFiltersRef = useRef('')
+
   const {
     columnFilters,
     onColumnFiltersChange,
@@ -128,6 +132,9 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       t,
     ],
     queryFn: async () => {
+      const currentFilters = JSON.stringify({ searchParams, columnFilters, logCategory })
+      const totalCount = currentFilters === lastFiltersRef.current ? lastTotalRef.current : 0
+
       const result = await fetchLogsByCategory({
         logCategory,
         isAdmin,
@@ -135,6 +142,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
         pageSize: pagination.pageSize,
         searchParams,
         columnFilters,
+        totalCount,
       })
 
       if (!result?.success) {

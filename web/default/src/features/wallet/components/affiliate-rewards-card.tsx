@@ -60,7 +60,7 @@ export function AffiliateRewardsCard({
     )
   }
 
-  const hasRewards = (user?.aff_quota ?? 0) > 0
+  const canTransfer = (user?.transferable_aff_quota ?? 0) > 0
 
   return (
     <Card data-card-hover='false' className='bg-muted/20 py-0'>
@@ -81,9 +81,10 @@ export function AffiliateRewardsCard({
           </div>
         </div>
 
-        <div className='grid grid-cols-3 gap-1.5 text-center'>
+        <div className='grid grid-cols-4 gap-1.5 text-center'>
           {[
-            [t('Pending'), formatQuota(user?.aff_quota ?? 0)],
+            [t('Transferable'), formatQuota(user?.transferable_aff_quota ?? 0)],
+            [t('Locked'), formatQuota((user?.aff_quota ?? 0) - (user?.transferable_aff_quota ?? 0))],
             [t('Total Earned'), formatQuota(user?.aff_history_quota ?? 0)],
             [t('Invites'), String(user?.aff_count ?? 0)],
           ].map(([label, value]) => (
@@ -112,16 +113,14 @@ export function AffiliateRewardsCard({
             tooltip={t('Copy referral link')}
             aria-label={t('Copy referral link')}
           />
-          {hasRewards && (
-            <Button
-              onClick={onTransfer}
-              disabled={!complianceConfirmed}
-              className='h-9 shrink-0 px-3'
-              size='sm'
-            >
-              {t('Transfer to Balance')}
-            </Button>
-          )}
+          <Button
+            onClick={onTransfer}
+            disabled={!canTransfer || !complianceConfirmed}
+            className='h-9 shrink-0 px-3'
+            size='sm'
+          >
+            {t('Transfer to Balance')}
+          </Button>
         </div>
         {!complianceConfirmed ? (
           <p className='text-muted-foreground text-xs lg:col-span-3'>

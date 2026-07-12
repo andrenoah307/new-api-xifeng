@@ -313,6 +313,7 @@ export interface GetLogsParams {
   group?: string
   request_id?: string
   upstream_request_id?: string
+  total_count?: number
 }
 
 export interface GetLogsResponse {
@@ -356,6 +357,7 @@ export interface GetMidjourneyLogsParams {
   mj_id?: string
   start_timestamp?: number
   end_timestamp?: number
+  total_count?: number
 }
 
 // ============================================================================
@@ -369,6 +371,39 @@ export interface GetTaskLogsParams {
   task_id?: string
   start_timestamp?: number
   end_timestamp?: number
+  total_count?: number
+}
+
+// ============================================================================
+// Offline Export Types
+// ============================================================================
+
+export interface ExportTask {
+  id: number
+  user_id: number
+  username: string
+  email: string
+  status: number
+  filters: string
+  file_path: string
+  file_size: number
+  row_count: number
+  progress: number
+  error_message: string
+  created_time: number
+  started_time: number
+  completed_time: number
+}
+
+export interface SubmitOfflineExportParams {
+  filters: {
+    start_timestamp: number
+    end_timestamp: number
+    model_name?: string
+    token_name?: string
+    channel_id?: number
+  }
+  email?: string
 }
 
 // ============================================================================
@@ -385,6 +420,7 @@ export interface FetchLogsConfig {
   pageSize: number
   searchParams: Record<string, unknown>
   columnFilters: Array<{ id: string; value: unknown }>
+  totalCount?: number
 }
 
 // ============================================================================

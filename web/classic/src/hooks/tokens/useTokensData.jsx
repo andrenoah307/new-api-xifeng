@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal } from '@douyinfe/semi-ui';
 import {
@@ -35,9 +35,12 @@ import {
   getServerAddress,
   encodeChannelConnectionString,
 } from '../../helpers/token';
+import { StatusContext } from '../../context/Status';
 
 export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
   const { t } = useTranslation();
+  const [statusState] = useContext(StatusContext);
+  const regionBlockedGroups = statusState?.status?.region_blocked_groups || [];
 
   // Basic state
   const [tokens, setTokens] = useState([]);
@@ -470,6 +473,7 @@ export const useTokensData = (openFluentNotification, openCCSwitchModal) => {
     pageSize,
     searching,
     groupRatios,
+    regionBlockedGroups,
 
     // Selection state
     selectedKeys,

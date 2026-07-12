@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
@@ -37,6 +38,8 @@ type StripePayRequest struct {
 	// CancelURL is the optional custom URL to redirect when payment is canceled.
 	// If empty, defaults to the server's console topup page.
 	CancelURL string `json:"cancel_url,omitempty"`
+	// DiscountCode is the optional discount code for this payment.
+	DiscountCode string `json:"discount_code,omitempty"`
 }
 
 type StripeAdaptor struct {
@@ -54,6 +57,18 @@ func (*StripeAdaptor) RequestAmount(c *gin.Context, req *StripePayRequest) {
 		return
 	}
 	payMoney := getStripePayMoney(float64(req.Amount), group)
+	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
+	}
 	if payMoney <= 0.01 {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "充值金额过低"})
 		return
@@ -89,6 +104,21 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	user, _ := model.GetUserById(id, false)
 	chargedMoney := GetChargedAmount(float64(req.Amount), *user)
 
+	var discountCodeId int
+	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		discountCodeId = dc.Id
+		chargedMoney = chargedMoney * float64(dc.DiscountRate) / 100.0
+	}
+
 	reference := fmt.Sprintf("new-api-ref-%d-%d-%s", user.Id, time.Now().UnixMilli(), randstr.String(4))
 	referenceId := "ref_" + common.Sha1([]byte(reference))
 
@@ -108,6 +138,7 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 		PaymentProvider: model.PaymentProviderStripe,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
+		DiscountCodeId:  discountCodeId,
 	}
 	err = topUp.Insert()
 	if err != nil {
@@ -287,6 +318,7 @@ func fulfillOrder(ctx context.Context, event stripe.Event, referenceId string, c
 	total, _ := strconv.ParseFloat(event.GetObjectValue("amount_total"), 64)
 	currency := strings.ToUpper(event.GetObjectValue("currency"))
 	logger.LogInfo(ctx, fmt.Sprintf("Stripe 充值成功 trade_no=%s amount_total=%.2f currency=%s event_type=%s client_ip=%s", referenceId, total/100, currency, string(event.Type), callerIp))
+	service.NotifyTopUpSuccessByTradeNo(referenceId)
 }
 
 func sessionExpired(ctx context.Context, event stripe.Event) {
@@ -347,10 +379,10 @@ func genStripeLink(referenceId string, customerId string, email string, amount i
 
 	// Use custom URLs if provided, otherwise use defaults
 	if successURL == "" {
-		successURL = paymentReturnPath("/console/log")
+		successURL = service.GetPaymentReturnURL("billing", "")
 	}
 	if cancelURL == "" {
-		cancelURL = paymentReturnPath("/console/topup")
+		cancelURL = service.GetPaymentReturnURL("wallet", "")
 	}
 
 	params := &stripe.CheckoutSessionParams{

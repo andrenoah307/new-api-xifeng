@@ -132,6 +132,7 @@ func validateLikePattern(input string) error {
 const searchHardLimit = 100
 
 func SearchUserTokens(userId int, keyword string, token string, offset int, limit int) (tokens []*Token, total int64, err error) {
+	tokens = make([]*Token, 0)
 	// model 层强制截断
 	if limit <= 0 || limit > searchHardLimit {
 		limit = searchHardLimit
@@ -177,7 +178,7 @@ func SearchUserTokens(userId int, keyword string, token string, offset int, limi
 	}
 
 	// 先查匹配总数（用于分页，受 maxTokens 上限保护，避免全表 COUNT）
-	err = baseQuery.Limit(maxTokens).Count(&total).Error
+	err = baseQuery.Session(&gorm.Session{}).Limit(maxTokens).Count(&total).Error
 	if err != nil {
 		common.SysError("failed to count search tokens: " + err.Error())
 		return nil, 0, errors.New("搜索令牌失败")
@@ -251,8 +252,9 @@ func GetTokenById(id int) (*Token, error) {
 	err = DB.First(&token, "id = ?", id).Error
 	if shouldUpdateRedis(true, err) {
 		gopool.Go(func() {
-			if err := cacheSetToken(token); err != nil {
-				common.SysLog("failed to update user status cache: " + err.Error())
+			// 失效而非整 hash 覆盖 RemainQuota（Lost Update）；失效后下次读从库重建。
+			if err := cacheDeleteToken(token.Key); err != nil {
+				common.SysLog("failed to invalidate token cache: " + err.Error())
 			}
 		})
 	}
@@ -294,9 +296,9 @@ func (token *Token) Update() (err error) {
 	defer func() {
 		if shouldUpdateRedis(true, err) {
 			gopool.Go(func() {
-				err := cacheSetToken(*token)
-				if err != nil {
-					common.SysLog("failed to update token cache: " + err.Error())
+				// 失效而非整 hash 覆盖 RemainQuota（Lost Update）；失效后下次读从库重建。
+				if err := cacheDeleteToken(token.Key); err != nil {
+					common.SysLog("failed to invalidate token cache: " + err.Error())
 				}
 			})
 		}
@@ -310,9 +312,9 @@ func (token *Token) SelectUpdate() (err error) {
 	defer func() {
 		if shouldUpdateRedis(true, err) {
 			gopool.Go(func() {
-				err := cacheSetToken(*token)
-				if err != nil {
-					common.SysLog("failed to update token cache: " + err.Error())
+				// 失效而非整 hash 覆盖 RemainQuota（Lost Update）；失效后下次读从库重建。
+				if err := cacheDeleteToken(token.Key); err != nil {
+					common.SysLog("failed to invalidate token cache: " + err.Error())
 				}
 			})
 		}

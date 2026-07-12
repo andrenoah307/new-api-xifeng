@@ -1,0 +1,358 @@
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Banner,
+  Button,
+  Checkbox,
+  Col,
+  Empty,
+  Form,
+  Modal,
+  Row,
+  Space,
+  Table,
+  Typography,
+} from '@douyinfe/semi-ui';
+import { API, showError, showSuccess, timestamp2string } from '../../../../helpers';
+import { StatusContext } from '../../../../context/Status';
+
+const { Text, Title } = Typography;
+
+const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
+  const [loading, setLoading] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [invoiceAmount, setInvoiceAmount] = useState(0);
+  const [refundConflict, setRefundConflict] = useState(null);
+  const [refundConflictAcked, setRefundConflictAcked] = useState(false);
+  const [limitStatus, setLimitStatus] = useState(null);
+  const [statusState] = useContext(StatusContext);
+  const minInvoiceAmount = Number(statusState?.status?.min_invoice_amount) || 0;
+  const formApiRef = useRef(null);
+
+  const loadOrders = async () => {
+    setOrdersLoading(true);
+    try {
+      const res = await API.get('/api/ticket/invoice/eligible_orders');
+      if (res.data?.success) {
+        setOrders(res.data?.data || []);
+      } else {
+        showError(res.data?.message || t('加载订单失败'));
+      }
+    } catch (error) {
+      showError(t('请求失败'));
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const loadLimitStatus = async () => {
+    try {
+      const res = await API.get('/api/ticket/limit-status', {
+        skipErrorHandler: true,
+      });
+      if (res.data?.success) {
+        setLimitStatus(res.data?.data || null);
+      }
+    } catch (error) {}
+  };
+
+  useEffect(() => {
+    if (!visible) {
+      setSelectedOrderIds([]);
+      setOrders([]);
+      setInvoiceAmount(0);
+      setLimitStatus(null);
+      formApiRef.current?.setValues({
+        company_name: '',
+        tax_number: '',
+        invoice_content: '*生产生活服务*技术服务费',
+        content: '',
+      });
+      return;
+    }
+    loadOrders();
+    loadLimitStatus();
+  }, [visible]);
+
+  useEffect(() => {
+    if (visible) {
+      API.get('/api/ticket/invoice/refund-check').then((res) => {
+        if (res.data?.success) setRefundConflict(res.data.data);
+      });
+    } else {
+      setRefundConflict(null);
+      setRefundConflictAcked(false);
+    }
+  }, [visible]);
+
+  // 选中订单时自动计算开票金额
+  useEffect(() => {
+    const total = orders
+      .filter((o) => selectedOrderIds.includes(o.id))
+      .reduce((sum, o) => sum + Number(o.money || 0), 0);
+    setInvoiceAmount(Number(total.toFixed(2)));
+  }, [selectedOrderIds, orders]);
+
+  const orderColumns = useMemo(
+    () => [
+      {
+        title: t('交易号'),
+        dataIndex: 'trade_no',
+        key: 'trade_no',
+        ellipsis: true,
+      },
+      {
+        title: t('支付方式'),
+        dataIndex: 'payment_method',
+        key: 'payment_method',
+        width: 100,
+        render: (v) => v || '-',
+      },
+      {
+        title: t('实付金额'),
+        dataIndex: 'money',
+        key: 'money',
+        width: 100,
+        render: (v) => `¥ ${Number(v || 0).toFixed(2)}`,
+      },
+      {
+        title: t('充值时间'),
+        dataIndex: 'complete_time',
+        key: 'complete_time',
+        width: 160,
+        render: (v) => (v ? timestamp2string(v) : '-'),
+      },
+    ],
+    [t],
+  );
+
+  const rowSelection = useMemo(
+    () => ({
+      selectedRowKeys: selectedOrderIds,
+      onChange: (keys) => setSelectedOrderIds((keys || []).map(Number)),
+    }),
+    [selectedOrderIds],
+  );
+
+  const canSubmit =
+    selectedOrderIds.length > 0 &&
+    (minInvoiceAmount <= 0 || invoiceAmount >= minInvoiceAmount) &&
+    !limitStatus?.limited &&
+    !(refundConflict?.has_refunds && !refundConflictAcked);
+
+  const handleSubmit = async (values) => {
+    if (!selectedOrderIds.length) {
+      showError(t('请选择至少一个充值订单'));
+      return;
+    }
+    if (minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount) {
+      showError(
+        t('最低开票金额为 {{amount}} 元', { amount: minInvoiceAmount }),
+      );
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await API.post('/api/ticket/invoice/', {
+        subject: t('发票申请'),
+        company_name: values.company_name,
+        tax_number: values.tax_number,
+        content: values.content || '',
+        email: values.email || '',
+        topup_order_ids: selectedOrderIds,
+        refund_conflict_acknowledged: refundConflictAcked,
+      });
+      if (res.data?.success) {
+        showSuccess(t('发票申请已提交'));
+        onSuccess?.(res.data?.data);
+        onClose?.();
+      } else {
+        showError(res.data?.message || t('发票申请提交失败'));
+      }
+    } catch (error) {
+      showError(t('请求失败'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      title={t('申请开票')}
+      visible={visible}
+      onCancel={onClose}
+      maskClosable={false}
+      width={860}
+      centered
+      bodyStyle={{ overflowX: 'hidden', overflowY: 'auto', maxHeight: 'calc(90vh - 120px)' }}
+      footer={
+        <div className='flex items-center justify-between'>
+          <div>
+            {minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount && (
+              <Text type='danger' size='small'>
+                {t('最低开票金额为 {{amount}} 元，当前已选金额不足', {
+                  amount: minInvoiceAmount,
+                })}
+              </Text>
+            )}
+          </div>
+          <Space>
+            <Button onClick={onClose}>{t('取消')}</Button>
+            <Button
+              theme='solid'
+              type='primary'
+              loading={loading}
+              disabled={!canSubmit}
+              onClick={() => formApiRef.current?.submitForm()}
+            >
+              {t('提交申请')}
+            </Button>
+          </Space>
+        </div>
+      }
+    >
+      <div className='flex flex-col gap-4'>
+        {limitStatus?.limited && (
+          <Banner
+            type='warning'
+            closeIcon={null}
+            description={
+              <Text>
+                {t(
+                  'You\'ve used this week\'s limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.',
+                )}
+              </Text>
+            }
+            style={{ marginBottom: 0 }}
+          />
+        )}
+        {refundConflict?.has_refunds && (
+          <Banner
+            type='warning'
+            description={t(
+              '您存在待处理的退款申请。如退款通过，当前申请的发票可能需要红冲处理。',
+            )}
+            closeIcon={null}
+            style={{ marginBottom: 0 }}
+          />
+        )}
+        {refundConflict?.has_refunds && (
+          <Checkbox
+            checked={refundConflictAcked}
+            onChange={(e) => setRefundConflictAcked(e.target.checked)}
+          >
+            {t('我已了解并确认继续申请开票')}
+          </Checkbox>
+        )}
+        {/* 第一部分：选择账单 */}
+        <div>
+          <Title heading={6} className='!mb-3'>
+            1. {t('选择充值账单')}
+          </Title>
+          <Table
+            rowKey='id'
+            columns={orderColumns}
+            dataSource={orders}
+            loading={ordersLoading}
+            rowSelection={rowSelection}
+            pagination={false}
+            size='small'
+            scroll={{ y: 150 }}
+            empty={
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={t('暂无可开票的充值订单')}
+              />
+            }
+          />
+          <div
+            className='flex items-center justify-between mt-3 px-3 py-2 rounded-lg'
+            style={{ background: 'var(--semi-color-fill-0)' }}
+          >
+            <Text type='secondary'>
+              {t('已选择')}: {selectedOrderIds.length}/{orders.length} {t('笔')}
+            </Text>
+            <Space align='center'>
+              <Text type='secondary'>{t('开票金额')}:</Text>
+              <Text strong>¥ {invoiceAmount.toFixed(2)}</Text>
+            </Space>
+          </div>
+        </div>
+
+        {/* 第二部分：填写发票抬头 */}
+        <div>
+          <Title heading={6} className='!mb-3'>
+            2. {t('填写发票抬头')}
+          </Title>
+          <Form
+            initValues={{
+              company_name: '',
+              tax_number: '',
+              email: '',
+              invoice_content: '*生产生活服务*技术服务费',
+              content: '',
+            }}
+            getFormApi={(api) => {
+              formApiRef.current = api;
+            }}
+            onSubmit={handleSubmit}
+            labelPosition='top'
+          >
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Input
+                  field='company_name'
+                  label={t('单位名称')}
+                  placeholder={t('请输入单位全称')}
+                  showClear
+                  rules={[
+                    { required: true, message: t('单位名称不能为空') },
+                  ]}
+                />
+              </Col>
+              <Col span={12}>
+                <Form.Input
+                  field='tax_number'
+                  label={t('纳税人识别号')}
+                  placeholder={t('请输入18位统一社会信用代码')}
+                  showClear
+                  rules={[
+                    { required: true, message: t('纳税人识别号不能为空') },
+                  ]}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Input
+                  field='invoice_content'
+                  label={t('发票内容')}
+                  disabled
+                />
+              </Col>
+              <Col span={12}>
+                <Form.Input
+                  field='email'
+                  label={t('接收邮箱')}
+                  placeholder={t('接收电子发票的邮箱')}
+                  showClear
+                />
+              </Col>
+            </Row>
+            <Form.Input
+              field='content'
+              label={t('开票备注')}
+              placeholder={t('请简要说明用途')}
+              maxLength={100}
+              showClear
+            />
+          </Form>
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+export default CreateInvoiceTicketModal;

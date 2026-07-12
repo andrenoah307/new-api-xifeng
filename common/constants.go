@@ -66,6 +66,7 @@ var DisplayTokenStatEnabled = true
 var DrawingEnabled = true
 var TaskEnabled = true
 var DataExportEnabled = true
+var LogExportOfflineEnabled = true
 var DataExportInterval = 5         // unit: minute
 var DataExportDefaultTime = "hour" // unit: minute
 var DefaultCollapseSidebar = false // default value of collapse sidebar
@@ -92,6 +93,9 @@ var WeChatAuthEnabled = false
 var TelegramOAuthEnabled = false
 var TurnstileCheckEnabled = false
 var RegisterEnabled = true
+var InvitationCodeEnabled = false
+var InvitationCodeOAuthRequired = false
+var InvitationCodeUserGenerateEnabled = false
 
 var EmailDomainRestrictionEnabled = false // 是否启用邮箱域名限制
 var EmailAliasRestrictionEnabled = false  // 是否启用邮箱别名限制
@@ -115,6 +119,7 @@ var DebugEnabled bool
 var MemoryCacheEnabled bool
 
 var LogConsumeEnabled = true
+var ForceRecordIPEnabled = false
 
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}
@@ -128,6 +133,15 @@ var SMTPForceAuthLogin = false
 var SMTPAccount = ""
 var SMTPFrom = ""
 var SMTPToken = ""
+
+// 工单邮件通知配置
+var TicketNotifyEnabled = false
+var TicketAdminEmail = "" // 多个邮箱使用分号(;)分隔
+
+// 支付成功邮件通知配置
+var PaymentNotifyUserEnabled = false  // 支付成功后通知下单用户
+var PaymentNotifyAdminEnabled = false // 支付成功后通知管理员
+var PaymentAdminEmail = ""            // 管理员收件邮箱，多个以分号分隔
 
 var GitHubClientId = ""
 var GitHubClientSecret = ""
@@ -148,11 +162,21 @@ var TelegramBotName = ""
 var QuotaForNewUser = 0
 var QuotaForInviter = 0
 var QuotaForInvitee = 0
+var TopUpCommissionRate float64 = 0
+var TopUpCommissionManualEnabled = false
+var AffTransferCooldownHours = 72
+var InviteRewardCooldownHours = 72
+var MinTransferAmount float64 = 1.0
 var ChannelDisableThreshold = 5.0
 var AutomaticDisableChannelEnabled = false
 var AutomaticEnableChannelEnabled = false
 var QuotaRemindThreshold = 1000
 var PreConsumedQuota = 500
+
+// MaxPreConsumeCompletionTokens 预扣费估算时对客户端 max_tokens 的上限钳制。
+// 仅影响预扣估算（真实计费以上游 usage 为准）：防止异常大的 max_tokens 把预扣估算顶穿，
+// 误杀有余额的用户。<=0 表示不钳制。可经 MAX_PRE_CONSUME_COMPLETION_TOKENS 覆盖。
+var MaxPreConsumeCompletionTokens = 256000
 
 var RetryTimes = 0
 
@@ -200,14 +224,33 @@ const (
 )
 
 const (
-	RoleGuestUser  = 0
-	RoleCommonUser = 1
-	RoleAdminUser  = 10
-	RoleRootUser   = 100
+	RoleGuestUser           = 0
+	RoleCommonUser          = 1
+	RoleCustomerServiceUser = 5 // 客服：只能访问工单相关管理功能
+	RoleAdminUser           = 10
+	RoleRootUser            = 100
 )
 
 func IsValidateRole(role int) bool {
-	return role == RoleGuestUser || role == RoleCommonUser || role == RoleAdminUser || role == RoleRootUser
+	return role == RoleGuestUser || role == RoleCommonUser || role == RoleCustomerServiceUser || role == RoleAdminUser || role == RoleRootUser
+}
+
+// RoleLabel 返回角色的中文可读名称，主要用于日志/通知场景。
+func RoleLabel(role int) string {
+	switch role {
+	case RoleGuestUser:
+		return "访客"
+	case RoleCommonUser:
+		return "普通用户"
+	case RoleCustomerServiceUser:
+		return "客服"
+	case RoleAdminUser:
+		return "管理员"
+	case RoleRootUser:
+		return "超级管理员"
+	default:
+		return "未知"
+	}
 }
 
 var (
@@ -242,6 +285,18 @@ var (
 	SearchRateLimitEnable         = true
 	SearchRateLimitNum            = 10
 	SearchRateLimitDuration int64 = 60
+
+	// Log query count cap — limits COUNT(*) scan to this many rows for performance.
+	// Configurable via LOG_SEARCH_COUNT_LIMIT env var.
+	LogSearchCountLimit = 1000
+
+	LogQueryRateLimitEnable         = true
+	LogQueryRateLimitNum            = 20
+	LogQueryRateLimitDuration int64 = 60
+
+	DashboardDataRateLimitEnable         = true
+	DashboardDataRateLimitNum            = 15
+	DashboardDataRateLimitDuration int64 = 60
 )
 
 var RateLimitKeyExpirationDuration = 20 * time.Minute

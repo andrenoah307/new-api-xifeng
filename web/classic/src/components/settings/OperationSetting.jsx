@@ -27,6 +27,8 @@ import SettingsLog from '../../pages/Setting/Operation/SettingsLog';
 import SettingsMonitoring from '../../pages/Setting/Operation/SettingsMonitoring';
 import SettingsCreditLimit from '../../pages/Setting/Operation/SettingsCreditLimit';
 import SettingsCheckin from '../../pages/Setting/Operation/SettingsCheckin';
+import SettingsDiscountCode from '../../pages/Setting/Operation/SettingsDiscountCode';
+import SettingsGroupMonitoring from '../../pages/Setting/Operation/SettingsGroupMonitoring';
 import { API, showError, toBoolean } from '../../helpers';
 
 const OperationSetting = () => {
@@ -36,6 +38,10 @@ const OperationSetting = () => {
     PreConsumedQuota: 0,
     QuotaForInviter: 0,
     QuotaForInvitee: 0,
+    TopUpCommissionRate: 0,
+    TopUpCommissionManualEnabled: false,
+    AffTransferCooldownHours: 72,
+    InviteRewardCooldownHours: 72,
     'quota_setting.enable_free_model_pre_consume': true,
 
     /* 通用设置 */
@@ -49,6 +55,7 @@ const OperationSetting = () => {
     DefaultCollapseSidebar: false,
     DemoSiteEnabled: false,
     SelfUseModeEnabled: false,
+    HiddenModels: '',
 
     /* 顶栏模块管理 */
     HeaderNavModules: '',
@@ -63,6 +70,7 @@ const OperationSetting = () => {
 
     /* 日志设置 */
     LogConsumeEnabled: false,
+    ForceRecordIPEnabled: false,
 
     /* 监控设置 */
     ChannelDisableThreshold: 0,
@@ -70,6 +78,7 @@ const OperationSetting = () => {
     AutomaticDisableChannelEnabled: false,
     AutomaticEnableChannelEnabled: false,
     AutomaticDisableKeywords: '',
+    AutomaticDisableWhitelist: '',
     AutomaticDisableStatusCodes: '401',
     AutomaticRetryStatusCodes:
       '100-199,300-399,401-407,409-499,500-503,505-523,525-599',
@@ -79,8 +88,23 @@ const OperationSetting = () => {
     'checkin_setting.min_quota': 1000,
     'checkin_setting.max_quota': 10000,
 
+    /* 折扣码设置 */
+    'discount_code_setting.enabled': false,
+
     /* 令牌设置 */
     'token_setting.max_user_tokens': 1000,
+
+    /* 分组监控设置 */
+    'group_monitoring_setting.monitoring_groups': '',
+    'group_monitoring_setting.group_display_order': '',
+    'group_monitoring_setting.availability_period_minutes': 60,
+    'group_monitoring_setting.cache_hit_period_minutes': 60,
+    'group_monitoring_setting.aggregation_interval_minutes': 5,
+    'group_monitoring_setting.availability_exclude_models': '',
+    'group_monitoring_setting.cache_hit_exclude_models': '',
+    'group_monitoring_setting.availability_exclude_keywords': '',
+    'group_monitoring_setting.availability_exclude_status_codes': '',
+    'group_monitoring_setting.cache_tokens_separate_groups': '',
   });
 
   let [loading, setLoading] = useState(false);
@@ -146,6 +170,10 @@ const OperationSetting = () => {
         <Card style={{ marginTop: '10px' }}>
           <SettingsMonitoring options={inputs} refresh={onRefresh} />
         </Card>
+        {/* 分组监控设置 */}
+        <Card style={{ marginTop: '10px' }}>
+          <SettingsGroupMonitoring options={inputs} refresh={onRefresh} />
+        </Card>
         {/* 额度设置 */}
         <Card style={{ marginTop: '10px' }}>
           <SettingsCreditLimit options={inputs} refresh={onRefresh} />
@@ -153,6 +181,10 @@ const OperationSetting = () => {
         {/* 签到设置 */}
         <Card style={{ marginTop: '10px' }}>
           <SettingsCheckin options={inputs} refresh={onRefresh} />
+        </Card>
+        {/* 折扣码设置 */}
+        <Card style={{ marginTop: '10px' }}>
+          <SettingsDiscountCode options={inputs} refresh={onRefresh} />
         </Card>
       </Spin>
     </>

@@ -42,6 +42,11 @@ import Text from '@douyinfe/semi-ui/lib/es/typography/text';
 
 const LEGAL_USER_AGREEMENT_KEY = 'legal.user_agreement';
 const LEGAL_PRIVACY_POLICY_KEY = 'legal.privacy_policy';
+const CN_DISCLAIMER_ENABLED_KEY = 'cn_disclaimer.enabled';
+const CN_DISCLAIMER_TITLE_KEY = 'cn_disclaimer.title';
+const CN_DISCLAIMER_CONTENT_KEY = 'cn_disclaimer.content';
+const CN_DISCLAIMER_BLOCKED_KEY = 'cn_disclaimer.blocked_countries';
+const CN_DISCLAIMER_SILENCE_KEY = 'cn_disclaimer.silence_minutes';
 
 const OtherSetting = () => {
   const { t } = useTranslation();
@@ -49,6 +54,11 @@ const OtherSetting = () => {
     Notice: '',
     [LEGAL_USER_AGREEMENT_KEY]: '',
     [LEGAL_PRIVACY_POLICY_KEY]: '',
+    [CN_DISCLAIMER_ENABLED_KEY]: 'true',
+    [CN_DISCLAIMER_TITLE_KEY]: '',
+    [CN_DISCLAIMER_CONTENT_KEY]: '',
+    [CN_DISCLAIMER_BLOCKED_KEY]: 'CN',
+    [CN_DISCLAIMER_SILENCE_KEY]: '60',
     SystemName: '',
     Logo: '',
     Footer: '',
@@ -82,6 +92,7 @@ const OtherSetting = () => {
     Notice: false,
     [LEGAL_USER_AGREEMENT_KEY]: false,
     [LEGAL_PRIVACY_POLICY_KEY]: false,
+    CnDisclaimer: false,
     SystemName: false,
     Logo: false,
     HomePageContent: false,
@@ -151,6 +162,69 @@ const OtherSetting = () => {
       setLoadingInput((loadingInput) => ({
         ...loadingInput,
         [LEGAL_PRIVACY_POLICY_KEY]: false,
+      }));
+    }
+  };
+  // 通用设置 - CnDisclaimer (区域访问免责声明)
+  const parseCountriesField = (raw) => {
+    if (!raw) return [];
+    const text = String(raw).trim();
+    if (text.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((v) => String(v).trim().toUpperCase())
+            .filter((v) => v.length > 0);
+        }
+      } catch {
+        // fall through
+      }
+    }
+    return text
+      .split(/[\n,]/)
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length > 0);
+  };
+  const submitCnDisclaimer = async () => {
+    try {
+      setLoadingInput((loadingInput) => ({
+        ...loadingInput,
+        CnDisclaimer: true,
+      }));
+      const enabledValue =
+        String(inputs[CN_DISCLAIMER_ENABLED_KEY]) === 'true' ? 'true' : 'false';
+      const blockedSerialized = JSON.stringify(
+        parseCountriesField(inputs[CN_DISCLAIMER_BLOCKED_KEY]),
+      );
+      const silenceParsed = parseInt(
+        String(inputs[CN_DISCLAIMER_SILENCE_KEY] ?? '60'),
+        10,
+      );
+      const silenceValue = String(
+        Number.isFinite(silenceParsed) && silenceParsed >= 0
+          ? silenceParsed
+          : 60,
+      );
+      await updateOption(CN_DISCLAIMER_ENABLED_KEY, enabledValue);
+      await updateOption(
+        CN_DISCLAIMER_TITLE_KEY,
+        inputs[CN_DISCLAIMER_TITLE_KEY] ?? '',
+      );
+      await updateOption(
+        CN_DISCLAIMER_CONTENT_KEY,
+        inputs[CN_DISCLAIMER_CONTENT_KEY] ?? '',
+      );
+      await updateOption(CN_DISCLAIMER_BLOCKED_KEY, blockedSerialized);
+      await updateOption(CN_DISCLAIMER_SILENCE_KEY, silenceValue);
+      showSuccess(t('区域访问免责声明已更新'));
+    } catch (error) {
+      console.error(t('区域访问免责声明更新失败'), error);
+      showError(t('区域访问免责声明更新失败'));
+    } finally {
+      setLoadingInput((loadingInput) => ({
+        ...loadingInput,
+        CnDisclaimer: false,
       }));
     }
   };
@@ -307,6 +381,11 @@ const OtherSetting = () => {
           newInputs[item.key] = item.value;
         }
       });
+      if (newInputs[CN_DISCLAIMER_BLOCKED_KEY]) {
+        newInputs[CN_DISCLAIMER_BLOCKED_KEY] = parseCountriesField(
+          newInputs[CN_DISCLAIMER_BLOCKED_KEY],
+        ).join('\n');
+      }
       setInputs(newInputs);
       formAPISettingGeneral.current.setValues(newInputs);
       formAPIPersonalization.current.setValues(newInputs);
@@ -437,6 +516,59 @@ const OtherSetting = () => {
                 loading={loadingInput[LEGAL_PRIVACY_POLICY_KEY]}
               >
                 {t('设置隐私政策')}
+              </Button>
+              <Form.Switch
+                label={t('启用区域访问免责声明')}
+                field={CN_DISCLAIMER_ENABLED_KEY}
+                checkedText={t('开')}
+                uncheckedText={t('关')}
+                onChange={(value) =>
+                  setInputs((prev) => ({
+                    ...prev,
+                    [CN_DISCLAIMER_ENABLED_KEY]: value ? 'true' : 'false',
+                  }))
+                }
+                helpText={t(
+                  '关闭后，任何 IP 都不会看到区域访问免责声明弹窗',
+                )}
+              />
+              <Form.Input
+                label={t('免责声明标题')}
+                placeholder={t('例如：需要被授权的地区访问许可')}
+                field={CN_DISCLAIMER_TITLE_KEY}
+                onChange={handleInputChange}
+              />
+              <Form.TextArea
+                label={t('免责声明内容')}
+                placeholder={t('在此输入免责声明内容，支持换行')}
+                field={CN_DISCLAIMER_CONTENT_KEY}
+                onChange={handleInputChange}
+                autosize={{ minRows: 5, maxRows: 12 }}
+              />
+              <Form.TextArea
+                label={t('拦截国家（ISO 代码）')}
+                placeholder={'CN'}
+                field={CN_DISCLAIMER_BLOCKED_KEY}
+                onChange={handleInputChange}
+                autosize={{ minRows: 2, maxRows: 6 }}
+                helpText={t(
+                  'ISO 国家码大写，每行一个或英文逗号分隔。默认 CN。',
+                )}
+              />
+              <Form.Input
+                label={t('静默时长（分钟）')}
+                placeholder={'60'}
+                field={CN_DISCLAIMER_SILENCE_KEY}
+                onChange={handleInputChange}
+                helpText={t(
+                  '0 = 每次访问都弹出；60 = 用户确认后 60 分钟内不再弹出',
+                )}
+              />
+              <Button
+                onClick={submitCnDisclaimer}
+                loading={loadingInput.CnDisclaimer}
+              >
+                {t('保存区域访问免责声明设置')}
               </Button>
             </Form.Section>
           </Card>

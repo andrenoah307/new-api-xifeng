@@ -325,6 +325,21 @@ const EditUserModal = (props) => {
 
                     <Col span={24}>
                       <Form.Input
+                        field='email'
+                        label={t('邮箱')}
+                        placeholder={t('请输入邮箱地址')}
+                        showClear
+                        rules={[
+                          {
+                            type: 'email',
+                            message: t('请输入有效的邮箱地址'),
+                          },
+                        ]}
+                      />
+                    </Col>
+
+                    <Col span={24}>
+                      <Form.Input
                         field='remark'
                         label={t('备注')}
                         placeholder={t('请输入备注（仅管理员可见）')}

@@ -62,6 +62,7 @@ import {
   getLogTypeConfig,
   isPerCallBilling,
   isTimingLogType,
+  stripLocalRequestId,
 } from '../../lib/utils'
 import { USAGE_BILLING_PATH, type LogOtherData } from '../../types'
 
@@ -459,7 +460,7 @@ interface DetailsDialogProps {
 export function DetailsDialog(props: DetailsDialogProps) {
   const { t } = useTranslation()
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
-  const details = props.log.content ?? ''
+  const details = stripLocalRequestId(props.log.content ?? '')
   const other = parseLogOther(props.log.other)
   const typeConfig = getLogTypeConfig(props.log.type)
 

@@ -73,13 +73,19 @@ export function isPerCallBilling(modelPrice?: number): boolean {
 }
 
 /**
- * Get default time range (today 00:00:00 to now + 1 hour)
+ * Get default time range (today 00:00:00 to today 23:59:59)
  */
+export function getEndOfToday(): Date {
+  const end = new Date()
+  end.setHours(23, 59, 59, 999)
+  return end
+}
+
 export function getDefaultTimeRange(): { start: Date; end: Date } {
   const now = new Date()
   const start = new Date(now)
   start.setHours(0, 0, 0, 0)
-  const end = new Date(now.getTime() + 3600 * 1000) // +1 hour
+  const end = getEndOfToday()
 
   return { start, end }
 }
@@ -146,14 +152,16 @@ export function buildBaseParams(config: {
   pageSize: number
   searchParams: Record<string, unknown>
   useMilliseconds?: boolean
+  totalCount?: number
 }): {
   p: number
   page_size: number
   channel_id?: string
   start_timestamp?: number
   end_timestamp?: number
+  total_count?: number
 } {
-  const { page, pageSize, searchParams, useMilliseconds = false } = config
+  const { page, pageSize, searchParams, useMilliseconds = false, totalCount } = config
 
   return {
     p: page,
@@ -164,6 +172,9 @@ export function buildBaseParams(config: {
         }
       : {}),
     ...buildTimeRangeParams(searchParams, useMilliseconds),
+    ...(totalCount && totalCount > 0 && Number.isFinite(totalCount)
+      ? { total_count: totalCount }
+      : {}),
   }
 }
 
@@ -176,8 +187,9 @@ export function buildApiParams(config: {
   searchParams: Record<string, unknown>
   columnFilters?: Array<{ id: string; value: unknown }>
   isAdmin: boolean
+  totalCount?: number
 }): GetLogsParams {
-  const { page, pageSize, searchParams, columnFilters = [], isAdmin } = config
+  const { page, pageSize, searchParams, columnFilters = [], isAdmin, totalCount } = config
 
   // Helper to process type parameter (single value from array)
   const processType = (value: unknown): number | undefined => {
@@ -216,6 +228,9 @@ export function buildApiParams(config: {
       ? { upstream_request_id: String(searchParams.upstreamRequestId) }
       : {}),
     ...buildTimeRangeParams(searchParams, false),
+    ...(totalCount && totalCount > 0 && Number.isFinite(totalCount)
+      ? { total_count: totalCount }
+      : {}),
   }
 
   // Override with column filters if present
@@ -259,7 +274,7 @@ export function buildApiParams(config: {
 export async function fetchLogsByCategory(
   config: FetchLogsConfig
 ): Promise<GetLogsResponse> {
-  const { logCategory, isAdmin, page, pageSize, searchParams, columnFilters } =
+  const { logCategory, isAdmin, page, pageSize, searchParams, columnFilters, totalCount } =
     config
 
   if (logCategory === 'common') {
@@ -269,6 +284,7 @@ export async function fetchLogsByCategory(
       searchParams,
       columnFilters,
       isAdmin,
+      totalCount,
     })
     return isAdmin ? await getAllLogs(params) : await getUserLogs(params)
   }
@@ -279,6 +295,7 @@ export async function fetchLogsByCategory(
     pageSize,
     searchParams,
     useMilliseconds: logCategory === 'drawing',
+    totalCount,
   })
 
   const paramsWithFilter = {
@@ -301,4 +318,26 @@ export async function fetchLogsByCategory(
   return isAdmin
     ? await getAllTaskLogs(paramsWithFilter as GetTaskLogsParams)
     : await getUserTaskLogs(paramsWithFilter as GetTaskLogsParams)
+}
+
+const PROXY_ID_PATTERNS = [
+  /\s*\(request id: [^)]*\)/g,
+  /\s*\(request_ori_id: [^)]*\)/g,
+  /\s*（traceid: [^）]*）/g,
+]
+
+export function stripProxyIdSuffixes(msg: string | null | undefined): string {
+  if (!msg) return msg ?? ''
+  let result = msg
+  for (const pattern of PROXY_ID_PATTERNS) {
+    result = result.replace(pattern, '')
+  }
+  return result.trimEnd()
+}
+
+const LOCAL_REQUEST_ID_PATTERN = /\s*\(request id: [^)]*\)/g
+
+export function stripLocalRequestId(msg: string | null | undefined): string {
+  if (!msg) return msg ?? ''
+  return msg.replace(LOCAL_REQUEST_ID_PATTERN, '').trimEnd()
 }

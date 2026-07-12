@@ -28,12 +28,10 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected dto.ImageRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	request, err := common.DeepCopy(imageReq)
-	if err != nil {
-		return types.NewError(fmt.Errorf("failed to copy request to ImageRequest: %w", err), types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
-	}
+	copied := *imageReq
+	request := &copied
 
-	err = helper.ModelMappedHelper(c, info, request)
+	err := helper.ModelMappedHelper(c, info, request)
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
 	}
@@ -121,6 +119,16 @@ func ImageHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *type
 	imageN := uint(1)
 	if request.N != nil {
 		imageN = *request.N
+	}
+
+	// n is handled via OtherRatio so it is applied exactly once in quota
+	// calculation (both price-based and ratio-based paths).
+	// Adaptors may have already set a more accurate count from the
+	// upstream response; only set the default when they haven't.
+	if info.PriceData.UsePrice { // only price model use N ratio
+		if !info.PriceData.HasOtherRatio("n") {
+			info.PriceData.AddOtherRatio("n", float64(imageN))
+		}
 	}
 
 	if usage.(*dto.Usage).TotalTokens == 0 {

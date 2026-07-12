@@ -19,10 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal } from '@douyinfe/semi-ui';
+import { Modal, Tag, Toast } from '@douyinfe/semi-ui';
 import {
   API,
   getTodayStartTimestamp,
+  getTodayEndTimestamp,
   isAdmin,
   showError,
   showSuccess,
@@ -35,6 +36,7 @@ import {
   renderLogContent,
   renderAudioModelPrice,
   renderClaudeModelPrice,
+  getUserIdFromLocalStorage,
   renderModelPrice,
   renderTieredModelPrice,
   renderTaskBillingProcess,
@@ -93,7 +95,6 @@ export const useLogsData = () => {
 
   // Form state
   const [formApi, setFormApi] = useState(null);
-  let now = new Date();
   const formInitValues = {
     username: '',
     token_name: '',
@@ -103,7 +104,7 @@ export const useLogsData = () => {
     request_id: '',
     dateRange: [
       timestamp2string(getTodayStartTimestamp()),
-      timestamp2string(now.getTime() / 1000 + 3600),
+      timestamp2string(getTodayEndTimestamp()),
     ],
     logType: '0',
   };
@@ -237,7 +238,7 @@ export const useLogsData = () => {
     const formValues = formApi ? formApi.getValues() : {};
 
     let start_timestamp = timestamp2string(getTodayStartTimestamp());
-    let end_timestamp = timestamp2string(now.getTime() / 1000 + 3600);
+    let end_timestamp = timestamp2string(getTodayEndTimestamp());
 
     if (
       formValues.dateRange &&
@@ -376,6 +377,11 @@ export const useLogsData = () => {
       return `${chain.join(' -> ')}`;
     };
 
+    const renderReasoningEffortTag = (effort) => {
+      const color = effort === 'high' ? 'orange' : effort === 'medium' ? 'amber' : 'green';
+      return <Tag color={color} size='small'>{effort}</Tag>;
+    };
+
     let expandDatesLocal = {};
     for (let i = 0; i < logs.length; i++) {
       logs[i].timestamp2string = timestamp2string(logs[i].created_at);
@@ -494,7 +500,7 @@ export const useLogsData = () => {
         if (other?.reasoning_effort) {
           expandDataLocal.push({
             key: t('Reasoning Effort'),
-            value: other.reasoning_effort,
+            value: renderReasoningEffortTag(other.reasoning_effort),
           });
         }
         if (other?.billing_mode === 'tiered_expr' && other?.expr_b64) {
@@ -726,7 +732,7 @@ export const useLogsData = () => {
   };
 
   // Load logs function
-  const loadLogs = async (startIdx, pageSize, customLogType = null) => {
+  const loadLogs = async (startIdx, pageSize, customLogType = null, skipCount = false) => {
     setLoading(true);
 
     let url = '';
@@ -756,6 +762,9 @@ export const useLogsData = () => {
     } else {
       url = `/api/log/self/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&request_id=${request_id}`;
     }
+    if (skipCount && logCount > 0 && Number.isFinite(logCount)) {
+      url += `&total_count=${logCount}`;
+    }
     url = encodeURI(url);
     const res = await API.get(url);
     const { success, message, data } = res.data;
@@ -775,7 +784,7 @@ export const useLogsData = () => {
   // Page handlers
   const handlePageChange = (page) => {
     setActivePage(page);
-    loadLogs(page, pageSize).then((r) => {});
+    loadLogs(page, pageSize, null, true).then((r) => {});
   };
 
   const handlePageSizeChange = async (size) => {
@@ -830,6 +839,82 @@ export const useLogsData = () => {
     return logs.some(
       (log) => expandData[log.key] && expandData[log.key].length > 0,
     );
+  };
+
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    const toastId = 'log-export';
+    Toast.info({ content: t('正在导出日志...'), id: toastId, duration: 0 });
+    try {
+      const formValues = formApi ? formApi.getValues() : {};
+      const dateRange = formValues.dateRange || [];
+      let localStartTimestamp = dateRange[0] ? Date.parse(dateRange[0]) / 1000 : 0;
+      let localEndTimestamp = dateRange[1] ? Date.parse(dateRange[1]) / 1000 : 0;
+
+      const currentLogType = formValues.logType !== undefined ? formValues.logType : logType;
+      const params = new URLSearchParams();
+      if (currentLogType) params.set('type', String(currentLogType));
+      if (localStartTimestamp) params.set('start_timestamp', String(localStartTimestamp));
+      if (localEndTimestamp) params.set('end_timestamp', String(localEndTimestamp));
+      if (formValues.token_name) params.set('token_name', formValues.token_name);
+      if (formValues.model_name) params.set('model_name', formValues.model_name);
+      if (formValues.group) params.set('group', formValues.group);
+      if (formValues.request_id) params.set('request_id', formValues.request_id);
+      if (isAdminUser && formValues.username) params.set('username', formValues.username);
+      if (isAdminUser && formValues.channel) params.set('channel', formValues.channel);
+
+      const path = isAdminUser ? '/api/log/export' : '/api/log/self/export';
+      const url = `${path}?${params.toString()}`;
+
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: { 'New-API-User': getUserIdFromLocalStorage() },
+      });
+      if (response.status === 429) {
+        Toast.error({ content: t('导出次数过于频繁，请稍后再试'), id: toastId, duration: 3 });
+        return;
+      }
+      if (!response.ok) {
+        try {
+          const err = await response.json();
+          Toast.error({ content: err.message || t('导出失败'), id: toastId, duration: 3 });
+        } catch {
+          Toast.error({ content: t('导出失败'), id: toastId, duration: 3 });
+        }
+        return;
+      }
+      const reader = response.body?.getReader();
+      if (!reader) {
+        Toast.error({ content: t('导出失败'), id: toastId, duration: 3 });
+        return;
+      }
+      const chunks = [];
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        const sizeMB = (received / 1024 / 1024).toFixed(1);
+        Toast.info({ content: t('正在导出日志...') + ` ${sizeMB} MB`, id: toastId, duration: 0 });
+      }
+      const blob = new Blob(chunks, { type: 'text/csv' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `logs_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+      Toast.success({ content: t('导出完成'), id: toastId, duration: 3 });
+    } catch (e) {
+      Toast.error({ content: t('导出失败'), id: toastId, duration: 3 });
+    } finally {
+      setExporting(false);
+    }
   };
 
   return {
@@ -893,6 +978,10 @@ export const useLogsData = () => {
     hasExpandableRows,
     setLogType,
     openParamOverrideModal,
+
+    // Export
+    handleExport,
+    exporting,
 
     // Translation
     t,

@@ -32,6 +32,7 @@ import UptimePanel from './UptimePanel';
 import SearchModal from './modals/SearchModal';
 
 import { useDashboardData } from '../../hooks/dashboard/useDashboardData';
+import AccountRiskWarningModal from '../common/modals/AccountRiskWarningModal';
 import { useDashboardStats } from '../../hooks/dashboard/useDashboardStats';
 import { useDashboardCharts } from '../../hooks/dashboard/useDashboardCharts';
 
@@ -159,6 +160,18 @@ const Dashboard = () => {
         refresh={handleRefresh}
         loading={dashboardData.loading}
         t={dashboardData.t}
+        isAdminUser={dashboardData.isAdminUser}
+        inputs={dashboardData.inputs}
+        dataExportDefaultTime={dashboardData.dataExportDefaultTime}
+        timeOptions={dashboardData.timeOptions}
+        handleInputChange={dashboardData.handleInputChange}
+        handleSearchConfirm={handleSearchConfirm}
+      />
+
+      {/* Vague risk-warning modal — shown once per fresh enforce decision. */}
+      <AccountRiskWarningModal
+        visible={dashboardData.riskWarningVisible}
+        onAcknowledge={dashboardData.acknowledgeRiskWarning}
       />
 
       <SearchModal

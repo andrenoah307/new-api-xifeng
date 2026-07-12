@@ -36,6 +36,62 @@ type LegalDocumentProps = {
   emptyMessage: string
 }
 
+type LegalDocumentInlineProps = {
+  rawContent: string
+  emptyMessage?: string
+}
+
+export function LegalDocumentInline({
+  rawContent,
+  emptyMessage,
+}: LegalDocumentInlineProps) {
+  const { t } = useTranslation()
+  const trimmed = rawContent.trim()
+  if (!trimmed) {
+    return (
+      <p className='text-muted-foreground text-sm'>
+        {emptyMessage ?? t('Document not configured.')}
+      </p>
+    )
+  }
+  if (isHttpUrl(trimmed)) {
+    return (
+      <div className='space-y-3'>
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'The administrator configured an external link for this document.'
+          )}
+        </p>
+        <Button
+          render={
+            <a href={trimmed} target='_blank' rel='noopener noreferrer' />
+          }
+        >
+          {t('View document')}
+        </Button>
+      </div>
+    )
+  }
+  if (isLikelyHtml(trimmed)) {
+    return (
+      <RichContent
+        mode='html'
+        htmlVariant='isolated'
+        content={trimmed}
+        className='text-sm'
+      />
+    )
+  }
+  return (
+    <RichContent
+      mode='markdown'
+      content={trimmed}
+      className='prose-neutral dark:prose-invert max-w-none text-sm'
+    />
+  )
+}
+
+
 export function LegalDocument({
   title,
   queryKey,

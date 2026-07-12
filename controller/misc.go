@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/console_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -49,10 +50,13 @@ func GetStatus(c *gin.Context) {
 
 	passkeySetting := system_setting.GetPasskeySettings()
 	legalSetting := system_setting.GetLegalSettings()
+	cnDisclaimerSetting := system_setting.GetCnDisclaimerSettings()
+	clientCountry := requestip.GetClientCountry(c)
 
 	data := gin.H{
 		"version":                     common.Version,
 		"start_time":                  common.StartTime,
+		"redis_enabled":               common.RedisEnabled,
 		"email_verification":          common.EmailVerificationEnabled,
 		"github_oauth":                common.GitHubOAuthEnabled,
 		"github_client_id":            common.GitHubClientId,
@@ -74,6 +78,8 @@ func GetStatus(c *gin.Context) {
 		"turnstile_site_key":          common.TurnstileSiteKey,
 		"docs_link":                   operation_setting.GetGeneralSetting().DocsLink,
 		"quota_per_unit":              common.QuotaPerUnit,
+		"min_transfer_amount":         common.MinTransferAmount,
+		"min_invoice_amount":          operation_setting.MinInvoiceAmount,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
 		"quota_display_type":            operation_setting.GetQuotaDisplayType(),
@@ -83,6 +89,7 @@ func GetStatus(c *gin.Context) {
 		"enable_drawing":                common.DrawingEnabled,
 		"enable_task":                   common.TaskEnabled,
 		"enable_data_export":            common.DataExportEnabled,
+		"enable_log_export_offline":     common.LogExportOfflineEnabled,
 		"data_export_default_time":      common.DataExportDefaultTime,
 		"default_collapse_sidebar":      common.DefaultCollapseSidebar,
 		"mj_notify_enabled":             setting.MjNotifyEnabled,
@@ -108,20 +115,36 @@ func GetStatus(c *gin.Context) {
 		"HeaderNavModules":    common.OptionMap["HeaderNavModules"],
 		"SidebarModulesAdmin": common.OptionMap["SidebarModulesAdmin"],
 
-		"oidc_enabled":                system_setting.GetOIDCSettings().Enabled,
-		"oidc_client_id":              system_setting.GetOIDCSettings().ClientId,
-		"oidc_authorization_endpoint": system_setting.GetOIDCSettings().AuthorizationEndpoint,
-		"passkey_login":               passkeySetting.Enabled,
-		"passkey_display_name":        passkeySetting.RPDisplayName,
-		"passkey_rp_id":               passkeySetting.RPID,
-		"passkey_origins":             passkeySetting.Origins,
-		"passkey_allow_insecure":      passkeySetting.AllowInsecureOrigin,
-		"passkey_user_verification":   passkeySetting.UserVerification,
-		"passkey_attachment":          passkeySetting.AttachmentPreference,
-		"setup":                       constant.Setup,
-		"user_agreement_enabled":      legalSetting.UserAgreement != "",
-		"privacy_policy_enabled":      legalSetting.PrivacyPolicy != "",
-		"checkin_enabled":             operation_setting.GetCheckinSetting().Enabled,
+		"oidc_enabled":                          system_setting.GetOIDCSettings().Enabled,
+		"oidc_client_id":                        system_setting.GetOIDCSettings().ClientId,
+		"oidc_authorization_endpoint":           system_setting.GetOIDCSettings().AuthorizationEndpoint,
+		"passkey_login":                         passkeySetting.Enabled,
+		"passkey_display_name":                  passkeySetting.RPDisplayName,
+		"passkey_rp_id":                         passkeySetting.RPID,
+		"passkey_origins":                       passkeySetting.Origins,
+		"passkey_allow_insecure":                passkeySetting.AllowInsecureOrigin,
+		"passkey_user_verification":             passkeySetting.UserVerification,
+		"passkey_attachment":                    passkeySetting.AttachmentPreference,
+		"setup":                                 constant.Setup,
+		"user_agreement_enabled":                legalSetting.UserAgreement != "",
+		"privacy_policy_enabled":                legalSetting.PrivacyPolicy != "",
+		"checkin_enabled":                       operation_setting.GetCheckinSetting().Enabled,
+		"discount_code_enabled":                 operation_setting.GetDiscountCodeSetting().Enabled,
+		"invitation_code_enabled":               common.InvitationCodeEnabled,
+		"invitation_code_oauth_required":        common.InvitationCodeOAuthRequired,
+		"invitation_code_user_generate_enabled": common.InvitationCodeUserGenerateEnabled,
+
+		// 工单附件配置下发给前端，避免选文件后才发现不支持。
+		"ticket_attachment_enabled":       setting.TicketAttachmentEnabled,
+		"ticket_attachment_max_size":      setting.TicketAttachmentMaxSize,
+		"ticket_attachment_max_count":     setting.TicketAttachmentMaxCount,
+		"ticket_attachment_allowed_exts":  setting.TicketAttachmentAllowedExts,
+
+		"region_blocked_groups":    operation_setting.GetBlockedGroupsForCountry(clientCountry),
+		"region_detected_country":  clientCountry,
+
+		"cn_disclaimer_enabled":  cnDisclaimerSetting.Enabled,
+		"cn_disclaimer_required": system_setting.IsCnDisclaimerCountry(clientCountry),
 	}
 
 	// 根据启用状态注入可选内容
@@ -194,19 +217,50 @@ func GetAbout(c *gin.Context) {
 }
 
 func GetUserAgreement(c *gin.Context) {
+	content := system_setting.GetLegalSettings().UserAgreement
+	hash := ""
+	if content != "" {
+		hash = common.Sha1([]byte(content))[:8]
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    system_setting.GetLegalSettings().UserAgreement,
+		"data":    content,
+		"hash":    hash,
 	})
 	return
 }
 
 func GetPrivacyPolicy(c *gin.Context) {
+	content := system_setting.GetLegalSettings().PrivacyPolicy
+	hash := ""
+	if content != "" {
+		hash = common.Sha1([]byte(content))[:8]
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    system_setting.GetLegalSettings().PrivacyPolicy,
+		"data":    content,
+		"hash":    hash,
+	})
+	return
+}
+
+func GetCnDisclaimer(c *gin.Context) {
+	s := system_setting.GetCnDisclaimerSettings()
+	hash := ""
+	if s.Content != "" {
+		hash = common.Sha1([]byte(s.Title+"|"+s.Content+"|"+strings.Join(s.BlockedCountries, ",")))[:8]
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success":           true,
+		"message":           "",
+		"enabled":           s.Enabled,
+		"title":             s.Title,
+		"content":           s.Content,
+		"blocked_countries": s.BlockedCountries,
+		"silence_minutes":   s.SilenceMinutes,
+		"hash":              hash,
 	})
 	return
 }

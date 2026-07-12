@@ -49,6 +49,12 @@ const renderRole = (role, t) => {
           {t('普通用户')}
         </Tag>
       );
+    case 5:
+      return (
+        <Tag color='cyan' shape='circle'>
+          {t('客服')}
+        </Tag>
+      );
     case 10:
       return (
         <Tag color='yellow' shape='circle'>
@@ -286,14 +292,7 @@ const renderOperations = (
         size='small'
         onClick={() => showPromoteModal(record)}
       >
-        {t('提升')}
-      </Button>
-      <Button
-        type='secondary'
-        size='small'
-        onClick={() => showDemoteModal(record)}
-      >
-        {t('降级')}
+        {t('角色')}
       </Button>
       <Dropdown menu={moreMenu} trigger='click' position='bottomRight'>
         <Button type='tertiary' size='small' icon={<IconMore />} />
@@ -337,6 +336,30 @@ export const getUsersColumns = ({
       title: t('剩余额度/总额度'),
       key: 'quota_usage',
       render: (text, record) => renderQuotaUsage(text, record, t),
+    },
+    {
+      title: t('邮箱'),
+      dataIndex: 'email',
+      width: 160,
+      render: (text) => {
+        if (!text) return <span>-</span>;
+        return (
+          <Tooltip content={text} position='top'>
+            <span
+              style={{
+                display: 'inline-block',
+                maxWidth: 140,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                verticalAlign: 'bottom',
+              }}
+            >
+              {text}
+            </span>
+          </Tooltip>
+        );
+      },
     },
     {
       title: t('分组'),

@@ -65,4 +65,22 @@ export function AdminRoute({ children }) {
   return <Navigate to='/forbidden' replace />;
 }
 
+// TicketStaffRoute 放行 "客服及以上" 角色（role >= 5）。
+// 专用于 /console/ticket_admin 等工单后台页面：允许客服进入，但其它管理员页面仍受 AdminRoute 保护。
+export function TicketStaffRoute({ children }) {
+  const raw = localStorage.getItem('user');
+  if (!raw) {
+    return <Navigate to='/login' state={{ from: history.location }} />;
+  }
+  try {
+    const user = JSON.parse(raw);
+    if (user && typeof user.role === 'number' && user.role >= 5) {
+      return children;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return <Navigate to='/forbidden' replace />;
+}
+
 export { PrivateRoute };

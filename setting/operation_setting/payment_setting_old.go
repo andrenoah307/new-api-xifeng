@@ -15,6 +15,7 @@ var EpayId = ""
 var EpayKey = ""
 var Price = 7.3
 var MinTopUp = 1
+var MinInvoiceAmount = 0 // 最低开票金额（元），<=0 表示不限制
 var USDExchangeRate = 7.3
 
 var PayMethods = []map[string]string{

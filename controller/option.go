@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -135,7 +134,19 @@ func UpdateOption(c *gin.Context) {
 	case int:
 		option.Value = common.Interface2String(option.Value.(int))
 	default:
-		option.Value = fmt.Sprintf("%v", option.Value)
+		option.Value = common.Interface2String(option.Value)
+	}
+	switch option.Key {
+	case "QuotaForInviter", "QuotaForInvitee":
+		if isPositiveOptionValue(option.Value.(string)) && !operation_setting.IsPaymentComplianceConfirmed() {
+			common.ApiErrorI18n(c, i18n.MsgPaymentComplianceRequired)
+			return
+		}
+	default:
+		if isPaymentComplianceOptionKey(option.Key) {
+			common.ApiErrorMsg(c, "合规确认字段不允许通过通用设置接口修改")
+			return
+		}
 	}
 	switch option.Key {
 	case "QuotaForInviter", "QuotaForInvitee":
@@ -205,6 +216,14 @@ func UpdateOption(c *gin.Context) {
 				"message": "无法启用 Turnstile 校验，请先填入 Turnstile 校验相关配置信息！",
 			})
 
+			return
+		}
+	case "InvitationCodePolicy":
+		if err := setting.ValidateInvitationCodePolicy(option.Value.(string)); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "邀请码策略 JSON 无效: " + err.Error(),
+			})
 			return
 		}
 	case "TelegramOAuthEnabled":

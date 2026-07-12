@@ -4,8 +4,10 @@ import (
 	"net/http"
 
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -42,6 +44,18 @@ func GetUserGroups(c *gin.Context) {
 		usableGroups["auto"] = map[string]interface{}{
 			"ratio": "自动",
 			"desc":  setting.GetUsableGroupDescription("auto"),
+		}
+	}
+	// Remove region-blocked groups
+	rs := operation_setting.GetRegionRestrictionSetting()
+	if rs.Enabled && rs.FilterConsole {
+		cc := requestip.GetClientCountry(c)
+		if cc != "" {
+			for g := range usableGroups {
+				if g != "auto" && operation_setting.IsGroupBlockedForCountry(cc, g) {
+					delete(usableGroups, g)
+				}
+			}
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{

@@ -28,6 +28,15 @@ func AllOption() ([]*Option, error) {
 }
 
 func InitOptionMap() {
+	operation_setting.SetGetAllGroupNamesFunc(func() []string {
+		groups := setting.GetUserUsableGroupsCopy()
+		names := make([]string, 0, len(groups))
+		for k := range groups {
+			names = append(names, k)
+		}
+		return names
+	})
+
 	common.OptionMapRWMutex.Lock()
 	common.OptionMap = make(map[string]string)
 
@@ -45,6 +54,10 @@ func InitOptionMap() {
 	common.OptionMap["WeChatAuthEnabled"] = strconv.FormatBool(common.WeChatAuthEnabled)
 	common.OptionMap["TurnstileCheckEnabled"] = strconv.FormatBool(common.TurnstileCheckEnabled)
 	common.OptionMap["RegisterEnabled"] = strconv.FormatBool(common.RegisterEnabled)
+	common.OptionMap["InvitationCodeEnabled"] = strconv.FormatBool(common.InvitationCodeEnabled)
+	common.OptionMap["InvitationCodeOAuthRequired"] = strconv.FormatBool(common.InvitationCodeOAuthRequired)
+	common.OptionMap["InvitationCodeUserGenerateEnabled"] = strconv.FormatBool(common.InvitationCodeUserGenerateEnabled)
+	common.OptionMap["InvitationCodePolicy"] = setting.GetInvitationCodePolicyJSON()
 	common.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(common.AutomaticDisableChannelEnabled)
 	common.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(common.AutomaticEnableChannelEnabled)
 	common.OptionMap["LogConsumeEnabled"] = strconv.FormatBool(common.LogConsumeEnabled)
@@ -53,6 +66,7 @@ func InitOptionMap() {
 	common.OptionMap["DrawingEnabled"] = strconv.FormatBool(common.DrawingEnabled)
 	common.OptionMap["TaskEnabled"] = strconv.FormatBool(common.TaskEnabled)
 	common.OptionMap["DataExportEnabled"] = strconv.FormatBool(common.DataExportEnabled)
+	common.OptionMap["ForceRecordIPEnabled"] = strconv.FormatBool(common.ForceRecordIPEnabled)
 	common.OptionMap["ChannelDisableThreshold"] = strconv.FormatFloat(common.ChannelDisableThreshold, 'f', -1, 64)
 	common.OptionMap["EmailDomainRestrictionEnabled"] = strconv.FormatBool(common.EmailDomainRestrictionEnabled)
 	common.OptionMap["EmailAliasRestrictionEnabled"] = strconv.FormatBool(common.EmailAliasRestrictionEnabled)
@@ -66,6 +80,38 @@ func InitOptionMap() {
 	common.OptionMap["SMTPStartTLSEnabled"] = strconv.FormatBool(common.SMTPStartTLSEnabled)
 	common.OptionMap["SMTPInsecureSkipVerify"] = strconv.FormatBool(common.SMTPInsecureSkipVerify)
 	common.OptionMap["SMTPForceAuthLogin"] = strconv.FormatBool(common.SMTPForceAuthLogin)
+	common.OptionMap["TicketNotifyEnabled"] = strconv.FormatBool(common.TicketNotifyEnabled)
+	common.OptionMap["TicketAdminEmail"] = common.TicketAdminEmail
+	common.OptionMap["TicketAttachmentEnabled"] = strconv.FormatBool(setting.TicketAttachmentEnabled)
+	common.OptionMap["TicketAttachmentMaxSize"] = strconv.FormatInt(setting.TicketAttachmentMaxSize, 10)
+	common.OptionMap["TicketAttachmentMaxCount"] = strconv.Itoa(setting.TicketAttachmentMaxCount)
+	common.OptionMap["TicketAttachmentAllowedExts"] = setting.TicketAttachmentAllowedExts
+	common.OptionMap["TicketAttachmentAllowedMimes"] = setting.TicketAttachmentAllowedMimes
+	common.OptionMap["TicketAttachmentStorage"] = setting.TicketAttachmentStorage
+	common.OptionMap["TicketAttachmentLocalPath"] = setting.TicketAttachmentLocalPath
+	common.OptionMap["TicketAttachmentSignedURLTTL"] = strconv.FormatInt(setting.TicketAttachmentSignedURLTTL, 10)
+	common.OptionMap["TicketAttachmentOSSEndpoint"] = setting.TicketAttachmentOSSEndpoint
+	common.OptionMap["TicketAttachmentOSSBucket"] = setting.TicketAttachmentOSSBucket
+	common.OptionMap["TicketAttachmentOSSRegion"] = setting.TicketAttachmentOSSRegion
+	common.OptionMap["TicketAttachmentOSSAccessKeyId"] = setting.TicketAttachmentOSSAccessKeyId
+	common.OptionMap["TicketAttachmentOSSAccessKeySecret"] = setting.TicketAttachmentOSSAccessKeySecret
+	common.OptionMap["TicketAttachmentOSSCustomDomain"] = setting.TicketAttachmentOSSCustomDomain
+	common.OptionMap["TicketAttachmentS3Endpoint"] = setting.TicketAttachmentS3Endpoint
+	common.OptionMap["TicketAttachmentS3Bucket"] = setting.TicketAttachmentS3Bucket
+	common.OptionMap["TicketAttachmentS3Region"] = setting.TicketAttachmentS3Region
+	common.OptionMap["TicketAttachmentS3AccessKeyId"] = setting.TicketAttachmentS3AccessKeyId
+	common.OptionMap["TicketAttachmentS3AccessKeySecret"] = setting.TicketAttachmentS3AccessKeySecret
+	common.OptionMap["TicketAttachmentS3CustomDomain"] = setting.TicketAttachmentS3CustomDomain
+	common.OptionMap["TicketAttachmentCOSEndpoint"] = setting.TicketAttachmentCOSEndpoint
+	common.OptionMap["TicketAttachmentCOSBucket"] = setting.TicketAttachmentCOSBucket
+	common.OptionMap["TicketAttachmentCOSRegion"] = setting.TicketAttachmentCOSRegion
+	common.OptionMap["TicketAttachmentCOSSecretId"] = setting.TicketAttachmentCOSSecretId
+	common.OptionMap["TicketAttachmentCOSSecretKey"] = setting.TicketAttachmentCOSSecretKey
+	common.OptionMap["TicketAttachmentCOSCustomDomain"] = setting.TicketAttachmentCOSCustomDomain
+	common.OptionMap["TicketAssignConfig"] = setting.TicketAssignConfig2JSONString()
+	common.OptionMap["PaymentNotifyUserEnabled"] = strconv.FormatBool(common.PaymentNotifyUserEnabled)
+	common.OptionMap["PaymentNotifyAdminEnabled"] = strconv.FormatBool(common.PaymentNotifyAdminEnabled)
+	common.OptionMap["PaymentAdminEmail"] = common.PaymentAdminEmail
 	common.OptionMap["Notice"] = ""
 	common.OptionMap["About"] = ""
 	common.OptionMap["HomePageContent"] = ""
@@ -83,6 +129,7 @@ func InitOptionMap() {
 	common.OptionMap["Price"] = strconv.FormatFloat(operation_setting.Price, 'f', -1, 64)
 	common.OptionMap["USDExchangeRate"] = strconv.FormatFloat(operation_setting.USDExchangeRate, 'f', -1, 64)
 	common.OptionMap["MinTopUp"] = strconv.Itoa(operation_setting.MinTopUp)
+	common.OptionMap["MinInvoiceAmount"] = strconv.Itoa(operation_setting.MinInvoiceAmount)
 	common.OptionMap["StripeMinTopUp"] = strconv.Itoa(setting.StripeMinTopUp)
 	common.OptionMap["StripeApiSecret"] = setting.StripeApiSecret
 	common.OptionMap["StripeWebhookSecret"] = setting.StripeWebhookSecret
@@ -133,6 +180,11 @@ func InitOptionMap() {
 	common.OptionMap["QuotaForNewUser"] = strconv.Itoa(common.QuotaForNewUser)
 	common.OptionMap["QuotaForInviter"] = strconv.Itoa(common.QuotaForInviter)
 	common.OptionMap["QuotaForInvitee"] = strconv.Itoa(common.QuotaForInvitee)
+	common.OptionMap["TopUpCommissionRate"] = strconv.FormatFloat(common.TopUpCommissionRate, 'f', -1, 64)
+	common.OptionMap["TopUpCommissionManualEnabled"] = strconv.FormatBool(common.TopUpCommissionManualEnabled)
+	common.OptionMap["AffTransferCooldownHours"] = strconv.Itoa(common.AffTransferCooldownHours)
+	common.OptionMap["InviteRewardCooldownHours"] = strconv.Itoa(common.InviteRewardCooldownHours)
+	common.OptionMap["MinTransferAmount"] = strconv.FormatFloat(common.MinTransferAmount, 'f', -1, 64)
 	common.OptionMap["QuotaRemindThreshold"] = strconv.Itoa(common.QuotaRemindThreshold)
 	common.OptionMap["PreConsumedQuota"] = strconv.Itoa(common.PreConsumedQuota)
 	common.OptionMap["ModelRequestRateLimitCount"] = strconv.Itoa(setting.ModelRequestRateLimitCount)
@@ -172,6 +224,8 @@ func InitOptionMap() {
 	common.OptionMap["SensitiveWords"] = setting.SensitiveWordsToString()
 	common.OptionMap["StreamCacheQueueLength"] = strconv.Itoa(setting.StreamCacheQueueLength)
 	common.OptionMap["AutomaticDisableKeywords"] = operation_setting.AutomaticDisableKeywordsToString()
+	common.OptionMap["AutomaticDisableWhitelist"] = operation_setting.AutomaticDisableWhitelistToString()
+	common.OptionMap["HiddenModels"] = operation_setting.HiddenModelsToString()
 	common.OptionMap["AutomaticDisableStatusCodes"] = operation_setting.AutomaticDisableStatusCodesToString()
 	common.OptionMap["AutomaticRetryStatusCodes"] = operation_setting.AutomaticRetryStatusCodesToString()
 	common.OptionMap["ExposeRatioEnabled"] = strconv.FormatBool(ratio_setting.IsExposeRatioEnabled())
@@ -277,7 +331,7 @@ func updateOptionMap(key string, value string) (err error) {
 			common.ImageDownloadPermission = intValue
 		}
 	}
-	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" || key == "SMTPForceAuthLogin" || key == "SMTPInsecureSkipVerify" {
+	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" || key == "SMTPForceAuthLogin" || key == "SMTPInsecureSkipVerify" || key == "InvitationCodeOAuthRequired" {
 		boolValue := value == "true"
 		switch key {
 		case "PasswordRegisterEnabled":
@@ -298,6 +352,12 @@ func updateOptionMap(key string, value string) (err error) {
 			common.TurnstileCheckEnabled = boolValue
 		case "RegisterEnabled":
 			common.RegisterEnabled = boolValue
+		case "InvitationCodeEnabled":
+			common.InvitationCodeEnabled = boolValue
+		case "InvitationCodeOAuthRequired":
+			common.InvitationCodeOAuthRequired = boolValue
+		case "InvitationCodeUserGenerateEnabled":
+			common.InvitationCodeUserGenerateEnabled = boolValue
 		case "EmailDomainRestrictionEnabled":
 			common.EmailDomainRestrictionEnabled = boolValue
 		case "EmailAliasRestrictionEnabled":
@@ -326,6 +386,8 @@ func updateOptionMap(key string, value string) (err error) {
 			common.TaskEnabled = boolValue
 		case "DataExportEnabled":
 			common.DataExportEnabled = boolValue
+		case "ForceRecordIPEnabled":
+			common.ForceRecordIPEnabled = boolValue
 		case "DefaultCollapseSidebar":
 			common.DefaultCollapseSidebar = boolValue
 		case "MjNotifyEnabled":
@@ -358,6 +420,14 @@ func updateOptionMap(key string, value string) (err error) {
 			common.SMTPInsecureSkipVerify = boolValue
 		case "SMTPForceAuthLogin":
 			common.SMTPForceAuthLogin = boolValue
+		case "TicketNotifyEnabled":
+			common.TicketNotifyEnabled = boolValue
+		case "TicketAttachmentEnabled":
+			setting.TicketAttachmentEnabled = boolValue
+		case "PaymentNotifyUserEnabled":
+			common.PaymentNotifyUserEnabled = boolValue
+		case "PaymentNotifyAdminEnabled":
+			common.PaymentNotifyAdminEnabled = boolValue
 		case "WorkerAllowHttpImageRequestEnabled":
 			system_setting.WorkerAllowHttpImageRequestEnabled = boolValue
 		case "DefaultUseAutoGroup":
@@ -380,6 +450,70 @@ func updateOptionMap(key string, value string) (err error) {
 		common.SMTPFrom = value
 	case "SMTPToken":
 		common.SMTPToken = value
+	case "TicketAdminEmail":
+		common.TicketAdminEmail = value
+	case "TicketAttachmentMaxSize":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			setting.TicketAttachmentMaxSize = v
+		}
+	case "TicketAttachmentMaxCount":
+		if v, err := strconv.Atoi(value); err == nil && v > 0 {
+			setting.TicketAttachmentMaxCount = v
+		}
+	case "TicketAttachmentAllowedExts":
+		setting.TicketAttachmentAllowedExts = value
+	case "TicketAttachmentAllowedMimes":
+		setting.TicketAttachmentAllowedMimes = value
+	case "TicketAttachmentStorage":
+		setting.TicketAttachmentStorage = value
+	case "TicketAttachmentLocalPath":
+		setting.TicketAttachmentLocalPath = value
+	case "TicketAttachmentSignedURLTTL":
+		if v, err := strconv.ParseInt(value, 10, 64); err == nil && v > 0 {
+			setting.TicketAttachmentSignedURLTTL = v
+		}
+	case "TicketAttachmentOSSEndpoint":
+		setting.TicketAttachmentOSSEndpoint = value
+	case "TicketAttachmentOSSBucket":
+		setting.TicketAttachmentOSSBucket = value
+	case "TicketAttachmentOSSRegion":
+		setting.TicketAttachmentOSSRegion = value
+	case "TicketAttachmentOSSAccessKeyId":
+		setting.TicketAttachmentOSSAccessKeyId = value
+	case "TicketAttachmentOSSAccessKeySecret":
+		setting.TicketAttachmentOSSAccessKeySecret = value
+	case "TicketAttachmentOSSCustomDomain":
+		setting.TicketAttachmentOSSCustomDomain = value
+	case "TicketAttachmentS3Endpoint":
+		setting.TicketAttachmentS3Endpoint = value
+	case "TicketAttachmentS3Bucket":
+		setting.TicketAttachmentS3Bucket = value
+	case "TicketAttachmentS3Region":
+		setting.TicketAttachmentS3Region = value
+	case "TicketAttachmentS3AccessKeyId":
+		setting.TicketAttachmentS3AccessKeyId = value
+	case "TicketAttachmentS3AccessKeySecret":
+		setting.TicketAttachmentS3AccessKeySecret = value
+	case "TicketAttachmentS3CustomDomain":
+		setting.TicketAttachmentS3CustomDomain = value
+	case "TicketAttachmentCOSEndpoint":
+		setting.TicketAttachmentCOSEndpoint = value
+	case "TicketAttachmentCOSBucket":
+		setting.TicketAttachmentCOSBucket = value
+	case "TicketAttachmentCOSRegion":
+		setting.TicketAttachmentCOSRegion = value
+	case "TicketAttachmentCOSSecretId":
+		setting.TicketAttachmentCOSSecretId = value
+	case "TicketAttachmentCOSSecretKey":
+		setting.TicketAttachmentCOSSecretKey = value
+	case "TicketAttachmentCOSCustomDomain":
+		setting.TicketAttachmentCOSCustomDomain = value
+	case "TicketAssignConfig":
+		if err := setting.UpdateTicketAssignConfigFromJSON(value); err != nil {
+			common.SysLog("failed to update ticket assign config: " + err.Error())
+		}
+	case "PaymentAdminEmail":
+		common.PaymentAdminEmail = value
 	case "ServerAddress":
 		system_setting.ServerAddress = value
 	case "WorkerUrl":
@@ -404,6 +538,8 @@ func updateOptionMap(key string, value string) (err error) {
 		operation_setting.USDExchangeRate, _ = strconv.ParseFloat(value, 64)
 	case "MinTopUp":
 		operation_setting.MinTopUp, _ = strconv.Atoi(value)
+	case "MinInvoiceAmount":
+		operation_setting.MinInvoiceAmount, _ = strconv.Atoi(value)
 	case "StripeApiSecret":
 		setting.StripeApiSecret = value
 	case "StripeWebhookSecret":
@@ -506,6 +642,16 @@ func updateOptionMap(key string, value string) (err error) {
 		common.QuotaForInviter, _ = strconv.Atoi(value)
 	case "QuotaForInvitee":
 		common.QuotaForInvitee, _ = strconv.Atoi(value)
+	case "TopUpCommissionRate":
+		common.TopUpCommissionRate, _ = strconv.ParseFloat(value, 64)
+	case "TopUpCommissionManualEnabled":
+		common.TopUpCommissionManualEnabled = value == "true"
+	case "AffTransferCooldownHours":
+		common.AffTransferCooldownHours, _ = strconv.Atoi(value)
+	case "InviteRewardCooldownHours":
+		common.InviteRewardCooldownHours, _ = strconv.Atoi(value)
+	case "MinTransferAmount":
+		common.MinTransferAmount, _ = strconv.ParseFloat(value, 64)
 	case "QuotaRemindThreshold":
 		common.QuotaRemindThreshold, _ = strconv.Atoi(value)
 	case "PreConsumedQuota":
@@ -548,6 +694,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = ratio_setting.UpdateAudioCompletionRatioByJSONString(value)
 	case "TopUpLink":
 		common.TopUpLink = value
+	case "InvitationCodePolicy":
+		err = setting.UpdateInvitationCodePolicy(value)
 	//case "ChatLink":
 	//	common.ChatLink = value
 	//case "ChatLink2":
@@ -560,6 +708,10 @@ func updateOptionMap(key string, value string) (err error) {
 		setting.SensitiveWordsFromString(value)
 	case "AutomaticDisableKeywords":
 		operation_setting.AutomaticDisableKeywordsFromString(value)
+	case "AutomaticDisableWhitelist":
+		operation_setting.AutomaticDisableWhitelistFromString(value)
+	case "HiddenModels":
+		operation_setting.HiddenModelsFromString(value)
 	case "AutomaticDisableStatusCodes":
 		err = operation_setting.AutomaticDisableStatusCodesFromString(value)
 	case "AutomaticRetryStatusCodes":
@@ -608,6 +760,10 @@ func handleConfigUpdate(key, value string) bool {
 		ratio_setting.InvalidateExposedDataCache()
 	} else if configName == "theme" {
 		system_setting.UpdateAndSyncTheme()
+	} else if configName == "region_restriction" {
+		operation_setting.RebuildRegionRestrictionIndex()
+	} else if configName == "group_model_blacklist" {
+		operation_setting.RebuildGroupModelBlacklistIndex()
 	}
 
 	return true // 已处理

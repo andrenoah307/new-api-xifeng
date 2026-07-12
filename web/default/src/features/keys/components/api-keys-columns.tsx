@@ -30,6 +30,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useStatus } from '@/hooks/use-status'
 import { toIntlLocale } from '@/i18n/languages'
 import { getUserGroups } from '@/lib/api'
 import dayjs from '@/lib/dayjs'
@@ -78,6 +79,9 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const justNowLabel = t('Just now')
   const staleAccessThreshold = dayjs(now).subtract(3, 'month').valueOf()
+  const { status } = useStatus()
+  const regionBlockedGroups: string[] =
+    status?.region_blocked_groups ?? []
   return [
     {
       id: 'select',
@@ -229,13 +233,20 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
           )
         }
         return (
-          <TruncatedCell
-            className='-ml-1.5'
-            tooltipContent={group || '-'}
-            tooltipClassName='break-all'
-          >
-            <GroupBadge group={group} ratio={ratio} />
-          </TruncatedCell>
+          <div className='flex flex-col gap-1'>
+            <TruncatedCell
+              className='-ml-1.5'
+              tooltipContent={group || '-'}
+              tooltipClassName='break-all'
+            >
+              <GroupBadge group={group} ratio={ratio} />
+            </TruncatedCell>
+            {regionBlockedGroups.includes(group) && (
+              <span className='text-xs text-destructive'>
+                {t('Not available in current region')}
+              </span>
+            )}
+          </div>
         )
       },
       size: 160,
@@ -318,6 +329,7 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
             locale={locale}
             justNowLabel={justNowLabel}
             className={cn(
+              'block truncate font-mono text-xs tabular-nums',
               isExpired ? 'text-destructive' : 'text-muted-foreground'
             )}
           />

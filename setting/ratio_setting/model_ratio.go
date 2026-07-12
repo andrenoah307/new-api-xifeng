@@ -715,8 +715,19 @@ func GetAudioCompletionRatioCopy() map[string]float64 {
 	return audioCompletionRatioMap.ReadAll()
 }
 
+// stripContextWindowSuffix 归一 1M 长上下文档位后缀 [1m]（大小写不敏感）到基础模型名，
+// 使 xxx[1m] 复用基础模型定价，避免落入 GetModelRatio 的 37.5 兜底哨兵（坑点 #135）。
+func stripContextWindowSuffix(name string) string {
+	const suffix = "[1m]"
+	if len(name) > len(suffix) && strings.EqualFold(name[len(name)-len(suffix):], suffix) {
+		return name[:len(name)-len(suffix)]
+	}
+	return name
+}
+
 // 转换模型名，减少渠道必须配置各种带参数模型
 func FormatMatchingModelName(name string) string {
+	name = stripContextWindowSuffix(name)
 
 	if strings.HasPrefix(name, "gemini-2.5-flash-lite") {
 		name = handleThinkingBudgetModel(name, "gemini-2.5-flash-lite", "gemini-2.5-flash-lite-thinking-*")

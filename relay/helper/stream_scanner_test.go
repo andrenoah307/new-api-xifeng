@@ -217,6 +217,8 @@ func TestStreamScannerHandler_DataWithExtraSpaces(t *testing.T) {
 // pooled reuse), the upstream body must be closed to stop token generation,
 // and no data received after the disconnect may be processed or written.
 func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T) {
+	setDrainWindow(t, 0)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -281,6 +283,176 @@ func TestStreamScannerHandler_ClientCancelAbortsUpstreamAndReturns(t *testing.T)
 	body := recorder.Body.String()
 	assert.Contains(t, body, "first")
 	assert.NotContains(t, body, "second")
+}
+
+// ---------- Client-gone bounded drain (usage capture) ----------
+
+// setDrainWindow sets the client-gone drain window (seconds) for a test.
+func setDrainWindow(t *testing.T, seconds int) {
+	t.Helper()
+	old := constant.StreamDrainAfterClientGoneSeconds
+	constant.StreamDrainAfterClientGoneSeconds = seconds
+	t.Cleanup(func() { constant.StreamDrainAfterClientGoneSeconds = old })
+}
+
+// With output already produced and drain enabled, a client disconnect must NOT
+// abort immediately: the scanner keeps reading upstream (bounded) to capture the
+// trailing usage chunk for accurate billing, then stops on [DONE]. Writes to the
+// gone client are suppressed by StringData's requestContextDone guard.
+func TestStreamScannerHandler_ClientGoneDrainsUpstreamForUsage(t *testing.T) {
+	setDrainWindow(t, 2)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { _ = pr.Close(); _ = pw.Close() })
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil).WithContext(ctx)
+
+	resp := &http.Response{Body: pr}
+	info := &relaycommon.RelayInfo{DisablePing: true, ChannelMeta: &relaycommon.ChannelMeta{}}
+
+	var mu sync.Mutex
+	var handled []string
+	firstHandled := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		StreamScannerHandler(c, resp, info, func(data string, sr *StreamResult) {
+			mu.Lock()
+			handled = append(handled, data)
+			mu.Unlock()
+			_ = StringData(c, data)
+			if data == "first" {
+				close(firstHandled)
+			}
+		})
+		close(done)
+	}()
+
+	_, err := fmt.Fprint(pw, "data: first\n")
+	require.NoError(t, err)
+	select {
+	case <-firstHandled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for first chunk")
+	}
+
+	// Client disconnects, then upstream sends its trailing usage chunk + [DONE].
+	cancel()
+	_, err = fmt.Fprint(pw, "data: usage_chunk\ndata: [DONE]\n")
+	require.NoError(t, err)
+
+	select {
+	case <-done:
+	case <-time.After(4 * time.Second):
+		t.Fatal("handler did not return after drain")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Contains(t, handled, "usage_chunk", "drain must process the trailing usage chunk after client disconnect")
+	// No stale writes to a disconnected client (StringData guard): only pre-disconnect data reaches it.
+	body := recorder.Body.String()
+	assert.Contains(t, body, "first")
+	assert.NotContains(t, body, "usage_chunk", "client writes must be suppressed after disconnect")
+}
+
+// When the client disconnects before ANY output was produced, there is no usage to
+// capture — the handler must stop-loss immediately (no drain, upstream closed),
+// even with a drain window configured. Guards against empty-stream abuse.
+func TestStreamScannerHandler_ClientGoneNoOutputImmediateStopLoss(t *testing.T) {
+	setDrainWindow(t, 30) // large window: if drain wrongly triggered, the test would hang
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { _ = pr.Close(); _ = pw.Close() })
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil).WithContext(ctx)
+
+	resp := &http.Response{Body: pr}
+	info := &relaycommon.RelayInfo{DisablePing: true, ChannelMeta: &relaycommon.ChannelMeta{}}
+
+	done := make(chan struct{})
+	go func() {
+		StreamScannerHandler(c, resp, info, func(data string, sr *StreamResult) {
+			_ = StringData(c, data)
+		})
+		close(done)
+	}()
+
+	// Disconnect before any upstream data.
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("handler did not stop-loss immediately when no output was produced")
+	}
+
+	assert.Equal(t, relaycommon.StreamEndReasonClientGone, info.StreamStatus.EndReason)
+	assert.Zero(t, info.ReceivedResponseCount)
+}
+
+// When drain is enabled and output was produced but upstream never sends [DONE]
+// after disconnect, the scanner must stop after the bounded window (stop-loss),
+// not hang, and the upstream body must be closed.
+func TestStreamScannerHandler_ClientGoneDrainWindowElapsed(t *testing.T) {
+	setDrainWindow(t, 1) // 1s window; main-loop safety adds 5s
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { _ = pr.Close(); _ = pw.Close() })
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil).WithContext(ctx)
+
+	resp := &http.Response{Body: pr}
+	info := &relaycommon.RelayInfo{DisablePing: true, ChannelMeta: &relaycommon.ChannelMeta{}}
+
+	firstHandled := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		StreamScannerHandler(c, resp, info, func(data string, sr *StreamResult) {
+			_ = StringData(c, data)
+			if data == "first" {
+				close(firstHandled)
+			}
+		})
+		close(done)
+	}()
+
+	_, err := fmt.Fprint(pw, "data: first\n")
+	require.NoError(t, err)
+	select {
+	case <-firstHandled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for first chunk")
+	}
+
+	// Disconnect; upstream then goes silent (no [DONE]). Feed one more chunk so the
+	// scanner unblocks, enters drain, and later hits the window deadline.
+	cancel()
+	_, _ = fmt.Fprint(pw, "data: mid\n")
+
+	start := time.Now()
+	select {
+	case <-done:
+	case <-time.After(8 * time.Second):
+		t.Fatal("handler did not stop after drain window elapsed")
+	}
+	// Must have stopped well before the streaming timeout, bounded by the drain window.
+	assert.Less(t, time.Since(start), 7*time.Second)
+	assert.Equal(t, relaycommon.StreamEndReasonClientGone, info.StreamStatus.EndReason)
 }
 
 // ---------- Ping tests ----------

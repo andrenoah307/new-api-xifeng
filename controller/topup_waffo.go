@@ -106,9 +106,10 @@ func getWaffoPayMoney(amount float64, group string) float64 {
 
 type WaffoPayRequest struct {
 	Amount         int64  `json:"amount"`
-	PayMethodIndex *int   `json:"pay_method_index"` // 服务端支付方式列表的索引，nil 表示由 Waffo 自动选择
-	PayMethodType  string `json:"pay_method_type"`  // Deprecated: 兼容旧前端，优先使用 pay_method_index
-	PayMethodName  string `json:"pay_method_name"`  // Deprecated: 兼容旧前端，优先使用 pay_method_index
+	PayMethodIndex *int   `json:"pay_method_index"`
+	PayMethodType  string `json:"pay_method_type"`
+	PayMethodName  string `json:"pay_method_name"`
+	DiscountCode   string `json:"discount_code"`
 }
 
 func RequestWaffoAmount(c *gin.Context) {
@@ -132,6 +133,18 @@ func RequestWaffoAmount(c *gin.Context) {
 	}
 
 	payMoney := getWaffoPayMoney(float64(req.Amount), group)
+	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, c.GetInt("id"))
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
+	}
 	if payMoney <= 0.01 {
 		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "充值金额过低"})
 		return
@@ -204,6 +217,25 @@ func RequestWaffoPay(c *gin.Context) {
 		return
 	}
 
+	var discountCodeId int
+	if req.DiscountCode != "" {
+		if !operation_setting.IsDiscountCodeEnabled() {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
+			return
+		}
+		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err != nil {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
+			return
+		}
+		discountCodeId = dc.Id
+		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
+		if payMoney < 0.01 {
+			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣后充值金额过低"})
+			return
+		}
+	}
+
 	// 生成唯一订单号，paymentRequestId 与 merchantOrderId 保持一致，简化追踪
 	merchantOrderId := fmt.Sprintf("WAFFO-%d-%d-%s", id, time.Now().UnixMilli(), randstr.String(6))
 	paymentRequestId := merchantOrderId
@@ -227,6 +259,7 @@ func RequestWaffoPay(c *gin.Context) {
 		PaymentProvider: model.PaymentProviderWaffo,
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
+		DiscountCodeId:  discountCodeId,
 	}
 	if err := topUp.Insert(); err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Waffo 创建充值订单失败 user_id=%d trade_no=%s amount=%d error=%q", id, merchantOrderId, req.Amount, err.Error()))
@@ -248,7 +281,7 @@ func RequestWaffoPay(c *gin.Context) {
 	if setting.WaffoNotifyUrl != "" {
 		notifyUrl = setting.WaffoNotifyUrl
 	}
-	returnUrl := paymentReturnPath("/console/topup?show_history=true")
+	returnUrl := service.GetPaymentReturnURL("billing", "show_history=true")
 	if setting.WaffoReturnUrl != "" {
 		returnUrl = setting.WaffoReturnUrl
 	}
@@ -415,6 +448,7 @@ func handleWaffoPayment(c *gin.Context, wh *core.WebhookHandler, result *core.Pa
 	}
 
 	logger.LogInfo(c.Request.Context(), fmt.Sprintf("Waffo 充值成功 trade_no=%s client_ip=%s", merchantOrderId, c.ClientIP()))
+	service.NotifyTopUpSuccessByTradeNo(merchantOrderId)
 	sendWaffoWebhookResponse(c, wh, true, "")
 }
 

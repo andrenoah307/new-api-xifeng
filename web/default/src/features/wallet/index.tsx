@@ -16,8 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { SectionPageLayout } from '@/components/layout'
 import { useStatus } from '@/hooks/use-status'
@@ -25,6 +26,7 @@ import { useSystemConfig } from '@/hooks/use-system-config'
 import { getSelf } from '@/lib/api'
 
 import { AffiliateRewardsCard } from './components/affiliate-rewards-card'
+import { CommissionRecordsTable } from './components/commission-records-table'
 import { BillingHistoryDialog } from './components/dialogs/billing-history-dialog'
 import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
@@ -41,6 +43,7 @@ import {
   useCreemPayment,
   useWaffoPayment,
   useWaffoPancakePayment,
+  useDiscountCode,
 } from './hooks'
 import {
   getDefaultPaymentType,
@@ -104,6 +107,14 @@ export function Wallet(props: WalletProps) {
   const { processWaffoPayment } = useWaffoPayment()
   const { processing: pancakeProcessing, processWaffoPancakePayment } =
     useWaffoPancakePayment()
+  const {
+    discountCode: discountCodeInput,
+    setDiscountCode: setDiscountCodeInput,
+    discountInfo,
+    isValidating: discountValidating,
+    validateDiscountCode: handleValidateDiscount,
+    clearDiscountCode,
+  } = useDiscountCode()
 
   // Fetch and refresh user data
   const fetchUser = useCallback(async () => {
@@ -137,12 +148,20 @@ export function Wallet(props: WalletProps) {
     if (topupInfo && topupAmount === 0) {
       const minTopup = getMinTopupAmount(topupInfo)
       setTopupAmount(minTopup)
-
-      // Calculate initial payment amount with default payment type
-      const defaultPaymentType = getDefaultPaymentType(topupInfo)
-      calculatePaymentAmount(minTopup, defaultPaymentType)
     }
-  }, [topupInfo, topupAmount, calculatePaymentAmount])
+  }, [topupInfo, topupAmount])
+
+  // Recalculate payment amount when discount code changes (skip initial mount)
+  const discountMountedRef = useRef(false)
+  useEffect(() => {
+    if (!discountMountedRef.current) {
+      discountMountedRef.current = true
+      return
+    }
+    if (topupAmount > 0) {
+      calculatePaymentAmount(topupAmount, getCurrentPaymentType(), discountInfo?.code)
+    }
+  }, [discountInfo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get current payment type (selected or default)
   const getCurrentPaymentType = useCallback(() => {
@@ -153,15 +172,20 @@ export function Wallet(props: WalletProps) {
   const handleSelectPreset = (preset: PresetAmount) => {
     setTopupAmount(preset.value)
     setSelectedPreset(preset.value)
-    calculatePaymentAmount(preset.value, getCurrentPaymentType())
+    calculatePaymentAmount(preset.value, getCurrentPaymentType(), discountInfo?.code)
   }
 
-  // Handle topup amount change
+  // Handle topup amount change (state only, no API call — calculation deferred to blur)
   const handleTopupAmountChange = (amount: number) => {
     setTopupAmount(amount)
     setSelectedPreset(null)
-    calculatePaymentAmount(amount, getCurrentPaymentType())
+    clearDiscountCode()
   }
+
+  // Handle topup amount blur — validate and calculate payment
+  const handleTopupAmountBlur = useCallback((amount: number) => {
+    calculatePaymentAmount(amount, getCurrentPaymentType())
+  }, [calculatePaymentAmount, getCurrentPaymentType])
 
   // Handle payment method selection
   const handlePaymentMethodSelect = async (method: PaymentMethod) => {
@@ -172,11 +196,12 @@ export function Wallet(props: WalletProps) {
       // Validate minimum topup
       const minTopup = getMinTopupAmount(topupInfo)
       if (topupAmount < minTopup) {
+        toast.error(t('Minimum topup amount: {{amount}}', { amount: minTopup }))
         return
       }
 
       // Calculate payment amount and show confirmation dialog
-      await calculatePaymentAmount(topupAmount, method.type)
+      await calculatePaymentAmount(topupAmount, method.type, discountInfo?.code)
       setConfirmDialogOpen(true)
     } finally {
       setPaymentLoading(null)
@@ -188,12 +213,14 @@ export function Wallet(props: WalletProps) {
     if (!selectedPaymentMethod) return
 
     const isPancake = isWaffoPancakePayment(selectedPaymentMethod.type)
+    const activeDiscountCode = discountInfo?.code
     const success = isPancake
-      ? await processWaffoPancakePayment(topupAmount)
-      : await processPayment(topupAmount, selectedPaymentMethod.type)
+      ? await processWaffoPancakePayment(topupAmount, activeDiscountCode)
+      : await processPayment(topupAmount, selectedPaymentMethod.type, activeDiscountCode)
 
     if (success) {
       setConfirmDialogOpen(false)
+      clearDiscountCode()
       await fetchUser()
     }
   }
@@ -241,7 +268,7 @@ export function Wallet(props: WalletProps) {
     setPaymentLoading(loadingKey)
 
     try {
-      await processWaffoPayment(topupAmount, index)
+      await processWaffoPayment(topupAmount, index, discountInfo?.code)
     } finally {
       setPaymentLoading(null)
     }
@@ -249,8 +276,12 @@ export function Wallet(props: WalletProps) {
 
   // Get discount rate for current topup amount
   const getDiscountRate = useCallback(() => {
-    return topupInfo?.discount?.[topupAmount] || DEFAULT_DISCOUNT_RATE
-  }, [topupInfo, topupAmount])
+    const presetDiscount = topupInfo?.discount?.[topupAmount] || DEFAULT_DISCOUNT_RATE
+    if (discountInfo) {
+      return presetDiscount * (discountInfo.discount_rate / 100)
+    }
+    return presetDiscount
+  }, [topupInfo, topupAmount, discountInfo])
 
   const handleSubscriptionAvailabilityChange = useCallback(
     (available: boolean) => {
@@ -282,6 +313,7 @@ export function Wallet(props: WalletProps) {
                   onSelectPreset={handleSelectPreset}
                   topupAmount={topupAmount}
                   onTopupAmountChange={handleTopupAmountChange}
+                  onTopupAmountBlur={handleTopupAmountBlur}
                   paymentAmount={paymentAmount}
                   calculating={calculating}
                   onPaymentMethodSelect={handlePaymentMethodSelect}
@@ -305,6 +337,14 @@ export function Wallet(props: WalletProps) {
                   enableWaffoPancakeTopup={
                     topupInfo?.enable_waffo_pancake_topup
                   }
+                  {...(status?.discount_code_enabled ? {
+                    discountCode: discountCodeInput,
+                    onDiscountCodeChange: setDiscountCodeInput,
+                    onValidateDiscountCode: handleValidateDiscount,
+                    discountValidating: discountValidating,
+                    discountInfo: discountInfo,
+                  } : {})}
+                  selectedPaymentMethodType={selectedPaymentMethod?.type}
                 />
               </div>
 
@@ -325,6 +365,7 @@ export function Wallet(props: WalletProps) {
               }
               loading={affiliateLoading}
             />
+            <CommissionRecordsTable />
           </div>
         </SectionPageLayout.Content>
       </SectionPageLayout>
@@ -346,8 +387,9 @@ export function Wallet(props: WalletProps) {
         open={transferDialogOpen}
         onOpenChange={setTransferDialogOpen}
         onConfirm={handleTransfer}
-        availableQuota={user?.aff_quota ?? 0}
+        availableQuota={user?.transferable_aff_quota ?? 0}
         transferring={transferring}
+        minTransferAmount={Number(status?.min_transfer_amount) || 1}
       />
 
       <BillingHistoryDialog

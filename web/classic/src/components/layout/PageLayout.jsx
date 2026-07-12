@@ -55,10 +55,14 @@ const PageLayout = () => {
     '/console/channel',
     '/console/log',
     '/console/redemption',
+    '/console/invitation_code',
     '/console/user',
+    '/console/risk',
     '/console/token',
     '/console/midjourney',
     '/console/task',
+    '/console/ticket',
+    '/console/ticket_admin',
     '/console/models',
     '/pricing',
   ];
@@ -68,7 +72,8 @@ const PageLayout = () => {
   const shouldInnerPadding =
     location.pathname.includes('/console') &&
     !location.pathname.startsWith('/console/chat') &&
-    location.pathname !== '/console/playground';
+    location.pathname !== '/console/playground' &&
+    location.pathname !== '/console/monitoring';
 
   const isConsoleRoute = location.pathname.startsWith('/console');
   const showSider = isConsoleRoute && (!isMobile || drawerOpen);

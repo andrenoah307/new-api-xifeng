@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -43,7 +42,7 @@ func Login(c *gin.Context) {
 		return
 	}
 	var loginRequest LoginRequest
-	err := json.NewDecoder(c.Request.Body).Decode(&loginRequest)
+	err := common.DecodeJson(c.Request.Body, &loginRequest)
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -190,7 +189,7 @@ func Register(c *gin.Context) {
 		return
 	}
 	var user model.User
-	err := json.NewDecoder(c.Request.Body).Decode(&user)
+	err := common.DecodeJson(c.Request.Body, &user)
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -237,6 +236,7 @@ func Register(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserExists)
 		return
 	}
+	invitationCodeValue := strings.TrimSpace(user.InvitationCode)
 	affCode := user.AffCode // this code is the inviter's code, not the user's own code
 	inviterId, _ := model.GetUserIdByAffCode(affCode)
 	cleanUser := model.User{
@@ -249,7 +249,32 @@ func Register(c *gin.Context) {
 	if common.EmailVerificationEnabled {
 		cleanUser.Email = user.Email
 	}
-	if err := cleanUser.Insert(inviterId); err != nil {
+	var invitationCode *model.InvitationCode
+	err = model.DB.Transaction(func(tx *gorm.DB) error {
+		if common.InvitationCodeEnabled || invitationCodeValue != "" {
+			invitationCode, err = model.GetUsableInvitationCodeWithTx(tx, invitationCodeValue)
+			if err != nil {
+				return err
+			}
+			if invitationCode.OwnerUserId != 0 {
+				inviterId = invitationCode.OwnerUserId
+			}
+		}
+		cleanUser.InviterId = inviterId
+		if err := cleanUser.InsertWithTx(tx, inviterId); err != nil {
+			return err
+		}
+		if invitationCode != nil {
+			if err := model.ConsumeInvitationCodeWithTx(tx, invitationCode, cleanUser.Id, cleanUser.Username); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		if handleInvitationCodeError(c, err) {
+			return
+		}
 		if errors.Is(err, model.ErrEmailAlreadyTaken) {
 			common.ApiErrorI18n(c, i18n.MsgUserEmailAlreadyTaken)
 			return
@@ -257,13 +282,7 @@ func Register(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-
-	// 获取插入后的用户ID
-	var insertedUser model.User
-	if err := model.DB.Where("username = ?", cleanUser.Username).First(&insertedUser).Error; err != nil {
-		common.ApiErrorI18n(c, i18n.MsgUserRegisterFailed)
-		return
-	}
+	cleanUser.FinalizeOAuthUserCreation(inviterId)
 	// 生成默认令牌
 	if constant.GenerateDefaultToken {
 		key, err := common.GenerateKey()
@@ -274,7 +293,7 @@ func Register(c *gin.Context) {
 		}
 		// 生成默认令牌
 		token := model.Token{
-			UserId:             insertedUser.Id, // 使用插入后的用户ID
+			UserId:             cleanUser.Id,
 			Name:               cleanUser.Username + "的初始令牌",
 			Key:                key,
 			CreatedTime:        common.GetTimestamp(),
@@ -307,6 +326,9 @@ func GetAllUsers(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	for _, u := range users {
+		u.AffCount = model.GetInviteCount(u.Id)
+	}
 
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(users)
@@ -336,6 +358,9 @@ func SearchUsers(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	for _, u := range users {
+		u.AffCount = model.GetInviteCount(u.Id)
+	}
 
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(users)
@@ -364,6 +389,7 @@ func GetUser(c *gin.Context) {
 		return
 	}
 	user.AdminPermissions = authz.Capabilities(user.Id, user.Role)
+	user.AffCount = model.GetInviteCount(user.Id)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -478,33 +504,38 @@ func GetSelf(c *gin.Context) {
 	// 获取用户设置并提取sidebar_modules
 	userSetting := user.GetSetting()
 
-	// 构建响应数据，包含用户信息和权限
+	transferableAffQuota, _ := model.GetTransferableAffQuota(user.Id, user.AffQuota)
+	maxRefundableQuota, _ := model.GetUserMaxRefundableQuota(user.Id)
+
 	responseData := map[string]interface{}{
-		"id":                user.Id,
-		"username":          user.Username,
-		"display_name":      user.DisplayName,
-		"role":              user.Role,
-		"status":            user.Status,
-		"email":             user.Email,
-		"github_id":         user.GitHubId,
-		"discord_id":        user.DiscordId,
-		"oidc_id":           user.OidcId,
-		"wechat_id":         user.WeChatId,
-		"telegram_id":       user.TelegramId,
-		"group":             user.Group,
-		"quota":             user.Quota,
-		"used_quota":        user.UsedQuota,
-		"request_count":     user.RequestCount,
-		"aff_code":          user.AffCode,
-		"aff_count":         user.AffCount,
-		"aff_quota":         user.AffQuota,
-		"aff_history_quota": user.AffHistoryQuota,
-		"inviter_id":        user.InviterId,
-		"linux_do_id":       user.LinuxDOId,
-		"setting":           user.Setting,
-		"stripe_customer":   user.StripeCustomer,
-		"sidebar_modules":   userSetting.SidebarModules, // 正确提取sidebar_modules字段
-		"permissions":       permissions,                // 新增权限字段
+		"id":                     user.Id,
+		"username":               user.Username,
+		"display_name":           user.DisplayName,
+		"role":                   user.Role,
+		"status":                 user.Status,
+		"email":                  user.Email,
+		"github_id":              user.GitHubId,
+		"discord_id":             user.DiscordId,
+		"oidc_id":                user.OidcId,
+		"wechat_id":              user.WeChatId,
+		"telegram_id":            user.TelegramId,
+		"group":                  user.Group,
+		"quota":                  user.Quota,
+		"used_quota":             user.UsedQuota,
+		"request_count":          user.RequestCount,
+		"aff_code":               user.AffCode,
+		"aff_count":              model.GetInviteCount(user.Id),
+		"aff_quota":              user.AffQuota,
+		"aff_history_quota":      user.AffHistoryQuota,
+		"transferable_aff_quota": transferableAffQuota,
+		"max_refundable_quota":   maxRefundableQuota,
+		"inviter_id":             user.InviterId,
+		"linux_do_id":            user.LinuxDOId,
+		"setting":                user.Setting,
+		"stripe_customer":        user.StripeCustomer,
+		"sidebar_modules":        userSetting.SidebarModules,
+		"permissions":            permissions,
+		"risk_warning_pending":   user.RiskWarningPendingAt > 0,
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -513,6 +544,22 @@ func GetSelf(c *gin.Context) {
 		"data":    responseData,
 	})
 	return
+}
+
+// AcknowledgeRiskWarning clears the user's pending risk-warning flag. The
+// underlying block/observe decision is unchanged; this only dismisses the
+// next-login modal.
+func AcknowledgeRiskWarning(c *gin.Context) {
+	id := c.GetInt("id")
+	if id <= 0 {
+		common.ApiErrorMsg(c, "未登录")
+		return
+	}
+	if err := model.AckUserRiskWarningPending(id); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, gin.H{"acknowledged": true})
 }
 
 // 计算用户权限的辅助函数
@@ -530,6 +577,20 @@ func calculateUserPermissions(userRole int) map[string]interface{} {
 		permissions["sidebar_modules"] = map[string]interface{}{
 			"admin": map[string]interface{}{
 				"setting": false, // 管理员不能访问系统设置
+			},
+		}
+	} else if userRole == common.RoleCustomerServiceUser {
+		// 客服：仅工单管理与用户管理只读视图。其它管理员功能一律锁闭。
+		permissions["sidebar_settings"] = true
+		permissions["sidebar_modules"] = map[string]interface{}{
+			"admin": map[string]interface{}{
+				"channel":         false,
+				"models":          false,
+				"redemption":      false,
+				"invitation_code": false,
+				"setting":         false,
+				"user":            false,
+				// ticket_admin 保持开启，由默认配置提供
 			},
 		}
 	} else {
@@ -562,6 +623,7 @@ func generateDefaultSidebarConfig(userRole int) string {
 		"log":        true,
 		"midjourney": true,
 		"task":       true,
+		"ticket":     true,
 	}
 
 	// 个人中心区域 - 所有用户都可以访问
@@ -575,28 +637,44 @@ func generateDefaultSidebarConfig(userRole int) string {
 	if userRole == common.RoleAdminUser {
 		// 管理员可以访问管理员区域，但不能访问系统设置
 		defaultConfig["admin"] = map[string]interface{}{
-			"enabled":    true,
-			"channel":    true,
-			"models":     true,
-			"redemption": true,
-			"user":       true,
-			"setting":    false, // 管理员不能访问系统设置
+			"enabled":         true,
+			"channel":         true,
+			"models":          true,
+			"redemption":      true,
+			"invitation_code": true,
+			"user":            true,
+			"ticket_admin":    true,
+			"setting":         false, // 管理员不能访问系统设置
 		}
 	} else if userRole == common.RoleRootUser {
 		// 超级管理员可以访问所有功能
 		defaultConfig["admin"] = map[string]interface{}{
-			"enabled":    true,
-			"channel":    true,
-			"models":     true,
-			"redemption": true,
-			"user":       true,
-			"setting":    true,
+			"enabled":         true,
+			"channel":         true,
+			"models":          true,
+			"redemption":      true,
+			"invitation_code": true,
+			"user":            true,
+			"ticket_admin":    true,
+			"setting":         true,
+		}
+	} else if userRole == common.RoleCustomerServiceUser {
+		// 客服：仅开放工单后台入口；其它管理员功能一律关闭。
+		defaultConfig["admin"] = map[string]interface{}{
+			"enabled":         true,
+			"channel":         false,
+			"models":          false,
+			"redemption":      false,
+			"invitation_code": false,
+			"user":            false,
+			"ticket_admin":    true,
+			"setting":         false,
 		}
 	}
 	// 普通用户不包含admin区域
 
 	// 转换为JSON字符串
-	configBytes, err := json.Marshal(defaultConfig)
+	configBytes, err := common.Marshal(defaultConfig)
 	if err != nil {
 		common.SysLog("生成默认边栏配置失败: " + err.Error())
 		return ""
@@ -643,6 +721,8 @@ func GetUserModels(c *gin.Context) {
 			}
 		}
 	}
+	models = filterRegionBlockedUserModels(c, models)
+	models = filterGroupBlockedUserModels(user.Group, models)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -653,7 +733,7 @@ func GetUserModels(c *gin.Context) {
 
 func UpdateUser(c *gin.Context) {
 	var updatedUser model.User
-	err := json.NewDecoder(c.Request.Body).Decode(&updatedUser)
+	err := common.DecodeJson(c.Request.Body, &updatedUser)
 	if err != nil || updatedUser.Id == 0 {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -687,6 +767,17 @@ func UpdateUser(c *gin.Context) {
 	}
 	if updatedUser.Password == "$I_LOVE_U" {
 		updatedUser.Password = "" // rollback to what it should be
+	}
+	// Check email uniqueness (excluding the user being updated)
+	if updatedUser.Email != "" {
+		var emailCount int64
+		model.DB.Model(&model.User{}).Unscoped().
+			Where("email = ? AND id != ?", updatedUser.Email, updatedUser.Id).
+			Count(&emailCount)
+		if emailCount > 0 {
+			common.ApiErrorMsg(c, "邮箱已被其他用户使用")
+			return
+		}
 	}
 	updatePassword := updatedUser.Password != ""
 	authzTouched := false
@@ -954,7 +1045,7 @@ func DeleteSelf(c *gin.Context) {
 
 func CreateUser(c *gin.Context) {
 	var user model.User
-	err := json.NewDecoder(c.Request.Body).Decode(&user)
+	err := common.DecodeJson(c.Request.Body, &user)
 	user.Username = strings.TrimSpace(user.Username)
 	if err != nil || user.Username == "" || user.Password == "" {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
@@ -1036,7 +1127,7 @@ type ManageRequest struct {
 // ManageUser Only admin user can do this
 func ManageUser(c *gin.Context) {
 	var req ManageRequest
-	err := json.NewDecoder(c.Request.Body).Decode(&req)
+	err := common.DecodeJson(c.Request.Body, &req)
 
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
@@ -1102,6 +1193,36 @@ func ManageUser(c *gin.Context) {
 			return
 		}
 		user.Role = common.RoleCommonUser
+	case "set_role":
+		// set_role 允许管理员直接选择目标角色，是 promote/demote 的通用替代。
+		// 规则：
+		//   - 只能在"自己角色以下"的范围内操作（RoleRootUser 例外可以任意设置）
+		//   - 不能把 Root 用户降级（只能手动在 DB 中改动）
+		//   - 目标角色必须是合法值
+		if user.Role == common.RoleRootUser {
+			common.ApiErrorI18n(c, i18n.MsgUserCannotDemoteRootUser)
+			return
+		}
+		target := req.Value
+		if !common.IsValidateRole(target) || target == common.RoleGuestUser {
+			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
+		// 权限：提升到 >= 自身角色只允许 Root
+		if target >= myRole && myRole != common.RoleRootUser {
+			common.ApiErrorI18n(c, i18n.MsgUserAdminCannotPromote)
+			return
+		}
+		if user.Role == target {
+			// 幂等：无需再次写库
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"message": "",
+				"data":    model.User{Role: user.Role, Status: user.Status},
+			})
+			return
+		}
+		user.Role = target
 	case "add_quota":
 		switch req.Mode {
 		case "add":
@@ -1177,7 +1298,7 @@ func ManageUser(c *gin.Context) {
 	// 避免在 Redis TTL 过期前仍使用旧状态（尤其是禁用后仍可发起请求的问题）。
 	// InvalidateUserCache 会让下一次 GetUserCache 从数据库重新加载，
 	// InvalidateUserTokensCache 则确保令牌侧的缓存也同步刷新。
-	if req.Action == "disable" || req.Action == "promote" || req.Action == "demote" {
+	if req.Action == "disable" || req.Action == "promote" || req.Action == "demote" || req.Action == "set_role" {
 		if err := model.InvalidateUserCache(user.Id); err != nil {
 			common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", user.Id, err.Error()))
 		}

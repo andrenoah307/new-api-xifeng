@@ -184,6 +184,8 @@ export interface PaymentRequest {
   amount: number
   /** Payment method identifier */
   payment_method: string
+  /** Optional discount code */
+  discount_code?: string
 }
 
 /**
@@ -194,6 +196,8 @@ export interface WaffoPaymentRequest {
   amount: number
   /** Optional server-side Waffo payment method index */
   pay_method_index?: number
+  /** Optional discount code */
+  discount_code?: string
 }
 
 /**
@@ -202,6 +206,8 @@ export interface WaffoPaymentRequest {
 export interface WaffoPancakePaymentRequest {
   /** Topup amount */
   amount: number
+  /** Optional discount code */
+  discount_code?: string
 }
 
 /**
@@ -210,6 +216,8 @@ export interface WaffoPancakePaymentRequest {
 export interface AmountRequest {
   /** Topup amount to calculate */
   amount: number
+  /** Optional discount code */
+  discount_code?: string
 }
 
 /**
@@ -236,6 +244,8 @@ export interface UserWalletData {
   request_count: number
   /** Affiliate quota (pending rewards) */
   aff_quota: number
+  /** Transferable affiliate quota (past cooldown period) */
+  transferable_aff_quota: number
   /** Total affiliate quota earned (historical) */
   aff_history_quota: number
   /** Number of successful affiliate invites */
@@ -286,4 +296,21 @@ export interface BillingHistoryResponse {
  */
 export interface CompleteOrderRequest {
   trade_no: string
+}
+
+export interface CommissionRecord {
+  id: number
+  user_id: number
+  inviter_id: number
+  topup_id: number
+  topup_money: number
+  commission_rate: number
+  commission_quota: number
+  is_manual: boolean
+  created_at: number
+}
+
+export interface CommissionRecordsResponse {
+  records: CommissionRecord[]
+  total: number
 }

@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Download, CloudDownload, ListTodo } from 'lucide-react'
+import { toast } from 'sonner'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
 import type { Table } from '@tanstack/react-table'
@@ -23,6 +25,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { useStatus } from '@/hooks/use-status'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -37,7 +40,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { getCommonHeaders } from '@/lib/api'
 
+import { getLogExportUrl } from '../api'
 import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
 import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
@@ -49,6 +54,8 @@ import {
   LogsFilterInput,
   LogsFilterToolbar,
 } from './logs-filter-toolbar'
+import { ExportTasksSheet } from './export-tasks-sheet'
+import { OfflineExportDialog } from './offline-export-dialog'
 import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
@@ -117,8 +124,12 @@ export function CommonLogsFilterBar<TData>(
   const queryClient = useQueryClient()
   const searchParams = route.useSearch()
   const { isAdminView: isAdmin } = useLogsViewScope()
+  const { status } = useStatus()
   const { sensitiveVisible, setSensitiveVisible } = useUsageLogsContext()
   const fetchingLogs = useIsFetching({ queryKey: ['logs'] })
+
+  const [offlineExportOpen, setOfflineExportOpen] = useState(false)
+  const [exportTasksOpen, setExportTasksOpen] = useState(false)
 
   const searchState = useMemo<CommonLogDraft>(() => {
     const { start, end } = getDefaultTimeRange()
@@ -233,6 +244,68 @@ export function CommonLogsFilterBar<TData>(
     [handleApply]
   )
 
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = useCallback(async () => {
+    setExporting(true)
+    const toastId = toast.loading(t('Exporting logs...'))
+    try {
+      const params = buildSearchParams(filters, 'common')
+      const exportParams: Record<string, unknown> = { ...params }
+      if (logType) exportParams.type = logType
+      const url = getLogExportUrl(exportParams, isAdmin)
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: getCommonHeaders(),
+      })
+      if (response.status === 429) {
+        toast.error(t('Export rate limit exceeded, please try again later'), { id: toastId, duration: 5000 })
+        return
+      }
+      if (!response.ok) {
+        try {
+          const err = await response.json()
+          toast.error(err.message || t('Export failed'), { id: toastId, duration: 5000 })
+        } catch {
+          toast.error(t('Export failed'), { id: toastId, duration: 5000 })
+        }
+        return
+      }
+      const reader = response.body?.getReader()
+      if (!reader) {
+        toast.error(t('Export failed'), { id: toastId, duration: 5000 })
+        return
+      }
+      const chunks: Uint8Array[] = []
+      let received = 0
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        chunks.push(value)
+        received += value.length
+        const sizeMB = (received / 1024 / 1024).toFixed(1)
+        toast.loading(t('Exporting logs... {{size}} MB', { size: sizeMB }), { id: toastId })
+      }
+      const blob = new Blob(
+        chunks.map((chunk) => new Uint8Array(chunk).buffer),
+        { type: 'text/csv' }
+      )
+      const downloadUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = `logs_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(downloadUrl)
+      toast.success(t('Export completed'), { id: toastId, duration: 5000 })
+    } catch {
+      toast.error(t('Export failed'), { id: toastId, duration: 5000 })
+    } finally {
+      setExporting(false)
+    }
+  }, [filters, logType, isAdmin, t])
+
   const hasExpandedFilters =
     !!filters.token ||
     !!filters.username ||
@@ -263,9 +336,78 @@ export function CommonLogsFilterBar<TData>(
   const logTypeLabel =
     logTypeItems.find((type) => type.value === logType)?.label ?? t('All Types')
 
+  const offlineExportEnabled = !!status?.enable_log_export_offline
+
   const statsBar = (
     <div className='flex flex-wrap items-center gap-2'>
       <CommonLogsStats />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant='ghost'
+              size='icon'
+              onClick={handleExport}
+              disabled={exporting}
+              aria-label={t('Export Logs')}
+              className='text-muted-foreground hover:text-foreground size-7'
+            />
+          }
+        >
+          <Download className={exporting ? 'animate-pulse' : ''} />
+        </TooltipTrigger>
+        <TooltipContent>{t('Export Logs')}: {t('Download current page as CSV')}</TooltipContent>
+      </Tooltip>
+      {offlineExportEnabled && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant='ghost'
+                size='icon'
+                onClick={() => setOfflineExportOpen(true)}
+                aria-label={t('Offline Export')}
+                className='text-muted-foreground hover:text-foreground size-7'
+              />
+            }
+          >
+            <CloudDownload />
+          </TooltipTrigger>
+          <TooltipContent>{t('Offline Export')}: {t('Background export, notified by email, one task per 24h')}</TooltipContent>
+        </Tooltip>
+      )}
+      {offlineExportEnabled && (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                variant='ghost'
+                size='icon'
+                onClick={() => setExportTasksOpen(true)}
+                aria-label={t('Export Tasks')}
+                className='text-muted-foreground hover:text-foreground size-7'
+              />
+            }
+          >
+            <ListTodo />
+          </TooltipTrigger>
+          <TooltipContent>{t('Export Tasks')}: {t('View task status and download completed exports')}</TooltipContent>
+        </Tooltip>
+      )}
+      {offlineExportEnabled && (
+        <>
+          <OfflineExportDialog
+            open={offlineExportOpen}
+            onOpenChange={setOfflineExportOpen}
+            filters={filters}
+            logType={logType || undefined}
+          />
+          <ExportTasksSheet
+            open={exportTasksOpen}
+            onOpenChange={setExportTasksOpen}
+          />
+        </>
+      )}
     </div>
   )
   const sensitiveToggle = (

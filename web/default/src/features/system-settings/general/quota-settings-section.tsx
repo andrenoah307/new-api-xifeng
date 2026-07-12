@@ -55,6 +55,11 @@ const quotaSchema = z.object({
   PreConsumedQuota: z.coerce.number().min(0),
   QuotaForInviter: z.coerce.number().min(0),
   QuotaForInvitee: z.coerce.number().min(0),
+  TopUpCommissionRate: z.coerce.number().min(0).max(100),
+  TopUpCommissionManualEnabled: z.boolean(),
+  AffTransferCooldownHours: z.coerce.number().min(0).int(),
+  InviteRewardCooldownHours: z.coerce.number().min(0).int(),
+  MinTransferAmount: z.coerce.number().min(0),
   TopUpLink: z.string(),
   general_setting: z.object({
     docs_link: z.string(),
@@ -231,6 +236,142 @@ export function QuotaSettingsSection({
                     {t('Quota given to invited users ({{formattedQuota}})', {
                       formattedQuota: formatQuotaInputValue(field.value),
                     })}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='TopUpCommissionRate'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Top-Up Commission Rate (%)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      step='0.1'
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Percentage of top-up amount rewarded to the inviter as commission. Set to 0 to disable.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <SettingsFormGridItem span='full'>
+              <FormField
+                control={form.control}
+                name='TopUpCommissionManualEnabled'
+                render={({ field }) => (
+                  <SettingsSwitchItem>
+                    <SettingsSwitchContent>
+                      <FormLabel>{t('Manual Top-Up Commission')}</FormLabel>
+                      <FormDescription>
+                        {t(
+                          'When enabled, admin manual top-ups also trigger commission for the inviter.'
+                        )}
+                      </FormDescription>
+                    </SettingsSwitchContent>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={updateOption.isPending}
+                      />
+                    </FormControl>
+                  </SettingsSwitchItem>
+                )}
+              />
+            </SettingsFormGridItem>
+
+            <FormField
+              control={form.control}
+              name='AffTransferCooldownHours'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {t('Top-Up Commission Cooldown (hours)')}
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      step={1}
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Hours before top-up commissions become transferable. Set to 0 to disable cooldown.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='InviteRewardCooldownHours'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Invite Reward Cooldown (hours)')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      step={1}
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Hours before invite registration rewards become transferable. Set to 0 to disable cooldown.'
+                    )}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='MinTransferAmount'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Minimum Transfer Amount')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type='number'
+                      step={0.01}
+                      value={field.value as number}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      name={field.name}
+                      onBlur={field.onBlur}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t(
+                      'Minimum amount (in currency units) required for affiliate reward transfers. Set to 0 for no minimum.'
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

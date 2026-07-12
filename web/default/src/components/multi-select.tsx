@@ -115,6 +115,8 @@ function splitDraft(value: string): { completed: string[]; draft: string } {
 export function MultiSelect(props: MultiSelectProps) {
   const { t } = useTranslation()
   const placeholder = props.placeholder ?? t('Select items...')
+  // Guard against a non-array `selected` prop (e.g. undefined/null from callers).
+  const selected = Array.isArray(props.selected) ? props.selected : []
 
   // Anchor the popup to the chips container so its width tracks the entire
   // input row, not just the leftover space at the end of wrapped chips.
@@ -125,8 +127,8 @@ export function MultiSelect(props: MultiSelectProps) {
   const [expanded, setExpanded] = React.useState(false)
 
   const selectedSet = React.useMemo(
-    () => new Set(props.selected),
-    [props.selected]
+    () => new Set(selected),
+    [selected]
   )
 
   // Lookup of value -> display label so chips and items can show friendly names
@@ -145,7 +147,8 @@ export function MultiSelect(props: MultiSelectProps) {
     (selectedSet.has(trimmedInput) ||
       props.options.some(
         (option) =>
-          option.value === trimmedInput || option.label === trimmedInput
+          option.value.toLowerCase() === trimmedInput.toLowerCase() ||
+          option.label.toLowerCase() === trimmedInput.toLowerCase()
       ))
 
   const canCreate =
@@ -158,19 +161,19 @@ export function MultiSelect(props: MultiSelectProps) {
   // user can still see the chip labels mapped correctly.
   const items = React.useMemo(() => {
     const set = new Set<string>(props.options.map((option) => option.value))
-    for (const value of props.selected) {
+    for (const value of selected) {
       set.add(value)
     }
     if (canCreate) {
       set.add(trimmedInput)
     }
     return Array.from(set)
-  }, [props.options, props.selected, canCreate, trimmedInput])
+  }, [props.options, selected, canCreate, trimmedInput])
 
   const addValues = React.useCallback(
     (values: string[]) => {
       const next: string[] = []
-      const seen = new Set<string>(props.selected)
+      const seen = new Set<string>(selected)
       for (const raw of values) {
         const value = raw.trim()
         if (!value) continue
@@ -179,7 +182,7 @@ export function MultiSelect(props: MultiSelectProps) {
         next.push(value)
       }
       if (next.length === 0) return
-      props.onChange([...props.selected, ...next])
+      props.onChange([...selected, ...next])
     },
     [props]
   )
@@ -203,7 +206,7 @@ export function MultiSelect(props: MultiSelectProps) {
     // When an item is picked (multiple mode), Base UI keeps the input but most
     // UX patterns clear it. Clearing once a value is added makes batch picking
     // feel snappier and matches popular chip-style multiselects.
-    if (next.length > props.selected.length) {
+    if (next.length > selected.length) {
       setInputValue('')
     }
   }
@@ -249,7 +252,7 @@ export function MultiSelect(props: MultiSelectProps) {
     <Combobox
       multiple
       items={items}
-      value={props.selected}
+      value={selected}
       onValueChange={handleValueChange}
       inputValue={inputValue}
       onInputValueChange={handleInputValueChange}
@@ -341,7 +344,7 @@ export function MultiSelect(props: MultiSelectProps) {
         <ComboboxChipsInput
           id={props.id}
           placeholder={
-            props.selected.length === 0 && !props.renderSelectedSummary
+            selected.length === 0 && !props.renderSelectedSummary
               ? placeholder
               : undefined
           }

@@ -157,6 +157,35 @@ func TestStreamStatus_IsNormalEnd_NilSafe(t *testing.T) {
 	assert.True(t, s.IsNormalEnd())
 }
 
+func TestStreamStatus_IsServerSideError(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		reason    StreamEndReason
+		serverErr bool
+	}{
+		{StreamEndReasonDone, false},
+		{StreamEndReasonEOF, false},
+		{StreamEndReasonHandlerStop, false},
+		{StreamEndReasonClientGone, false},
+		{StreamEndReasonTimeout, true},
+		{StreamEndReasonScannerErr, true},
+		{StreamEndReasonPanic, true},
+		{StreamEndReasonPingFail, true},
+		{StreamEndReasonNone, true},
+	}
+	for _, tt := range tests {
+		s := NewStreamStatus()
+		s.SetEndReason(tt.reason, nil)
+		assert.Equal(t, tt.serverErr, s.IsServerSideError(), "reason=%s", tt.reason)
+	}
+}
+
+func TestStreamStatus_IsServerSideError_NilSafe(t *testing.T) {
+	t.Parallel()
+	var s *StreamStatus
+	assert.False(t, s.IsServerSideError())
+}
+
 func TestStreamStatus_Summary(t *testing.T) {
 	t.Parallel()
 
