@@ -1,4 +1,4 @@
-import { AlertCircle, AlertTriangle, Settings } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Settings, Wallet } from 'lucide-react'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -29,6 +29,7 @@ import {
   getMessageErrorState,
   isAdminRole,
   MODEL_PRICING_SETTINGS_PATH,
+  TOPUP_PATH,
 } from '../../lib'
 import type { Message } from '../../types'
 
@@ -77,6 +78,31 @@ export function MessageError({
               {t('Go to Settings')}
             </Button>
           )}
+          {actions}
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (errorState.kind === 'insufficient-quota') {
+    return (
+      <Alert variant='default' className={className}>
+        <AlertTriangle className='text-amber-500' />
+        <AlertTitle>{t('Insufficient Balance')}</AlertTitle>
+        <AlertDescription className='space-y-2'>
+          <p>
+            {errorState.content === FALLBACK_ERROR_CONTENT
+              ? t(FALLBACK_ERROR_CONTENT)
+              : errorState.content}
+          </p>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() => window.open(TOPUP_PATH, '_blank')}
+          >
+            <Wallet className='mr-1 h-3.5 w-3.5' />
+            {t('Top up')}
+          </Button>
           {actions}
         </AlertDescription>
       </Alert>

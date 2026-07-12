@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/setting/billing_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
 
@@ -55,6 +56,7 @@ type textQuotaSummary struct {
 	AudioInputPrice          float64
 	ImageGenerationCallPrice float64
 	ToolCallSurchargeQuota   decimal.Decimal
+	LongContextTierApplied   bool
 }
 
 func cacheWriteTokensTotal(summary textQuotaSummary) int {
@@ -178,6 +180,17 @@ func composeTieredTextQuota(relayInfo *relaycommon.RelayInfo, summary textQuotaS
 // calculateTextQuotaSummary expects a usage already remapped by
 // effectiveBillingUsage; PostTextConsumeQuota performs that remap once and shares
 // the result with tiered billing, affinity observation and logging.
+// GPT-5.4/5.5/5.6 长上下文分档：输入>阈值时 ModelRatio×2、输出净 ×1.5（CompletionRatio×0.75）。仅 ratio 路径。
+const (
+	longContextThreshold = 272000
+	longContextInputMul  = 2.0
+	longContextOutputMul = 1.5
+)
+
+func isLongContextTierModel(name string) bool {
+	return strings.HasPrefix(name, "gpt-5.4") || strings.HasPrefix(name, "gpt-5.5") || strings.HasPrefix(name, "gpt-5.6")
+}
+
 func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage) textQuotaSummary {
 	summary := textQuotaSummary{
 		ModelName:            relayInfo.OriginModelName,
@@ -204,6 +217,14 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	summary.PromptTokens = usage.PromptTokens
 	summary.CompletionTokens = usage.CompletionTokens
 	summary.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+	// GPT-5.4/5.5/5.6 长上下文分档(仅 ratio 路径)：输入>272K 时 ModelRatio×2、CompletionRatio×0.75(输出净1.5×)。
+	// 对 tiered_expr 模型显式 skip：其 quota 由 composeTieredTextQuota 用表达式整体覆盖，改倍率无效且会污染日志倍率、与表达式内 len 分档双重叠加（坑点 #146）。
+	if summary.PromptTokens > longContextThreshold && isLongContextTierModel(summary.ModelName) &&
+		billing_setting.GetBillingMode(summary.ModelName) != billing_setting.BillingModeTieredExpr {
+		summary.ModelRatio *= longContextInputMul
+		summary.CompletionRatio *= longContextOutputMul / longContextInputMul
+		summary.LongContextTierApplied = true
+	}
 	summary.CacheTokens = usage.PromptTokensDetails.CachedTokens
 	summary.CacheCreationTokens = usage.PromptTokensDetails.CacheCreationTokensTotal()
 	summary.CacheCreationTokens5m = usage.ClaudeCacheCreation5mTokens
@@ -371,6 +392,10 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		}
 	}
 
+	if summary.LongContextTierApplied {
+		extraContent = append(extraContent, "已触发长上下文分段计费")
+	}
+
 	if summary.WebSearchCallCount > 0 {
 		extraContent = append(extraContent, fmt.Sprintf("Web Search 调用 %d 次，调用花费 %s", summary.WebSearchCallCount, decimal.NewFromFloat(summary.WebSearchPrice).Mul(decimal.NewFromInt(int64(summary.WebSearchCallCount))).Div(decimal.NewFromInt(1000)).Mul(decimal.NewFromFloat(summary.GroupRatio)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).String()))
 	}
@@ -428,6 +453,10 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	appendUsageBillingPathForLog(other, common.GetContextKeyBool(ctx, constant.ContextKeyLocalCountTokens), originUsage)
 	if adminRejectReason != "" {
 		other["reject_reason"] = adminRejectReason
+	}
+	if summary.LongContextTierApplied {
+		// long_context_tier: 输入超 272K 触发 ratio 路径长上下文分段计费的可观测标记，供双前端渲染友好提示（坑点 #148）。
+		other["long_context_tier"] = true
 	}
 	if summary.ImageTokens != 0 {
 		other["image"] = true

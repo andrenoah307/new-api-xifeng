@@ -23,12 +23,15 @@ import { getMessageContent } from './message-utils'
 export const MODEL_PRICING_SETTINGS_PATH =
   '/system-settings/billing/model-pricing'
 
+export const TOPUP_PATH = '/console/topup'
+
 const MODEL_PRICE_ERROR_CODE = 'model_price_error'
+const INSUFFICIENT_QUOTA_ERROR_CODE = 'insufficient_user_quota'
 export const FALLBACK_ERROR_CONTENT = 'An unknown error occurred'
 
 type MessageErrorState = {
   content: string
-  kind: 'generic' | 'model-price'
+  kind: 'generic' | 'model-price' | 'insufficient-quota'
   showSettingsLink: boolean
 }
 
@@ -50,10 +53,16 @@ export function getMessageErrorState(
 
   const content = getMessageContent(message) || FALLBACK_ERROR_CONTENT
   const isModelPriceError = message.errorCode === MODEL_PRICE_ERROR_CODE
+  const isInsufficientQuota =
+    message.errorCode === INSUFFICIENT_QUOTA_ERROR_CODE
 
   return {
     content,
-    kind: isModelPriceError ? 'model-price' : 'generic',
+    kind: isModelPriceError
+      ? 'model-price'
+      : isInsufficientQuota
+        ? 'insufficient-quota'
+        : 'generic',
     showSettingsLink: isModelPriceError && isAdmin,
   }
 }

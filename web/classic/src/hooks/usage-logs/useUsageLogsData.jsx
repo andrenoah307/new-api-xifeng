@@ -503,6 +503,16 @@ export const useLogsData = () => {
             value: renderReasoningEffortTag(other.reasoning_effort),
           });
         }
+        if (other?.long_context_tier) {
+          expandDataLocal.push({
+            key: t('计费提示'),
+            value: (
+              <Tag color='amber' size='small'>
+                {t('已触发长上下文分段计费')}
+              </Tag>
+            ),
+          });
+        }
         if (other?.billing_mode === 'tiered_expr' && other?.expr_b64) {
           expandDataLocal.push({
             key: t('计费过程'),

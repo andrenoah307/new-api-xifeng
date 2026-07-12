@@ -1,10 +1,38 @@
 package service
 
 import (
+	"strings"
 	"testing"
+
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/types"
 
 	"github.com/stretchr/testify/require"
 )
+
+// TestBuildInsufficientQuotaMessage 锁定预扣拒绝串契约：含模型/预估上下文/最低需预扣/余额，
+// 但绝不含分组名与分组倍率（该串返回下游调用方，有代理商，坑点 #152）。
+func TestBuildInsufficientQuotaMessage(t *testing.T) {
+	info := &relaycommon.RelayInfo{
+		OriginModelName: "claude-opus-4-7",
+		UsingGroup:      "default",
+		PriceData:       types.PriceData{GroupRatioInfo: types.GroupRatioInfo{GroupRatio: 5}},
+	}
+	info.SetEstimatePromptTokens(200000)
+
+	wallet := buildInsufficientQuotaMessage(info, 4870043, 53350590, false)
+	require.Contains(t, wallet, "用户额度不足")
+	require.Contains(t, wallet, "claude-opus-4-7")
+	require.Contains(t, wallet, "200000")
+	require.Contains(t, wallet, "充值")
+	require.NotContains(t, wallet, "令牌剩余额度")
+	require.NotContains(t, wallet, "分组")
+	require.NotContains(t, wallet, "分组倍率")
+
+	token := buildInsufficientQuotaMessage(info, 100, 53350590, true)
+	require.True(t, strings.HasPrefix(token, "令牌额度不足"))
+	require.Contains(t, token, "令牌剩余额度")
+}
 
 func TestComputePartialTarget(t *testing.T) {
 	tests := []struct {
