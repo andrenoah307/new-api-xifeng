@@ -393,7 +393,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	}
 
 	if summary.LongContextTierApplied {
-		extraContent = append(extraContent, "已触发长上下文分段计费")
+		extraContent = append(extraContent, "已触发长上下文计费")
 	}
 
 	if summary.WebSearchCallCount > 0 {
@@ -455,7 +455,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		other["reject_reason"] = adminRejectReason
 	}
 	if summary.LongContextTierApplied {
-		// long_context_tier: 输入超 272K 触发 ratio 路径长上下文分段计费的可观测标记，供双前端渲染友好提示（坑点 #148）。
+		// long_context_tier: 输入超 272K 触发 ratio 路径长上下文计费的可观测标记，供双前端渲染友好提示（坑点 #148）。
 		other["long_context_tier"] = true
 	}
 	if summary.ImageTokens != 0 {

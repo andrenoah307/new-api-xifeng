@@ -2831,7 +2831,7 @@
     "模型价格 {{symbol}}{{price}}，{{ratioType}} {{ratio}}": "Model price {{symbol}}{{price}}, {{ratioType}} {{ratio}}",
     "模型价格未配置": "Model Price Not Configured",
     "计费提示": "Billing Notice",
-    "已触发长上下文分段计费": "Long-context tiered billing triggered",
+    "已触发长上下文计费": "Long-context billing triggered",
     "余额不足": "Insufficient Balance",
     "去充值": "Top up",
     "模型价格：{{symbol}}{{price}}": "Model price: {{symbol}}{{price}}",

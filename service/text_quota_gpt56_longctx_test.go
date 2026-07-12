@@ -125,7 +125,7 @@ func TestGPT55TieredExprSkipsLongContextRatioBilling(t *testing.T) {
 	require.Equal(t, 1.0, summary.ModelRatio)
 }
 
-// TestGPT56LongContextTierMarker 锁定「长上下文分段计费触发」的日志友好标记：
+// TestGPT56LongContextTierMarker 锁定「长上下文计费触发」的日志友好标记：
 // 仅 ratio 路径（gpt-5.4/5.6）输入 >272K 实际触发分档时置 LongContextTierApplied=true，
 // 供 Content 兜底文案与双前端 other["long_context_tier"] 结构化提示消费；边界/短上下文/
 // 非目标模型/tiered_expr 均不置位（与 ModelRatio 是否翻倍严格对齐）。

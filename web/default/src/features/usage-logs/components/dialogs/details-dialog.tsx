@@ -1058,7 +1058,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
         {isConsume && other?.long_context_tier && (
           <div className='flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
             <AlertTriangle className='size-3.5 shrink-0' />
-            <span>{t('Long-context tiered billing triggered')}</span>
+            <span>{t('Long-context billing triggered')}</span>
           </div>
         )}
 

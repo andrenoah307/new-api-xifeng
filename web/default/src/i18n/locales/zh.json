@@ -2679,7 +2679,7 @@
     "Model Price": "模型价格",
     "Model price is not configured. Please complete model pricing in settings.": "模型价格未配置，请前往设置补充模型价格。",
     "Model Price Not Configured": "模型价格未配置",
-    "Long-context tiered billing triggered": "已触发长上下文分段计费",
+    "Long-context billing triggered": "已触发长上下文计费",
     "Insufficient Balance": "余额不足",
     "Top up": "去充值",
     "Model prices": "模型价格",

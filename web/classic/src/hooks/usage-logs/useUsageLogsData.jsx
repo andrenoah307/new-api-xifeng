@@ -508,7 +508,7 @@ export const useLogsData = () => {
             key: t('计费提示'),
             value: (
               <Tag color='amber' size='small'>
-                {t('已触发长上下文分段计费')}
+                {t('已触发长上下文计费')}
               </Tag>
             ),
           });
