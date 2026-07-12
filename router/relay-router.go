@@ -104,6 +104,7 @@ func SetRelayRouter(router *gin.Engine) {
 		httpRouter.POST("/responses/compact", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIResponsesCompaction)
 		})
+		httpRouter.POST("/alpha/search", controller.RelayAlphaSearch)
 
 		// image related routes
 		httpRouter.POST("/edits", func(c *gin.Context) {
