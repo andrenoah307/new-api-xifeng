@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { Dialog } from '@/components/dialog'
 import { RichContent } from '@/components/rich-content'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { resolveAnnouncementText } from '@/features/dashboard/lib'
 import { formatDateTimeObject } from '@/lib/time'
 
 interface AnnouncementDetailModalProps {
@@ -32,6 +33,8 @@ interface AnnouncementDetailModalProps {
     tag?: string
     publishDate?: string
     extra?: string
+    contentI18n?: Record<string, string>
+    extraI18n?: Record<string, string>
   } | null
 }
 
@@ -40,7 +43,13 @@ export function AnnouncementDetailModal({
   onOpenChange,
   announcement,
 }: AnnouncementDetailModalProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const localized = announcement
+    ? resolveAnnouncementText(
+        { ...announcement, content: announcement.content ?? '' },
+        i18n.language
+      )
+    : null
   return (
     <Dialog
       open={open}
@@ -57,20 +66,20 @@ export function AnnouncementDetailModal({
     >
       <ScrollArea className='max-h-[min(58vh,520px)] pr-4'>
         <div className='space-y-4'>
-          {announcement?.content && (
+          {localized?.content && (
             <div>
               <h4 className='mb-2 font-medium'>{t('Content')}</h4>
-              <RichContent breaks content={announcement.content} />
+              <RichContent breaks content={localized.content} />
             </div>
           )}
-          {announcement?.extra && (
+          {localized?.extra && (
             <div>
               <h4 className='mb-2 font-medium'>
                 {t('Additional Information')}
               </h4>
               <RichContent
                 breaks
-                content={announcement.extra}
+                content={localized.extra}
                 className='text-muted-foreground'
               />
             </div>
