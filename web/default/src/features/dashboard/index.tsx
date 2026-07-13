@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Info } from 'lucide-react'
 import { useState, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -31,6 +31,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { useStatus } from '@/hooks/use-status'
 import { ROLE } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
@@ -194,6 +195,7 @@ const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
 export function Dashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { status } = useStatus()
   const params = route.useParams()
   const userRole = useAuthStore((state) => state.auth.user?.role)
   const activeSection = (params.section ??
@@ -322,6 +324,21 @@ export function Dashboard() {
       <SectionPageLayout.Title>{t(meta.titleKey)}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <div className='space-y-3 sm:space-y-4'>
+          {/* 看板/概览消费的是后台按 DataExportInterval 分钟聚合的数据，
+              与使用日志的实时记录存在时间差，这里明示以免用户误以为对不上 */}
+          {status != null && (
+            <p className='text-muted-foreground flex items-center gap-1.5 text-xs'>
+              <Info className='size-3.5 shrink-0' />
+              {status.enable_data_export === false
+                ? t(
+                    'Data aggregation is disabled; dashboard data is no longer updated.'
+                  )
+                : t(
+                    'Dashboard data is aggregated every {{n}} minutes and may lag behind usage logs.',
+                    { n: Number(status.data_export_interval) || 5 }
+                  )}
+            </p>
+          )}
           {activeSection !== 'overview' && (
             <div className='flex flex-wrap items-center justify-between gap-1.5 sm:gap-2'>
               {showSectionTabs ? (
