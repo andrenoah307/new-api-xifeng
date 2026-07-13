@@ -529,8 +529,8 @@ const zh: Record<string, string> = {
   'Invoice ticket submitted': '发票申请已提交',
   'Select Invoice Type': '选择票种',
   'Invoice Type': '票种',
-  'Regular Invoice': '普票（增值税普通发票）',
-  'VAT Special Invoice': '增票（增值税专用发票）',
+  'Regular Invoice': '普通发票',
+  'VAT Special Invoice': '增值税专用发票',
   'Regular Invoice Short': '普票',
   'VAT Special Invoice Short': '增票',
   'Fee rate {{rate}}%': '手续费率 {{rate}}%',
@@ -860,6 +860,35 @@ const zh: Record<string, string> = {
     '即将删除 {{count}} 个兑换码。',
   'Successfully deleted {{count}} redemption code(s)':
     '成功删除 {{count}} 个兑换码',
+
+  // Group monitoring enable switch
+  'Enable Group Monitoring': '启用分组监控',
+  'When disabled, background aggregation and data collection stop; existing history is kept.':
+    '关闭后停止后台聚合与数据采集，已生成的历史数据保留。',
+
+  // Sidebar module gate for fork pages
+  'Submit and track support tickets.': '提交与跟进支持工单。',
+  'Top-up order history and invoice requests.': '充值订单记录与发票申请。',
+  'Group availability and cache monitoring.': '分组可用性与缓存命中监控。',
+  'Create and manage discount codes.': '创建与管理折扣码。',
+  'Automatic group assignment rules.': '自动分组规则。',
+  'Handle user tickets, refunds and invoices.': '处理用户工单、退款与发票。',
+  'Risk control center and enforcement records.': '风控中心与处置记录。',
+  'Manage invitation codes and rewards.': '管理邀请码与奖励。',
+
+  // Dashboard aggregation lag hint
+  'Dashboard data is aggregated every {{n}} minutes and may lag behind usage logs.':
+    '看板数据每 {{n}} 分钟聚合更新，可能与使用日志存在延迟。',
+  'Data aggregation is disabled; dashboard data is no longer updated.':
+    '数据聚合已关闭，看板数据不再更新。',
+
+  // Announcement i18n tabs
+  'Supports Markdown and HTML.': '支持 Markdown 和 HTML。',
+  'Leave empty to fall back to the default content': '留空则回退到默认内容',
+
+  // Error filter single-keyword rule
+  'Single keyword; add another rule for more keywords':
+    '单个关键词，多个关键词请添加多条规则',
 }
 
 export default zh

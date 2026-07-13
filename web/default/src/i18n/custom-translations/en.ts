@@ -855,6 +855,40 @@ const en = {
     'You are about to delete {{count}} redemption code(s).',
   'Successfully deleted {{count}} redemption code(s)':
     'Successfully deleted {{count}} redemption code(s)',
+
+  // Group monitoring enable switch
+  'Enable Group Monitoring': 'Enable Group Monitoring',
+  'When disabled, background aggregation and data collection stop; existing history is kept.':
+    'When disabled, background aggregation and data collection stop; existing history is kept.',
+
+  // Sidebar module gate for fork pages
+  'Submit and track support tickets.': 'Submit and track support tickets.',
+  'Top-up order history and invoice requests.':
+    'Top-up order history and invoice requests.',
+  'Group availability and cache monitoring.':
+    'Group availability and cache monitoring.',
+  'Create and manage discount codes.': 'Create and manage discount codes.',
+  'Automatic group assignment rules.': 'Automatic group assignment rules.',
+  'Handle user tickets, refunds and invoices.':
+    'Handle user tickets, refunds and invoices.',
+  'Risk control center and enforcement records.':
+    'Risk control center and enforcement records.',
+  'Manage invitation codes and rewards.': 'Manage invitation codes and rewards.',
+
+  // Dashboard aggregation lag hint
+  'Dashboard data is aggregated every {{n}} minutes and may lag behind usage logs.':
+    'Dashboard data is aggregated every {{n}} minutes and may lag behind usage logs.',
+  'Data aggregation is disabled; dashboard data is no longer updated.':
+    'Data aggregation is disabled; dashboard data is no longer updated.',
+
+  // Announcement i18n tabs
+  'Supports Markdown and HTML.': 'Supports Markdown and HTML.',
+  'Leave empty to fall back to the default content':
+    'Leave empty to fall back to the default content',
+
+  // Error filter single-keyword rule
+  'Single keyword; add another rule for more keywords':
+    'Single keyword; add another rule for more keywords',
 } as const
 
 export default en
