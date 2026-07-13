@@ -261,6 +261,9 @@ export interface AnnouncementItem {
   publishDate?: string
   type?: 'default' | 'ongoing' | 'success' | 'warning' | 'error'
   extra?: string
+  // 按界面语言码（zhCN/zhTW/en/fr/ru/ja/vi）存的翻译，缺失或留空回退 content/extra
+  contentI18n?: Record<string, string>
+  extraI18n?: Record<string, string>
 }
 
 // ============================================================================

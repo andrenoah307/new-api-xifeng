@@ -16,6 +16,31 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { normalizeInterfaceLanguage } from '@/i18n/languages'
+
+/**
+ * Resolve announcement content/extra for the current interface language.
+ * Falls back to the default `content`/`extra` when no non-blank translation
+ * exists for the language — legacy announcements without `contentI18n`
+ * therefore render unchanged.
+ */
+export function resolveAnnouncementText(
+  item: {
+    content: string
+    extra?: string
+    contentI18n?: Record<string, string>
+    extraI18n?: Record<string, string>
+  },
+  language?: string | null
+): { content: string; extra?: string } {
+  const lang = normalizeInterfaceLanguage(language)
+  const content = item.contentI18n?.[lang]?.trim()
+    ? item.contentI18n[lang]
+    : item.content
+  const extra = item.extraI18n?.[lang]?.trim() ? item.extraI18n[lang] : item.extra
+  return { content, extra }
+}
+
 /**
  * Get plain text preview (strip HTML tags and Markdown formatting)
  */

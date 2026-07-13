@@ -20,6 +20,10 @@ var (
 		"violet": true, "grey": true, "slate": true,
 	}
 	slugRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	// 与前端 web/default/src/i18n/languages.ts 的运行时语言码保持一致
+	validAnnouncementLangs = map[string]bool{
+		"en": true, "zhCN": true, "zhTW": true, "fr": true, "ru": true, "ja": true, "vi": true,
+	}
 )
 
 func parseJSONArray(jsonStr string, typeName string) ([]map[string]interface{}, error) {
@@ -172,12 +176,42 @@ func validateAnnouncements(announcementsStr string) error {
 				}
 			}
 		}
-		if len(content) > 500 {
-			return fmt.Errorf("第%d个公告的内容长度不能超过500字符", i+1)
-		}
 		if extra, exists := ann["extra"]; exists {
 			if extraStr, ok := extra.(string); ok && len(extraStr) > 200 {
 				return fmt.Errorf("第%d个公告的说明长度不能超过200字符", i+1)
+			}
+		}
+		if v, exists := ann["contentI18n"]; exists {
+			m, ok := v.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("第%d个公告的多语言内容格式错误", i+1)
+			}
+			for lang, val := range m {
+				if !validAnnouncementLangs[lang] {
+					return fmt.Errorf("第%d个公告的多语言内容包含不支持的语言代码：%s", i+1, lang)
+				}
+				s, ok := val.(string)
+				if !ok || strings.TrimSpace(s) == "" {
+					return fmt.Errorf("第%d个公告的 %s 语言内容不能为空", i+1, lang)
+				}
+			}
+		}
+		if v, exists := ann["extraI18n"]; exists {
+			m, ok := v.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("第%d个公告的多语言说明格式错误", i+1)
+			}
+			for lang, val := range m {
+				if !validAnnouncementLangs[lang] {
+					return fmt.Errorf("第%d个公告的多语言说明包含不支持的语言代码：%s", i+1, lang)
+				}
+				s, ok := val.(string)
+				if !ok || strings.TrimSpace(s) == "" {
+					return fmt.Errorf("第%d个公告的 %s 语言说明不能为空", i+1, lang)
+				}
+				if len(s) > 200 {
+					return fmt.Errorf("第%d个公告的 %s 语言说明长度不能超过200字符", i+1, lang)
+				}
 			}
 		}
 	}
