@@ -118,6 +118,18 @@ export function SidebarModulesSection({
         title: t('Task logs'),
         description: t('Background job tracker for queued work.'),
       },
+      ticket: {
+        title: t('Tickets'),
+        description: t('Submit and track support tickets.'),
+      },
+      topup_history: {
+        title: t('Top-up History'),
+        description: t('Top-up order history and invoice requests.'),
+      },
+      monitoring: {
+        title: t('Group Monitoring'),
+        description: t('Group availability and cache monitoring.'),
+      },
     },
     personal: {
       topup: {
@@ -153,6 +165,26 @@ export function SidebarModulesSection({
       subscription: {
         title: t('Subscription Management'),
         description: t('Manage subscription plans and pricing.'),
+      },
+      discount_code: {
+        title: t('Discount Codes'),
+        description: t('Create and manage discount codes.'),
+      },
+      auto_group: {
+        title: t('Auto Group'),
+        description: t('Automatic group assignment rules.'),
+      },
+      ticket_admin: {
+        title: t('Ticket Admin'),
+        description: t('Handle user tickets, refunds and invoices.'),
+      },
+      risk: {
+        title: t('Risk Control'),
+        description: t('Risk control center and enforcement records.'),
+      },
+      invitation_codes: {
+        title: t('Invitation Codes'),
+        description: t('Manage invitation codes and rewards.'),
       },
     },
   }
