@@ -147,18 +147,24 @@ export function ErrorFilterRulesEditor({ form }: Props) {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t('Message Keywords')}</Label>
+              {/* 一条规则一个关键词（后端 []string 为 OR 匹配，单元素语义不变）；
+                  受控 onChange 即时生效，无需回车确认 */}
               <Input
-                value={rule.message_contains.join(', ')}
+                value={rule.message_contains[0] ?? ''}
                 onChange={(e) =>
                   updateRule(
                     i,
                     'message_contains',
-                    e.target.value
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean)
+                    e.target.value.trim() ? [e.target.value] : []
                   )
                 }
+                onBlur={(e) => {
+                  const trimmed = e.target.value.trim()
+                  updateRule(i, 'message_contains', trimmed ? [trimmed] : [])
+                }}
+                placeholder={t(
+                  'Single keyword; add another rule for more keywords'
+                )}
                 className="h-7 text-xs"
               />
             </div>

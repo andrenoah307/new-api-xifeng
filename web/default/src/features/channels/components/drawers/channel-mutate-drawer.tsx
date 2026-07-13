@@ -649,6 +649,10 @@ export function ChannelMutateDrawer({
   >(null)
   const channelFormRef = useRef<HTMLFormElement>(null)
   const advancedNavScrollPendingRef = useRef(false)
+  // 滚向"自定义拓展"期间抑制 scroll-spy 的高级设置自动展开（否则途经 advanced
+  // 激活区触发展开，DOM 重排劫持滚动终点，表现为需要点击两次）
+  const customNavScrollPendingRef = useRef(false)
+  const customNavScrollTimerRef = useRef<number | null>(null)
   const [activeEditorSectionId, setActiveEditorSectionId] = useState<string>(
     CHANNEL_EDITOR_SECTION_IDS.identity
   )
@@ -1794,6 +1798,12 @@ export function ChannelMutateDrawer({
         targetId === CHANNEL_EDITOR_SECTION_IDS.custom ||
         CUSTOM_SETTINGS_CHILD_SECTION_IDS.includes(targetId)
 
+      customNavScrollPendingRef.current = false
+      if (customNavScrollTimerRef.current !== null) {
+        window.clearTimeout(customNavScrollTimerRef.current)
+        customNavScrollTimerRef.current = null
+      }
+
       if (isAdvancedTarget) {
         advancedNavScrollPendingRef.current = true
         handleAdvancedSettingsOpenChange(true)
@@ -1801,6 +1811,12 @@ export function ChannelMutateDrawer({
         setExpandedEditorNavItemId(CHANNEL_EDITOR_SECTION_IDS.advanced)
       } else if (isCustomTarget) {
         advancedNavScrollPendingRef.current = false
+        customNavScrollPendingRef.current = true
+        // 内容不足以让 custom 越过激活线时，超时恢复 scroll-spy
+        customNavScrollTimerRef.current = window.setTimeout(() => {
+          customNavScrollPendingRef.current = false
+          customNavScrollTimerRef.current = null
+        }, 1200)
         setActiveEditorSectionId(CHANNEL_EDITOR_SECTION_IDS.custom)
         setExpandedEditorNavItemId(CHANNEL_EDITOR_SECTION_IDS.custom)
       } else {
@@ -1841,6 +1857,17 @@ export function ChannelMutateDrawer({
         nextActiveSectionId = sectionId
       } else {
         break
+      }
+    }
+
+    // 滚向 custom 途中不接管导航状态：抵达 custom 时解除守卫走正常流程，
+    // 否则（途经 advanced 等区段）直接忽略本次 spy 结果
+    if (customNavScrollPendingRef.current) {
+      if (nextActiveSectionId !== CHANNEL_EDITOR_SECTION_IDS.custom) return
+      customNavScrollPendingRef.current = false
+      if (customNavScrollTimerRef.current !== null) {
+        window.clearTimeout(customNavScrollTimerRef.current)
+        customNavScrollTimerRef.current = null
       }
     }
 
