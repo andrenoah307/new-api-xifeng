@@ -6,6 +6,7 @@ import { GripVertical, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { MultiSelect } from '@/components/multi-select'
 import { TagInput } from '@/components/tag-input'
 import { SettingsSection } from '../components/settings-section'
@@ -53,6 +54,10 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
     queryFn: getGroups,
   })
 
+  // 后端默认 enabled=true，option 缺失（空串）视为开启
+  const [enabled, setEnabled] = useState(
+    getVal(settings, 'enabled') !== 'false'
+  )
   const [monitoringGroups, setMonitoringGroups] = useState<string[]>(() =>
     parseArr(getVal(settings, 'monitoring_groups'))
   )
@@ -106,6 +111,7 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
     setSaving(true)
     try {
       const updates: Array<{ key: string; value: string }> = [
+        { key: PREFIX + 'enabled', value: String(enabled) },
         {
           key: PREFIX + 'monitoring_groups',
           value: JSON.stringify(monitoringGroups),
@@ -177,6 +183,18 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
       description={t('Configure group monitoring parameters')}
     >
       <div className='space-y-4'>
+        <div className='flex items-center justify-between gap-4'>
+          <div className='space-y-1'>
+            <Label>{t('Enable Group Monitoring')}</Label>
+            <p className='text-muted-foreground text-xs'>
+              {t(
+                'When disabled, background aggregation and data collection stop; existing history is kept.'
+              )}
+            </p>
+          </div>
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
+        </div>
+
         <div className='space-y-1'>
           <Label>{t('Monitored Groups')}</Label>
           <MultiSelect
