@@ -117,11 +117,6 @@ export type SiteSettings = {
   ServerAddress: string
   'legal.user_agreement': string
   'legal.privacy_policy': string
-  'cn_disclaimer.enabled': string
-  'cn_disclaimer.title': string
-  'cn_disclaimer.content': string
-  'cn_disclaimer.blocked_countries': string
-  'cn_disclaimer.silence_minutes': string
   HeaderNavModules: string
   SidebarModulesAdmin: string
 }
@@ -382,7 +377,6 @@ export type OperationsSettings = {
   'perf_metrics_setting.flush_interval': number
   'perf_metrics_setting.bucket_time': 'hour' | 'minute' | '5min'
   'perf_metrics_setting.retention_days': number
-  HiddenModels: string
 }
 
 export type SecuritySettings = {
@@ -402,13 +396,6 @@ export type SecuritySettings = {
   'fetch_setting.ip_list': string[]
   'fetch_setting.allowed_ports': number[]
   'fetch_setting.apply_ip_filter_for_domain': boolean
-  'region_restriction.enabled': boolean
-  'region_restriction.filter_console': boolean
-  'region_restriction.block_relay': boolean
-  'region_restriction.xdb_path': string
-  'region_restriction.block_message': string
-  'region_restriction.blocked_models': string
-  'region_restriction.blocked_groups': string
   'group_model_blacklist.enabled': boolean
   'group_model_blacklist.filter_console': boolean
   'group_model_blacklist.block_relay': boolean

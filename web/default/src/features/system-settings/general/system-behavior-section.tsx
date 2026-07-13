@@ -26,12 +26,9 @@ import {
   FormControl,
   FormDescription,
   FormField,
-  FormItem,
   FormLabel,
-  FormMessage,
 } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 import {
   SettingsForm,
   SettingsSwitchContent,
@@ -46,7 +43,6 @@ const behaviorSchema = z.object({
   DefaultCollapseSidebar: z.boolean(),
   DemoSiteEnabled: z.boolean(),
   SelfUseModeEnabled: z.boolean(),
-  HiddenModels: z.string(),
 })
 
 type BehaviorFormValues = z.infer<typeof behaviorSchema>
@@ -149,29 +145,6 @@ export function SystemBehaviorSection({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name='HiddenModels'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('Hidden Models')}</FormLabel>
-                <FormControl>
-                  <Textarea
-                    rows={6}
-                    placeholder={t('one model name per line')}
-                    {...field}
-                    onChange={(e) => field.onChange(e.target.value)}
-                  />
-                </FormControl>
-                <FormDescription>
-                  {t(
-                    'Models listed here will be hidden from the pricing page but can still be used via API.'
-                  )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </SettingsForm>
       </Form>
     </SettingsSection>
