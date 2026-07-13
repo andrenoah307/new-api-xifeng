@@ -49,6 +49,9 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     log: true,
     midjourney: true,
     task: true,
+    ticket: true,
+    topup_history: true,
+    monitoring: true,
   },
   personal: {
     enabled: true,
@@ -65,6 +68,9 @@ const DEFAULT_SIDEBAR_MODULES: SidebarModulesAdminConfig = {
     setting: true,
     subscription: true,
     auto_group: true,
+    ticket_admin: true,
+    risk: true,
+    invitation_codes: true,
   },
 }
 
@@ -120,6 +126,12 @@ const URL_TO_CONFIG_MAP: Record<string, { section: string; module: string }> = {
   '/system-settings': { section: 'admin', module: 'setting' },
   '/system-settings/site': { section: 'admin', module: 'setting' },
   '/auto-group': { section: 'admin', module: 'auto_group' },
+  '/tickets': { section: 'console', module: 'ticket' },
+  '/topup-history': { section: 'console', module: 'topup_history' },
+  '/monitoring': { section: 'console', module: 'monitoring' },
+  '/ticket-admin': { section: 'admin', module: 'ticket_admin' },
+  '/risk': { section: 'admin', module: 'risk' },
+  '/invitation-codes': { section: 'admin', module: 'invitation_codes' },
 }
 
 /**

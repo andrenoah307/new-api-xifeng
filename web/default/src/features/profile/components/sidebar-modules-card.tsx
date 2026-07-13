@@ -103,6 +103,21 @@ export function SidebarModulesCard() {
           title: t('Task Logs'),
           description: t('System task records'),
         },
+        {
+          key: 'ticket',
+          title: t('Tickets'),
+          description: t('Submit and track support tickets.'),
+        },
+        {
+          key: 'topup_history',
+          title: t('Top-up History'),
+          description: t('Top-up order history and invoice requests.'),
+        },
+        {
+          key: 'monitoring',
+          title: t('Group Monitoring'),
+          description: t('Group availability and cache monitoring.'),
+        },
       ],
     },
     {

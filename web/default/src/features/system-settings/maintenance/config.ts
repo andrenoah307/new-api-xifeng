@@ -68,6 +68,9 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     log: true,
     midjourney: true,
     task: true,
+    ticket: true,
+    topup_history: true,
+    monitoring: true,
   },
   personal: {
     enabled: true,
@@ -79,9 +82,14 @@ export const SIDEBAR_MODULES_DEFAULT: SidebarModulesAdminConfig = {
     channel: true,
     models: true,
     redemption: true,
+    discount_code: true,
     user: true,
     setting: true,
     subscription: true,
+    auto_group: true,
+    ticket_admin: true,
+    risk: true,
+    invitation_codes: true,
   },
 }
 
@@ -196,7 +204,12 @@ export function parseSidebarModulesAdmin(
     Object.entries(parsed).forEach(([sectionKey, raw]) => {
       if (!raw || typeof raw !== 'object') return
 
-      const defaultSection = defaults[sectionKey] ?? { enabled: true }
+      // Only sections/modules present in the defaults are real switches wired
+      // to the sidebar gate; stale keys persisted in the DB are dropped so the
+      // config UI doesn't render dead toggles (next save rewrites a clean map).
+      const defaultSection = defaults[sectionKey]
+      if (!defaultSection) return
+
       const sectionConfig: SidebarSectionConfig = {
         enabled: toBoolean(
           (raw as Record<string, unknown>).enabled,
@@ -207,6 +220,7 @@ export function parseSidebarModulesAdmin(
       Object.entries(raw as Record<string, unknown>).forEach(
         ([moduleKey, moduleValue]) => {
           if (moduleKey === 'enabled') return
+          if (!(moduleKey in defaultSection)) return
           sectionConfig[moduleKey] = toBoolean(
             moduleValue,
             defaultSection[moduleKey] ?? true
