@@ -889,6 +889,40 @@ const en = {
   // Error filter single-keyword rule
   'Single keyword; add another rule for more keywords':
     'Single keyword; add another rule for more keywords',
+
+  // Invoice taxable service name
+  'Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.':
+    'Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.',
+
+  // Region console hint
+  'Console Region Hint': 'Console Region Hint',
+  'Text shown next to blocked groups in the console (e.g. token management). Leave empty for the default.':
+    'Text shown next to blocked groups in the console (e.g. token management). Leave empty for the default.',
+
+  // Announcement AI translation
+  'AI Translate': 'AI Translate',
+  'Translate the default content into all interface languages using a model':
+    'Translate the default content into all interface languages using a model',
+  'Group and Model': 'Group and Model',
+  'Overwrite existing translations': 'Overwrite existing translations',
+  'Uses your account quota, same as the playground. Languages are translated one by one.':
+    'Uses your account quota, same as the playground. Languages are translated one by one.',
+  'Fill the default content, then translate into other languages.':
+    'Fill the default content, then translate into other languages.',
+  'Start Translation': 'Start Translation',
+  'Translating {{done}}/{{total}}': 'Translating {{done}}/{{total}}',
+  'All languages already have translations':
+    'All languages already have translations',
+  'Failed to translate into {{lang}}': 'Failed to translate into {{lang}}',
+  'Translation completed': 'Translation completed',
+  'Translation finished with {{n}} failure(s)':
+    'Translation finished with {{n}} failure(s)',
+  'Please select a model': 'Please select a model',
+
+  // Group monitoring FRT exclude threshold
+  'FRT Exclude Threshold (sec)': 'FRT Exclude Threshold (sec)',
+  'Requests whose first-response time exceeds this are excluded from all monitoring statistics. 0 disables.':
+    'Requests whose first-response time exceeds this are excluded from all monitoring statistics. 0 disables.',
 } as const
 
 export default en

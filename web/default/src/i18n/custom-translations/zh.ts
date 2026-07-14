@@ -889,6 +889,38 @@ const zh: Record<string, string> = {
   // Error filter single-keyword rule
   'Single keyword; add another rule for more keywords':
     '单个关键词，多个关键词请添加多条规则',
+
+  // Invoice taxable service name
+  'Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.':
+    '作为用户开票表单中的"发票内容"展示，并在导出时作为默认应税服务名称。留空则使用默认文案。',
+
+  // Region console hint
+  'Console Region Hint': '控制台区域提示',
+  'Text shown next to blocked groups in the console (e.g. token management). Leave empty for the default.':
+    '在控制台（如令牌管理）被屏蔽分组旁显示的文案，留空使用默认。',
+
+  // Announcement AI translation
+  'AI Translate': 'AI 翻译',
+  'Translate the default content into all interface languages using a model':
+    '选择模型将默认内容翻译成所有界面语言',
+  'Group and Model': '分组与模型',
+  'Overwrite existing translations': '覆盖已有译文',
+  'Uses your account quota, same as the playground. Languages are translated one by one.':
+    '与游乐场一样消耗你的账户额度，逐语言依次翻译。',
+  'Fill the default content, then translate into other languages.':
+    '先填写默认内容，再翻译成其他语言。',
+  'Start Translation': '开始翻译',
+  'Translating {{done}}/{{total}}': '翻译中 {{done}}/{{total}}',
+  'All languages already have translations': '所有语言均已有译文',
+  'Failed to translate into {{lang}}': '翻译为 {{lang}} 失败',
+  'Translation completed': '翻译完成',
+  'Translation finished with {{n}} failure(s)': '翻译完成，{{n}} 项失败',
+  'Please select a model': '请选择模型',
+
+  // Group monitoring FRT exclude threshold
+  'FRT Exclude Threshold (sec)': '首字排除阈值（秒）',
+  'Requests whose first-response time exceeds this are excluded from all monitoring statistics. 0 disables.':
+    '超过该首字响应时间的请求不参与所有监控统计，0 表示不启用。',
 }
 
 export default zh
