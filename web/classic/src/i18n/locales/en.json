@@ -3708,6 +3708,8 @@
     "联系方式不能为空": "",
     "联系电话": "",
     "聚合间隔": "Aggregation Interval",
+    "首字排除阈值": "FRT Exclude Threshold",
+    "超过该首字响应时间的请求不参与所有监控统计，0 表示不启用": "Requests whose first-response time exceeds this are excluded from all monitoring statistics. 0 disables.",
     "腾讯云 COS": "",
     "腾讯混元": "Hunyuan",
     "自动分组": "Auto Group",
