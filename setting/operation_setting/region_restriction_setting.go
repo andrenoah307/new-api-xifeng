@@ -16,17 +16,20 @@ type RegionRestrictionSetting struct {
 	BlockedModels map[string][]string `json:"blocked_models"`
 	BlockedGroups map[string][]string `json:"blocked_groups"`
 	BlockMessage  string              `json:"block_message"`
-	XdbPath       string              `json:"xdb_path"`
+	// 控制台被屏蔽分组的展示文案（令牌管理/监控面板），与 BlockMessage（relay 403 错误体）语义不同
+	ConsoleMessage string `json:"console_message"`
+	XdbPath        string `json:"xdb_path"`
 }
 
 var regionRestrictionSetting = RegionRestrictionSetting{
-	Enabled:       false,
-	FilterConsole: true,
-	BlockRelay:    true,
-	BlockedModels: map[string][]string{},
-	BlockedGroups: map[string][]string{},
-	BlockMessage:  "",
-	XdbPath:       "data/ip2region.xdb",
+	Enabled:        false,
+	FilterConsole:  true,
+	BlockRelay:     true,
+	BlockedModels:  map[string][]string{},
+	BlockedGroups:  map[string][]string{},
+	BlockMessage:   "",
+	ConsoleMessage: "",
+	XdbPath:        "data/ip2region.xdb",
 }
 
 func init() {

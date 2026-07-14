@@ -26,6 +26,7 @@ const regionRestrictionSchema = z.object({
   block_relay: z.boolean(),
   xdb_path: z.string(),
   block_message: z.string(),
+  console_message: z.string(),
   blocked_models: z.string().refine(
     (val) => {
       if (!val.trim()) return true
@@ -61,6 +62,7 @@ type RegionRestrictionProps = {
     'region_restriction.block_relay': boolean
     'region_restriction.xdb_path': string
     'region_restriction.block_message': string
+    'region_restriction.console_message': string
     'region_restriction.blocked_models': string
     'region_restriction.blocked_groups': string
   }
@@ -72,6 +74,7 @@ type FlatValues = {
   block_relay: boolean
   xdb_path: string
   block_message: string
+  console_message: string
   blocked_models: string
   blocked_groups: string
 }
@@ -86,6 +89,7 @@ const buildFormDefaults = (
   block_relay: defaults['region_restriction.block_relay'],
   xdb_path: defaults['region_restriction.xdb_path'],
   block_message: defaults['region_restriction.block_message'],
+  console_message: defaults['region_restriction.console_message'],
   blocked_models: defaults['region_restriction.blocked_models'],
   blocked_groups: defaults['region_restriction.blocked_groups'],
 })
@@ -98,6 +102,7 @@ const flattenDefaults = (
   block_relay: defaults['region_restriction.block_relay'],
   xdb_path: defaults['region_restriction.xdb_path'],
   block_message: defaults['region_restriction.block_message'],
+  console_message: defaults['region_restriction.console_message'],
   blocked_models: defaults['region_restriction.blocked_models'],
   blocked_groups: defaults['region_restriction.blocked_groups'],
 })
@@ -260,6 +265,28 @@ export function RegionRestrictionSection({
                 <FormDescription>
                   {t(
                     'Custom error message when model is blocked by region (leave empty for default)'
+                  )}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='console_message'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Console Region Hint')}</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder={t('Not available in current region')}
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  {t(
+                    'Text shown next to blocked groups in the console (e.g. token management). Leave empty for the default.'
                   )}
                 </FormDescription>
                 <FormMessage />

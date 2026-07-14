@@ -278,7 +278,8 @@ export function CreateTicketDialog({
               </Alert>
             )}
 
-            <div>
+            {/* 与其他字段的 FormItem（grid gap-2）保持一致的 label-控件间距 */}
+            <div className='grid gap-2'>
               <FormLabel>{t('Ticket Type')}</FormLabel>
               <Select
                 value={ticketType}

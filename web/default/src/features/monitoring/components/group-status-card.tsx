@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Database, Zap } from 'lucide-react'
+import { useStatus } from '@/hooks/use-status'
 import {
   Tooltip,
   TooltipContent,
@@ -29,6 +30,11 @@ const GroupStatusCard = memo(function GroupStatusCard({
   regionBlockedGroups = [],
 }: GroupStatusCardProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  // 管理员可在 地区限制 设置里自定义该提示，空则用默认文案
+  const regionUnavailableText =
+    String(status?.region_console_message ?? '').trim() ||
+    t('Not available in current region')
 
   const online = isGroupOnline(group)
   const noData =
@@ -85,7 +91,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
             </span>
             {regionBlockedGroups.includes(group.group_name) && (
               <span className='shrink-0 text-[10px] text-destructive'>
-                {t('Not available in current region')}
+                {regionUnavailableText}
               </span>
             )}
           </div>
