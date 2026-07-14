@@ -123,6 +123,9 @@ export function TicketSettingsSection({ settings }: Props) {
     }
     return cfg
   })
+  const [serviceName, setServiceName] = useState(
+    settings.InvoiceServiceName ?? ''
+  )
 
   const [saving, setSaving] = useState(false)
 
@@ -187,6 +190,21 @@ export function TicketSettingsSection({ settings }: Props) {
     }
   }
 
+  const saveInvoice = async () => {
+    setSaving(true)
+    try {
+      await updateOption.mutateAsync({
+        key: 'InvoiceServiceName',
+        value: serviceName.trim(),
+      })
+      toast.success(t('Config saved'))
+    } catch {
+      toast.error(t('Operation failed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const saveAttachment = async () => {
     setSaving(true)
     try {
@@ -232,6 +250,7 @@ export function TicketSettingsSection({ settings }: Props) {
           <TabsTrigger value='attachment'>
             {t('Attachment Settings')}
           </TabsTrigger>
+          <TabsTrigger value='invoice'>{t('Invoice Settings')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value='assignment' className='space-y-4 pt-4'>
@@ -469,6 +488,27 @@ export function TicketSettingsSection({ settings }: Props) {
           )}
 
           <Button onClick={saveAttachment} disabled={saving}>
+            {saving ? t('Saving...') : t('Save')}
+          </Button>
+        </TabsContent>
+
+        <TabsContent value='invoice' className='space-y-4 pt-4'>
+          <div className='space-y-1 rounded-lg border p-4'>
+            <Label>{t('Taxable Service Name')}</Label>
+            <Input
+              value={serviceName}
+              onChange={(event) => setServiceName(event.target.value)}
+              placeholder={t(
+                '*Production and Living Services*Technical Service Fee'
+              )}
+            />
+            <p className='text-muted-foreground text-xs'>
+              {t(
+                'Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.'
+              )}
+            </p>
+          </div>
+          <Button onClick={saveInvoice} disabled={saving}>
             {saving ? t('Saving...') : t('Save')}
           </Button>
         </TabsContent>

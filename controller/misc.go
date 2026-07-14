@@ -80,6 +80,7 @@ func GetStatus(c *gin.Context) {
 		"quota_per_unit":              common.QuotaPerUnit,
 		"min_transfer_amount":         common.MinTransferAmount,
 		"min_invoice_amount":          operation_setting.MinInvoiceAmount,
+		"invoice_service_name":        operation_setting.InvoiceServiceName,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
 		"quota_display_type":            operation_setting.GetQuotaDisplayType(),
@@ -135,13 +136,14 @@ func GetStatus(c *gin.Context) {
 		"invitation_code_user_generate_enabled": common.InvitationCodeUserGenerateEnabled,
 
 		// 工单附件配置下发给前端，避免选文件后才发现不支持。
-		"ticket_attachment_enabled":       setting.TicketAttachmentEnabled,
-		"ticket_attachment_max_size":      setting.TicketAttachmentMaxSize,
-		"ticket_attachment_max_count":     setting.TicketAttachmentMaxCount,
-		"ticket_attachment_allowed_exts":  setting.TicketAttachmentAllowedExts,
+		"ticket_attachment_enabled":      setting.TicketAttachmentEnabled,
+		"ticket_attachment_max_size":     setting.TicketAttachmentMaxSize,
+		"ticket_attachment_max_count":    setting.TicketAttachmentMaxCount,
+		"ticket_attachment_allowed_exts": setting.TicketAttachmentAllowedExts,
 
-		"region_blocked_groups":    operation_setting.GetBlockedGroupsForCountry(clientCountry),
-		"region_detected_country":  clientCountry,
+		"region_blocked_groups":   operation_setting.GetBlockedGroupsForCountry(clientCountry),
+		"region_detected_country": clientCountry,
+		"region_console_message":  operation_setting.GetRegionRestrictionSetting().ConsoleMessage,
 
 		"cn_disclaimer_enabled":  cnDisclaimerSetting.Enabled,
 		"cn_disclaimer_required": system_setting.IsCnDisclaimerCountry(clientCountry),
@@ -250,7 +252,7 @@ func GetCnDisclaimer(c *gin.Context) {
 	s := system_setting.GetCnDisclaimerSettings()
 	hash := ""
 	if s.Content != "" {
-		hash = common.Sha1([]byte(s.Title+"|"+s.Content+"|"+strings.Join(s.BlockedCountries, ",")))[:8]
+		hash = common.Sha1([]byte(s.Title + "|" + s.Content + "|" + strings.Join(s.BlockedCountries, ",")))[:8]
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success":           true,

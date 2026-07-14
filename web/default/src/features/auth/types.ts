@@ -120,6 +120,7 @@ export interface SystemStatus {
     quota_per_unit?: number
     min_transfer_amount?: number
     min_invoice_amount?: number
+    invoice_service_name?: string
     quota_display_type?: string
     usd_exchange_rate?: number
     custom_currency_symbol?: string
@@ -177,6 +178,7 @@ export interface SystemStatus {
   custom_oauth_providers?: CustomOAuthProviderInfo[]
   region_blocked_groups?: string[]
   region_detected_country?: string
+  region_console_message?: string
   cn_disclaimer_enabled?: boolean
   cn_disclaimer_required?: boolean
   [key: string]: unknown
