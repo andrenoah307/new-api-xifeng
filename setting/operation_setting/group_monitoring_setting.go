@@ -16,6 +16,7 @@ type GroupMonitoringSetting struct {
 	GroupDisplayOrder              []string `json:"group_display_order"`
 	AggregationIntervalMinutes     int      `json:"aggregation_interval_minutes"`
 	CacheTokensSeparateGroups      []string `json:"cache_tokens_separate_groups"`
+	FRTExcludeThresholdSeconds     float64  `json:"frt_exclude_threshold_seconds"`
 }
 
 var groupMonitoringSetting = GroupMonitoringSetting{
@@ -30,6 +31,7 @@ var groupMonitoringSetting = GroupMonitoringSetting{
 	GroupDisplayOrder:              []string{},
 	AggregationIntervalMinutes:     5,
 	CacheTokensSeparateGroups:      []string{},
+	FRTExcludeThresholdSeconds:     0,
 }
 
 func init() {

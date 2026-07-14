@@ -39,6 +39,7 @@ export default function SettingsGroupMonitoring(props) {
     'group_monitoring_setting.availability_exclude_keywords': '',
     'group_monitoring_setting.availability_exclude_status_codes': '',
     'group_monitoring_setting.cache_tokens_separate_groups': '',
+    'group_monitoring_setting.frt_exclude_threshold_seconds': 0,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
@@ -337,6 +338,23 @@ export default function SettingsGroupMonitoring(props) {
                     ...inputs,
                     'group_monitoring_setting.aggregation_interval_minutes':
                       parseInt(value) || 5,
+                  })
+                }
+              />
+            </Col>
+            <Col xs={24} sm={12} md={8}>
+              <Form.InputNumber
+                label={t('首字排除阈值')}
+                step={1}
+                min={0}
+                suffix={t('秒')}
+                extraText={t('超过该首字响应时间的请求不参与所有监控统计，0 表示不启用')}
+                field={'group_monitoring_setting.frt_exclude_threshold_seconds'}
+                onChange={(value) =>
+                  setInputs({
+                    ...inputs,
+                    'group_monitoring_setting.frt_exclude_threshold_seconds':
+                      parseFloat(value) || 0,
                   })
                 }
               />

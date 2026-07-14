@@ -50,6 +50,13 @@ func RecordMonitoringMetric(group string, channelId int, isSuccess bool, promptT
 		return
 	}
 
+	// 首字响应超过阈值的请求整条不入桶（可用率/缓存/响应/首字统计全部排除）。
+	// 仅在 frtMs>0 时判定，避免失败请求（frt=0）被误排除而拉低可用率；阈值 0 表示不启用。
+	if cfg.FRTExcludeThresholdSeconds > 0 && frtMs > 0 &&
+		float64(frtMs) > cfg.FRTExcludeThresholdSeconds*1000 {
+		return
+	}
+
 	excludeAvail := false
 	excludeCache := false
 
