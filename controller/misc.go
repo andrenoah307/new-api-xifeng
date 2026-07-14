@@ -96,6 +96,7 @@ func GetStatus(c *gin.Context) {
 		"invoice_special_enabled":          operation_setting.InvoiceSpecialEnabled,
 		"invoice_special_fee_rate":         operation_setting.InvoiceSpecialFeeRate,
 		"invoice_special_description":      operation_setting.InvoiceSpecialDescription,
+		"invoice_service_name":             operation_setting.InvoiceServiceName,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
 		"quota_display_type":            operation_setting.GetQuotaDisplayType(),
@@ -159,6 +160,7 @@ func GetStatus(c *gin.Context) {
 
 		"region_blocked_groups":   operation_setting.GetBlockedGroupsForCountry(clientCountry),
 		"region_detected_country": clientCountry,
+		"region_console_message":  operation_setting.GetRegionRestrictionSetting().ConsoleMessage,
 
 		"cn_disclaimer_enabled":  cnDisclaimerSetting.Enabled,
 		"cn_disclaimer_required": system_setting.IsCnDisclaimerCountry(clientCountry),

@@ -141,6 +141,9 @@ export function TicketSettingsSection({ settings }: Props) {
   const [specialDescription, setSpecialDescription] = useState(
     settings.InvoiceSpecialDescription ?? ''
   )
+  const [serviceName, setServiceName] = useState(
+    settings.InvoiceServiceName ?? ''
+  )
 
   const [saving, setSaving] = useState(false)
 
@@ -225,6 +228,7 @@ export function TicketSettingsSection({ settings }: Props) {
         { key: 'InvoiceSpecialEnabled', value: String(specialEnabled) },
         { key: 'InvoiceSpecialFeeRate', value: String(specialRate) },
         { key: 'InvoiceSpecialDescription', value: specialDescription },
+        { key: 'InvoiceServiceName', value: serviceName.trim() },
       ]
       for (const u of updates) {
         await updateOption.mutateAsync(u)
@@ -527,6 +531,22 @@ export function TicketSettingsSection({ settings }: Props) {
         </TabsContent>
 
         <TabsContent value='invoice' className='space-y-4 pt-4'>
+          <div className='space-y-1 rounded-lg border p-4'>
+            <Label>{t('Taxable Service Name')}</Label>
+            <Input
+              value={serviceName}
+              onChange={(e) => setServiceName(e.target.value)}
+              placeholder={t(
+                '*Production and Living Services*Technical Service Fee'
+              )}
+            />
+            <p className='text-muted-foreground text-xs'>
+              {t(
+                'Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.'
+              )}
+            </p>
+          </div>
+
           <div className='space-y-4 rounded-lg border p-4'>
             <Label className='text-base'>{t('Regular Invoice')}</Label>
             <div className='space-y-1'>

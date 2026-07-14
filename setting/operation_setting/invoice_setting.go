@@ -8,4 +8,5 @@ var (
 	InvoiceSpecialEnabled             = false
 	InvoiceSpecialFeeRate     float64 = 0  // 增票（增值税专用发票）手续费率（%）
 	InvoiceSpecialDescription         = "" // 增票票种说明
+	InvoiceServiceName                = "" // 应税服务名称/发票内容（空 = 前端回退默认文案"*生产生活服务*技术服务费"）
 )

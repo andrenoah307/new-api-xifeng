@@ -542,9 +542,12 @@ export function CreateInvoiceTicketDialog({
                     <FormLabel>{t('Invoice Content')}</FormLabel>
                     <Input
                       disabled
-                      value={t(
-                        '*Production and Living Services*Technical Service Fee'
-                      )}
+                      value={
+                        String(status?.invoice_service_name ?? '').trim() ||
+                        t(
+                          '*Production and Living Services*Technical Service Fee'
+                        )
+                      }
                     />
                   </FormItem>
                   <FormField

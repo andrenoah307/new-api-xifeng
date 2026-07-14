@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
+import { useStatus } from '@/hooks/use-status'
 import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -122,11 +123,20 @@ export function ExportInvoiceDialog({
   onOpenChange,
 }: ExportInvoiceDialogProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('0')
   const [keyword, setKeyword] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [serviceName, setServiceName] = useState('')
+
+  // 打开时用后台配置的应税服务名称预填（仍可修改；已手填过则不覆盖）
+  useEffect(() => {
+    if (!open) return
+    setServiceName(
+      (prev) => prev || String(status?.invoice_service_name ?? '').trim()
+    )
+  }, [open, status?.invoice_service_name])
   const [dateRange, setDateRange] = useState<{
     start?: Date
     end?: Date

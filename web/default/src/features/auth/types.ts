@@ -127,6 +127,7 @@ export interface SystemStatus {
     invoice_special_enabled?: boolean
     invoice_special_fee_rate?: number
     invoice_special_description?: string
+    invoice_service_name?: string
     quota_display_type?: string
     usd_exchange_rate?: number
     custom_currency_symbol?: string
@@ -186,6 +187,7 @@ export interface SystemStatus {
   custom_oauth_providers?: CustomOAuthProviderInfo[]
   region_blocked_groups?: string[]
   region_detected_country?: string
+  region_console_message?: string
   cn_disclaimer_enabled?: boolean
   cn_disclaimer_required?: boolean
   [key: string]: unknown
