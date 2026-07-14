@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2, Save } from 'lucide-react'
+import { Plus, Trash2, Save, Languages } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -67,6 +67,7 @@ import dayjs from '@/lib/dayjs'
 import { SettingsSwitchField } from '../components/settings-form-layout'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
+import { AnnouncementTranslateDialog } from './announcement-translate-dialog'
 
 type Announcement = {
   id: number
@@ -162,6 +163,7 @@ export function AnnouncementsSection({
     useState<Announcement | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<'single' | 'batch'>('single')
   const [langTab, setLangTab] = useState('default')
+  const [showTranslateDialog, setShowTranslateDialog] = useState(false)
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -504,6 +506,22 @@ export function AnnouncementsSection({
             onSubmit={form.handleSubmit(handleSubmitForm)}
             className='space-y-4'
           >
+            <div className='flex items-center justify-between gap-2'>
+              <p className='text-muted-foreground text-xs'>
+                {t(
+                  'Fill the default content, then translate into other languages.'
+                )}
+              </p>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() => setShowTranslateDialog(true)}
+              >
+                <Languages className='mr-1.5 size-3.5' />
+                {t('AI Translate')}
+              </Button>
+            </div>
             <Tabs value={langTab} onValueChange={(v) => setLangTab(String(v))}>
               <TabsList className='h-auto max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
                 <TabsTrigger value='default'>{t('Default')}</TabsTrigger>
@@ -688,6 +706,19 @@ export function AnnouncementsSection({
           </form>
         </Form>
       </Dialog>
+
+      <AnnouncementTranslateDialog
+        open={showTranslateDialog}
+        onOpenChange={setShowTranslateDialog}
+        sourceContent={form.getValues('content') ?? ''}
+        sourceExtra={form.getValues('extra') ?? ''}
+        currentContentI18n={watchContentI18n ?? {}}
+        currentExtraI18n={watchExtraI18n ?? {}}
+        onApply={({ contentI18n, extraI18n }) => {
+          form.setValue('contentI18n', contentI18n, { shouldDirty: true })
+          form.setValue('extraI18n', extraI18n, { shouldDirty: true })
+        }}
+      />
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
