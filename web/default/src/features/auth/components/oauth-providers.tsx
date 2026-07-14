@@ -127,10 +127,26 @@ export function OAuthProviders({
   const customProviders = status?.custom_oauth_providers
   if (customProviders && customProviders.length > 0) {
     for (const provider of customProviders) {
+      // icon 是管理员自由填写的字符串：图片 URL 用 <img>，否则当 emoji/文本渲染
+      // （与管理端 provider-table 的展示一致）。空则不渲染图标。
+      const iconValue = provider.icon?.trim()
+      const isImageUrl =
+        !!iconValue && /^(https?:\/\/|data:image\/|\/)/i.test(iconValue)
       providerButtons.push({
         key: `custom-${provider.slug}`,
         label: t('Continue with {{name}}', { name: provider.name }),
         onClick: () => handleCustomOAuthLogin(provider),
+        icon: iconValue ? (
+          isImageUrl ? (
+            <img
+              src={iconValue}
+              alt=''
+              className='h-4 w-4 object-contain'
+            />
+          ) : (
+            <span className='text-base leading-none'>{iconValue}</span>
+          )
+        ) : undefined,
       })
     }
   }
