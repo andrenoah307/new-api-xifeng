@@ -78,6 +78,10 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
   const { status } = useStatus()
   const regionBlockedGroups: string[] =
     status?.region_blocked_groups ?? []
+  // 管理员可在 地区限制 设置里自定义该提示，空则用默认文案
+  const regionUnavailableText =
+    String(status?.region_console_message ?? '').trim() ||
+    t('Not available in current region')
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const justNowLabel = t('Just now')
   const staleAccessThreshold = dayjs(now).subtract(3, 'month').valueOf()
@@ -242,7 +246,7 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
             </TruncatedCell>
             {regionBlockedGroups.includes(group) && (
               <span className='text-xs text-destructive'>
-                {t('Not available in current region')}
+                {regionUnavailableText}
               </span>
             )}
           </div>

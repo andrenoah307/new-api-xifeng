@@ -88,6 +88,8 @@ const CUSTOM_SECTIONS = [
             settings['region_restriction.xdb_path'] || 'data/ip2region.xdb',
           'region_restriction.block_message':
             settings['region_restriction.block_message'] ?? '',
+          'region_restriction.console_message':
+            settings['region_restriction.console_message'] ?? '',
           'region_restriction.blocked_models':
             settings['region_restriction.blocked_models'] || '{}',
           'region_restriction.blocked_groups':
