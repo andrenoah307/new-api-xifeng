@@ -65,6 +65,10 @@ func SetRelayRouter(router *gin.Engine) {
 	playgroundRouter.Use(middleware.UserAuth(), middleware.Distribute())
 	{
 		playgroundRouter.POST("/chat/completions", controller.Playground)
+		// 管理端公告 AI 翻译等控制台内调用：Claude 走 messages、GPT 走 responses，
+		// 与 /pg/chat/completions 同一条 UserAuth+Distribute 计费链
+		playgroundRouter.POST("/messages", controller.PlaygroundMessages)
+		playgroundRouter.POST("/responses", controller.PlaygroundResponses)
 	}
 	relayV1Router := router.Group("/v1")
 	relayV1Router.Use(middleware.RouteTag("relay"))

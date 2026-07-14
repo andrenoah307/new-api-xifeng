@@ -12,7 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Playground(c *gin.Context) {
+// playgroundRelay 以登录用户身份（临时 token，计费走用户自己账号）按指定协议格式进 Relay。
+// 供 /pg/* 系列端点复用：游乐场对话与管理端公告 AI 翻译。
+func playgroundRelay(c *gin.Context, format types.RelayFormat) {
 	var newAPIError *types.NewAPIError
 
 	defer func() {
@@ -29,7 +31,7 @@ func Playground(c *gin.Context) {
 		return
 	}
 
-	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatOpenAI, nil, nil)
+	relayInfo, err := relaycommon.GenRelayInfo(c, format, nil, nil)
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeInvalidRequest, types.ErrOptionWithSkipRetry())
 		return
@@ -52,5 +54,19 @@ func Playground(c *gin.Context) {
 	}
 	_ = middleware.SetupContextForToken(c, tempToken)
 
-	Relay(c, types.RelayFormatOpenAI)
+	Relay(c, format)
+}
+
+func Playground(c *gin.Context) {
+	playgroundRelay(c, types.RelayFormatOpenAI)
+}
+
+// PlaygroundMessages 面向 Claude 系模型的 /pg/messages（v1/messages 协议，session 鉴权）
+func PlaygroundMessages(c *gin.Context) {
+	playgroundRelay(c, types.RelayFormatClaude)
+}
+
+// PlaygroundResponses 面向 GPT 系模型的 /pg/responses（v1/responses 协议，session 鉴权）
+func PlaygroundResponses(c *gin.Context) {
+	playgroundRelay(c, types.RelayFormatOpenAIResponses)
 }

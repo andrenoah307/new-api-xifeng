@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2, Save } from 'lucide-react'
+import { Plus, Trash2, Save, Languages } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -59,12 +59,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { INTERFACE_LANGUAGE_OPTIONS } from '@/i18n/languages'
 import dayjs from '@/lib/dayjs'
 
 import { SettingsSwitchField } from '../components/settings-form-layout'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
+import { AnnouncementTranslateDialog } from './announcement-translate-dialog'
 
 type Announcement = {
   id: number
@@ -72,6 +75,9 @@ type Announcement = {
   publishDate: string
   type: 'default' | 'ongoing' | 'success' | 'warning' | 'error'
   extra?: string
+  // 按界面语言码存的翻译，留空的语言在用户侧回退 content/extra
+  contentI18n?: Record<string, string>
+  extraI18n?: Record<string, string>
 }
 
 type AnnouncementsSectionProps = {
@@ -80,21 +86,33 @@ type AnnouncementsSectionProps = {
 }
 
 const announcementSchema = z.object({
-  content: z
-    .string()
-    .min(1, 'Content is required')
-    .max(500, 'Content must be less than 500 characters'),
+  content: z.string().min(1, 'Content is required'),
   publishDate: z.string().min(1, 'Publish date is required'),
   type: z.enum(['default', 'ongoing', 'success', 'warning', 'error']),
   extra: z
     .string()
     .max(100, 'Extra must be less than 100 characters')
     .optional(),
+  contentI18n: z.record(z.string(), z.string()).optional(),
+  extraI18n: z.record(z.string(), z.string()).optional(),
 })
 
 type AnnouncementFormValues = z.infer<typeof announcementSchema>
 
 const ANNOUNCEMENT_FORM_ID = 'announcement-form'
+
+// 所有语言键都预置空串，保证语言 Tab 里的输入始终受控
+const emptyI18nMap = (): Record<string, string> =>
+  Object.fromEntries(INTERFACE_LANGUAGE_OPTIONS.map((o) => [o.code, '']))
+
+// 保存前清洗：去掉留空的语言；全空则整个字段置 undefined（JSON 序列化时丢弃）
+const cleanI18nMap = (
+  map: Record<string, string> | undefined
+): Record<string, string> | undefined => {
+  if (!map) return undefined
+  const entries = Object.entries(map).filter(([, v]) => v.trim() !== '')
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
+}
 
 const typeOptions = [
   {
@@ -144,6 +162,8 @@ export function AnnouncementsSection({
   const [editingAnnouncement, setEditingAnnouncement] =
     useState<Announcement | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<'single' | 'batch'>('single')
+  const [langTab, setLangTab] = useState('default')
+  const [showTranslateDialog, setShowTranslateDialog] = useState(false)
 
   const form = useForm<AnnouncementFormValues>({
     resolver: zodResolver(announcementSchema),
@@ -152,8 +172,13 @@ export function AnnouncementsSection({
       publishDate: new Date().toISOString(),
       type: 'default',
       extra: '',
+      contentI18n: emptyI18nMap(),
+      extraI18n: emptyI18nMap(),
     },
   })
+
+  const watchContentI18n = form.watch('contentI18n')
+  const watchExtraI18n = form.watch('extraI18n')
 
   useEffect(() => {
     try {
@@ -195,7 +220,10 @@ export function AnnouncementsSection({
       publishDate: new Date().toISOString(),
       type: 'default',
       extra: '',
+      contentI18n: emptyI18nMap(),
+      extraI18n: emptyI18nMap(),
     })
+    setLangTab('default')
     setShowDialog(true)
   }
 
@@ -206,7 +234,10 @@ export function AnnouncementsSection({
       publishDate: announcement.publishDate,
       type: announcement.type,
       extra: announcement.extra || '',
+      contentI18n: { ...emptyI18nMap(), ...(announcement.contentI18n ?? {}) },
+      extraI18n: { ...emptyI18nMap(), ...(announcement.extraI18n ?? {}) },
     })
+    setLangTab('default')
     setShowDialog(true)
   }
 
@@ -249,16 +280,22 @@ export function AnnouncementsSection({
   }
 
   const handleSubmitForm = (values: AnnouncementFormValues) => {
+    // 显式携带 undefined 覆盖旧值，JSON.stringify 会丢弃该键，旧数据形态不被污染
+    const cleaned = {
+      ...values,
+      contentI18n: cleanI18nMap(values.contentI18n),
+      extraI18n: cleanI18nMap(values.extraI18n),
+    }
     if (editingAnnouncement) {
       setAnnouncements((prev) =>
         prev.map((item) =>
-          item.id === editingAnnouncement.id ? { ...item, ...values } : item
+          item.id === editingAnnouncement.id ? { ...item, ...cleaned } : item
         )
       )
       toast.success(t('Announcement updated. Click "Save Settings" to apply.'))
     } else {
       const newId = Math.max(...announcements.map((item) => item.id), 0) + 1
-      setAnnouncements((prev) => [...prev, { id: newId, ...values }])
+      setAnnouncements((prev) => [...prev, { id: newId, ...cleaned }])
       toast.success(t('Announcement added. Click "Save Settings" to apply.'))
     }
     setHasChanges(true)
@@ -469,28 +506,132 @@ export function AnnouncementsSection({
             onSubmit={form.handleSubmit(handleSubmitForm)}
             className='space-y-4'
           >
-            <FormField
-              control={form.control}
-              name='content'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('Content')}</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder={t(
-                        'Enter announcement content (supports Markdown/HTML)'
-                      )}
-                      rows={4}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t('Maximum 500 characters. Supports Markdown and HTML.')}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className='flex items-center justify-between gap-2'>
+              <p className='text-muted-foreground text-xs'>
+                {t(
+                  'Fill the default content, then translate into other languages.'
+                )}
+              </p>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() => setShowTranslateDialog(true)}
+              >
+                <Languages className='mr-1.5 size-3.5' />
+                {t('AI Translate')}
+              </Button>
+            </div>
+            <Tabs value={langTab} onValueChange={(v) => setLangTab(String(v))}>
+              <TabsList className='h-auto max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
+                <TabsTrigger value='default'>{t('Default')}</TabsTrigger>
+                {INTERFACE_LANGUAGE_OPTIONS.map((option) => (
+                  <TabsTrigger key={option.code} value={option.code}>
+                    {option.label}
+                    {(watchContentI18n?.[option.code]?.trim() ||
+                      watchExtraI18n?.[option.code]?.trim()) && (
+                      <span className='bg-primary ml-1 inline-block size-1.5 rounded-full' />
+                    )}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              <TabsContent value='default' className='space-y-4 pt-2'>
+                <FormField
+                  control={form.control}
+                  name='content'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Content')}</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder={t(
+                            'Enter announcement content (supports Markdown/HTML)'
+                          )}
+                          rows={4}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('Supports Markdown and HTML.')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='extra'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Extra Notes (Optional)')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t('Additional information')}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'Optional supplementary information (max 100 characters)'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+              {INTERFACE_LANGUAGE_OPTIONS.map((option) => (
+                <TabsContent
+                  key={option.code}
+                  value={option.code}
+                  className='space-y-4 pt-2'
+                >
+                  <FormField
+                    control={form.control}
+                    name={`contentI18n.${option.code}`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('Content')} · {option.label}
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={t(
+                              'Leave empty to fall back to the default content'
+                            )}
+                            rows={4}
+                            {...field}
+                            value={field.value ?? ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name={`extraI18n.${option.code}`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('Extra Notes (Optional)')} · {option.label}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder={t(
+                              'Leave empty to fall back to the default content'
+                            )}
+                            {...field}
+                            value={field.value ?? ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </TabsContent>
+              ))}
+            </Tabs>
             <FormField
               control={form.control}
               name='publishDate'
@@ -562,30 +703,22 @@ export function AnnouncementsSection({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name='extra'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('Extra Notes (Optional)')}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={t('Additional information')}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    {t(
-                      'Optional supplementary information (max 100 characters)'
-                    )}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </form>
         </Form>
       </Dialog>
+
+      <AnnouncementTranslateDialog
+        open={showTranslateDialog}
+        onOpenChange={setShowTranslateDialog}
+        sourceContent={form.getValues('content') ?? ''}
+        sourceExtra={form.getValues('extra') ?? ''}
+        currentContentI18n={watchContentI18n ?? {}}
+        currentExtraI18n={watchExtraI18n ?? {}}
+        onApply={({ contentI18n, extraI18n }) => {
+          form.setValue('contentI18n', contentI18n, { shouldDirty: true })
+          form.setValue('extraI18n', extraI18n, { shouldDirty: true })
+        }}
+      />
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
