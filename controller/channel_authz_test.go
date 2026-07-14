@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -149,6 +150,7 @@ func TestUpdateChannelRejectsStatusField(t *testing.T) {
 	}
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 	assert.False(t, response.Success)
+	assert.Equal(t, common.TranslateMessage(ctx, i18n.MsgInvalidParams), response.Message)
 }
 
 func TestChannelStatusValidation(t *testing.T) {
