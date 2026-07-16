@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/perf_metrics_setting"
 )
 
@@ -24,8 +25,13 @@ func Init() {
 	go flushLoop()
 }
 
-func RecordRelaySample(info *relaycommon.RelayInfo, success bool, outputTokens int64) {
+func RecordRelaySample(info *relaycommon.RelayInfo, success bool, outputTokens int64, statusCode int, errContent string) {
 	if info == nil {
+		return
+	}
+	// 复用「分组监控设置」的排除关键词/状态码：命中的失败视为用户参数问题，整条不入桶，
+	// 既不拉低成功率也不进分母（与分组监控口径一致）。仅对失败样本判定。
+	if !success && operation_setting.GetGroupMonitoringSetting().IsUserParamFailure(statusCode, errContent) {
 		return
 	}
 	now := time.Now()

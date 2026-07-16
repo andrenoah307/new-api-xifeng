@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -75,24 +74,8 @@ func RecordMonitoringMetric(group string, channelId int, isSuccess bool, promptT
 		}
 	}
 
-	if !isSuccess && !excludeAvail {
-		if statusCode > 0 {
-			for _, sc := range cfg.AvailabilityExcludeStatusCodes {
-				if sc == statusCode {
-					excludeAvail = true
-					break
-				}
-			}
-		}
-		if !excludeAvail && content != "" && len(cfg.AvailabilityExcludeKeywords) > 0 {
-			lc := strings.ToLower(content)
-			for _, kw := range cfg.AvailabilityExcludeKeywords {
-				if strings.Contains(lc, strings.ToLower(kw)) {
-					excludeAvail = true
-					break
-				}
-			}
-		}
+	if !isSuccess && !excludeAvail && cfg.IsUserParamFailure(statusCode, content) {
+		excludeAvail = true
 	}
 
 	bucketSec := int64(cfg.AggregationIntervalMinutes * 60)

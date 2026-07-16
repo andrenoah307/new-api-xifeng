@@ -55,6 +55,7 @@ const headerNavSchema = z.object({
   pricingRequireAuth: z.boolean(),
   rankingsEnabled: z.boolean(),
   rankingsRequireAuth: z.boolean(),
+  monitoring: z.boolean(),
   docs: z.boolean(),
   about: z.boolean(),
 })
@@ -89,6 +90,10 @@ const toFormValues = (config: HeaderNavModulesConfig): HeaderNavFormValues => ({
     config.rankings?.requireAuth === undefined
       ? HEADER_NAV_DEFAULT.rankings.requireAuth
       : Boolean(config.rankings.requireAuth),
+  monitoring:
+    config.monitoring === undefined
+      ? HEADER_NAV_DEFAULT.monitoring
+      : Boolean(config.monitoring),
   docs:
     config.docs === undefined ? HEADER_NAV_DEFAULT.docs : Boolean(config.docs),
   about:
@@ -119,6 +124,7 @@ export function HeaderNavigationSection({
       ...config,
       home: values.home,
       console: values.console,
+      monitoring: values.monitoring,
       docs: values.docs,
       about: values.about,
       pricing: {
@@ -162,6 +168,11 @@ export function HeaderNavigationSection({
       key: 'console',
       title: t('Console'),
       description: t('User dashboard and quota controls.'),
+    },
+    {
+      key: 'monitoring',
+      title: t('Group Monitoring'),
+      description: t('Group availability and cache monitoring.'),
     },
     {
       key: 'docs',

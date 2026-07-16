@@ -389,7 +389,7 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 		Other:            other,
 	})
 	gopool.Go(func() {
-		perfmetrics.RecordRelaySample(relayInfo, true, int64(usage.CompletionTokens))
+		perfmetrics.RecordRelaySample(relayInfo, true, int64(usage.CompletionTokens), 0, "")
 	})
 }
 

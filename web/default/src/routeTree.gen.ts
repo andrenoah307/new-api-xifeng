@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SetupIndexRouteImport } from './routes/setup/index'
 import { Route as RankingsIndexRouteImport } from './routes/rankings/index'
 import { Route as PricingIndexRouteImport } from './routes/pricing/index'
+import { Route as MonitoringIndexRouteImport } from './routes/monitoring/index'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as OauthProviderRouteImport } from './routes/oauth/$provider'
 import { Route as ConsoleTopupRouteImport } from './routes/console/topup'
@@ -49,7 +50,6 @@ import { Route as AuthenticatedRiskIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedRedemptionCodesIndexRouteImport } from './routes/_authenticated/redemption-codes/index'
 import { Route as AuthenticatedProfileIndexRouteImport } from './routes/_authenticated/profile/index'
 import { Route as AuthenticatedPlaygroundIndexRouteImport } from './routes/_authenticated/playground/index'
-import { Route as AuthenticatedMonitoringIndexRouteImport } from './routes/_authenticated/monitoring/index'
 import { Route as AuthenticatedModelsIndexRouteImport } from './routes/_authenticated/models/index'
 import { Route as AuthenticatedKeysIndexRouteImport } from './routes/_authenticated/keys/index'
 import { Route as AuthenticatedInvitationCodesIndexRouteImport } from './routes/_authenticated/invitation-codes/index'
@@ -118,6 +118,11 @@ const RankingsIndexRoute = RankingsIndexRouteImport.update({
 const PricingIndexRoute = PricingIndexRouteImport.update({
   id: '/pricing/',
   path: '/pricing/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitoringIndexRoute = MonitoringIndexRouteImport.update({
+  id: '/monitoring/',
+  path: '/monitoring/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutIndexRoute = AboutIndexRouteImport.update({
@@ -290,12 +295,6 @@ const AuthenticatedPlaygroundIndexRoute =
   AuthenticatedPlaygroundIndexRouteImport.update({
     id: '/playground/',
     path: '/playground/',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedMonitoringIndexRoute =
-  AuthenticatedMonitoringIndexRouteImport.update({
-    id: '/monitoring/',
-    path: '/monitoring/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedModelsIndexRoute =
@@ -504,6 +503,7 @@ export interface FileRoutesByFullPath {
   '/console/topup': typeof ConsoleTopupRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
+  '/monitoring/': typeof MonitoringIndexRoute
   '/pricing/': typeof PricingIndexRoute
   '/rankings/': typeof RankingsIndexRoute
   '/setup/': typeof SetupIndexRoute
@@ -522,7 +522,6 @@ export interface FileRoutesByFullPath {
   '/invitation-codes/': typeof AuthenticatedInvitationCodesIndexRoute
   '/keys/': typeof AuthenticatedKeysIndexRoute
   '/models/': typeof AuthenticatedModelsIndexRoute
-  '/monitoring/': typeof AuthenticatedMonitoringIndexRoute
   '/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/profile/': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
@@ -575,6 +574,7 @@ export interface FileRoutesByTo {
   '/console/topup': typeof ConsoleTopupRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about': typeof AboutIndexRoute
+  '/monitoring': typeof MonitoringIndexRoute
   '/pricing': typeof PricingIndexRoute
   '/rankings': typeof RankingsIndexRoute
   '/setup': typeof SetupIndexRoute
@@ -593,7 +593,6 @@ export interface FileRoutesByTo {
   '/invitation-codes': typeof AuthenticatedInvitationCodesIndexRoute
   '/keys': typeof AuthenticatedKeysIndexRoute
   '/models': typeof AuthenticatedModelsIndexRoute
-  '/monitoring': typeof AuthenticatedMonitoringIndexRoute
   '/playground': typeof AuthenticatedPlaygroundIndexRoute
   '/profile': typeof AuthenticatedProfileIndexRoute
   '/redemption-codes': typeof AuthenticatedRedemptionCodesIndexRoute
@@ -650,6 +649,7 @@ export interface FileRoutesById {
   '/console/topup': typeof ConsoleTopupRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
+  '/monitoring/': typeof MonitoringIndexRoute
   '/pricing/': typeof PricingIndexRoute
   '/rankings/': typeof RankingsIndexRoute
   '/setup/': typeof SetupIndexRoute
@@ -668,7 +668,6 @@ export interface FileRoutesById {
   '/_authenticated/invitation-codes/': typeof AuthenticatedInvitationCodesIndexRoute
   '/_authenticated/keys/': typeof AuthenticatedKeysIndexRoute
   '/_authenticated/models/': typeof AuthenticatedModelsIndexRoute
-  '/_authenticated/monitoring/': typeof AuthenticatedMonitoringIndexRoute
   '/_authenticated/playground/': typeof AuthenticatedPlaygroundIndexRoute
   '/_authenticated/profile/': typeof AuthenticatedProfileIndexRoute
   '/_authenticated/redemption-codes/': typeof AuthenticatedRedemptionCodesIndexRoute
@@ -724,6 +723,7 @@ export interface FileRouteTypes {
     | '/console/topup'
     | '/oauth/$provider'
     | '/about/'
+    | '/monitoring/'
     | '/pricing/'
     | '/rankings/'
     | '/setup/'
@@ -742,7 +742,6 @@ export interface FileRouteTypes {
     | '/invitation-codes/'
     | '/keys/'
     | '/models/'
-    | '/monitoring/'
     | '/playground/'
     | '/profile/'
     | '/redemption-codes/'
@@ -795,6 +794,7 @@ export interface FileRouteTypes {
     | '/console/topup'
     | '/oauth/$provider'
     | '/about'
+    | '/monitoring'
     | '/pricing'
     | '/rankings'
     | '/setup'
@@ -813,7 +813,6 @@ export interface FileRouteTypes {
     | '/invitation-codes'
     | '/keys'
     | '/models'
-    | '/monitoring'
     | '/playground'
     | '/profile'
     | '/redemption-codes'
@@ -869,6 +868,7 @@ export interface FileRouteTypes {
     | '/console/topup'
     | '/oauth/$provider'
     | '/about/'
+    | '/monitoring/'
     | '/pricing/'
     | '/rankings/'
     | '/setup/'
@@ -887,7 +887,6 @@ export interface FileRouteTypes {
     | '/_authenticated/invitation-codes/'
     | '/_authenticated/keys/'
     | '/_authenticated/models/'
-    | '/_authenticated/monitoring/'
     | '/_authenticated/playground/'
     | '/_authenticated/profile/'
     | '/_authenticated/redemption-codes/'
@@ -935,6 +934,7 @@ export interface RootRouteChildren {
   ConsoleTopupRoute: typeof ConsoleTopupRoute
   OauthProviderRoute: typeof OauthProviderRoute
   AboutIndexRoute: typeof AboutIndexRoute
+  MonitoringIndexRoute: typeof MonitoringIndexRoute
   PricingIndexRoute: typeof PricingIndexRoute
   RankingsIndexRoute: typeof RankingsIndexRoute
   SetupIndexRoute: typeof SetupIndexRoute
@@ -997,6 +997,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing/'
       preLoaderRoute: typeof PricingIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitoring/': {
+      id: '/monitoring/'
+      path: '/monitoring'
+      fullPath: '/monitoring/'
+      preLoaderRoute: typeof MonitoringIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about/': {
@@ -1221,13 +1228,6 @@ declare module '@tanstack/react-router' {
       path: '/playground'
       fullPath: '/playground/'
       preLoaderRoute: typeof AuthenticatedPlaygroundIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/monitoring/': {
-      id: '/_authenticated/monitoring/'
-      path: '/monitoring'
-      fullPath: '/monitoring/'
-      preLoaderRoute: typeof AuthenticatedMonitoringIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/models/': {
@@ -1556,7 +1556,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedInvitationCodesIndexRoute: typeof AuthenticatedInvitationCodesIndexRoute
   AuthenticatedKeysIndexRoute: typeof AuthenticatedKeysIndexRoute
   AuthenticatedModelsIndexRoute: typeof AuthenticatedModelsIndexRoute
-  AuthenticatedMonitoringIndexRoute: typeof AuthenticatedMonitoringIndexRoute
   AuthenticatedPlaygroundIndexRoute: typeof AuthenticatedPlaygroundIndexRoute
   AuthenticatedProfileIndexRoute: typeof AuthenticatedProfileIndexRoute
   AuthenticatedRedemptionCodesIndexRoute: typeof AuthenticatedRedemptionCodesIndexRoute
@@ -1590,7 +1589,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedInvitationCodesIndexRoute,
   AuthenticatedKeysIndexRoute: AuthenticatedKeysIndexRoute,
   AuthenticatedModelsIndexRoute: AuthenticatedModelsIndexRoute,
-  AuthenticatedMonitoringIndexRoute: AuthenticatedMonitoringIndexRoute,
   AuthenticatedPlaygroundIndexRoute: AuthenticatedPlaygroundIndexRoute,
   AuthenticatedProfileIndexRoute: AuthenticatedProfileIndexRoute,
   AuthenticatedRedemptionCodesIndexRoute:
@@ -1624,6 +1622,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConsoleTopupRoute: ConsoleTopupRoute,
   OauthProviderRoute: OauthProviderRoute,
   AboutIndexRoute: AboutIndexRoute,
+  MonitoringIndexRoute: MonitoringIndexRoute,
   PricingIndexRoute: PricingIndexRoute,
   RankingsIndexRoute: RankingsIndexRoute,
   SetupIndexRoute: SetupIndexRoute,
