@@ -71,16 +71,20 @@ export default function StatusTimeline({
 
             return (
               <Tooltip key={idx}>
-                <TooltipTrigger asChild>
-                  <div
-                    className="flex-1 rounded-sm transition-opacity hover:opacity-80"
-                    style={{
-                      background: bg,
-                      opacity: isEmpty ? 0.35 : 1,
-                      minWidth: 2,
-                    }}
-                  />
-                </TooltipTrigger>
+                {/* Base UI Tooltip.Trigger 用 render 合并到色块本身；用 asChild
+                    会多包一层 <button> 导致 flex-1 失效、色块塌成 2px 细条 */}
+                <TooltipTrigger
+                  render={
+                    <div
+                      className="flex-1 rounded-sm transition-opacity hover:opacity-80"
+                      style={{
+                        background: bg,
+                        opacity: isEmpty ? 0.35 : 1,
+                        minWidth: 2,
+                      }}
+                    />
+                  }
+                />
                 <TooltipContent side="top" className="max-w-xs">
                   {isEmpty ? (
                     <span className="text-xs">{t('No data available')}</span>

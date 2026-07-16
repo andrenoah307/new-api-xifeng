@@ -98,10 +98,12 @@ const GroupStatusCard = memo(function GroupStatusCard({
             {group.last_test_model && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="max-w-[140px] truncate font-mono">
-                      {group.last_test_model}
-                    </span>
+                  <TooltipTrigger
+                    render={
+                      <span className="max-w-[140px] truncate font-mono" />
+                    }
+                  >
+                    {group.last_test_model}
                   </TooltipTrigger>
                   <TooltipContent>{group.last_test_model}</TooltipContent>
                 </Tooltip>
