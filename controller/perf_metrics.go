@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/QuantumNous/new-api/model"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/gin-gonic/gin"
@@ -65,7 +67,7 @@ func GetPerfMetrics(c *gin.Context) {
 		return
 	}
 
-	result.Groups = filterActiveGroups(result.Groups)
+	result.Groups = filterVisibleGroups(c, result.Groups)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -73,10 +75,21 @@ func GetPerfMetrics(c *gin.Context) {
 	})
 }
 
-func filterActiveGroups(groups []perfmetrics.GroupResult) []perfmetrics.GroupResult {
-	activeRatios := ratio_setting.GetGroupRatioCopy()
+// filterVisibleGroups 只保留当前登录账号可见的分组；未登录时按 "default" 权限
+// （与刚注册用户同权）计算可用分组。"auto" 元分组始终保留。
+func filterVisibleGroups(c *gin.Context, groups []perfmetrics.GroupResult) []perfmetrics.GroupResult {
+	group := "default"
+	if userId, exists := c.Get("id"); exists {
+		if user, err := model.GetUserCache(userId.(int)); err == nil && user.Group != "" {
+			group = user.Group
+		}
+	}
+	usable := service.GetUserUsableGroups(group)
 	return lo.Filter(groups, func(g perfmetrics.GroupResult, _ int) bool {
-		_, ok := activeRatios[g.Group]
-		return ok || g.Group == "auto"
+		if g.Group == "auto" {
+			return true
+		}
+		_, ok := usable[g.Group]
+		return ok
 	})
 }
