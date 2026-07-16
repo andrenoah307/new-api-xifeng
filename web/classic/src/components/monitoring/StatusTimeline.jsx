@@ -26,22 +26,30 @@ import { useTranslation } from 'react-i18next';
  * mode is automatic via `theme-mode=dark` on body.
  */
 function segmentColor(rate, avgFrt, requestCount) {
+  // 无请求 / 无数据留灰；否则按每区间可用率梯度着色，
+  // FRT 仅用于把健康块降级为“响应缓慢”（warning）
   if (requestCount != null && requestCount <= 0)
     return 'var(--semi-color-fill-1)';
-  if (rate != null && rate < 0)
-    return 'var(--semi-color-fill-1)';
-  if (avgFrt == null || avgFrt <= 0)
-    return 'var(--semi-color-fill-1)';
-  if (avgFrt < 8000) return 'var(--semi-color-success)';
-  return 'var(--semi-color-warning)';
+  if (rate == null || rate < 0) return 'var(--semi-color-fill-1)';
+  if (rate >= 99)
+    return avgFrt != null && avgFrt > 8000
+      ? 'var(--semi-color-warning)'
+      : 'var(--semi-color-success)';
+  if (rate >= 95) return 'var(--semi-color-success)';
+  if (rate >= 80) return 'var(--semi-color-warning)';
+  if (rate >= 50) return '#f97316';
+  return 'var(--semi-color-danger)';
 }
 
 function segmentLabel(rate, avgFrt, t, requestCount) {
   if (requestCount != null && requestCount <= 0) return t('暂无数据');
-  if (rate != null && rate < 0) return t('暂无数据');
-  if (avgFrt == null || avgFrt <= 0) return t('暂无数据');
-  if (avgFrt < 8000) return t('正常');
-  return t('响应缓慢');
+  if (rate == null || rate < 0) return t('暂无数据');
+  if (rate >= 99)
+    return avgFrt != null && avgFrt > 8000 ? t('响应缓慢') : t('正常');
+  if (rate >= 95) return t('轻微抖动');
+  if (rate >= 80) return t('部分异常');
+  if (rate >= 50) return t('严重异常');
+  return t('故障');
 }
 
 function formatTime(unixSec) {

@@ -147,14 +147,16 @@ export function segmentColor(
   avgFrt: number | null | undefined,
   requestCount?: number | null | undefined
 ): string {
-  if (requestCount != null && requestCount <= 0)
-    return 'color-mix(in oklch, var(--muted) 50%, transparent)'
-  if (rate != null && rate < 0)
-    return 'color-mix(in oklch, var(--muted) 50%, transparent)'
-  if (avgFrt == null || avgFrt <= 0)
-    return 'color-mix(in oklch, var(--muted) 50%, transparent)'
-  if (avgFrt < 8000) return '#22c55e'
-  return '#eab308'
+  // 无请求 / 无数据的时段留灰；否则按每区间可用率梯度着色，
+  // FRT 仅用于把健康块（可用率高）降级为黄色“慢响应”
+  const noData = 'color-mix(in oklch, var(--muted) 50%, transparent)'
+  if (requestCount != null && requestCount <= 0) return noData
+  if (rate == null || rate < 0) return noData
+  if (rate >= 99) return avgFrt != null && avgFrt > 8000 ? '#eab308' : '#22c55e'
+  if (rate >= 95) return 'rgba(34,197,94,0.7)'
+  if (rate >= 80) return '#eab308'
+  if (rate >= 50) return '#f97316'
+  return 'var(--destructive)'
 }
 
 export function segmentLabel(
@@ -164,10 +166,13 @@ export function segmentLabel(
   requestCount?: number | null | undefined
 ): string {
   if (requestCount != null && requestCount <= 0) return t('No data available')
-  if (rate != null && rate < 0) return t('No data available')
-  if (avgFrt == null || avgFrt <= 0) return t('No data available')
-  if (avgFrt < 8000) return t('Normal')
-  return t('Slow Response')
+  if (rate == null || rate < 0) return t('No data available')
+  if (rate >= 99)
+    return avgFrt != null && avgFrt > 8000 ? t('Slow Response') : t('Normal')
+  if (rate >= 95) return t('Minor Jitter')
+  if (rate >= 80) return t('Partial Anomaly')
+  if (rate >= 50) return t('Severe Anomaly')
+  return t('Failure')
 }
 
 export function alignAndFillHistory(
