@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { RefreshCw } from 'lucide-react'
+import { GripVertical, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -62,6 +62,16 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
   const [monitoringGroups, setMonitoringGroups] = useState<string[]>(() =>
     parseArr(getVal(settings, 'monitoring_groups'))
   )
+  // 显示顺序独立于选择顺序：回显已存的 group_display_order（过滤到当前选中集），
+  // 未覆盖的分组按选中顺序补在末尾
+  const [displayOrder, setDisplayOrder] = useState<string[]>(() => {
+    const selected = parseArr(getVal(settings, 'monitoring_groups'))
+    const saved = parseArr(getVal(settings, 'group_display_order')).filter(
+      (g) => selected.includes(g)
+    )
+    return [...saved, ...selected.filter((g) => !saved.includes(g))]
+  })
+  const dragIndexRef = useRef<number | null>(null)
   const [availabilityPeriod, setAvailabilityPeriod] = useState(
     getVal(settings, 'availability_period_minutes') || '60'
   )
@@ -109,7 +119,7 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
         },
         {
           key: PREFIX + 'group_display_order',
-          value: JSON.stringify(monitoringGroups),
+          value: JSON.stringify(displayOrder),
         },
         {
           key: PREFIX + 'availability_period_minutes',
@@ -192,10 +202,56 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
           <MultiSelect
             options={groupOptions}
             selected={monitoringGroups}
-            onChange={setMonitoringGroups}
+            onChange={(next) => {
+              setMonitoringGroups(next)
+              setDisplayOrder((prev) => [
+                ...prev.filter((g) => next.includes(g)),
+                ...next.filter((g) => !prev.includes(g)),
+              ])
+            }}
             placeholder={t('Select groups...')}
           />
         </div>
+
+        {displayOrder.length > 1 && (
+          <div className='space-y-1'>
+            <Label>{t('Drag to adjust display order')}</Label>
+            <div className='flex flex-wrap gap-2'>
+              {displayOrder.map((group, idx) => (
+                <div
+                  key={group}
+                  draggable
+                  onDragStart={() => {
+                    dragIndexRef.current = idx
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    const from = dragIndexRef.current
+                    dragIndexRef.current = null
+                    if (from == null || from === idx) return
+                    setDisplayOrder((prev) => {
+                      const next = [...prev]
+                      const [moved] = next.splice(from, 1)
+                      next.splice(idx, 0, moved)
+                      return next
+                    })
+                  }}
+                  className='bg-muted/50 flex cursor-grab items-center gap-1 rounded-md border px-2 py-1 text-sm select-none active:cursor-grabbing'
+                >
+                  <GripVertical
+                    size={13}
+                    className='text-muted-foreground/70 shrink-0'
+                  />
+                  <span className='text-muted-foreground font-mono text-xs'>
+                    {idx + 1}.
+                  </span>
+                  {group}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className='grid gap-4 sm:grid-cols-3'>
           <div className='space-y-1'>

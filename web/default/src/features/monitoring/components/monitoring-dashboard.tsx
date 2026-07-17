@@ -267,6 +267,8 @@ export default function MonitoringDashboard() {
           (g.group_name || '').toLowerCase().includes(kw)
         )
       : groups
+    // 'default' 保持后端顺序（管理员配置的 group_display_order），不做本地重排
+    if (sortMode === 'default') return filtered
     return [...filtered].sort((a, b) => compareGroups(a, b, sortMode))
   }, [groups, keyword, sortMode])
 
@@ -287,6 +289,7 @@ export default function MonitoringDashboard() {
 
   const sortItems = useMemo(
     () => [
+      { value: 'default', label: t('Default order') },
       { value: 'status', label: t('Sort by status') },
       { value: 'name', label: t('Sort by name') },
       { value: 'availability', label: t('Sort by availability') },
@@ -370,6 +373,9 @@ export default function MonitoringDashboard() {
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false}>
                 <SelectGroup>
+                  <SelectItem value="default">
+                    {t('Default order')}
+                  </SelectItem>
                   <SelectItem value="status">
                     {t('Sort by status')}
                   </SelectItem>

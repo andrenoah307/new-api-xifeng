@@ -18,10 +18,11 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { PublicLayout } from '@/components/layout'
+import { AuthenticatedLayout, Main, PublicLayout } from '@/components/layout'
 import MonitoringDashboard from '@/features/monitoring'
 import { getStatus } from '@/lib/api'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
+import { useAuthStore } from '@/stores/auth-store'
 
 export const Route = createFileRoute('/monitoring/')({
   // 分组监控无需登录即可查看，仅受「顶部导航-分组监控」开关控制。
@@ -38,6 +39,20 @@ export const Route = createFileRoute('/monitoring/')({
 })
 
 function MonitoringPage() {
+  // 登录用户保留控制台外壳（侧边栏），未登录访客用公开布局。
+  // 同一路径不能挂两个路由，AuthenticatedLayout 支持 children 直接嵌入。
+  const user = useAuthStore((state) => state.auth.user)
+
+  if (user) {
+    return (
+      <AuthenticatedLayout>
+        <Main className='p-0'>
+          <MonitoringDashboard />
+        </Main>
+      </AuthenticatedLayout>
+    )
+  }
+
   return (
     <PublicLayout showMainContainer={false}>
       <div className='pt-16 sm:pt-20'>
