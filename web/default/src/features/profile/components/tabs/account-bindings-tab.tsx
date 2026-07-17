@@ -31,6 +31,7 @@ import { OAUTH_BIND_STORAGE_KEY } from '@/features/auth/constants'
 import { useDialogs } from '@/hooks/use-dialog'
 import { useStatus } from '@/hooks/use-status'
 import {
+  getOAuthState,
   handleGitHubOAuth,
   handleOIDCOAuth,
   handleDiscordOAuth,
@@ -72,7 +73,14 @@ export function AccountBindingsTab({
   const [unbinding, setUnbinding] = useState(false)
 
   const customProviders = status?.custom_oauth_providers as
-    | Array<{ id: string; name: string }>
+    | Array<{
+        id: number
+        name: string
+        slug: string
+        client_id?: string
+        authorization_endpoint?: string
+        scopes?: string
+      }>
     | undefined
 
   const fetchCustomBindings = useCallback(async () => {
@@ -115,9 +123,32 @@ export function AccountBindingsTab({
     }
   }
 
-  const handleBindCustomOAuth = (provider: { id: string; name: string }) => {
-    const redirectUrl = `${window.location.origin}/oauth/${provider.id}?bind=true`
-    window.location.href = `/api/oauth/${provider.id}?redirect=${encodeURIComponent(redirectUrl)}`
+  // 与登录流程一致：前端拼授权 URL、redirect_uri 用 slug（后端只按 slug 注册提供商）；
+  // 弹窗打开使回调页通过 window.opener 识别为绑定模式
+  const handleBindCustomOAuth = async (provider: {
+    slug: string
+    client_id?: string
+    authorization_endpoint?: string
+    scopes?: string
+  }) => {
+    if (!provider.authorization_endpoint || !provider.client_id) {
+      toast.error(t('Bind failed'))
+      return
+    }
+    const state = await getOAuthState()
+    if (!state) return
+    const url = new URL(provider.authorization_endpoint)
+    url.searchParams.set('client_id', provider.client_id)
+    url.searchParams.set(
+      'redirect_uri',
+      `${window.location.origin}/oauth/${provider.slug}`
+    )
+    url.searchParams.set('response_type', 'code')
+    url.searchParams.set('state', state)
+    if (provider.scopes) {
+      url.searchParams.set('scope', provider.scopes)
+    }
+    window.open(url.toString(), '_blank')
   }
 
   useEffect(() => {

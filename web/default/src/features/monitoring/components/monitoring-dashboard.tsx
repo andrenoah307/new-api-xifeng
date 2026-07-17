@@ -268,6 +268,8 @@ export default function MonitoringDashboard() {
           (g.group_name || '').toLowerCase().includes(kw)
         )
       : groups
+    // 'default' 保持后端顺序（管理员配置的 group_display_order），不做本地重排
+    if (sortMode === 'default') return filtered
     return [...filtered].sort((a, b) => compareGroups(a, b, sortMode))
   }, [groups, keyword, sortMode])
 
@@ -361,6 +363,9 @@ export default function MonitoringDashboard() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="default">
+                  {t('Default order')}
+                </SelectItem>
                 <SelectItem value="status">
                   {t('Sort by status')}
                 </SelectItem>

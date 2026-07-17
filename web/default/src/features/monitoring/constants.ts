@@ -88,7 +88,8 @@ export function computeRateFromHistory(
   return weightedSum / totalRequests
 }
 
-export type SortMode = 'status' | 'name' | 'availability'
+// 'default' = 保持后端顺序（管理员在分组监控设置里配置的 group_display_order）
+export type SortMode = 'default' | 'status' | 'name' | 'availability'
 
 export function compareGroups<
   T extends {
@@ -113,16 +114,24 @@ export function compareGroups<
   }
 }
 
-const SORT_KEY = 'monitoring-sort-mode'
+// v2：新增 'default'（后端顺序）档并作为默认值；升级键名让存过 'status' 的
+// 老用户也回到默认顺序，否则管理员配置的显示顺序看起来仍然"无效"
+const SORT_KEY = 'monitoring-sort-mode-v2'
 
 export function loadSortMode(): SortMode {
   try {
     const v = localStorage.getItem(SORT_KEY)
-    if (v === 'name' || v === 'availability' || v === 'status') return v
+    if (
+      v === 'default' ||
+      v === 'name' ||
+      v === 'availability' ||
+      v === 'status'
+    )
+      return v
   } catch {
     /* noop */
   }
-  return 'status'
+  return 'default'
 }
 
 export function saveSortMode(mode: SortMode): void {
