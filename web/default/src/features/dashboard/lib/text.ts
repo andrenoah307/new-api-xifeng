@@ -37,7 +37,9 @@ export function resolveAnnouncementText(
   const content = item.contentI18n?.[lang]?.trim()
     ? item.contentI18n[lang]
     : item.content
-  const extra = item.extraI18n?.[lang]?.trim() ? item.extraI18n[lang] : item.extra
+  const extra = item.extraI18n?.[lang]?.trim()
+    ? item.extraI18n[lang]
+    : item.extra
   return { content, extra }
 }
 
@@ -50,10 +52,10 @@ export function getPreviewText(
 ): string {
   if (!content) return ''
   const plainText = content
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/[#*_]/g, '') // Remove Markdown formatting symbols
+    .replaceAll(/<[^>]*>/g, '') // Remove HTML tags
+    .replaceAll(/[#*_]/g, '') // Remove Markdown formatting symbols
     .trim()
   return plainText.length > maxLength
-    ? plainText.substring(0, maxLength) + '...'
+    ? `${plainText.slice(0, maxLength)}...`
     : plainText
 }

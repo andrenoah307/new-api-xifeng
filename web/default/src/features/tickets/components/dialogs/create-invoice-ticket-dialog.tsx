@@ -1,15 +1,20 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from 'react'
+import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Checkbox } from '@/components/ui/checkbox'
+import { z } from 'zod'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { useStatus } from '@/hooks/use-status'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -33,7 +39,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useStatus } from '@/hooks/use-status'
 import { formatTimestampToDate } from '@/lib/format'
+
 import {
   createInvoiceTicket,
   getEligibleInvoiceOrders,
@@ -53,10 +61,12 @@ function createSchema(t: (key: string) => string) {
       .min(1)
       .transform((v) => v.toUpperCase())
       .pipe(
-        z.string().regex(
-          TAX_NUMBER_REGEX,
-          t('Tax number must be 18 uppercase alphanumeric characters')
-        )
+        z
+          .string()
+          .regex(
+            TAX_NUMBER_REGEX,
+            t('Tax number must be 18 uppercase alphanumeric characters')
+          )
       ),
     email: z.string().email(),
     content: z.string().max(100).optional(),
@@ -130,9 +140,7 @@ export function CreateInvoiceTicketDialog({
 
   const toggleAll = useCallback(() => {
     setSelectedIds((prev) =>
-      prev.size === orders.length
-        ? new Set()
-        : new Set(orders.map((o) => o.id))
+      prev.size === orders.length ? new Set() : new Set(orders.map((o) => o.id))
     )
   }, [orders])
 
@@ -186,7 +194,7 @@ export function CreateInvoiceTicketDialog({
         tax_number: values.tax_number,
         email: values.email ?? '',
         content: values.content ?? '',
-        topup_order_ids: Array.from(selectedIds),
+        topup_order_ids: [...selectedIds],
         refund_conflict_acknowledged: refundConflictAcked,
       })
     },
@@ -208,33 +216,84 @@ export function CreateInvoiceTicketDialog({
     (minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount) ||
     (refundConflict?.has_refunds && !refundConflictAcked)
 
+  let orderRows: ReactNode
+  if (ordersLoading) {
+    orderRows = (
+      <TableRow>
+        <TableCell colSpan={5} className='text-center'>
+          {t('Loading...')}
+        </TableCell>
+      </TableRow>
+    )
+  } else if (orders.length === 0) {
+    orderRows = (
+      <TableRow>
+        <TableCell colSpan={5} className='text-muted-foreground text-center'>
+          {t('No eligible orders')}
+        </TableCell>
+      </TableRow>
+    )
+  } else {
+    orderRows = orders.map((order: TicketInvoiceOrder) => (
+      <TableRow
+        key={order.id}
+        className='cursor-pointer'
+        onClick={() => toggleOrder(order.id)}
+      >
+        <TableCell>
+          <Checkbox
+            checked={selectedIds.has(order.id)}
+            onCheckedChange={() => toggleOrder(order.id)}
+          />
+        </TableCell>
+        <TableCell className='truncate text-xs'>{order.trade_no}</TableCell>
+        <TableCell className='text-xs'>{order.payment_method || '-'}</TableCell>
+        <TableCell className='text-xs'>
+          ¥{Number(order.money || 0).toFixed(2)}
+        </TableCell>
+        <TableCell className='text-xs'>
+          {order.complete_time
+            ? formatTimestampToDate(order.complete_time)
+            : '-'}
+        </TableCell>
+      </TableRow>
+    ))
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-2xl'>
         <DialogHeader>
           <DialogTitle>{t('Apply for Invoice')}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className='space-y-5'>
           {isLimited && (
-            <Alert variant="warning">
+            <Alert variant='warning'>
               <AlertDescription>
-                {t('You\'ve used this week\'s limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.')}
+                {t(
+                  "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first."
+                )}
               </AlertDescription>
             </Alert>
           )}
 
           {refundConflict?.has_refunds && (
-            <Alert variant="warning">
-              <AlertDescription className="space-y-2">
-                <p className="font-medium">{t('Refund conflict warning')}</p>
-                <div className="flex items-center gap-2 pt-1">
+            <Alert variant='warning'>
+              <AlertDescription className='space-y-2'>
+                <p className='font-medium'>{t('Refund conflict warning')}</p>
+                <div className='flex items-center gap-2 pt-1'>
                   <Checkbox
-                    id="refund-conflict-ack"
+                    id='refund-conflict-ack'
                     checked={refundConflictAcked}
-                    onCheckedChange={(checked) => setRefundConflictAcked(checked === true)}
+                    onCheckedChange={(checked) =>
+                      setRefundConflictAcked(checked === true)
+                    }
                   />
-                  <label htmlFor="refund-conflict-ack" className="text-xs cursor-pointer">
+                  <label
+                    htmlFor='refund-conflict-ack'
+                    className='cursor-pointer text-xs'
+                  >
                     {t('Refund conflict acknowledge')}
                   </label>
                 </div>
@@ -244,14 +303,14 @@ export function CreateInvoiceTicketDialog({
 
           {/* Step 1: Order selection */}
           <div>
-            <h4 className="mb-2 text-sm font-medium">
+            <h4 className='mb-2 text-sm font-medium'>
               1. {t('Select Top-up Orders')}
             </h4>
-            <div className="max-h-[200px] overflow-y-auto rounded-md border">
+            <div className='max-h-[200px] overflow-y-auto rounded-md border'>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10">
+                    <TableHead className='w-10'>
                       <Checkbox
                         checked={
                           orders.length > 0 &&
@@ -261,81 +320,34 @@ export function CreateInvoiceTicketDialog({
                       />
                     </TableHead>
                     <TableHead>{t('Trade No.')}</TableHead>
-                    <TableHead className="w-[100px]">
+                    <TableHead className='w-[100px]'>
                       {t('Payment Method')}
                     </TableHead>
-                    <TableHead className="w-[100px]">
+                    <TableHead className='w-[100px]'>
                       {t('Paid Amount')}
                     </TableHead>
-                    <TableHead className="w-[160px]">
+                    <TableHead className='w-[160px]'>
                       {t('Top-up Time')}
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {ordersLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center">
-                        {t('Loading...')}
-                      </TableCell>
-                    </TableRow>
-                  ) : orders.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={5}
-                        className="text-muted-foreground text-center"
-                      >
-                        {t('No eligible orders')}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    orders.map((order: TicketInvoiceOrder) => (
-                      <TableRow
-                        key={order.id}
-                        className="cursor-pointer"
-                        onClick={() => toggleOrder(order.id)}
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedIds.has(order.id)}
-                            onCheckedChange={() => toggleOrder(order.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="truncate text-xs">
-                          {order.trade_no}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {order.payment_method || '-'}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          ¥{Number(order.money || 0).toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {order.complete_time
-                            ? formatTimestampToDate(order.complete_time)
-                            : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
+                <TableBody>{orderRows}</TableBody>
               </Table>
             </div>
-            <div className="bg-muted mt-2 flex items-center justify-between rounded-md px-3 py-2 text-sm">
-              <span className="text-muted-foreground">
-                {t('Selected')}: {selectedIds.size}/{orders.length} {t('orders_unit')}
+            <div className='bg-muted mt-2 flex items-center justify-between rounded-md px-3 py-2 text-sm'>
+              <span className='text-muted-foreground'>
+                {t('Selected')}: {selectedIds.size}/{orders.length}{' '}
+                {t('orders_unit')}
               </span>
               <span>
-                <span className="text-muted-foreground mr-1">
+                <span className='text-muted-foreground mr-1'>
                   {t('Invoice Amount')}:
                 </span>
-                <span className="font-medium">
-                  ¥{invoiceAmount.toFixed(2)}
-                </span>
+                <span className='font-medium'>¥{invoiceAmount.toFixed(2)}</span>
               </span>
             </div>
             {minInvoiceAmount > 0 && (
-              <p className="text-muted-foreground mt-2 text-xs">
+              <p className='text-muted-foreground mt-2 text-xs'>
                 {t('Minimum invoice amount: {{amount}} CNY', {
                   amount: minInvoiceAmount,
                 })}
@@ -345,19 +357,19 @@ export function CreateInvoiceTicketDialog({
 
           {/* Step 2: Invoice details form */}
           <div>
-            <h4 className="mb-2 text-sm font-medium">
+            <h4 className='mb-2 text-sm font-medium'>
               2. {t('Fill in Invoice Header')}
             </h4>
             <Form {...form}>
               <form
-                id="invoice-ticket-form"
+                id='invoice-ticket-form'
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-3"
+                className='space-y-3'
               >
-                <div className="grid grid-cols-2 gap-3">
+                <div className='grid grid-cols-2 gap-3'>
                   <FormField
                     control={form.control}
-                    name="company_name"
+                    name='company_name'
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t('Organization Name')}</FormLabel>
@@ -373,16 +385,14 @@ export function CreateInvoiceTicketDialog({
                   />
                   <FormField
                     control={form.control}
-                    name="tax_number"
+                    name='tax_number'
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t('Taxpayer ID')}</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
-                            placeholder={t(
-                              'Unified social credit code'
-                            )}
+                            placeholder={t('Unified social credit code')}
                           />
                         </FormControl>
                         <FormMessage />
@@ -390,7 +400,7 @@ export function CreateInvoiceTicketDialog({
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className='grid grid-cols-2 gap-3'>
                   <FormItem>
                     <FormLabel>{t('Invoice Content')}</FormLabel>
                     <Input
@@ -405,17 +415,15 @@ export function CreateInvoiceTicketDialog({
                   </FormItem>
                   <FormField
                     control={form.control}
-                    name="email"
+                    name='email'
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t('Receiving Email')}</FormLabel>
                         <FormControl>
                           <Input
                             {...field}
-                            type="email"
-                            placeholder={t(
-                              'Email to receive invoice'
-                            )}
+                            type='email'
+                            placeholder={t('Email to receive invoice')}
                           />
                         </FormControl>
                         <FormMessage />
@@ -425,7 +433,7 @@ export function CreateInvoiceTicketDialog({
                 </div>
                 <FormField
                   control={form.control}
-                  name="content"
+                  name='content'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t('Invoice Notes')}</FormLabel>
@@ -447,8 +455,8 @@ export function CreateInvoiceTicketDialog({
 
         <DialogFooter>
           <Button
-            type="submit"
-            form="invoice-ticket-form"
+            type='submit'
+            form='invoice-ticket-form'
             disabled={isSubmitDisabled}
           >
             {mutation.isPending ? t('Submitting...') : t('Submit Application')}

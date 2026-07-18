@@ -297,46 +297,49 @@ export function AccountBindingsTab({
   return (
     <>
       <div className='grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3'>
-        {bindings.map((binding) => (
-          <div
-            key={binding.id}
-            className='flex items-center justify-between gap-2.5 rounded-lg border p-2.5 sm:gap-3 sm:p-3'
-          >
-            <div className='flex min-w-0 items-center gap-2.5 sm:gap-3'>
-              <div className='bg-muted shrink-0 rounded-md p-1.5 sm:p-2'>
-                <binding.icon className='h-4 w-4' />
-              </div>
-              <div className='min-w-0'>
-                <div className='flex items-center gap-1.5'>
-                  <p className='text-sm font-medium'>{binding.label}</p>
-                  {binding.isBound && (
-                    <StatusBadge
-                      label={t('Bound')}
-                      variant='success'
-                      copyable={false}
-                    />
-                  )}
-                </div>
-                <p className='text-muted-foreground truncate text-xs'>
-                  {binding.value || t('Not bound')}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant='outline'
-              size='sm'
-              className='h-7 shrink-0 px-2.5 text-xs'
-              onClick={binding.onBind}
-              disabled={binding.isBound && binding.id !== 'email'}
+        {bindings.map((binding) => {
+          let buttonLabel = t('Bind')
+          if (binding.isBound) {
+            buttonLabel = binding.id === 'email' ? t('Change') : t('Bound')
+          }
+
+          return (
+            <div
+              key={binding.id}
+              className='flex items-center justify-between gap-2.5 rounded-lg border p-2.5 sm:gap-3 sm:p-3'
             >
-              {binding.isBound
-                ? binding.id === 'email'
-                  ? t('Change')
-                  : t('Bound')
-                : t('Bind')}
-            </Button>
-          </div>
-        ))}
+              <div className='flex min-w-0 items-center gap-2.5 sm:gap-3'>
+                <div className='bg-muted shrink-0 rounded-md p-1.5 sm:p-2'>
+                  <binding.icon className='h-4 w-4' />
+                </div>
+                <div className='min-w-0'>
+                  <div className='flex items-center gap-1.5'>
+                    <p className='text-sm font-medium'>{binding.label}</p>
+                    {binding.isBound && (
+                      <StatusBadge
+                        label={t('Bound')}
+                        variant='success'
+                        copyable={false}
+                      />
+                    )}
+                  </div>
+                  <p className='text-muted-foreground truncate text-xs'>
+                    {binding.value || t('Not bound')}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant='outline'
+                size='sm'
+                className='h-7 shrink-0 px-2.5 text-xs'
+                onClick={binding.onBind}
+                disabled={binding.isBound && binding.id !== 'email'}
+              >
+                {buttonLabel}
+              </Button>
+            </div>
+          )
+        })}
       </div>
 
       {/* Custom OAuth Bindings */}

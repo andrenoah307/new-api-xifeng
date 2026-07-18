@@ -1,10 +1,11 @@
-import { createSectionRegistry } from '../utils/section-registry'
-import { CnDisclaimerSection } from '../site/cn-disclaimer-section'
 import { RegionRestrictionSection } from '../security/region-restriction-section'
+import { CnDisclaimerSection } from '../site/cn-disclaimer-section'
+/* eslint-disable react-refresh/only-export-components -- this JSX registry intentionally exports lookup utilities */
+import { createSectionRegistry } from '../utils/section-registry'
 import { EmailTemplateSettingsSection } from './email-template-settings-section'
+import { GroupMonitoringSettingsSection } from './group-monitoring-settings-section'
 import { HiddenModelsSection } from './hidden-models-section'
 import { TicketSettingsSection } from './ticket-settings-section'
-import { GroupMonitoringSettingsSection } from './group-monitoring-settings-section'
 
 export type CustomSettingsData = Record<string, string>
 

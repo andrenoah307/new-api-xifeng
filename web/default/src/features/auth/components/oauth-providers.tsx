@@ -132,21 +132,19 @@ export function OAuthProviders({
       const iconValue = provider.icon?.trim()
       const isImageUrl =
         !!iconValue && /^(https?:\/\/|data:image\/|\/)/i.test(iconValue)
+      let providerIcon: ReactNode
+      if (iconValue) {
+        providerIcon = isImageUrl ? (
+          <img src={iconValue} alt='' className='h-4 w-4 object-contain' />
+        ) : (
+          <span className='text-base leading-none'>{iconValue}</span>
+        )
+      }
       providerButtons.push({
         key: `custom-${provider.slug}`,
         label: t('Continue with {{name}}', { name: provider.name }),
         onClick: () => handleCustomOAuthLogin(provider),
-        icon: iconValue ? (
-          isImageUrl ? (
-            <img
-              src={iconValue}
-              alt=''
-              className='h-4 w-4 object-contain'
-            />
-          ) : (
-            <span className='text-base leading-none'>{iconValue}</span>
-          )
-        ) : undefined,
+        icon: providerIcon,
       })
     }
   }

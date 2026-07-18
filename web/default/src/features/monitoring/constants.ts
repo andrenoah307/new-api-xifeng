@@ -79,7 +79,10 @@ export function computeRateFromHistory(
       (h[field] as number) >= 0
   )
   if (valid.length === 0) return null
-  const totalRequests = valid.reduce((s, h) => s + (h.request_count as number), 0)
+  const totalRequests = valid.reduce(
+    (s, h) => s + (h.request_count as number),
+    0
+  )
   if (totalRequests === 0) return null
   const weightedSum = valid.reduce(
     (s, h) => s + (h[field] as number) * (h.request_count as number),
@@ -126,8 +129,9 @@ export function loadSortMode(): SortMode {
       v === 'name' ||
       v === 'availability' ||
       v === 'status'
-    )
+    ) {
       return v
+    }
   } catch {
     /* noop */
   }
@@ -167,8 +171,9 @@ export function segmentLabel(
 ): string {
   if (requestCount != null && requestCount <= 0) return t('No data available')
   if (rate == null || rate < 0) return t('No data available')
-  if (rate >= 99)
+  if (rate >= 99) {
     return avgFrt != null && avgFrt > 8000 ? t('Slow Response') : t('Normal')
+  }
   if (rate >= 95) return t('Minor Jitter')
   if (rate >= 80) return t('Partial Anomaly')
   if (rate >= 50) return t('Severe Anomaly')
@@ -176,17 +181,21 @@ export function segmentLabel(
 }
 
 export function alignAndFillHistory(
-  history: { recorded_at: number; availability_rate?: number | null; cache_hit_rate?: number | null }[],
+  history: {
+    recorded_at: number
+    availability_rate?: number | null
+    cache_hit_rate?: number | null
+  }[],
   intervalMinutes: number
 ): { time: string; value: number; type: 'availability' | 'cache' }[] {
   if (!history || history.length === 0) return []
 
-  const sorted = [...history].sort(
-    (a, b) => a.recorded_at - b.recorded_at
-  )
+  const sorted = [...history].sort((a, b) => a.recorded_at - b.recorded_at)
+  const last = sorted.at(-1)
+  if (!last) return []
 
   const startMs = sorted[0].recorded_at * 1000
-  const endMs = sorted[sorted.length - 1].recorded_at * 1000
+  const endMs = last.recorded_at * 1000
   const stepMs = (intervalMinutes || 5) * 60 * 1000
 
   const byTime: Record<number, (typeof sorted)[0]> = {}
@@ -195,7 +204,11 @@ export function alignAndFillHistory(
     byTime[aligned] = h
   }
 
-  const result: { time: string; value: number; type: 'availability' | 'cache' }[] = []
+  const result: {
+    time: string
+    value: number
+    type: 'availability' | 'cache'
+  }[] = []
   let lastAvail: number | null = null
   let lastCache: number | null = null
 
@@ -203,10 +216,12 @@ export function alignAndFillHistory(
     const aligned = Math.round(t / stepMs) * stepMs
     const entry = byTime[aligned]
     if (entry) {
-      if (entry.availability_rate != null && entry.availability_rate >= 0)
+      if (entry.availability_rate != null && entry.availability_rate >= 0) {
         lastAvail = entry.availability_rate
-      if (entry.cache_hit_rate != null && entry.cache_hit_rate >= 0)
+      }
+      if (entry.cache_hit_rate != null && entry.cache_hit_rate >= 0) {
         lastCache = entry.cache_hit_rate
+      }
     }
     const timeStr = new Date(aligned).toLocaleTimeString([], {
       hour: '2-digit',

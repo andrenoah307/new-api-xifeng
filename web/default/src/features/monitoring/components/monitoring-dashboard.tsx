@@ -1,19 +1,9 @@
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  useEffect,
-  memo,
-} from 'react'
-import { useTranslation } from 'react-i18next'
-import {
-  useQuery,
-  useMutation,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Activity, RefreshCw, Search, X } from 'lucide-react'
+import { useCallback, useMemo, useRef, useState, useEffect, memo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -25,13 +15,15 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsAdmin } from '@/hooks/use-admin'
-import type { MonitoringGroupWithHistory, MonitoringHistoryPoint } from '../api'
+import { useStatus } from '@/hooks/use-status'
+
 import {
   getMonitoringGroups,
   getGroupHistory,
   refreshMonitoringData,
+  type MonitoringGroupWithHistory,
+  type MonitoringHistoryPoint,
 } from '../api'
-import type { SortMode } from '../constants'
 import {
   avgAvailability,
   compareGroups,
@@ -40,10 +32,10 @@ import {
   saveSortMode,
   rateAccentColor,
   computeRateFromHistory,
+  type SortMode,
 } from '../constants'
-import GroupStatusCard from './group-status-card'
 import GroupDetailPanel from './group-detail-panel'
-import { useStatus } from '@/hooks/use-status'
+import GroupStatusCard from './group-status-card'
 
 const POLL_INTERVAL_MS = 60_000
 
@@ -77,8 +69,8 @@ const RefreshButton = memo(function RefreshButton({
 
   return (
     <Button
-      variant="ghost"
-      size="sm"
+      variant='ghost'
+      size='sm'
       disabled={refreshing}
       onClick={onRefresh}
       title={
@@ -89,7 +81,7 @@ const RefreshButton = memo(function RefreshButton({
         size={14}
         className={refreshing ? 'animate-spin' : undefined}
       />
-      <span className="text-muted-foreground ml-1 font-mono text-[11px]">
+      <span className='text-muted-foreground ml-1 font-mono text-[11px]'>
         {label}
       </span>
     </Button>
@@ -106,12 +98,10 @@ function EmptyState({
   desc?: string
 }) {
   return (
-    <div className="border-border flex flex-col items-center justify-center rounded-2xl border border-dashed py-24 text-center">
-      <div className="text-muted-foreground mb-4">{icon}</div>
-      <p className="text-foreground text-base font-semibold">{title}</p>
-      {desc && (
-        <p className="text-muted-foreground mt-1.5 text-sm">{desc}</p>
-      )}
+    <div className='border-border flex flex-col items-center justify-center rounded-2xl border border-dashed py-24 text-center'>
+      <div className='text-muted-foreground mb-4'>{icon}</div>
+      <p className='text-foreground text-base font-semibold'>{title}</p>
+      {desc && <p className='text-muted-foreground mt-1.5 text-sm'>{desc}</p>}
     </div>
   )
 }
@@ -121,8 +111,7 @@ export default function MonitoringDashboard() {
   const admin = useIsAdmin()
   const queryClient = useQueryClient()
   const { status } = useStatus()
-  const regionBlockedGroups: string[] =
-    status?.region_blocked_groups ?? []
+  const regionBlockedGroups: string[] = status?.region_blocked_groups ?? []
 
   const [keyword, setKeyword] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>(loadSortMode)
@@ -135,15 +124,15 @@ export default function MonitoringDashboard() {
   const historyCache = useRef<
     Record<
       string,
-      { history: MonitoringGroupWithHistory['history']; intervalMinutes: number }
+      {
+        history: MonitoringGroupWithHistory['history']
+        intervalMinutes: number
+      }
     >
   >({})
 
   // 1. Fetch groups list with auto-refresh
-  const {
-    data: rawGroups,
-    isLoading: groupsLoading,
-  } = useQuery({
+  const { data: rawGroups, isLoading: groupsLoading } = useQuery({
     queryKey: ['monitoring', 'groups', admin],
     queryFn: () => getMonitoringGroups(admin),
     refetchInterval: POLL_INTERVAL_MS,
@@ -157,9 +146,7 @@ export default function MonitoringDashboard() {
   )
   const groupNamesKey = groupNames.join(',')
 
-  const {
-    data: historyMap,
-  } = useQuery({
+  const { data: historyMap } = useQuery({
     queryKey: ['monitoring', 'allHistory', groupNamesKey, admin],
     queryFn: async () => {
       const results = await Promise.all(
@@ -168,13 +155,19 @@ export default function MonitoringDashboard() {
             const data = await getGroupHistory(name, admin)
             return [name, data] as const
           } catch {
-            return [name, { history: [] as MonitoringHistoryPoint[], intervalMinutes: 5 }] as const
+            return [
+              name,
+              { history: [] as MonitoringHistoryPoint[], intervalMinutes: 5 },
+            ] as const
           }
         })
       )
       const map: Record<
         string,
-        { history: MonitoringGroupWithHistory['history']; intervalMinutes: number }
+        {
+          history: MonitoringGroupWithHistory['history']
+          intervalMinutes: number
+        }
       > = {}
       for (const [name, data] of results) {
         map[name] = data
@@ -260,9 +253,7 @@ export default function MonitoringDashboard() {
   const visible = useMemo(() => {
     const kw = keyword.trim().toLowerCase()
     const filtered = kw
-      ? groups.filter((g) =>
-          (g.group_name || '').toLowerCase().includes(kw)
-        )
+      ? groups.filter((g) => (g.group_name || '').toLowerCase().includes(kw))
       : groups
     // 'default' 保持后端顺序（管理员配置的 group_display_order），不做本地重排
     if (sortMode === 'default') return filtered
@@ -271,7 +262,9 @@ export default function MonitoringDashboard() {
 
   const onlineCount = groups.filter(isGroupOnline).length
   const noDataCount = groups.filter(
-    (g) => (g.total_channels ?? 0) === 0 && (g.availability_rate == null || g.availability_rate < 0)
+    (g) =>
+      (g.total_channels ?? 0) === 0 &&
+      (g.availability_rate == null || g.availability_rate < 0)
   ).length
   const offlineCount = groups.length - onlineCount - noDataCount
   const avgAvail = useMemo(() => {
@@ -285,26 +278,29 @@ export default function MonitoringDashboard() {
   const loading = groupsLoading && groups.length === 0
 
   return (
-    <div className="px-4 pb-12 sm:px-8 lg:px-10">
-      <div className="mx-auto w-full max-w-[1440px]">
+    <div className='px-4 pb-12 sm:px-8 lg:px-10'>
+      <div className='mx-auto w-full max-w-[1440px]'>
         {/* Title bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 py-6 sm:py-8">
-          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-            <h1 className="text-foreground m-0 text-xl font-semibold tracking-tight">
+        <div className='flex flex-wrap items-center justify-between gap-4 py-6 sm:py-8'>
+          <div className='flex flex-wrap items-baseline gap-x-4 gap-y-2'>
+            <h1 className='text-foreground m-0 text-xl font-semibold tracking-tight'>
               {t('Group Monitoring')}
             </h1>
             {!loading && groups.length > 0 && (
-              <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="bg-success inline-block h-1.5 w-1.5 rounded-full" style={{ background: '#22c55e' }} />
-                  <span className="text-foreground font-mono">
+              <div className='text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs'>
+                <span className='inline-flex items-center gap-1.5'>
+                  <span
+                    className='bg-success inline-block h-1.5 w-1.5 rounded-full'
+                    style={{ background: '#22c55e' }}
+                  />
+                  <span className='text-foreground font-mono'>
                     {onlineCount}
                   </span>
                   <span>{t('Online')}</span>
                 </span>
-                <span className="inline-flex items-center gap-1.5">
+                <span className='inline-flex items-center gap-1.5'>
                   <span
-                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    className='inline-block h-1.5 w-1.5 rounded-full'
                     style={{
                       background:
                         offlineCount > 0
@@ -312,16 +308,16 @@ export default function MonitoringDashboard() {
                           : 'color-mix(in oklch, var(--muted-foreground) 30%, transparent)',
                     }}
                   />
-                  <span className="text-foreground font-mono">
+                  <span className='text-foreground font-mono'>
                     {offlineCount}
                   </span>
                   <span>{t('Offline')}</span>
                 </span>
                 {avgAvail != null && (
-                  <span className="inline-flex items-baseline gap-1.5">
+                  <span className='inline-flex items-baseline gap-1.5'>
                     <span>{t('Average Availability')}</span>
                     <span
-                      className="font-mono"
+                      className='font-mono'
                       style={{ color: rateAccentColor(avgAvail) }}
                     >
                       {avgAvail.toFixed(1)}%
@@ -332,43 +328,37 @@ export default function MonitoringDashboard() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
+          <div className='flex flex-wrap items-center gap-2'>
+            <div className='relative'>
               <Search
                 size={14}
-                className="text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2"
+                className='text-muted-foreground absolute top-1/2 left-2.5 -translate-y-1/2'
               />
               <Input
-                className="h-9 w-[200px] pl-8 pr-8"
+                className='h-9 w-[200px] pr-8 pl-8'
                 placeholder={t('Search groups')}
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
               />
               {keyword && (
                 <button
-                  className="text-muted-foreground hover:text-foreground absolute right-2 top-1/2 -translate-y-1/2"
+                  className='text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2'
                   onClick={() => setKeyword('')}
-                  type="button"
+                  type='button'
                 >
                   <X size={14} />
                 </button>
               )}
             </div>
             <Select value={sortMode} onValueChange={handleSortChange}>
-              <SelectTrigger className="h-9 w-[130px]">
+              <SelectTrigger className='h-9 w-[130px]'>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="default">
-                  {t('Default order')}
-                </SelectItem>
-                <SelectItem value="status">
-                  {t('Sort by status')}
-                </SelectItem>
-                <SelectItem value="name">
-                  {t('Sort by name')}
-                </SelectItem>
-                <SelectItem value="availability">
+                <SelectItem value='default'>{t('Default order')}</SelectItem>
+                <SelectItem value='status'>{t('Sort by status')}</SelectItem>
+                <SelectItem value='name'>{t('Sort by name')}</SelectItem>
+                <SelectItem value='availability'>
                   {t('Sort by availability')}
                 </SelectItem>
               </SelectContent>
@@ -384,33 +374,36 @@ export default function MonitoringDashboard() {
         </div>
 
         {/* Card grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4">
+        {loading && (
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4'>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
-                className="border-border bg-card rounded-2xl border p-5"
+                className='border-border bg-card rounded-2xl border p-5'
               >
-                <Skeleton className="mb-4 h-5 w-1/2" />
-                <Skeleton className="mb-2 h-4 w-full" />
-                <Skeleton className="mb-2 h-4 w-3/4" />
-                <Skeleton className="mt-4 h-6 w-full" />
+                <Skeleton className='mb-4 h-5 w-1/2' />
+                <Skeleton className='mb-2 h-4 w-full' />
+                <Skeleton className='mb-2 h-4 w-3/4' />
+                <Skeleton className='mt-4 h-6 w-full' />
               </div>
             ))}
           </div>
-        ) : groups.length === 0 ? (
+        )}
+        {!loading && groups.length === 0 && (
           <EmptyState
-            icon={<Activity size={32} className="opacity-40" />}
+            icon={<Activity size={32} className='opacity-40' />}
             title={t('No monitoring groups')}
             desc={t('Configure in System Settings - Group Monitoring')}
           />
-        ) : visible.length === 0 ? (
+        )}
+        {!loading && groups.length > 0 && visible.length === 0 && (
           <EmptyState
-            icon={<X size={32} className="opacity-40" />}
+            icon={<X size={32} className='opacity-40' />}
             title={t('No groups matching "{{kw}}"', { kw: keyword })}
           />
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4">
+        )}
+        {!loading && visible.length > 0 && (
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4'>
             {visible.map((g) => (
               <GroupStatusCard
                 key={g.group_name}

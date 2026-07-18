@@ -1,12 +1,14 @@
+import { Plus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, X } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 
 interface MapPatternsRow {
+  id: string
   key: string
   patterns: string
 }
@@ -43,6 +45,7 @@ export function MapPatternsField({
       }
       const rows = Object.entries(obj as Record<string, unknown>).map(
         ([key, patterns]) => ({
+          id: key,
           key,
           patterns: Array.isArray(patterns) ? patterns.join(', ') : '',
         })
@@ -115,7 +118,7 @@ export function MapPatternsField({
           }}
         >
           {rows.map((row, i) => (
-            <div key={i} className='flex items-center gap-2'>
+            <div key={row.id} className='flex items-center gap-2'>
               <Input
                 value={row.key}
                 placeholder={keyPlaceholder}
@@ -155,7 +158,12 @@ export function MapPatternsField({
             type='button'
             variant='outline'
             size='sm'
-            onClick={() => commitRows([...rows, { key: '', patterns: '' }])}
+            onClick={() =>
+              commitRows([
+                ...rows,
+                { id: crypto.randomUUID(), key: '', patterns: '' },
+              ])
+            }
           >
             <Plus className='mr-1 h-3.5 w-3.5' />
             {t('Add Entry')}

@@ -1,11 +1,13 @@
+import { useQuery } from '@tanstack/react-query'
+import { getCoreRowModel, useReactTable } from '@tanstack/react-table'
+import { Download } from 'lucide-react'
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
-import { useStatus } from '@/hooks/use-status'
-import { Download } from 'lucide-react'
+import { toast } from 'sonner'
+
+import { DataTablePagination } from '@/components/data-table/pagination'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +15,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -28,18 +31,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { DataTablePagination } from '@/components/data-table/pagination'
-import {
-  getCoreRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 import { CompactDateTimeRangePicker } from '@/features/usage-logs/components/compact-date-time-range-picker'
+import { useStatus } from '@/hooks/use-status'
 import { formatTimestampToDate } from '@/lib/format'
-import { toast } from 'sonner'
-import {
-  getInvoiceExportList,
-  type InvoiceExportItem,
-} from '../../api'
+
+import { getInvoiceExportList, type InvoiceExportItem } from '../../api'
 import { TICKET_STATUS_CONFIG } from '../../constants'
 
 const TICKET_STATUS_OPTIONS = [
@@ -60,7 +56,7 @@ function csvField(value: string | number): string {
     s.includes('\n') ||
     s.includes('\r')
   ) {
-    return '"' + s.replace(/"/g, '""') + '"'
+    return `"${s.replaceAll('"', '""')}"`
   }
   return s
 }
@@ -95,7 +91,7 @@ function generateInvoiceCSV(
     ]
     lines.push(row.map(csvField).join(','))
   }
-  return BOM + lines.join('\r\n')
+  return `${BOM}${lines.join('\r\n')}`
 }
 
 function downloadCSV(csv: string, filename: string) {
@@ -145,8 +141,7 @@ export function ExportInvoiceDialog({
       p: page,
       page_size: PAGE_SIZE,
       keyword: searchKeyword || undefined,
-      status:
-        statusFilter !== '0' ? Number(statusFilter) : undefined,
+      status: statusFilter !== '0' ? Number(statusFilter) : undefined,
       start_time: dateRange.start
         ? Math.floor(dateRange.start.getTime() / 1000)
         : undefined,
@@ -163,7 +158,7 @@ export function ExportInvoiceDialog({
     enabled: open,
   })
 
-  const items = data?.items ?? []
+  const items = useMemo(() => data?.items ?? [], [data?.items])
   const total = data?.total ?? 0
 
   const allOnPageSelected =
@@ -239,15 +234,10 @@ export function ExportInvoiceDialog({
       toast.error(t('Please enter taxable service name'))
       return
     }
-    const csv = generateInvoiceCSV(
-      Array.from(selected.values()),
-      serviceName.trim()
-    )
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const csv = generateInvoiceCSV([...selected.values()], serviceName.trim())
+    const date = new Date().toISOString().slice(0, 10).replaceAll('-', '')
     downloadCSV(csv, `发票登记_${date}.csv`)
-    toast.success(
-      t('Exported {{count}} invoices', { count: selected.size })
-    )
+    toast.success(t('Exported {{count}} invoices', { count: selected.size }))
   }, [selected, serviceName, t])
 
   const table = useReactTable({
@@ -275,18 +265,18 @@ export function ExportInvoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-3xl'>
         <DialogHeader>
           <DialogTitle>{t('Export Invoice List')}</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-wrap items-center gap-2 py-2">
+        <div className='flex flex-wrap items-center gap-2 py-2'>
           <Input
             placeholder={t('Search by company name, email or amount...')}
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className="h-8 w-[200px]"
+            className='h-8 w-[200px]'
           />
           <Select
             value={statusFilter}
@@ -294,7 +284,7 @@ export function ExportInvoiceDialog({
               if (value != null) handleStatusChange(value)
             }}
           >
-            <SelectTrigger className="h-8 w-[130px]">
+            <SelectTrigger className='h-8 w-[130px]'>
               <SelectValue placeholder={t('Status')} />
             </SelectTrigger>
             <SelectContent>
@@ -309,47 +299,46 @@ export function ExportInvoiceDialog({
             start={dateRange.start}
             end={dateRange.end}
             onChange={handleDateChange}
-            className="w-auto"
+            className='w-auto'
           />
         </div>
 
-        <div className="rounded-md border">
+        <div className='rounded-md border'>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10">
+                <TableHead className='w-10'>
                   <Checkbox
                     checked={allOnPageSelected}
                     onCheckedChange={toggleAll}
                   />
                 </TableHead>
-                <TableHead className="w-16">ID</TableHead>
+                <TableHead className='w-16'>ID</TableHead>
                 <TableHead>{t('Company Name')}</TableHead>
                 <TableHead>{t('Email')}</TableHead>
-                <TableHead className="text-right">
-                  {t('Amount')}
-                </TableHead>
-                <TableHead className="text-center">
-                  {t('Orders')}
-                </TableHead>
+                <TableHead className='text-right'>{t('Amount')}</TableHead>
+                <TableHead className='text-center'>{t('Orders')}</TableHead>
                 <TableHead>{t('Status')}</TableHead>
                 <TableHead>{t('Created')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={8} className='py-8 text-center'>
                     {t('Loading...')}
                   </TableCell>
                 </TableRow>
-              ) : items.length === 0 ? (
+              )}
+              {!isLoading && items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={8} className='py-8 text-center'>
                     {t('No data')}
                   </TableCell>
                 </TableRow>
-              ) : (
+              )}
+              {!isLoading &&
+                items.length > 0 &&
                 items.map((item) => (
                   <TableRow key={item.ticket_id}>
                     <TableCell>
@@ -358,41 +347,38 @@ export function ExportInvoiceDialog({
                         onCheckedChange={() => toggleItem(item)}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-xs">
+                    <TableCell className='font-mono text-xs'>
                       #{item.ticket_id}
                     </TableCell>
-                    <TableCell className="max-w-[160px] truncate text-xs">
+                    <TableCell className='max-w-[160px] truncate text-xs'>
                       {item.company_name}
                     </TableCell>
-                    <TableCell className="max-w-[140px] truncate text-xs">
+                    <TableCell className='max-w-[140px] truncate text-xs'>
                       {item.email}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-xs">
+                    <TableCell className='text-right font-mono text-xs'>
                       ¥{item.total_money.toFixed(2)}
                     </TableCell>
-                    <TableCell className="text-center text-xs">
+                    <TableCell className='text-center text-xs'>
                       {item.order_count}
                     </TableCell>
-                    <TableCell className="text-xs">
+                    <TableCell className='text-xs'>
                       {statusLabel(item.status)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
+                    <TableCell className='text-muted-foreground text-xs'>
                       {formatTimestampToDate(item.created_time)}
                     </TableCell>
                   </TableRow>
-                ))
-              )}
+                ))}
             </TableBody>
           </Table>
         </div>
 
-        {total > PAGE_SIZE && (
-          <DataTablePagination table={table} />
-        )}
+        {total > PAGE_SIZE && <DataTablePagination table={table} />}
 
-        <DialogFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-sm">
+        <DialogFooter className='flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex flex-wrap items-center gap-2'>
+            <span className='text-muted-foreground text-sm'>
               {t('Selected {{count}} invoices', {
                 count: selected.size,
               })}
@@ -401,14 +387,14 @@ export function ExportInvoiceDialog({
               placeholder={t('Taxable Service Name')}
               value={serviceName}
               onChange={(e) => setServiceName(e.target.value)}
-              className="h-8 w-[180px]"
+              className='h-8 w-[180px]'
             />
           </div>
           <Button
             onClick={handleExport}
             disabled={selected.size === 0 || !serviceName.trim()}
           >
-            <Download className="mr-1.5 h-4 w-4" />
+            <Download className='mr-1.5 h-4 w-4' />
             {t('Export')}
           </Button>
         </DialogFooter>
