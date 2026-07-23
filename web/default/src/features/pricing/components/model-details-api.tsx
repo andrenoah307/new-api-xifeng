@@ -46,7 +46,7 @@ import {
   formatRateLimit,
   type SupportedParameter,
 } from '../lib/mock-stats'
-import { replaceModelInPath } from '../lib/model-helpers'
+import { getAvailableGroups, replaceModelInPath } from '../lib/model-helpers'
 import type { PricingModel } from '../types'
 
 // ---------------------------------------------------------------------------
@@ -665,9 +665,20 @@ function ParamRangeCell(props: { param: SupportedParameter }) {
 // Rate-limits table
 // ---------------------------------------------------------------------------
 
-function RateLimitsSection(props: { model: PricingModel }) {
+function RateLimitsSection(props: {
+  model: PricingModel
+  usableGroup: Record<string, { desc: string; ratio: number }>
+}) {
   const { t } = useTranslation()
-  const limits = useMemo(() => buildRateLimits(props.model), [props.model])
+  // 只展示当前用户可见的分组（与价格 tab 的 getAvailableGroups 口径一致）
+  const limits = useMemo(() => {
+    const available = new Set(
+      getAvailableGroups(props.model, props.usableGroup || {})
+    )
+    return buildRateLimits(props.model).filter((limit) =>
+      available.has(limit.group)
+    )
+  }, [props.model, props.usableGroup])
 
   if (limits.length === 0) return null
 
@@ -761,13 +772,14 @@ function AuthSection() {
 export function ModelDetailsApi(props: {
   model: PricingModel
   endpointMap: Record<string, { path?: string; method?: string }>
+  usableGroup: Record<string, { desc: string; ratio: number }>
 }) {
   return (
     <div className='space-y-6'>
       <CodeSamplesSection model={props.model} endpointMap={props.endpointMap} />
       <AuthSection />
       <SupportedParametersSection model={props.model} />
-      <RateLimitsSection model={props.model} />
+      <RateLimitsSection model={props.model} usableGroup={props.usableGroup} />
     </div>
   )
 }

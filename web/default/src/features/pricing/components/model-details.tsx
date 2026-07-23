@@ -1204,6 +1204,7 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
           <ModelDetailsApi
             model={props.model}
             endpointMap={props.endpointMap}
+            usableGroup={props.usableGroup}
           />
         </TabsContent>
       </Tabs>

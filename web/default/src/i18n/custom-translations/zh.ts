@@ -773,6 +773,7 @@ const zh: Record<string, string> = {
   'Exporting logs...': '正在导出日志...',
   'Exporting logs... {{size}} MB': '正在导出日志... {{size}} MB',
   'Export completed': '导出完成',
+  'Export time range cannot exceed one month': '导出时间范围不能超过一个月',
 
   // Invoice-Refund Cross Validation
   Date: '日期',

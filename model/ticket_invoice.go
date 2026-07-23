@@ -37,6 +37,7 @@ type TicketInvoice struct {
 	CompanyAddress string  `json:"company_address" gorm:"type:varchar(512)"`
 	CompanyPhone   string  `json:"company_phone" gorm:"type:varchar(32)"`
 	Email          string  `json:"email" gorm:"type:varchar(128);not null"`
+	Remark         string  `json:"remark" gorm:"type:varchar(255)"`
 	TopUpOrderIds  string  `json:"topup_order_ids" gorm:"type:text;not null"`
 	InvoiceType    int     `json:"invoice_type" gorm:"type:int;default:1"`
 	FeeRate        float64 `json:"fee_rate"` // 申请时管理员配置的手续费率快照（%），仅展示用
@@ -367,6 +368,10 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			return err
 		}
 
+		remark := strings.TrimSpace(params.Content)
+		if runes := []rune(remark); len(runes) > 255 {
+			remark = string(runes[:255])
+		}
 		invoice = &TicketInvoice{
 			TicketId:       ticket.Id,
 			UserId:         params.UserId,
@@ -377,6 +382,7 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			CompanyAddress: strings.TrimSpace(params.CompanyAddress),
 			CompanyPhone:   strings.TrimSpace(params.CompanyPhone),
 			Email:          strings.TrimSpace(params.Email),
+			Remark:         remark,
 			InvoiceType:    params.InvoiceType,
 			FeeRate:        feeRate,
 			TotalMoney:     totalMoney,

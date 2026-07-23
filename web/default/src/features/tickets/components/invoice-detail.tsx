@@ -88,6 +88,14 @@ export function InvoiceDetail({
             <dt className="text-muted-foreground">{t('Company Phone')}</dt>
             <dd>{invoice.company_phone || '-'}</dd>
           </div>
+          {invoice.remark && (
+            <div className="sm:col-span-2">
+              <dt className="text-muted-foreground">{t('Invoice Notes')}</dt>
+              <dd className="break-words whitespace-pre-wrap">
+                {invoice.remark}
+              </dd>
+            </div>
+          )}
           <div>
             <dt className="text-muted-foreground">{t('Applied Amount')}</dt>
             <dd className="font-mono font-medium text-red-600 dark:text-red-400">

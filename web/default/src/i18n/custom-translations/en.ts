@@ -771,6 +771,8 @@ const en = {
   'Exporting logs...': 'Exporting logs...',
   'Exporting logs... {{size}} MB': 'Exporting logs... {{size}} MB',
   'Export completed': 'Export completed',
+  'Export time range cannot exceed one month':
+    'Export time range cannot exceed one month',
 
   // Invoice-Refund Cross Validation
   'Invoice conflict warning': 'You have invoice applications. After submitting a refund, the associated invoices will be reversed (red-letter correction).',

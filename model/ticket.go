@@ -275,6 +275,7 @@ type TicketWithSummary struct {
 	RefundStatus *int     `json:"refund_status,omitempty" gorm:"column:refund_status"`
 	InvoiceMoney *float64 `json:"invoice_money,omitempty" gorm:"column:invoice_money"`
 	CompanyName  *string  `json:"company_name,omitempty" gorm:"column:company_name"`
+	InvoiceType  *int     `json:"invoice_type,omitempty" gorm:"column:invoice_type"`
 }
 
 func ListTicketsWithSummary(options TicketQueryOptions, pageInfo *common.PageInfo) (tickets []*TicketWithSummary, total int64, err error) {
@@ -302,6 +303,7 @@ func ListTicketsWithSummary(options TicketQueryOptions, pageInfo *common.PageInf
 		"tr_sum.refund_status AS refund_status",
 		"ti_sum.total_money AS invoice_money",
 		"ti_sum.company_name AS company_name",
+		"ti_sum.invoice_type AS invoice_type",
 	).Joins("LEFT JOIN ticket_refunds AS tr_sum ON tr_sum.ticket_id = tickets.id").
 		Joins("LEFT JOIN ticket_invoices AS ti_sum ON ti_sum.ticket_id = tickets.id")
 

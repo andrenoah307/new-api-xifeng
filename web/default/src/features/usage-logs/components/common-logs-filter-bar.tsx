@@ -42,7 +42,7 @@ import {
 import { getLogExportUrl } from '../api'
 import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
 import { buildSearchParams } from '../lib/filter'
-import { getDefaultTimeRange } from '../lib/utils'
+import { buildApiParams, getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
 import { CommonLogsStats } from './common-logs-stats'
 import { CompactDateTimeRangePicker } from './compact-date-time-range-picker'
@@ -244,11 +244,31 @@ export function CommonLogsFilterBar<TData>(
   const [exporting, setExporting] = useState(false)
 
   const handleExport = useCallback(async () => {
+    // 后端导出接口要求 snake_case + 秒级时间戳参数（与列表查询的中间态不同），
+    // 复用 buildApiParams 完成转换；普通用户接口限制导出跨度 31 天，前置校验。
+    if (!isAdmin) {
+      const defaultRange = getDefaultTimeRange()
+      const startMs =
+        filters.startTime?.getTime() ?? defaultRange.start.getTime()
+      const endMs = filters.endTime?.getTime() ?? defaultRange.end.getTime()
+      if (endMs - startMs > 31 * 24 * 3600 * 1000) {
+        toast.error(t('Export time range cannot exceed one month'))
+        return
+      }
+    }
     setExporting(true)
     const toastId = toast.loading(t('Exporting logs...'))
     try {
-      const params = buildSearchParams(filters, 'common')
-      const exportParams: Record<string, unknown> = { ...params }
+      const apiParams = buildApiParams({
+        page: 1,
+        pageSize: 10,
+        searchParams: buildSearchParams(filters, 'common'),
+        isAdmin,
+      })
+      const exportParams: Record<string, unknown> = { ...apiParams }
+      delete exportParams.p
+      delete exportParams.page_size
+      delete exportParams.upstream_request_id
       if (logType !== LOG_TYPE_ALL_VALUE) exportParams.type = logType
       const url = getLogExportUrl(exportParams, isAdmin)
       const response = await fetch(url, {

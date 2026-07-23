@@ -18,6 +18,7 @@ import {
 } from './ticket-status-badge'
 
 function TicketAmountBadge({ ticket }: { ticket: Ticket }) {
+  const { t } = useTranslation()
   if (ticket.type === 'refund' && ticket.refund_quota != null) {
     return (
       <span className="text-muted-foreground ml-1.5 text-[11px]">
@@ -28,6 +29,15 @@ function TicketAmountBadge({ ticket }: { ticket: Ticket }) {
   if (ticket.type === 'invoice' && ticket.invoice_money != null) {
     return (
       <span className="text-muted-foreground ml-1.5 text-[11px]">
+        {ticket.invoice_type != null && (
+          <span className="mr-1">
+            {t(
+              ticket.invoice_type === 2
+                ? 'VAT Special Invoice Short'
+                : 'Regular Invoice Short'
+            )}
+          </span>
+        )}
         ¥{ticket.invoice_money.toFixed(2)}
       </span>
     )

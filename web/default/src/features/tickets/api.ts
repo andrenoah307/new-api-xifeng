@@ -19,6 +19,7 @@ export interface Ticket {
   refund_status?: number
   invoice_money?: number
   company_name?: string
+  invoice_type?: number
 }
 
 export interface TicketMessage {
@@ -49,6 +50,7 @@ export interface TicketInvoice {
   bank_account: string
   company_address: string
   company_phone: string
+  remark?: string
   invoice_type?: number
   fee_rate?: number
   invoice_status: number
