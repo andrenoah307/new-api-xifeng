@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { useQuery } from '@tanstack/react-query'
 import { StatusBadge } from '@/components/status-badge'
-import { CopyButton } from '@/components/copy-button'
+import { CopyField } from './copy-field'
 import {
   formatTimestampToDate,
   formatQuota,
@@ -57,18 +57,6 @@ interface RefundDetailProps {
     }
   ) => void
   onSendMessage?: (content: string) => void
-}
-
-function CopyField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="flex items-center gap-1">
-        <span className="font-medium">{value || '-'}</span>
-        {value && <CopyButton value={value} size="icon" className="h-6 w-6" iconClassName="h-3 w-3" />}
-      </dd>
-    </div>
-  )
 }
 
 function parseQuotaInput(str: string): number | null {
