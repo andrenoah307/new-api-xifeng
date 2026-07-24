@@ -117,12 +117,28 @@ func isClickHouseDSN(dsn string) bool {
 
 func normalizeClickHouseDSN(dsn string) string {
 	parsed, err := url.Parse(dsn)
-	if err != nil || parsed.Scheme != "https" {
+	if err != nil {
 		return dsn
 	}
 	query := parsed.Query()
-	if _, ok := query["secure"]; !ok {
-		query.Set("secure", "true")
+	changed := false
+	if parsed.Scheme == "https" {
+		if _, ok := query["secure"]; !ok {
+			query.Set("secure", "true")
+			changed = true
+		}
+	}
+	// 单行 INSERT 是 ClickHouse 反模式；默认开启服务端异步攒批，避免高频
+	// 日志写入每行生成一个 part。显式 DSN 参数始终优先。
+	if _, ok := query["async_insert"]; !ok {
+		query.Set("async_insert", "1")
+		changed = true
+	}
+	if _, ok := query["wait_for_async_insert"]; !ok {
+		query.Set("wait_for_async_insert", "0")
+		changed = true
+	}
+	if changed {
 		parsed.RawQuery = query.Encode()
 	}
 	return parsed.String()

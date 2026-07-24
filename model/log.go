@@ -108,6 +108,14 @@ func clickHouseLogOrder(prefix string) string {
 	return prefix + "created_at desc, " + prefix + "request_id desc"
 }
 
+// clickHouseExportOrder 返回 ClickHouse 导出用的升序排序子句。
+// 与表的 ORDER BY (created_at, request_id) 同序，使 ClickHouse 走
+// read-in-order 免全排序；升序单条游标流式读取，避免分页边界在
+// 相同排序键（历史行 request_id 多为空）下跳行/重复。
+func clickHouseExportOrder() string {
+	return "logs.created_at asc, logs.request_id asc"
+}
+
 func assignDisplayLogIds(logs []*Log, startIdx int) {
 	for i := range logs {
 		logs[i].Id = startIdx + i + 1
@@ -678,6 +686,9 @@ func ExportUserLogs(ctx context.Context, userId int, logType int, startTimestamp
 
 func streamLogs(ctx context.Context, tx *gorm.DB, includeChannelName bool, callback func([]*Log) error) error {
 	const batchSize = 1000
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		return streamLogsClickHouse(ctx, tx, includeChannelName, batchSize, callback)
+	}
 	var lastId int
 	for {
 		if ctx.Err() != nil {
@@ -700,6 +711,48 @@ func streamLogs(ctx context.Context, tx *gorm.DB, includeChannelName bool, callb
 		lastId = batch[len(batch)-1].Id
 	}
 	return nil
+}
+
+func streamLogsClickHouse(ctx context.Context, tx *gorm.DB, includeChannelName bool, batchSize int, callback func([]*Log) error) error {
+	rows, err := tx.Session(&gorm.Session{}).WithContext(ctx).Order(clickHouseExportOrder()).Rows()
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	batch := make([]*Log, 0, batchSize)
+	flush := func() error {
+		if len(batch) == 0 {
+			return nil
+		}
+		if includeChannelName {
+			resolveChannelNames(batch)
+		}
+		if err := callback(batch); err != nil {
+			return err
+		}
+		batch = make([]*Log, 0, batchSize)
+		return nil
+	}
+	for rows.Next() {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		var l Log
+		if err := tx.ScanRows(rows, &l); err != nil {
+			return err
+		}
+		batch = append(batch, &l)
+		if len(batch) >= batchSize {
+			if err := flush(); err != nil {
+				return err
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	return flush()
 }
 
 var logTypeLabels = map[int]string{

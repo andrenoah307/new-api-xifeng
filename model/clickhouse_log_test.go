@@ -35,17 +35,30 @@ func TestNormalizeClickHouseDSN(t *testing.T) {
 	// https without secure gets secure=true appended
 	normalized := normalizeClickHouseDSN("https://default:pass@localhost:8443/logs")
 	assert.Contains(t, normalized, "secure=true")
+	assert.Contains(t, normalized, "async_insert=1")
+	assert.Contains(t, normalized, "wait_for_async_insert=0")
 	assert.True(t, strings.HasPrefix(normalized, "https://"))
 
-	// https that already specifies secure is left untouched
-	assert.Equal(t,
-		"https://localhost:8443/logs?secure=false",
-		normalizeClickHouseDSN("https://localhost:8443/logs?secure=false"),
-	)
+	// https that already specifies secure keeps the explicit value
+	normalized = normalizeClickHouseDSN("https://localhost:8443/logs?secure=false")
+	assert.Contains(t, normalized, "secure=false")
+	assert.Contains(t, normalized, "async_insert=1")
 
-	// non-https schemes are returned verbatim
-	assert.Equal(t, "clickhouse://localhost:9000/logs", normalizeClickHouseDSN("clickhouse://localhost:9000/logs"))
-	assert.Equal(t, "tcp://localhost:9000/logs", normalizeClickHouseDSN("tcp://localhost:9000/logs"))
+	// non-https schemes keep their scheme and receive async insert defaults
+	normalized = normalizeClickHouseDSN("clickhouse://localhost:9000/logs")
+	assert.True(t, strings.HasPrefix(normalized, "clickhouse://"))
+	assert.Contains(t, normalized, "async_insert=1")
+	assert.Contains(t, normalized, "wait_for_async_insert=0")
+
+	normalized = normalizeClickHouseDSN("tcp://localhost:9000/logs")
+	assert.True(t, strings.HasPrefix(normalized, "tcp://"))
+	assert.Contains(t, normalized, "async_insert=1")
+	assert.Contains(t, normalized, "wait_for_async_insert=0")
+
+	// explicit async insert settings take precedence
+	normalized = normalizeClickHouseDSN("clickhouse://localhost:9000/logs?async_insert=0")
+	assert.Contains(t, normalized, "async_insert=0")
+	assert.NotContains(t, normalized, "async_insert=1")
 }
 
 func TestChooseDBRejectsClickHouseForMainDatabase(t *testing.T) {
@@ -99,6 +112,10 @@ func TestClickHouseCreateTableHasTTL(t *testing.T) {
 func TestClickHouseLogOrder(t *testing.T) {
 	assert.Equal(t, "created_at desc, request_id desc", clickHouseLogOrder(""))
 	assert.Equal(t, "logs.created_at desc, logs.request_id desc", clickHouseLogOrder("logs."))
+}
+
+func TestClickHouseExportOrder(t *testing.T) {
+	assert.Equal(t, "logs.created_at asc, logs.request_id asc", clickHouseExportOrder())
 }
 
 func TestBuildLogLikeConditionUsesStandardEscape(t *testing.T) {
