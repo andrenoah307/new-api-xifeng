@@ -12,6 +12,9 @@ import (
 
 func SetRelayRouter(router *gin.Engine) {
 	router.Use(middleware.CORS())
+	// relay 路径的 panic 就近捕获：带 request-id 打印堆栈到业务日志，
+	// 避免只落在最外层 CustomRecovery（stderr、无请求上下文）难以定位。
+	router.Use(middleware.RelayPanicRecover())
 	router.Use(middleware.DecompressRequestMiddleware())
 	router.Use(middleware.BodyStorageCleanup()) // 清理请求体存储
 	router.Use(middleware.StatsMiddleware())

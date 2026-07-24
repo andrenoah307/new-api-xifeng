@@ -129,7 +129,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/go-webauthn/x v0.1.25 // indirect
-	github.com/goccy/go-json v0.10.2
+	github.com/goccy/go-json v0.10.6
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/google/go-tpm v0.9.5 // indirect
 	github.com/gorilla/context v1.1.1 // indirect

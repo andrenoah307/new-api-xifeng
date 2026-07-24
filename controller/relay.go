@@ -191,6 +191,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	}
 
 	defer func() {
+		// panic 展开时 newAPIError 为 nil，走不到下面的退款分支；必须先退还预扣费
+		// 再原样抛回，交由恢复中间件返回 500，否则预扣额度会被永久吞掉。
+		if r := recover(); r != nil {
+			if relayInfo.Billing != nil && relayInfo.Billing.NeedsRefund() {
+				relayInfo.Billing.Refund(c)
+			}
+			panic(r)
+		}
 		// Only return quota if downstream failed and quota was actually pre-consumed
 		if newAPIError != nil {
 			newAPIError = service.NormalizeViolationFeeError(newAPIError)
@@ -661,6 +669,13 @@ func RelayTask(c *gin.Context) {
 	var result *relay.TaskSubmitResult
 	var taskErr *dto.TaskError
 	defer func() {
+		// 与 Relay() 同款兜底：任务路径 ForcePreConsume 全额预扣，panic 时更不能吞。
+		if r := recover(); r != nil {
+			if relayInfo.Billing != nil && relayInfo.Billing.NeedsRefund() {
+				relayInfo.Billing.Refund(c)
+			}
+			panic(r)
+		}
 		if taskErr != nil && relayInfo.Billing != nil {
 			relayInfo.Billing.Refund(c)
 		}
