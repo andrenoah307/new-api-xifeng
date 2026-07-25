@@ -535,6 +535,23 @@ const zh: Record<string, string> = {
   'VAT Special Invoice Short': '增票',
   'Fee rate {{rate}}%': '手续费率 {{rate}}%',
   'Fee ({{rate}}%)': '手续费（{{rate}}%）',
+  'Fee Charged': '已扣手续费',
+  'Fee rate {{rate}}% (deducted from balance)':
+    '手续费率 {{rate}}%（从余额扣除）',
+  'The invoice fee will be deducted from your account balance once the invoice is issued.':
+    '开票通过后，手续费将从您的账户余额中扣除。',
+  'An invoice fee of {{fee}} has been deducted from the user balance. It is not refunded automatically — handle it manually if this invoice is voided later.':
+    '已从用户余额中扣除开票手续费 {{fee}}。手续费不会自动退还，如后续作废发票请人工处理。',
+  'Revoke Issuance': '撤销开票',
+  'This invoice will go back to rejected.': '该发票将回退为「已驳回」。',
+  'This invoice will go back to rejected. The invoice fee of {{fee}} is NOT refunded automatically, and the linked top-up orders stay locked so they cannot be invoiced again — refund manually if needed.':
+    '该发票将回退为「已驳回」。已扣除的手续费 {{fee}} 不会自动退还，关联充值订单仍保持占用、不能重复开票，如需退费请人工处理。',
+  'When an invoice is marked as issued, this rate is applied to the granted quota of the linked top-up orders and deducted from the user balance. The rate is snapshotted when the user applies, so changing it does not affect pending applications.':
+    '标记「已开票」时，按该费率对关联充值订单的实际到账额度计费，并从用户余额中扣除。费率在用户申请时即已快照，修改不影响已提交的申请。',
+  'Marked invoice ticket {{ticket_id}} as issued (fee {{fee_quota}})':
+    '将发票工单 {{ticket_id}} 标记为已开票（手续费 {{fee_quota}}）',
+  'Rejected invoice request on ticket {{ticket_id}}':
+    '驳回工单 {{ticket_id}} 的开票申请',
   'VAT special invoice requires bank name, bank account, company address and phone':
     '申请增票需填写开户行、银行账号、注册地址和联系电话',
   'Invoice Settings': '开票设置',

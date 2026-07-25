@@ -43,6 +43,8 @@ var (
 	ErrTicketInvoiceAmountBelowMin  = errors.New("ticket invoice amount below minimum")
 	ErrTicketInvoiceTypeInvalid     = errors.New("ticket invoice type invalid")
 	ErrTicketInvoiceTypeDisabled    = errors.New("ticket invoice type disabled")
+	ErrTicketInvoiceStatusChanged   = errors.New("ticket invoice status changed")
+	ErrTicketInvoiceFeeBaseInvalid  = errors.New("ticket invoice fee base invalid")
 	ErrTicketMessageDuplicate       = errors.New("duplicate message")
 )
 

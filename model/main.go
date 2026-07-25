@@ -349,6 +349,7 @@ func migrateDB() error {
 	}
 
 	backfillTopUpQuotaGranted()
+	backfillInvoiceLegacyFeeCharged()
 
 	return nil
 }
@@ -1068,4 +1069,21 @@ func backfillTopUpQuotaGranted() {
 		Update("quota_granted", gorm.Expr("amount * ?", qpu))
 
 	common.SysLog("backfill quota_granted completed")
+}
+
+// backfillInvoiceLegacyFeeCharged 给「开票手续费扣费功能上线前就已是已开票」的发票打上
+// -1 哨兵，避免管理员之后回退状态再标记已开票时被追扣历史手续费。
+// 只在 InitDB 期间运行：此刻 invoice_status=Issued 且 fee_charged_time=0 的行必然是老数据，
+// 因为新代码在标记已开票的同一事务里一定会打戳（费率为 0 也打）。重跑只会命中 0 行。
+func backfillInvoiceLegacyFeeCharged() {
+	res := DB.Model(&TicketInvoice{}).
+		Where("invoice_status = ? AND fee_charged_time = 0", InvoiceStatusIssued).
+		Update("fee_charged_time", -1)
+	if res.Error != nil {
+		common.SysError("failed to backfill invoice fee_charged_time: " + res.Error.Error())
+		return
+	}
+	if res.RowsAffected > 0 {
+		common.SysLog(fmt.Sprintf("marked %d legacy issued invoices as fee-settled", res.RowsAffected))
+	}
 }

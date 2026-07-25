@@ -52,6 +52,8 @@ export interface TicketInvoice {
   company_phone: string
   remark?: string
   invoice_type?: number
+  fee_quota?: number
+  fee_charged_time?: number
   fee_rate?: number
   invoice_status: number
   total_money: number
@@ -75,6 +77,8 @@ export interface TicketInvoiceOrder {
   id: number
   trade_no: string
   money: number
+  // 充值实际到账额度，开票手续费按它计费（后端 TopUp.quota_granted）
+  quota_granted?: number
   create_time: number
   complete_time: number
   payment_method: string

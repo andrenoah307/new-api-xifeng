@@ -559,6 +559,11 @@ export function TicketSettingsSection({ settings }: Props) {
                 value={regularFeeRate}
                 onChange={(e) => setRegularFeeRate(e.target.value)}
               />
+              <p className='text-muted-foreground text-xs'>
+                {t(
+                  'When an invoice is marked as issued, this rate is applied to the granted quota of the linked top-up orders and deducted from the user balance. The rate is snapshotted when the user applies, so changing it does not affect pending applications.'
+                )}
+              </p>
             </div>
             <div className='space-y-1'>
               <Label>{t('Invoice Type Description')}</Label>
@@ -601,6 +606,11 @@ export function TicketSettingsSection({ settings }: Props) {
                 value={specialFeeRate}
                 onChange={(e) => setSpecialFeeRate(e.target.value)}
               />
+              <p className='text-muted-foreground text-xs'>
+                {t(
+                  'When an invoice is marked as issued, this rate is applied to the granted quota of the linked top-up orders and deducted from the user balance. The rate is snapshotted when the user applies, so changing it does not affect pending applications.'
+                )}
+              </p>
             </div>
             <div className='space-y-1'>
               <Label>{t('Invoice Type Description')}</Label>

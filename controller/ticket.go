@@ -9,6 +9,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/i18n"
+	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting"
@@ -168,6 +169,11 @@ func normalizeTicketTypeOrError(c *gin.Context, rawType string) (string, bool) {
 	return ticketType, true
 }
 
+func isInvoiceFeeInsufficient(err error) bool {
+	var feeErr *model.InvoiceFeeInsufficientError
+	return errors.As(err, &feeErr)
+}
+
 func handleTicketError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, model.ErrTicketSubjectEmpty):
@@ -208,6 +214,17 @@ func handleTicketError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceTypeInvalid)
 	case errors.Is(err, model.ErrTicketInvoiceTypeDisabled):
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceTypeDisabled)
+	case errors.Is(err, model.ErrTicketInvoiceStatusChanged):
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceStatusChanged)
+	case errors.Is(err, model.ErrTicketInvoiceFeeBaseInvalid):
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceFeeBaseInvalid)
+	case isInvoiceFeeInsufficient(err):
+		var feeErr *model.InvoiceFeeInsufficientError
+		_ = errors.As(err, &feeErr)
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceFeeInsufficient, map[string]any{
+			"Required": logger.LogQuota(feeErr.Required),
+			"Balance":  logger.LogQuota(feeErr.Balance),
+		})
 	case errors.Is(err, model.ErrTicketRefundNotFound):
 		common.ApiErrorI18n(c, i18n.MsgTicketRefundNotFound)
 	case errors.Is(err, model.ErrTicketRefundStatusInvalid):
@@ -1240,6 +1257,33 @@ func UpdateInvoiceStatus(c *gin.Context) {
 	if err != nil {
 		handleTicketError(c, err)
 		return
+	}
+
+	auditAction := "ticket.invoice_reject"
+	if req.InvoiceStatus == model.InvoiceStatusIssued {
+		auditAction = "ticket.invoice_issue"
+	}
+	recordManageAuditFor(c, ticket.UserId, auditAction, map[string]interface{}{
+		"ticket_id": ticket.Id,
+		"fee_quota": logger.LogQuota(invoice.FeeQuota),
+	})
+
+	// 扣费成功后向工单追加系统消息告知用户。独立事务，失败只记 SysError：
+	// 钱已扣、状态已落库，不能因为一条通知消息回滚业务结果。
+	if req.InvoiceStatus == model.InvoiceStatusIssued && invoice.FeeQuota > 0 {
+		msgContent := fmt.Sprintf(
+			"发票已开具。根据申请时的手续费率 %g%%，已从您的账户余额中扣除开票手续费 %s。",
+			invoice.FeeRate, logger.LogQuota(invoice.FeeQuota))
+		if _, updatedTicket, _, msgErr := model.AddTicketMessage(
+			ticket.Id, c.GetInt("id"), c.GetString("username"), c.GetInt("role"), msgContent, nil,
+		); msgErr != nil {
+			common.SysError(fmt.Sprintf("failed to append invoice fee message: ticket=%d err=%s",
+				ticket.Id, msgErr.Error()))
+		} else if updatedTicket != nil {
+			// AddTicketMessage 会改写 admin_id/assignee_id/updated_time，用它的快照回响应体；
+			// prevStatus 必须保持 model.UpdateInvoiceStatus 返回的值，否则通知会被短路吞掉。
+			ticket = updatedTicket
+		}
 	}
 
 	reason := service.TicketStatusReasonGeneric

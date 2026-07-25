@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -40,11 +42,28 @@ type TicketInvoice struct {
 	Remark         string  `json:"remark" gorm:"type:varchar(255)"`
 	TopUpOrderIds  string  `json:"topup_order_ids" gorm:"type:text;not null"`
 	InvoiceType    int     `json:"invoice_type" gorm:"type:int;default:1"`
-	FeeRate        float64 `json:"fee_rate"` // 申请时管理员配置的手续费率快照（%），仅展示用
+	FeeRate        float64 `json:"fee_rate"` // 申请时的手续费率快照（%），标记已开票时按此快照扣费，不读当前配置
 	TotalMoney     float64 `json:"total_money"`
 	InvoiceStatus  int     `json:"invoice_status" gorm:"type:int;default:1"`
 	IssuedTime     int64   `json:"issued_time" gorm:"bigint;default:0"`
-	CreatedTime    int64   `json:"created_time" gorm:"bigint"`
+	// FeeQuota 实际扣除的手续费额度（额度单位，非人民币）。0 = 未扣或费率为 0。
+	FeeQuota int `json:"fee_quota" gorm:"type:int;default:0"`
+	// FeeChargedTime 手续费结算时间戳，是唯一的扣费幂等位：
+	//   0  = 从未结算（可结算）
+	//   >0 = 已结算（费率为 0 也会打戳），同一张发票一生只扣一次
+	//   -1 = 本功能上线前就已是「已开票」的历史数据，视同已结算，禁止追扣
+	FeeChargedTime int64 `json:"fee_charged_time" gorm:"bigint;default:0"`
+	CreatedTime    int64 `json:"created_time" gorm:"bigint"`
+}
+
+// InvoiceFeeInsufficientError 携带扣费所需额度与用户当前余额，供 controller 渲染带参错误文案。
+type InvoiceFeeInsufficientError struct {
+	Required int
+	Balance  int
+}
+
+func (e *InvoiceFeeInsufficientError) Error() string {
+	return fmt.Sprintf("invoice fee insufficient: required=%d balance=%d", e.Required, e.Balance)
 }
 
 type CreateInvoiceTicketParams struct {
@@ -157,8 +176,13 @@ func GetUserInvoiceSummaries(userId int) ([]*TicketInvoice, error) {
 
 func getProtectedInvoiceOrderSet(tx *gorm.DB, userId int) (map[int]struct{}, error) {
 	var invoices []*TicketInvoice
-	if err := tx.Where("user_id = ? AND invoice_status NOT IN ?", userId,
-		[]int{InvoiceStatusRejected, InvoiceStatusCancelled}).Find(&invoices).Error; err != nil {
+	// 已驳回/已取消的发票正常释放订单占用，但「已扣过手续费的已驳回发票」例外：
+	// 手续费不会自动退还，若放开订单，用户对同批订单再次申请开票会被再扣一次。
+	// 人工退费后把该行 fee_quota 置 0 即可释放订单。
+	if err := tx.Where("user_id = ?", userId).
+		Where("invoice_status NOT IN ? OR (invoice_status = ? AND fee_quota > 0)",
+			[]int{InvoiceStatusRejected, InvoiceStatusCancelled}, InvoiceStatusRejected).
+		Find(&invoices).Error; err != nil {
 		return nil, err
 	}
 
@@ -254,7 +278,7 @@ func buildInvoiceSummaryMessage(params CreateInvoiceTicketParams, orderIds []int
 		fmt.Sprintf("申请金额：%.2f", totalMoney),
 	}
 	if feeRate > 0 {
-		lines = append(lines, fmt.Sprintf("手续费率：%g%%（约 %.2f 元）", feeRate, totalMoney*feeRate/100))
+		lines = append(lines, fmt.Sprintf("手续费率：%g%%（开票通过后将从账户余额中扣除，按关联订单实际到账额度计算）", feeRate))
 	}
 	if bankName := strings.TrimSpace(params.BankName); bankName != "" {
 		lines = append(lines, fmt.Sprintf("开户行：%s", bankName))
@@ -273,6 +297,42 @@ func buildInvoiceSummaryMessage(params CreateInvoiceTicketParams, orderIds []int
 		lines = append(lines, content)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// calcInvoiceFeeQuota 计算本次开票应扣的手续费额度。
+// 计费基数是关联充值订单的实际到账额度之和（TopUp.QuotaGranted），不走人民币换算：
+// TicketInvoice.TotalMoney 是混合单位（易支付/Waffo 存人民币、Stripe 存美元），
+// 且充值可能带折扣码或分组倍率，按元换算会与用户实际获得的额度不成比例。
+// feeRate 传入的是申请时的快照 invoice.FeeRate。
+func calcInvoiceFeeQuota(topUps []*TopUp, feeRate float64) (int, error) {
+	if feeRate <= 0 {
+		return 0, nil
+	}
+	var baseQuota int64
+	for _, topUp := range topUps {
+		// quota_granted 由 backfillTopUpQuotaGranted 回填保证为正；为 0 说明该订单到账额度
+		// 不可知，静默按 0 计费会少收钱，硬失败让管理员先核对订单数据。
+		if topUp.QuotaGranted <= 0 {
+			return 0, ErrTicketInvoiceFeeBaseInvalid
+		}
+		baseQuota += topUp.QuotaGranted
+	}
+	if baseQuota <= 0 {
+		return 0, ErrTicketInvoiceFeeBaseInvalid
+	}
+	feeQuota, clamp := common.QuotaFromDecimalChecked(
+		decimal.NewFromInt(baseQuota).
+			Mul(decimal.NewFromFloat(feeRate)).
+			Div(decimal.NewFromInt(100)),
+	)
+	if clamp != nil {
+		common.SysError(fmt.Sprintf("invoice fee quota clamped: base=%d rate=%v clamped=%d",
+			baseQuota, feeRate, feeQuota))
+	}
+	if feeQuota < 0 {
+		return 0, ErrTicketInvoiceFeeBaseInvalid
+	}
+	return feeQuota, nil
 }
 
 func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvoice, *TicketMessage, []*TopUp, error) {
@@ -441,6 +501,9 @@ func CancelPendingInvoice(tx *gorm.DB, ticketId, userId int) error {
 }
 
 // UpdateInvoiceStatus 管理员调整发票状态。
+// 标记为「已开票」时按 invoice.FeeRate 快照从用户额度中扣除开票手续费：余额不足则整个
+// 事务回滚，发票保持原状可重试。fee_charged_time 是落库的幂等位，同一张发票一生只扣一次，
+// 因此「已开票 → 驳回 → 再已开票」的纠错回退不会二次扣费。
 // 第三个返回值是修改前的工单主状态，供调用方触发状态已变化通知。
 func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketInvoice, *Ticket, int, error) {
 	if !IsValidInvoiceStatus(invoiceStatus) {
@@ -448,12 +511,15 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 	}
 
 	var (
-		invoice    TicketInvoice
-		ticket     Ticket
-		prevStatus int
+		invoice     TicketInvoice
+		ticket      Ticket
+		prevStatus  int
+		chargedUser int
 	)
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("ticket_id = ?", ticketId).First(&invoice).Error; err != nil {
+		// 行锁挡住并发的第二个客服；SQLite 下 lockForUpdate 退化为普通读，由下面的
+		// invoice_status / quota CAS 兜底。
+		if err := lockForUpdate(tx).Where("ticket_id = ?", ticketId).First(&invoice).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketInvoiceNotFound
 			}
@@ -490,8 +556,62 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 			invoiceUpdates["issued_time"] = int64(0)
 		}
 
-		if err := tx.Model(&TicketInvoice{}).Where("id = ?", invoice.Id).Updates(invoiceUpdates).Error; err != nil {
-			return err
+		if invoiceStatus == InvoiceStatusIssued && invoice.FeeChargedTime == 0 {
+			orderIds, err := invoice.GetTopUpOrderIDs()
+			if err != nil {
+				return err
+			}
+			topUps, err := fetchSuccessTopUpsByIds(tx, invoice.UserId, orderIds)
+			if err != nil {
+				return err
+			}
+			if len(topUps) != len(orderIds) {
+				return ErrTicketInvoiceOrderInvalid
+			}
+			feeQuota, err := calcInvoiceFeeQuota(topUps, invoice.FeeRate)
+			if err != nil {
+				return err
+			}
+			if feeQuota > 0 {
+				var user User
+				if err := lockForUpdate(tx).Where("id = ?", invoice.UserId).First(&user).Error; err != nil {
+					return err
+				}
+				if user.Quota < feeQuota {
+					return &InvoiceFeeInsufficientError{Required: feeQuota, Balance: user.Quota}
+				}
+				// SQLite 下没有行锁，quota >= ? 的 CAS 兜底防止并发扣成负数
+				res := tx.Model(&User{}).
+					Where("id = ? AND quota >= ?", invoice.UserId, feeQuota).
+					Update("quota", gorm.Expr("quota - ?", feeQuota))
+				if res.Error != nil {
+					return res.Error
+				}
+				if res.RowsAffected == 0 {
+					return &InvoiceFeeInsufficientError{Required: feeQuota, Balance: user.Quota}
+				}
+				chargedUser = invoice.UserId
+			}
+			// 费率为 0 时同样打戳：让「未结算」与「结算金额为 0」可区分，否则日后把费率
+			// 调高，这张老发票会在下一次标记已开票时被追扣。
+			invoiceUpdates["fee_quota"] = feeQuota
+			invoiceUpdates["fee_charged_time"] = now
+		}
+
+		// 状态 CAS：发票状态必须仍是本事务读到的值；扣费时额外要求 fee_charged_time 未变，
+		// 保证扣款与打戳在并发下严格一对一。
+		invoiceGuard := tx.Model(&TicketInvoice{}).
+			Where("id = ? AND invoice_status = ?", invoice.Id, invoice.InvoiceStatus)
+		if _, ok := invoiceUpdates["fee_charged_time"]; ok {
+			invoiceGuard = invoiceGuard.Where("fee_charged_time = ?", invoice.FeeChargedTime)
+		}
+		res := invoiceGuard.Updates(invoiceUpdates)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			// 已被其他管理员并发处理，整个事务回滚，刚才的扣款一并撤销
+			return ErrTicketInvoiceStatusChanged
 		}
 		if err := tx.Model(&Ticket{}).Where("id = ?", ticket.Id).Updates(ticketUpdates).Error; err != nil {
 			return err
@@ -499,6 +619,12 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 
 		invoice.InvoiceStatus = invoiceStatus
 		invoice.IssuedTime = invoiceUpdates["issued_time"].(int64)
+		if v, ok := invoiceUpdates["fee_quota"].(int); ok {
+			invoice.FeeQuota = v
+		}
+		if v, ok := invoiceUpdates["fee_charged_time"].(int64); ok {
+			invoice.FeeChargedTime = v
+		}
 		if status, ok := ticketUpdates["status"].(int); ok {
 			ticket.Status = status
 		}
@@ -508,6 +634,20 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 	})
 	if err != nil {
 		return nil, nil, 0, err
+	}
+
+	// 这里绕过了 DecreaseUserQuota 的 Redis 增量路径，必须失效缓存，否则缓存余额长期偏高
+	if chargedUser > 0 {
+		_ = InvalidateUserCache(chargedUser)
+		RecordLogWithAdminInfo(invoice.UserId, LogTypeManage,
+			fmt.Sprintf("发票已开具，按 %g%% 手续费率扣除开票手续费 %s（工单 #%d）",
+				invoice.FeeRate, logger.LogQuota(invoice.FeeQuota), ticket.Id),
+			map[string]interface{}{
+				"admin_id":  adminId,
+				"ticket_id": ticket.Id,
+				"fee_quota": invoice.FeeQuota,
+				"fee_rate":  invoice.FeeRate,
+			})
 	}
 	return &invoice, &ticket, prevStatus, nil
 }

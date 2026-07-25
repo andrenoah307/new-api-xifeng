@@ -34,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatTimestampToDate } from '@/lib/format'
+import { formatQuota, formatTimestampToDate } from '@/lib/format'
 import {
   createInvoiceTicket,
   getEligibleInvoiceOrders,
@@ -158,6 +158,16 @@ export function CreateInvoiceTicketDialog({
         .reduce((sum, o) => sum + Number(o.money || 0), 0),
     [selectedIds, orders]
   )
+
+  // 手续费按后端同口径预估：所选订单的实际到账额度之和 × 费率。
+  // 后端 calcInvoiceFeeQuota 用 quota_granted 而非人民币金额（充值单位混合且可能有折扣倍率）。
+  const estimatedFeeQuota = useMemo(() => {
+    if (selectedFeeRate <= 0) return 0
+    const baseQuota = orders
+      .filter((o) => selectedIds.has(o.id))
+      .reduce((sum, o) => sum + Number(o.quota_granted || 0), 0)
+    return Math.round((baseQuota * selectedFeeRate) / 100)
+  }, [selectedIds, orders, selectedFeeRate])
 
   const toggleOrder = useCallback((id: number) => {
     setSelectedIds((prev) => {
@@ -437,7 +447,7 @@ export function CreateInvoiceTicketDialog({
                       {t('Fee ({{rate}}%)', { rate: selectedFeeRate })}:
                     </span>
                     <span className="font-medium">
-                      ¥{((invoiceAmount * selectedFeeRate) / 100).toFixed(2)}
+                      {formatQuota(estimatedFeeQuota)}
                     </span>
                   </span>
                 )}
@@ -451,6 +461,13 @@ export function CreateInvoiceTicketDialog({
                   </span>
                 )}
               </span>
+              {selectedFeeRate > 0 && (
+                <span className="text-muted-foreground w-full text-xs">
+                  {t(
+                    'The invoice fee will be deducted from your account balance once the invoice is issued.'
+                  )}
+                </span>
+              )}
             </div>
           </div>
 
@@ -475,8 +492,10 @@ export function CreateInvoiceTicketDialog({
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="text-sm font-medium">{option.label}</span>
                     {option.feeRate > 0 && (
-                      <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-xs">
-                        {t('Fee rate {{rate}}%', { rate: option.feeRate })}
+                      <span className="bg-destructive/10 text-destructive rounded px-1.5 py-0.5 text-xs">
+                        {t('Fee rate {{rate}}% (deducted from balance)', {
+                          rate: option.feeRate,
+                        })}
                       </span>
                     )}
                   </div>

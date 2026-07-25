@@ -189,6 +189,10 @@ export default function TicketAdminDetailPage({
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminInvoice(ticketId),
       })
+      // 开票会扣手续费并追加系统消息，会话区与工单状态都要刷新
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.adminDetail(ticketId),
+      })
     },
   })
 

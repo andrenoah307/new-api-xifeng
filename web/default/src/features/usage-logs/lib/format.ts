@@ -384,6 +384,10 @@ const AUDIT_TEMPLATES: Record<string, string> = {
   'subscription.plan_create': 'Created a subscription plan',
   'subscription.plan_update': 'Updated a subscription plan',
   'subscription.bind': 'Bound a subscription',
+  // Tickets
+  'ticket.invoice_issue':
+    'Marked invoice ticket {{ticket_id}} as issued (fee {{fee_quota}})',
+  'ticket.invoice_reject': 'Rejected invoice request on ticket {{ticket_id}}',
   // Logs
   'log.clear': 'Cleared historical logs',
   // Generic middleware fallback

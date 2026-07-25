@@ -527,6 +527,24 @@ const en = {
   'VAT Special Invoice Short': 'VAT Special',
   'Fee rate {{rate}}%': 'Fee rate {{rate}}%',
   'Fee ({{rate}}%)': 'Fee ({{rate}}%)',
+  'Fee Charged': 'Fee Charged',
+  'Fee rate {{rate}}% (deducted from balance)':
+    'Fee rate {{rate}}% (deducted from balance)',
+  'The invoice fee will be deducted from your account balance once the invoice is issued.':
+    'The invoice fee will be deducted from your account balance once the invoice is issued.',
+  'An invoice fee of {{fee}} has been deducted from the user balance. It is not refunded automatically — handle it manually if this invoice is voided later.':
+    'An invoice fee of {{fee}} has been deducted from the user balance. It is not refunded automatically — handle it manually if this invoice is voided later.',
+  'Revoke Issuance': 'Revoke Issuance',
+  'This invoice will go back to rejected.':
+    'This invoice will go back to rejected.',
+  'This invoice will go back to rejected. The invoice fee of {{fee}} is NOT refunded automatically, and the linked top-up orders stay locked so they cannot be invoiced again — refund manually if needed.':
+    'This invoice will go back to rejected. The invoice fee of {{fee}} is NOT refunded automatically, and the linked top-up orders stay locked so they cannot be invoiced again — refund manually if needed.',
+  'When an invoice is marked as issued, this rate is applied to the granted quota of the linked top-up orders and deducted from the user balance. The rate is snapshotted when the user applies, so changing it does not affect pending applications.':
+    'When an invoice is marked as issued, this rate is applied to the granted quota of the linked top-up orders and deducted from the user balance. The rate is snapshotted when the user applies, so changing it does not affect pending applications.',
+  'Marked invoice ticket {{ticket_id}} as issued (fee {{fee_quota}})':
+    'Marked invoice ticket {{ticket_id}} as issued (fee {{fee_quota}})',
+  'Rejected invoice request on ticket {{ticket_id}}':
+    'Rejected invoice request on ticket {{ticket_id}}',
   'VAT special invoice requires bank name, bank account, company address and phone':
     'VAT special invoice requires bank name, bank account, company address and phone',
   'Invoice Settings': 'Invoice Settings',
