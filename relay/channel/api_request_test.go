@@ -253,7 +253,7 @@ func TestDoRequestNonStreamBodyCloseCancelsDerivedContext(t *testing.T) {
 		},
 	}
 
-	resp, err := doRequestWithDeadline(c, req, info, 200*time.Millisecond)
+	resp, err := doRequestWithTimeouts(c, req, info, 200*time.Millisecond, 0)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
@@ -309,7 +309,7 @@ func TestDoRequestNonStreamDeadlineCancelsBodyRead(t *testing.T) {
 		},
 	}
 
-	resp, err := doRequestWithDeadline(c, req, info, 25*time.Millisecond)
+	resp, err := doRequestWithTimeouts(c, req, info, 25*time.Millisecond, 0)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	_, err = io.ReadAll(resp.Body)
@@ -353,11 +353,249 @@ func TestDoRequestStreamSkipsNonStreamDeadline(t *testing.T) {
 		},
 	}
 
-	resp, err := doRequestWithDeadline(c, req, info, 25*time.Millisecond)
+	resp, err := doRequestWithTimeouts(c, req, info, 25*time.Millisecond, 0)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NoError(t, resp.Body.Close())
 	assert.False(t, <-deadlineSeen)
+}
+
+func TestDoRequestStreamHeaderTimeoutDisarmsBeforeBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	newDirectProxyTestClient(t, "http://test-proxy-stream-header-body")
+	chunks := []string{"first", "second", "third"}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		for _, chunk := range chunks {
+			time.Sleep(20 * time.Millisecond)
+			if _, err := io.WriteString(w, chunk); err != nil {
+				return
+			}
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+		}
+	}))
+	defer server.Close()
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, server.URL, strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: true,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: "http://test-proxy-stream-header-body"},
+		},
+	}
+
+	resp, err := doRequestWithTimeouts(c, req, info, 0, 10*time.Millisecond)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotNil(t, resp.Request)
+	streamContext := resp.Request.Context()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, strings.Join(chunks, ""), string(body))
+	require.NoError(t, resp.Body.Close())
+	assert.Error(t, streamContext.Err())
+}
+
+func TestDoRequestStreamHeaderTimeoutReturnsReadableError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	newDirectProxyTestClient(t, "http://test-proxy-stream-header-timeout")
+	releaseHandler := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-releaseHandler
+	}))
+	defer func() {
+		close(releaseHandler)
+		server.Close()
+	}()
+
+	parentContext, cancelParent := context.WithTimeout(context.Background(), time.Second)
+	defer cancelParent()
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequestWithContext(parentContext, http.MethodPost, server.URL, strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: true,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: "http://test-proxy-stream-header-timeout"},
+		},
+	}
+
+	_, err = doRequestWithTimeouts(c, req, info, 0, 15*time.Millisecond)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "wait for upstream response headers timed out")
+}
+
+func TestDoRequestStreamHeaderTimeoutZeroLeavesContextUntouched(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := newDirectProxyTestClient(t, "http://test-proxy-stream-header-disabled")
+	requestContext := make(chan context.Context, 1)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		requestContext <- req.Context()
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Request:    req,
+		}, nil
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: true,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: "http://test-proxy-stream-header-disabled"},
+		},
+	}
+
+	resp, err := doRequestWithTimeouts(c, req, info, 0, 0)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	_, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	ctx := <-requestContext
+	assert.NoError(t, ctx.Err())
+	require.NoError(t, resp.Body.Close())
+	assert.NoError(t, ctx.Err())
+}
+
+func TestDoRequestNonStreamIgnoresStreamHeaderTimeout(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := newDirectProxyTestClient(t, "http://test-proxy-non-stream-header")
+	requestContext := make(chan context.Context, 1)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		requestContext <- req.Context()
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body: &delayedContextReadCloser{
+				ctx:    req.Context(),
+				delay:  15 * time.Millisecond,
+				reader: strings.NewReader("complete"),
+			},
+			Request: req,
+		}, nil
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: false,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: "http://test-proxy-non-stream-header"},
+		},
+	}
+
+	resp, err := doRequestWithTimeouts(c, req, info, 0, 5*time.Millisecond)
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "complete", string(body))
+	ctx := <-requestContext
+	_, hasDeadline := ctx.Deadline()
+	assert.False(t, hasDeadline)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestDoRequestNonStreamDeadlineUsesRequestContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := newDirectProxyTestClient(t, "http://test-proxy-non-stream-parent-context")
+	requestContext := make(chan context.Context, 1)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		requestContext <- req.Context()
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Request:    req,
+		}, nil
+	})
+
+	parentContext, cancelParent := context.WithCancel(context.Background())
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request")).WithContext(parentContext)
+	req, err := http.NewRequestWithContext(parentContext, http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: false,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: "http://test-proxy-non-stream-parent-context"},
+		},
+	}
+
+	resp, err := doRequestWithTimeouts(c, req, info, time.Second, 0)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	upstreamContext := <-requestContext
+	cancelParent()
+	select {
+	case <-upstreamContext.Done():
+	case <-time.After(time.Second):
+		t.Fatal("downstream request cancellation did not reach upstream")
+	}
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestDoRequestConfiguredStreamHeaderTimeoutUsesGlobalConfig(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	client := newDirectProxyTestClient(t, "http://test-proxy-stream-header-configured")
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Request:    req,
+		}, nil
+	})
+	originalTimeout := common.RelayStreamResponseHeaderTimeout
+	common.RelayStreamResponseHeaderTimeout = 1
+	t.Cleanup(func() { common.RelayStreamResponseHeaderTimeout = originalTimeout })
+
+	newContext := func() *gin.Context {
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+		return c
+	}
+	newRequest := func() *http.Request {
+		req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+		require.NoError(t, err)
+		return req
+	}
+	info := &relaycommon.RelayInfo{
+		IsStream: true,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: "http://test-proxy-stream-header-configured"},
+		},
+	}
+
+	resp, err := doRequest(newContext(), newRequest(), info)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Body.Close())
+
+	resp, err = doRequestWithTimeouts(newContext(), newRequest(), info, 0, 0)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Body.Close())
 }
 
 func TestDoRequestUsesDefaultClientWithoutProxy(t *testing.T) {
@@ -365,14 +603,17 @@ func TestDoRequestUsesDefaultClientWithoutProxy(t *testing.T) {
 	originalRelayTimeout := common.RelayTimeout
 	originalHeaderTimeout := common.RelayResponseHeaderTimeout
 	originalNonStreamTimeout := common.RelayNonStreamTimeout
+	originalStreamHeaderTimeout := common.RelayStreamResponseHeaderTimeout
 	common.RelayTimeout = 0
 	common.RelayResponseHeaderTimeout = 0
 	common.RelayNonStreamTimeout = 0
+	common.RelayStreamResponseHeaderTimeout = 0
 	service.InitHttpClient()
 	t.Cleanup(func() {
 		common.RelayTimeout = originalRelayTimeout
 		common.RelayResponseHeaderTimeout = originalHeaderTimeout
 		common.RelayNonStreamTimeout = originalNonStreamTimeout
+		common.RelayStreamResponseHeaderTimeout = originalStreamHeaderTimeout
 		service.InitHttpClient()
 	})
 
@@ -399,7 +640,7 @@ func TestDoRequestUsesDefaultClientWithoutProxy(t *testing.T) {
 	require.NoError(t, err)
 	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{}}
 
-	resp, err := doRequestWithDeadline(c, req, info, 0)
+	resp, err := doRequestWithTimeouts(c, req, info, 0, 0)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.NoError(t, resp.Body.Close())
@@ -512,7 +753,7 @@ func TestDoRequestCancelsDerivedContextOnClientError(t *testing.T) {
 		ChannelMeta: &relaycommon.ChannelMeta{ChannelSetting: dto.ChannelSettings{Proxy: proxyKey}},
 	}
 
-	_, err = doRequestWithDeadline(c, req, info, time.Second)
+	_, err = doRequestWithTimeouts(c, req, info, time.Second, 0)
 	require.Error(t, err)
 	ctx := <-requestContext
 	select {
@@ -533,14 +774,14 @@ func TestDoRequestRejectsInvalidProxyBeforeDial(t *testing.T) {
 		ChannelMeta: &relaycommon.ChannelMeta{ChannelSetting: dto.ChannelSettings{Proxy: "http://%"}},
 	}
 
-	_, err = doRequestWithDeadline(c, req, info, time.Second)
+	_, err = doRequestWithTimeouts(c, req, info, time.Second, 0)
 	assert.Error(t, err)
 }
 
-func TestAttachNonStreamResponseCancellationRejectsInvalidResponses(t *testing.T) {
+func TestAttachResponseCancellationRejectsInvalidResponses(t *testing.T) {
 	t.Run("nil response", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		resp, err := attachNonStreamResponseCancellation(nil, cancel)
+		resp, err := attachResponseCancellation(nil, cancel)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Error(t, ctx.Err())
@@ -548,7 +789,7 @@ func TestAttachNonStreamResponseCancellationRejectsInvalidResponses(t *testing.T
 
 	t.Run("nil body", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
-		resp, err := attachNonStreamResponseCancellation(&http.Response{}, cancel)
+		resp, err := attachResponseCancellation(&http.Response{}, cancel)
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Error(t, ctx.Err())
@@ -586,4 +827,42 @@ func (body *contextBlockingReadCloser) Read([]byte) (int, error) {
 
 func (body *contextBlockingReadCloser) Close() error {
 	return nil
+}
+
+type delayedContextReadCloser struct {
+	ctx    context.Context
+	delay  time.Duration
+	reader io.Reader
+}
+
+func (body *delayedContextReadCloser) Read(p []byte) (int, error) {
+	timer := time.NewTimer(body.delay)
+	defer timer.Stop()
+	select {
+	case <-body.ctx.Done():
+		return 0, body.ctx.Err()
+	case <-timer.C:
+		return body.reader.Read(p)
+	}
+}
+
+func (body *delayedContextReadCloser) Close() error {
+	return nil
+}
+
+func newDirectProxyTestClient(t *testing.T, proxyKey string) *http.Client {
+	t.Helper()
+	service.ResetProxyClientCache()
+	t.Cleanup(service.ResetProxyClientCache)
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	baseTransport, ok := http.DefaultTransport.(*http.Transport)
+	require.True(t, ok)
+	client.Transport = baseTransport.Clone()
+	t.Cleanup(func() {
+		if transport, ok := client.Transport.(*http.Transport); ok {
+			transport.CloseIdleConnections()
+		}
+	})
+	return client
 }

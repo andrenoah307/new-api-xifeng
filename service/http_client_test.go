@@ -104,24 +104,54 @@ func TestRelayTransportCustomDialerPreservesContextCancellation(t *testing.T) {
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
+func TestRelayTimeoutEnvironmentDefaultsAreDisabled(t *testing.T) {
+	for _, name := range []string{
+		"RELAY_TIMEOUT",
+		"RELAY_RESPONSE_HEADER_TIMEOUT",
+		"RELAY_NON_STREAM_TIMEOUT",
+		"RELAY_STREAM_RESPONSE_HEADER_TIMEOUT",
+	} {
+		originalValue, wasSet := os.LookupEnv(name)
+		name, originalValue, wasSet := name, originalValue, wasSet
+		require.NoError(t, os.Unsetenv(name))
+		t.Cleanup(func() {
+			if wasSet {
+				_ = os.Setenv(name, originalValue)
+			} else {
+				_ = os.Unsetenv(name)
+			}
+		})
+	}
+
+	// Production measurements reached 6220s for non-stream responses and about
+	// 1216s for streaming FRT; any non-zero default would cut real traffic.
+	assert.Zero(t, common.GetEnvOrDefault("RELAY_TIMEOUT", 0))
+	assert.Zero(t, common.GetEnvOrDefault("RELAY_RESPONSE_HEADER_TIMEOUT", 0))
+	assert.Zero(t, common.GetEnvOrDefault("RELAY_NON_STREAM_TIMEOUT", 0))
+	assert.Zero(t, common.GetEnvOrDefault("RELAY_STREAM_RESPONSE_HEADER_TIMEOUT", 0))
+}
+
 func TestAllRelayHTTPClientsConfigureTransportTimeouts(t *testing.T) {
 	originalResponseHeaderTimeout := common.RelayResponseHeaderTimeout
 	originalIdleConnTimeout := common.RelayIdleConnTimeout
 	originalMaxIdleConns := common.RelayMaxIdleConns
 	originalMaxIdleConnsPerHost := common.RelayMaxIdleConnsPerHost
 	originalRelayTimeout := common.RelayTimeout
+	originalStreamResponseHeaderTimeout := common.RelayStreamResponseHeaderTimeout
 	originalTLSInsecureSkipVerify := common.TLSInsecureSkipVerify
 	originalHTTPClient := httpClient
 	originalProtectedClient := ssrfProtectedHTTPClient
 	originalRelayTimeoutEnv, hadRelayTimeoutEnv := os.LookupEnv("RELAY_TIMEOUT")
 	originalResponseTimeoutEnv, hadResponseTimeoutEnv := os.LookupEnv("RELAY_RESPONSE_HEADER_TIMEOUT")
 	originalNonStreamTimeoutEnv, hadNonStreamTimeoutEnv := os.LookupEnv("RELAY_NON_STREAM_TIMEOUT")
+	originalStreamResponseTimeoutEnv, hadStreamResponseTimeoutEnv := os.LookupEnv("RELAY_STREAM_RESPONSE_HEADER_TIMEOUT")
 	t.Cleanup(func() {
 		common.RelayResponseHeaderTimeout = originalResponseHeaderTimeout
 		common.RelayIdleConnTimeout = originalIdleConnTimeout
 		common.RelayMaxIdleConns = originalMaxIdleConns
 		common.RelayMaxIdleConnsPerHost = originalMaxIdleConnsPerHost
 		common.RelayTimeout = originalRelayTimeout
+		common.RelayStreamResponseHeaderTimeout = originalStreamResponseHeaderTimeout
 		common.TLSInsecureSkipVerify = originalTLSInsecureSkipVerify
 		httpClient = originalHTTPClient
 		ssrfProtectedHTTPClient = originalProtectedClient
@@ -140,8 +170,17 @@ func TestAllRelayHTTPClientsConfigureTransportTimeouts(t *testing.T) {
 		} else {
 			_ = os.Unsetenv("RELAY_NON_STREAM_TIMEOUT")
 		}
+		if hadStreamResponseTimeoutEnv {
+			_ = os.Setenv("RELAY_STREAM_RESPONSE_HEADER_TIMEOUT", originalStreamResponseTimeoutEnv)
+		} else {
+			_ = os.Unsetenv("RELAY_STREAM_RESPONSE_HEADER_TIMEOUT")
+		}
 		ResetProxyClientCache()
 	})
+
+	common.RelayResponseHeaderTimeout = 0
+	defaultTransport := newRelayTransport(nil, nil)
+	assert.Zero(t, defaultTransport.ResponseHeaderTimeout)
 
 	common.RelayResponseHeaderTimeout = 7
 	common.RelayIdleConnTimeout = 11
@@ -150,10 +189,12 @@ func TestAllRelayHTTPClientsConfigureTransportTimeouts(t *testing.T) {
 	_ = os.Unsetenv("RELAY_TIMEOUT")
 	_ = os.Unsetenv("RELAY_RESPONSE_HEADER_TIMEOUT")
 	_ = os.Unsetenv("RELAY_NON_STREAM_TIMEOUT")
+	_ = os.Unsetenv("RELAY_STREAM_RESPONSE_HEADER_TIMEOUT")
 	common.RelayTimeout = common.GetEnvOrDefault("RELAY_TIMEOUT", 0)
 	assert.Zero(t, common.RelayTimeout)
-	assert.Equal(t, 300, common.GetEnvOrDefault("RELAY_RESPONSE_HEADER_TIMEOUT", 300))
-	assert.Equal(t, 900, common.GetEnvOrDefault("RELAY_NON_STREAM_TIMEOUT", 900))
+	assert.Zero(t, common.GetEnvOrDefault("RELAY_RESPONSE_HEADER_TIMEOUT", 0))
+	assert.Zero(t, common.GetEnvOrDefault("RELAY_NON_STREAM_TIMEOUT", 0))
+	assert.Zero(t, common.GetEnvOrDefault("RELAY_STREAM_RESPONSE_HEADER_TIMEOUT", 0))
 	common.TLSInsecureSkipVerify = false
 
 	InitHttpClient()

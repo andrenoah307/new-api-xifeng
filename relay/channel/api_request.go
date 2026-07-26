@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	common2 "github.com/QuantumNous/new-api/common"
@@ -614,7 +615,11 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	if common2.RelayNonStreamTimeout > 0 {
 		nonStreamTimeout = time.Duration(common2.RelayNonStreamTimeout) * time.Second
 	}
-	return doRequestWithDeadline(c, req, info, nonStreamTimeout)
+	streamResponseHeaderTimeout := time.Duration(0)
+	if common2.RelayStreamResponseHeaderTimeout > 0 {
+		streamResponseHeaderTimeout = time.Duration(common2.RelayStreamResponseHeaderTimeout) * time.Second
+	}
+	return doRequestWithTimeouts(c, req, info, nonStreamTimeout, streamResponseHeaderTimeout)
 }
 
 type cancelOnCloseReadCloser struct {
@@ -628,7 +633,9 @@ func (body *cancelOnCloseReadCloser) Close() error {
 	return body.ReadCloser.Close()
 }
 
-func attachNonStreamResponseCancellation(resp *http.Response, cancel context.CancelFunc) (*http.Response, error) {
+// attachResponseCancellation ties a derived request context to the response
+// body lifecycle for both non-stream overall deadlines and stream response-header timers.
+func attachResponseCancellation(resp *http.Response, cancel context.CancelFunc) (*http.Response, error) {
 	if resp == nil {
 		cancel()
 		return nil, errors.New("resp is nil")
@@ -641,8 +648,26 @@ func attachNonStreamResponseCancellation(resp *http.Response, cancel context.Can
 	return resp, nil
 }
 
-func doRequestWithDeadline(c *gin.Context, req *http.Request, info *common.RelayInfo, nonStreamTimeout time.Duration) (*http.Response, error) {
+func doRequestWithTimeouts(c *gin.Context, req *http.Request, info *common.RelayInfo, nonStreamTimeout, streamResponseHeaderTimeout time.Duration) (*http.Response, error) {
 	var cancel context.CancelFunc
+	var streamHeaderTimer *time.Timer
+	var streamHeaderTimerDone chan struct{}
+	streamHeaderTimerArmed := &atomic.Bool{}
+	streamHeaderTimedOut := &atomic.Bool{}
+	if info.IsStream && streamResponseHeaderTimeout > 0 {
+		requestContext, streamCancel := context.WithCancel(req.Context())
+		req = req.WithContext(requestContext)
+		cancel = streamCancel
+		streamHeaderTimerArmed.Store(true)
+		streamHeaderTimerDone = make(chan struct{})
+		streamHeaderTimer = time.AfterFunc(streamResponseHeaderTimeout, func() {
+			defer close(streamHeaderTimerDone)
+			if streamHeaderTimerArmed.CompareAndSwap(true, false) {
+				streamHeaderTimedOut.Store(true)
+				streamCancel()
+			}
+		})
+	}
 	if !info.IsStream && nonStreamTimeout > 0 {
 		var requestContext context.Context
 		requestContext, cancel = context.WithTimeout(req.Context(), nonStreamTimeout)
@@ -654,6 +679,13 @@ func doRequestWithDeadline(c *gin.Context, req *http.Request, info *common.Relay
 	if info.ChannelSetting.Proxy != "" {
 		client, err = service.NewProxyHttpClient(info.ChannelSetting.Proxy)
 		if err != nil {
+			if streamHeaderTimer != nil {
+				streamHeaderTimerArmed.Store(false)
+				if !streamHeaderTimer.Stop() {
+					// A raced callback must finish before returning the setup error.
+					<-streamHeaderTimerDone
+				}
+			}
 			if cancel != nil {
 				cancel()
 			}
@@ -684,9 +716,23 @@ func doRequestWithDeadline(c *gin.Context, req *http.Request, info *common.Relay
 	}
 
 	resp, err := client.Do(req)
+	if streamHeaderTimer != nil {
+		// Disarm before attaching the body: after headers arrive, stream reads
+		// must remain unlimited and only Close/downstream cancellation may stop them.
+		streamHeaderTimerArmed.Store(false)
+		if !streamHeaderTimer.Stop() {
+			// Do not hand the body to callers while a raced callback can still cancel it.
+			<-streamHeaderTimerDone
+		}
+	}
 	if err != nil {
 		if cancel != nil {
 			cancel()
+		}
+		if streamHeaderTimedOut.Load() {
+			err = fmt.Errorf("wait for upstream response headers timed out after %s: %w", streamResponseHeaderTimeout, err)
+			logger.LogError(c, "do request failed: "+err.Error())
+			return nil, types.NewError(err, types.ErrorCodeDoRequestFailed)
 		}
 		logger.LogError(c, "do request failed: "+err.Error())
 		return nil, types.NewError(err, types.ErrorCodeDoRequestFailed, types.ErrOptionWithHideErrMsg("upstream error: do request failed"))
@@ -694,7 +740,7 @@ func doRequestWithDeadline(c *gin.Context, req *http.Request, info *common.Relay
 	if cancel != nil {
 		// The response body is consumed after doRequest returns; cancel on Close
 		// instead of deferring here so the deadline does not cut body reads short.
-		resp, err = attachNonStreamResponseCancellation(resp, cancel)
+		resp, err = attachResponseCancellation(resp, cancel)
 		if err != nil {
 			return nil, err
 		}

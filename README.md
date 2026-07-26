@@ -317,8 +317,9 @@ docker run --name new-api -d --restart always \
 | `CRYPTO_SECRET` | Encryption secret (required for Redis) | - |
 | `SQL_DSN` | Database connection string | - |
 | `REDIS_CONN_STRING` | Redis connection string | - |
-| `RELAY_RESPONSE_HEADER_TIMEOUT` | Maximum seconds to wait for response headers from relay upstreams. Set `0` to disable; this does not limit streaming body reads | `300` |
-| `RELAY_NON_STREAM_TIMEOUT` | Overall deadline for non-streaming relay responses, in seconds. Set `0` to disable; streaming requests remain governed by `STREAMING_TIMEOUT` | `900` |
+| `RELAY_RESPONSE_HEADER_TIMEOUT` | Transport-level, one-size-fits-all response-header deadline for streaming and non-streaming outbound requests. `0` (default) disables it. Relay traffic should generally leave this disabled and use the two per-request settings below; keep it as a fallback for SSRF/proxy or other non-relay outbound clients. Recommended production value: `0` (observed streaming FRT max ~1216s and non-streaming max ~6220s) | `0` |
+| `RELAY_NON_STREAM_TIMEOUT` | Overall deadline for non-streaming relay responses (waiting for headers plus reading the body), in seconds. `0` (default) disables it; streaming requests are unaffected. Recommended production value: `7200`, above the observed non-streaming maximum of ~6220s | `0` |
+| `RELAY_STREAM_RESPONSE_HEADER_TIMEOUT` | Per-request deadline for streaming relay requests to receive response headers; once headers arrive, subsequent streaming body reads are not limited by this setting. `0` (default) disables it. Recommended production value: `1800` (30 minutes), above the observed streaming FRT maximum of ~1216s | `0` |
 | `RELAY_IDLE_CONN_TIMEOUT` | Idle keep-alive timeout for relay HTTP clients, seconds. Defaults to Go standard library behavior; set `0` to disable | `90` |
 | `STREAMING_TIMEOUT` | Streaming timeout (seconds) | `300` |
 | `STREAM_SCANNER_MAX_BUFFER_MB` | Max per-line buffer (MB) for the stream scanner; increase when upstream sends huge image/base64 payloads | `64` |
