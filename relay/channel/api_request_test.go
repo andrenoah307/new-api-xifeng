@@ -1,14 +1,40 @@
 package channel
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewUpstreamRequestContextPolicy(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	parentContext, cancelParent := context.WithCancel(context.Background())
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil).WithContext(parentContext)
+
+	nonStreamRequest, err := newUpstreamRequest(c, &relaycommon.RelayInfo{}, http.MethodPost, "http://upstream.invalid/v1", nil)
+	require.NoError(t, err)
+	streamRequest, err := newUpstreamRequest(c, &relaycommon.RelayInfo{IsStream: true}, http.MethodPost, "http://upstream.invalid/v1", nil)
+	require.NoError(t, err)
+
+	cancelParent()
+	assert.ErrorIs(t, nonStreamRequest.Context().Err(), context.Canceled)
+	assert.NoError(t, streamRequest.Context().Err())
+}
 
 func TestProcessHeaderOverride_ChannelTestSkipsPassthroughRules(t *testing.T) {
 	t.Parallel()
@@ -190,4 +216,374 @@ func TestProcessHeaderOverride_PassHeadersTemplateSetsRuntimeHeaders(t *testing.
 	require.Equal(t, "Codex CLI", upstreamReq.Header.Get("Originator"))
 	require.Equal(t, "sess-123", upstreamReq.Header.Get("Session_id"))
 	require.Empty(t, upstreamReq.Header.Get("X-Codex-Beta-Features"))
+}
+
+func TestDoRequestNonStreamBodyCloseCancelsDerivedContext(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	bodyText := "response body remains readable"
+	service.ResetProxyClientCache()
+	defer service.ResetProxyClientCache()
+	proxyKey := "http://test-proxy-body-close"
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	requestContext := make(chan context.Context, 1)
+	bodyClosed := make(chan struct{})
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		requestContext <- req.Context()
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{common.RequestIdKey: []string{"upstream-request"}},
+			Body: &trackingReadCloser{
+				Reader: strings.NewReader(bodyText),
+				closed: bodyClosed,
+			},
+			Request: req,
+		}, nil
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: false,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: proxyKey},
+		},
+	}
+
+	resp, err := doRequestWithDeadline(c, req, info, 200*time.Millisecond)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	data, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, bodyText, string(data))
+	assert.Equal(t, "upstream-request", c.GetString(common.UpstreamRequestIdKey))
+	ctx := <-requestContext
+	select {
+	case <-ctx.Done():
+		t.Fatal("request context was canceled before response body close")
+	default:
+	}
+
+	require.NoError(t, resp.Body.Close())
+	select {
+	case <-ctx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("response body close did not cancel request context")
+	}
+	select {
+	case <-bodyClosed:
+	default:
+		t.Fatal("response body close did not close the underlying body")
+	}
+}
+
+func TestDoRequestNonStreamDeadlineCancelsBodyRead(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service.ResetProxyClientCache()
+	defer service.ResetProxyClientCache()
+	proxyKey := "http://test-proxy-body-timeout"
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       &contextBlockingReadCloser{ctx: req.Context()},
+			Request:    req,
+		}, nil
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: false,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: proxyKey},
+		},
+	}
+
+	resp, err := doRequestWithDeadline(c, req, info, 25*time.Millisecond)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	_, err = io.ReadAll(resp.Body)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestDoRequestStreamSkipsNonStreamDeadline(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	generalSetting := operation_setting.GetGeneralSetting()
+	originalGeneralSetting := *generalSetting
+	generalSetting.PingIntervalEnabled = true
+	generalSetting.PingIntervalSeconds = 1
+	t.Cleanup(func() { *generalSetting = originalGeneralSetting })
+	service.ResetProxyClientCache()
+	defer service.ResetProxyClientCache()
+	proxyKey := "http://test-proxy-stream"
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	deadlineSeen := make(chan bool, 1)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		_, hasDeadline := req.Context().Deadline()
+		deadlineSeen <- hasDeadline
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Request:    req,
+		}, nil
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: true,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: proxyKey},
+		},
+	}
+
+	resp, err := doRequestWithDeadline(c, req, info, 25*time.Millisecond)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Body.Close())
+	assert.False(t, <-deadlineSeen)
+}
+
+func TestDoRequestUsesDefaultClientWithoutProxy(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	originalRelayTimeout := common.RelayTimeout
+	originalHeaderTimeout := common.RelayResponseHeaderTimeout
+	originalNonStreamTimeout := common.RelayNonStreamTimeout
+	common.RelayTimeout = 0
+	common.RelayResponseHeaderTimeout = 0
+	common.RelayNonStreamTimeout = 0
+	service.InitHttpClient()
+	t.Cleanup(func() {
+		common.RelayTimeout = originalRelayTimeout
+		common.RelayResponseHeaderTimeout = originalHeaderTimeout
+		common.RelayNonStreamTimeout = originalNonStreamTimeout
+		service.InitHttpClient()
+	})
+
+	client := service.GetHttpClient()
+	require.NotNil(t, client)
+	originalTransport := client.Transport
+	t.Cleanup(func() { client.Transport = originalTransport })
+	deadlineSeen := make(chan bool, 1)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		_, hasDeadline := req.Context().Deadline()
+		deadlineSeen <- hasDeadline
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Request:    req,
+		}, nil
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{}}
+
+	resp, err := doRequestWithDeadline(c, req, info, 0)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Body.Close())
+	assert.False(t, <-deadlineSeen)
+}
+
+func TestDoRequestConfiguredNonStreamTimeoutZeroDisablesDeadline(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service.ResetProxyClientCache()
+	defer service.ResetProxyClientCache()
+	proxyKey := "http://test-proxy-zero-timeout"
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	deadlineSeen := make(chan bool, 1)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		_, hasDeadline := req.Context().Deadline()
+		deadlineSeen <- hasDeadline
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Request:    req,
+		}, nil
+	})
+
+	originalTimeout := common.RelayNonStreamTimeout
+	common.RelayNonStreamTimeout = 0
+	defer func() { common.RelayNonStreamTimeout = originalTimeout }()
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: false,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: proxyKey},
+		},
+	}
+
+	resp, err := doRequest(c, req, info)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Body.Close())
+	assert.False(t, <-deadlineSeen)
+}
+
+func TestDoRequestConfiguredNonStreamTimeoutAppliesDeadline(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service.ResetProxyClientCache()
+	defer service.ResetProxyClientCache()
+	proxyKey := "http://test-proxy-configured-timeout"
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	deadlineSeen := make(chan bool, 1)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		_, hasDeadline := req.Context().Deadline()
+		deadlineSeen <- hasDeadline
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("ok")),
+			Request:    req,
+		}, nil
+	})
+
+	originalTimeout := common.RelayNonStreamTimeout
+	common.RelayNonStreamTimeout = 1
+	defer func() { common.RelayNonStreamTimeout = originalTimeout }()
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: false,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelSetting: dto.ChannelSettings{Proxy: proxyKey},
+		},
+	}
+
+	resp, err := doRequest(c, req, info)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NoError(t, resp.Body.Close())
+	assert.True(t, <-deadlineSeen)
+}
+
+func TestDoRequestCancelsDerivedContextOnClientError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service.ResetProxyClientCache()
+	defer service.ResetProxyClientCache()
+	proxyKey := "http://test-proxy-client-error"
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	requestContext := make(chan context.Context, 1)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		requestContext <- req.Context()
+		return nil, assert.AnError
+	})
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{ChannelSetting: dto.ChannelSettings{Proxy: proxyKey}},
+	}
+
+	_, err = doRequestWithDeadline(c, req, info, time.Second)
+	require.Error(t, err)
+	ctx := <-requestContext
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("request context was not canceled on client error")
+	}
+}
+
+func TestDoRequestRejectsInvalidProxyBeforeDial(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{ChannelSetting: dto.ChannelSettings{Proxy: "http://%"}},
+	}
+
+	_, err = doRequestWithDeadline(c, req, info, time.Second)
+	assert.Error(t, err)
+}
+
+func TestAttachNonStreamResponseCancellationRejectsInvalidResponses(t *testing.T) {
+	t.Run("nil response", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		resp, err := attachNonStreamResponseCancellation(nil, cancel)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Error(t, ctx.Err())
+	})
+
+	t.Run("nil body", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		resp, err := attachNonStreamResponseCancellation(&http.Response{}, cancel)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Error(t, ctx.Err())
+	})
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
+
+type trackingReadCloser struct {
+	io.Reader
+	closed chan struct{}
+}
+
+func (body *trackingReadCloser) Close() error {
+	select {
+	case <-body.closed:
+	default:
+		close(body.closed)
+	}
+	return nil
+}
+
+type contextBlockingReadCloser struct {
+	ctx context.Context
+}
+
+func (body *contextBlockingReadCloser) Read([]byte) (int, error) {
+	<-body.ctx.Done()
+	return 0, body.ctx.Err()
+}
+
+func (body *contextBlockingReadCloser) Close() error {
+	return nil
 }

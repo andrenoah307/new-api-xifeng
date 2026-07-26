@@ -209,6 +209,9 @@ var BatchUpdateInterval int
 
 var RelayTimeout int // unit is second
 
+var RelayResponseHeaderTimeout int // unit is second; 0 disables the timeout
+var RelayNonStreamTimeout int      // unit is second; 0 disables the timeout
+
 var RelayIdleConnTimeout int // unit is second
 var RelayMaxIdleConns int
 var RelayMaxIdleConnsPerHost int

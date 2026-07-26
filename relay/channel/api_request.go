@@ -45,6 +45,17 @@ func applyUpstreamContentLength(req *http.Request, info *common.RelayInfo) {
 	}
 }
 
+// newUpstreamRequest keeps non-stream requests tied to the downstream request
+// while leaving stream requests on an independent context so StreamScanner can
+// perform its bounded post-disconnect drain.
+func newUpstreamRequest(c *gin.Context, info *common.RelayInfo, method, requestURL string, body io.Reader) (*http.Request, error) {
+	requestContext := context.Background()
+	if !info.IsStream {
+		requestContext = c.Request.Context()
+	}
+	return http.NewRequestWithContext(requestContext, method, requestURL, body)
+}
+
 func SetupApiRequestHeader(info *common.RelayInfo, c *gin.Context, req *http.Header) {
 	if info.RelayMode == relayconstant.RelayModeAudioTranscription || info.RelayMode == relayconstant.RelayModeAudioTranslation {
 		// multipart/form-data
@@ -421,7 +432,7 @@ func DoApiRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBody
 		return nil, fmt.Errorf("get request url failed: %w", err)
 	}
 	logger.LogDebug(c, "fullRequestURL: %s", common.SanitizeURLForLog(fullRequestURL))
-	req, err := http.NewRequest(c.Request.Method, fullRequestURL, requestBody)
+	req, err := newUpstreamRequest(c, info, c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}
@@ -452,7 +463,7 @@ func DoFormRequest(a Adaptor, c *gin.Context, info *common.RelayInfo, requestBod
 		return nil, fmt.Errorf("get request url failed: %w", err)
 	}
 	logger.LogDebug(c, "fullRequestURL: %s", common.SanitizeURLForLog(fullRequestURL))
-	req, err := http.NewRequest(c.Request.Method, fullRequestURL, requestBody)
+	req, err := newUpstreamRequest(c, info, c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}
@@ -599,11 +610,53 @@ func DoRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 	return doRequest(c, req, info)
 }
 func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http.Response, error) {
+	nonStreamTimeout := time.Duration(0)
+	if common2.RelayNonStreamTimeout > 0 {
+		nonStreamTimeout = time.Duration(common2.RelayNonStreamTimeout) * time.Second
+	}
+	return doRequestWithDeadline(c, req, info, nonStreamTimeout)
+}
+
+type cancelOnCloseReadCloser struct {
+	io.ReadCloser
+	cancel     context.CancelFunc
+	cancelOnce sync.Once
+}
+
+func (body *cancelOnCloseReadCloser) Close() error {
+	body.cancelOnce.Do(body.cancel)
+	return body.ReadCloser.Close()
+}
+
+func attachNonStreamResponseCancellation(resp *http.Response, cancel context.CancelFunc) (*http.Response, error) {
+	if resp == nil {
+		cancel()
+		return nil, errors.New("resp is nil")
+	}
+	if resp.Body == nil {
+		cancel()
+		return nil, errors.New("resp body is nil")
+	}
+	resp.Body = &cancelOnCloseReadCloser{ReadCloser: resp.Body, cancel: cancel}
+	return resp, nil
+}
+
+func doRequestWithDeadline(c *gin.Context, req *http.Request, info *common.RelayInfo, nonStreamTimeout time.Duration) (*http.Response, error) {
+	var cancel context.CancelFunc
+	if !info.IsStream && nonStreamTimeout > 0 {
+		var requestContext context.Context
+		requestContext, cancel = context.WithTimeout(req.Context(), nonStreamTimeout)
+		req = req.WithContext(requestContext)
+	}
+
 	var client *http.Client
 	var err error
 	if info.ChannelSetting.Proxy != "" {
 		client, err = service.NewProxyHttpClient(info.ChannelSetting.Proxy)
 		if err != nil {
+			if cancel != nil {
+				cancel()
+			}
 			return nil, fmt.Errorf("new proxy http client failed: %w", err)
 		}
 	} else {
@@ -632,10 +685,20 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if cancel != nil {
+			cancel()
+		}
 		logger.LogError(c, "do request failed: "+err.Error())
 		return nil, types.NewError(err, types.ErrorCodeDoRequestFailed, types.ErrOptionWithHideErrMsg("upstream error: do request failed"))
 	}
-	if resp == nil {
+	if cancel != nil {
+		// The response body is consumed after doRequest returns; cancel on Close
+		// instead of deferring here so the deadline does not cut body reads short.
+		resp, err = attachNonStreamResponseCancellation(resp, cancel)
+		if err != nil {
+			return nil, err
+		}
+	} else if resp == nil {
 		return nil, errors.New("resp is nil")
 	}
 
@@ -653,7 +716,7 @@ func DoTaskApiRequest(a TaskAdaptor, c *gin.Context, info *common.RelayInfo, req
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest(c.Request.Method, fullRequestURL, requestBody)
+	req, err := newUpstreamRequest(c, info, c.Request.Method, fullRequestURL, requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("new request failed: %w", err)
 	}

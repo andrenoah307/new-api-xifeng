@@ -22,6 +22,8 @@ var (
 	proxyClients            = make(map[string]*http.Client)
 )
 
+const relayDialTimeout = 10 * time.Second
+
 func checkRedirect(req *http.Request, via []*http.Request) error {
 	urlStr := req.URL.String()
 	if err := validateURLWithCurrentFetchSetting(urlStr, true); err != nil {
@@ -53,30 +55,61 @@ func ValidateSSRFProtectedFetchURL(urlStr string) error {
 	return validateURLWithCurrentFetchSetting(urlStr, true)
 }
 
-func InitHttpClient() {
+func newRelayTransport(proxyFunc func(*http.Request) (*url.URL, error), dialContext func(context.Context, string, string) (net.Conn, error)) *http.Transport {
+	dialer := &net.Dialer{
+		Timeout:   relayDialTimeout,
+		KeepAlive: 30 * time.Second,
+	}
+	if dialContext == nil {
+		dialContext = dialer.DialContext
+	} else {
+		configuredDialContext := dialContext
+		dialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+			dialContextWithTimeout, cancel := context.WithTimeout(ctx, relayDialTimeout)
+			defer cancel()
+			return configuredDialContext(dialContextWithTimeout, network, address)
+		}
+	}
+
+	responseHeaderTimeout := time.Duration(0)
+	if common.RelayResponseHeaderTimeout > 0 {
+		responseHeaderTimeout = time.Duration(common.RelayResponseHeaderTimeout) * time.Second
+	}
+
 	transport := &http.Transport{
-		MaxIdleConns:        common.RelayMaxIdleConns,
-		MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
-		IdleConnTimeout:     time.Duration(common.RelayIdleConnTimeout) * time.Second,
-		ForceAttemptHTTP2:   true,
-		Proxy:               http.ProxyFromEnvironment, // Support HTTP_PROXY, HTTPS_PROXY, NO_PROXY env vars
+		MaxIdleConns:          common.RelayMaxIdleConns,
+		MaxIdleConnsPerHost:   common.RelayMaxIdleConnsPerHost,
+		IdleConnTimeout:       time.Duration(common.RelayIdleConnTimeout) * time.Second,
+		ResponseHeaderTimeout: responseHeaderTimeout,
+		TLSHandshakeTimeout:   relayDialTimeout,
+		ExpectContinueTimeout: 1 * time.Second,
+		ForceAttemptHTTP2:     true,
+		Proxy:                 proxyFunc,
+		DialContext:           dialContext,
 	}
 	if common.TLSInsecureSkipVerify {
 		transport.TLSClientConfig = common.InsecureTLSConfig
 	}
+	return transport
+}
 
+func newRelayHTTPClient(transport *http.Transport) *http.Client {
 	if common.RelayTimeout == 0 {
-		httpClient = &http.Client{
+		return &http.Client{
 			Transport:     transport,
-			CheckRedirect: checkRedirect,
-		}
-	} else {
-		httpClient = &http.Client{
-			Transport:     transport,
-			Timeout:       time.Duration(common.RelayTimeout) * time.Second,
 			CheckRedirect: checkRedirect,
 		}
 	}
+	return &http.Client{
+		Transport:     transport,
+		Timeout:       time.Duration(common.RelayTimeout) * time.Second,
+		CheckRedirect: checkRedirect,
+	}
+}
+
+func InitHttpClient() {
+	transport := newRelayTransport(http.ProxyFromEnvironment, nil) // Support HTTP_PROXY, HTTPS_PROXY, NO_PROXY env vars
+	httpClient = newRelayHTTPClient(transport)
 	ssrfProtectedHTTPClient = newProtectedFetchHTTPClient()
 }
 
@@ -143,21 +176,8 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 
 	switch parsedURL.Scheme {
 	case "http", "https":
-		transport := &http.Transport{
-			MaxIdleConns:        common.RelayMaxIdleConns,
-			MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
-			IdleConnTimeout:     time.Duration(common.RelayIdleConnTimeout) * time.Second,
-			ForceAttemptHTTP2:   true,
-			Proxy:               http.ProxyURL(parsedURL),
-		}
-		if common.TLSInsecureSkipVerify {
-			transport.TLSClientConfig = common.InsecureTLSConfig
-		}
-		client := &http.Client{
-			Transport:     transport,
-			CheckRedirect: checkRedirect,
-		}
-		client.Timeout = time.Duration(common.RelayTimeout) * time.Second
+		transport := newRelayTransport(http.ProxyURL(parsedURL), nil)
+		client := newRelayHTTPClient(transport)
 		proxyClientLock.Lock()
 		proxyClients[proxyURL] = client
 		proxyClientLock.Unlock()
@@ -183,21 +203,16 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 			return nil, err
 		}
 
-		transport := &http.Transport{
-			MaxIdleConns:        common.RelayMaxIdleConns,
-			MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
-			IdleConnTimeout:     time.Duration(common.RelayIdleConnTimeout) * time.Second,
-			ForceAttemptHTTP2:   true,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+		var dialContext func(context.Context, string, string) (net.Conn, error)
+		if contextDialer, ok := dialer.(proxy.ContextDialer); ok {
+			dialContext = contextDialer.DialContext
+		} else {
+			dialContext = func(_ context.Context, network, addr string) (net.Conn, error) {
 				return dialer.Dial(network, addr)
-			},
+			}
 		}
-		if common.TLSInsecureSkipVerify {
-			transport.TLSClientConfig = common.InsecureTLSConfig
-		}
-
-		client := &http.Client{Transport: transport, CheckRedirect: checkRedirect}
-		client.Timeout = time.Duration(common.RelayTimeout) * time.Second
+		transport := newRelayTransport(nil, dialContext)
+		client := newRelayHTTPClient(transport)
 		proxyClientLock.Lock()
 		proxyClients[proxyURL] = client
 		proxyClientLock.Unlock()
