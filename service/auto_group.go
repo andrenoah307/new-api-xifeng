@@ -258,7 +258,9 @@ func (e *autoGroupEngine) evaluateUser(userId int, rules []*compiledAutoGroupRul
 				common.SysError(fmt.Sprintf("auto group update user %d group to %s failed: %v", userId, targetGroup, err))
 				return
 			}
-			model.UpdateUserGroupCache(userId, targetGroup)
+			if err := model.RefreshUserGroupCache(userId); err != nil {
+				common.SysError(fmt.Sprintf("auto group refresh user %d group cache failed: %v", userId, err))
+			}
 			common.SysLog(fmt.Sprintf("auto group: user %d group changed %s -> %s (rule: %s)", userId, enrollment.CurrentGroup, targetGroup, matchedRule.Raw.Name))
 		}
 	} else {
@@ -267,7 +269,9 @@ func (e *autoGroupEngine) evaluateUser(userId int, rules []*compiledAutoGroupRul
 				common.SysError(fmt.Sprintf("auto group revert user %d group to %s failed: %v", userId, enrollment.OriginalGroup, err))
 				return
 			}
-			model.UpdateUserGroupCache(userId, enrollment.OriginalGroup)
+			if err := model.RefreshUserGroupCache(userId); err != nil {
+				common.SysError(fmt.Sprintf("auto group refresh user %d group cache failed: %v", userId, err))
+			}
 			common.SysLog(fmt.Sprintf("auto group: user %d group reverted %s -> %s (no matching rule)", userId, enrollment.CurrentGroup, enrollment.OriginalGroup))
 		}
 	}

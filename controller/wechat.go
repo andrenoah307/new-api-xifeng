@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,7 +12,6 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -42,7 +40,7 @@ func getWeChatIdByCode(code string) (string, error) {
 	}
 	defer httpResponse.Body.Close()
 	var res wechatLoginResponse
-	err = json.NewDecoder(httpResponse.Body).Decode(&res)
+	err = common.DecodeJson(httpResponse.Body, &res)
 	if err != nil {
 		return "", err
 	}
@@ -98,11 +96,10 @@ func WeChatAuth(c *gin.Context) {
 			user.DisplayName = "WeChat User"
 			user.Role = common.RoleCommonUser
 			user.Status = common.UserStatusEnabled
+			// session 已移除：aff 返佣码改由前端随登录请求以 query 参数携带
 			inviterId := 0
-			session := sessions.Default(c)
-			affCode := session.Get("aff")
-			if affCode != nil {
-				inviterId, _ = model.GetUserIdByAffCode(affCode.(string))
+			if affCode := strings.TrimSpace(c.Query("aff")); affCode != "" {
+				inviterId, _ = model.GetUserIdByAffCode(affCode)
 			}
 			err := model.DB.Transaction(func(tx *gorm.DB) error {
 				var invitationCode *model.InvitationCode
@@ -193,10 +190,12 @@ func WeChatBind(c *gin.Context) {
 		})
 		return
 	}
-	session := sessions.Default(c)
-	id := session.Get("id")
 	user := model.User{
-		Id: id.(int),
+		Id: c.GetInt("id"),
+	}
+	if user.Id == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "未登录"})
+		return
 	}
 	err = user.FillUserById()
 	if err != nil {
