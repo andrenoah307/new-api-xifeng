@@ -217,6 +217,15 @@ var RelayIdleConnTimeout int // unit is second
 var RelayMaxIdleConns int
 var RelayMaxIdleConnsPerHost int
 
+var ServerReadHeaderTimeout int // unit is second; 0 disables the timeout
+var ServerIdleTimeout int       // unit is second; 0 disables the timeout
+
+var RelayMaxConcurrentRequests int
+var RelayMaxActiveBodyBytes int64
+var RelayMemoryBreakerHighPercent int
+var RelayMemoryBreakerLowPercent int
+var RelayAdmissionRetryAfterSeconds int
+
 var GeminiSafetySetting string
 
 // https://docs.cohere.com/docs/safety-modes Type; NONE/CONTEXTUAL/STRICT

@@ -319,6 +319,13 @@ docker run --name new-api -d --restart always \
 | `CRYPTO_SECRET` | 暗号化シークレット（Redisに必須） | - |
 | `SQL_DSN** | データベース接続文字列 | - |
 | `REDIS_CONN_STRING` | Redis接続文字列 | - |
+| `RELAY_MAX_CONCURRENT_REQUESTS` | プロセス全体のRelay同時リクエスト受付上限。`0` で無効化 | `0` |
+| `RELAY_MAX_ACTIVE_BODY_BYTES` | `Content-Length` に基づくプロセス全体のアクティブなリクエスト本文バイト予算（gzip は圧縮サイズ、未知または0の長さは予約しない）。`0` で無効化 | `0` |
+| `RELAY_MEMORY_BREAKER_HIGH_PERCENT` | cgroup working set（`memory.current - inactive_file`）の高水位（%）。ホストメモリではない。`0` で無効化し、cgroupを読み取れない場合はfail-open（拒否しない） | `0` |
+| `RELAY_MEMORY_BREAKER_LOW_PERCENT` | メモリーブレーカーの復帰低水位（ヒステリシス）（%）。有効時はHIGH未満にする必要があり、不正な閾値は正規化してログに記録 | `75` |
+| `RELAY_ADMISSION_RETRY_AFTER_SECONDS` | 受付拒否で `503` を返す際の `Retry-After` 秒数 | `5` |
+| `SERVER_READ_HEADER_TIMEOUT` | 受信 HTTP ヘッダーの読み取りタイムアウト（秒）。`0` で無効化し、リクエスト本文の読み取りとレスポンス書き込みは対象外 | `20` |
+| `SERVER_IDLE_TIMEOUT` | 受信 HTTP keep-alive 接続のアイドルタイムアウト（秒）。`0` で無効化 | `120` |
 | `STREAMING_TIMEOUT` | ストリーミング応答のタイムアウト時間（秒） | `300` |
 | `STREAM_SCANNER_MAX_BUFFER_MB` | ストリームスキャナの1行あたりバッファ上限（MB）。4K画像など巨大なbase64 `data:` ペイロードを扱う場合は値を増加させてください | `64` |
 | `MAX_REQUEST_BODY_MB` | リクエストボディ最大サイズ（MB、**解凍後**に計測。巨大リクエスト/zip bomb によるメモリ枯渇を防止）。超過時は `413` | `32` |
@@ -331,6 +338,8 @@ docker run --name new-api -d --restart always \
 | `PYROSCOPE_MUTEX_RATE` | Pyroscope mutexサンプリング率 | `5` |
 | `PYROSCOPE_BLOCK_RATE` | Pyroscope blockサンプリング率 | `5` |
 | `HOSTNAME` | Pyroscope用のホスト名タグ | `new-api` |
+
+> 同時リクエスト数、アクティブ本文バイト数、cgroupメモリの3つの受付ゲートはデフォルトで無効です。3つすべてを無効にするとゼロオーバーヘッドで通過します。推奨する本番開始値：同時数 `3000`、アクティブ本文 `2147483648`（2 GiB）、高水位 `85`、低水位 `75`、`Retry-After` `5` 秒。
 
 📖 **完全な設定:** [環境変数ドキュメント](https://docs.newapi.pro/ja/docs/installation/config-maintenance/environment-variables)
 

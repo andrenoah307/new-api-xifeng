@@ -113,6 +113,8 @@ func InitEnv() {
 	RelayIdleConnTimeout = GetEnvOrDefault("RELAY_IDLE_CONN_TIMEOUT", 90)
 	RelayMaxIdleConns = GetEnvOrDefault("RELAY_MAX_IDLE_CONNS", 500)
 	RelayMaxIdleConnsPerHost = GetEnvOrDefault("RELAY_MAX_IDLE_CONNS_PER_HOST", 100)
+	initServerTimeoutEnv()
+	initRelayAdmissionEnv()
 
 	// Initialize string variables with GetEnvOrDefaultString
 	GeminiSafetySetting = GetEnvOrDefaultString("GEMINI_SAFETY_SETTING", "BLOCK_NONE")
@@ -151,6 +153,30 @@ func InitEnv() {
 
 	LogSearchCountLimit = GetEnvOrDefault("LOG_SEARCH_COUNT_LIMIT", 1000)
 	initConstantEnv()
+}
+
+func initServerTimeoutEnv() {
+	ServerReadHeaderTimeout = GetEnvOrDefault("SERVER_READ_HEADER_TIMEOUT", 20)
+	ServerIdleTimeout = GetEnvOrDefault("SERVER_IDLE_TIMEOUT", 120)
+}
+
+func initRelayAdmissionEnv() {
+	RelayMaxConcurrentRequests = GetEnvOrDefault("RELAY_MAX_CONCURRENT_REQUESTS", 0)
+	RelayMaxActiveBodyBytes = GetEnvOrDefaultInt64("RELAY_MAX_ACTIVE_BODY_BYTES", 0)
+	RelayMemoryBreakerHighPercent = GetEnvOrDefault("RELAY_MEMORY_BREAKER_HIGH_PERCENT", 0)
+	RelayMemoryBreakerLowPercent = GetEnvOrDefault("RELAY_MEMORY_BREAKER_LOW_PERCENT", 75)
+	if lowPercent, invalid := normalizeRelayMemoryBreakerThresholds(RelayMemoryBreakerHighPercent, RelayMemoryBreakerLowPercent); invalid {
+		relayMemoryBreakerConfigWarningOnce.Do(func() {
+			SysLog(fmt.Sprintf(
+				"invalid relay memory breaker thresholds: RELAY_MEMORY_BREAKER_LOW_PERCENT (%d) must be lower than RELAY_MEMORY_BREAKER_HIGH_PERCENT (%d); using %d",
+				RelayMemoryBreakerLowPercent,
+				RelayMemoryBreakerHighPercent,
+				lowPercent,
+			))
+		})
+		RelayMemoryBreakerLowPercent = lowPercent
+	}
+	RelayAdmissionRetryAfterSeconds = GetEnvOrDefault("RELAY_ADMISSION_RETRY_AFTER_SECONDS", 5)
 }
 
 func initConstantEnv() {

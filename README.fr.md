@@ -317,6 +317,13 @@ docker run --name new-api -d --restart always \
 | `CRYPTO_SECRET` | Secret de chiffrement (requis pour Redis) | - |
 | `SQL_DSN` | Chaine de connexion à la base de données | - |
 | `REDIS_CONN_STRING` | Chaine de connexion Redis | - |
+| `RELAY_MAX_CONCURRENT_REQUESTS` | Limite globale de requêtes Relay admises simultanément. `0` désactive la limite | `0` |
+| `RELAY_MAX_ACTIVE_BODY_BYTES` | Budget global en octets pour les corps de requête actifs, basé sur `Content-Length` (taille compressée pour gzip ; les longueurs inconnues ou nulles ne sont pas réservées). `0` désactive la limite | `0` |
+| `RELAY_MEMORY_BREAKER_HIGH_PERCENT` | Seuil haut (%) du working set cgroup (`memory.current - inactive_file`), et non de la mémoire de l'hôte. `0` désactive le disjoncteur ; si les métriques cgroup sont illisibles, le contrôle laisse passer | `0` |
+| `RELAY_MEMORY_BREAKER_LOW_PERCENT` | Seuil bas (%) de récupération avec hystérésis. Lorsqu'il est activé, il doit être inférieur à HIGH ; les seuils invalides sont normalisés et consignés | `75` |
+| `RELAY_ADMISSION_RETRY_AFTER_SECONDS` | Nombre de secondes de `Retry-After` lors d'un rejet d'admission `503` | `5` |
+| `SERVER_READ_HEADER_TIMEOUT` | Délai de lecture des en-têtes HTTP entrants, en secondes. `0` désactive la limite et ne couvre ni le corps de la requête ni l'écriture de la réponse | `20` |
+| `SERVER_IDLE_TIMEOUT` | Délai d'inactivité des connexions HTTP entrantes, en secondes. `0` désactive la limite | `120` |
 | `STREAMING_TIMEOUT` | Délai d'expiration du streaming (secondes) | `300` |
 | `STREAM_SCANNER_MAX_BUFFER_MB` | Taille max du buffer par ligne (Mo) pour le scanner SSE ; à augmenter quand les sorties image/base64 sont très volumineuses (ex. images 4K) | `64` |
 | `MAX_REQUEST_BODY_MB` | Taille maximale du corps de requête (Mo, comptée **après décompression** ; évite les requêtes énormes/zip bombs qui saturent la mémoire). Dépassement ⇒ `413` | `32` |
@@ -329,6 +336,8 @@ docker run --name new-api -d --restart always \
 | `PYROSCOPE_MUTEX_RATE` | Taux d'échantillonnage mutex Pyroscope | `5` |
 | `PYROSCOPE_BLOCK_RATE` | Taux d'échantillonnage block Pyroscope | `5` |
 | `HOSTNAME` | Nom d'hôte tagué pour Pyroscope | `new-api` |
+
+> Les trois barrières d'admission (concurrence, corps actifs et mémoire cgroup) sont désactivées par défaut. Lorsqu'elles le sont toutes, le relais passe sans surcoût. Point de départ recommandé en production : concurrence `3000`, corps actifs `2147483648` (2 Gio), seuil haut `85`, seuil bas `75`, et `Retry-After` `5` secondes.
 
 📖 **Configuration complète:** [Documentation des variables d'environnement](https://docs.newapi.pro/en/docs/installation/config-maintenance/environment-variables)
 

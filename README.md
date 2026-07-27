@@ -321,6 +321,13 @@ docker run --name new-api -d --restart always \
 | `RELAY_NON_STREAM_TIMEOUT` | Overall deadline for non-streaming relay responses (waiting for headers plus reading the body), in seconds. `0` (default) disables it; streaming requests are unaffected. Recommended production value: `7200`, above the observed non-streaming maximum of ~6220s | `0` |
 | `RELAY_STREAM_RESPONSE_HEADER_TIMEOUT` | Per-request deadline for streaming relay requests to receive response headers; once headers arrive, subsequent streaming body reads are not limited by this setting. `0` (default) disables it. Recommended production value: `1800` (30 minutes), above the observed streaming FRT maximum of ~1216s | `0` |
 | `RELAY_IDLE_CONN_TIMEOUT` | Idle keep-alive timeout for relay HTTP clients, seconds. Defaults to Go standard library behavior; set `0` to disable | `90` |
+| `RELAY_MAX_CONCURRENT_REQUESTS` | Process-wide concurrent relay admission limit. `0` disables it | `0` |
+| `RELAY_MAX_ACTIVE_BODY_BYTES` | Process-wide active request-body byte budget based on `Content-Length` (compressed size for gzip; unknown or zero lengths are not reserved). `0` disables it | `0` |
+| `RELAY_MEMORY_BREAKER_HIGH_PERCENT` | High-water mark (%) for the cgroup working set (`memory.current - inactive_file`), not host memory. `0` disables the breaker; if cgroup metrics cannot be read, it fails open | `0` |
+| `RELAY_MEMORY_BREAKER_LOW_PERCENT` | Low-water recovery mark (%) for breaker hysteresis. When enabled it must be lower than HIGH; invalid thresholds are normalized and logged | `75` |
+| `RELAY_ADMISSION_RETRY_AFTER_SECONDS` | `Retry-After` seconds on a `503` admission rejection | `5` |
+| `SERVER_READ_HEADER_TIMEOUT` | Inbound HTTP server timeout for reading request headers, in seconds. `0` disables it; request body and response writes are intentionally not covered | `20` |
+| `SERVER_IDLE_TIMEOUT` | Inbound HTTP keep-alive idle timeout, in seconds. `0` disables it | `120` |
 | `STREAMING_TIMEOUT` | Streaming timeout (seconds) | `300` |
 | `STREAM_SCANNER_MAX_BUFFER_MB` | Max per-line buffer (MB) for the stream scanner; increase when upstream sends huge image/base64 payloads | `64` |
 | `MAX_REQUEST_BODY_MB` | Max request body size (MB, counted **after decompression**; prevents huge requests/zip bombs from exhausting memory). Exceeding it returns `413` | `32` |
@@ -333,6 +340,8 @@ docker run --name new-api -d --restart always \
 | `PYROSCOPE_MUTEX_RATE` | Pyroscope mutex sampling rate | `5` |
 | `PYROSCOPE_BLOCK_RATE` | Pyroscope block sampling rate | `5` |
 | `HOSTNAME` | Hostname tag for Pyroscope | `new-api` |
+
+> The concurrency, active-body, and cgroup-memory admission gates are disabled by default. With all three disabled, relay admission is a zero-overhead pass-through. Suggested production starting point: concurrent requests `3000`, active body bytes `2147483648` (2 GiB), high water `85`, low water `75`, and `Retry-After` `5` seconds.
 
 📖 **Complete configuration:** [Environment Variables Documentation](https://docs.newapi.pro/en/docs/installation/config-maintenance/environment-variables)
 

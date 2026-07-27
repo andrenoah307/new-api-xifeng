@@ -317,6 +317,13 @@ docker run --name new-api -d --restart always \
 | `CRYPTO_SECRET` | 加密密钥（Redis 必须）                                               | - |
 | `SQL_DSN` | 数据库连接字符串                                                     | - |
 | `REDIS_CONN_STRING` | Redis 连接字符串                                                  | - |
+| `RELAY_MAX_CONCURRENT_REQUESTS` | Relay 全局并发请求准入上限；`0` 表示禁用 | `0` |
+| `RELAY_MAX_ACTIVE_BODY_BYTES` | Relay 全局活动请求体字节预算，按 `Content-Length` 计（gzip 按压缩大小；未知或 0 不预留）；`0` 表示禁用 | `0` |
+| `RELAY_MEMORY_BREAKER_HIGH_PERCENT` | cgroup working set 高水位百分比（`memory.current - inactive_file`，不是宿主机内存）；`0` 表示禁用，无法读取 cgroup 时放行 | `0` |
+| `RELAY_MEMORY_BREAKER_LOW_PERCENT` | 内存断路器恢复低水位（滞回）百分比；启用时必须低于 HIGH，非法阈值会规范化并记录日志 | `75` |
+| `RELAY_ADMISSION_RETRY_AFTER_SECONDS` | 准入闸门触发 `503` 时返回的 `Retry-After` 秒数 | `5` |
+| `SERVER_READ_HEADER_TIMEOUT` | 入站 HTTP 请求头读取超时时间（秒）；`0` 表示不限制，不覆盖请求体读取和响应写出 | `20` |
+| `SERVER_IDLE_TIMEOUT` | 入站 HTTP 长连接空闲超时时间（秒）；`0` 表示不限制 | `120` |
 | `STREAMING_TIMEOUT` | 流式超时时间（秒）                                                    | `300` |
 | `STREAM_SCANNER_MAX_BUFFER_MB` | 流式扫描器单行最大缓冲（MB），图像生成等超大 `data:` 片段（如 4K 图片 base64）需适当调大 | `64` |
 | `MAX_REQUEST_BODY_MB` | 请求体最大大小（MB，**解压后**计；防止超大请求/zip bomb 导致内存暴涨），超过将返回 `413` | `32` |
@@ -329,6 +336,8 @@ docker run --name new-api -d --restart always \
 | `PYROSCOPE_MUTEX_RATE` | Pyroscope mutex 采样率                               | `5` |
 | `PYROSCOPE_BLOCK_RATE` | Pyroscope block 采样率                               | `5` |
 | `HOSTNAME` | Pyroscope 标签里的主机名                                          | `new-api` |
+
+> 并发数、活动请求体字节数和 cgroup 内存三个准入闸门默认关闭；三者全部关闭时为零开销直通。生产建议起点：并发 `3000`、活动 body `2147483648`（2 GiB）、高水位 `85`、低水位 `75`、`Retry-After` `5` 秒。
 
 📖 **完整配置：** [环境变量文档](https://docs.newapi.pro/zh/docs/installation/config-maintenance/environment-variables)
 

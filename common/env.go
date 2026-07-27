@@ -18,6 +18,18 @@ func GetEnvOrDefault(env string, defaultValue int) int {
 	return num
 }
 
+func GetEnvOrDefaultInt64(env string, defaultValue int64) int64 {
+	if env == "" || os.Getenv(env) == "" {
+		return defaultValue
+	}
+	num, err := strconv.ParseInt(os.Getenv(env), 10, 64)
+	if err != nil {
+		SysError(fmt.Sprintf("failed to parse %s: %s, using default value: %d", env, err.Error(), defaultValue))
+		return defaultValue
+	}
+	return num
+}
+
 func GetEnvOrDefaultString(env string, defaultValue string) string {
 	if env == "" || os.Getenv(env) == "" {
 		return defaultValue
