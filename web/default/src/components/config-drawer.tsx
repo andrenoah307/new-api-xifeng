@@ -392,7 +392,7 @@ const RADIUS_OPTIONS: {
   // CSS border-radius value used to render the visual preview corner.
   preview: string
 }[] = [
-  { value: 'default', label: 'Auto', preview: '1rem' },
+  { value: 'default', label: 'Auto', preview: '0.3rem' },
   { value: 'none', label: '0', preview: '0' },
   { value: 'sm', label: '0.3', preview: '0.3rem' },
   { value: 'md', label: '0.5', preview: '0.5rem' },
