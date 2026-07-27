@@ -2,7 +2,7 @@ package claudemessages
 
 import (
 	"fmt"
-	"strings"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
@@ -13,12 +13,12 @@ import (
 )
 
 type ClaudeResponseInfo struct {
-	ResponseId   string
-	Created      int64
-	Model        string
-	ResponseText strings.Builder
-	Usage        *dto.Usage
-	Done         bool
+	ResponseId            string
+	Created               int64
+	Model                 string
+	ResponseTextRuneCount int
+	Usage                 *dto.Usage
+	Done                  bool
 }
 
 func StopReasonClaudeToOpenAI(reason string) string {
@@ -355,10 +355,10 @@ func FormatClaudeResponseInfo(claudeResponse *dto.ClaudeResponse, oaiResponse *d
 	} else if claudeResponse.Type == "content_block_delta" {
 		if claudeResponse.Delta != nil {
 			if claudeResponse.Delta.Text != nil {
-				claudeInfo.ResponseText.WriteString(*claudeResponse.Delta.Text)
+				claudeInfo.ResponseTextRuneCount += utf8.RuneCountInString(*claudeResponse.Delta.Text)
 			}
 			if claudeResponse.Delta.Thinking != nil {
-				claudeInfo.ResponseText.WriteString(*claudeResponse.Delta.Thinking)
+				claudeInfo.ResponseTextRuneCount += utf8.RuneCountInString(*claudeResponse.Delta.Thinking)
 			}
 		}
 	} else if claudeResponse.Type == "message_delta" {

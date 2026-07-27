@@ -21,6 +21,47 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func copyClaudeRequestForRelay(request *dto.ClaudeRequest) *dto.ClaudeRequest {
+	copied := *request
+	// Relay attempts intentionally share payload storage, but the request-level
+	// parsed System view must not survive into a copy that will be mutated.
+	copied.SetSystem(copied.System)
+	return &copied
+}
+
+func applyClaudeSystemPrompt(c *gin.Context, request *dto.ClaudeRequest, setting dto.ChannelSettings) {
+	if setting.SystemPrompt == "" {
+		return
+	}
+	if request.System == nil {
+		request.SetStringSystem(setting.SystemPrompt)
+		return
+	}
+	if !setting.SystemPromptOverride {
+		return
+	}
+
+	common.SetContextKey(c, constant.ContextKeySystemPromptOverride, true)
+	if request.IsStringSystem() {
+		existing := strings.TrimSpace(request.GetStringSystem())
+		if existing == "" {
+			request.SetStringSystem(setting.SystemPrompt)
+			return
+		}
+		request.SetStringSystem(setting.SystemPrompt + "\n" + existing)
+		return
+	}
+
+	systemContents := request.ParseSystem()
+	newSystem := dto.ClaudeMediaMessage{Type: dto.ContentTypeText}
+	newSystem.SetText(setting.SystemPrompt)
+	if len(systemContents) == 0 {
+		request.SetSystem([]dto.ClaudeMediaMessage{newSystem})
+		return
+	}
+	request.SetSystem(append([]dto.ClaudeMediaMessage{newSystem}, systemContents...))
+}
+
 func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types.NewAPIError) {
 
 	info.InitChannelMeta(c)
@@ -31,8 +72,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		return types.NewErrorWithStatusCode(fmt.Errorf("invalid request type, expected *dto.ClaudeRequest, got %T", info.Request), types.ErrorCodeInvalidRequest, http.StatusBadRequest, types.ErrOptionWithSkipRetry())
 	}
 
-	copied := *claudeReq
-	request := &copied
+	request := copyClaudeRequestForRelay(claudeReq)
 
 	err := helper.ModelMappedHelper(c, info, request)
 	if err != nil {
@@ -105,30 +145,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		info.UpstreamModelName = request.Model
 	}
 
-	if info.ChannelSetting.SystemPrompt != "" {
-		if request.System == nil {
-			request.SetStringSystem(info.ChannelSetting.SystemPrompt)
-		} else if info.ChannelSetting.SystemPromptOverride {
-			common.SetContextKey(c, constant.ContextKeySystemPromptOverride, true)
-			if request.IsStringSystem() {
-				existing := strings.TrimSpace(request.GetStringSystem())
-				if existing == "" {
-					request.SetStringSystem(info.ChannelSetting.SystemPrompt)
-				} else {
-					request.SetStringSystem(info.ChannelSetting.SystemPrompt + "\n" + existing)
-				}
-			} else {
-				systemContents := request.ParseSystem()
-				newSystem := dto.ClaudeMediaMessage{Type: dto.ContentTypeText}
-				newSystem.SetText(info.ChannelSetting.SystemPrompt)
-				if len(systemContents) == 0 {
-					request.System = []dto.ClaudeMediaMessage{newSystem}
-				} else {
-					request.System = append([]dto.ClaudeMediaMessage{newSystem}, systemContents...)
-				}
-			}
-		}
-	}
+	applyClaudeSystemPrompt(c, request, info.ChannelSetting)
 
 	if !model_setting.GetGlobalSettings().PassThroughRequestEnabled &&
 		!info.ChannelSetting.PassThroughBodyEnabled &&

@@ -120,10 +120,10 @@ type ClaudeMessageSource struct {
 }
 
 type ClaudeMessage struct {
-	Role           string               `json:"role"`
-	Content        any                  `json:"content"`
-	parsedContent  []ClaudeMediaMessage
-	contentParsed  bool
+	Role          string `json:"role"`
+	Content       any    `json:"content"`
+	parsedContent []ClaudeMediaMessage
+	contentParsed bool
 }
 
 func (c *ClaudeMessage) IsStringContent() bool {
@@ -162,23 +162,146 @@ func (c *ClaudeMessage) GetStringContent() string {
 
 func (c *ClaudeMessage) SetStringContent(content string) {
 	c.Content = content
+	c.parsedContent = nil
+	c.contentParsed = false
 }
 
 func (c *ClaudeMessage) SetContent(content any) {
 	c.Content = content
+	c.parsedContent = nil
+	c.contentParsed = false
 }
 
 func (c *ClaudeMessage) ParseContent() ([]ClaudeMediaMessage, error) {
 	if c.contentParsed {
 		return c.parsedContent, nil
 	}
-	result, err := common.Any2Type[[]ClaudeMediaMessage](c.Content)
+	result, err := parseClaudeMediaMessages(c.Content)
 	if err != nil {
 		return nil, err
 	}
 	c.parsedContent = result
 	c.contentParsed = true
 	return result, nil
+}
+
+func parseClaudeMediaMessages(content any) ([]ClaudeMediaMessage, error) {
+	switch messages := content.(type) {
+	case nil:
+		return nil, nil
+	case []ClaudeMediaMessage:
+		return messages, nil
+	case []any:
+		parsed := make([]ClaudeMediaMessage, len(messages))
+		for i, value := range messages {
+			message, ok := value.(map[string]any)
+			if !ok {
+				return common.Any2Type[[]ClaudeMediaMessage](content)
+			}
+			converted, ok := claudeMediaMessageFromMap(message)
+			if !ok {
+				return common.Any2Type[[]ClaudeMediaMessage](content)
+			}
+			parsed[i] = converted
+		}
+		return parsed, nil
+	default:
+		return common.Any2Type[[]ClaudeMediaMessage](content)
+	}
+}
+
+func claudeMediaMessageFromMap(values map[string]any) (ClaudeMediaMessage, bool) {
+	var message ClaudeMediaMessage
+	stringFields := [...]struct {
+		key   string
+		value *string
+	}{
+		{key: "type", value: &message.Type},
+		{key: "model", value: &message.Model},
+		{key: "role", value: &message.Role},
+		{key: "signature", value: &message.Signature},
+		{key: "delta", value: &message.Delta},
+		{key: "id", value: &message.Id},
+		{key: "name", value: &message.Name},
+		{key: "tool_use_id", value: &message.ToolUseId},
+	}
+	for _, field := range stringFields {
+		value, exists := values[field.key]
+		if !exists || value == nil {
+			continue
+		}
+		stringValue, ok := value.(string)
+		if !ok {
+			return ClaudeMediaMessage{}, false
+		}
+		*field.value = stringValue
+	}
+
+	pointerStringFields := [...]struct {
+		key   string
+		value **string
+	}{
+		{key: "text", value: &message.Text},
+		{key: "stop_reason", value: &message.StopReason},
+		{key: "partial_json", value: &message.PartialJson},
+		{key: "thinking", value: &message.Thinking},
+	}
+	for _, field := range pointerStringFields {
+		value, exists := values[field.key]
+		if !exists || value == nil {
+			continue
+		}
+		stringValue, ok := value.(string)
+		if !ok {
+			return ClaudeMediaMessage{}, false
+		}
+		*field.value = &stringValue
+	}
+
+	if value, exists := values["source"]; exists && value != nil {
+		source, ok := value.(map[string]any)
+		if !ok {
+			return ClaudeMediaMessage{}, false
+		}
+		parsedSource := &ClaudeMessageSource{}
+		sourceStringFields := [...]struct {
+			key   string
+			value *string
+		}{
+			{key: "type", value: &parsedSource.Type},
+			{key: "media_type", value: &parsedSource.MediaType},
+			{key: "url", value: &parsedSource.Url},
+		}
+		for _, field := range sourceStringFields {
+			sourceValue, sourceExists := source[field.key]
+			if !sourceExists || sourceValue == nil {
+				continue
+			}
+			stringValue, ok := sourceValue.(string)
+			if !ok {
+				return ClaudeMediaMessage{}, false
+			}
+			*field.value = stringValue
+		}
+		parsedSource.Data = source["data"]
+		message.Source = parsedSource
+	}
+
+	if value, exists := values["usage"]; exists && value != nil {
+		return ClaudeMediaMessage{}, false
+	}
+
+	if value, exists := values["cache_control"]; exists && value != nil {
+		encoded, err := common.Marshal(value)
+		if err != nil {
+			return ClaudeMediaMessage{}, false
+		}
+		message.CacheControl = encoded
+	}
+
+	message.Input = values["input"]
+	message.Content = values["content"]
+	return message, true
 }
 
 type Tool struct {
@@ -387,6 +510,9 @@ func (c *ClaudeRequest) SetModelName(modelName string) {
 
 func (c *ClaudeRequest) SearchToolNameByToolCallId(toolCallId string) string {
 	for _, message := range c.Messages {
+		if message.IsStringContent() {
+			continue
+		}
 		content, _ := message.ParseContent()
 		for _, mediaMessage := range content {
 			if mediaMessage.Id == toolCallId {
@@ -395,6 +521,30 @@ func (c *ClaudeRequest) SearchToolNameByToolCallId(toolCallId string) string {
 		}
 	}
 	return ""
+}
+
+// ToolCallNameIndex returns the first tool name declared for each tool call ID.
+func (c *ClaudeRequest) ToolCallNameIndex() map[string]string {
+	var toolCallNames map[string]string
+	for _, message := range c.Messages {
+		if message.IsStringContent() {
+			continue
+		}
+		content, _ := message.ParseContent()
+		for _, mediaMessage := range content {
+			if mediaMessage.Id == "" {
+				continue
+			}
+			if _, exists := toolCallNames[mediaMessage.Id]; exists {
+				continue
+			}
+			if toolCallNames == nil {
+				toolCallNames = make(map[string]string)
+			}
+			toolCallNames[mediaMessage.Id] = mediaMessage.Name
+		}
+	}
+	return toolCallNames
 }
 
 // AddTool 添加工具到请求中
@@ -428,7 +578,7 @@ func (c *ClaudeRequest) GetTools() []any {
 
 func (c *ClaudeRequest) GetEfforts() string {
 	var OutputConfig OutputConfigForEffort
-	if err := json.Unmarshal(c.OutputConfig, &OutputConfig); err == nil {
+	if err := common.Unmarshal(c.OutputConfig, &OutputConfig); err == nil {
 		effort := OutputConfig.Effort
 		return effort
 	}
@@ -489,14 +639,20 @@ func (c *ClaudeRequest) GetStringSystem() string {
 }
 
 func (c *ClaudeRequest) SetStringSystem(system string) {
+	c.SetSystem(system)
+}
+
+func (c *ClaudeRequest) SetSystem(system any) {
 	c.System = system
+	c.parsedSystem = nil
+	c.systemParsed = false
 }
 
 func (c *ClaudeRequest) ParseSystem() []ClaudeMediaMessage {
 	if c.systemParsed {
 		return c.parsedSystem
 	}
-	mediaContent, _ := common.Any2Type[[]ClaudeMediaMessage](c.System)
+	mediaContent, _ := parseClaudeMediaMessages(c.System)
 	c.parsedSystem = mediaContent
 	c.systemParsed = true
 	return mediaContent

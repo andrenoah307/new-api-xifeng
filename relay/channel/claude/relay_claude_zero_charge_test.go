@@ -2,8 +2,8 @@ package claude
 
 import (
 	"net/http/httptest"
-	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -32,8 +33,7 @@ func TestHandleStreamFinalResponseZeroChargesEmptyOutput(t *testing.T) {
 			},
 			ClaudeCacheCreation5mTokens: 50,
 		},
-		Done:         true,
-		ResponseText: strings.Builder{},
+		Done: true,
 	}
 
 	HandleStreamFinalResponse(ctx, info, claudeInfo)
@@ -55,18 +55,44 @@ func TestHandleStreamFinalResponseKeepsUsageWithResponseText(t *testing.T) {
 		RelayFormat: types.RelayFormatClaude,
 		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-3-7-sonnet"},
 	}
-	rt := strings.Builder{}
-	rt.WriteString("hello world from upstream")
 	claudeInfo := &ClaudeResponseInfo{
-		Usage:        &dto.Usage{PromptTokens: 100},
-		Done:         true,
-		ResponseText: rt,
+		Usage:                 &dto.Usage{PromptTokens: 100},
+		Done:                  true,
+		ResponseTextRuneCount: utf8.RuneCountInString("hello world from upstream"),
 	}
 
 	HandleStreamFinalResponse(ctx, info, claudeInfo)
 
 	require.Equal(t, 100, claudeInfo.Usage.PromptTokens, "有响应文本时 PromptTokens 应当保留")
 	require.Greater(t, claudeInfo.Usage.CompletionTokens, 0, "fallback 估算应当填出非零 CompletionTokens")
+}
+
+func TestHandleStreamFinalResponseOpenAIEmitsUsageAndDone(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+
+	info := &relaycommon.RelayInfo{
+		RelayFormat:        types.RelayFormatOpenAI,
+		ShouldIncludeUsage: true,
+		ChannelMeta:        &relaycommon.ChannelMeta{UpstreamModelName: "claude-3-7-sonnet"},
+	}
+	claudeInfo := &ClaudeResponseInfo{
+		ResponseId: "msg_test",
+		Created:    1710000000,
+		Model:      "claude-3-7-sonnet",
+		Usage: &dto.Usage{
+			PromptTokens:     5,
+			CompletionTokens: 7,
+			TotalTokens:      12,
+		},
+		Done: true,
+	}
+
+	HandleStreamFinalResponse(ctx, info, claudeInfo)
+
+	assert.Contains(t, w.Body.String(), `"prompt_tokens":5`)
+	assert.Contains(t, w.Body.String(), `data: [DONE]`)
 }
 
 func TestHandleStreamFinalResponse_ZeroChargesClientGoneNoUpstreamUsage(t *testing.T) {
@@ -79,12 +105,10 @@ func TestHandleStreamFinalResponse_ZeroChargesClientGoneNoUpstreamUsage(t *testi
 		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "glm-5.2-fast"},
 	}
 	info.SetEstimatePromptTokens(737400)
-	rt := strings.Builder{}
-	rt.WriteString("partial output text")
 	claudeInfo := &ClaudeResponseInfo{
-		Usage:        &dto.Usage{},
-		Done:         false,
-		ResponseText: rt,
+		Usage:                 &dto.Usage{},
+		Done:                  false,
+		ResponseTextRuneCount: utf8.RuneCountInString("partial output text"),
 	}
 
 	HandleStreamFinalResponse(ctx, info, claudeInfo)
@@ -106,12 +130,10 @@ func TestHandleStreamFinalResponse_PreservesRealPromptOnClientGone(t *testing.T)
 		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "glm-5.2-fast"},
 	}
 	info.SetEstimatePromptTokens(737400)
-	rt := strings.Builder{}
-	rt.WriteString("partial output text")
 	claudeInfo := &ClaudeResponseInfo{
-		Usage:        &dto.Usage{PromptTokens: 170000},
-		Done:         false,
-		ResponseText: rt,
+		Usage:                 &dto.Usage{PromptTokens: 170000},
+		Done:                  false,
+		ResponseTextRuneCount: utf8.RuneCountInString("partial output text"),
 	}
 
 	HandleStreamFinalResponse(ctx, info, claudeInfo)
@@ -130,16 +152,14 @@ func TestHandleStreamFinalResponse_CacheOnlyNotZeroed(t *testing.T) {
 		RelayFormat: types.RelayFormatClaude,
 		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "glm-5.2-fast"},
 	}
-	rt := strings.Builder{}
-	rt.WriteString("partial output text")
 	claudeInfo := &ClaudeResponseInfo{
 		Usage: &dto.Usage{
 			PromptTokensDetails: dto.InputTokenDetails{
 				CachedTokens: 50000,
 			},
 		},
-		Done:         true,
-		ResponseText: rt,
+		Done:                  true,
+		ResponseTextRuneCount: utf8.RuneCountInString("partial output text"),
 	}
 
 	HandleStreamFinalResponse(ctx, info, claudeInfo)

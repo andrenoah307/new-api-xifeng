@@ -1,8 +1,8 @@
 package claude
 
 import (
-	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/service/relayconvert"
@@ -204,8 +204,7 @@ func TestFormatClaudeResponseInfo_NilClaudeInfo(t *testing.T) {
 func TestFormatClaudeResponseInfo_ContentBlockDelta(t *testing.T) {
 	text := "hello"
 	claudeInfo := &ClaudeResponseInfo{
-		Usage:        &dto.Usage{},
-		ResponseText: strings.Builder{},
+		Usage: &dto.Usage{},
 	}
 	claudeResponse := &dto.ClaudeResponse{
 		Type: "content_block_delta",
@@ -218,9 +217,7 @@ func TestFormatClaudeResponseInfo_ContentBlockDelta(t *testing.T) {
 	if !ok {
 		t.Fatal("expected true")
 	}
-	if claudeInfo.ResponseText.String() != "hello" {
-		t.Errorf("ResponseText = %q, want %q", claudeInfo.ResponseText.String(), "hello")
-	}
+	assert.Equal(t, utf8.RuneCountInString("hello"), claudeInfo.ResponseTextRuneCount)
 }
 
 func TestBuildOpenAIStyleUsageFromClaudeUsage(t *testing.T) {

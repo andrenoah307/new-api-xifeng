@@ -135,6 +135,8 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 		}
 	}
 
+	var toolCallNames map[string]string
+	toolCallNamesLoaded := false
 	for _, claudeMessage := range claudeRequest.Messages {
 		openAIMessage := dto.Message{
 			Role: claudeMessage.Role,
@@ -178,7 +180,11 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 				case "tool_result":
 					toolName := mediaMsg.Name
 					if toolName == "" {
-						toolName = claudeRequest.SearchToolNameByToolCallId(mediaMsg.ToolUseId)
+						if !toolCallNamesLoaded {
+							toolCallNames = claudeRequest.ToolCallNameIndex()
+							toolCallNamesLoaded = true
+						}
+						toolName = toolCallNames[mediaMsg.ToolUseId]
 					}
 					oaiToolMessage := dto.Message{
 						Role:       "tool",

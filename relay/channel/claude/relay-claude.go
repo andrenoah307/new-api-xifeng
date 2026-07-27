@@ -141,7 +141,7 @@ func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, clau
 		// 只补缺失字段，不整份覆盖——保留 message_start 已拿到的 cache 字段
 		fallback := &dto.Usage{
 			PromptTokens:     info.GetEstimatePromptTokens(),
-			CompletionTokens: service.EstimateTokenByModel(info.UpstreamModelName, claudeInfo.ResponseText.String()),
+			CompletionTokens: service.EstimateTokenByRuneCount(claudeInfo.ResponseTextRuneCount),
 		}
 		fallback.TotalTokens = fallback.PromptTokens + fallback.CompletionTokens
 		if claudeInfo.Usage.CompletionTokens == 0 ||
@@ -156,7 +156,7 @@ func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, clau
 	// 空输出兜底：上游 usage 显示 output=0 且整段流没有任何响应文本/思考内容，
 	// 视为上游 usage 不全（坑点 #94 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
 	// 坑点 #129：断流且上游 usage 完全缺失时零计费，禁止用 runes×3/2 估算计费，对齐 OpenAI handler。
-	if (claudeInfo.Usage.CompletionTokens == 0 && claudeInfo.ResponseText.Len() == 0) || upstreamUsageMissing {
+	if (claudeInfo.Usage.CompletionTokens == 0 && claudeInfo.ResponseTextRuneCount == 0) || upstreamUsageMissing {
 		claudeInfo.Usage.PromptTokens = 0
 		claudeInfo.Usage.CompletionTokens = 0
 		claudeInfo.Usage.TotalTokens = 0
@@ -189,11 +189,10 @@ func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, clau
 
 func ClaudeStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.Usage, *types.NewAPIError) {
 	claudeInfo := &ClaudeResponseInfo{
-		ResponseId:   helper.GetResponseID(c),
-		Created:      common.GetTimestamp(),
-		Model:        info.UpstreamModelName,
-		ResponseText: strings.Builder{},
-		Usage:        &dto.Usage{},
+		ResponseId: helper.GetResponseID(c),
+		Created:    common.GetTimestamp(),
+		Model:      info.UpstreamModelName,
+		Usage:      &dto.Usage{},
 	}
 	var err *types.NewAPIError
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
@@ -290,11 +289,10 @@ func ClaudeHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayI
 	defer service.CloseResponseBodyGracefully(resp)
 
 	claudeInfo := &ClaudeResponseInfo{
-		ResponseId:   helper.GetResponseID(c),
-		Created:      common.GetTimestamp(),
-		Model:        info.UpstreamModelName,
-		ResponseText: strings.Builder{},
-		Usage:        &dto.Usage{},
+		ResponseId: helper.GetResponseID(c),
+		Created:    common.GetTimestamp(),
+		Model:      info.UpstreamModelName,
+		Usage:      &dto.Usage{},
 	}
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
