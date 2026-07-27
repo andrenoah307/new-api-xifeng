@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
@@ -78,7 +78,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	defer service.CloseResponseBodyGracefully(resp)
 
 	var usage = &dto.Usage{}
-	var responseTextBuilder strings.Builder
+	var responseTextRuneCount int
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
 
@@ -116,7 +116,7 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			}
 		case "response.output_text.delta":
 			// 处理输出文本
-			responseTextBuilder.WriteString(streamResponse.Delta)
+			responseTextRuneCount += utf8.RuneCountInString(streamResponse.Delta)
 		case dto.ResponsesOutputTypeItemDone:
 			// 函数调用处理
 			if streamResponse.Item != nil {
@@ -134,10 +134,9 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 
 	if usage.CompletionTokens == 0 {
 		// 计算输出文本的 token 数量
-		tempStr := responseTextBuilder.String()
-		if len(tempStr) > 0 {
+		if responseTextRuneCount > 0 {
 			// 非正常结束，使用输出文本的 token 数量
-			completionTokens := service.CountTextToken(tempStr, info.UpstreamModelName)
+			completionTokens := service.EstimateTokenByRuneCount(responseTextRuneCount)
 			usage.CompletionTokens = completionTokens
 		}
 	}

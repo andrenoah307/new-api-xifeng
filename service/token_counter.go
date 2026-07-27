@@ -398,7 +398,7 @@ func CountAudioTokenOutput(audioBase64 string, audioFormat string) (int, error) 
 	return common.QuotaFromFloat(duration / 60 * 200 / 0.24), nil
 }
 
-// CountTextToken 统计文本的token数量，仅OpenAI模型使用tokenizer，其余模型使用估算
+// CountTextToken 统计文本的 token 数量，当前所有模型都使用 rune 数估算。
 func CountTextToken(text string, model string) int {
 	if text == "" {
 		return 0

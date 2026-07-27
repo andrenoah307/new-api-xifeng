@@ -243,10 +243,7 @@ func main() {
 		port = strconv.Itoa(*common.Port)
 	}
 
-	srv := &http.Server{
-		Addr:    ":" + port,
-		Handler: server,
-	}
+	srv := newHTTPServer(":"+port, server)
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -275,6 +272,15 @@ func main() {
 		model.SaveQuotaDataCache()
 	}
 	common.SysLog("server exited")
+}
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: time.Duration(common.ServerReadHeaderTimeout) * time.Second,
+		IdleTimeout:       time.Duration(common.ServerIdleTimeout) * time.Second,
+	}
 }
 
 func InjectUmamiAnalytics() {
