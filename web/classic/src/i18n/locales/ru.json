@@ -3551,7 +3551,7 @@
     "缓存倍率": "Коэффициент кэширования",
     "缓存倍率 {{cacheRatio}}": "Коэффициент кэша {{cacheRatio}}",
     "缓存写": "Запись в кэш",
-    "缓存创建": "",
+    "缓存创建": "Создание кеша",
     "缓存创建 Tokens": "Создание кэша токенов",
     "缓存创建 {{price}} / 1M tokens": "Создание кэша {{price}} / 1M tokens",
     "缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}": "Создание кэша {{tokens}} токенов / 1M токенов * {{symbol}}{{price}}",
@@ -3580,7 +3580,7 @@
     "缓存目录磁盘空间": "Дисковое пространство директории кэша",
     "缓存读": "Чтение кэша",
     "缓存读 {{price}} / 1M tokens": "Чтение кеша {{price}} / 1M tokens",
-    "缓存读取": "",
+    "缓存读取": "Чтение кеша",
     "缓存读取价格": "Цена чтения входного кеша",
     "缓存读取价格 {{symbol}}{{price}} / 1M tokens": "Цена чтения кеша {{symbol}}{{price}} / 1M tokens",
     "缓存读取价格：{{symbol}}{{price}} / 1M tokens": "Цена чтения кеша: {{symbol}}{{price}} / 1M tokens",
@@ -4287,7 +4287,7 @@
     "输入认证器应用显示的6位数字验证码": "Введите 6-значный код подтверждения, отображаемый в приложении аутентификатора",
     "输入邮箱地址": "Введите адрес электронной почты",
     "输入金额": "Введите сумму",
-    "输入长度": "",
+    "输入长度": "Длина ввода",
     "输入需要审核的文本（可留空）": "",
     "输入项目名称，按回车添加": "Введите имя проекта, нажмите Enter для добавления",
     "输入额度": "Введите квоту",
@@ -4842,6 +4842,9 @@
     "文件大小": "",
     "暂无导出任务": "",
     "下载": "",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first."
+    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "5m缓存创建": "Создание кеша (5 мин)",
+    "1h缓存创建": "Создание кеша (1 ч)",
+    "命中档位：{{tier}}": "Применённый уровень: {{tier}}"
   }
 }

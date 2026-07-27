@@ -3497,7 +3497,7 @@
     "缓存倍率": "キャッシュ倍率",
     "缓存倍率 {{cacheRatio}}": "Cache ratio {{cacheRatio}}",
     "缓存写": "キャッシュ書込",
-    "缓存创建": "",
+    "缓存创建": "キャッシュ作成",
     "缓存创建 Tokens": "キャッシュ作成トークン",
     "缓存创建 {{price}} / 1M tokens": "キャッシュ作成 {{price}} / 1M tokens",
     "缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}": "キャッシュ作成 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}",
@@ -3526,7 +3526,7 @@
     "缓存目录磁盘空间": "キャッシュディレクトリのディスク容量",
     "缓存读": "キャッシュ読取",
     "缓存读 {{price}} / 1M tokens": "キャッシュ読み取り {{price}} / 1M tokens",
-    "缓存读取": "",
+    "缓存读取": "キャッシュ読み取り",
     "缓存读取价格": "入力キャッシュ読み取り価格",
     "缓存读取价格 {{symbol}}{{price}} / 1M tokens": "キャッシュ読み取り価格 {{symbol}}{{price}} / 1M tokens",
     "缓存读取价格：{{symbol}}{{price}} / 1M tokens": "キャッシュ読み取り価格：{{symbol}}{{price}} / 1M tokens",
@@ -4233,7 +4233,7 @@
     "输入认证器应用显示的6位数字验证码": "認証アプリに表示される6桁の認証コードを入力してください",
     "输入邮箱地址": "メールアドレスを入力",
     "输入金额": "金額を入力",
-    "输入长度": "",
+    "输入长度": "入力長",
     "输入需要审核的文本（可留空）": "",
     "输入项目名称，按回车添加": "プロジェクト名を入力してEnterで追加",
     "输入额度": "クォータを入力",
@@ -4788,6 +4788,9 @@
     "文件大小": "",
     "暂无导出任务": "",
     "下载": "",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first."
+    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "5m缓存创建": "5分キャッシュ作成",
+    "1h缓存创建": "1時間キャッシュ作成",
+    "命中档位：{{tier}}": "適用ティア：{{tier}}"
   }
 }

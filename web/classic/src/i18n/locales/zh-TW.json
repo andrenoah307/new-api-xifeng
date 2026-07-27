@@ -3509,7 +3509,7 @@
     "缓存倍率": "快取倍率",
     "缓存倍率 {{cacheRatio}}": "快取倍率 {{cacheRatio}}",
     "缓存写": "快取寫",
-    "缓存创建": "",
+    "缓存创建": "快取建立",
     "缓存创建 Tokens": "快取建立 Tokens",
     "缓存创建 {{price}} / 1M tokens": "快取建立 {{price}} / 1M tokens",
     "缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}": "快取建立 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}",
@@ -3538,7 +3538,7 @@
     "缓存目录磁盘空间": "快取目錄磁碟空間",
     "缓存读": "快取讀",
     "缓存读 {{price}} / 1M tokens": "快取讀 {{price}} / 1M tokens",
-    "缓存读取": "",
+    "缓存读取": "快取讀取",
     "缓存读取价格": "快取讀取價格",
     "缓存读取价格 {{symbol}}{{price}} / 1M tokens": "快取讀取價格 {{symbol}}{{price}} / 1M tokens",
     "缓存读取价格：{{symbol}}{{price}} / 1M tokens": "快取讀取價格：{{symbol}}{{price}} / 1M tokens",
@@ -4248,7 +4248,7 @@
     "输入认证器应用显示的6位数字验证码": "輸入認證器應用顯示的6位數位驗證碼",
     "输入邮箱地址": "輸入信箱位址",
     "输入金额": "",
-    "输入长度": "",
+    "输入长度": "輸入長度",
     "输入需要审核的文本（可留空）": "",
     "输入项目名称，按回车添加": "輸入項目名稱，按回車添加",
     "输入额度": "",
@@ -4813,6 +4813,9 @@
     "文件大小": "檔案大小",
     "暂无导出任务": "暫無導出任務",
     "下载": "下載",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "餘額不足時每自然週僅可新建一次工單/開票申請，本週已用完。如需協助，請先聯絡客服諮詢。"
+    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "餘額不足時每自然週僅可新建一次工單/開票申請，本週已用完。如需協助，請先聯絡客服諮詢。",
+    "5m缓存创建": "5 分鐘快取建立",
+    "1h缓存创建": "1 小時快取建立",
+    "命中档位：{{tier}}": "命中檔位：{{tier}}"
   }
 }

@@ -3789,7 +3789,7 @@
     "缓存倍率": "Tỷ lệ bộ nhớ đệm",
     "缓存倍率 {{cacheRatio}}": "Cache ratio {{cacheRatio}}",
     "缓存写": "Ghi bộ nhớ đệm",
-    "缓存创建": "",
+    "缓存创建": "Tạo bộ nhớ đệm",
     "缓存创建 Tokens": "Tokens tạo bộ nhớ đệm",
     "缓存创建 {{price}} / 1M tokens": "Tạo bộ nhớ đệm {{price}} / 1M tokens",
     "缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}": "Tạo bộ nhớ đệm {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}",
@@ -3818,7 +3818,7 @@
     "缓存目录磁盘空间": "Dung lượng đĩa thư mục bộ nhớ đệm",
     "缓存读": "Đọc bộ nhớ đệm",
     "缓存读 {{price}} / 1M tokens": "Đọc bộ nhớ đệm {{price}} / 1M tokens",
-    "缓存读取": "",
+    "缓存读取": "Đọc bộ nhớ đệm",
     "缓存读取价格": "Giá đọc bộ nhớ đệm đầu vào",
     "缓存读取价格 {{symbol}}{{price}} / 1M tokens": "Giá đọc bộ nhớ đệm {{symbol}}{{price}} / 1M tokens",
     "缓存读取价格：{{symbol}}{{price}} / 1M tokens": "Giá đọc bộ nhớ đệm: {{symbol}}{{price}} / 1M tokens",
@@ -4692,7 +4692,7 @@
     "输入认证器应用显示的6位数字验证码": "Nhập mã xác minh 6 chữ số hiển thị trên ứng dụng xác thực",
     "输入邮箱地址": "Nhập địa chỉ email",
     "输入金额": "Nhập số tiền",
-    "输入长度": "",
+    "输入长度": "Độ dài đầu vào",
     "输入需要审核的文本（可留空）": "",
     "输入项目名称，按回车添加": "Nhập tên dự án, nhấn Enter để thêm",
     "输入额度": "Nhập hạn ngạch",
@@ -5332,6 +5332,9 @@
     "文件大小": "",
     "暂无导出任务": "",
     "下载": "",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first."
+    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "5m缓存创建": "Tạo bộ nhớ đệm (5 phút)",
+    "1h缓存创建": "Tạo bộ nhớ đệm (1 giờ)",
+    "命中档位：{{tier}}": "Bậc áp dụng: {{tier}}"
   }
 }

@@ -44,8 +44,13 @@ import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTokens, formatUseTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import type { UsageLog } from '../../data/schema'
+import {
+  reconstructBillingProcess,
+  type BillingTermKind,
+} from '../../lib/billing-process'
 import {
   parseLogOther,
   getParamOverrideActionLabel,
@@ -75,6 +80,21 @@ const CHANNEL_FIELD_LABELS: Record<string, string> = {
   type: 'Type',
   base_url: 'Base URL',
   key: 'Key',
+}
+
+const BILLING_TERM_LABEL_KEYS: Record<BillingTermKind, string> = {
+  input: 'Input',
+  output: 'Output',
+  input_length: 'Input Tokens',
+  cache_read: 'Cache Read',
+  cache_creation: 'Cache Creation',
+  cache_creation_5m: 'Cache Creation (5m)',
+  cache_creation_1h: 'Cache Creation (1h)',
+  image_input: 'Image input',
+  // No standalone "Image output" locale key exists; reuse the translated generic label.
+  image_output: 'Output',
+  audio_input: 'Audio input',
+  audio_output: 'Audio output',
 }
 
 function timingTextColorClass(
@@ -180,7 +200,9 @@ function getUsageBillingPathLabel(
   }
 }
 
-function isUsageBillingPathLocal(adminInfo: LogOtherData['admin_info']): boolean {
+function isUsageBillingPathLocal(
+  adminInfo: LogOtherData['admin_info']
+): boolean {
   if (adminInfo?.usage_billing_path) {
     return adminInfo.usage_billing_path === USAGE_BILLING_PATH.LOCAL
   }
@@ -380,6 +402,75 @@ function BillingBreakdown(props: {
       {rows.map((row) => (
         <DetailRow key={row.label} label={row.label} value={row.value} mono />
       ))}
+    </DetailSection>
+  )
+}
+
+function BillingProcessBreakdown(props: {
+  log: UsageLog
+  other: LogOtherData
+}) {
+  const { t } = useTranslation()
+  const quotaPerUnit = useSystemConfigStore(
+    (state) => state.config.currency.quotaPerUnit
+  )
+  const result = reconstructBillingProcess({
+    log: props.log,
+    other: props.other,
+    quotaPerUnit,
+  })
+
+  if (!result.ok) return null
+
+  const priceOptions = {
+    digitsLarge: 4,
+    digitsSmall: 6,
+    abbreviate: false,
+  }
+  const totalBeforeGroup = formatBillingCurrencyFromUSD(
+    result.totalUsdBeforeGroup,
+    priceOptions
+  )
+  const totalAfterGroup = formatBillingCurrencyFromUSD(
+    result.totalUsdAfterGroup,
+    priceOptions
+  )
+
+  return (
+    <DetailSection label={t('Billing Process')}>
+      <div className='space-y-1.5 font-mono text-xs break-all sm:wrap-break-word'>
+        {result.matchedTier && (
+          <p>
+            {t('Matched Tier')}: {result.matchedTier}
+          </p>
+        )}
+        {result.terms
+          .filter((term) => term.tokens > 0)
+          .map((term) => (
+            <p
+              key={`${term.kind}-${term.variable}-${term.tokens}-${term.unitPriceUsdPerMillion}`}
+            >
+              {t(BILLING_TERM_LABEL_KEYS[term.kind])}:{' '}
+              {term.tokens.toLocaleString()} tokens ×{' '}
+              {formatBillingCurrencyFromUSD(
+                term.unitPriceUsdPerMillion,
+                priceOptions
+              )}
+              /1M ={' '}
+              {formatBillingCurrencyFromUSD(term.subtotalUsd, priceOptions)}
+            </p>
+          ))}
+        <p className='border-border/60 border-t pt-1.5'>
+          ({totalBeforeGroup}) ×{' '}
+          {t(
+            result.groupRatioSource === 'user'
+              ? 'User Exclusive Ratio'
+              : 'Group Ratio'
+          )}{' '}
+          {result.effectiveGroupRatio} = {totalAfterGroup} ={' '}
+          {result.quota.toLocaleString()} {t('Quota')}
+        </p>
+      </div>
     </DetailSection>
   )
 }
@@ -1052,6 +1143,10 @@ export function DetailsDialog(props: DetailsDialogProps) {
             other={other}
             isAdmin={props.isAdmin}
           />
+        )}
+
+        {isConsume && other && !isViolation && (
+          <BillingProcessBreakdown log={props.log} other={other} />
         )}
 
         {/* Long-context tiered billing notice (ratio path >272K) */}

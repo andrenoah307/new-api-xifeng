@@ -3617,7 +3617,7 @@
     "缓存倍率": "Cache ratio",
     "缓存倍率 {{cacheRatio}}": "Cache ratio {{cacheRatio}}",
     "缓存写": "Cache Write",
-    "缓存创建": "Cache create",
+    "缓存创建": "Cache creation",
     "缓存创建 {{price}} / 1M tokens": "Cache creation {{price}} / 1M tokens",
     "缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}": "Cache creation {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}",
     "缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}} (倍率: {{ratio}})": "Cache creation {{tokens}} tokens / 1M tokens * {{symbol}}{{price}} (ratio: {{ratio}})",
@@ -4387,7 +4387,7 @@
     "输入邮箱地址": "Enter Email Address",
     "输入金额": "Enter amount",
     "输入阶梯": "Input Tiers",
-    "输入长度": "",
+    "输入长度": "Input length",
     "输入需要审核的文本（可留空）": "",
     "输入项目名称，按回车添加": "Enter the item name, press Enter to add",
     "输入额度": "Enter quota",
@@ -5028,6 +5028,9 @@
     "文件大小": "File Size",
     "暂无导出任务": "No export tasks",
     "下载": "Download",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first."
+    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "5m缓存创建": "5m cache creation",
+    "1h缓存创建": "1h cache creation",
+    "命中档位：{{tier}}": "Matched tier: {{tier}}"
   }
 }

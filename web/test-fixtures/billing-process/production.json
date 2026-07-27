@@ -1,0 +1,241 @@
+{
+  "quota_per_unit": 500000,
+  "cases": [
+    {
+      "id": "tiered-openai-a",
+      "log": {
+        "prompt_tokens": 29592,
+        "completion_tokens": 423,
+        "quota": 4917
+      },
+      "other": {
+        "billing_mode": "tiered_expr",
+        "matched_tier": "standard",
+        "cache_tokens": 28416,
+        "cache_creation_tokens": 0,
+        "group_ratio": 0.3,
+        "user_group_ratio": 0.3,
+        "model_price": -1,
+        "expr_b64": "bGVuIDw9IDI3MjAwMCA/IHRpZXIoInN0YW5kYXJkIiwgcCAqIDUgKyBjICogMzAgKyBjciAqIDAuNSArIGNjICogNi4yNDk5OTkpIDogdGllcigibG9uZ19jb250ZXh0IiwgcCAqIDEwICsgYyAqIDQ1ICsgY3IgKiAxICsgY2MgKiAxMi41KQ=="
+      },
+      "expected": {
+        "ok": true,
+        "mode": "tiered_expr",
+        "isClaude": false,
+        "matchedTier": "standard",
+        "expressionVersion": 1,
+        "usedVariables": ["p", "c", "len", "cr", "cc"],
+        "tokens": {
+          "p": 1176,
+          "c": 423,
+          "len": 29592,
+          "cr": 28416,
+          "cc": 0,
+          "cc1h": 0,
+          "img": 0,
+          "img_o": 0,
+          "ai": 0,
+          "ao": 0
+        },
+        "terms": [
+          {
+            "kind": "input",
+            "variable": "p",
+            "tokens": 1176,
+            "unitPriceUsdPerMillion": 5,
+            "subtotalUsd": 0.00588
+          },
+          {
+            "kind": "output",
+            "variable": "c",
+            "tokens": 423,
+            "unitPriceUsdPerMillion": 30,
+            "subtotalUsd": 0.01269
+          },
+          {
+            "kind": "cache_read",
+            "variable": "cr",
+            "tokens": 28416,
+            "unitPriceUsdPerMillion": 0.5,
+            "subtotalUsd": 0.014208
+          },
+          {
+            "kind": "cache_creation",
+            "variable": "cc",
+            "tokens": 0,
+            "unitPriceUsdPerMillion": 6.249999,
+            "subtotalUsd": 0
+          }
+        ],
+        "expressionOutput": 32778,
+        "totalUsdBeforeGroup": 0.032778,
+        "effectiveGroupRatio": 0.3,
+        "groupRatioSource": "user",
+        "totalUsdAfterGroup": 0.0098334,
+        "quotaPerUnit": 500000,
+        "quotaBeforeRound": 4916.7,
+        "quota": 4917
+      }
+    },
+    {
+      "id": "tiered-group-fallback-b",
+      "log": {
+        "prompt_tokens": 203641,
+        "completion_tokens": 124,
+        "quota": 9484
+      },
+      "other": {
+        "billing_mode": "tiered_expr",
+        "matched_tier": "standard",
+        "cache_tokens": 203008,
+        "cache_creation_tokens": 0,
+        "group_ratio": 0.35,
+        "user_group_ratio": -1,
+        "model_price": -1,
+        "expr_b64": "bGVuIDw9IDI3MjAwMCA/IHRpZXIoInN0YW5kYXJkIiwgcCAqIDIuNSArIGMgKiAxNSArIGNyICogMC4yNSArIGNjICogMy4xMjUpIDogdGllcigibG9uZ19jb250ZXh0IiwgcCAqIDUgKyBjICogMjIuNSArIGNyICogMC41ICsgY2MgKiA2LjI1KQ=="
+      },
+      "expected": {
+        "ok": true,
+        "mode": "tiered_expr",
+        "isClaude": false,
+        "matchedTier": "standard",
+        "expressionVersion": 1,
+        "usedVariables": ["p", "c", "len", "cr", "cc"],
+        "tokens": {
+          "p": 633,
+          "c": 124,
+          "len": 203641,
+          "cr": 203008,
+          "cc": 0,
+          "cc1h": 0,
+          "img": 0,
+          "img_o": 0,
+          "ai": 0,
+          "ao": 0
+        },
+        "terms": [
+          {
+            "kind": "input",
+            "variable": "p",
+            "tokens": 633,
+            "unitPriceUsdPerMillion": 2.5,
+            "subtotalUsd": 0.0015825
+          },
+          {
+            "kind": "output",
+            "variable": "c",
+            "tokens": 124,
+            "unitPriceUsdPerMillion": 15,
+            "subtotalUsd": 0.00186
+          },
+          {
+            "kind": "cache_read",
+            "variable": "cr",
+            "tokens": 203008,
+            "unitPriceUsdPerMillion": 0.25,
+            "subtotalUsd": 0.050752
+          },
+          {
+            "kind": "cache_creation",
+            "variable": "cc",
+            "tokens": 0,
+            "unitPriceUsdPerMillion": 3.125,
+            "subtotalUsd": 0
+          }
+        ],
+        "expressionOutput": 54194.5,
+        "totalUsdBeforeGroup": 0.0541945,
+        "effectiveGroupRatio": 0.35,
+        "groupRatioSource": "group",
+        "totalUsdAfterGroup": 0.018968075,
+        "quotaPerUnit": 500000,
+        "quotaBeforeRound": 9484.0375,
+        "quota": 9484
+      }
+    },
+    {
+      "id": "ratio-claude-c",
+      "log": {
+        "prompt_tokens": 516,
+        "completion_tokens": 1,
+        "quota": 3126
+      },
+      "other": {
+        "claude": true,
+        "usage_semantic": "anthropic",
+        "model_price": -1,
+        "model_ratio": 5,
+        "completion_ratio": 5,
+        "group_ratio": 1.2,
+        "user_group_ratio": 1.2,
+        "cache_tokens": 0,
+        "cache_creation_tokens": 0,
+        "cache_ratio": 0.1,
+        "cache_creation_ratio": 1.25
+      },
+      "expected": {
+        "ok": true,
+        "mode": "ratio_claude",
+        "isClaude": true,
+        "matchedTier": null,
+        "expressionVersion": null,
+        "usedVariables": ["p", "c"],
+        "tokens": {
+          "p": 516,
+          "c": 1,
+          "len": 516,
+          "cr": 0,
+          "cc": 0,
+          "cc1h": 0,
+          "img": 0,
+          "img_o": 0,
+          "ai": 0,
+          "ao": 0
+        },
+        "terms": [
+          {
+            "kind": "input",
+            "variable": "p",
+            "tokens": 516,
+            "unitPriceUsdPerMillion": 10,
+            "subtotalUsd": 0.00516
+          },
+          {
+            "kind": "output",
+            "variable": "c",
+            "tokens": 1,
+            "unitPriceUsdPerMillion": 50,
+            "subtotalUsd": 0.00005
+          }
+        ],
+        "expressionOutput": 5210,
+        "totalUsdBeforeGroup": 0.00521,
+        "effectiveGroupRatio": 1.2,
+        "groupRatioSource": "user",
+        "totalUsdAfterGroup": 0.006252,
+        "quotaPerUnit": 500000,
+        "quotaBeforeRound": 3126,
+        "quota": 3126
+      }
+    },
+    {
+      "id": "tiered-openai-v1-prefix",
+      "log": {
+        "prompt_tokens": 29592,
+        "completion_tokens": 423,
+        "quota": 4917
+      },
+      "other": {
+        "billing_mode": "tiered_expr",
+        "matched_tier": "standard",
+        "cache_tokens": 28416,
+        "cache_creation_tokens": 0,
+        "group_ratio": 0.3,
+        "user_group_ratio": 0.3,
+        "model_price": -1,
+        "expr_b64": "djE6bGVuIDw9IDI3MjAwMCA/IHRpZXIoInN0YW5kYXJkIiwgcCAqIDUgKyBjICogMzAgKyBjciAqIDAuNSArIGNjICogNi4yNDk5OTkpIDogdGllcigibG9uZ19jb250ZXh0IiwgcCAqIDEwICsgYyAqIDQ1ICsgY3IgKiAxICsgY2MgKiAxMi41KQ=="
+      },
+      "expected_case": "tiered-openai-a"
+    }
+  ]
+}

@@ -20,6 +20,7 @@ For commercial licensing, please contact support@quantumnous.com
 import i18next from 'i18next';
 import { Modal, Tag, Typography, Avatar } from '@douyinfe/semi-ui';
 import { copy, showSuccess } from './utils';
+import { reconstructBillingProcess } from './billing-process';
 import { MOBILE_BREAKPOINT } from '../hooks/common/useIsMobile';
 import {
   BILLING_PRICING_VARS,
@@ -2306,12 +2307,55 @@ export const normalizeLabel = (label) => {
 };
 
 export function renderTieredModelPrice(opts) {
+  const billingProcess = reconstructBillingProcess({
+    log: {
+      prompt_tokens: opts.prompt_tokens,
+      completion_tokens: opts.completion_tokens,
+      quota: opts.quota,
+    },
+    other: opts,
+    quotaPerUnit: getQuotaPerUnit(),
+  });
+
+  if (billingProcess.ok) {
+    const { symbol, rate, type } = getCurrencyConfig();
+    const quotaLabel = i18next.t('额度');
+    const termLabels = {
+      input: '输入',
+      output: '输出',
+      input_length: '输入长度',
+      cache_read: '缓存读取',
+      cache_creation: '缓存创建',
+      cache_creation_5m: '5m缓存创建',
+      cache_creation_1h: '1h缓存创建',
+    };
+    const totalBeforeGroup = type === 'TOKENS'
+        ? `${renderDisplayAmountFromUsd(billingProcess.totalUsdBeforeGroup)} ${quotaLabel}`
+        : `${symbol}${formatBillingDisplayPrice(billingProcess.totalUsdBeforeGroup, rate)}`;
+    const totalAfterGroup = type === 'TOKENS'
+        ? `${renderDisplayAmountFromUsd(billingProcess.totalUsdAfterGroup)} ${quotaLabel}`
+        : `${symbol}${formatBillingDisplayPrice(billingProcess.totalUsdAfterGroup, rate)}`;
+    const lines = [
+      buildBillingText('命中档位：{{tier}}', { tier: billingProcess.matchedTier }),
+      ...billingProcess.terms
+          .filter((term) => term.tokens > 0)
+          .map((term) => {
+            const unitPrice = type === 'TOKENS'
+                ? `${renderDisplayAmountFromUsd(term.unitPriceUsdPerMillion)} ${quotaLabel}`
+                : `${symbol}${formatBillingDisplayPrice(term.unitPriceUsdPerMillion, rate)}`;
+            const subtotal = type === 'TOKENS'
+                ? `${renderDisplayAmountFromUsd(term.subtotalUsd)} ${quotaLabel}`
+                : `${symbol}${formatBillingDisplayPrice(term.subtotalUsd, rate)}`;
+            return `${i18next.t(termLabels[term.kind] || term.kind)}：${term.tokens.toLocaleString()} tokens × ${unitPrice} / 1M = ${subtotal}`;
+          }),
+      `${i18next.t(billingProcess.groupRatioSource === 'user' ? '专属倍率' : '分组倍率')}：${totalBeforeGroup} × ${billingProcess.effectiveGroupRatio} = ${totalAfterGroup} = ${billingProcess.quota.toLocaleString()} ${quotaLabel}`,
+    ];
+    return renderBillingArticle(lines, { showReferenceNote: false });
+  }
+
   const {
-    prompt_tokens: inputTokens = 0,
-    completion_tokens: completionTokens = 0,
     expr_b64: exprB64,
     matched_tier: matchedTier,
-    group_ratio: groupRatio,
     cache_tokens: cacheTokens = 0,
     cache_creation_tokens: cacheCreationTokens = 0,
     cache_creation_tokens_5m: cacheCreationTokens5m = 0,
@@ -2335,8 +2379,6 @@ export function renderTieredModelPrice(opts) {
     return i18next.t('阶梯计费（未匹配到对应阶梯）');
   }
   const { symbol, rate } = getCurrencyConfig();
-  const gr = groupRatio || 1;
-
   const hasAnyCacheTokens = cacheTokens > 0 || cacheCreationTokens > 0
       || cacheCreationTokens5m > 0 || cacheCreationTokens1h > 0;
 

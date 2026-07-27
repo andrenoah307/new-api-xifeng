@@ -3530,7 +3530,7 @@
     "缓存倍率": "Ratio de cache",
     "缓存倍率 {{cacheRatio}}": "Ratio de cache {{cacheRatio}}",
     "缓存写": "Écriture cache",
-    "缓存创建": "",
+    "缓存创建": "Création du cache",
     "缓存创建 Tokens": "Jetons de création de cache",
     "缓存创建 {{price}} / 1M tokens": "Création de cache {{price}} / 1M tokens",
     "缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}": "Création de cache {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}",
@@ -3559,7 +3559,7 @@
     "缓存目录磁盘空间": "Espace disque du répertoire de cache",
     "缓存读": "Lecture cache",
     "缓存读 {{price}} / 1M tokens": "Lecture du cache {{price}} / 1M tokens",
-    "缓存读取": "",
+    "缓存读取": "Lecture du cache",
     "缓存读取价格": "Prix de lecture du cache d'entrée",
     "缓存读取价格 {{symbol}}{{price}} / 1M tokens": "Prix de lecture du cache {{symbol}}{{price}} / 1M tokens",
     "缓存读取价格：{{symbol}}{{price}} / 1M tokens": "Prix de lecture du cache : {{symbol}}{{price}} / 1M tokens",
@@ -4266,7 +4266,7 @@
     "输入认证器应用显示的6位数字验证码": "Saisissez le code de vérification à 6 chiffres affiché sur l'application d'authentification",
     "输入邮箱地址": "Saisir l'adresse e-mail",
     "输入金额": "Entrer le montant",
-    "输入长度": "",
+    "输入长度": "Longueur d'entrée",
     "输入需要审核的文本（可留空）": "",
     "输入项目名称，按回车添加": "Saisissez le nom de l'élément, appuyez sur Entrée pour ajouter",
     "输入额度": "Entrer le quota",
@@ -4821,6 +4821,9 @@
     "文件大小": "",
     "暂无导出任务": "",
     "下载": "",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first."
+    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "5m缓存创建": "Création du cache (5 min)",
+    "1h缓存创建": "Création du cache (1 h)",
+    "命中档位：{{tier}}": "Palier appliqué : {{tier}}"
   }
 }
