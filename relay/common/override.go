@@ -62,7 +62,7 @@ type ParamOperation struct {
 	From       string               `json:"from,omitempty"`
 	To         string               `json:"to,omitempty"`
 	Conditions []ConditionOperation `json:"conditions,omitempty"` // 条件列表
-	Logic      string               `json:"logic,omitempty"`      // AND, OR (默认OR)
+	Logic      string               `json:"logic,omitempty"`      // AND, OR（操作条件默认 OR；prune_objects value 内默认 AND）
 }
 
 type ParamOverrideReturnError struct {
@@ -1958,54 +1958,203 @@ func parseConditionOperations(raw interface{}) ([]ConditionOperation, error) {
 }
 
 func pruneObjectsNode(node interface{}, options pruneObjectsOptions, contextJSON string, isRoot bool) (interface{}, bool, error) {
+	snapshot, err := common.Marshal(node)
+	if err != nil {
+		return nil, false, err
+	}
+	cleaned, drop, _, err := pruneObjectsNodeWithSnapshot(
+		node,
+		snapshot,
+		gjson.ParseBytes(snapshot),
+		options,
+		contextJSON,
+		isRoot,
+	)
+	return cleaned, drop, err
+}
+
+// replaced reports whether the caller must replace its interface slot. Maps
+// mutate in place, so changes below a map do not require replacing that map.
+func pruneObjectsNodeWithSnapshot(node interface{}, snapshot []byte, nodeJSON gjson.Result, options pruneObjectsOptions, contextJSON string, isRoot bool) (interface{}, bool, bool, error) {
+	nodeBytes, aligned := snapshotNodeAligned(node, snapshot, nodeJSON)
+	if !aligned {
+		return pruneObjectsNodeFallback(node, options, contextJSON, isRoot)
+	}
+
 	switch value := node.(type) {
 	case []interface{}:
-		result := make([]interface{}, 0, len(value))
-		for _, item := range value {
-			next, drop, err := pruneObjectsNode(item, options, contextJSON, false)
+		var result []interface{}
+		itemsJSON := nodeJSON.Array()
+		if len(itemsJSON) != len(value) {
+			return pruneObjectsNodeFallback(value, options, contextJSON, isRoot)
+		}
+		for index, item := range value {
+			next, drop, replaced, err := pruneObjectsNodeWithSnapshot(
+				item,
+				snapshot,
+				itemsJSON[index],
+				options,
+				contextJSON,
+				false,
+			)
 			if err != nil {
-				return nil, false, err
+				return nil, false, false, err
+			}
+			if result == nil && (drop || replaced) {
+				result = make([]interface{}, 0, len(value))
+				result = append(result, value[:index]...)
 			}
 			if drop {
 				continue
 			}
-			result = append(result, next)
+			if result != nil {
+				result = append(result, next)
+			}
 		}
-		return result, false, nil
+		if result == nil {
+			return value, false, false, nil
+		}
+		return result, false, true, nil
 	case map[string]interface{}:
-		shouldDrop, err := shouldPruneObject(value, options, contextJSON)
+		shouldDrop, err := shouldPruneObject(nodeBytes, options, contextJSON)
 		if err != nil {
-			return nil, false, err
+			return nil, false, false, err
 		}
 		if shouldDrop && !isRoot {
-			return nil, true, nil
+			return nil, true, true, nil
 		}
 		if !options.recursive {
-			return value, false, nil
+			return value, false, false, nil
+		}
+		childrenJSON := nodeJSON.Map()
+		// Key normalization (for example invalid UTF-8 -> U+FFFD) can
+		// collapse distinct Go map keys; do not trust any child alignment then.
+		if len(childrenJSON) != len(value) {
+			return pruneObjectsNodeFallback(value, options, contextJSON, isRoot)
 		}
 		for key, child := range value {
-			next, drop, err := pruneObjectsNode(child, options, contextJSON, false)
+			childJSON, found := childrenJSON[key]
+			var next interface{}
+			var drop, replaced bool
+			var err error
+			if found {
+				next, drop, replaced, err = pruneObjectsNodeWithSnapshot(
+					child,
+					snapshot,
+					childJSON,
+					options,
+					contextJSON,
+					false,
+				)
+			} else {
+				next, drop, replaced, err = pruneObjectsNodeFallback(child, options, contextJSON, false)
+			}
 			if err != nil {
-				return nil, false, err
+				return nil, false, false, err
 			}
 			if drop {
 				delete(value, key)
 				continue
 			}
-			value[key] = next
+			if replaced {
+				value[key] = next
+			}
 		}
-		return value, false, nil
+		return value, false, false, nil
 	default:
-		return node, false, nil
+		return node, false, false, nil
 	}
 }
 
-func shouldPruneObject(node map[string]interface{}, options pruneObjectsOptions, contextJSON string) (bool, error) {
-	nodeBytes, err := common.Marshal(node)
-	if err != nil {
-		return false, err
+func snapshotNodeBytes(snapshot []byte, nodeJSON gjson.Result) ([]byte, bool) {
+	if nodeJSON.Raw == "" || nodeJSON.Index < 0 || nodeJSON.Index > len(snapshot) {
+		return nil, false
 	}
-	return checkConditions(nodeBytes, contextJSON, options.conditions, options.logic)
+	if len(nodeJSON.Raw) > len(snapshot)-nodeJSON.Index {
+		return nil, false
+	}
+	return snapshot[nodeJSON.Index : nodeJSON.Index+len(nodeJSON.Raw)], true
+}
+
+// snapshotNodeAligned returns the exact fragment for a node only when its
+// bounds and container type still agree with the decoded Go value.
+func snapshotNodeAligned(node interface{}, snapshot []byte, nodeJSON gjson.Result) ([]byte, bool) {
+	nodeBytes, ok := snapshotNodeBytes(snapshot, nodeJSON)
+	if !ok {
+		return nil, false
+	}
+	switch node.(type) {
+	case map[string]interface{}:
+		return nodeBytes, nodeJSON.IsObject()
+	case []interface{}:
+		return nodeBytes, nodeJSON.IsArray()
+	default:
+		return nodeBytes, true
+	}
+}
+
+// pruneObjectsNodeFallback keeps the pre-optimization per-object marshal path
+// for a subtree whose snapshot no longer maps one-to-one to Go values.
+func pruneObjectsNodeFallback(node interface{}, options pruneObjectsOptions, contextJSON string, isRoot bool) (interface{}, bool, bool, error) {
+	switch value := node.(type) {
+	case []interface{}:
+		var result []interface{}
+		for index, item := range value {
+			next, drop, replaced, err := pruneObjectsNodeFallback(item, options, contextJSON, false)
+			if err != nil {
+				return nil, false, false, err
+			}
+			if result == nil && (drop || replaced) {
+				result = make([]interface{}, 0, len(value))
+				result = append(result, value[:index]...)
+			}
+			if drop {
+				continue
+			}
+			if result != nil {
+				result = append(result, next)
+			}
+		}
+		if result == nil {
+			return value, false, false, nil
+		}
+		return result, false, true, nil
+	case map[string]interface{}:
+		nodeBytes, err := common.Marshal(value)
+		if err != nil {
+			return nil, false, false, err
+		}
+		shouldDrop, err := checkConditions(nodeBytes, contextJSON, options.conditions, options.logic)
+		if err != nil {
+			return nil, false, false, err
+		}
+		if shouldDrop && !isRoot {
+			return nil, true, true, nil
+		}
+		if !options.recursive {
+			return value, false, false, nil
+		}
+		for key, child := range value {
+			next, drop, replaced, err := pruneObjectsNodeFallback(child, options, contextJSON, false)
+			if err != nil {
+				return nil, false, false, err
+			}
+			if drop {
+				delete(value, key)
+				continue
+			}
+			if replaced {
+				value[key] = next
+			}
+		}
+		return value, false, false, nil
+	default:
+		return node, false, false, nil
+	}
+}
+
+func shouldPruneObject(nodeJSON []byte, options pruneObjectsOptions, contextJSON string) (bool, error) {
+	return checkConditions(nodeJSON, contextJSON, options.conditions, options.logic)
 }
 
 func mergeObjects(data []byte, path string, value interface{}, keepOrigin bool) ([]byte, error) {
