@@ -228,7 +228,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
           description={
             <Text>
               {t(
-                'You\'ve used this week\'s limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.',
+                'You\'ve used this week\'s limit for creating tickets on a low balance. If you need help, please contact support first.',
               )}
             </Text>
           }

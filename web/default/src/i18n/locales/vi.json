@@ -5185,7 +5185,7 @@
     "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "Sau khi bật, tất cả nhật ký tiêu thụ và lỗi sẽ ghi lại địa chỉ IP máy khách bất kể cài đặt cá nhân của người dùng",
     "Search by subject, username, ID, company name or payee...": "Tìm theo chủ đề, tên người dùng, ID, công ty hoặc người nhận...",
     "This month earned": "Nhận tháng này",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "Discount Codes": "Mã giảm giá",
     "Discount Code": "Mã giảm giá",
     "Max Uses Per User": "Số lần sử dụng tối đa mỗi người dùng",

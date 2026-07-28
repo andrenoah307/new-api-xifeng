@@ -5185,7 +5185,7 @@
     "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "После включения все журналы потребления и ошибок будут записывать IP-адрес клиента, независимо от личных настроек пользователя",
     "Search by subject, username, ID, company name or payee...": "Поиск по теме, имени, ID, компании или получателю...",
     "This month earned": "Получено за месяц",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "Discount Codes": "Коды скидок",
     "Discount Code": "Код скидки",
     "Max Uses Per User": "Макс. использований на пользователя",

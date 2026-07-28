@@ -5234,7 +5234,7 @@
     "Transferable": "Transferable",
     "Transferable Rewards": "Transferable Rewards",
     "When enabled, strips inherited upstream (request id: ...) from error responses and keeps only this gateway's own request ID. request_ori_id and traceid are untouched.": "When enabled, strips inherited upstream (request id: ...) from error responses and keeps only this gateway's own request ID. request_ori_id and traceid are untouched.",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "Discount Codes": "Discount Codes",
     "Discount Code": "Discount Code",
     "Max Uses Per User": "Max Uses Per User",

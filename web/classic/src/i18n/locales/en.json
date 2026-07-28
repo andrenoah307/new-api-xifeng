@@ -5028,7 +5028,7 @@
     "文件大小": "File Size",
     "暂无导出任务": "No export tasks",
     "下载": "Download",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "5m缓存创建": "5m cache creation",
     "1h缓存创建": "1h cache creation",
     "命中档位：{{tier}}": "Matched tier: {{tier}}"

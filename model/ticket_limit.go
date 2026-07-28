@@ -14,12 +14,12 @@ func LowBalanceTicketThreshold() int {
 	return int(5 * common.QuotaPerUnit)
 }
 
-// CountUserTicketsCreatedSince 统计该用户自 sinceUnix(含) 起新建的所有类型工单数。
+// CountUserTicketsCreatedSince 统计该用户自 sinceUnix(含) 起新建的计入周限的工单数(general+refund，排除 invoice)。
 // 用户不能自删工单，故非删计数即可。
 func CountUserTicketsCreatedSince(userId int, sinceUnix int64) (int64, error) {
 	var n int64
 	err := DB.Model(&Ticket{}).
-		Where("user_id = ? AND created_time >= ?", userId, sinceUnix).
+		Where("user_id = ? AND created_time >= ? AND type IN (?, ?)", userId, sinceUnix, TicketTypeGeneral, TicketTypeRefund).
 		Count(&n).Error
 	return n, err
 }

@@ -45,7 +45,6 @@ import { formatTimestampToDate } from '@/lib/format'
 import {
   createInvoiceTicket,
   getEligibleInvoiceOrders,
-  getTicketLimitStatus,
   checkInvoiceRefundConflict,
   type TicketInvoiceOrder,
 } from '../../api'
@@ -106,14 +105,6 @@ export function CreateInvoiceTicketDialog({
     enabled: open,
   })
 
-  const { data: limitStatus } = useQuery({
-    queryKey: ['ticket', 'limit-status'],
-    queryFn: getTicketLimitStatus,
-    enabled: open,
-  })
-
-  const isLimited = limitStatus?.limited === true
-
   useEffect(() => {
     if (!open) {
       setSelectedIds(new Set())
@@ -172,8 +163,6 @@ export function CreateInvoiceTicketDialog({
 
   const onSubmit = useCallback(
     (values: FormValues) => {
-      if (isLimited) return
-
       if (selectedIds.size === 0) {
         toast.error(t('Please select at least one order'))
         return
@@ -199,7 +188,6 @@ export function CreateInvoiceTicketDialog({
       })
     },
     [
-      isLimited,
       selectedIds,
       minInvoiceAmount,
       invoiceAmount,
@@ -210,7 +198,6 @@ export function CreateInvoiceTicketDialog({
   )
 
   const isSubmitDisabled =
-    isLimited ||
     mutation.isPending ||
     selectedIds.size === 0 ||
     (minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount) ||
@@ -268,16 +255,6 @@ export function CreateInvoiceTicketDialog({
         </DialogHeader>
 
         <div className='space-y-5'>
-          {isLimited && (
-            <Alert variant='warning'>
-              <AlertDescription>
-                {t(
-                  "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first."
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
-
           {refundConflict?.has_refunds && (
             <Alert variant='warning'>
               <AlertDescription className='space-y-2'>

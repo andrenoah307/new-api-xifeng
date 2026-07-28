@@ -4813,7 +4813,7 @@
     "文件大小": "檔案大小",
     "暂无导出任务": "暫無導出任務",
     "下载": "下載",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "餘額不足時每自然週僅可新建一次工單/開票申請，本週已用完。如需協助，請先聯絡客服諮詢。",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "餘額不足時每自然週僅可新建一次工單申請，本週已用完。如需協助，請先聯絡客服諮詢。",
     "5m缓存创建": "5 分鐘快取建立",
     "1h缓存创建": "1 小時快取建立",
     "命中档位：{{tier}}": "命中檔位：{{tier}}"

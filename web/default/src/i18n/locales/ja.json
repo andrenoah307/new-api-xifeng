@@ -5184,7 +5184,7 @@
     "Force record IP in all user logs": "全ユーザーのログIPを強制記録",
     "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "有効にすると、ユーザーの個人設定に関係なく、すべての消費ログとエラーログにクライアントIPアドレスが記録されます",
     "This month earned": "今月の獲得",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "Discount Codes": "割引コード",
     "Discount Code": "割引コード",
     "Max Uses Per User": "ユーザーあたりの最大使用回数",

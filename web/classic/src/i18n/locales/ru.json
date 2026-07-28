@@ -4842,7 +4842,7 @@
     "文件大小": "",
     "暂无导出任务": "",
     "下载": "",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "5m缓存创建": "Создание кеша (5 мин)",
     "1h缓存创建": "Создание кеша (1 ч)",
     "命中档位：{{tier}}": "Применённый уровень: {{tier}}"

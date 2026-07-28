@@ -278,7 +278,7 @@ export function CreateTicketDialog({
             {isLimited && (
               <Alert variant="warning">
                 <AlertDescription>
-                  {t('You\'ve used this week\'s limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.')}
+                  {t('You\'ve used this week\'s limit for creating tickets on a low balance. If you need help, please contact support first.')}
                 </AlertDescription>
               </Alert>
             )}

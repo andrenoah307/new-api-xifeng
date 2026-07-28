@@ -102,7 +102,7 @@ func getTicketCurrentUser(c *gin.Context) (*model.User, error) {
 	return model.GetUserById(c.GetInt("id"), false)
 }
 
-// enforceWeeklyTicketLimit 拦截余额不足的非管理员用户每自然周(UTC+8)新建超过一次工单/开票。
+// enforceWeeklyTicketLimit 拦截余额不足的非管理员用户每自然周(UTC+8)新建超过一次工单（general/refund；发票已豁免）。
 // 返回 true 表示已拦截并写好响应。
 func enforceWeeklyTicketLimit(c *gin.Context, user *model.User) bool {
 	st, err := model.GetUserTicketWeeklyLimitStatus(user.Id, user.Role)
@@ -747,9 +747,6 @@ func CreateInvoiceTicket(c *gin.Context) {
 	currentUser, err := getTicketCurrentUser(c)
 	if err != nil {
 		common.ApiError(c, err)
-		return
-	}
-	if enforceWeeklyTicketLimit(c, currentUser) {
 		return
 	}
 

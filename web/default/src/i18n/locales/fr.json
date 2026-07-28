@@ -5185,7 +5185,7 @@
     "After enabling, all consumption and error logs will record the client IP address regardless of user personal settings": "Après l'activation, tous les journaux de consommation et d'erreur enregistreront l'adresse IP du client, quels que soient les paramètres personnels de l'utilisateur",
     "Search by subject, username, ID, company name or payee...": "Rechercher par sujet, nom d'utilisateur, ID, entreprise ou bénéficiaire...",
     "This month earned": "Obtenu ce mois-ci",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "Discount Codes": "Codes de réduction",
     "Discount Code": "Code de réduction",
     "Max Uses Per User": "Utilisations max par utilisateur",

@@ -100,13 +100,13 @@ func TestTicketWeeklyLimitStatus_LowBalanceFirstTicketAllowed(t *testing.T) {
 	assert.EqualValues(t, 1, status.Remaining)
 }
 
-func TestTicketWeeklyLimitStatus_LowBalanceSecondTicketLimitedAcrossTypes(t *testing.T) {
+func TestTicketWeeklyLimitStatus_LowBalanceGeneralAndRefundShareLimit(t *testing.T) {
 	truncateTables(t)
 
 	now := common.GetTimestamp()
 	threshold := LowBalanceTicketThreshold()
 	user := insertTicketLimitUser(t, 900004, threshold-1)
-	insertTicketLimitTicket(t, user.Id, TicketTypeInvoice, now)
+	insertTicketLimitTicket(t, user.Id, TicketTypeGeneral, now)
 
 	status, err := GetUserTicketWeeklyLimitStatus(user.Id, common.RoleCommonUser)
 	require.NoError(t, err)
@@ -115,14 +115,46 @@ func TestTicketWeeklyLimitStatus_LowBalanceSecondTicketLimitedAcrossTypes(t *tes
 	assert.EqualValues(t, 1, status.Used)
 	assert.EqualValues(t, 0, status.Remaining)
 
-	insertTicketLimitTicket(t, user.Id, TicketTypeGeneral, now)
 	insertTicketLimitTicket(t, user.Id, TicketTypeRefund, now)
 
 	status, err = GetUserTicketWeeklyLimitStatus(user.Id, common.RoleCommonUser)
 	require.NoError(t, err)
 	require.NotNil(t, status)
 	assert.True(t, status.Limited)
-	assert.EqualValues(t, 3, status.Used)
+	assert.EqualValues(t, 2, status.Used)
+	assert.EqualValues(t, 0, status.Remaining)
+}
+
+func TestTicketWeeklyLimitStatus_LowBalanceInvoiceDoesNotCount(t *testing.T) {
+	truncateTables(t)
+
+	now := common.GetTimestamp()
+	threshold := LowBalanceTicketThreshold()
+	user := insertTicketLimitUser(t, 900007, threshold-1)
+	insertTicketLimitTicket(t, user.Id, TicketTypeInvoice, now)
+
+	count, err := CountUserTicketsCreatedSince(user.Id, common.WeekStartUnixUTC8(now))
+	require.NoError(t, err)
+	assert.EqualValues(t, 0, count)
+
+	status, err := GetUserTicketWeeklyLimitStatus(user.Id, common.RoleCommonUser)
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	assert.False(t, status.Limited)
+	assert.EqualValues(t, 0, status.Used)
+	assert.EqualValues(t, 1, status.Remaining)
+
+	insertTicketLimitTicket(t, user.Id, TicketTypeGeneral, now)
+
+	count, err = CountUserTicketsCreatedSince(user.Id, common.WeekStartUnixUTC8(now))
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, count)
+
+	status, err = GetUserTicketWeeklyLimitStatus(user.Id, common.RoleCommonUser)
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	assert.True(t, status.Limited)
+	assert.EqualValues(t, 1, status.Used)
 	assert.EqualValues(t, 0, status.Remaining)
 }
 
@@ -143,7 +175,7 @@ func TestTicketWeeklyLimitStatus_LastWeekTicketDoesNotLimitCurrentWeek(t *testin
 	assert.EqualValues(t, 1, status.Remaining)
 }
 
-func TestCountUserTicketsCreatedSince_CountsAllTypesSinceWeekStart(t *testing.T) {
+func TestTicketWeeklyLimit_CountUserTicketsCreatedSinceCountsGeneralAndRefundButNotInvoice(t *testing.T) {
 	truncateTables(t)
 
 	now := common.GetTimestamp()
@@ -156,5 +188,5 @@ func TestCountUserTicketsCreatedSince_CountsAllTypesSinceWeekStart(t *testing.T)
 
 	count, err := CountUserTicketsCreatedSince(user.Id, common.WeekStartUnixUTC8(now))
 	require.NoError(t, err)
-	assert.EqualValues(t, 3, count)
+	assert.EqualValues(t, 2, count)
 }

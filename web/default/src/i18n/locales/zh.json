@@ -5241,7 +5241,7 @@
     "Transferable": "可转移",
     "Transferable Rewards": "可转移奖励",
     "When enabled, strips inherited upstream (request id: ...) from error responses and keeps only this gateway's own request ID. request_ori_id and traceid are untouched.": "开启后移除上游链路带入的 (request id: ...)，仅保留本站 Request ID；request_ori_id、traceid 不受影响。",
-    "You've used this week's limit for creating tickets / invoice requests on a low balance. If you need help, please contact support first.": "余额不足时每自然周仅可新建一次工单/开票申请，本周已用完。如需帮助，请先联系客服咨询。",
+    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "余额不足时每自然周仅可新建一次工单申请，本周已用完。如需帮助，请先联系客服咨询。",
     "Discount Codes": "折扣码",
     "Discount Code": "折扣码",
     "Max Uses Per User": "每用户最大使用次数",

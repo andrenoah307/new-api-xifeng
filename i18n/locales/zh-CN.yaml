@@ -172,7 +172,7 @@ ticket.refund_clawback_quota_invalid: "扣回返佣金额必须大于 0"
 ticket.assignee_invalid: "工单已被其他同事分配或目标用户无效"
 ticket.refund_invoice_conflict: "您存在进行中的发票申请，提交退款可能导致已开发票红冲，请确认后继续。"
 ticket.invoice_refund_conflict: "您存在进行中的退款申请，退款通过后当前发票可能需要红冲处理，请确认后继续。"
-ticket.weekly_limit_exceeded: "提交过于频繁，余额不足时每自然周仅可新建一次工单/开票申请。如需帮助，请先联系客服咨询。"
+ticket.weekly_limit_exceeded: "提交过于频繁，余额不足时每自然周仅可新建一次工单申请。如需帮助，请先联系客服咨询。"
 
 # Payment messages
 payment.not_configured: "当前管理员未配置支付信息"
