@@ -97,6 +97,7 @@ func GetStatus(c *gin.Context) {
 		"invoice_special_fee_rate":         operation_setting.InvoiceSpecialFeeRate,
 		"invoice_special_description":      operation_setting.InvoiceSpecialDescription,
 		"invoice_service_name":             operation_setting.InvoiceServiceName,
+		"image_result_enabled":             operation_setting.ImageResultEnabled,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
 		"quota_display_type":            operation_setting.GetQuotaDisplayType(),

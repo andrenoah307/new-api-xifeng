@@ -54,8 +54,10 @@ func (s *LocalStorage) safePath(key string) (string, error) {
 		return "", errors.New("invalid storage key: backslash")
 	}
 	// Clean 后不允许出现变化（说明原本就不干净）。
+	// key 统一使用 "/" 分隔（上面已拒绝反斜杠），Windows 上 Clean 会把 "/" 转成
+	// "\\"，所以与 FromSlash(key) 比较；Linux 上 FromSlash 是恒等，行为不变。
 	cleaned := filepath.Clean(key)
-	if cleaned != key || cleaned == "." || cleaned == "/" {
+	if cleaned != filepath.FromSlash(key) || cleaned == "." || cleaned == "/" {
 		return "", errors.New("invalid storage key: not normalized")
 	}
 	if filepath.IsAbs(cleaned) {

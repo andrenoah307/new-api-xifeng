@@ -140,6 +140,9 @@ func InitOptionMap() {
 	common.OptionMap["InvoiceSpecialFeeRate"] = strconv.FormatFloat(operation_setting.InvoiceSpecialFeeRate, 'f', -1, 64)
 	common.OptionMap["InvoiceSpecialDescription"] = operation_setting.InvoiceSpecialDescription
 	common.OptionMap["InvoiceServiceName"] = operation_setting.InvoiceServiceName
+	common.OptionMap["ImageResultEnabled"] = strconv.FormatBool(operation_setting.ImageResultEnabled)
+	common.OptionMap["ImageResultRetentionDays"] = strconv.Itoa(operation_setting.ImageResultRetentionDays)
+	common.OptionMap["ImageResultMaxFileSizeMB"] = strconv.Itoa(operation_setting.ImageResultMaxFileSizeMB)
 	common.OptionMap["StripeMinTopUp"] = strconv.Itoa(setting.StripeMinTopUp)
 	common.OptionMap["StripeApiSecret"] = setting.StripeApiSecret
 	common.OptionMap["StripeWebhookSecret"] = setting.StripeWebhookSecret
@@ -591,6 +594,12 @@ func updateOptionMap(key string, value string) (err error) {
 		operation_setting.InvoiceSpecialDescription = value
 	case "InvoiceServiceName":
 		operation_setting.InvoiceServiceName = value
+	case "ImageResultEnabled":
+		operation_setting.ImageResultEnabled = value == "true"
+	case "ImageResultRetentionDays":
+		operation_setting.ImageResultRetentionDays, _ = strconv.Atoi(value)
+	case "ImageResultMaxFileSizeMB":
+		operation_setting.ImageResultMaxFileSizeMB, _ = strconv.Atoi(value)
 	case "StripeApiSecret":
 		setting.StripeApiSecret = value
 	case "StripeWebhookSecret":

@@ -27,6 +27,7 @@ import { SectionPageLayout } from '@/components/layout'
 import type { NavGroup } from '@/components/layout/types'
 import { CacheStatsDialog } from '@/features/system-settings/general/channel-affinity/cache-stats-dialog'
 import { AdminExportTab } from './components/admin-export-tab'
+import { ImageResultsTab } from './components/image-results-tab'
 import { UserInfoDialog } from './components/dialogs/user-info-dialog'
 import {
   type LogsViewScope,
@@ -42,7 +43,7 @@ import {
 } from './section-registry'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
-const TASK_LOG_SECTIONS = ['drawing', 'task'] as const
+const TASK_LOG_SECTIONS = ['drawing', 'image-results', 'task'] as const
 
 const SECTION_META: Record<UsageLogsSectionId, { titleKey: string; descriptionKey?: string }> = {
   common: {
@@ -50,6 +51,9 @@ const SECTION_META: Record<UsageLogsSectionId, { titleKey: string; descriptionKe
   },
   drawing: {
     titleKey: 'Drawing Logs',
+  },
+  'image-results': {
+    titleKey: 'Image Results',
   },
   task: {
     titleKey: 'Task Logs',
@@ -67,6 +71,7 @@ function UsageLogsContent() {
   const isAdmin = useIsAdmin()
   const { status } = useStatus()
   const offlineExportEnabled = !!status?.enable_log_export_offline
+  const imageResultEnabled = !!status?.image_result_enabled
   const activeCategory: UsageLogsSectionId =
     params.section && isUsageLogsSectionId(params.section)
       ? params.section
@@ -85,7 +90,9 @@ function UsageLogsContent() {
       {
         title: 'Task Logs',
         items: [
-          ...TASK_LOG_SECTIONS.map((section) => ({
+          ...TASK_LOG_SECTIONS.filter(
+            (section) => section !== 'image-results' || imageResultEnabled
+          ).map((section) => ({
             title: SECTION_META[section].titleKey,
             url: `/usage-logs/${section}`,
           })),
@@ -95,7 +102,7 @@ function UsageLogsContent() {
         ],
       },
     ],
-    [isAdmin, offlineExportEnabled]
+    [isAdmin, offlineExportEnabled, imageResultEnabled]
   )
   const filteredTabGroups = useSidebarConfig(tabNavGroups)
   const visibleSections = useMemo(
@@ -171,6 +178,8 @@ function UsageLogsContent() {
             <div className='min-h-0 flex-1'>
               {activeCategory === 'export-management' ? (
                 <AdminExportTab />
+              ) : activeCategory === 'image-results' ? (
+                <ImageResultsTab />
               ) : (
                 <UsageLogsTable logCategory={activeCategory} />
               )}

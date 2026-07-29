@@ -5,6 +5,7 @@ import { EmailTemplateSettingsSection } from './email-template-settings-section'
 import { HiddenModelsSection } from './hidden-models-section'
 import { TicketSettingsSection } from './ticket-settings-section'
 import { GroupMonitoringSettingsSection } from './group-monitoring-settings-section'
+import { ImageResultSettingsSection } from './image-result-settings-section'
 
 export type CustomSettingsData = Record<string, string>
 
@@ -36,6 +37,15 @@ const CUSTOM_SECTIONS = [
     descriptionKey: 'Configure group monitoring parameters',
     build: (_settings: CustomSettingsData) => (
       <GroupMonitoringSettingsSection settings={_settings} />
+    ),
+  },
+  {
+    id: 'image-results',
+    titleKey: 'Image Result Storage',
+    descriptionKey:
+      'Save successful image generation responses on the server so users can retrieve them even if the client request timed out (e.g. CDN 120s limit).',
+    build: (_settings: CustomSettingsData) => (
+      <ImageResultSettingsSection settings={_settings} />
     ),
   },
   {

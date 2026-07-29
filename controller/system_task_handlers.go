@@ -9,6 +9,7 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/imageresult"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 )
 
@@ -22,6 +23,7 @@ func RegisterScheduledSystemTasks() {
 	service.RegisterSystemTaskHandler(modelUpdateHandler{})
 	service.RegisterSystemTaskHandler(midjourneyPollHandler{})
 	service.RegisterSystemTaskHandler(asyncTaskPollHandler{})
+	service.RegisterSystemTaskHandler(imageResultCleanupHandler{})
 }
 
 // channelTestHandler runs the scheduled "test all channels" job. Enablement and
@@ -149,6 +151,29 @@ func (asyncTaskPollHandler) NewPayload() any { return nil }
 
 func (asyncTaskPollHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
 	summary := service.RunTaskPollingOnce(ctx, service.NewSystemTaskProgressReporter(task, runnerID))
+	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
+}
+
+// imageResultCleanupHandler 每小时清理一批过期生图记录（先删文件再删行）。
+// 开关关闭时不调度；已存在的过期数据会在下次开启后被清理。
+type imageResultCleanupHandler struct{}
+
+func (imageResultCleanupHandler) Type() string { return model.SystemTaskTypeImageResultCleanup }
+
+func (imageResultCleanupHandler) Enabled() bool {
+	return operation_setting.ImageResultEnabled
+}
+
+func (imageResultCleanupHandler) Interval() time.Duration { return time.Hour }
+
+func (imageResultCleanupHandler) NewPayload() any { return nil }
+
+func (imageResultCleanupHandler) Run(ctx context.Context, task *model.SystemTask, runnerID string) {
+	summary, err := imageresult.CleanupExpiredOnce(ctx)
+	if err != nil {
+		finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusFailed, nil, err)
+		return
+	}
 	finishSystemTaskHandler(task, runnerID, model.SystemTaskStatusSucceeded, summary, nil)
 }
 

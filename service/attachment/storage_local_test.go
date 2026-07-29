@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -126,7 +125,8 @@ func TestLocalStorage_ConcurrentWrites(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			key := filepath.Join("race", "file-"+string(rune('a'+i))+".txt")
+			// 存储 key 约定用 "/" 分隔（safePath 拒绝反斜杠），不能用 filepath.Join。
+			key := "race/file-" + string(rune('a'+i)) + ".txt"
 			body := []byte(key)
 			if err := s.Put(ctx, key, bytes.NewReader(body), int64(len(body)), "text/plain"); err != nil {
 				t.Errorf("concurrent put(%q) failed: %v", key, err)

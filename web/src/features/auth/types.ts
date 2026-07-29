@@ -133,6 +133,7 @@ export interface SystemStatus {
     invoice_special_fee_rate?: number
     invoice_special_description?: string
     invoice_service_name?: string
+    image_result_enabled?: boolean
     quota_display_type?: string
     usd_exchange_rate?: number
     custom_currency_symbol?: string

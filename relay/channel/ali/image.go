@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/imageresult"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -342,6 +343,10 @@ func aliImageHandler(a *Adaptor, c *gin.Context, resp *http.Response, info *rela
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeBadResponseBody), nil
 	}
+
+	// 生图结果落地保存（开关控制，异步，不影响写回；应对 CDN 非流超时客户端拿不到响应）
+	imageresult.MaybeSave(c, info, jsonResponse)
+
 	service.IOCopyBytesGracefully(c, resp, jsonResponse)
 
 	return nil, &dto.Usage{}

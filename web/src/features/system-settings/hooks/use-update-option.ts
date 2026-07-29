@@ -42,6 +42,7 @@ const STATUS_RELATED_KEYS = [
   'region_restriction.filter_console',
   'group_model_blacklist.enabled',
   'group_model_blacklist.blocked_models',
+  'ImageResultEnabled',
 ]
 
 export function useUpdateOption() {

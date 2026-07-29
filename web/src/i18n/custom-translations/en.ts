@@ -943,6 +943,30 @@ const en = {
   'FRT Exclude Threshold (sec)': 'FRT Exclude Threshold (sec)',
   'Requests whose first-response time exceeds this are excluded from all monitoring statistics. 0 disables.':
     'Requests whose first-response time exceeds this are excluded from all monitoring statistics. 0 disables.',
+
+  // Image result storage (生图结果落地保存)
+  'Image Results': 'Image Results',
+  'Click to download': 'Click to download',
+  Images: 'Images',
+  'Successful image generations are saved here for a limited time. If a request timed out on the client (e.g. CDN 120s limit), you can still download the result below.':
+    'Successful image generations are saved here for a limited time. If a request timed out on the client (e.g. CDN 120s limit), you can still download the result below.',
+  'Image Result Storage': 'Image Result Storage',
+  'Save successful image generation responses on the server so users can retrieve them even if the client request timed out (e.g. CDN 120s limit).':
+    'Save successful image generation responses on the server so users can retrieve them even if the client request timed out (e.g. CDN 120s limit).',
+  'Enable Image Result Storage': 'Enable Image Result Storage',
+  'Images are decoded/downloaded to local disk; users view them in the Image Results tab of Drawing Logs.':
+    'Images are decoded/downloaded to local disk; users view them in the Image Results tab of Drawing Logs.',
+  'Retention Days': 'Retention Days',
+  'Expired results (files and records) are removed by an hourly cleanup task.':
+    'Expired results (files and records) are removed by an hourly cleanup task.',
+  'Images larger than this are skipped (logged in backend).':
+    'Images larger than this are skipped (logged in backend).',
+  'Retention days and max file size must be positive integers':
+    'Retention days and max file size must be positive integers',
+  'History of MjProxy-style image tasks and saved image generation results.':
+    'History of MjProxy-style image tasks and saved image generation results.',
+  'Drawing task records and saved image results':
+    'Drawing task records and saved image results',
 } as const
 
 export default en

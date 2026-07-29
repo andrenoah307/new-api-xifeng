@@ -941,6 +941,29 @@ const zhTW: Record<string, string> = {
   'FRT Exclude Threshold (sec)': '首字排除閾值（秒）',
   'Requests whose first-response time exceeds this are excluded from all monitoring statistics. 0 disables.':
     '超過該首字響應時間的請求不參與所有監控統計，0 表示不啟用。',
+
+  // Image result storage (生圖結果落地保存)
+  'Image Results': '生圖記錄',
+  'Click to download': '點擊下載',
+  Images: '圖片',
+  'Successful image generations are saved here for a limited time. If a request timed out on the client (e.g. CDN 120s limit), you can still download the result below.':
+    '成功的生圖結果會在此保留一段時間。如果請求在客戶端超時（例如 CDN 120 秒限制），仍可在下方下載結果。',
+  'Image Result Storage': '生圖結果保存',
+  'Save successful image generation responses on the server so users can retrieve them even if the client request timed out (e.g. CDN 120s limit).':
+    '在服務端保存成功的生圖響應，即使客戶端請求超時（例如 CDN 120 秒限制），用戶也能取回結果。',
+  'Enable Image Result Storage': '啟用生圖結果保存',
+  'Images are decoded/downloaded to local disk; users view them in the Image Results tab of Drawing Logs.':
+    '圖片會解碼/下載到本地磁碟，用戶在繪圖日誌的「生圖記錄」標籤頁查看。',
+  'Retention Days': '保留天數',
+  'Expired results (files and records) are removed by an hourly cleanup task.':
+    '過期結果（文件與記錄）由每小時一次的清理任務刪除。',
+  'Images larger than this are skipped (logged in backend).':
+    '超過該大小的圖片會被跳過（後端記錄日誌）。',
+  'Retention days and max file size must be positive integers':
+    '保留天數與單張大小上限必須為正整數',
+  'History of MjProxy-style image tasks and saved image generation results.':
+    'MjProxy 風格繪圖任務歷史與已保存的生圖結果。',
+  'Drawing task records and saved image results': '繪圖任務記錄與已保存的生圖結果',
 }
 
 export default zhTW

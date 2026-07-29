@@ -57,6 +57,7 @@ func TestMain(m *testing.M) {
 		&TicketAttachment{},
 		&TicketInvoice{},
 		&TicketRefund{},
+		&ImageResult{},
 		&CommissionRecord{},
 		&UserOAuthBinding{},
 		&PerfMetric{},
@@ -99,6 +100,7 @@ func truncateTables(t *testing.T) {
 		DB.Exec("DELETE FROM ticket_messages")
 		DB.Exec("DELETE FROM ticket_invoices")
 		DB.Exec("DELETE FROM ticket_refunds")
+		DB.Exec("DELETE FROM image_results")
 		DB.Exec("DELETE FROM commission_records")
 	})
 }

@@ -442,6 +442,16 @@ func SetApiRouter(router *gin.Engine) {
 		logRoute.POST("/export-tasks/:id/cancel", middleware.AdminAuth(), controller.CancelExportTask)
 		logRoute.GET("/export-tasks/:id/download", middleware.AdminAuth(), controller.AdminDownloadExportFile)
 
+		// 生图结果落地保存：列表接口只返回文件元信息（不含存储 key），
+		// 图片按 记录id+序号 经归属校验后由后端流式返回（前端带 Authorization 头 fetch 转 blob）。
+		imageResultRoute := apiRouter.Group("/image_result")
+		{
+			imageResultRoute.GET("/self", middleware.UserAuth(), middleware.LogQueryRateLimit(), controller.GetUserImageResults)
+			imageResultRoute.GET("/self/:id/file/:idx", middleware.UserAuth(), controller.DownloadUserImageResultFile)
+			imageResultRoute.GET("/", middleware.AdminAuth(), middleware.LogQueryRateLimit(), controller.GetAllImageResults)
+			imageResultRoute.GET("/:id/file/:idx", middleware.AdminAuth(), controller.DownloadImageResultFile)
+		}
+
 		systemTaskRoute := apiRouter.Group("/system-task")
 		systemTaskRoute.Use(middleware.RootAuth())
 		{

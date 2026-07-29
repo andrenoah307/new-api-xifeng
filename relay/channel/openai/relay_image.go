@@ -15,6 +15,7 @@ import (
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/imageresult"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -50,6 +51,9 @@ func OpenaiImageHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.
 	}
 
 	updateOpenAIImageCount(info, gjson.GetBytes(responseBody, "data.#").Int())
+
+	// 生图结果落地保存（开关控制，异步，不影响写回；应对 CDN 非流超时客户端拿不到响应）
+	imageresult.MaybeSave(c, info, responseBody)
 
 	// 写入新的 response body
 	service.IOCopyBytesGracefully(c, resp, responseBody)

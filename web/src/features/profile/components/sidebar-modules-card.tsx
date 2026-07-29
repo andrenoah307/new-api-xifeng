@@ -96,7 +96,7 @@ export function SidebarModulesCard() {
         {
           key: 'midjourney',
           title: t('Drawing Logs'),
-          description: t('Drawing task records'),
+          description: t('Drawing task records and saved image results'),
         },
         {
           key: 'task',
