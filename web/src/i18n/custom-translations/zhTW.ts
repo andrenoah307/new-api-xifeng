@@ -944,7 +944,7 @@ const zhTW: Record<string, string> = {
 
   // Image result storage (生圖結果落地保存)
   'Image Results': '生圖記錄',
-  'Click to download': '點擊下載',
+  'Click to preview': '點擊預覽',
   Images: '圖片',
   'Successful image generations are saved here for a limited time. If a request timed out on the client (e.g. CDN 120s limit), you can still download the result below.':
     '成功的生圖結果會在此保留一段時間。如果請求在客戶端超時（例如 CDN 120 秒限制），仍可在下方下載結果。',

@@ -29,6 +29,7 @@ type imageResultFileView struct {
 type imageResultView struct {
 	Id          int                   `json:"id"`
 	UserId      int                   `json:"user_id"`
+	Username    string                `json:"username"`
 	ModelName   string                `json:"model_name"`
 	Mode        string                `json:"mode"`
 	Prompt      string                `json:"prompt"`
@@ -43,9 +44,12 @@ func toImageResultView(r *model.ImageResult) imageResultView {
 	for i, f := range files {
 		views = append(views, imageResultFileView{Idx: i, Mime: f.Mime, Size: f.Size, Source: f.Source})
 	}
+	// 用户名走缓存查询（Redis 优先），查不到留空即可，不影响列表
+	username, _ := model.GetUsernameById(r.UserId, false)
 	return imageResultView{
 		Id:          r.Id,
 		UserId:      r.UserId,
+		Username:    username,
 		ModelName:   r.ModelName,
 		Mode:        r.Mode,
 		Prompt:      r.Prompt,

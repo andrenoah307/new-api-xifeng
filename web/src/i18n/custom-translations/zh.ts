@@ -942,7 +942,7 @@ const zh: Record<string, string> = {
 
   // Image result storage (生图结果落地保存)
   'Image Results': '生图记录',
-  'Click to download': '点击下载',
+  'Click to preview': '点击预览',
   Images: '图片',
   'Successful image generations are saved here for a limited time. If a request timed out on the client (e.g. CDN 120s limit), you can still download the result below.':
     '成功的生图结果会在此保留一段时间。如果请求在客户端超时（例如 CDN 120 秒限制），仍可在下方下载结果。',

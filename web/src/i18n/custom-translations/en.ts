@@ -946,7 +946,7 @@ const en = {
 
   // Image result storage (生图结果落地保存)
   'Image Results': 'Image Results',
-  'Click to download': 'Click to download',
+  'Click to preview': 'Click to preview',
   Images: 'Images',
   'Successful image generations are saved here for a limited time. If a request timed out on the client (e.g. CDN 120s limit), you can still download the result below.':
     'Successful image generations are saved here for a limited time. If a request timed out on the client (e.g. CDN 120s limit), you can still download the result below.',
