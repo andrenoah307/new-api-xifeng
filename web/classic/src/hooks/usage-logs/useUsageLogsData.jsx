@@ -513,6 +513,18 @@ export const useLogsData = () => {
             ),
           });
         }
+        if (isAdminUser && other?.admin_info?.usage_semantic_mismatch) {
+          const mismatch = other.admin_info.usage_semantic_mismatch;
+          expandDataLocal.push({
+            key: t('用量口径'),
+            value: (
+              <span style={{ color: 'var(--semi-color-warning)' }}>
+                {t('上游以净口径返回了含缓存的提示 token 数，已在计费前归一')}
+                {`（${t('上游提示')} ${mismatch.prompt_tokens} → ${mismatch.normalized_prompt_tokens}${t('，缓存')} ${mismatch.cache_tokens}${t('，缓存创建')} ${mismatch.cache_creation_tokens}）`}
+              </span>
+            ),
+          });
+        }
         if (other?.billing_mode === 'tiered_expr' && other?.expr_b64) {
           expandDataLocal.push({
             key: t('计费过程'),

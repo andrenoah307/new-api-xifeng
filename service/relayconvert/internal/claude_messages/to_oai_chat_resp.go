@@ -280,8 +280,19 @@ func claudeBillingUsageFromSemanticUsage(usage *dto.Usage) *dto.BillingUsage {
 		usage.ClaudeCacheCreation5mTokens,
 		usage.ClaudeCacheCreation1hTokens,
 	)
+	// 防御性守卫：非 anthropic 口径的 PromptTokens 含 cached / cache-write 前缀，直接当成
+	// Claude 的 InputTokens 会把「含缓存的输入」固化进 anthropic 净口径 BillingUsage，
+	// 下游结算按净口径跳过减缓存，同一批 token 被输入价与缓存价双收（坑点 #169）。
+	// 当前两个调用方传入的都已是 anthropic 净 usage，此处仅为纵深防御。
+	inputTokens := usage.PromptTokens
+	if usage.UsageSemantic != dto.BillingUsageSemanticAnthropic {
+		inputTokens -= usage.PromptTokensDetails.CachedTokens + usage.PromptTokensDetails.CacheCreationTokensTotal()
+		if inputTokens < 0 {
+			inputTokens = 0
+		}
+	}
 	claudeUsage := &dto.ClaudeUsage{
-		InputTokens:              usage.PromptTokens,
+		InputTokens:              inputTokens,
 		CacheCreationInputTokens: usage.PromptTokensDetails.CachedCreationTokens,
 		CacheReadInputTokens:     usage.PromptTokensDetails.CachedTokens,
 		OutputTokens:             usage.CompletionTokens,

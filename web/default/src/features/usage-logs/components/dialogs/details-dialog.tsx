@@ -887,6 +887,49 @@ export function DetailsDialog(props: DetailsDialogProps) {
           </DetailSection>
         )}
 
+        {/* Usage semantic mismatch marker (admin only) */}
+        {props.isAdmin && other?.admin_info?.usage_semantic_mismatch && (
+          <DetailSection
+            icon={<AlertTriangle className='size-3.5' aria-hidden='true' />}
+            label={t('Usage semantics normalized')}
+            variant='danger'
+          >
+            <p className='mb-1 text-xs wrap-break-word'>
+              {t(
+                'Upstream returned a cache-inclusive prompt count under net semantics; it was normalized before billing'
+              )}
+            </p>
+            <DetailRow
+              label={t('Upstream prompt tokens')}
+              value={String(
+                other.admin_info.usage_semantic_mismatch.prompt_tokens
+              )}
+              mono
+            />
+            <DetailRow
+              label={t('Normalized prompt tokens')}
+              value={String(
+                other.admin_info.usage_semantic_mismatch.normalized_prompt_tokens
+              )}
+              mono
+            />
+            <DetailRow
+              label={t('Cache tokens')}
+              value={String(
+                other.admin_info.usage_semantic_mismatch.cache_tokens
+              )}
+              mono
+            />
+            <DetailRow
+              label={t('Cache creation tokens')}
+              value={String(
+                other.admin_info.usage_semantic_mismatch.cache_creation_tokens
+              )}
+              mono
+            />
+          </DetailSection>
+        )}
+
         {/* Reject reason (admin only) */}
         {props.isAdmin && other?.reject_reason && (
           <DetailSection

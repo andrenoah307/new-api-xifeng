@@ -135,6 +135,16 @@ export interface LogOtherData {
       original: number
       clamped: number
     }
+    // Usage semantic mismatch marker: set when the upstream returned a
+    // net-semantics (anthropic) usage whose prompt_tokens still included the
+    // cache buckets, and the backend normalized it before billing. Admin-only.
+    usage_semantic_mismatch?: {
+      reason: string
+      prompt_tokens: number
+      cache_tokens: number
+      cache_creation_tokens: number
+      normalized_prompt_tokens: number
+    }
   }
   // Language-independent operation descriptor (audit/login logs).
   // Frontend renders localized content from action + params via i18n templates.

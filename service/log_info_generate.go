@@ -49,6 +49,37 @@ func attachQuotaSaturation(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, o
 		clamp.Op, clamp.Kind, clamp.Original, clamp.Clamped, relayInfo.UserId, relayInfo.OriginModelName))
 }
 
+// attachUsageSemanticMismatch 记录「上游 usage 口径自相矛盾已被归一化」的标记。
+// 与 quota_saturation 同样嵌在 other.admin_info 下：非管理员视图会被
+// model.formatUserLogs 整块剥离，因此天然 admin-only。
+// 有意不写 Content 兜底 —— Content 会回显给用户，而这是上游异常的内部审计信息。
+func attachUsageSemanticMismatch(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, other map[string]interface{}, mismatch map[string]interface{}) {
+	if mismatch == nil || other == nil {
+		return
+	}
+	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	if !ok || adminInfo == nil {
+		adminInfo = map[string]interface{}{}
+		other["admin_info"] = adminInfo
+	}
+	adminInfo["usage_semantic_mismatch"] = mismatch
+
+	channelId := 0
+	userId := 0
+	modelName := ""
+	if relayInfo != nil {
+		// ChannelId 挂在内嵌的 *ChannelMeta 上，未绑定渠道时读它会 nil deref
+		if relayInfo.ChannelMeta != nil {
+			channelId = relayInfo.ChannelId
+		}
+		userId = relayInfo.UserId
+		modelName = relayInfo.OriginModelName
+	}
+	logger.LogWarn(ctx, fmt.Sprintf("usage semantic mismatch normalized: reason=%v user=%d channel=%d model=%s prompt_tokens=%v cache_tokens=%v cache_creation_tokens=%v",
+		mismatch["reason"], userId, channelId, modelName,
+		mismatch["prompt_tokens"], mismatch["cache_tokens"], mismatch["cache_creation_tokens"]))
+}
+
 func appendRequestPath(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
 	if other == nil {
 		return

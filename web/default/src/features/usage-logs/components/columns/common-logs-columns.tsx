@@ -111,10 +111,15 @@ function buildDetailSegments(
   // and in danger styling so it stands out on the related billing log. The
   // backend already strips admin_info for non-admins; gate on isAdmin too as
   // defense in depth so the marker never leaks if that changes.
+  // usage_semantic_mismatch is likewise an admin-only anomaly marker.
+  const prefixes: DetailSegment[] = []
   if (isAdmin && other?.admin_info?.quota_saturation) {
-    return [{ text: t('Quota clamped'), danger: true }, ...segments]
+    prefixes.push({ text: t('Quota clamped'), danger: true })
   }
-  return segments
+  if (isAdmin && other?.admin_info?.usage_semantic_mismatch) {
+    prefixes.push({ text: t('Usage semantics normalized'), danger: true })
+  }
+  return [...prefixes, ...segments]
 }
 
 function buildTypeDetailSegments(

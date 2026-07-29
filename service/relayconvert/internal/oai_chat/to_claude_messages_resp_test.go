@@ -204,6 +204,91 @@ func TestStreamResponseOpenAI2ClaudeClosesTextThinkingAndToolBlocks(t *testing.T
 	assert.Equal(t, "message_stop", finishResponses[2].Type)
 }
 
+// 生产超收形状（坑点 #169）：上游只读缓存、无缓存写时，OpenAI 口径的 prompt_tokens 仍含 cached，
+// 若不净化就会发出 input_tokens == cache_read_input_tokens 的自相矛盾 Claude usage，
+// 下游按 anthropic 口径结算会把同一批 token 按输入价与缓存价双收。
+func TestBuildClaudeUsageFromOpenAICacheReadOnlyNetsInput(t *testing.T) {
+	tests := []struct {
+		name                string
+		promptTokens        int
+		cachedTokens        int
+		cacheWriteTokens    int
+		wantInputTokens     int
+		wantCacheReadTokens int
+		wantCacheCreation   int
+	}{
+		{
+			name:                "cache read only",
+			promptTokens:        38503,
+			cachedTokens:        38503,
+			wantInputTokens:     0,
+			wantCacheReadTokens: 38503,
+		},
+		{
+			name:                "cache read and write",
+			promptTokens:        1000,
+			cachedTokens:        200,
+			cacheWriteTokens:    300,
+			wantInputTokens:     500,
+			wantCacheReadTokens: 200,
+			wantCacheCreation:   300,
+		},
+		{
+			name:                "cache read exceeds prompt clamps to zero",
+			promptTokens:        100,
+			cachedTokens:        500,
+			wantInputTokens:     0,
+			wantCacheReadTokens: 500,
+		},
+		{
+			name:            "no cache keeps prompt tokens",
+			promptTokens:    100,
+			wantInputTokens: 100,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			usage := buildClaudeUsageFromOpenAIUsage(&dto.Usage{
+				PromptTokens:     tt.promptTokens,
+				CompletionTokens: 8,
+				PromptTokensDetails: dto.InputTokenDetails{
+					CachedTokens:     tt.cachedTokens,
+					CacheWriteTokens: tt.cacheWriteTokens,
+				},
+			})
+
+			require.NotNil(t, usage)
+			assert.Equal(t, tt.wantInputTokens, usage.InputTokens)
+			assert.Equal(t, tt.wantCacheReadTokens, usage.CacheReadInputTokens)
+			assert.Equal(t, tt.wantCacheCreation, usage.CacheCreationInputTokens)
+			assert.Equal(t, 8, usage.OutputTokens)
+		})
+	}
+}
+
+// 坑点 #133：源 usage 已带 anthropic 净口径 BillingUsage 时必须短路返回原 ClaudeUsage，
+// 否则往返转换会对已净化的 input_tokens 再减一次缓存。
+func TestBuildClaudeUsageFromOpenAIKeepsAnthropicBillingUsage(t *testing.T) {
+	claudeUsage := &dto.ClaudeUsage{
+		InputTokens:          1000,
+		OutputTokens:         8,
+		CacheReadInputTokens: 500,
+	}
+	usage := buildClaudeUsageFromOpenAIUsage(&dto.Usage{
+		PromptTokens:     1500,
+		CompletionTokens: 8,
+		PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens: 500,
+		},
+		BillingUsage: dto.NewClaudeMessagesBillingUsage(claudeUsage),
+	})
+
+	require.NotNil(t, usage)
+	assert.Equal(t, 1000, usage.InputTokens)
+	assert.Equal(t, 500, usage.CacheReadInputTokens)
+}
+
 func TestNormalizeCacheCreationSplit(t *testing.T) {
 	cache5m, cache1h := NormalizeCacheCreationSplit(10, 3, 2)
 	assert.Equal(t, 8, cache5m)

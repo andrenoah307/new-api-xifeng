@@ -364,9 +364,52 @@ func usageSemanticFromUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) 
 	return "openai"
 }
 
+// normalizeInclusivePromptForNetSemantics 收口「口径自相矛盾」的上游 usage：
+// 标记为净口径（anthropic / legacyClaudeDerived，即结算会跳过减缓存的那两个条件），
+// 却把含缓存的 prompt_tokens 一起发来（prompt_tokens 恰好等于 cached + cache_creation）。
+// 此时沿用净口径不减缓存，同一批 token 会被输入价与缓存价双收（生产实测 10.9 倍超收，坑点 #169）。
+//
+// 判定条件用「严格相等」：这是唯一可证伪的结构性信号。放宽成 >= 会让大量真实 Anthropic
+// 流量被误减而巨额少收；严格相等的误判上限是少收一次 prompt 部分（安全方向），
+// 且每次触发都会落 other.admin_info.usage_semantic_mismatch 标记可审计。
+//
+// 返回浅拷贝而非就地改写：调用方仍要用原 usage 做日志计费路径分类。
+func normalizeInclusivePromptForNetSemantics(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) (*dto.Usage, map[string]interface{}) {
+	if usage == nil || relayInfo == nil {
+		return usage, nil
+	}
+	// OpenRouter Claude 在 calculateTextQuotaSummary 内已做同类扣减，二次扣减会让 PromptTokens 变负
+	if relayInfo.ChannelMeta != nil && relayInfo.ChannelType == constant.ChannelTypeOpenRouter {
+		return usage, nil
+	}
+	if usageSemanticFromUsage(relayInfo, usage) != "anthropic" && !isLegacyClaudeDerivedOpenAIUsage(relayInfo, usage) {
+		return usage, nil
+	}
+	cacheTokens := usage.PromptTokensDetails.CachedTokens
+	cacheCreationTokens := usage.PromptTokensDetails.CacheCreationTokensTotal()
+	netExcluded := cacheTokens + cacheCreationTokens
+	if netExcluded <= 0 || usage.PromptTokens != netExcluded {
+		return usage, nil
+	}
+
+	normalized := *usage
+	normalized.PromptTokens = 0
+	return &normalized, map[string]interface{}{
+		"reason":                   "anthropic_inclusive_prompt",
+		"prompt_tokens":            usage.PromptTokens,
+		"cache_tokens":             cacheTokens,
+		"cache_creation_tokens":    cacheCreationTokens,
+		"normalized_prompt_tokens": normalized.PromptTokens,
+	}
+}
+
 func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent []string) {
 	originUsage := usage
 	billingUsage := effectiveBillingUsage(usage)
+	// 必须在 affinity 观测、summary 与 BuildTieredTokenParams 之前收口，
+	// 这样写入日志的 prompt_tokens、quota、tiered_expr 的 p/Len 全部同源为净口径
+	// （坑点 #166 的容差 0 依赖日志与实扣同源）
+	billingUsage, usageSemanticMismatch := normalizeInclusivePromptForNetSemantics(relayInfo, billingUsage)
 	if usage == nil {
 		extraContent = append(extraContent, "上游无计费信息")
 	}
@@ -517,6 +560,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	}
 
 	attachQuotaSaturation(ctx, relayInfo, other)
+	attachUsageSemanticMismatch(ctx, relayInfo, other, usageSemanticMismatch)
 
 	model.RecordConsumeLog(ctx, relayInfo.UserId, model.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,

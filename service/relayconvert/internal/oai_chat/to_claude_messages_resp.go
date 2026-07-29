@@ -40,13 +40,15 @@ func buildClaudeUsageFromOpenAIUsage(oaiUsage *dto.Usage) *dto.ClaudeUsage {
 		oaiUsage.ClaudeCacheCreation1hTokens,
 	)
 	cacheCreationTokens := oaiUsage.PromptTokensDetails.CacheCreationTokensTotal()
+	cachedTokens := oaiUsage.PromptTokensDetails.CachedTokens
 	inputTokens := oaiUsage.PromptTokens
-	if oaiUsage.PromptTokensDetails.CacheWriteTokens > 0 {
-		// OpenAI native cache-write usage counts cached and cache-write tokens
-		// inside prompt_tokens, while Claude semantics reports input_tokens
-		// excluding both. Both counts are unadjusted prefixes and may overlap,
-		// so clamp a negative remainder at zero.
-		inputTokens = oaiUsage.PromptTokens - oaiUsage.PromptTokensDetails.CachedTokens - cacheCreationTokens
+	// OpenAI 口径的 prompt_tokens 同时含 cached 与 cache-write 前缀，Claude 口径的
+	// input_tokens 两者都不含，因此只要存在任一缓存桶就必须净化。只在 cache-write
+	// 时才减会让「只读缓存」响应发出 input_tokens == cache_read_input_tokens 的自相
+	// 矛盾 usage，下游按 anthropic 口径结算时同一批 token 被输入价与缓存价双收（坑点 #169）。
+	// 两个计数都是未去重前缀、可能互相重叠，故负数 clamp 到 0。
+	if cachedTokens > 0 || cacheCreationTokens > 0 {
+		inputTokens = oaiUsage.PromptTokens - cachedTokens - cacheCreationTokens
 		if inputTokens < 0 {
 			inputTokens = 0
 		}
