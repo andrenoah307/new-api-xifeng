@@ -171,6 +171,19 @@ export interface GetChannelResponse {
   data?: Channel
 }
 
+export interface ChannelRateLimitStat {
+  rpm: number
+  rpm_limit: number
+  conc: number
+  conc_limit: number
+}
+
+export interface GetChannelRateLimitStatsResponse {
+  success: boolean
+  message?: string
+  data?: Record<string, ChannelRateLimitStat> | null
+}
+
 export interface ChannelOpsResponse {
   success: boolean
   message?: string

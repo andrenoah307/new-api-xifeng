@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -237,7 +238,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		addUsedChannel(c, channel.Id)
 
 		// Channel-level rate limit (RPM / concurrency).
-		if rateLimitCfg := channel.GetSetting().RateLimit; channel_limiter.IsActive(rateLimitCfg) {
+		rateLimitCfg := getChannelRateLimitConfig(c, channel)
+		if channel_limiter.IsActive(rateLimitCfg) {
 			token, decision := channel_limiter.Acquire(c.Request.Context(), channel.Id, rateLimitCfg)
 			if decision.Allowed {
 				rateLimitToken = token
@@ -247,7 +249,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 				// Honor that by overriding skip/queue with reject so we 429
 				// instead of silently routing to a different channel.
 				effectiveOnLimit := rateLimitCfg.OnLimit
-				if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
+				_, specificChannel := c.Get("specific_channel_id")
+				if specificChannel || service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
 					effectiveOnLimit = channel_limiter.OnLimitReject
 				}
 
@@ -258,6 +261,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 					http.StatusTooManyRequests,
 				)
 				relayInfo.LastError = rlErr
+				newAPIError = rlErr
 				if effectiveOnLimit == channel_limiter.OnLimitReject {
 					newAPIError = types.NewErrorWithStatusCode(
 						fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
@@ -271,6 +275,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 				// that this detour is rate-limit driven so it won't displace
 				// the original cache-friendly channel via SwitchOnSuccess.
 				common.SetContextKey(c, constant.ContextKeyRateLimitSkipped, true)
+				relayInfo.InitChannelMeta(c)
 				continue
 			}
 		}
@@ -399,17 +404,23 @@ func fastTokenCountMetaForPricing(request dto.Request) *types.TokenCountMeta {
 
 func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service.RetryParam) (*model.Channel, *types.NewAPIError) {
 	if info.ChannelMeta == nil {
-		autoBan := c.GetBool("auto_ban")
 		autoBanInt := 1
-		if !autoBan {
+		if !c.GetBool("auto_ban") {
 			autoBanInt = 0
 		}
-		return &model.Channel{
+		selectedChannel := &model.Channel{
 			Id:      c.GetInt("channel_id"),
 			Type:    c.GetInt("channel_type"),
 			Name:    c.GetString("channel_name"),
 			AutoBan: &autoBanInt,
-		}, nil
+			ChannelInfo: model.ChannelInfo{
+				IsMultiKey: common.GetContextKeyBool(c, constant.ContextKeyChannelIsMultiKey),
+			},
+		}
+		if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok {
+			selectedChannel.SetSetting(channelSetting)
+		}
+		return selectedChannel, nil
 	}
 	channel, selectGroup, err := service.CacheGetRandomSatisfiedChannel(retryParam)
 
@@ -427,6 +438,16 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 		return nil, newAPIError
 	}
 	return channel, nil
+}
+
+func getChannelRateLimitConfig(c *gin.Context, channel *model.Channel) *dto.ChannelRateLimit {
+	rateLimitCfg := channel.GetSetting().RateLimit
+	if rateLimitCfg == nil {
+		if ctxSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok {
+			rateLimitCfg = ctxSetting.RateLimit
+		}
+	}
+	return rateLimitCfg
 }
 
 func getErrorFilterMatchInput(apiErr *types.NewAPIError) (statusCode int, errorCode string, message string) {
@@ -674,55 +695,14 @@ func RelayTask(c *gin.Context) {
 		Retry:       common.GetPointer(0),
 	}
 
-	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
-		var channel *model.Channel
-
-		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
-			channel = lockedCh
-			if retryParam.GetRetry() > 0 {
-				if setupErr := middleware.SetupContextForSelectedChannel(c, channel, relayInfo.OriginModelName); setupErr != nil {
-					taskErr = service.TaskErrorWrapperLocal(setupErr.Err, "setup_locked_channel_failed", http.StatusInternalServerError)
-					break
-				}
-			}
-		} else {
-			var channelErr *types.NewAPIError
-			channel, channelErr = getChannel(c, relayInfo, retryParam)
-			if channelErr != nil {
-				logger.LogError(c, channelErr.Error())
-				taskErr = service.TaskErrorWrapperLocal(channelErr.Err, "get_channel_failed", http.StatusInternalServerError)
-				break
-			}
-		}
-
-		addUsedChannel(c, channel.Id)
-		bodyStorage, bodyErr := common.GetBodyStorage(c)
-		if bodyErr != nil {
-			if common.IsRequestBodyTooLargeError(bodyErr) || errors.Is(bodyErr, common.ErrRequestBodyTooLarge) {
-				taskErr = service.TaskErrorWrapperLocal(bodyErr, "read_request_body_failed", http.StatusRequestEntityTooLarge)
-			} else {
-				taskErr = service.TaskErrorWrapperLocal(bodyErr, "read_request_body_failed", http.StatusBadRequest)
-			}
-			break
-		}
-		c.Request.Body = io.NopCloser(bodyStorage)
-
-		result, taskErr = relay.RelayTaskSubmit(c, relayInfo)
-		if taskErr == nil {
-			break
-		}
-
-		if !taskErr.LocalError {
-			processChannelError(c,
-				*types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey,
-					common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()),
-				types.NewOpenAIError(taskErr.Error, types.ErrorCodeBadResponseStatusCode, taskErr.StatusCode))
-		}
-
-		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
-			break
-		}
-	}
+	result, taskErr = relayTaskSubmitWithRetry(c, relayInfo, retryParam, common.RetryTimes, taskRelaySubmitDependencies{
+		getChannel: getChannel,
+		acquireRateLimit: func(ctx context.Context, channelID int, cfg *dto.ChannelRateLimit) (rateLimitReleaser, channel_limiter.Decision) {
+			token, decision := channel_limiter.Acquire(ctx, channelID, cfg)
+			return token, decision
+		},
+		submit: relay.RelayTaskSubmit,
+	})
 
 	if taskErr != nil && !taskErr.LocalError && common.GroupMonitoringHook != nil {
 		startTime := common.GetContextKeyTime(c, constant.ContextKeyRequestStartTime)
@@ -775,6 +755,126 @@ func RelayTask(c *gin.Context) {
 	if taskErr != nil {
 		respondTaskError(c, taskErr)
 	}
+}
+
+type rateLimitReleaser interface {
+	Release()
+}
+
+type taskRelaySubmitDependencies struct {
+	getChannel       func(*gin.Context, *relaycommon.RelayInfo, *service.RetryParam) (*model.Channel, *types.NewAPIError)
+	acquireRateLimit func(context.Context, int, *dto.ChannelRateLimit) (rateLimitReleaser, channel_limiter.Decision)
+	submit           func(*gin.Context, *relaycommon.RelayInfo) (*relay.TaskSubmitResult, *dto.TaskError)
+}
+
+func relayTaskSubmitWithRetry(
+	c *gin.Context,
+	relayInfo *relaycommon.RelayInfo,
+	retryParam *service.RetryParam,
+	maxRetries int,
+	dependencies taskRelaySubmitDependencies,
+) (*relay.TaskSubmitResult, *dto.TaskError) {
+	var result *relay.TaskSubmitResult
+	var taskErr *dto.TaskError
+	var rateLimitToken rateLimitReleaser
+	defer func() {
+		if rateLimitToken != nil {
+			rateLimitToken.Release()
+		}
+	}()
+
+	for ; retryParam.GetRetry() <= maxRetries; retryParam.IncreaseRetry() {
+		if rateLimitToken != nil {
+			rateLimitToken.Release()
+			rateLimitToken = nil
+		}
+
+		var channel *model.Channel
+		lockedChannel := false
+		if lockedCh, ok := relayInfo.LockedChannel.(*model.Channel); ok && lockedCh != nil {
+			channel = lockedCh
+			lockedChannel = true
+			if retryParam.GetRetry() > 0 {
+				if setupErr := middleware.SetupContextForSelectedChannel(c, channel, relayInfo.OriginModelName); setupErr != nil {
+					taskErr = service.TaskErrorWrapperLocal(setupErr.Err, "setup_locked_channel_failed", http.StatusInternalServerError)
+					break
+				}
+			}
+		} else {
+			var channelErr *types.NewAPIError
+			channel, channelErr = dependencies.getChannel(c, relayInfo, retryParam)
+			if channelErr != nil {
+				logger.LogError(c, channelErr.Error())
+				taskErr = service.TaskErrorWrapperLocal(channelErr.Err, "get_channel_failed", http.StatusInternalServerError)
+				break
+			}
+		}
+
+		addUsedChannel(c, channel.Id)
+
+		rateLimitCfg := getChannelRateLimitConfig(c, channel)
+		if channel_limiter.IsActive(rateLimitCfg) {
+			token, decision := dependencies.acquireRateLimit(c.Request.Context(), channel.Id, rateLimitCfg)
+			if decision.Allowed {
+				rateLimitToken = token
+			} else {
+				effectiveOnLimit := rateLimitCfg.OnLimit
+				_, specificChannel := c.Get("specific_channel_id")
+				if lockedChannel || specificChannel || service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
+					effectiveOnLimit = channel_limiter.OnLimitReject
+				}
+
+				logger.LogWarn(c, fmt.Sprintf("channel %d (%s) rate-limited: reason=%s, action=%s", channel.Id, channel.Name, decision.Reason, effectiveOnLimit))
+				rlErr := types.NewErrorWithStatusCode(
+					fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
+					types.ErrorCodeChannelRateLimited,
+					http.StatusTooManyRequests,
+				)
+				relayInfo.LastError = rlErr
+				taskErr = service.TaskErrorWrapperLocal(rlErr.Err, string(types.ErrorCodeChannelRateLimited), http.StatusTooManyRequests)
+				if effectiveOnLimit == channel_limiter.OnLimitReject {
+					break
+				}
+
+				common.SetContextKey(c, constant.ContextKeyRateLimitSkipped, true)
+				relayInfo.InitChannelMeta(c)
+				continue
+			}
+		}
+
+		bodyStorage, bodyErr := common.GetBodyStorage(c)
+		if bodyErr != nil {
+			if common.IsRequestBodyTooLargeError(bodyErr) || errors.Is(bodyErr, common.ErrRequestBodyTooLarge) {
+				taskErr = service.TaskErrorWrapperLocal(bodyErr, "read_request_body_failed", http.StatusRequestEntityTooLarge)
+			} else {
+				taskErr = service.TaskErrorWrapperLocal(bodyErr, "read_request_body_failed", http.StatusBadRequest)
+			}
+			break
+		}
+		c.Request.Body = io.NopCloser(bodyStorage)
+
+		result, taskErr = dependencies.submit(c, relayInfo)
+		if rateLimitToken != nil {
+			rateLimitToken.Release()
+			rateLimitToken = nil
+		}
+		if taskErr == nil {
+			break
+		}
+
+		if !taskErr.LocalError {
+			processChannelError(c,
+				*types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey,
+					common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()),
+				types.NewOpenAIError(taskErr.Error, types.ErrorCodeBadResponseStatusCode, taskErr.StatusCode))
+		}
+
+		if !shouldRetryTaskRelay(c, channel.Id, taskErr, maxRetries-retryParam.GetRetry()) {
+			break
+		}
+	}
+
+	return result, taskErr
 }
 
 // respondTaskError 统一输出 Task 错误响应（含 429 限流提示改写）

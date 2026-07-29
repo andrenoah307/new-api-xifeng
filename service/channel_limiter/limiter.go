@@ -36,9 +36,10 @@ const (
 )
 
 const (
-	defaultQueueMaxWaitMs = 2000
-	defaultQueueDepth     = 20
-	rpmWindowSeconds      = 60
+	defaultQueueMaxWaitMs   = 2000
+	defaultQueueDepth       = 20
+	rpmWindowSeconds        = 60
+	backendOperationTimeout = 200 * time.Millisecond
 )
 
 // Decision 表示一次限流判定结果。
@@ -100,29 +101,92 @@ func CheckOnly(ctx context.Context, channelID int, cfg *dto.ChannelRateLimit) De
 	return getBackend().Peek(ctx, channelID, resolved)
 }
 
+// CheckOnlyBatch 在不预占的情况下，批量判定渠道是否仍有容量。
+// 统计读取失败时 fail-open，所有渠道均视为可用。
+func CheckOnlyBatch(ctx context.Context, channelCfgs map[int]*dto.ChannelRateLimit) map[int]Decision {
+	if len(channelCfgs) == 0 {
+		return nil
+	}
+
+	decisions := make(map[int]Decision, len(channelCfgs))
+	resolvedCfgs := make(map[int]*dto.ChannelRateLimit, len(channelCfgs))
+	ids := make([]int, 0, len(channelCfgs))
+	for id, cfg := range channelCfgs {
+		decisions[id] = Decision{Allowed: true}
+		resolved := resolvedConfig(cfg)
+		if !IsActive(resolved) {
+			continue
+		}
+		resolvedCfgs[id] = resolved
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		return decisions
+	}
+
+	raw := getBackend().Stats(ctx, ids)
+	if raw == nil {
+		return decisions
+	}
+	for id, cfg := range resolvedCfgs {
+		stats, ok := raw[id]
+		if !ok {
+			continue
+		}
+		if cfg.RPM > 0 && stats[0] >= int64(cfg.RPM) {
+			decisions[id] = Decision{Allowed: false, Reason: ReasonRPMExceeded}
+			continue
+		}
+		if cfg.Concurrency > 0 && stats[1] >= int64(cfg.Concurrency) {
+			decisions[id] = Decision{Allowed: false, Reason: ReasonConcurrencyExceeded}
+		}
+	}
+	return decisions
+}
+
 // Acquire 预占一个渠道槽位。Allowed=true 时返回的 Token 必须 Release。
 // 若 OnLimit=queue，本函数会阻塞最多 QueueMaxWaitMs。
-func Acquire(ctx context.Context, channelID int, cfg *dto.ChannelRateLimit) (*Token, Decision) {
+func Acquire(requestCtx context.Context, channelID int, cfg *dto.ChannelRateLimit) (*Token, Decision) {
 	resolved := resolvedConfig(cfg)
 	if !IsActive(resolved) {
 		return nil, Decision{Allowed: true}
 	}
 
 	backend := getBackend()
+	baseCtx := context.Background()
+	if requestCtx != nil {
+		baseCtx = context.WithoutCancel(requestCtx)
+	}
 	if resolved.OnLimit != OnLimitQueue {
-		return backend.Acquire(ctx, channelID, resolved)
+		operationCtx, cancel := context.WithTimeout(baseCtx, backendOperationTimeout)
+		token, decision := backend.Acquire(operationCtx, channelID, resolved)
+		cancel()
+		return token, decision
 	}
 
 	// queue 模式：限制等待方数量，避免内存膨胀
+	if requestCtx != nil && requestCtx.Err() != nil {
+		return nil, Decision{Allowed: false, Reason: ReasonQueueTimeout}
+	}
 	if !enterQueue(channelID, resolved.QueueDepth) {
 		return nil, Decision{Allowed: false, Reason: ReasonQueueFull}
 	}
 	defer leaveQueue(channelID)
 
+	var requestDone <-chan struct{}
+	if requestCtx != nil {
+		requestDone = requestCtx.Done()
+	}
 	deadline := time.Now().Add(time.Duration(resolved.QueueMaxWaitMs) * time.Millisecond)
 	backoff := 30 * time.Millisecond
 	for {
-		token, decision := backend.Acquire(ctx, channelID, resolved)
+		operationCtx, cancel := context.WithTimeout(baseCtx, backendOperationTimeout)
+		token, decision := backend.Acquire(operationCtx, channelID, resolved)
+		cancel()
+		if requestCtx != nil && requestCtx.Err() != nil {
+			token.Release()
+			return nil, Decision{Allowed: false, Reason: ReasonQueueTimeout}
+		}
 		if decision.Allowed {
 			return token, decision
 		}
@@ -131,7 +195,7 @@ func Acquire(ctx context.Context, channelID int, cfg *dto.ChannelRateLimit) (*To
 		}
 		jitter := time.Duration(rand.Intn(20)) * time.Millisecond
 		select {
-		case <-ctx.Done():
+		case <-requestDone:
 			return nil, Decision{Allowed: false, Reason: ReasonQueueTimeout}
 		case <-time.After(backoff + jitter):
 		}

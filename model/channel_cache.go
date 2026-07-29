@@ -112,9 +112,20 @@ func SyncChannelCache(frequency int) {
 }
 
 func GetRandomSatisfiedChannel(group string, model string, retry int, requestPath string) (*Channel, error) {
-	// if memory cache is disabled, get channel directly from database
+	candidates, err := GetSatisfiedChannelCandidates(group, model, retry, requestPath)
+	if err != nil {
+		return nil, err
+	}
+	return SelectRandomSatisfiedChannel(candidates)
+}
+
+// GetSatisfiedChannelCandidates returns a snapshot of all channels at the
+// priority selected by group, model, and retry. The cache lock only protects
+// reading and copying the candidate slice; callers may perform external I/O
+// after this function returns without holding channelSyncLock.
+func GetSatisfiedChannelCandidates(group string, model string, retry int, requestPath string) ([]*Channel, error) {
 	if !common.MemoryCacheEnabled {
-		return GetChannel(group, model, retry, requestPath)
+		return getChannelCandidates(group, model, retry, requestPath)
 	}
 
 	channelSyncLock.RLock()
@@ -131,13 +142,6 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 
 	if len(channels) == 0 {
 		return nil, nil
-	}
-
-	if len(channels) == 1 {
-		if channel, ok := channelsIDM[channels[0]]; ok {
-			return channel, nil
-		}
-		return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channels[0])
 	}
 
 	uniquePriorities := make(map[int]bool)
@@ -159,13 +163,10 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 	}
 	targetPriority := int64(sortedUniquePriorities[retry])
 
-	// get the priority for the given retry number
-	var sumWeight = 0
 	var targetChannels []*Channel
 	for _, channelId := range channels {
 		if channel, ok := channelsIDM[channelId]; ok {
 			if channel.GetPriority() == targetPriority {
-				sumWeight += channel.GetWeight()
 				targetChannels = append(targetChannels, channel)
 			}
 		} else {
@@ -174,7 +175,31 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 	}
 
 	if len(targetChannels) == 0 {
-		return nil, errors.New(fmt.Sprintf("no channel found, group: %s, model: %s, priority: %d", group, model, targetPriority))
+		return nil, fmt.Errorf("no channel found, group: %s, model: %s, priority: %d", group, model, targetPriority)
+	}
+	return targetChannels, nil
+}
+
+// SelectRandomSatisfiedChannel chooses one channel using the existing weighted
+// selection rules. Weight totals are calculated from the supplied slice so a
+// caller can filter a candidate snapshot without retaining stale totals.
+func SelectRandomSatisfiedChannel(candidates []*Channel) (*Channel, error) {
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+	if len(candidates) == 1 {
+		if candidates[0] == nil {
+			return nil, errors.New("channel candidate is nil")
+		}
+		return candidates[0], nil
+	}
+
+	var sumWeight int
+	for _, channel := range candidates {
+		if channel == nil {
+			return nil, errors.New("channel candidate is nil")
+		}
+		sumWeight += channel.GetWeight()
 	}
 
 	// smoothing factor and adjustment
@@ -184,9 +209,9 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 	if sumWeight == 0 {
 		// when all channels have weight 0, set sumWeight to the number of channels and set smoothing adjustment to 100
 		// each channel's effective weight = 100
-		sumWeight = len(targetChannels) * 100
+		sumWeight = len(candidates) * 100
 		smoothingAdjustment = 100
-	} else if sumWeight/len(targetChannels) < 10 {
+	} else if sumWeight/len(candidates) < 10 {
 		// when the average weight is less than 10, set smoothing factor to 100
 		smoothingFactor = 100
 	}
@@ -198,7 +223,7 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 	randomWeight := rand.Intn(totalWeight)
 
 	// Find a channel based on its weight
-	for _, channel := range targetChannels {
+	for _, channel := range candidates {
 		randomWeight -= channel.GetWeight()*smoothingFactor + smoothingAdjustment
 		if randomWeight < 0 {
 			return channel, nil

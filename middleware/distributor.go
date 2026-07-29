@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/channel_limiter"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -35,6 +37,7 @@ type ModelRequest struct {
 func Distribute() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		var channel *model.Channel
+		rateLimitedAffinityChannelID := 0
 		channelId, ok := common.GetContextKey(c, constant.ContextKeyTokenSpecificChannelId)
 		modelRequest, shouldSelectChannel, err := getModelRequest(c)
 		if err != nil {
@@ -143,30 +146,41 @@ func Distribute() func(c *gin.Context) {
 
 				if preferredChannelID, found := service.GetPreferredChannelByAffinity(c, modelRequest.Model, usingGroup); found {
 					affinityUsable := false
+					affinityRateLimitSkipped := false
 					preferred, err := model.CacheGetChannel(preferredChannelID)
 					if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
 						channelSupportsRequestPath(preferred, c.Request.URL.Path, modelRequest.Model) {
+						preferredGroup := ""
 						if usingGroup == "auto" {
 							userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 							autoGroups := service.GetUserAutoGroup(userGroup)
 							for _, g := range autoGroups {
 								if model.IsChannelEnabledForGroupModel(g, modelRequest.Model, preferred.Id) {
-									selectGroup = g
-									common.SetContextKey(c, constant.ContextKeyAutoGroup, g)
-									channel = preferred
-									affinityUsable = true
-									service.MarkChannelAffinityUsed(c, g, preferred.Id)
+									preferredGroup = g
 									break
 								}
 							}
 						} else if model.IsChannelEnabledForGroupModel(usingGroup, modelRequest.Model, preferred.Id) {
-							channel = preferred
-							selectGroup = usingGroup
-							affinityUsable = true
-							service.MarkChannelAffinityUsed(c, usingGroup, preferred.Id)
+							preferredGroup = usingGroup
+						}
+
+						if preferredGroup != "" {
+							hardAffinity := service.ShouldSkipRetryAfterChannelAffinityFailure(c)
+							if preferredAffinityHasCapacity(c, preferred, hardAffinity, channel_limiter.CheckOnly) {
+								channel = preferred
+								selectGroup = preferredGroup
+								affinityUsable = true
+								if usingGroup == "auto" {
+									common.SetContextKey(c, constant.ContextKeyAutoGroup, preferredGroup)
+								}
+								service.MarkChannelAffinityUsed(c, preferredGroup, preferred.Id)
+							} else {
+								affinityRateLimitSkipped = true
+								rateLimitedAffinityChannelID = preferred.Id
+							}
 						}
 					}
-					if !affinityUsable && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
+					if !affinityUsable && !affinityRateLimitSkipped && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
 						service.ClearCurrentChannelAffinityCache(c)
 					}
 				}
@@ -204,7 +218,12 @@ func Distribute() func(c *gin.Context) {
 		SetupContextForSelectedChannel(c, channel, modelRequest.Model)
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
-			service.RecordChannelAffinity(c, channel.Id)
+			recordChannelID := channel.Id
+			if rateLimitedAffinityChannelID > 0 {
+				// A capacity-only detour must not replace the cached affinity target.
+				recordChannelID = rateLimitedAffinityChannelID
+			}
+			service.RecordChannelAffinity(c, recordChannelID)
 		}
 		if frtMs, exists := c.Get("relay_frt_ms"); exists {
 			if frt, ok := frtMs.(int64); ok && frt > 0 {
@@ -217,6 +236,36 @@ func Distribute() func(c *gin.Context) {
 			}
 		}
 	}
+}
+
+type channelCapacityChecker func(context.Context, int, *dto.ChannelRateLimit) channel_limiter.Decision
+
+// preferredAffinityHasCapacity applies the hint-only limiter check for soft
+// affinity. Hard affinity and non-skip policies must reach Acquire unchanged.
+// A saturated soft-affinity target is marked as a rate-limit detour so the
+// original affinity cache entry survives a successful fallback request.
+func preferredAffinityHasCapacity(c *gin.Context, channel *model.Channel, hardAffinity bool, check channelCapacityChecker) bool {
+	if channel == nil {
+		return false
+	}
+	if hardAffinity {
+		return true
+	}
+	cfg := channel.GetSetting().RateLimit
+	if !service.ShouldPreFilterChannelRateLimit(cfg) {
+		return true
+	}
+	requestCtx := context.Background()
+	if c != nil && c.Request != nil {
+		requestCtx = c.Request.Context()
+	}
+	if check(requestCtx, channel.Id, cfg).Allowed {
+		return true
+	}
+	if c != nil {
+		common.SetContextKey(c, constant.ContextKeyRateLimitSkipped, true)
+	}
+	return false
 }
 
 // channelSupportsRequestPath reports whether a channel can serve the request path.

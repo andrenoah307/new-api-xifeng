@@ -31,6 +31,7 @@ import type {
   CopyChannelResponse,
   FetchModelsResponse,
   GetChannelResponse,
+  GetChannelRateLimitStatsResponse,
   GetChannelsParams,
   GetChannelsResponse,
   MultiKeyManageParams,
@@ -102,6 +103,17 @@ export async function searchChannels(
  */
 export async function getChannel(id: number): Promise<GetChannelResponse> {
   const res = await api.get(`/api/channel/${id}`)
+  return res.data
+}
+
+/**
+ * Get live RPM and concurrency usage for rate-limited channels
+ */
+export async function getChannelRateLimitStats(): Promise<GetChannelRateLimitStatsResponse> {
+  const res = await api.get(
+    '/api/channel/rate-limit-stats',
+    channelActionConfig()
+  )
   return res.data
 }
 

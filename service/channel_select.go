@@ -1,15 +1,20 @@
 package service
 
 import (
+	"context"
 	"errors"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service/channel_limiter"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/gin-gonic/gin"
 )
+
+type channelLimitBatchChecker func(context.Context, map[int]*dto.ChannelRateLimit) map[int]channel_limiter.Decision
 
 type RetryParam struct {
 	Ctx          *gin.Context
@@ -18,6 +23,7 @@ type RetryParam struct {
 	RequestPath  string
 	Retry        *int
 	resetNextTry bool
+	checkBatch   channelLimitBatchChecker
 }
 
 func (p *RetryParam) GetRetry() int {
@@ -44,6 +50,57 @@ func (p *RetryParam) IncreaseRetry() {
 
 func (p *RetryParam) ResetRetryNextTry() {
 	p.resetNextTry = true
+}
+
+// ShouldPreFilterChannelRateLimit reports whether capacity peeking may divert a
+// request from this channel. Only the default/explicit skip policy is safe to
+// pre-filter; queue and reject must reach the authoritative Acquire call.
+func ShouldPreFilterChannelRateLimit(cfg *dto.ChannelRateLimit) bool {
+	if !channel_limiter.IsActive(cfg) {
+		return false
+	}
+	return cfg.OnLimit == "" || cfg.OnLimit == channel_limiter.OnLimitSkip
+}
+
+func selectRandomSatisfiedChannel(param *RetryParam, group string, retry int) (*model.Channel, error) {
+	candidates, err := model.GetSatisfiedChannelCandidates(group, param.ModelName, retry, param.RequestPath)
+	if err != nil || len(candidates) == 0 {
+		return nil, err
+	}
+
+	configs := make(map[int]*dto.ChannelRateLimit, len(candidates))
+	for _, candidate := range candidates {
+		cfg := candidate.GetSetting().RateLimit
+		if ShouldPreFilterChannelRateLimit(cfg) {
+			configs[candidate.Id] = cfg
+		}
+	}
+	if len(configs) > 0 {
+		requestCtx := context.Background()
+		if param.Ctx != nil && param.Ctx.Request != nil {
+			requestCtx = param.Ctx.Request.Context()
+		}
+		checkBatch := param.checkBatch
+		if checkBatch == nil {
+			checkBatch = channel_limiter.CheckOnlyBatch
+		}
+		decisions := checkBatch(requestCtx, configs)
+		available := make([]*model.Channel, 0, len(candidates))
+		for _, candidate := range candidates {
+			if _, shouldCheck := configs[candidate.Id]; shouldCheck {
+				decision, checked := decisions[candidate.Id]
+				if checked && !decision.Allowed {
+					continue
+				}
+			}
+			available = append(available, candidate)
+		}
+		if len(available) > 0 {
+			candidates = available
+		}
+	}
+
+	return model.SelectRandomSatisfiedChannel(candidates)
 }
 
 // CacheGetRandomSatisfiedChannel tries to get a random channel that satisfies the requirements.
@@ -116,7 +173,10 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			}
 			logger.LogDebug(param.Ctx, "Auto selecting group: %s, priorityRetry: %d", autoGroup, priorityRetry)
 
-			channel, _ = model.GetRandomSatisfiedChannel(autoGroup, param.ModelName, priorityRetry, param.RequestPath)
+			channel, err = selectRandomSatisfiedChannel(param, autoGroup, priorityRetry)
+			if err != nil {
+				return nil, autoGroup, err
+			}
 			if channel == nil {
 				// Current group has no available channel for this model, try next group
 				// 当前分组没有该模型的可用渠道，尝试下一个分组
@@ -154,7 +214,7 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			break
 		}
 	} else {
-		channel, err = model.GetRandomSatisfiedChannel(param.TokenGroup, param.ModelName, param.GetRetry(), param.RequestPath)
+		channel, err = selectRandomSatisfiedChannel(param, param.TokenGroup, param.GetRetry())
 		if err != nil {
 			return nil, param.TokenGroup, err
 		}

@@ -46,7 +46,12 @@ import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { getLobeIcon } from '@/lib/lobe-icon'
 
-import { getChannels, searchChannels, getGroups } from '../api'
+import {
+  getChannels,
+  getChannelRateLimitStats,
+  searchChannels,
+  getGroups,
+} from '../api'
 import {
   DEFAULT_PAGE_SIZE,
   CHANNEL_STATUS,
@@ -59,7 +64,7 @@ import {
   getChannelTypeIcon,
   getChannelTypeLabel,
 } from '../lib'
-import type { Channel, ChannelSortBy } from '../types'
+import type { Channel, ChannelRateLimitStat, ChannelSortBy } from '../types'
 import { ChannelCard } from './channel-card'
 import { useChannelsColumns } from './channels-columns'
 import { useChannels } from './channels-provider'
@@ -70,6 +75,7 @@ const CHANNELS_COLUMN_VISIBILITY_STORAGE_KEY = 'channels:column-visibility'
 const CHANNELS_COLUMN_SIZING_STORAGE_KEY = 'channels:column-sizing'
 const CHANNELS_VIEW_MODE_STORAGE_KEY = 'channels:view-mode'
 const CHANNELS_STATUS_FILTER_STORAGE_KEY = 'channel-status-filter'
+const EMPTY_CHANNEL_RATE_LIMIT_STATS: Record<string, ChannelRateLimitStat> = {}
 
 const CHANNEL_SORTABLE_COLUMNS = new Set<ChannelSortBy>([
   'id',
@@ -217,6 +223,23 @@ export function ChannelsTable() {
     [groupsData]
   )
 
+  const { data: rateLimitStats = EMPTY_CHANNEL_RATE_LIMIT_STATS } = useQuery({
+    queryKey: ['channels', 'rate-limit-stats'],
+    queryFn: async () => {
+      try {
+        const response = await getChannelRateLimitStats()
+        if (!response.success) {
+          return EMPTY_CHANNEL_RATE_LIMIT_STATS
+        }
+        return response.data ?? EMPTY_CHANNEL_RATE_LIMIT_STATS
+      } catch {
+        return EMPTY_CHANNEL_RATE_LIMIT_STATS
+      }
+    },
+    refetchInterval: 5000,
+    retry: false,
+  })
+
   // Fetch channels data
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const { data, isLoading, isFetching } = useQuery({
@@ -304,7 +327,10 @@ export function ChannelsTable() {
   const typeCounts = data?.data?.type_counts
 
   // Columns configuration
-  const columns = useChannelsColumns({ enableSelection: batchMode })
+  const columns = useChannelsColumns({
+    enableSelection: batchMode,
+    rateLimitStats,
+  })
 
   // React Table instance
   const { table } = useDataTable({

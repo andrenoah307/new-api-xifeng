@@ -46,14 +46,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { toIntlLocale } from '@/i18n/languages'
 import {
   formatCurrencyFromUSD,
   formatQuotaWithCurrency,
   getCurrencyLabel,
 } from '@/lib/currency'
-import { toIntlLocale } from '@/i18n/languages'
 import { formatTimestampToDate } from '@/lib/format'
-import { truncateText } from '@/lib/utils'
+import { cn, truncateText } from '@/lib/utils'
 
 import { getCodexUsage } from '../api'
 import { CHANNEL_STATUS_CONFIG, MODEL_FETCHABLE_TYPES } from '../constants'
@@ -75,7 +75,7 @@ import {
   type TagRow,
 } from '../lib'
 import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
-import type { Channel } from '../types'
+import type { Channel, ChannelRateLimitStat } from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
 import { useChannels } from './channels-provider'
 import { DataTableRowActions } from './data-table-row-actions'
@@ -85,6 +85,8 @@ import {
   type CodexUsageDialogData,
 } from './dialogs/codex-usage-dialog'
 import { NumericSpinnerInput } from './numeric-spinner-input'
+
+const EMPTY_CHANNEL_RATE_LIMIT_STATS: Record<string, ChannelRateLimitStat> = {}
 
 function parseIonetMeta(otherInfo: string | null | undefined): null | {
   source?: string
@@ -102,6 +104,17 @@ function parseIonetMeta(otherInfo: string | null | undefined): null | {
     return null
   }
   return null
+}
+
+function getRateLimitUsageClassName(current: number, limit: number): string {
+  const percentage = (current / limit) * 100
+  if (percentage >= 95) {
+    return 'text-destructive'
+  }
+  if (percentage >= 80) {
+    return 'text-warning'
+  }
+  return 'text-muted-foreground'
 }
 
 /**
@@ -515,16 +528,18 @@ function BalanceCell({ channel }: { channel: Channel }) {
 export function useChannelsColumns(
   options: {
     enableSelection?: boolean
+    rateLimitStats?: Record<string, ChannelRateLimitStat>
   } = {}
 ): ColumnDef<Channel>[] {
   const { t, i18n } = useTranslation()
   const { sensitiveVisible } = useChannels()
   const enableSelection = options.enableSelection ?? true
+  const rateLimitStats =
+    options.rateLimitStats ?? EMPTY_CHANNEL_RATE_LIMIT_STATS
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
-  // The column definitions only depend on the translation function, the active
-  // locale, and sensitive-data visibility. Memoizing keeps the array (and every
-  // cell renderer reference) stable across unrelated re-renders, so react-table
-  // does not invalidate the whole row model on each parent render.
+  // Memoizing keeps the array (and every cell renderer reference) stable across
+  // unrelated re-renders, so react-table does not invalidate the whole row
+  // model on each parent render.
   return useMemo<ColumnDef<Channel>[]>(
     () => [
       // Checkbox column
@@ -623,6 +638,7 @@ export function useChannelsColumns(
           const settings = parseChannelSettings(channel.setting)
           const isPassThrough = settings.pass_through_body_enabled === true
           const hasParamOverride = Boolean(channel.param_override?.trim())
+          const rateLimitStat = rateLimitStats[String(channel.id)]
 
           return (
             <div className='flex max-w-full min-w-0 items-center gap-2'>
@@ -665,6 +681,40 @@ export function useChannelsColumns(
                   )}
                   <UpstreamUpdateTags channel={channel} />
                 </div>
+                {rateLimitStat &&
+                  (rateLimitStat.conc_limit > 0 ||
+                    rateLimitStat.rpm_limit > 0) && (
+                    <div className='flex flex-wrap gap-x-2 text-[11px] leading-4'>
+                      {rateLimitStat.conc_limit > 0 && (
+                        <span
+                          className={cn(
+                            'tabular-nums',
+                            getRateLimitUsageClassName(
+                              rateLimitStat.conc,
+                              rateLimitStat.conc_limit
+                            )
+                          )}
+                        >
+                          {t('Concurrency')} {rateLimitStat.conc}/
+                          {rateLimitStat.conc_limit}
+                        </span>
+                      )}
+                      {rateLimitStat.rpm_limit > 0 && (
+                        <span
+                          className={cn(
+                            'tabular-nums',
+                            getRateLimitUsageClassName(
+                              rateLimitStat.rpm,
+                              rateLimitStat.rpm_limit
+                            )
+                          )}
+                        >
+                          {t('RPM')} {rateLimitStat.rpm}/
+                          {rateLimitStat.rpm_limit}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 {channel.remark && (
                   <TooltipProvider delay={200}>
                     <Tooltip>
@@ -1153,6 +1203,6 @@ export function useChannelsColumns(
         meta: { pinned: 'right' as const },
       },
     ],
-    [enableSelection, t, locale, sensitiveVisible]
+    [enableSelection, t, locale, sensitiveVisible, rateLimitStats]
   )
 }
