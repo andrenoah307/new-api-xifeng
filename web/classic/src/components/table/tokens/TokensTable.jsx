@@ -17,7 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Empty } from '@douyinfe/semi-ui';
 import CardTable from '../../common/ui/CardTable';
 import {
@@ -25,8 +26,12 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getTokensColumns } from './TokensColumnDefs';
+import { normalizePeriodConversion } from './token-period';
+import { StatusContext } from '../../../context/Status';
 
 const TokensTable = (tokensData) => {
+  const [statusState] = useContext(StatusContext);
+  const { i18n } = useTranslation();
   const {
     tokens,
     loading,
@@ -54,6 +59,28 @@ const TokensTable = (tokensData) => {
     t,
   } = tokensData;
 
+  const periodConversion = useMemo(() => {
+    let storedStatus = {};
+    let storedQuotaPerUnit;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        storedStatus = JSON.parse(localStorage.getItem('status') || '{}');
+        storedQuotaPerUnit = localStorage.getItem('quota_per_unit');
+      }
+    } catch (_) {
+      storedStatus = {};
+    }
+    const status = statusState?.status || {};
+    return normalizePeriodConversion({
+      usdExchangeRate:
+        status.usd_exchange_rate ?? storedStatus.usd_exchange_rate,
+      quotaPerUnit:
+        status.quota_per_unit ??
+        storedStatus.quota_per_unit ??
+        storedQuotaPerUnit,
+    });
+  }, [statusState?.status]);
+
   // Get all columns
   const columns = useMemo(() => {
     return getTokensColumns({
@@ -71,6 +98,8 @@ const TokensTable = (tokensData) => {
       refresh,
       groupRatios,
       regionBlockedGroups,
+      periodConversion,
+      locale: i18n.resolvedLanguage || i18n.language,
     });
   }, [
     t,
@@ -87,6 +116,9 @@ const TokensTable = (tokensData) => {
     refresh,
     groupRatios,
     regionBlockedGroups,
+    periodConversion,
+    i18n.resolvedLanguage,
+    i18n.language,
   ]);
 
   // Handle compact mode by removing fixed positioning

@@ -139,6 +139,11 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 
 	quota, clamp := calculateAudioQuota(quotaInfo)
 	noteQuotaClamp(relayInfo, clamp)
+	if quota > 0 && !relayInfo.IsPlayground {
+		if _, _, apiErr := checkTokenPeriodGate(relayInfo, time.Now()); apiErr != nil {
+			return apiErr
+		}
+	}
 
 	// 信任旁路：余额 > TrustQuota 且令牌额度充足的用户，不因单次实时增量额度不足而被中断，
 	// 仍照常 PostConsumeQuota 扣费（可短暂为负，由余额兜底），与钱包预扣信任口径一致。
@@ -400,6 +405,9 @@ func PreConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int) error {
 	if relayInfo.IsPlayground {
 		return nil
 	}
+	if quota == 0 {
+		return nil
+	}
 	//if relayInfo.TokenUnlimited {
 	//	return nil
 	//}
@@ -410,7 +418,11 @@ func PreConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int) error {
 	if !relayInfo.TokenUnlimited && token.RemainQuota < quota {
 		return fmt.Errorf("token quota is not enough, token remain quota: %s, need quota: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(quota))
 	}
-	err = model.DecreaseTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota)
+	attributedPeriodStart, attributionErr := loadTokenPeriodAttribution(relayInfo, false)
+	if attributionErr != nil {
+		return attributionErr
+	}
+	err = model.AdjustTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota, attributedPeriodStart)
 	if err != nil {
 		return err
 	}
@@ -443,12 +455,12 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 		}
 	}
 
-	if !relayInfo.IsPlayground {
-		if quota > 0 {
-			err = model.DecreaseTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota)
-		} else {
-			err = model.IncreaseTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, -quota)
+	if !relayInfo.IsPlayground && quota != 0 {
+		attributedPeriodStart, attributionErr := loadTokenPeriodAttribution(relayInfo, false)
+		if attributionErr != nil {
+			return attributionErr
 		}
+		err = model.AdjustTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota, attributedPeriodStart)
 		if err != nil {
 			return err
 		}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -12,23 +13,104 @@ import (
 )
 
 type Token struct {
-	Id                 int            `json:"id"`
-	UserId             int            `json:"user_id" gorm:"index"`
-	Key                string         `json:"key" gorm:"type:varchar(128);uniqueIndex"`
-	Status             int            `json:"status" gorm:"default:1"`
-	Name               string         `json:"name" gorm:"index" `
-	CreatedTime        int64          `json:"created_time" gorm:"bigint"`
-	AccessedTime       int64          `json:"accessed_time" gorm:"bigint"`
-	ExpiredTime        int64          `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
-	RemainQuota        int            `json:"remain_quota" gorm:"default:0"`
-	UnlimitedQuota     bool           `json:"unlimited_quota"`
-	ModelLimitsEnabled bool           `json:"model_limits_enabled"`
-	ModelLimits        string         `json:"model_limits" gorm:"type:text"`
-	AllowIps           *string        `json:"allow_ips" gorm:"default:''"`
-	UsedQuota          int            `json:"used_quota" gorm:"default:0"` // used quota
-	Group              string         `json:"group" gorm:"default:''"`
-	CrossGroupRetry    bool           `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
-	DeletedAt          gorm.DeletedAt `gorm:"index"`
+	Id                 int     `json:"id"`
+	UserId             int     `json:"user_id" gorm:"index"`
+	Key                string  `json:"key" gorm:"type:varchar(128);uniqueIndex"`
+	Status             int     `json:"status" gorm:"default:1"`
+	Name               string  `json:"name" gorm:"index" `
+	CreatedTime        int64   `json:"created_time" gorm:"bigint"`
+	AccessedTime       int64   `json:"accessed_time" gorm:"bigint"`
+	ExpiredTime        int64   `json:"expired_time" gorm:"bigint;default:-1"` // -1 means never expired
+	RemainQuota        int     `json:"remain_quota" gorm:"default:0"`
+	UnlimitedQuota     bool    `json:"unlimited_quota"`
+	ModelLimitsEnabled bool    `json:"model_limits_enabled"`
+	ModelLimits        string  `json:"model_limits" gorm:"type:text"`
+	AllowIps           *string `json:"allow_ips" gorm:"default:''"`
+	UsedQuota          int     `json:"used_quota" gorm:"default:0"` // used quota
+	Group              string  `json:"group" gorm:"default:''"`
+	CrossGroupRetry    bool    `json:"cross_group_retry"` // 跨分组重试，仅auto分组有效
+	PeriodType         string  `json:"period_type" gorm:"type:varchar(16)"`
+	PeriodDays         int     `json:"period_days"`
+	PeriodQuotaLimit   int64   `json:"period_quota_limit"`
+	PeriodLimitUnit    string  `json:"period_limit_unit" gorm:"type:varchar(8)"`
+	PeriodAnchorAt     int64   `json:"period_anchor_at"`
+	PeriodStartAt      int64   `json:"period_start_at"`
+	PeriodUsedQuota    int64   `json:"period_used_quota"`
+	// These fields are read-only response projections. They are deliberately
+	// excluded from the schema and are never accepted by token write DTOs.
+	PeriodResetAt        int64          `json:"period_reset_at" gorm:"-"`
+	PeriodRemainingQuota int64          `json:"period_remaining_quota" gorm:"-"`
+	DeletedAt            gorm.DeletedAt `gorm:"index"`
+}
+
+// PeriodLimitEnabled reports whether the token has an active period policy.
+// The policy is enabled solely by these two persisted values; no extra flag is
+// used so legacy zero-valued rows remain disabled.
+func (token *Token) PeriodLimitEnabled() bool {
+	return token != nil && token.PeriodType != "" && token.PeriodQuotaLimit > 0
+}
+
+// TokenPeriodState is the database-only snapshot used by quota accounting and
+// period gates. It intentionally has no Redis fallback.
+type TokenPeriodState struct {
+	Type      string `gorm:"column:period_type"`
+	Days      int    `gorm:"column:period_days"`
+	Limit     int64  `gorm:"column:period_quota_limit"`
+	Unit      string `gorm:"column:period_limit_unit"`
+	AnchorAt  int64  `gorm:"column:period_anchor_at"`
+	StartAt   int64  `gorm:"column:period_start_at"`
+	UsedQuota int64  `gorm:"column:period_used_quota"`
+}
+
+// PeriodLimitEnabled mirrors Token.PeriodLimitEnabled for a loaded snapshot.
+func (state *TokenPeriodState) PeriodLimitEnabled() bool {
+	return state != nil && state.Type != "" && state.Limit > 0
+}
+
+// CurrentStart returns the bucket start containing now, or zero for an invalid
+// policy. Calendar arithmetic is kept in common so every caller uses UTC+8.
+func (state TokenPeriodState) CurrentStart(now time.Time) int64 {
+	start, _, ok := common.TokenPeriodBounds(state.Type, state.Days, state.AnchorAt, now)
+	if !ok {
+		return 0
+	}
+	return start
+}
+
+// ResetAt returns the exclusive end of the current bucket, or zero when the
+// policy is invalid.
+func (state TokenPeriodState) ResetAt(now time.Time) int64 {
+	_, end, ok := common.TokenPeriodBounds(state.Type, state.Days, state.AnchorAt, now)
+	if !ok {
+		return 0
+	}
+	return end
+}
+
+// EffectiveUsed treats a persisted count from an older bucket as zero. The
+// actual reset is performed atomically by the next quota adjustment.
+func (state TokenPeriodState) EffectiveUsed(now time.Time) int64 {
+	if !state.PeriodLimitEnabled() || state.StartAt != state.CurrentStart(now) || state.UsedQuota <= 0 {
+		return 0
+	}
+	return state.UsedQuota
+}
+
+// LoadTokenPeriodState reads period configuration and counters directly from
+// the primary database. Redis is intentionally not consulted.
+func LoadTokenPeriodState(id int) (*TokenPeriodState, error) {
+	if id <= 0 {
+		return nil, errors.New("token id 无效")
+	}
+	if DB == nil {
+		return nil, errors.New("主数据库未初始化")
+	}
+	state := &TokenPeriodState{}
+	err := DB.Model(&Token{}).
+		Select("COALESCE(period_type, '') AS period_type, COALESCE(period_days, 0) AS period_days, COALESCE(period_quota_limit, 0) AS period_quota_limit, COALESCE(period_limit_unit, '') AS period_limit_unit, COALESCE(period_anchor_at, 0) AS period_anchor_at, COALESCE(period_start_at, 0) AS period_start_at, COALESCE(period_used_quota, 0) AS period_used_quota").
+		Where("id = ?", id).
+		First(state).Error
+	return state, err
 }
 
 func (token *Token) Clean() {
@@ -303,9 +385,65 @@ func (token *Token) Update() (err error) {
 			})
 		}
 	}()
+	// PeriodStartAt and PeriodUsedQuota are atomic accounting state. They must
+	// never be part of this snapshot-based update (see token period #128).
+	// The five policy fields are safe metadata and are included here; callers
+	// that must update status alone use SelectUpdate instead.
 	err = DB.Model(token).Select("name", "status", "expired_time", "remain_quota", "unlimited_quota",
-		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry").Updates(token).Error
+		"model_limits_enabled", "model_limits", "allow_ips", "group", "cross_group_retry",
+		"period_type", "period_days", "period_quota_limit", "period_limit_unit", "period_anchor_at").Updates(token).Error
 	return err
+}
+
+// UpdatePeriodConfig persists the controller-writable token fields together
+// with a deliberate period reset/policy change. The atomic counters are kept
+// out of Update's snapshot whitelist, but a policy transition still needs one
+// explicit write so config and reset state cannot be split across requests.
+func (token *Token) UpdatePeriodConfig() error {
+	return token.updatePeriodConfig(true)
+}
+
+// UpdatePeriodConfigPreserveState changes policy metadata without copying the
+// snapshot counters. It is used for limit/unit-only edits so an in-flight
+// accounting SQL cannot be lost to a stale controller object.
+func (token *Token) UpdatePeriodConfigPreserveState() error {
+	return token.updatePeriodConfig(false)
+}
+
+func (token *Token) updatePeriodConfig(resetState bool) error {
+	updates := map[string]interface{}{
+		"name":                 token.Name,
+		"status":               token.Status,
+		"expired_time":         token.ExpiredTime,
+		"remain_quota":         token.RemainQuota,
+		"unlimited_quota":      token.UnlimitedQuota,
+		"model_limits_enabled": token.ModelLimitsEnabled,
+		"model_limits":         token.ModelLimits,
+		"allow_ips":            token.AllowIps,
+		"group":                token.Group,
+		"cross_group_retry":    token.CrossGroupRetry,
+		"period_type":          token.PeriodType,
+		"period_days":          token.PeriodDays,
+		"period_quota_limit":   token.PeriodQuotaLimit,
+		"period_limit_unit":    token.PeriodLimitUnit,
+		"period_anchor_at":     token.PeriodAnchorAt,
+	}
+	if resetState {
+		updates["period_start_at"] = token.PeriodStartAt
+		updates["period_used_quota"] = token.PeriodUsedQuota
+	}
+	result := DB.Model(&Token{}).Where("id = ?", token.Id).Updates(updates)
+	if result.Error != nil {
+		return result.Error
+	}
+	if common.RedisEnabled {
+		// Period policy changes invalidate the entire projection. Never write the
+		// freshly loaded struct back over accounting state in the Redis hash.
+		if cacheErr := cacheDeleteToken(token.Key); cacheErr != nil {
+			common.SysLog("failed to invalidate token cache: " + cacheErr.Error())
+		}
+	}
+	return nil
 }
 
 func (token *Token) SelectUpdate() (err error) {
@@ -385,19 +523,7 @@ func IncreaseTokenQuota(tokenId int, key string, quota int) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
-	if common.RedisEnabled {
-		gopool.Go(func() {
-			err := cacheIncrTokenQuota(key, int64(quota))
-			if err != nil {
-				common.SysLog("failed to increase token quota: " + err.Error())
-			}
-		})
-	}
-	if common.BatchUpdateEnabled {
-		addNewRecord(BatchUpdateTypeTokenQuota, tokenId, quota)
-		return nil
-	}
-	return increaseTokenQuota(tokenId, quota)
+	return AdjustTokenQuota(tokenId, key, -quota, 0)
 }
 
 func increaseTokenQuota(id int, quota int) (err error) {
@@ -415,19 +541,7 @@ func DecreaseTokenQuota(id int, key string, quota int) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
-	if common.RedisEnabled {
-		gopool.Go(func() {
-			err := cacheDecrTokenQuota(key, int64(quota))
-			if err != nil {
-				common.SysLog("failed to decrease token quota: " + err.Error())
-			}
-		})
-	}
-	if common.BatchUpdateEnabled {
-		addNewRecord(BatchUpdateTypeTokenQuota, id, -quota)
-		return nil
-	}
-	return decreaseTokenQuota(id, quota)
+	return AdjustTokenQuota(id, key, quota, 0)
 }
 
 func decreaseTokenQuota(id int, quota int) (err error) {
@@ -439,6 +553,112 @@ func decreaseTokenQuota(id int, quota int) (err error) {
 		},
 	).Error
 	return err
+}
+
+// AdjustTokenQuota applies a signed quota delta. Positive values consume
+// quota; negative values refund it. attributedPeriodStart identifies the
+// original bucket for refunds and is zero for the current bucket.
+func AdjustTokenQuota(id int, key string, delta int, attributedPeriodStart int64) error {
+	if common.RedisEnabled {
+		cacheDelta := -int64(delta)
+		gopool.Go(func() {
+			if err := cacheIncrTokenQuota(key, cacheDelta); err != nil {
+				common.SysLog("failed to adjust token quota cache: " + err.Error())
+			}
+		})
+	}
+	return adjustTokenQuota(id, delta, attributedPeriodStart)
+}
+
+// adjustTokenQuota is the single model-level accounting implementation. It
+// selects the legacy batch path only after confirming that the token has no
+// active period policy.
+func adjustTokenQuota(id int, delta int, attributedPeriodStart int64) error {
+	state, err := LoadTokenPeriodState(id)
+	if err != nil {
+		return err
+	}
+	if !state.PeriodLimitEnabled() {
+		if common.BatchUpdateEnabled {
+			addNewRecord(BatchUpdateTypeTokenQuota, id, -delta)
+			return nil
+		}
+		return adjustTokenQuotaLegacy(id, delta)
+	}
+
+	now := time.Now()
+	currentStart := state.CurrentStart(now)
+	if currentStart <= 0 {
+		return errors.New("令牌周期配置无效")
+	}
+	// A refund tied to an older bucket must not subtract from the new bucket.
+	// Positive adjustments (for example a late task settlement) still need to
+	// be counted in the current bucket because there is no historical bucket
+	// table to mutate.
+	if delta < 0 && attributedPeriodStart > 0 && attributedPeriodStart != currentStart {
+		return adjustTokenQuotaAttributedPeriod(id, delta)
+	}
+
+	result := DB.Exec(`UPDATE tokens
+SET period_used_quota =
+      CASE
+        WHEN COALESCE(period_start_at,0) = ? THEN
+             CASE WHEN COALESCE(period_used_quota,0) + ? < 0 THEN 0
+                  ELSE COALESCE(period_used_quota,0) + ? END
+        WHEN ? > 0 THEN ?
+        ELSE 0
+      END,
+    period_start_at = ?,
+    remain_quota = remain_quota - ?,
+    used_quota = used_quota + ?,
+    accessed_time = ?
+WHERE id = ? AND deleted_at IS NULL`,
+		currentStart,
+		int64(delta),
+		int64(delta),
+		int64(delta),
+		int64(delta),
+		currentStart,
+		int64(delta),
+		int64(delta),
+		common.GetTimestamp(),
+		id,
+	)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// adjustTokenQuotaLegacy keeps the pre-period behavior byte-for-byte in terms
+// of arithmetic and batch semantics for tokens without a period policy.
+func adjustTokenQuotaLegacy(id int, delta int) error {
+	return DB.Model(&Token{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"remain_quota":  gorm.Expr("remain_quota - ?", delta),
+		"used_quota":    gorm.Expr("used_quota + ?", delta),
+		"accessed_time": common.GetTimestamp(),
+	}).Error
+}
+
+// A refund attributed to an older bucket must not reset or mutate the current
+// period counters. The balance columns remain one atomic update with it.
+func adjustTokenQuotaAttributedPeriod(id int, delta int) error {
+	result := DB.Exec(`UPDATE tokens
+SET remain_quota = remain_quota - ?,
+    used_quota = used_quota + ?,
+    accessed_time = ?
+WHERE id = ? AND deleted_at IS NULL`,
+		int64(delta), int64(delta), common.GetTimestamp(), id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // CountUserTokens returns total number of tokens for the given user, used for pagination

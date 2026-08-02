@@ -41,9 +41,12 @@ import {
 } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useStatus } from '@/hooks/use-status'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
+import { toIntlLocale } from '@/i18n/languages'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import { getApiKeys, searchApiKeys } from '../api'
 import {
@@ -53,7 +56,7 @@ import {
   ERROR_MESSAGES,
 } from '../constants'
 import type { ApiKey } from '../types'
-import { ApiKeyCell } from './api-keys-cells'
+import { ApiKeyCell, ApiKeyPeriodLimitCell } from './api-keys-cells'
 import { useApiKeysColumns } from './api-keys-columns'
 import { useApiKeys } from './api-keys-provider'
 import { DataTableBulkActions } from './data-table-bulk-actions'
@@ -100,7 +103,21 @@ function ApiKeysMobileList({
   table: TanstackTable<ApiKey>
   isLoading: boolean
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const { status } = useStatus()
+  const statusUsdExchangeRate = Number(status?.usd_exchange_rate)
+  const statusQuotaPerUnit = Number(status?.quota_per_unit)
+  const periodConversion = {
+    usdExchangeRate:
+      Number.isFinite(statusUsdExchangeRate) && statusUsdExchangeRate > 0
+        ? statusUsdExchangeRate
+        : 1,
+    quotaPerUnit:
+      Number.isFinite(statusQuotaPerUnit) && statusQuotaPerUnit > 0
+        ? statusQuotaPerUnit
+        : DEFAULT_CURRENCY_CONFIG.quotaPerUnit,
+  }
+  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const rows = table.getRowModel().rows
 
   if (isLoading) return <ApiKeysMobileSkeleton />
@@ -178,6 +195,16 @@ function ApiKeysMobileList({
                   </span>
                 </span>
               )}
+            </div>
+
+            <div className='flex items-start justify-between gap-2 text-xs'>
+              <span className='text-muted-foreground'>{t('Period Quota')}</span>
+              <ApiKeyPeriodLimitCell
+                apiKey={apiKey}
+                conversion={periodConversion}
+                locale={locale}
+                compact
+              />
             </div>
           </div>
         )

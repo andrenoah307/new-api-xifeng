@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -24,16 +25,18 @@ import (
 // BillingSession 封装单次请求的预扣费/结算/退款生命周期。
 // 实现 relaycommon.BillingSettler 接口。
 type BillingSession struct {
-	relayInfo        *relaycommon.RelayInfo
-	funding          FundingSource
-	preConsumedQuota int  // 实际预扣额度（信任用户可能为 0）
-	tokenConsumed    int  // 令牌额度实际扣减量
-	extraReserved    int  // 发送前补充预扣的额度（订阅退款时需要单独回滚）
-	trusted          bool // 是否命中信任额度旁路
-	fundingSettled   bool // funding.Settle 已成功，资金来源已提交
-	settled          bool // Settle 全部完成（资金 + 令牌）
-	refunded         bool // Refund 已调用
-	mu               sync.Mutex
+	relayInfo          *relaycommon.RelayInfo
+	funding            FundingSource
+	preConsumedQuota   int   // 实际预扣额度（信任用户可能为 0）
+	tokenConsumed      int   // 令牌额度实际扣减量
+	tokenPeriodStartAt int64 // 令牌预扣/结算/退款归属的周期桶
+	periodGateChecked  bool  // admission gate already evaluated for this session
+	extraReserved      int   // 发送前补充预扣的额度（订阅退款时需要单独回滚）
+	trusted            bool  // 是否命中信任额度旁路
+	fundingSettled     bool  // funding.Settle 已成功，资金来源已提交
+	settled            bool  // Settle 全部完成（资金 + 令牌）
+	refunded           bool  // Refund 已调用
+	mu                 sync.Mutex
 }
 
 // Settle 根据实际消耗额度进行结算。
@@ -60,11 +63,7 @@ func (s *BillingSession) Settle(actualQuota int) error {
 	// 2) 调整令牌额度
 	var tokenErr error
 	if !s.relayInfo.IsPlayground {
-		if delta > 0 {
-			tokenErr = model.DecreaseTokenQuota(s.relayInfo.TokenId, s.relayInfo.TokenKey, delta)
-		} else {
-			tokenErr = model.IncreaseTokenQuota(s.relayInfo.TokenId, s.relayInfo.TokenKey, -delta)
-		}
+		tokenErr = s.adjustTokenQuota(delta)
 		if tokenErr != nil {
 			// 资金来源已提交，令牌调整失败只能记录日志；标记 settled 防止 Refund 误退资金
 			common.SysLog(fmt.Sprintf("error adjusting token quota after funding settled (userId=%d, tokenId=%d, delta=%d): %s",
@@ -100,6 +99,10 @@ func (s *BillingSession) Refund(c *gin.Context) {
 	tokenKey := s.relayInfo.TokenKey
 	isPlayground := s.relayInfo.IsPlayground
 	tokenConsumed := s.tokenConsumed
+	tokenPeriodStartAt := s.tokenPeriodStartAt
+	if tokenPeriodStartAt <= 0 {
+		tokenPeriodStartAt = s.relayInfo.TokenPeriodStartAt
+	}
 	extraReserved := s.extraReserved
 	subscriptionId := s.relayInfo.SubscriptionId
 	funding := s.funding
@@ -116,7 +119,7 @@ func (s *BillingSession) Refund(c *gin.Context) {
 		}
 		// 2) 退还令牌额度
 		if tokenConsumed > 0 && !isPlayground {
-			if err := model.IncreaseTokenQuota(tokenId, tokenKey, tokenConsumed); err != nil {
+			if err := model.AdjustTokenQuota(tokenId, tokenKey, -tokenConsumed, tokenPeriodStartAt); err != nil {
 				common.SysLog("error refunding token quota: " + err.Error())
 			}
 		}
@@ -154,7 +157,10 @@ func (s *BillingSession) Reserve(targetQuota int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.settled || s.refunded || s.trusted || targetQuota <= s.preConsumedQuota {
+	// Admission gating happens only in preConsume. A request that was already
+	// accepted may be topped up later without a second period-limit rejection;
+	// the extra reservation still uses the original attribution bucket.
+	if s.settled || s.refunded || targetQuota <= s.preConsumedQuota {
 		return nil
 	}
 
@@ -188,12 +194,24 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 	effectiveQuota := quota
 
 	// ---- 信任额度旁路 ----
-	if s.shouldTrust(c) {
+	trusted := s.shouldTrust(c)
+	if trusted {
 		s.trusted = true
 		effectiveQuota = 0
 		logger.LogInfo(c, fmt.Sprintf("用户 %d 额度充足, 信任且不需要预扣费 (funding=%s)", s.relayInfo.UserId, s.funding.Source()))
 	} else if effectiveQuota > 0 {
 		logger.LogInfo(c, fmt.Sprintf("用户 %d 需要预扣费 %s (funding=%s)", s.relayInfo.UserId, logger.FormatQuota(effectiveQuota), s.funding.Source()))
+	}
+
+	// ---- 令牌周期软门控 ----
+	// The gate follows shouldTrust but intentionally ignores the current
+	// estimate. E3 permits accepted requests to overshoot the remaining space;
+	// Playground and zero-cost requests do not query or count period state.
+	if apiErr := s.checkPeriodGateAfterTrust(quota); apiErr != nil {
+		return apiErr
+	}
+	if quota > 0 && !s.relayInfo.IsPlayground {
+		s.tokenPeriodStartAt = s.relayInfo.TokenPeriodStartAt
 	}
 
 	// ---- 1) 预扣令牌额度 ----
@@ -208,7 +226,7 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 	if err := s.funding.PreConsume(effectiveQuota); err != nil {
 		// 预扣费失败，回滚令牌额度
 		if s.tokenConsumed > 0 && !s.relayInfo.IsPlayground {
-			if rollbackErr := model.IncreaseTokenQuota(s.relayInfo.TokenId, s.relayInfo.TokenKey, s.tokenConsumed); rollbackErr != nil {
+			if rollbackErr := s.adjustTokenQuota(-s.tokenConsumed); rollbackErr != nil {
 				common.SysLog(fmt.Sprintf("error rolling back token quota (userId=%d, tokenId=%d, amount=%d, fundingErr=%s): %s",
 					s.relayInfo.UserId, s.relayInfo.TokenId, s.tokenConsumed, err.Error(), rollbackErr.Error()))
 			}
@@ -320,6 +338,9 @@ func (s *BillingSession) syncRelayInfo() {
 	info := s.relayInfo
 	info.FinalPreConsumedQuota = s.preConsumedQuota
 	info.BillingSource = s.funding.Source()
+	if s.tokenPeriodStartAt > 0 {
+		info.TokenPeriodStartAt = s.tokenPeriodStartAt
+	}
 
 	if sub, ok := s.funding.(*SubscriptionFunding); ok {
 		info.SubscriptionId = sub.subscriptionId
@@ -333,6 +354,35 @@ func (s *BillingSession) syncRelayInfo() {
 		info.SubscriptionId = 0
 		info.SubscriptionPreConsumed = 0
 	}
+}
+
+// adjustTokenQuota keeps every BillingSession mutation on the signed model
+// primitive and preserves the admission bucket for cross-phase refunds.
+func (s *BillingSession) adjustTokenQuota(delta int) error {
+	if s == nil || s.relayInfo == nil || delta == 0 || s.relayInfo.IsPlayground {
+		return nil
+	}
+	attributed := s.tokenPeriodStartAt
+	if attributed <= 0 {
+		attributed = s.relayInfo.TokenPeriodStartAt
+	}
+	return model.AdjustTokenQuota(s.relayInfo.TokenId, s.relayInfo.TokenKey, delta, attributed)
+}
+
+// checkPeriodGateAfterTrust is shared by the factory preflight and
+// preConsume. The trust decision is always evaluated first; the DB snapshot is
+// read at most once for a session so funding-source fallback cannot re-admit a
+// request or race it into a second gate.
+func (s *BillingSession) checkPeriodGateAfterTrust(quota int) *types.NewAPIError {
+	if s == nil || s.relayInfo == nil || quota <= 0 || s.relayInfo.IsPlayground || s.periodGateChecked {
+		return nil
+	}
+	_, _, apiErr := checkTokenPeriodGate(s.relayInfo, time.Now())
+	if apiErr == nil {
+		s.tokenPeriodStartAt = s.relayInfo.TokenPeriodStartAt
+		s.periodGateChecked = true
+	}
+	return apiErr
 }
 
 // ---------------------------------------------------------------------------
@@ -440,12 +490,6 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 		}
-		if userQuota <= 0 {
-			return nil, types.NewErrorWithStatusCode(
-				fmt.Errorf("用户额度不足, 剩余额度: %s", logger.FormatQuota(userQuota)),
-				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
-		}
 		// 必须在 shouldTrust 之前赋值：shouldTrust 依赖 relayInfo.UserQuota 判定信任旁路。
 		relayInfo.UserQuota = userQuota
 
@@ -453,13 +497,26 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 			relayInfo: relayInfo,
 			funding:   &WalletFunding{userId: relayInfo.UserId},
 		}
+		// Run the same trust-first gate before the wallet balance shortcut. This
+		// prevents wallet_first from falling back to a subscription around a
+		// token-period rejection.
+		trusted := session.shouldTrust(c)
+		if apiErr := session.checkPeriodGateAfterTrust(preConsumedQuota); apiErr != nil {
+			return nil, apiErr
+		}
+		if userQuota <= 0 {
+			return nil, types.NewErrorWithStatusCode(
+				fmt.Errorf("用户额度不足, 剩余额度: %s", logger.FormatQuota(userQuota)),
+				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+		}
 
 		// 预扣硬门控必须放在信任判定之后。受信任用户（余额 > TrustQuota 且令牌额度充足）
 		// 实际预扣为 0，真实成本由结算补正，不能因为「虚高的预扣估算 > 当前余额」而误杀
 		// （历史 bug：大输入估算冲高时，余额上百的信任用户仍被拒 "预扣费额度失败"）。
 		// 仅当用户不被信任时，才用预扣估算去卡余额。
 		preConsumeTarget := preConsumedQuota
-		if !session.shouldTrust(c) {
+		if !trusted {
 			// 坑点 #137：优雅部分预扣——余额/令牌不足以覆盖最坏估算但能覆盖输入下限时，
 			// 预扣可用额而非硬拒，避免临界拒绝与「末位余额不可花费」。
 			tokenQuota := c.GetInt("token_quota")
@@ -504,6 +561,10 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 				modelName: relayInfo.OriginModelName,
 				amount:    subConsume,
 			},
+		}
+		session.shouldTrust(c)
+		if apiErr := session.checkPeriodGateAfterTrust(int(subConsume)); apiErr != nil {
+			return nil, apiErr
 		}
 		// 必须传 subConsume 而非 preConsumedQuota，保证 SubscriptionFunding.amount、
 		// preConsume 参数和 FinalPreConsumedQuota 三者一致，避免订阅多扣费。

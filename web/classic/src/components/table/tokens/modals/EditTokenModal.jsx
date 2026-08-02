@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useContext, useRef } from 'react';
+import React, { useEffect, useState, useContext, useRef, useMemo } from 'react';
 import {
   API,
   showError,
@@ -56,11 +56,23 @@ import {
 } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../../../context/Status';
+import {
+  TOKEN_PERIOD_MAX_DAYS,
+  convertPeriodLimitUnit,
+  formatPeriodResetAt,
+  getPeriodResetAt,
+  normalizePeriodConversion,
+  periodFormToPayload,
+  periodResponseToForm,
+  validatePeriodForm,
+  cnyToCanonicalQuota,
+  isPositiveIntegerString,
+} from '../token-period';
 
 const { Text, Title } = Typography;
 
 const EditTokenModal = (props) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [statusState, statusDispatch] = useContext(StatusContext);
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
@@ -68,7 +80,41 @@ const EditTokenModal = (props) => {
   const [models, setModels] = useState([]);
   const [groups, setGroups] = useState([]);
   const [showQuotaInput, setShowQuotaInput] = useState(false);
+  const periodCanonicalQuotaRef = useRef(null);
+  const periodAnchorAtRef = useRef(0);
   const isEdit = props.editingToken.id !== undefined;
+
+  // Period limits always use CNY. The display-mode helpers above remain only
+  // for the legacy token balance. StatusContext is preferred, with the status
+  // snapshot in localStorage as a refresh-safe fallback.
+  const periodConversion = useMemo(() => {
+    let storedStatus = {};
+    try {
+      if (typeof localStorage !== 'undefined') {
+        storedStatus = JSON.parse(localStorage.getItem('status') || '{}');
+      }
+    } catch (_) {
+      storedStatus = {};
+    }
+    const status = statusState?.status || {};
+    let storedQuotaPerUnit;
+    try {
+      storedQuotaPerUnit =
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem('quota_per_unit')
+          : undefined;
+    } catch (_) {
+      storedQuotaPerUnit = undefined;
+    }
+    return normalizePeriodConversion({
+      usdExchangeRate:
+        status.usd_exchange_rate ?? storedStatus.usd_exchange_rate,
+      quotaPerUnit:
+        status.quota_per_unit ??
+        storedStatus.quota_per_unit ??
+        storedQuotaPerUnit,
+    });
+  }, [statusState?.status]);
 
   const getInitValues = () => ({
     name: '',
@@ -82,6 +128,12 @@ const EditTokenModal = (props) => {
     group: '',
     cross_group_retry: false,
     tokenCount: 1,
+    period_enabled: false,
+    period_type: '',
+    period_days: 0,
+    period_limit_unit: 'cny',
+    period_limit_value: '0',
+    period_reset_at: 0,
   });
 
   const handleCancel = () => {
@@ -164,19 +216,33 @@ const EditTokenModal = (props) => {
     let res = await API.get(`/api/token/${props.editingToken.id}`);
     const { success, message, data } = res.data;
     if (success) {
-      if (data.expired_time !== -1) {
-        data.expired_time = timestamp2string(data.expired_time);
-      }
-      if (data.model_limits !== '') {
-        data.model_limits = data.model_limits.split(',');
-      } else {
-        data.model_limits = [];
-      }
-      data.remain_amount = Number(
-        quotaToDisplayAmount(data.remain_quota || 0).toFixed(6),
-      );
+      const periodValues = periodResponseToForm(data, periodConversion);
+      periodCanonicalQuotaRef.current = periodValues.canonicalQuota;
+      periodAnchorAtRef.current = periodValues.period_anchor_at;
+      const expiredTime =
+        data.expired_time === -1
+          ? -1
+          : timestamp2string(data.expired_time);
+      const modelLimits = data.model_limits
+        ? data.model_limits.split(',').filter(Boolean)
+        : [];
       if (formApiRef.current) {
-        formApiRef.current.setValues({ ...getInitValues(), ...data });
+        formApiRef.current.setValues({
+          ...getInitValues(),
+          name: data.name || '',
+          remain_quota: Number(data.remain_quota) || 0,
+          remain_amount: Number(
+            quotaToDisplayAmount(data.remain_quota || 0).toFixed(6),
+          ),
+          expired_time: expiredTime,
+          unlimited_quota: Boolean(data.unlimited_quota),
+          model_limits_enabled: Boolean(data.model_limits_enabled),
+          model_limits: modelLimits,
+          allow_ips: data.allow_ips || '',
+          group: data.group || '',
+          cross_group_retry: Boolean(data.cross_group_retry),
+          ...periodValues,
+        });
       }
     } else {
       showError(message);
@@ -187,6 +253,8 @@ const EditTokenModal = (props) => {
   useEffect(() => {
     if (formApiRef.current) {
       if (!isEdit) {
+        periodCanonicalQuotaRef.current = null;
+        periodAnchorAtRef.current = 0;
         formApiRef.current.setValues(getInitValues());
       }
     }
@@ -199,9 +267,13 @@ const EditTokenModal = (props) => {
       if (isEdit) {
         loadToken();
       } else {
+        periodCanonicalQuotaRef.current = null;
+        periodAnchorAtRef.current = 0;
         formApiRef.current?.setValues(getInitValues());
       }
     } else {
+      periodCanonicalQuotaRef.current = null;
+      periodAnchorAtRef.current = 0;
       formApiRef.current?.reset();
     }
   }, [props.visiable, props.editingToken.id]);
@@ -218,32 +290,79 @@ const EditTokenModal = (props) => {
     return result;
   };
 
+  const getPeriodValidationMessage = (errors) => {
+    if (errors.includes('period_days')) {
+      return '周期天数必须在 1 到 3650 之间';
+    }
+    if (errors.includes('period_limit_value_integer')) {
+      return '原生额度必须为正整数';
+    }
+    if (errors.includes('period_limit_value_range')) {
+      return '周期限额超出可用范围';
+    }
+    return '周期限额必须大于 0';
+  };
+
+  const buildWritableTokenInputs = (values, name) => {
+    const validation = validatePeriodForm(values, periodConversion);
+    if (!validation.valid) {
+      return { error: getPeriodValidationMessage(validation.errors) };
+    }
+
+    let expiredTime = values.expired_time;
+    if (expiredTime !== -1) {
+      const time = Date.parse(expiredTime);
+      if (Number.isNaN(time)) {
+        return { error: '过期时间格式错误！' };
+      }
+      expiredTime = Math.ceil(time / 1000);
+    }
+
+    const modelLimits = Array.isArray(values.model_limits)
+      ? values.model_limits.filter(Boolean)
+      : String(values.model_limits || '')
+          .split(',')
+          .map((model) => model.trim())
+          .filter(Boolean);
+    const remainQuota = values.unlimited_quota
+      ? 0
+      : displayAmountToQuota(values.remain_amount);
+    if (!values.unlimited_quota && remainQuota <= 0) {
+      return { error: '请输入金额' };
+    }
+
+    return {
+      payload: {
+        name,
+        expired_time: expiredTime,
+        remain_quota: remainQuota,
+        unlimited_quota: Boolean(values.unlimited_quota),
+        model_limits_enabled: modelLimits.length > 0,
+        model_limits: modelLimits.join(','),
+        allow_ips: values.allow_ips || '',
+        group: values.group || '',
+        cross_group_retry:
+          values.group === 'auto' && Boolean(values.cross_group_retry),
+        // This helper is the only source of period write fields. It omits
+        // period_used_quota, period_start_at, period_anchor_at, and reset_at.
+        ...periodFormToPayload(values),
+      },
+    };
+  };
+
   const submit = async (values) => {
     setLoading(true);
     if (isEdit) {
-      let { tokenCount: _tc, ...localInputs } = values;
-      localInputs.remain_quota = localInputs.unlimited_quota
-        ? 0
-        : displayAmountToQuota(localInputs.remain_amount);
-      if (!localInputs.unlimited_quota && localInputs.remain_quota <= 0) {
-        showError(t('请输入金额'));
+      const name = String(values.name || '').trim();
+      const built = buildWritableTokenInputs(values, name);
+      if (built.error) {
+        showError(t(built.error));
         setLoading(false);
         return;
       }
-      if (localInputs.expired_time !== -1) {
-        let time = Date.parse(localInputs.expired_time);
-        if (isNaN(time)) {
-          showError(t('过期时间格式错误！'));
-          setLoading(false);
-          return;
-        }
-        localInputs.expired_time = Math.ceil(time / 1000);
-      }
-      localInputs.model_limits = localInputs.model_limits.join(',');
-      localInputs.model_limits_enabled = localInputs.model_limits.length > 0;
-      let res = await API.put(`/api/token/`, {
-        ...localInputs,
-        id: parseInt(props.editingToken.id),
+      const res = await API.put(`/api/token/`, {
+        ...built.payload,
+        id: parseInt(props.editingToken.id, 10),
       });
       const { success, message } = res.data;
       if (success) {
@@ -257,35 +376,20 @@ const EditTokenModal = (props) => {
       const count = parseInt(values.tokenCount, 10) || 1;
       let successCount = 0;
       for (let i = 0; i < count; i++) {
-        let { tokenCount: _tc, ...localInputs } = values;
         const baseName =
-          values.name.trim() === '' ? 'default' : values.name.trim();
-        if (i !== 0 || values.name.trim() === '') {
-          localInputs.name = `${baseName}-${generateRandomSuffix()}`;
-        } else {
-          localInputs.name = baseName;
-        }
-        localInputs.remain_quota = localInputs.unlimited_quota
-          ? 0
-          : displayAmountToQuota(localInputs.remain_amount);
-        if (!localInputs.unlimited_quota && localInputs.remain_quota <= 0) {
-          showError(t('请输入金额'));
-          setLoading(false);
+          String(values.name || '').trim() === ''
+            ? 'default'
+            : String(values.name).trim();
+        const name =
+          i !== 0 || String(values.name || '').trim() === ''
+            ? `${baseName}-${generateRandomSuffix()}`
+            : baseName;
+        const built = buildWritableTokenInputs(values, name);
+        if (built.error) {
+          showError(t(built.error));
           break;
         }
-
-        if (localInputs.expired_time !== -1) {
-          let time = Date.parse(localInputs.expired_time);
-          if (isNaN(time)) {
-            showError(t('过期时间格式错误！'));
-            setLoading(false);
-            break;
-          }
-          localInputs.expired_time = Math.ceil(time / 1000);
-        }
-        localInputs.model_limits = localInputs.model_limits.join(',');
-        localInputs.model_limits_enabled = localInputs.model_limits.length > 0;
-        let res = await API.post(`/api/token/`, localInputs);
+        const res = await API.post(`/api/token/`, built.payload);
         const { success, message } = res.data;
         if (success) {
           successCount++;
@@ -302,6 +406,144 @@ const EditTokenModal = (props) => {
     }
     setLoading(false);
     formApiRef.current?.setValues(getInitValues());
+  };
+
+  const setPeriodEnabled = (enabled) => {
+    const api = formApiRef.current;
+    if (!api) return;
+    api.setValue('period_enabled', Boolean(enabled));
+    periodAnchorAtRef.current = 0;
+    if (!enabled) {
+      periodCanonicalQuotaRef.current = null;
+      api.setValue('period_type', '');
+      api.setValue('period_days', 0);
+      api.setValue('period_limit_value', '0');
+      api.setValue('period_reset_at', 0);
+      return;
+    }
+
+    const current = api.getValues() || {};
+    const periodUnit = current.period_limit_unit === 'quota' ? 'quota' : 'cny';
+    const currentValue = String(current.period_limit_value || '').trim();
+    const nextValue =
+      currentValue && currentValue !== '0'
+        ? currentValue
+        : periodUnit === 'cny'
+          ? '10.00'
+          : String(Math.max(1, Math.trunc(periodConversion.quotaPerUnit)));
+    const nextType =
+      current.period_type === 'days' ||
+      current.period_type === 'week' ||
+      current.period_type === 'month'
+        ? current.period_type
+        : 'week';
+    const nextDays =
+      nextType === 'days' && Number.isInteger(Number(current.period_days))
+        ? Number(current.period_days) || 1
+        : nextType === 'days'
+          ? 1
+          : 0;
+    periodCanonicalQuotaRef.current =
+      periodUnit === 'cny'
+        ? cnyToCanonicalQuota(
+            nextValue,
+            periodConversion.usdExchangeRate,
+            periodConversion.quotaPerUnit,
+          )
+        : isPositiveIntegerString(nextValue)
+          ? Number(nextValue)
+          : null;
+    api.setValue('period_type', nextType);
+    api.setValue('period_days', nextDays);
+    api.setValue('period_limit_value', nextValue);
+    api.setValue(
+      'period_reset_at',
+      getPeriodResetAt(
+        nextType,
+        nextType === 'days' ? nextDays : 0,
+        Date.now(),
+        0,
+      ),
+    );
+  };
+
+  const setPeriodType = (periodType) => {
+    if (!formApiRef.current) return;
+    const nextType =
+      periodType === 'days' || periodType === 'week' || periodType === 'month'
+        ? periodType
+        : 'week';
+    const currentDays = Number(formApiRef.current.getValue('period_days'));
+    const nextDays =
+      nextType === 'days'
+        ? Number.isInteger(currentDays) && currentDays >= 1
+          ? currentDays
+          : 1
+        : 0;
+    periodAnchorAtRef.current = 0;
+    formApiRef.current.setValue('period_type', nextType);
+    formApiRef.current.setValue('period_days', nextDays);
+    formApiRef.current.setValue(
+      'period_reset_at',
+      getPeriodResetAt(
+        nextType,
+        nextType === 'days' ? nextDays : 0,
+        Date.now(),
+        0,
+      ),
+    );
+  };
+
+  const setPeriodUnit = (nextUnit) => {
+    if (!formApiRef.current || (nextUnit !== 'cny' && nextUnit !== 'quota')) {
+      return;
+    }
+    const currentUnit = formApiRef.current.getValue('period_limit_unit') || 'cny';
+    const currentValue = String(
+      formApiRef.current.getValue('period_limit_value') || '',
+    ).trim();
+    const converted = convertPeriodLimitUnit(
+      currentValue,
+      currentUnit,
+      nextUnit,
+      periodConversion,
+      periodCanonicalQuotaRef.current,
+    );
+    periodCanonicalQuotaRef.current = converted.canonicalQuota;
+    formApiRef.current.setValue('period_limit_unit', nextUnit);
+    formApiRef.current.setValue('period_limit_value', converted.value);
+  };
+
+  const setPeriodLimitValue = (value) => {
+    if (!formApiRef.current) return;
+    const inputValue = value?.target?.value ?? value ?? '';
+    const text = String(inputValue);
+    const unit = formApiRef.current.getValue('period_limit_unit') || 'cny';
+    if (unit === 'cny') {
+      periodCanonicalQuotaRef.current = cnyToCanonicalQuota(
+        text.trim(),
+        periodConversion.usdExchangeRate,
+        periodConversion.quotaPerUnit,
+      );
+    } else if (isPositiveIntegerString(text.trim())) {
+      periodCanonicalQuotaRef.current = Number(text.trim());
+    } else {
+      periodCanonicalQuotaRef.current = null;
+    }
+    formApiRef.current.setValue('period_limit_value', text);
+  };
+
+  const getPeriodPreviewResetAt = (values) => {
+    if (!values.period_enabled || !values.period_type) return 0;
+    if (Number(values.period_reset_at) > 0) {
+      return Number(values.period_reset_at);
+    }
+    return getPeriodResetAt(
+      values.period_type,
+      values.period_type === 'days' ? Number(values.period_days) : 0,
+      Date.now(),
+      periodAnchorAtRef.current,
+    );
   };
 
   return (
@@ -591,6 +833,147 @@ const EditTokenModal = (props) => {
                       )}
                     />
                   </Col>
+                </Row>
+              </Card>
+
+              {/* 周期限额 */}
+              <Card className='!rounded-2xl shadow-sm border-0'>
+                <div className='flex items-center mb-2'>
+                  <Avatar size='small' color='orange' className='mr-2 shadow-md'>
+                    <IconCreditCard size={16} />
+                  </Avatar>
+                  <div>
+                    <Text className='text-lg font-medium'>{t('周期限额')}</Text>
+                    <div className='text-xs text-gray-600'>
+                      {t('设置每个周期的令牌额度上限')}
+                    </div>
+                  </div>
+                </div>
+                <Row gutter={12}>
+                  <Col span={24}>
+                    <Form.Switch
+                      field='period_enabled'
+                      label={t('启用周期限额')}
+                      size='default'
+                      onChange={setPeriodEnabled}
+                      extraText={t('周期限额独立统计，不受令牌无限额度开关影响')}
+                    />
+                  </Col>
+                  {values.period_enabled && (
+                    <>
+                      <Col span={24}>
+                        <Form.Select
+                          field='period_type'
+                          label={t('周期类型')}
+                          optionList={[
+                            { value: 'days', label: t('每 N 天') },
+                            { value: 'week', label: t('每周') },
+                            { value: 'month', label: t('每月') },
+                          ]}
+                          onChange={setPeriodType}
+                          getPopupContainer={() => document.body}
+                          style={{ width: '100%' }}
+                        />
+                      </Col>
+                      {values.period_type === 'days' && (
+                        <Col span={24}>
+                          <Form.InputNumber
+                            field='period_days'
+                            label={t('周期天数')}
+                            min={1}
+                            max={TOKEN_PERIOD_MAX_DAYS}
+                            step={1}
+                            precision={0}
+                            rules={[
+                              {
+                                validator: (_rule, value) => {
+                                  const days = Number(value);
+                                  if (
+                                    Number.isInteger(days) &&
+                                    days >= 1 &&
+                                    days <= TOKEN_PERIOD_MAX_DAYS
+                                  ) {
+                                    return Promise.resolve();
+                                  }
+                                  return Promise.reject(
+                                    t('周期天数必须在 1 到 3650 之间'),
+                                  );
+                                },
+                              },
+                            ]}
+                            onChange={(value) => {
+                              const days = Number(value) || 0;
+                              periodAnchorAtRef.current = 0;
+                              formApiRef.current?.setValue('period_days', days);
+                              formApiRef.current?.setValue(
+                                'period_reset_at',
+                                getPeriodResetAt('days', days),
+                              );
+                            }}
+                            style={{ width: '100%' }}
+                          />
+                        </Col>
+                      )}
+                      <Col span={24}>
+                        <Form.Select
+                          field='period_limit_unit'
+                          label={t('周期限额单位')}
+                          optionList={[
+                            { value: 'cny', label: t('人民币（¥）') },
+                            { value: 'quota', label: t('原生额度') },
+                          ]}
+                          onChange={setPeriodUnit}
+                          getPopupContainer={() => document.body}
+                          style={{ width: '100%' }}
+                        />
+                      </Col>
+                      <Col span={24}>
+                        <Form.Input
+                          field='period_limit_value'
+                          label={t('周期限额值')}
+                          prefix={values.period_limit_unit === 'cny' ? '¥' : undefined}
+                          inputMode={
+                            values.period_limit_unit === 'quota'
+                              ? 'numeric'
+                              : 'decimal'
+                          }
+                          placeholder={
+                            values.period_limit_unit === 'cny'
+                              ? '10.00'
+                              : String(Math.max(1, Math.trunc(periodConversion.quotaPerUnit)))
+                          }
+                          onChange={setPeriodLimitValue}
+                          rules={[
+                            {
+                              validator: (_rule, value) => {
+                                const result = validatePeriodForm(
+                                  { ...values, period_limit_value: value },
+                                  periodConversion,
+                                );
+                                return result.valid
+                                  ? Promise.resolve()
+                                  : Promise.reject(
+                                      t(getPeriodValidationMessage(result.errors)),
+                                    );
+                              },
+                            },
+                          ]}
+                          style={{ width: '100%' }}
+                          showClear
+                        />
+                      </Col>
+                      <Col span={24}>
+                        <Form.Slot label={t('下次重置时间')}>
+                          <Tag color='orange' shape='circle'>
+                            {formatPeriodResetAt(
+                              getPeriodPreviewResetAt(values),
+                              i18n.resolvedLanguage || i18n.language,
+                            )}
+                          </Tag>
+                        </Form.Slot>
+                      </Col>
+                    </>
+                  )}
                 </Row>
               </Card>
 

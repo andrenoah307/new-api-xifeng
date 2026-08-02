@@ -18,8 +18,14 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, KeyRound, Settings2, WalletCards } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import {
+  CalendarClock,
+  ChevronDown,
+  KeyRound,
+  Settings2,
+  WalletCards,
+} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm, type SubmitErrorHandler } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -52,6 +58,14 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -62,10 +76,12 @@ import {
 } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { useStatus } from '@/hooks/use-status'
 import { getUserModels, getUserGroups } from '@/lib/api'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 import { cn } from '@/lib/utils'
+import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import { createApiKey, updateApiKey, getApiKey } from '../api'
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
@@ -75,8 +91,20 @@ import {
   getApiKeyFormDefaultValues,
   transformFormDataToPayload,
   transformApiKeyToFormDefaults,
-} from '../lib'
-import type { ApiKey } from '../types'
+} from '../lib/api-key-form'
+import {
+  cnyToCanonicalQuota,
+  convertPeriodLimitUnit,
+  formatPeriodResetAt,
+  getPeriodResetAt,
+  isPositiveIntegerString,
+} from '../lib/token-period'
+import {
+  TOKEN_PERIOD_MAX_DAYS,
+  type ApiKey,
+  type TokenPeriodLimitUnit,
+  type TokenPeriodType,
+} from '../types'
 import {
   ApiKeyGroupCombobox,
   type ApiKeyGroupOption,
@@ -94,13 +122,24 @@ export function ApiKeysMutateDrawer({
   onOpenChange,
   currentRow,
 }: ApiKeyMutateDrawerProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const isUpdate = !!currentRow
   const { triggerRefresh } = useApiKeys()
   const { status } = useStatus()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const periodCanonicalQuotaRef = useRef<number | null>(null)
   const defaultUseAutoGroup = status?.default_use_auto_group === true
+  const statusUsdExchangeRate = Number(status?.usd_exchange_rate)
+  const statusQuotaPerUnit = Number(status?.quota_per_unit)
+  const usdExchangeRate =
+    Number.isFinite(statusUsdExchangeRate) && statusUsdExchangeRate > 0
+      ? statusUsdExchangeRate
+      : 1
+  const quotaPerUnit =
+    Number.isFinite(statusQuotaPerUnit) && statusQuotaPerUnit > 0
+      ? statusQuotaPerUnit
+      : DEFAULT_CURRENCY_CONFIG.quotaPerUnit
 
   // Fetch models
   const { data: modelsData } = useQuery({
@@ -120,18 +159,15 @@ export function ApiKeysMutateDrawer({
 
   const models = Array.isArray(modelsData?.data) ? modelsData.data : []
   const groupsRaw = groupsData?.data || {}
-  const regionBlockedGroups: string[] =
-    status?.region_blocked_groups ?? []
+  const regionBlockedGroups: string[] = status?.region_blocked_groups ?? []
   const groups: ApiKeyGroupOption[] = Object.entries(groupsRaw)
     .filter(([key]) => !regionBlockedGroups.includes(key))
-    .map(
-    ([key, info]) => ({
+    .map(([key, info]) => ({
       value: key,
       label: key,
       desc: info.desc || key,
       ratio: info.ratio,
-    })
-  )
+    }))
   const backendHasAuto = groups.some((g) => g.value === 'auto')
   const schema = getApiKeyFormSchema(t)
 
@@ -145,15 +181,34 @@ export function ApiKeysMutateDrawer({
     if (open && isUpdate && currentRow) {
       void getApiKey(currentRow.id).then((result) => {
         if (result.success && result.data) {
-          form.reset(transformApiKeyToFormDefaults(result.data))
+          periodCanonicalQuotaRef.current =
+            result.data.period_quota_limit > 0
+              ? result.data.period_quota_limit
+              : null
+          form.reset(
+            transformApiKeyToFormDefaults(result.data, {
+              usdExchangeRate,
+              quotaPerUnit,
+            })
+          )
         }
       })
     } else if (open && !isUpdate) {
+      periodCanonicalQuotaRef.current = null
       form.reset(
         getApiKeyFormDefaultValues(defaultUseAutoGroup && backendHasAuto)
       )
     }
-  }, [open, isUpdate, currentRow, form, defaultUseAutoGroup, backendHasAuto])
+  }, [
+    open,
+    isUpdate,
+    currentRow,
+    form,
+    defaultUseAutoGroup,
+    backendHasAuto,
+    usdExchangeRate,
+    quotaPerUnit,
+  ])
 
   // Correct group after groups load: if the form value is not in available groups, fall back
   useEffect(() => {
@@ -251,8 +306,120 @@ export function ApiKeysMutateDrawer({
   const quotaPlaceholder = tokensOnly
     ? t('Enter quota in tokens')
     : t('Enter quota in {{currency}}', { currency: currencyLabel })
-  const selectedGroup = form.watch('group')
-  const unlimitedQuota = form.watch('unlimited_quota')
+  const watchedValues = form.watch()
+  const selectedGroup = watchedValues.group
+  const unlimitedQuota = watchedValues.unlimited_quota
+  const periodType = watchedValues.period_type
+  const periodUnit = watchedValues.period_limit_unit
+  const periodEnabled = periodType !== ''
+  const storedPeriodResetAt = watchedValues.period_reset_at ?? 0
+  const periodResetAt = periodEnabled
+    ? storedPeriodResetAt > 0
+      ? storedPeriodResetAt
+      : getPeriodResetAt(
+          periodType,
+          periodType === 'days' ? watchedValues.period_days : 0
+        )
+    : 0
+
+  const periodTypeOptions: Array<{
+    value: Exclude<TokenPeriodType, ''>
+    label: string
+  }> = [
+    { value: 'days', label: t('Every N days') },
+    { value: 'week', label: t('Every week') },
+    { value: 'month', label: t('Every month') },
+  ]
+
+  const setPeriodType = (nextType: TokenPeriodType) => {
+    const nextDays = nextType === 'days' ? watchedValues.period_days || 1 : 0
+    form.setValue('period_type', nextType, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    form.setValue('period_days', nextDays, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    form.setValue(
+      'period_reset_at',
+      nextType === ''
+        ? 0
+        : getPeriodResetAt(nextType, nextType === 'days' ? nextDays : 0),
+      { shouldDirty: true }
+    )
+  }
+
+  const handlePeriodEnabledChange = (enabled: boolean) => {
+    if (!enabled) {
+      setPeriodType('')
+      form.setValue('period_limit_value', '0', {
+        shouldDirty: true,
+        shouldValidate: true,
+      })
+      periodCanonicalQuotaRef.current = null
+      return
+    }
+
+    const nextType: TokenPeriodType = 'week'
+    setPeriodType(nextType)
+    const currentValue = watchedValues.period_limit_value.trim()
+    let nextValue = currentValue
+    if (!nextValue || nextValue === '0') {
+      nextValue =
+        periodUnit === 'cny' ? '10.00' : String(Math.trunc(quotaPerUnit))
+    }
+    form.setValue('period_limit_value', nextValue, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    periodCanonicalQuotaRef.current =
+      periodUnit === 'cny'
+        ? cnyToCanonicalQuota(nextValue, usdExchangeRate, quotaPerUnit)
+        : Number(nextValue)
+  }
+
+  const handlePeriodUnitChange = (nextUnit: TokenPeriodLimitUnit) => {
+    const currentValue = form.getValues('period_limit_value').trim()
+    const converted = convertPeriodLimitUnit(
+      currentValue,
+      periodUnit,
+      nextUnit,
+      { usdExchangeRate, quotaPerUnit },
+      periodCanonicalQuotaRef.current
+    )
+    periodCanonicalQuotaRef.current = converted.canonicalQuota
+
+    form.setValue('period_limit_unit', nextUnit, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+    form.setValue('period_limit_value', converted.value, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+  }
+
+  const handlePeriodLimitValueChange = (value: string) => {
+    const trimmedValue = value.trim()
+    let canonicalQuota = 0
+    if (periodUnit === 'cny') {
+      canonicalQuota = cnyToCanonicalQuota(
+        trimmedValue,
+        usdExchangeRate,
+        quotaPerUnit
+      )
+    } else if (isPositiveIntegerString(trimmedValue)) {
+      canonicalQuota = Number(trimmedValue)
+    }
+    periodCanonicalQuotaRef.current = Number.isFinite(canonicalQuota)
+      ? canonicalQuota
+      : null
+    form.setValue('period_limit_value', value, {
+      shouldDirty: true,
+      shouldValidate: true,
+    })
+  }
 
   return (
     <Sheet
@@ -260,6 +427,7 @@ export function ApiKeysMutateDrawer({
       onOpenChange={(v) => {
         onOpenChange(v)
         if (!v) {
+          periodCanonicalQuotaRef.current = null
           form.reset()
         }
       }}
@@ -503,6 +671,200 @@ export function ApiKeysMutateDrawer({
                   </FormItem>
                 )}
               />
+            </SideDrawerSection>
+
+            <SideDrawerSection>
+              <SideDrawerSectionHeader
+                title={t('Period Quota')}
+                description={t('Set a recurring quota limit for this API key')}
+                icon={<CalendarClock className='size-4' />}
+                iconTone='warning'
+              />
+
+              <FormField
+                control={form.control}
+                name='period_type'
+                render={() => (
+                  <FormItem className={sideDrawerSwitchItemClassName()}>
+                    <div className='flex flex-col gap-0.5'>
+                      <FormLabel className='text-sm'>
+                        {t('Enable period quota')}
+                      </FormLabel>
+                      <FormDescription className='text-xs'>
+                        {t('Limit usage independently for each billing cycle')}
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={periodEnabled}
+                        onCheckedChange={handlePeriodEnabledChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {periodEnabled && (
+                <div className='flex flex-col gap-4'>
+                  <FormField
+                    control={form.control}
+                    name='period_type'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('Period type')}</FormLabel>
+                        <Select
+                          items={periodTypeOptions}
+                          value={field.value}
+                          onValueChange={(value) => {
+                            if (
+                              value === 'days' ||
+                              value === 'week' ||
+                              value === 'month'
+                            ) {
+                              setPeriodType(value)
+                            }
+                          }}
+                        >
+                          <FormControl>
+                            <SelectTrigger className='w-full'>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent alignItemWithTrigger={false}>
+                            <SelectGroup>
+                              {periodTypeOptions.map((option) => (
+                                <SelectItem
+                                  key={option.value}
+                                  value={option.value}
+                                >
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {periodType === 'days' && (
+                    <FormField
+                      control={form.control}
+                      name='period_days'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('Number of days')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type='number'
+                              min={1}
+                              max={TOKEN_PERIOD_MAX_DAYS}
+                              step={1}
+                              onChange={(event) => {
+                                const days =
+                                  Number.parseInt(event.target.value, 10) || 0
+                                field.onChange(days)
+                                form.setValue(
+                                  'period_reset_at',
+                                  getPeriodResetAt('days', days),
+                                  { shouldDirty: true }
+                                )
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {t('Choose a value from 1 to 3650 days')}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name='period_limit_unit'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('Limit unit')}</FormLabel>
+                        <FormControl>
+                          <ToggleGroup
+                            value={[field.value]}
+                            onValueChange={(values) => {
+                              const nextUnit = values[0]
+                              if (nextUnit === 'cny' || nextUnit === 'quota') {
+                                handlePeriodUnitChange(nextUnit)
+                              }
+                            }}
+                            variant='outline'
+                            size='sm'
+                            spacing={1}
+                            className='w-full'
+                            aria-label={t('Limit unit')}
+                          >
+                            <ToggleGroupItem value='cny' className='flex-1'>
+                              {t('CNY (¥)')}
+                            </ToggleGroupItem>
+                            <ToggleGroupItem value='quota' className='flex-1'>
+                              {t('Native quota')}
+                            </ToggleGroupItem>
+                          </ToggleGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name='period_limit_value'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {periodUnit === 'cny'
+                            ? t('Period limit (¥)')
+                            : t('Period limit (quota)')}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            value={field.value}
+                            type='text'
+                            inputMode={
+                              periodUnit === 'quota' ? 'numeric' : 'decimal'
+                            }
+                            placeholder={
+                              periodUnit === 'cny'
+                                ? '10.00'
+                                : String(Math.trunc(quotaPerUnit))
+                            }
+                            onChange={(event) =>
+                              handlePeriodLimitValueChange(event.target.value)
+                            }
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {t('The limit must be greater than zero')}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className='bg-muted/40 rounded-md border px-3 py-2 text-sm'>
+                    <span className='text-muted-foreground'>
+                      {t('Next reset')}:{' '}
+                    </span>
+                    <span className='font-medium tabular-nums'>
+                      {formatPeriodResetAt(
+                        periodResetAt,
+                        i18n.resolvedLanguage || i18n.language
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
             </SideDrawerSection>
 
             <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>

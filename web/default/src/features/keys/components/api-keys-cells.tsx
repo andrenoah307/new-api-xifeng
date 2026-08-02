@@ -35,8 +35,64 @@ import {
 } from '@/components/ui/tooltip'
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 
+import {
+  formatPeriodQuotaValue,
+  formatPeriodResetAt,
+  type PeriodConversionConfig,
+} from '../lib/token-period'
 import type { ApiKey } from '../types'
 import { useApiKeys } from './api-keys-provider'
+
+type ApiKeyPeriodLimitCellProps = {
+  apiKey: ApiKey
+  conversion: PeriodConversionConfig
+  locale?: string
+  compact?: boolean
+}
+
+export function ApiKeyPeriodLimitCell({
+  apiKey,
+  conversion,
+  locale,
+  compact = false,
+}: ApiKeyPeriodLimitCellProps) {
+  const { t } = useTranslation()
+  const enabled = apiKey.period_type !== '' && apiKey.period_quota_limit > 0
+
+  if (!enabled) {
+    return (
+      <StatusBadge
+        label={t('Not enabled')}
+        variant='neutral'
+        copyable={false}
+        className='-ml-1.5'
+      />
+    )
+  }
+
+  const unit = apiKey.period_limit_unit === 'cny' ? 'cny' : 'quota'
+  const used = Math.max(0, apiKey.period_used_quota || 0)
+  const limit = Math.max(0, apiKey.period_quota_limit || 0)
+
+  return (
+    <div
+      className={
+        compact ? 'min-w-0 space-y-1 text-right' : 'min-w-[180px] space-y-1'
+      }
+    >
+      <div className='font-medium tabular-nums'>
+        {formatPeriodQuotaValue(used, unit, conversion, locale)}
+        <span className='text-muted-foreground font-normal'>
+          {' / '}
+          {formatPeriodQuotaValue(limit, unit, conversion, locale)}
+        </span>
+      </div>
+      <div className='text-muted-foreground text-xs tabular-nums'>
+        {t('Next reset')}: {formatPeriodResetAt(apiKey.period_reset_at, locale)}
+      </div>
+    </div>
+  )
+}
 
 export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {
   const { t } = useTranslation()

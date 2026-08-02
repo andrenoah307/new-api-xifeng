@@ -36,12 +36,14 @@ import { getUserGroups } from '@/lib/api'
 import dayjs from '@/lib/dayjs'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import { API_KEY_STATUSES } from '../constants'
 import type { ApiKey } from '../types'
 import { ApiKeyTimestampCell } from './api-key-timestamp-cell'
 import {
   ApiKeyCell,
+  ApiKeyPeriodLimitCell,
   ModelLimitsCell,
   IpRestrictionsCell,
 } from './api-keys-cells'
@@ -77,13 +79,24 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
   const { t, i18n } = useTranslation()
   const groupRatios = useGroupRatios()
   const { status } = useStatus()
-  const regionBlockedGroups: string[] =
-    status?.region_blocked_groups ?? []
+  const regionBlockedGroups: string[] = status?.region_blocked_groups ?? []
   // 管理员可在 地区限制 设置里自定义该提示，空则用默认文案
   const regionUnavailableText =
     String(status?.region_console_message ?? '').trim() ||
     t('Not available in current region')
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
+  const statusUsdExchangeRate = Number(status?.usd_exchange_rate)
+  const statusQuotaPerUnit = Number(status?.quota_per_unit)
+  const periodConversion = {
+    usdExchangeRate:
+      Number.isFinite(statusUsdExchangeRate) && statusUsdExchangeRate > 0
+        ? statusUsdExchangeRate
+        : 1,
+    quotaPerUnit:
+      Number.isFinite(statusQuotaPerUnit) && statusQuotaPerUnit > 0
+        ? statusQuotaPerUnit
+        : DEFAULT_CURRENCY_CONFIG.quotaPerUnit,
+  }
   const justNowLabel = t('Just now')
   const staleAccessThreshold = dayjs(now).subtract(3, 'month').valueOf()
   return [
@@ -204,6 +217,21 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
       size: 170,
     },
     {
+      id: 'period_limit',
+      accessorKey: 'period_quota_limit',
+      header: t('Period Quota'),
+      cell: ({ row }) => (
+        <ApiKeyPeriodLimitCell
+          apiKey={row.original}
+          conversion={periodConversion}
+          locale={locale}
+        />
+      ),
+      enableSorting: false,
+      size: 240,
+      meta: { mobileHidden: true },
+    },
+    {
       accessorKey: 'group',
       header: t('Group'),
       cell: ({ row }) => {
@@ -246,7 +274,7 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
               <GroupBadge group={group} ratio={ratio} />
             </TruncatedCell>
             {regionBlockedGroups.includes(group) && (
-              <span className='text-xs text-destructive'>
+              <span className='text-destructive text-xs'>
                 {regionUnavailableText}
               </span>
             )}

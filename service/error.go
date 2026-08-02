@@ -218,6 +218,8 @@ func TaskErrorFromAPIError(apiErr *types.NewAPIError) *dto.TaskError {
 		Code:       string(apiErr.GetErrorCode()),
 		Message:    apiErr.Err.Error(),
 		StatusCode: apiErr.StatusCode,
+		// 令牌周期限额是本地拒绝：不得换渠道重试，也不得计入渠道健康度。
+		LocalError: apiErr.GetErrorCode() == types.ErrorCodeTokenPeriodQuotaExceeded,
 		Error:      apiErr.Err,
 	}
 }

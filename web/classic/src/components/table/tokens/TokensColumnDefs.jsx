@@ -46,6 +46,12 @@ import {
   IconEyeOpened,
   IconEyeClosed,
 } from '@douyinfe/semi-icons';
+import {
+  formatPeriodQuotaValue,
+  formatPeriodResetAt,
+  getPeriodResetAt,
+  normalizePeriodConversion,
+} from './token-period';
 
 // progress color helper
 const getProgressColor = (pct) => {
@@ -356,6 +362,48 @@ const renderQuotaUsage = (text, record, t) => {
   );
 };
 
+// Render the independent recurring limit. This column intentionally remains
+// visible for unlimited tokens: unlimited_quota only controls the legacy
+// balance, while period_used_quota is a separate accounting stream.
+const renderPeriodLimit = (record, t, periodConversion, locale) => {
+  const limit = Number(record?.period_quota_limit) || 0;
+  const enabled = Boolean(record?.period_type) && limit > 0;
+  if (!enabled) {
+    return (
+      <Tag color='white' shape='circle'>
+        {t('未启用')}
+      </Tag>
+    );
+  }
+
+  const unit = record.period_limit_unit === 'cny' ? 'cny' : 'quota';
+  const used = Math.max(0, Number(record.period_used_quota) || 0);
+  const resetAt =
+    Number(record.period_reset_at) > 0
+      ? Number(record.period_reset_at)
+      : getPeriodResetAt(
+          record.period_type,
+          record.period_type === 'days' ? Number(record.period_days) || 0 : 0,
+          Date.now(),
+          Number(record.period_anchor_at) || 0,
+        );
+
+  return (
+    <div className='min-w-[180px] space-y-1'>
+      <div className='font-medium tabular-nums'>
+        {formatPeriodQuotaValue(used, unit, periodConversion, locale)}
+        <span className='font-normal opacity-70'>
+          {' / '}
+          {formatPeriodQuotaValue(limit, unit, periodConversion, locale)}
+        </span>
+      </div>
+      <div className='text-xs opacity-70 tabular-nums'>
+        {t('下一次重置')}：{formatPeriodResetAt(resetAt, locale)}
+      </div>
+    </div>
+  );
+};
+
 // Render operations column
 const renderOperations = (
   text,
@@ -489,7 +537,10 @@ export const getTokensColumns = ({
   refresh,
   groupRatios = {},
   regionBlockedGroups = [],
+  periodConversion,
+  locale,
 }) => {
+  const resolvedPeriodConversion = normalizePeriodConversion(periodConversion);
   return [
     {
       title: t('名称'),
@@ -505,6 +556,13 @@ export const getTokensColumns = ({
       title: t('剩余额度/总额度'),
       key: 'quota_usage',
       render: (text, record) => renderQuotaUsage(text, record, t),
+    },
+    {
+      title: t('周期限额'),
+      key: 'period_limit',
+      dataIndex: 'period_quota_limit',
+      render: (text, record) =>
+        renderPeriodLimit(record, t, resolvedPeriodConversion, locale),
     },
     {
       title: t('分组'),

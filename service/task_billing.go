@@ -108,11 +108,7 @@ func taskAdjustTokenQuota(ctx context.Context, task *model.Task, delta int) {
 		return
 	}
 	var err error
-	if delta > 0 {
-		err = model.DecreaseTokenQuota(task.PrivateData.TokenId, tokenKey, delta)
-	} else {
-		err = model.IncreaseTokenQuota(task.PrivateData.TokenId, tokenKey, -delta)
-	}
+	err = model.AdjustTokenQuota(task.PrivateData.TokenId, tokenKey, delta, task.PrivateData.TokenPeriodStartAt)
 	if err != nil {
 		logger.LogWarn(ctx, fmt.Sprintf("调整令牌额度失败 (delta=%d, task=%s): %s", delta, task.TaskID, err.Error()))
 	}
@@ -171,7 +167,6 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) {
 	// 1. 退还资金来源（钱包或订阅）
 	if err := taskAdjustFunding(task, -quota); err != nil {
 		logger.LogWarn(ctx, fmt.Sprintf("退还资金来源失败 task %s: %s", task.TaskID, err.Error()))
-		return
 	}
 
 	// 2. 退还令牌额度

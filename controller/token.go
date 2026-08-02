@@ -1,18 +1,189 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 )
+
+const tokenPeriodMaxDays = 3650
+
+type normalizedTokenPeriod struct {
+	periodType string
+	periodDays int
+	limit      int64
+	unit       string
+}
+
+func tokenBadRequest(c *gin.Context, err error) {
+	c.JSON(http.StatusBadRequest, gin.H{
+		"success": false,
+		"message": err.Error(),
+	})
+}
+
+func normalizeTokenPeriod(req dto.TokenRequest) (normalizedTokenPeriod, error) {
+	periodType := strings.TrimSpace(req.PeriodType)
+	unit := strings.TrimSpace(req.PeriodLimitUnit)
+	value := strings.TrimSpace(req.PeriodLimitValue)
+
+	switch periodType {
+	case "":
+		if unit != "" && unit != "cny" && unit != "quota" {
+			return normalizedTokenPeriod{}, errors.New("period_limit_unit 无效")
+		}
+		if value != "" {
+			parsed, err := decimal.NewFromString(value)
+			if err != nil || !parsed.IsZero() {
+				return normalizedTokenPeriod{}, errors.New("禁用周期限额时 period_limit_value 必须为 0")
+			}
+		}
+		return normalizedTokenPeriod{}, nil
+	case common.TokenPeriodTypeDays, common.TokenPeriodTypeWeek, common.TokenPeriodTypeMonth:
+	default:
+		return normalizedTokenPeriod{}, errors.New("period_type 无效")
+	}
+
+	if unit != "cny" && unit != "quota" {
+		return normalizedTokenPeriod{}, errors.New("period_limit_unit 无效")
+	}
+	if value == "" {
+		return normalizedTokenPeriod{}, errors.New("period_limit_value 不能为空")
+	}
+	if periodType == common.TokenPeriodTypeDays && (req.PeriodDays < 1 || req.PeriodDays > tokenPeriodMaxDays) {
+		return normalizedTokenPeriod{}, errors.New("period_days 必须在 1 到 3650 之间")
+	}
+
+	parsed, err := decimal.NewFromString(value)
+	if err != nil || !parsed.IsPositive() {
+		return normalizedTokenPeriod{}, errors.New("period_limit_value 必须为正数")
+	}
+
+	var limit int64
+	if unit == "quota" {
+		if !parsed.IsInteger() {
+			return normalizedTokenPeriod{}, errors.New("quota 周期限额必须为正整数")
+		}
+		max := decimal.NewFromInt(int64(common.MaxQuota))
+		if parsed.GreaterThan(max) {
+			return normalizedTokenPeriod{}, fmt.Errorf("period_quota_limit 不能超过 %d", common.MaxQuota)
+		}
+		limit = parsed.IntPart()
+	} else {
+		if operation_setting.USDExchangeRate <= 0 || math.IsNaN(operation_setting.USDExchangeRate) || math.IsInf(operation_setting.USDExchangeRate, 0) ||
+			common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
+			return normalizedTokenPeriod{}, errors.New("当前汇率配置无效")
+		}
+		quotaDecimal := parsed.
+			Div(decimal.NewFromFloat(operation_setting.USDExchangeRate)).
+			Mul(decimal.NewFromFloat(common.QuotaPerUnit))
+		quota, clamp := common.QuotaFromDecimalChecked(quotaDecimal)
+		if clamp != nil {
+			return normalizedTokenPeriod{}, errors.New("period_limit_value 超出额度上限")
+		}
+		if quota < 1 || quota > common.MaxQuota {
+			return normalizedTokenPeriod{}, fmt.Errorf("period_quota_limit 必须在 1 到 %d 之间", common.MaxQuota)
+		}
+		limit = int64(quota)
+	}
+	if limit < 1 || limit > int64(common.MaxQuota) {
+		return normalizedTokenPeriod{}, fmt.Errorf("period_quota_limit 必须在 1 到 %d 之间", common.MaxQuota)
+	}
+
+	periodDays := req.PeriodDays
+	if periodType != common.TokenPeriodTypeDays {
+		periodDays = 0
+	}
+	return normalizedTokenPeriod{periodType: periodType, periodDays: periodDays, limit: limit, unit: unit}, nil
+}
+
+func applyTokenPeriodConfig(token *model.Token, config normalizedTokenPeriod, now time.Time) error {
+	if token == nil {
+		return errors.New("token 为空")
+	}
+	oldEnabled := token.PeriodLimitEnabled()
+	newEnabled := config.periodType != "" && config.limit > 0
+	if !newEnabled {
+		// Disabling a policy clears all three state columns and canonical config.
+		token.PeriodType = ""
+		token.PeriodDays = 0
+		token.PeriodQuotaLimit = 0
+		token.PeriodLimitUnit = ""
+		token.PeriodAnchorAt = 0
+		token.PeriodStartAt = 0
+		token.PeriodUsedQuota = 0
+		return nil
+	}
+
+	shapeChanged := !oldEnabled || token.PeriodType != config.periodType || token.PeriodDays != config.periodDays
+	token.PeriodType = config.periodType
+	token.PeriodDays = config.periodDays
+	token.PeriodQuotaLimit = config.limit
+	token.PeriodLimitUnit = config.unit
+	if shapeChanged {
+		anchor := common.TokenPeriodAnchorNow(now)
+		start, _, ok := common.TokenPeriodBounds(config.periodType, config.periodDays, anchor, now)
+		if !ok {
+			return errors.New("period_type 或 period_days 无效")
+		}
+		token.PeriodAnchorAt = anchor
+		token.PeriodStartAt = start
+		token.PeriodUsedQuota = 0
+	}
+	return nil
+}
+
+func tokenPeriodConfigNeedsReset(token *model.Token, config normalizedTokenPeriod) bool {
+	if config.periodType == "" || config.limit <= 0 {
+		return true
+	}
+	if token == nil || !token.PeriodLimitEnabled() {
+		return true
+	}
+	return token.PeriodType != config.periodType || token.PeriodDays != config.periodDays
+}
+
+func enrichTokenPeriodResponse(token *model.Token) {
+	if token == nil {
+		return
+	}
+	if !token.PeriodLimitEnabled() {
+		token.PeriodResetAt = 0
+		token.PeriodRemainingQuota = 0
+		token.PeriodUsedQuota = 0
+		return
+	}
+	state := model.TokenPeriodState{
+		Type:      token.PeriodType,
+		Days:      token.PeriodDays,
+		Limit:     token.PeriodQuotaLimit,
+		Unit:      token.PeriodLimitUnit,
+		AnchorAt:  token.PeriodAnchorAt,
+		StartAt:   token.PeriodStartAt,
+		UsedQuota: token.PeriodUsedQuota,
+	}
+	now := time.Now()
+	effectiveUsed := state.EffectiveUsed(now)
+	token.PeriodUsedQuota = effectiveUsed
+	token.PeriodResetAt = state.ResetAt(now)
+	token.PeriodRemainingQuota = token.PeriodQuotaLimit - effectiveUsed
+	if token.PeriodRemainingQuota < 0 {
+		token.PeriodRemainingQuota = 0
+	}
+}
 
 func buildMaskedTokenResponse(token *model.Token) *model.Token {
 	if token == nil {
@@ -20,6 +191,7 @@ func buildMaskedTokenResponse(token *model.Token) *model.Token {
 	}
 	maskedToken := *token
 	maskedToken.Key = token.GetMaskedKey()
+	enrichTokenPeriodResponse(&maskedToken)
 	return &maskedToken
 }
 
@@ -165,27 +337,32 @@ func GetTokenUsage(c *gin.Context) {
 }
 
 func AddToken(c *gin.Context) {
-	token := model.Token{}
-	err := c.ShouldBindJSON(&token)
+	request := dto.TokenRequest{}
+	err := c.ShouldBindJSON(&request)
 	if err != nil {
-		common.ApiError(c, err)
+		tokenBadRequest(c, err)
 		return
 	}
-	if len(token.Name) > 50 {
+	if len(request.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
 	}
 	// 非无限额度时，检查额度值是否超出有效范围
-	if !token.UnlimitedQuota {
-		if token.RemainQuota < 0 {
+	if !request.UnlimitedQuota {
+		if request.RemainQuota < 0 {
 			common.ApiErrorI18n(c, i18n.MsgTokenQuotaNegative)
 			return
 		}
 		maxQuotaValue := int((1000000000 * common.QuotaPerUnit))
-		if token.RemainQuota > maxQuotaValue {
+		if request.RemainQuota > maxQuotaValue {
 			common.ApiErrorI18n(c, i18n.MsgTokenQuotaExceedMax, map[string]any{"Max": maxQuotaValue})
 			return
 		}
+	}
+	periodConfig, err := normalizeTokenPeriod(request)
+	if err != nil {
+		tokenBadRequest(c, err)
+		return
 	}
 	// 检查用户令牌数量是否已达上限
 	maxTokens := operation_setting.GetMaxUserTokens()
@@ -209,18 +386,22 @@ func AddToken(c *gin.Context) {
 	}
 	cleanToken := model.Token{
 		UserId:             c.GetInt("id"),
-		Name:               token.Name,
+		Name:               request.Name,
 		Key:                key,
 		CreatedTime:        common.GetTimestamp(),
 		AccessedTime:       common.GetTimestamp(),
-		ExpiredTime:        token.ExpiredTime,
-		RemainQuota:        token.RemainQuota,
-		UnlimitedQuota:     token.UnlimitedQuota,
-		ModelLimitsEnabled: token.ModelLimitsEnabled,
-		ModelLimits:        token.ModelLimits,
-		AllowIps:           token.AllowIps,
-		Group:              token.Group,
-		CrossGroupRetry:    token.CrossGroupRetry,
+		ExpiredTime:        request.ExpiredTime,
+		RemainQuota:        request.RemainQuota,
+		UnlimitedQuota:     request.UnlimitedQuota,
+		ModelLimitsEnabled: request.ModelLimitsEnabled,
+		ModelLimits:        request.ModelLimits,
+		AllowIps:           request.AllowIps,
+		Group:              request.Group,
+		CrossGroupRetry:    request.CrossGroupRetry,
+	}
+	if err := applyTokenPeriodConfig(&cleanToken, periodConfig, time.Now()); err != nil {
+		tokenBadRequest(c, err)
+		return
 	}
 	err = cleanToken.Insert()
 	if err != nil {
@@ -250,33 +431,33 @@ func DeleteToken(c *gin.Context) {
 func UpdateToken(c *gin.Context) {
 	userId := c.GetInt("id")
 	statusOnly := c.Query("status_only")
-	token := model.Token{}
-	err := c.ShouldBindJSON(&token)
+	request := dto.TokenRequest{}
+	err := c.ShouldBindJSON(&request)
 	if err != nil {
-		common.ApiError(c, err)
+		tokenBadRequest(c, err)
 		return
 	}
-	if len(token.Name) > 50 {
+	if len(request.Name) > 50 {
 		common.ApiErrorI18n(c, i18n.MsgTokenNameTooLong)
 		return
 	}
-	if !token.UnlimitedQuota {
-		if token.RemainQuota < 0 {
+	if !request.UnlimitedQuota {
+		if request.RemainQuota < 0 {
 			common.ApiErrorI18n(c, i18n.MsgTokenQuotaNegative)
 			return
 		}
 		maxQuotaValue := int((1000000000 * common.QuotaPerUnit))
-		if token.RemainQuota > maxQuotaValue {
+		if request.RemainQuota > maxQuotaValue {
 			common.ApiErrorI18n(c, i18n.MsgTokenQuotaExceedMax, map[string]any{"Max": maxQuotaValue})
 			return
 		}
 	}
-	cleanToken, err := model.GetTokenByIds(token.Id, userId)
+	cleanToken, err := model.GetTokenByIds(request.Id, userId)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	if token.Status == common.TokenStatusEnabled {
+	if request.Status == common.TokenStatusEnabled {
 		if cleanToken.Status == common.TokenStatusExpired && cleanToken.ExpiredTime <= common.GetTimestamp() && cleanToken.ExpiredTime != -1 {
 			common.ApiErrorI18n(c, i18n.MsgTokenExpiredCannotEnable)
 			return
@@ -286,21 +467,40 @@ func UpdateToken(c *gin.Context) {
 			return
 		}
 	}
+	periodStateReset := false
 	if statusOnly != "" {
-		cleanToken.Status = token.Status
+		// status_only is intentionally isolated from period configuration and
+		// counters, including malformed client-supplied period fields.
+		cleanToken.Status = request.Status
 	} else {
+		periodConfig, periodErr := normalizeTokenPeriod(request)
+		if periodErr != nil {
+			tokenBadRequest(c, periodErr)
+			return
+		}
+		periodStateReset = tokenPeriodConfigNeedsReset(cleanToken, periodConfig)
 		// If you add more fields, please also update token.Update()
-		cleanToken.Name = token.Name
-		cleanToken.ExpiredTime = token.ExpiredTime
-		cleanToken.RemainQuota = token.RemainQuota
-		cleanToken.UnlimitedQuota = token.UnlimitedQuota
-		cleanToken.ModelLimitsEnabled = token.ModelLimitsEnabled
-		cleanToken.ModelLimits = token.ModelLimits
-		cleanToken.AllowIps = token.AllowIps
-		cleanToken.Group = token.Group
-		cleanToken.CrossGroupRetry = token.CrossGroupRetry
+		cleanToken.Name = request.Name
+		cleanToken.ExpiredTime = request.ExpiredTime
+		cleanToken.RemainQuota = request.RemainQuota
+		cleanToken.UnlimitedQuota = request.UnlimitedQuota
+		cleanToken.ModelLimitsEnabled = request.ModelLimitsEnabled
+		cleanToken.ModelLimits = request.ModelLimits
+		cleanToken.AllowIps = request.AllowIps
+		cleanToken.Group = request.Group
+		cleanToken.CrossGroupRetry = request.CrossGroupRetry
+		if periodErr := applyTokenPeriodConfig(cleanToken, periodConfig, time.Now()); periodErr != nil {
+			tokenBadRequest(c, periodErr)
+			return
+		}
 	}
-	err = cleanToken.Update()
+	if statusOnly != "" {
+		err = cleanToken.SelectUpdate()
+	} else if periodStateReset {
+		err = cleanToken.UpdatePeriodConfig()
+	} else {
+		err = cleanToken.UpdatePeriodConfigPreserveState()
+	}
 	if err != nil {
 		common.ApiError(c, err)
 		return

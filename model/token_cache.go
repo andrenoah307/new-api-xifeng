@@ -10,12 +10,24 @@ import (
 
 func cacheSetToken(token Token) error {
 	key := common.GenerateHMAC(token.Key)
-	token.Clean()
-	err := common.RedisHSetObj(fmt.Sprintf("token:%s", key), &token, time.Duration(common.RedisKeyCacheSeconds())*time.Second)
+	cachedToken := tokenCacheProjection(token)
+	err := common.RedisHSetObj(fmt.Sprintf("token:%s", key), &cachedToken, time.Duration(common.RedisKeyCacheSeconds())*time.Second)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func tokenCacheProjection(token Token) Token {
+	// RedisHSetObj reflects every struct field. Keep the accounting counters out
+	// of the cache projection and do this on a copy so callers are untouched.
+	cachedToken := token
+	cachedToken.PeriodStartAt = -1
+	cachedToken.PeriodUsedQuota = -1
+	cachedToken.PeriodResetAt = 0
+	cachedToken.PeriodRemainingQuota = 0
+	cachedToken.Clean()
+	return cachedToken
 }
 
 func cacheDeleteToken(key string) error {
@@ -61,5 +73,11 @@ func cacheGetTokenByKey(key string) (*Token, error) {
 		return nil, err
 	}
 	token.Key = key
+	if token.PeriodStartAt < 0 || token.PeriodUsedQuota < 0 {
+		// A cached policy row is never authoritative for period state, including
+		// hashes written before the sentinel rollout. Force the caller through a
+		// database read so no stale counter can be consumed.
+		return nil, fmt.Errorf("token period state must be loaded from database")
+	}
 	return &token, nil
 }

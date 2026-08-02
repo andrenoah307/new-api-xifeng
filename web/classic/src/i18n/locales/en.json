@@ -5036,6 +5036,21 @@
     "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "5m缓存创建": "5m cache creation",
     "1h缓存创建": "1h cache creation",
-    "命中档位：{{tier}}": "Matched tier: {{tier}}"
+    "命中档位：{{tier}}": "Matched tier: {{tier}}",
+    "周期限额": "Period Quota",
+    "设置每个周期的令牌额度上限": "Set a recurring quota limit for each token cycle",
+    "启用周期限额": "Enable period quota",
+    "周期限额独立统计，不受令牌无限额度开关影响": "Period quota is tracked independently of the unlimited token quota switch",
+    "周期类型": "Period type",
+    "每 N 天": "Every N days",
+    "周期天数": "Number of days per period",
+    "周期限额单位": "Period limit unit",
+    "人民币（¥）": "CNY (¥)",
+    "周期限额值": "Period limit",
+    "下次重置时间": "Next reset time",
+    "周期天数必须在 1 到 3650 之间": "Period days must be between 1 and 3650",
+    "原生额度必须为正整数": "Native quota must be a positive integer",
+    "周期限额超出可用范围": "Period limit is outside the allowed range",
+    "周期限额必须大于 0": "Period limit must be greater than zero"
   }
 }

@@ -210,6 +210,9 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 			Description: err.Error(),
 		}
 	}
+	if apiErr := service.CheckTokenPeriodGate(info, priceData.Quota); apiErr != nil {
+		return &dto.MidjourneyResponse{Code: 4, Description: apiErr.Error()}
+	}
 
 	userQuota, err := model.GetUserQuota(info.UserId, false)
 	if err != nil {
@@ -258,23 +261,30 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 	}()
 	midjResponse := &mjResp.Response
 	midjourneyTask := &model.Midjourney{
-		UserId:      info.UserId,
-		Code:        midjResponse.Code,
-		Action:      constant.MjActionSwapFace,
-		MjId:        midjResponse.Result,
-		Prompt:      "InsightFace",
-		PromptEn:    "",
-		Description: midjResponse.Description,
-		State:       "",
-		SubmitTime:  info.StartTime.UnixNano() / int64(time.Millisecond),
-		StartTime:   time.Now().UnixNano() / int64(time.Millisecond),
-		FinishTime:  0,
-		ImageUrl:    "",
-		Status:      "",
-		Progress:    "0%",
-		FailReason:  "",
-		ChannelId:   c.GetInt("channel_id"),
-		Quota:       priceData.Quota,
+		UserId:             info.UserId,
+		TokenId:            info.TokenId,
+		TokenPeriodStartAt: info.TokenPeriodStartAt,
+		Code:               midjResponse.Code,
+		Action:             constant.MjActionSwapFace,
+		MjId:               midjResponse.Result,
+		Prompt:             "InsightFace",
+		PromptEn:           "",
+		Description:        midjResponse.Description,
+		State:              "",
+		SubmitTime:         info.StartTime.UnixNano() / int64(time.Millisecond),
+		StartTime:          time.Now().UnixNano() / int64(time.Millisecond),
+		FinishTime:         0,
+		ImageUrl:           "",
+		Status:             "",
+		Progress:           "0%",
+		FailReason:         "",
+		ChannelId:          c.GetInt("channel_id"),
+		Quota: func() int {
+			if mjResp.StatusCode == http.StatusOK && mjResp.Response.Code == 1 {
+				return priceData.Quota
+			}
+			return 0
+		}(),
 	}
 	err = midjourneyTask.Insert()
 	if err != nil {
@@ -517,6 +527,11 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 			Description: err.Error(),
 		}
 	}
+	if consumeQuota {
+		if apiErr := service.CheckTokenPeriodGate(relayInfo, priceData.Quota); apiErr != nil {
+			return &dto.MidjourneyResponse{Code: 4, Description: apiErr.Error()}
+		}
+	}
 
 	userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
 	if err != nil {
@@ -571,23 +586,25 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 	// 24-prompt包含敏感词 {"code":24,"description":"可能包含敏感词","properties":{"promptEn":"nude body","bannedWord":"nude"}}
 	// other: 提交错误，description为错误描述
 	midjourneyTask := &model.Midjourney{
-		UserId:      relayInfo.UserId,
-		Code:        midjResponse.Code,
-		Action:      midjRequest.Action,
-		MjId:        midjResponse.Result,
-		Prompt:      midjRequest.Prompt,
-		PromptEn:    "",
-		Description: midjResponse.Description,
-		State:       "",
-		SubmitTime:  time.Now().UnixNano() / int64(time.Millisecond),
-		StartTime:   0,
-		FinishTime:  0,
-		ImageUrl:    "",
-		Status:      "",
-		Progress:    "0%",
-		FailReason:  "",
-		ChannelId:   c.GetInt("channel_id"),
-		Quota:       priceData.Quota,
+		UserId:             relayInfo.UserId,
+		TokenId:            relayInfo.TokenId,
+		TokenPeriodStartAt: relayInfo.TokenPeriodStartAt,
+		Code:               midjResponse.Code,
+		Action:             midjRequest.Action,
+		MjId:               midjResponse.Result,
+		Prompt:             midjRequest.Prompt,
+		PromptEn:           "",
+		Description:        midjResponse.Description,
+		State:              "",
+		SubmitTime:         time.Now().UnixNano() / int64(time.Millisecond),
+		StartTime:          0,
+		FinishTime:         0,
+		ImageUrl:           "",
+		Status:             "",
+		Progress:           "0%",
+		FailReason:         "",
+		ChannelId:          c.GetInt("channel_id"),
+		Quota:              priceData.Quota,
 	}
 	if midjResponse.Code == 3 {
 		//无实例账号自动禁用渠道（No available account instance）
@@ -603,6 +620,7 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 		//非1-提交成功,21-任务已存在和22-排队中，则记录错误原因
 		midjourneyTask.FailReason = midjResponse.Description
 		consumeQuota = false
+		midjourneyTask.Quota = 0
 	}
 
 	if midjResponse.Code == 21 { //21-任务已存在（处理中或者有结果了）
