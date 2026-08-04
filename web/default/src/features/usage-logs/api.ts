@@ -27,6 +27,7 @@ import type {
   GetLogStatsResponse,
   GetMidjourneyLogsParams,
   GetTaskLogsParams,
+  LogExportParams,
   SubmitOfflineExportParams,
   UserInfo,
 } from './types'
@@ -118,10 +119,10 @@ export const getUserTaskLogs = (params: GetTaskLogsParams) =>
 // ============================================================================
 
 export function getLogExportUrl(
-  params: Record<string, unknown>,
+  params: LogExportParams,
   isAdmin: boolean
 ): string {
-  const qs = buildQueryParams(params)
+  const qs = buildQueryParams({ ...params })
   const path = isAdmin ? '/api/log/export' : '/api/log/self/export'
   return `${path}?${qs}`
 }

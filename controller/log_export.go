@@ -21,7 +21,6 @@ type offlineExportFilters struct {
 	EndTimestamp   int64  `json:"end_timestamp"`
 	ModelName      string `json:"model_name"`
 	TokenName      string `json:"token_name"`
-	ChannelId      int    `json:"channel_id"`
 }
 
 type submitOfflineExportRequest struct {
@@ -39,6 +38,14 @@ func SubmitOfflineExport(c *gin.Context) {
 	var req submitOfflineExportRequest
 	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
 		common.ApiErrorMsg(c, "无效的请求参数")
+		return
+	}
+	if req.Filters.StartTimestamp <= 0 || req.Filters.EndTimestamp <= 0 {
+		common.ApiErrorMsg(c, "导出必须指定起止时间")
+		return
+	}
+	if req.Filters.StartTimestamp > req.Filters.EndTimestamp {
+		common.ApiErrorMsg(c, "导出起始时间不能晚于结束时间")
 		return
 	}
 	userId := c.GetInt("id")

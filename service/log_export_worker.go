@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -231,6 +232,9 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 	if err != nil {
 		return 0, 0, fmt.Errorf("parse filters: %w", err)
 	}
+	if err = validateExportFilters(filters); err != nil {
+		return 0, 0, err
+	}
 
 	ctx := context.Background()
 	var rowCount int
@@ -238,7 +242,7 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 
 	streamErr := model.ExportUserLogs(ctx, task.UserId, 0,
 		filters.StartTimestamp, filters.EndTimestamp,
-		filters.ModelName, filters.TokenName, filters.Group, "",
+		filters.ModelName, filters.TokenName, filters.Group, "", "",
 		func(logs []*model.Log) error {
 			for _, log := range logs {
 				if truncated {
@@ -440,7 +444,6 @@ type exportFilters struct {
 	EndTimestamp   int64  `json:"end_timestamp"`
 	ModelName      string `json:"model_name"`
 	TokenName      string `json:"token_name"`
-	ChannelId      int    `json:"channel_id"`
 	Group          string `json:"group"`
 }
 
@@ -453,6 +456,13 @@ func parseExportFilters(filtersJSON string) (*exportFilters, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+func validateExportFilters(filters *exportFilters) error {
+	if filters == nil || filters.StartTimestamp <= 0 || filters.EndTimestamp <= 0 || filters.StartTimestamp > filters.EndTimestamp {
+		return errors.New("invalid export time range")
+	}
+	return nil
 }
 
 func compressFileGzip(src, dst string) (int64, error) {

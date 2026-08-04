@@ -674,13 +674,13 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 	return logs, total, err
 }
 
-func ExportAllLogs(ctx context.Context, logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId string, callback func([]*Log) error) error {
-	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, "")
+func ExportAllLogs(ctx context.Context, logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId, upstreamRequestId string, callback func([]*Log) error) error {
+	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, upstreamRequestId)
 	return streamLogs(ctx, tx, true, callback)
 }
 
-func ExportUserLogs(ctx context.Context, userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId string, callback func([]*Log) error) error {
-	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, "")
+func ExportUserLogs(ctx context.Context, userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId, upstreamRequestId string, callback func([]*Log) error) error {
+	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, upstreamRequestId)
 	return streamLogs(ctx, tx, false, callback)
 }
 

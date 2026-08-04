@@ -867,20 +867,25 @@ export const useLogsData = () => {
   const [exporting, setExporting] = useState(false);
 
   const handleExport = async () => {
+    const formValues = formApi ? formApi.getValues() : {};
+    const dateRange = formValues.dateRange || [];
+    if (!dateRange[0] || !dateRange[1]) {
+      showError(t('请选择日志记录时间'));
+      return;
+    }
+
     setExporting(true);
     const toastId = 'log-export';
     Toast.info({ content: t('正在导出日志...'), id: toastId, duration: 0 });
     try {
-      const formValues = formApi ? formApi.getValues() : {};
-      const dateRange = formValues.dateRange || [];
-      let localStartTimestamp = dateRange[0] ? Date.parse(dateRange[0]) / 1000 : 0;
-      let localEndTimestamp = dateRange[1] ? Date.parse(dateRange[1]) / 1000 : 0;
+      const localStartTimestamp = Math.floor(Date.parse(dateRange[0]) / 1000);
+      const localEndTimestamp = Math.floor(Date.parse(dateRange[1]) / 1000);
 
       const currentLogType = formValues.logType !== undefined ? formValues.logType : logType;
       const params = new URLSearchParams();
       if (currentLogType) params.set('type', String(currentLogType));
-      if (localStartTimestamp) params.set('start_timestamp', String(localStartTimestamp));
-      if (localEndTimestamp) params.set('end_timestamp', String(localEndTimestamp));
+      params.set('start_timestamp', String(localStartTimestamp));
+      params.set('end_timestamp', String(localEndTimestamp));
       if (formValues.token_name) params.set('token_name', formValues.token_name);
       if (formValues.model_name) params.set('model_name', formValues.model_name);
       if (formValues.group) params.set('group', formValues.group);

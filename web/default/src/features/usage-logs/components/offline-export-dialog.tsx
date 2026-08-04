@@ -63,7 +63,6 @@ export function OfflineExportDialog({
         end_timestamp: endTs,
         ...(filters.model ? { model_name: filters.model } : {}),
         ...(filters.token ? { token_name: filters.token } : {}),
-        ...(filters.channel ? { channel_id: Number(filters.channel) } : {}),
       },
     })
   }
@@ -102,12 +101,6 @@ export function OfflineExportDialog({
               <div className='flex justify-between'>
                 <span className='text-muted-foreground'>{t('Token Name')}</span>
                 <span>{filters.token}</span>
-              </div>
-            )}
-            {filters.channel && (
-              <div className='flex justify-between'>
-                <span className='text-muted-foreground'>{t('Channel ID')}</span>
-                <span>{filters.channel}</span>
               </div>
             )}
             {logType && (

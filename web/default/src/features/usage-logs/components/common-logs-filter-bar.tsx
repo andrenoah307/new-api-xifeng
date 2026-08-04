@@ -16,12 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Download, CloudDownload, ListTodo } from 'lucide-react'
+import { CloudDownload, Download, Eye, EyeOff, ListTodo } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQueryClient, useIsFetching } from '@tanstack/react-query'
 import { useNavigate, getRouteApi } from '@tanstack/react-router'
 import type { Table } from '@tanstack/react-table'
-import { Eye, EyeOff } from 'lucide-react'
 import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -44,6 +43,7 @@ import { getCommonHeaders } from '@/lib/api'
 
 import { getLogExportUrl } from '../api'
 import { LOG_TYPE_ALL_VALUE, LOG_TYPE_FILTERS } from '../constants'
+import { buildExportParams } from '../lib/export-params'
 import { buildSearchParams } from '../lib/filter'
 import { getDefaultTimeRange } from '../lib/utils'
 import type { CommonLogFilters } from '../types'
@@ -247,12 +247,15 @@ export function CommonLogsFilterBar<TData>(
   const [exporting, setExporting] = useState(false)
 
   const handleExport = useCallback(async () => {
+    const exportParams = buildExportParams(filters, logType, isAdmin)
+    if (!exportParams) {
+      toast.error(t('Please select a time range'))
+      return
+    }
+
     setExporting(true)
     const toastId = toast.loading(t('Exporting logs...'))
     try {
-      const params = buildSearchParams(filters, 'common')
-      const exportParams: Record<string, unknown> = { ...params }
-      if (logType) exportParams.type = logType
       const url = getLogExportUrl(exportParams, isAdmin)
       const response = await fetch(url, {
         credentials: 'include',

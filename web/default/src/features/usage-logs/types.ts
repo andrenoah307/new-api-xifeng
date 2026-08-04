@@ -359,6 +359,19 @@ export interface GetLogStatsResponse {
   data?: LogStatistics
 }
 
+export interface LogExportParams {
+  start_timestamp: number
+  end_timestamp: number
+  type?: number
+  model_name?: string
+  token_name?: string
+  group?: string
+  request_id?: string
+  upstream_request_id?: string
+  username?: string
+  channel?: number
+}
+
 // ============================================================================
 // Drawing Log Types
 // ============================================================================
@@ -414,7 +427,6 @@ export interface SubmitOfflineExportParams {
     end_timestamp: number
     model_name?: string
     token_name?: string
-    channel_id?: number
   }
   email?: string
 }
