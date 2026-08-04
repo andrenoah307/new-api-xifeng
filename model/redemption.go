@@ -195,13 +195,13 @@ func (redemption *Redemption) Insert() error {
 
 func (redemption *Redemption) SelectUpdate() error {
 	// This can update zero values
-	return DB.Model(redemption).Select("redeemed_time", "status").Updates(redemption).Error
+	return DB.Model(redemption).Select("status").Updates(redemption).Error
 }
 
 // Update Make sure your token's fields is completed, because this will update non-zero values
 func (redemption *Redemption) Update() error {
 	var err error
-	err = DB.Model(redemption).Select("name", "status", "quota", "redeemed_time", "expired_time").Updates(redemption).Error
+	err = DB.Model(redemption).Select("name", "quota", "expired_time").Updates(redemption).Error
 	return err
 }
 

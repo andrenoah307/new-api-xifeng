@@ -136,6 +136,22 @@ func UpdateUserSetting(userId int, setting dto.UserSetting) error {
 	return updateUserSettingCache(userId, settingValue)
 }
 
+// UpdateUserAccessToken writes only the token while the user is still enabled.
+// The status predicate prevents a stale self-service snapshot from reviving a
+// user that was disabled between the read and the write.
+func UpdateUserAccessToken(userId int, token string) error {
+	result := DB.Model(&User{}).
+		Where("id = ? AND status = ?", userId, common.UserStatusEnabled).
+		Update("access_token", token)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrUserNotEnabled
+	}
+	return invalidateUserCache(userId)
+}
+
 // 根据用户角色生成默认的边栏配置
 func generateDefaultSidebarConfigForRole(userRole int) string {
 	defaultConfig := map[string]interface{}{}

@@ -94,10 +94,7 @@ func GetUsableInvitationCodeWithTx(tx *gorm.DB, code string) (*InvitationCode, e
 		return nil, ErrInvitationCodeRequired
 	}
 	invitationCode := &InvitationCode{}
-	query := tx
-	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
-		query = query.Set("gorm:query_option", "FOR UPDATE")
-	}
+	query := lockForUpdate(tx)
 	if err := query.Where("code = ?", trimmedCode).First(invitationCode).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrInvitationCodeInvalid
@@ -120,8 +117,16 @@ func ConsumeInvitationCodeWithTx(tx *gorm.DB, invitationCode *InvitationCode, us
 	if invitationCode.MaxUses > 0 && invitationCode.UsedCount+1 > invitationCode.MaxUses {
 		return ErrInvitationCodeExhausted
 	}
-	if err := tx.Model(invitationCode).Update("used_count", gorm.Expr("used_count + ?", 1)).Error; err != nil {
-		return err
+	update := tx.Model(&InvitationCode{}).Where("id = ?", invitationCode.Id)
+	if invitationCode.MaxUses > 0 {
+		update = update.Where("used_count < ?", invitationCode.MaxUses)
+	}
+	result := update.Update("used_count", gorm.Expr("used_count + ?", 1))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return ErrInvitationCodeExhausted
 	}
 	invitationCode.UsedCount++
 	usage := &InvitationCodeUsage{

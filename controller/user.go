@@ -400,11 +400,6 @@ func GetUser(c *gin.Context) {
 
 func GenerateAccessToken(c *gin.Context) {
 	id := c.GetInt("id")
-	user, err := model.GetUserById(id, true)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
 	// get rand int 28-32
 	randI := common.GetRandomInt(4)
 	key, err := common.GenerateRandomKey(29 + randI)
@@ -413,14 +408,17 @@ func GenerateAccessToken(c *gin.Context) {
 		common.SysLog("failed to generate key: " + err.Error())
 		return
 	}
-	user.SetAccessToken(key)
-
-	if model.DB.Where("access_token = ?", user.AccessToken).First(user).RowsAffected != 0 {
+	var existing model.User
+	if model.DB.Select("id").Where("access_token = ?", key).First(&existing).RowsAffected != 0 {
 		common.ApiErrorI18n(c, i18n.MsgUuidDuplicate)
 		return
 	}
 
-	if err := user.Update(false); err != nil {
+	if err := model.UpdateUserAccessToken(id, key); err != nil {
+		if errors.Is(err, model.ErrUserNotEnabled) {
+			common.ApiErrorI18n(c, i18n.MsgUserDisabled)
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}
@@ -428,7 +426,7 @@ func GenerateAccessToken(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    user.AccessToken,
+		"data":    key,
 	})
 	return
 }
@@ -469,13 +467,31 @@ func GetAffCode(c *gin.Context) {
 		return
 	}
 	if user.AffCode == "" {
-		user.AffCode = common.GetRandomString(4)
-		if err := user.Update(false); err != nil {
+		candidate := common.GetRandomString(4)
+		result := model.DB.Model(&model.User{}).
+			Where("id = ? AND (aff_code IS NULL OR aff_code = ?)", id, "").
+			Update("aff_code", candidate)
+		if result.Error != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
-				"message": err.Error(),
+				"message": result.Error.Error(),
 			})
 			return
+		}
+		if result.RowsAffected == 0 {
+			var current struct {
+				AffCode string `gorm:"column:aff_code"`
+			}
+			if err := model.DB.Model(&model.User{}).Select("aff_code").Where("id = ?", id).First(&current).Error; err != nil {
+				c.JSON(http.StatusOK, gin.H{
+					"success": false,
+					"message": err.Error(),
+				})
+				return
+			}
+			user.AffCode = current.AffCode
+		} else {
+			user.AffCode = candidate
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{

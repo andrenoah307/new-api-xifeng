@@ -157,15 +157,17 @@ func UpdateRedemption(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
 			return
 		}
-		// If you add more fields, please also update redemption.Update()
+		// If you add more editable fields, please also update redemption.Update().
 		cleanRedemption.Name = redemption.Name
 		cleanRedemption.Quota = redemption.Quota
 		cleanRedemption.ExpiredTime = redemption.ExpiredTime
 	}
 	if statusOnly != "" {
 		cleanRedemption.Status = redemption.Status
+		err = cleanRedemption.SelectUpdate()
+	} else {
+		err = cleanRedemption.Update()
 	}
-	err = cleanRedemption.Update()
 	if err != nil {
 		common.ApiError(c, err)
 		return

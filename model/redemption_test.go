@@ -179,3 +179,55 @@ func TestRedeemConcurrentSingleSuccess(t *testing.T) {
 	require.NoError(t, DB.First(&user, "id = ?", userId).Error)
 	assert.Equal(t, 300, user.Quota, "quota must be credited exactly once")
 }
+
+func TestRedemptionUpdateDoesNotRestoreUsedState(t *testing.T) {
+	setupRedeemFixture(t, 500)
+
+	var original Redemption
+	require.NoError(t, DB.Where("name = ?", "redeem-test").First(&original).Error)
+	usedTime := int64(123456)
+	require.NoError(t, DB.Model(&Redemption{}).Where("id = ?", original.Id).Updates(map[string]interface{}{
+		"status":        common.RedemptionCodeStatusUsed,
+		"redeemed_time": usedTime,
+		"used_user_id":  77,
+	}).Error)
+
+	stale := original
+	stale.Name = "edited-name"
+	stale.Quota = 900
+	stale.ExpiredTime = common.GetTimestamp() + 3600
+	stale.Status = common.RedemptionCodeStatusEnabled
+	stale.RedeemedTime = 0
+	require.NoError(t, stale.Update())
+
+	var got Redemption
+	require.NoError(t, DB.First(&got, original.Id).Error)
+	assert.Equal(t, "edited-name", got.Name)
+	assert.Equal(t, 900, got.Quota)
+	assert.Equal(t, stale.ExpiredTime, got.ExpiredTime)
+	assert.Equal(t, common.RedemptionCodeStatusUsed, got.Status)
+	assert.Equal(t, usedTime, got.RedeemedTime)
+	assert.Equal(t, 77, got.UsedUserId)
+}
+
+func TestRedemptionSelectUpdateOnlyChangesStatus(t *testing.T) {
+	setupRedeemFixture(t, 500)
+
+	var original Redemption
+	require.NoError(t, DB.Where("name = ?", "redeem-test").First(&original).Error)
+	usedTime := int64(654321)
+	require.NoError(t, DB.Model(&Redemption{}).Where("id = ?", original.Id).Updates(map[string]interface{}{
+		"status":        common.RedemptionCodeStatusDisabled,
+		"redeemed_time": usedTime,
+	}).Error)
+
+	stale := original
+	stale.Status = common.RedemptionCodeStatusEnabled
+	stale.RedeemedTime = 0
+	require.NoError(t, stale.SelectUpdate())
+
+	var got Redemption
+	require.NoError(t, DB.First(&got, original.Id).Error)
+	assert.Equal(t, common.RedemptionCodeStatusEnabled, got.Status)
+	assert.Equal(t, usedTime, got.RedeemedTime)
+}
