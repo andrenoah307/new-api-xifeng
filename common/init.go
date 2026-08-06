@@ -165,6 +165,7 @@ func initRelayAdmissionEnv() {
 	RelayMaxActiveBodyBytes = GetEnvOrDefaultInt64("RELAY_MAX_ACTIVE_BODY_BYTES", 0)
 	RelayMemoryBreakerHighPercent = GetEnvOrDefault("RELAY_MEMORY_BREAKER_HIGH_PERCENT", 0)
 	RelayMemoryBreakerLowPercent = GetEnvOrDefault("RELAY_MEMORY_BREAKER_LOW_PERCENT", 75)
+	RelayMemoryBreakerMaxTripSeconds = max(0, GetEnvOrDefault("RELAY_MEMORY_BREAKER_MAX_TRIP_SECONDS", 0))
 	if lowPercent, invalid := normalizeRelayMemoryBreakerThresholds(RelayMemoryBreakerHighPercent, RelayMemoryBreakerLowPercent); invalid {
 		relayMemoryBreakerConfigWarningOnce.Do(func() {
 			SysLog(fmt.Sprintf(

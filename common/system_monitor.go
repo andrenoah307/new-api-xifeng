@@ -79,3 +79,8 @@ func updateSystemStatus() {
 func GetSystemStatus() SystemStatus {
 	return latestSystemStatus.Load().(SystemStatus)
 }
+
+// SetSystemStatus replaces the current system status snapshot.
+func SetSystemStatus(status SystemStatus) {
+	latestSystemStatus.Store(status)
+}

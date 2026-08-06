@@ -1,12 +1,15 @@
 package common
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -245,7 +248,7 @@ func TestCgroupMemoryBreakerHysteresis(t *testing.T) {
 				usageBytes: test.usage,
 				limitBytes: test.limit,
 				available:  test.available,
-			}, 80, 70)
+			}, 80, 70, 0)
 
 			assert.Equal(t, test.wantTripped, breaker.isTripped())
 		})
@@ -295,10 +298,10 @@ func TestCgroupMemoryBreakerSmallHighFallbackCanRecover(t *testing.T) {
 			require.Zero(t, low)
 
 			breaker := &cgroupMemoryBreaker{}
-			breaker.update(cgroupMemorySample{usageBytes: test.tripUsage, limitBytes: 100, available: true}, uint64(test.high), uint64(low))
+			breaker.update(cgroupMemorySample{usageBytes: test.tripUsage, limitBytes: 100, available: true}, uint64(test.high), uint64(low), 0)
 			require.True(t, breaker.isTripped())
 
-			breaker.update(cgroupMemorySample{usageBytes: test.recoveryUsage, limitBytes: 100, available: true}, uint64(test.high), uint64(low))
+			breaker.update(cgroupMemorySample{usageBytes: test.recoveryUsage, limitBytes: 100, available: true}, uint64(test.high), uint64(low), 0)
 			assert.False(t, breaker.isTripped())
 		})
 	}
@@ -355,12 +358,14 @@ func TestCgroupMemorySamplerUpdatesOnlyOnSampleTicks(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(fixture.memoryDir, "memory.stat"), []byte("inactive_file 0\n"), 0o600))
 
 	breaker := &cgroupMemoryBreaker{}
+	rawStatus := &cgroupMemoryRawStatus{}
 	sampler := &cgroupMemorySampler{
 		cgroupFile:    fixture.cgroupFile,
 		mountInfoFile: fixture.mountInfoFile,
 		highPercent:   80,
 		lowPercent:    70,
 		breaker:       breaker,
+		rawStatus:     rawStatus,
 	}
 	ticks := make(chan time.Time, 1)
 	ticks <- time.Time{}
@@ -373,22 +378,379 @@ func TestCgroupMemorySamplerUpdatesOnlyOnSampleTicks(t *testing.T) {
 	assert.False(t, breaker.isTripped())
 }
 
-func TestInitCgroupMemorySamplerIsOptInAndExposesAtomicState(t *testing.T) {
+func TestCgroupMemorySamplerUsesConfiguredMaxTripDuration(t *testing.T) {
+	fixture := newCgroupMemoryFixture(t, 2)
+	require.NoError(t, os.WriteFile(filepath.Join(fixture.memoryDir, "memory.current"), []byte("85\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(fixture.memoryDir, "memory.max"), []byte("100\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(fixture.memoryDir, "memory.stat"), []byte("inactive_file 0\n"), 0o600))
+
+	previousNowFunc := cgroupMemoryNowFunc
+	previousMaxTripSeconds := RelayMemoryBreakerMaxTripSeconds
+	previousWriter := gin.DefaultWriter
+	currentTime := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	cgroupMemoryNowFunc = func() time.Time { return currentTime }
+	RelayMemoryBreakerMaxTripSeconds = 300
+	gin.DefaultWriter = &bytes.Buffer{}
+	t.Cleanup(func() {
+		cgroupMemoryNowFunc = previousNowFunc
+		RelayMemoryBreakerMaxTripSeconds = previousMaxTripSeconds
+		gin.DefaultWriter = previousWriter
+	})
+
+	breaker := &cgroupMemoryBreaker{}
+	sampler := &cgroupMemorySampler{
+		cgroupFile:    fixture.cgroupFile,
+		mountInfoFile: fixture.mountInfoFile,
+		highPercent:   80,
+		lowPercent:    70,
+		breaker:       breaker,
+		rawStatus:     &cgroupMemoryRawStatus{},
+	}
+	sampler.sample()
+	require.True(t, breaker.isTripped())
+
+	currentTime = currentTime.Add(300 * time.Second)
+	sampler.sample()
+
+	assert.False(t, breaker.isTripped())
+	assert.True(t, breaker.disarmed.Load())
+	assert.EqualValues(t, 1, breaker.forcedResetCount.Load())
+}
+
+func TestCgroupMemoryRawStatusRemainsAvailableWhenBreakerDisabled(t *testing.T) {
+	fixture := newCgroupMemoryFixture(t, 2)
+	require.NoError(t, os.WriteFile(filepath.Join(fixture.memoryDir, "memory.current"), []byte("60\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(fixture.memoryDir, "memory.max"), []byte("100\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(fixture.memoryDir, "memory.stat"), []byte("inactive_file 10\n"), 0o600))
+
+	previousStatus := GetCgroupMemoryStatus()
 	previousHigh := RelayMemoryBreakerHighPercent
 	previousLow := RelayMemoryBreakerLowPercent
+	previousMaxTripSeconds := RelayMemoryBreakerMaxTripSeconds
 	t.Cleanup(func() {
+		relayCgroupMemoryRawStatus.available.Store(previousStatus.Available)
+		relayCgroupMemoryRawStatus.usageBytes.Store(previousStatus.UsageBytes)
+		relayCgroupMemoryRawStatus.limitBytes.Store(previousStatus.LimitBytes)
+		relayCgroupMemoryRawStatus.usagePermille.Store(previousStatus.UsagePermille)
 		RelayMemoryBreakerHighPercent = previousHigh
 		RelayMemoryBreakerLowPercent = previousLow
+		RelayMemoryBreakerMaxTripSeconds = previousMaxTripSeconds
 	})
 
 	RelayMemoryBreakerHighPercent = 0
 	RelayMemoryBreakerLowPercent = 75
-	InitCgroupMemorySampler()
+	RelayMemoryBreakerMaxTripSeconds = 0
+	breaker := &cgroupMemoryBreaker{}
+	sampler := &cgroupMemorySampler{
+		cgroupFile:    fixture.cgroupFile,
+		mountInfoFile: fixture.mountInfoFile,
+		highPercent:   0,
+		lowPercent:    75,
+		breaker:       breaker,
+	}
+	sampler.sample()
 
-	RelayMemoryBreakerHighPercent = 101
-	RelayMemoryBreakerLowPercent = 100
-	InitCgroupMemorySampler()
-	assert.False(t, IsCgroupMemoryPressure())
+	assert.Equal(t, CgroupMemoryStatus{
+		Available:     true,
+		UsageBytes:    50,
+		LimitBytes:    100,
+		UsagePermille: 500,
+		HighPercent:   0,
+		LowPercent:    75,
+		Tripped:       false,
+	}, GetCgroupMemoryStatus())
+	assert.False(t, breaker.available.Load())
+}
+
+func TestGetCgroupMemoryStatusBeforeFirstSampleReturnsZeroValues(t *testing.T) {
+	previousStatus := GetCgroupMemoryStatus()
+	previousHigh := RelayMemoryBreakerHighPercent
+	previousLow := RelayMemoryBreakerLowPercent
+	previousMaxTripSeconds := RelayMemoryBreakerMaxTripSeconds
+	previousBreakerAvailable := relayCgroupMemoryBreaker.available.Load()
+	previousBreakerTripped := relayCgroupMemoryBreaker.tripped.Load()
+	previousTrippedSince := relayCgroupMemoryBreaker.trippedSinceUnixNano.Load()
+	previousDisarmed := relayCgroupMemoryBreaker.disarmed.Load()
+	previousTripCount := relayCgroupMemoryBreaker.tripCount.Load()
+	previousForcedResetCount := relayCgroupMemoryBreaker.forcedResetCount.Load()
+	t.Cleanup(func() {
+		relayCgroupMemoryRawStatus.available.Store(previousStatus.Available)
+		relayCgroupMemoryRawStatus.usageBytes.Store(previousStatus.UsageBytes)
+		relayCgroupMemoryRawStatus.limitBytes.Store(previousStatus.LimitBytes)
+		relayCgroupMemoryRawStatus.usagePermille.Store(previousStatus.UsagePermille)
+		relayCgroupMemoryBreaker.available.Store(previousBreakerAvailable)
+		relayCgroupMemoryBreaker.tripped.Store(previousBreakerTripped)
+		relayCgroupMemoryBreaker.trippedSinceUnixNano.Store(previousTrippedSince)
+		relayCgroupMemoryBreaker.disarmed.Store(previousDisarmed)
+		relayCgroupMemoryBreaker.tripCount.Store(previousTripCount)
+		relayCgroupMemoryBreaker.forcedResetCount.Store(previousForcedResetCount)
+		RelayMemoryBreakerHighPercent = previousHigh
+		RelayMemoryBreakerLowPercent = previousLow
+		RelayMemoryBreakerMaxTripSeconds = previousMaxTripSeconds
+	})
+
+	relayCgroupMemoryRawStatus.available.Store(false)
+	relayCgroupMemoryRawStatus.usageBytes.Store(0)
+	relayCgroupMemoryRawStatus.limitBytes.Store(0)
+	relayCgroupMemoryRawStatus.usagePermille.Store(0)
+	relayCgroupMemoryBreaker.available.Store(false)
+	relayCgroupMemoryBreaker.tripped.Store(false)
+	relayCgroupMemoryBreaker.trippedSinceUnixNano.Store(0)
+	relayCgroupMemoryBreaker.disarmed.Store(false)
+	relayCgroupMemoryBreaker.tripCount.Store(0)
+	relayCgroupMemoryBreaker.forcedResetCount.Store(0)
+	RelayMemoryBreakerHighPercent = 0
+	RelayMemoryBreakerLowPercent = 0
+	RelayMemoryBreakerMaxTripSeconds = 0
+
+	assert.Equal(t, CgroupMemoryStatus{}, GetCgroupMemoryStatus())
+}
+
+func TestCgroupMemoryBreakerTransitionLogsAreRateLimited(t *testing.T) {
+	previousNowFunc := cgroupMemoryNowFunc
+	previousWriter := gin.DefaultWriter
+	currentTime := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	cgroupMemoryNowFunc = func() time.Time { return currentTime }
+	var logs bytes.Buffer
+	gin.DefaultWriter = &logs
+	t.Cleanup(func() {
+		cgroupMemoryNowFunc = previousNowFunc
+		gin.DefaultWriter = previousWriter
+	})
+
+	breaker := &cgroupMemoryBreaker{}
+	breaker.update(cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}, 80, 70, 0)
+	require.True(t, breaker.isTripped())
+	assert.Equal(t, 1, strings.Count(logs.String(), "cgroup memory breaker state changed"))
+	assert.Contains(t, logs.String(), "tripped=true")
+
+	breaker.update(cgroupMemorySample{usageBytes: 65, limitBytes: 100, available: true}, 80, 70, 0)
+	require.False(t, breaker.isTripped())
+	breaker.update(cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}, 80, 70, 0)
+	require.True(t, breaker.isTripped())
+	assert.Equal(t, 1, strings.Count(logs.String(), "cgroup memory breaker state changed"))
+
+	currentTime = currentTime.Add(60 * time.Second)
+	breaker.update(cgroupMemorySample{usageBytes: 65, limitBytes: 100, available: true}, 80, 70, 0)
+	require.False(t, breaker.isTripped())
+	assert.Equal(t, 2, strings.Count(logs.String(), "cgroup memory breaker state changed"))
+	assert.Contains(t, logs.String(), "usage=65 limit=100 permille=650 high=80 low=70 tripped=false")
+}
+
+func TestCgroupMemoryBreakerMaxTripDisabledPreservesTrippedState(t *testing.T) {
+	previousNowFunc := cgroupMemoryNowFunc
+	currentTime := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	cgroupMemoryNowFunc = func() time.Time { return currentTime }
+	t.Cleanup(func() {
+		cgroupMemoryNowFunc = previousNowFunc
+	})
+
+	breaker := &cgroupMemoryBreaker{}
+	breaker.update(cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}, 80, 70, 0)
+	require.True(t, breaker.isTripped())
+	tripStartedAt := breaker.trippedSinceUnixNano.Load()
+	require.Equal(t, currentTime.UnixNano(), tripStartedAt)
+
+	currentTime = currentTime.Add(24 * time.Hour)
+	breaker.update(cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}, 80, 70, 0)
+
+	assert.True(t, breaker.isTripped())
+	assert.False(t, breaker.disarmed.Load())
+	assert.Equal(t, tripStartedAt, breaker.trippedSinceUnixNano.Load())
+	assert.EqualValues(t, 1, breaker.tripCount.Load())
+	assert.Zero(t, breaker.forcedResetCount.Load())
+}
+
+func TestCgroupMemoryBreakerMaxTripForcesDisarmUntilLowRecovery(t *testing.T) {
+	previousNowFunc := cgroupMemoryNowFunc
+	previousWriter := gin.DefaultWriter
+	currentTime := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	cgroupMemoryNowFunc = func() time.Time { return currentTime }
+	var logs bytes.Buffer
+	gin.DefaultWriter = &logs
+	t.Cleanup(func() {
+		cgroupMemoryNowFunc = previousNowFunc
+		gin.DefaultWriter = previousWriter
+	})
+
+	breaker := &cgroupMemoryBreaker{}
+	highSample := cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}
+	breaker.update(highSample, 80, 70, 300)
+	require.True(t, breaker.isTripped())
+	assert.Equal(t, currentTime.UnixNano(), breaker.trippedSinceUnixNano.Load())
+	assert.EqualValues(t, 1, breaker.tripCount.Load())
+
+	currentTime = currentTime.Add(299 * time.Second)
+	breaker.update(highSample, 80, 70, 300)
+	require.True(t, breaker.isTripped())
+	assert.False(t, breaker.disarmed.Load())
+	assert.Zero(t, breaker.forcedResetCount.Load())
+
+	currentTime = currentTime.Add(time.Second)
+	breaker.lastTransitionLog.Store(currentTime.UnixNano())
+	breaker.update(highSample, 80, 70, 300)
+	require.False(t, breaker.isTripped())
+	assert.True(t, breaker.disarmed.Load())
+	assert.Zero(t, breaker.trippedSinceUnixNano.Load())
+	assert.EqualValues(t, 1, breaker.tripCount.Load())
+	assert.EqualValues(t, 1, breaker.forcedResetCount.Load())
+	assert.Contains(t, logs.String(), "usage=85 limit=100 permille=850 high=80 low=70 tripped=false disarmed=true forced_reset=true")
+
+	for range 3 {
+		currentTime = currentTime.Add(2 * time.Second)
+		breaker.update(highSample, 80, 70, 300)
+		assert.False(t, breaker.isTripped())
+		assert.True(t, breaker.disarmed.Load())
+		assert.EqualValues(t, 1, breaker.tripCount.Load())
+		assert.EqualValues(t, 1, breaker.forcedResetCount.Load())
+	}
+
+	currentTime = currentTime.Add(2 * time.Second)
+	breaker.update(cgroupMemorySample{usageBytes: 70, limitBytes: 100, available: true}, 80, 70, 300)
+	require.False(t, breaker.isTripped())
+	assert.False(t, breaker.disarmed.Load())
+	assert.Zero(t, breaker.trippedSinceUnixNano.Load())
+	assert.Contains(t, logs.String(), "usage=70 limit=100 permille=700 high=80 low=70 tripped=false disarmed=false rearmed=true")
+
+	currentTime = currentTime.Add(2 * time.Second)
+	breaker.update(highSample, 80, 70, 300)
+	require.True(t, breaker.isTripped())
+	assert.Equal(t, currentTime.UnixNano(), breaker.trippedSinceUnixNano.Load())
+	assert.EqualValues(t, 2, breaker.tripCount.Load())
+	assert.EqualValues(t, 1, breaker.forcedResetCount.Load())
+}
+
+func TestCgroupMemoryBreakerNormalRecoveryClearsTripStart(t *testing.T) {
+	previousNowFunc := cgroupMemoryNowFunc
+	currentTime := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	cgroupMemoryNowFunc = func() time.Time { return currentTime }
+	t.Cleanup(func() {
+		cgroupMemoryNowFunc = previousNowFunc
+	})
+
+	breaker := &cgroupMemoryBreaker{}
+	breaker.update(cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}, 80, 70, 300)
+	require.NotZero(t, breaker.trippedSinceUnixNano.Load())
+
+	currentTime = currentTime.Add(120 * time.Second)
+	breaker.update(cgroupMemorySample{usageBytes: 70, limitBytes: 100, available: true}, 80, 70, 300)
+
+	assert.False(t, breaker.isTripped())
+	assert.False(t, breaker.disarmed.Load())
+	assert.Zero(t, breaker.trippedSinceUnixNano.Load())
+	assert.EqualValues(t, 1, breaker.tripCount.Load())
+	assert.Zero(t, breaker.forcedResetCount.Load())
+}
+
+func TestCgroupMemoryBreakerUnavailableStatesClearLifecycle(t *testing.T) {
+	tests := []struct {
+		name        string
+		sample      cgroupMemorySample
+		highPercent uint64
+	}{
+		{name: "sample unavailable", sample: cgroupMemorySample{}, highPercent: 80},
+		{name: "zero limit", sample: cgroupMemorySample{usageBytes: 85, available: true}, highPercent: 80},
+		{name: "breaker disabled", sample: cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}, highPercent: 0},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			breaker := &cgroupMemoryBreaker{}
+			breaker.available.Store(true)
+			breaker.tripped.Store(true)
+			breaker.trippedSinceUnixNano.Store(123)
+			breaker.disarmed.Store(true)
+			breaker.tripCount.Store(4)
+			breaker.forcedResetCount.Store(2)
+
+			breaker.update(test.sample, test.highPercent, 70, 300)
+
+			assert.False(t, breaker.available.Load())
+			assert.False(t, breaker.isTripped())
+			assert.False(t, breaker.disarmed.Load())
+			assert.Zero(t, breaker.trippedSinceUnixNano.Load())
+			assert.EqualValues(t, 4, breaker.tripCount.Load())
+			assert.EqualValues(t, 2, breaker.forcedResetCount.Load())
+		})
+	}
+}
+
+func TestGetCgroupMemoryStatusIncludesBreakerLifecycle(t *testing.T) {
+	previousStatus := GetCgroupMemoryStatus()
+	previousHigh := RelayMemoryBreakerHighPercent
+	previousLow := RelayMemoryBreakerLowPercent
+	previousMaxTripSeconds := RelayMemoryBreakerMaxTripSeconds
+	previousBreakerAvailable := relayCgroupMemoryBreaker.available.Load()
+	previousBreakerTripped := relayCgroupMemoryBreaker.tripped.Load()
+	previousTrippedSince := relayCgroupMemoryBreaker.trippedSinceUnixNano.Load()
+	previousDisarmed := relayCgroupMemoryBreaker.disarmed.Load()
+	previousTripCount := relayCgroupMemoryBreaker.tripCount.Load()
+	previousForcedResetCount := relayCgroupMemoryBreaker.forcedResetCount.Load()
+	t.Cleanup(func() {
+		relayCgroupMemoryRawStatus.available.Store(previousStatus.Available)
+		relayCgroupMemoryRawStatus.usageBytes.Store(previousStatus.UsageBytes)
+		relayCgroupMemoryRawStatus.limitBytes.Store(previousStatus.LimitBytes)
+		relayCgroupMemoryRawStatus.usagePermille.Store(previousStatus.UsagePermille)
+		relayCgroupMemoryBreaker.available.Store(previousBreakerAvailable)
+		relayCgroupMemoryBreaker.tripped.Store(previousBreakerTripped)
+		relayCgroupMemoryBreaker.trippedSinceUnixNano.Store(previousTrippedSince)
+		relayCgroupMemoryBreaker.disarmed.Store(previousDisarmed)
+		relayCgroupMemoryBreaker.tripCount.Store(previousTripCount)
+		relayCgroupMemoryBreaker.forcedResetCount.Store(previousForcedResetCount)
+		RelayMemoryBreakerHighPercent = previousHigh
+		RelayMemoryBreakerLowPercent = previousLow
+		RelayMemoryBreakerMaxTripSeconds = previousMaxTripSeconds
+	})
+
+	tripTime := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
+	relayCgroupMemoryRawStatus.store(cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true})
+	relayCgroupMemoryBreaker.available.Store(true)
+	relayCgroupMemoryBreaker.tripped.Store(true)
+	relayCgroupMemoryBreaker.trippedSinceUnixNano.Store(tripTime.UnixNano())
+	relayCgroupMemoryBreaker.disarmed.Store(false)
+	relayCgroupMemoryBreaker.tripCount.Store(2)
+	relayCgroupMemoryBreaker.forcedResetCount.Store(1)
+	RelayMemoryBreakerHighPercent = 80
+	RelayMemoryBreakerLowPercent = 70
+	RelayMemoryBreakerMaxTripSeconds = 300
+
+	assert.Equal(t, CgroupMemoryStatus{
+		Available:        true,
+		UsageBytes:       85,
+		LimitBytes:       100,
+		UsagePermille:    850,
+		HighPercent:      80,
+		LowPercent:       70,
+		Tripped:          true,
+		TrippedSinceUnix: int(tripTime.Unix()),
+		TripCount:        2,
+		ForcedResetCount: 1,
+		MaxTripSeconds:   300,
+		Disarmed:         false,
+	}, GetCgroupMemoryStatus())
+}
+
+func TestShouldInitCgroupMemorySampler(t *testing.T) {
+	tests := []struct {
+		name        string
+		highPercent int
+		inContainer bool
+		config      PerformanceMonitorConfig
+		want        bool
+	}{
+		{name: "relay breaker enabled", highPercent: 80, want: true},
+		{name: "container memory monitor enabled", inContainer: true, config: PerformanceMonitorConfig{Enabled: true, MemoryThreshold: 90}, want: true},
+		{name: "non container monitor", inContainer: false, config: PerformanceMonitorConfig{Enabled: true, MemoryThreshold: 90}, want: false},
+		{name: "monitor disabled", inContainer: true, config: PerformanceMonitorConfig{Enabled: false, MemoryThreshold: 90}, want: false},
+		{name: "memory threshold disabled", inContainer: true, config: PerformanceMonitorConfig{Enabled: true, MemoryThreshold: 0}, want: false},
+		{name: "all gates disabled", inContainer: false, config: PerformanceMonitorConfig{}, want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, shouldInitCgroupMemorySampler(test.highPercent, test.inContainer, test.config))
+		})
+	}
 }
 
 func TestGetEnvOrDefaultInt64(t *testing.T) {
@@ -417,6 +779,7 @@ func TestInitRelayAdmissionEnvDefaultsKeepAllGatesDisabled(t *testing.T) {
 		"RELAY_MAX_ACTIVE_BODY_BYTES",
 		"RELAY_MEMORY_BREAKER_HIGH_PERCENT",
 		"RELAY_MEMORY_BREAKER_LOW_PERCENT",
+		"RELAY_MEMORY_BREAKER_MAX_TRIP_SECONDS",
 		"RELAY_ADMISSION_RETRY_AFTER_SECONDS",
 	} {
 		t.Setenv(env, "")
@@ -426,12 +789,14 @@ func TestInitRelayAdmissionEnvDefaultsKeepAllGatesDisabled(t *testing.T) {
 	previousMaxBodyBytes := RelayMaxActiveBodyBytes
 	previousHighPercent := RelayMemoryBreakerHighPercent
 	previousLowPercent := RelayMemoryBreakerLowPercent
+	previousMaxTripSeconds := RelayMemoryBreakerMaxTripSeconds
 	previousRetryAfter := RelayAdmissionRetryAfterSeconds
 	t.Cleanup(func() {
 		RelayMaxConcurrentRequests = previousMaxRequests
 		RelayMaxActiveBodyBytes = previousMaxBodyBytes
 		RelayMemoryBreakerHighPercent = previousHighPercent
 		RelayMemoryBreakerLowPercent = previousLowPercent
+		RelayMemoryBreakerMaxTripSeconds = previousMaxTripSeconds
 		RelayAdmissionRetryAfterSeconds = previousRetryAfter
 	})
 
@@ -441,7 +806,36 @@ func TestInitRelayAdmissionEnvDefaultsKeepAllGatesDisabled(t *testing.T) {
 	assert.Zero(t, RelayMaxActiveBodyBytes)
 	assert.Zero(t, RelayMemoryBreakerHighPercent)
 	assert.Equal(t, 75, RelayMemoryBreakerLowPercent)
+	assert.Zero(t, RelayMemoryBreakerMaxTripSeconds)
 	assert.Equal(t, 5, RelayAdmissionRetryAfterSeconds)
+}
+
+func TestInitRelayAdmissionEnvReadsValidatedMaxTripSeconds(t *testing.T) {
+	previousMaxTripSeconds := RelayMemoryBreakerMaxTripSeconds
+	t.Cleanup(func() {
+		RelayMemoryBreakerMaxTripSeconds = previousMaxTripSeconds
+	})
+
+	tests := []struct {
+		name  string
+		value string
+		want  int
+	}{
+		{name: "positive duration", value: "300", want: 300},
+		{name: "zero disables", value: "0", want: 0},
+		{name: "negative duration is disabled", value: "-1", want: 0},
+		{name: "invalid duration is disabled", value: "invalid", want: 0},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("RELAY_MEMORY_BREAKER_MAX_TRIP_SECONDS", test.value)
+
+			initRelayAdmissionEnv()
+
+			assert.Equal(t, test.want, RelayMemoryBreakerMaxTripSeconds)
+		})
+	}
 }
 
 func TestInitRelayAdmissionEnvNormalizesInvalidHysteresis(t *testing.T) {

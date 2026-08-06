@@ -23,8 +23,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import * as z from 'zod'
 
-import { StatusBadge } from '@/components/status-badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { StatusBadge, type StatusVariant } from '@/components/status-badge'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -147,6 +147,27 @@ function formatBytes(bytes: number, decimals = 2): string {
   }`
 }
 
+function formatElapsedDuration(
+  seconds: number,
+  translate: (key: string) => string
+): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds))
+  const days = Math.floor(totalSeconds / 86400)
+  const hours = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const remainingSeconds = totalSeconds % 60
+  const parts: string[] = []
+
+  if (days > 0) parts.push(`${days} ${translate('days')}`)
+  if (hours > 0) parts.push(`${hours}${translate('h')}`)
+  if (minutes > 0) parts.push(`${minutes}${translate('m')}`)
+  if (remainingSeconds > 0 || parts.length === 0) {
+    parts.push(`${remainingSeconds}${translate('s')}`)
+  }
+
+  return parts.join(' ')
+}
+
 interface Props {
   defaultValues: FlatPerfDefaults
 }
@@ -173,6 +194,35 @@ type PerformanceStats = {
     sys: number
     num_gc: number
     num_goroutine: number
+  }
+  relay_admission?: {
+    active_requests?: number
+    active_body_bytes?: number
+    max_concurrent_requests?: number
+    max_active_body_bytes?: number
+    rejected_too_many_concurrent_requests?: number
+    rejected_request_body_budget_exhausted?: number
+    rejected_memory_pressure?: number
+    exempted_memory_pressure?: number
+  }
+  system_gate?: {
+    rejected_cpu_overloaded?: number
+    rejected_memory_overloaded?: number
+    rejected_disk_overloaded?: number
+  }
+  cgroup_memory?: {
+    available?: boolean
+    usage_bytes?: number
+    limit_bytes?: number
+    usage_permille?: number
+    high_percent?: number
+    low_percent?: number
+    tripped?: boolean
+    tripped_since_unix?: number
+    trip_count?: number
+    forced_reset_count?: number
+    max_trip_seconds?: number
+    disarmed?: boolean
   }
   disk_cache_info?: {
     path: string
@@ -311,6 +361,66 @@ export function PerformanceSection(props: Props) {
             100
         )
       : 0
+
+  const relayRequestUsage =
+    stats?.relay_admission?.active_requests !== undefined &&
+    stats.relay_admission.max_concurrent_requests !== undefined
+      ? `${stats.relay_admission.active_requests} / ${stats.relay_admission.max_concurrent_requests}`
+      : t('N/A')
+  const relayBodyUsage =
+    stats?.relay_admission?.active_body_bytes !== undefined &&
+    stats.relay_admission.max_active_body_bytes !== undefined
+      ? `${formatBytes(stats.relay_admission.active_body_bytes)} / ${formatBytes(stats.relay_admission.max_active_body_bytes)}`
+      : t('N/A')
+  const cgroupMemoryUsage =
+    stats?.cgroup_memory?.usage_bytes !== undefined &&
+    stats.cgroup_memory.limit_bytes !== undefined
+      ? `${formatBytes(stats.cgroup_memory.usage_bytes)} / ${formatBytes(stats.cgroup_memory.limit_bytes)}`
+      : t('N/A')
+  const cgroupMemoryPercent =
+    stats?.cgroup_memory?.usage_permille !== undefined
+      ? `${(stats.cgroup_memory.usage_permille / 10).toFixed(1)}%`
+      : t('N/A')
+  const cgroupMemoryThresholds =
+    stats?.cgroup_memory?.high_percent !== undefined &&
+    stats.cgroup_memory.low_percent !== undefined
+      ? `${stats.cgroup_memory.high_percent}% / ${stats.cgroup_memory.low_percent}%`
+      : t('N/A')
+
+  const maxTripSeconds = stats?.cgroup_memory?.max_trip_seconds
+  let cgroupMaxTripDuration = t('N/A')
+  if (typeof maxTripSeconds === 'number' && Number.isFinite(maxTripSeconds)) {
+    cgroupMaxTripDuration =
+      maxTripSeconds === 0
+        ? t('Not enabled')
+        : `${maxTripSeconds} ${t('seconds')}`
+  }
+  const trippedSinceUnix = stats?.cgroup_memory?.tripped_since_unix
+  const cgroupTrippedDuration =
+    typeof trippedSinceUnix === 'number' &&
+    Number.isFinite(trippedSinceUnix) &&
+    trippedSinceUnix > 0
+      ? formatElapsedDuration(
+          Math.floor(Date.now() / 1000) - trippedSinceUnix,
+          t
+        )
+      : null
+
+  let cgroupStatusVariant: StatusVariant = 'neutral'
+  let cgroupStatusLabel = t('N/A')
+  if (stats?.cgroup_memory?.disarmed === true) {
+    cgroupStatusVariant = 'danger'
+    cgroupStatusLabel = t('Disarmed')
+  } else if (stats?.cgroup_memory?.tripped === true) {
+    cgroupStatusVariant = 'danger'
+    cgroupStatusLabel = t('Tripped')
+  } else if (
+    stats?.cgroup_memory?.tripped === false &&
+    stats?.cgroup_memory?.available !== false
+  ) {
+    cgroupStatusVariant = 'success'
+    cgroupStatusLabel = t('Normal')
+  }
 
   return (
     <SettingsSection title={t('Performance Settings')}>
@@ -677,6 +787,182 @@ export function PerformanceSection(props: Props) {
                     {stats.memory_stats.num_goroutine}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {(stats.relay_admission ||
+              stats.system_gate ||
+              stats.cgroup_memory) && (
+              <div className='grid grid-cols-1 gap-4 lg:grid-cols-3'>
+                {stats.relay_admission && (
+                  <div className='rounded-lg border p-4'>
+                    <p className='mb-2 text-sm font-medium'>
+                      {t('Relay Admission')}
+                    </p>
+                    <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 text-xs'>
+                      <span className='text-muted-foreground'>
+                        {t('Active Requests / Limit')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {relayRequestUsage}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Active Request Body / Limit')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {relayBodyUsage}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Concurrent Request Limit Rejections')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.relay_admission
+                          .rejected_too_many_concurrent_requests ?? t('N/A')}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Request Body Budget Exhaustion Rejections')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.relay_admission
+                          .rejected_request_body_budget_exhausted ?? t('N/A')}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Memory Pressure Rejections')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.relay_admission?.rejected_memory_pressure ??
+                          t('N/A')}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t(
+                          'GET polls / result fetches exempted during memory pressure (not rejections)'
+                        )}
+                        :
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.relay_admission?.exempted_memory_pressure ??
+                          t('N/A')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {stats.system_gate && (
+                  <div className='rounded-lg border p-4'>
+                    <p className='mb-2 text-sm font-medium'>
+                      {t('System Gate')}
+                    </p>
+                    <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 text-xs'>
+                      <span className='text-muted-foreground'>
+                        {t('CPU Overload 503 Rejections')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.system_gate.rejected_cpu_overloaded ?? t('N/A')}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Memory Overload 503 Rejections')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.system_gate.rejected_memory_overloaded ??
+                          t('N/A')}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Disk Overload 503 Rejections')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.system_gate.rejected_disk_overloaded ?? t('N/A')}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {stats.cgroup_memory && (
+                  <div className='rounded-lg border p-4'>
+                    <p className='mb-2 text-sm font-medium'>
+                      {t('Cgroup Memory')}
+                    </p>
+                    {stats.cgroup_memory.available === true ? (
+                      <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 text-xs'>
+                        <span className='text-muted-foreground'>
+                          {t('Usage / Limit')}:
+                        </span>
+                        <span className='text-right break-all'>
+                          {cgroupMemoryUsage} ({cgroupMemoryPercent})
+                        </span>
+                        <span className='text-muted-foreground'>
+                          {t('HIGH / LOW Thresholds')}:
+                        </span>
+                        <span className='text-right break-all'>
+                          {cgroupMemoryThresholds}
+                        </span>
+                      </div>
+                    ) : (
+                      <Alert>
+                        <AlertDescription className='flex flex-col gap-1 text-xs'>
+                          <StatusBadge variant='neutral' copyable={false}>
+                            {t('Unavailable / N/A')}
+                          </StatusBadge>
+                          <span>
+                            {t(
+                              'Cgroup memory metrics are unavailable because this process is not running in a container or has no cgroup memory limit.'
+                            )}
+                          </span>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    <div className='mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2 text-xs'>
+                      <span className='text-muted-foreground'>
+                        {t('Breaker Status')}:
+                      </span>
+                      <span className='text-right'>
+                        <StatusBadge
+                          variant={cgroupStatusVariant}
+                          copyable={false}
+                        >
+                          {cgroupStatusLabel}
+                        </StatusBadge>
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Trip Count')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.cgroup_memory?.trip_count ?? t('N/A')}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Forced Reset Count')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {stats.cgroup_memory?.forced_reset_count ?? t('N/A')}
+                      </span>
+                      <span className='text-muted-foreground'>
+                        {t('Max Trip Duration')}:
+                      </span>
+                      <span className='text-right break-all'>
+                        {cgroupMaxTripDuration}
+                      </span>
+                      {cgroupTrippedDuration !== null && (
+                        <>
+                          <span className='text-muted-foreground'>
+                            {t('Tripped Duration')}:
+                          </span>
+                          <span className='text-right break-all'>
+                            {cgroupTrippedDuration}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {stats.cgroup_memory?.disarmed === true && (
+                      <Alert variant='destructive' className='mt-3'>
+                        <AlertTitle>{t('Circuit breaker disarmed')}</AlertTitle>
+                        <AlertDescription>
+                          {t(
+                            'The circuit breaker was forcibly reset and disabled after exceeding the maximum trip duration. It will automatically recover once memory falls below the LOW threshold.'
+                          )}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

@@ -58,6 +58,24 @@ function formatBytes(bytes, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
+function formatElapsedDuration(seconds, translate) {
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+  const parts = [];
+
+  if (days > 0) parts.push(`${days} ${translate('天')}`);
+  if (hours > 0) parts.push(`${hours}${translate('小时')}`);
+  if (minutes > 0) parts.push(`${minutes}${translate('分钟')}`);
+  if (remainingSeconds > 0 || parts.length === 0) {
+    parts.push(`${remainingSeconds}${translate('秒')}`);
+  }
+
+  return parts.join(' ');
+}
+
 export default function SettingsPerformance(props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -245,6 +263,59 @@ export default function SettingsPerformance(props) {
           100
         ).toFixed(1)
       : 0;
+
+  const relayRequestUsage =
+    stats?.relay_admission?.active_requests !== undefined &&
+    stats.relay_admission.max_concurrent_requests !== undefined
+      ? `${stats.relay_admission.active_requests} / ${stats.relay_admission.max_concurrent_requests}`
+      : t('不可用 / N/A');
+  const relayBodyUsage =
+    stats?.relay_admission?.active_body_bytes !== undefined &&
+    stats.relay_admission.max_active_body_bytes !== undefined
+      ? `${formatBytes(stats.relay_admission.active_body_bytes)} / ${formatBytes(stats.relay_admission.max_active_body_bytes)}`
+      : t('不可用 / N/A');
+  const cgroupMemoryUsage =
+    stats?.cgroup_memory?.usage_bytes !== undefined &&
+    stats.cgroup_memory.limit_bytes !== undefined
+      ? `${formatBytes(stats.cgroup_memory.usage_bytes)} / ${formatBytes(stats.cgroup_memory.limit_bytes)}`
+      : t('不可用 / N/A');
+  const cgroupMemoryPercent =
+    stats?.cgroup_memory?.usage_permille !== undefined
+      ? `${(stats.cgroup_memory.usage_permille / 10).toFixed(1)}%`
+      : t('不可用 / N/A');
+  const cgroupMemoryThresholds =
+    stats?.cgroup_memory?.high_percent !== undefined &&
+    stats.cgroup_memory.low_percent !== undefined
+      ? `${stats.cgroup_memory.high_percent}% / ${stats.cgroup_memory.low_percent}%`
+      : t('不可用 / N/A');
+  const maxTripSeconds = stats?.cgroup_memory?.max_trip_seconds;
+  let cgroupMaxTripDuration = t('不可用 / N/A');
+  if (typeof maxTripSeconds === 'number' && Number.isFinite(maxTripSeconds)) {
+    cgroupMaxTripDuration =
+      maxTripSeconds === 0 ? t('未启用') : `${maxTripSeconds} ${t('秒')}`;
+  }
+  const trippedSinceUnix = stats?.cgroup_memory?.tripped_since_unix;
+  const cgroupTrippedDuration =
+    typeof trippedSinceUnix === 'number' &&
+    Number.isFinite(trippedSinceUnix) &&
+    trippedSinceUnix > 0
+      ? formatElapsedDuration(
+          Math.floor(Date.now() / 1000) - trippedSinceUnix,
+          t,
+        )
+      : null;
+
+  let cgroupStatusTag = <Tag color='grey'>{t('不可用 / N/A')}</Tag>;
+  if (stats?.cgroup_memory?.disarmed === true) {
+    cgroupStatusTag = <Tag color='red'>{t('已禁用')}</Tag>;
+  } else if (stats?.cgroup_memory?.tripped === true) {
+    cgroupStatusTag = <Tag color='red'>{t('已触发')}</Tag>;
+  } else if (
+    stats?.cgroup_memory?.tripped === false &&
+    stats?.cgroup_memory?.available !== false
+  ) {
+    cgroupStatusTag = <Tag color='green'>{t('正常')}</Tag>;
+  }
 
   return (
     <>
@@ -727,6 +798,179 @@ export default function SettingsPerformance(props) {
                   />
                 </Col>
               </Row>
+
+              {stats.relay_admission && (
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                  <Col span={24}>
+                    <Text strong style={{ marginBottom: 8, display: 'block' }}>
+                      {t('Relay 准入')}
+                    </Text>
+                    <Descriptions
+                      data={[
+                        {
+                          key: t('在途请求数 / 上限'),
+                          value: relayRequestUsage,
+                        },
+                        {
+                          key: t('在途请求体大小 / 上限'),
+                          value: relayBodyUsage,
+                        },
+                        {
+                          key: t('并发请求超限拒绝数'),
+                          value:
+                            stats.relay_admission
+                              .rejected_too_many_concurrent_requests ??
+                            t('不可用 / N/A'),
+                        },
+                        {
+                          key: t('请求体预算耗尽拒绝数'),
+                          value:
+                            stats.relay_admission
+                              .rejected_request_body_budget_exhausted ??
+                            t('不可用 / N/A'),
+                        },
+                        {
+                          key: t('内存压力拒绝数'),
+                          value:
+                            stats.relay_admission?.rejected_memory_pressure ??
+                            t('不可用 / N/A'),
+                        },
+                        {
+                          key: t(
+                            '内存压力期间放行的轮询 / 取结果 GET 次数（不是拒绝数）',
+                          ),
+                          value:
+                            stats.relay_admission?.exempted_memory_pressure ??
+                            t('不可用 / N/A'),
+                        },
+                      ]}
+                    />
+                  </Col>
+                </Row>
+              )}
+
+              {stats.system_gate && (
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                  <Col span={24}>
+                    <Text strong style={{ marginBottom: 8, display: 'block' }}>
+                      {t('系统门控')}
+                    </Text>
+                    <Descriptions
+                      data={[
+                        {
+                          key: t('CPU 过载 503 拒绝数'),
+                          value:
+                            stats.system_gate.rejected_cpu_overloaded ??
+                            t('不可用 / N/A'),
+                        },
+                        {
+                          key: t('内存过载 503 拒绝数'),
+                          value:
+                            stats.system_gate.rejected_memory_overloaded ??
+                            t('不可用 / N/A'),
+                        },
+                        {
+                          key: t('磁盘过载 503 拒绝数'),
+                          value:
+                            stats.system_gate.rejected_disk_overloaded ??
+                            t('不可用 / N/A'),
+                        },
+                      ]}
+                    />
+                  </Col>
+                </Row>
+              )}
+
+              {stats.cgroup_memory && (
+                <Row gutter={16} style={{ marginTop: 16 }}>
+                  <Col span={24}>
+                    <Text strong style={{ marginBottom: 8, display: 'block' }}>
+                      {t('cgroup 内存')}
+                    </Text>
+                    {stats.cgroup_memory?.available === true ? (
+                      <Descriptions
+                        data={[
+                          {
+                            key: t('使用量 / 上限'),
+                            value: `${cgroupMemoryUsage} (${cgroupMemoryPercent})`,
+                          },
+                          {
+                            key: t('HIGH / LOW 阈值'),
+                            value: cgroupMemoryThresholds,
+                          },
+                        ]}
+                      />
+                    ) : (
+                      <Descriptions
+                        data={[
+                          {
+                            key: t('状态'),
+                            value: (
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap',
+                                  gap: 8,
+                                }}
+                              >
+                                <Tag color='grey'>{t('不可用 / N/A')}</Tag>
+                                <Text type='tertiary'>
+                                  {t(
+                                    '当前进程未运行在容器中，或未设置 cgroup 内存限制，因此无法获取 cgroup 内存指标。',
+                                  )}
+                                </Text>
+                              </div>
+                            ),
+                          },
+                        ]}
+                      />
+                    )}
+                    <Descriptions
+                      data={[
+                        {
+                          key: t('熔断器状态'),
+                          value: cgroupStatusTag,
+                        },
+                        {
+                          key: t('累计跳闸次数'),
+                          value:
+                            stats.cgroup_memory?.trip_count ??
+                            t('不可用 / N/A'),
+                        },
+                        {
+                          key: t('强制复位次数'),
+                          value:
+                            stats.cgroup_memory?.forced_reset_count ??
+                            t('不可用 / N/A'),
+                        },
+                        {
+                          key: t('最长跳闸时长'),
+                          value: cgroupMaxTripDuration,
+                        },
+                        ...(cgroupTrippedDuration !== null
+                          ? [
+                              {
+                                key: t('跳闸持续时长'),
+                                value: cgroupTrippedDuration,
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
+                    {stats.cgroup_memory?.disarmed === true && (
+                      <Banner
+                        type='danger'
+                        title={t('断路器已停用')}
+                        description={t(
+                          '断路器因超过最长跳闸时长已强制复位并停用，将在内存回落至 LOW 线后自动恢复。',
+                        )}
+                        style={{ marginTop: 12 }}
+                      />
+                    )}
+                  </Col>
+                </Row>
+              )}
             </>
           )}
         </Form.Section>

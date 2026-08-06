@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"fmt"
 	"math/bits"
 	"os"
 	"path"
@@ -20,6 +21,7 @@ const (
 	cgroupV1UnlimitedSentinel = uint64(9223372036854771712)
 	procSelfCgroupPath        = "/proc/self/cgroup"
 	procSelfMountInfoPath     = "/proc/self/mountinfo"
+	cgroupMemoryLogInterval   = 60 * time.Second
 )
 
 type cgroupMemorySample struct {
@@ -28,28 +30,141 @@ type cgroupMemorySample struct {
 	available  bool
 }
 
-type cgroupMemoryBreaker struct {
-	usagePermille atomic.Uint64
-	available     atomic.Bool
-	tripped       atomic.Bool
+// CgroupMemoryStatus is the latest sampled cgroup working-set status together
+// with the configured relay breaker state.
+type CgroupMemoryStatus struct {
+	Available        bool   `json:"available"`
+	UsageBytes       uint64 `json:"usage_bytes"`
+	LimitBytes       uint64 `json:"limit_bytes"`
+	UsagePermille    uint64 `json:"usage_permille"`
+	HighPercent      int    `json:"high_percent"`
+	LowPercent       int    `json:"low_percent"`
+	Tripped          bool   `json:"tripped"`
+	TrippedSinceUnix int    `json:"tripped_since_unix"`
+	TripCount        uint64 `json:"trip_count"`
+	ForcedResetCount uint64 `json:"forced_reset_count"`
+	MaxTripSeconds   int    `json:"max_trip_seconds"`
+	Disarmed         bool   `json:"disarmed"`
 }
 
-func (b *cgroupMemoryBreaker) update(sample cgroupMemorySample, highPercent uint64, lowPercent uint64) {
+type cgroupMemoryRawStatus struct {
+	usageBytes    atomic.Uint64
+	limitBytes    atomic.Uint64
+	usagePermille atomic.Uint64
+	available     atomic.Bool
+}
+
+func (s *cgroupMemoryRawStatus) store(sample cgroupMemorySample) {
+	s.usageBytes.Store(sample.usageBytes)
+	s.limitBytes.Store(sample.limitBytes)
+	s.usagePermille.Store(cgroupMemoryUsagePermille(sample.usageBytes, sample.limitBytes))
+	s.available.Store(sample.available)
+}
+
+type cgroupMemoryBreaker struct {
+	usagePermille        atomic.Uint64
+	available            atomic.Bool
+	tripped              atomic.Bool
+	trippedSinceUnixNano atomic.Int64
+	disarmed             atomic.Bool
+	tripCount            atomic.Uint64
+	forcedResetCount     atomic.Uint64
+	lastTransitionLog    atomic.Int64
+}
+
+func (b *cgroupMemoryBreaker) update(sample cgroupMemorySample, highPercent uint64, lowPercent uint64, maxTripSeconds int) {
 	if !sample.available || sample.limitBytes == 0 || highPercent == 0 {
 		b.available.Store(false)
-		b.tripped.Store(false)
+		wasTripped := b.tripped.Swap(false)
+		b.trippedSinceUnixNano.Store(0)
+		b.disarmed.Store(false)
 		b.usagePermille.Store(0)
+		if wasTripped {
+			b.logTransition(sample, cgroupMemoryUsagePermille(sample.usageBytes, sample.limitBytes), highPercent, lowPercent, false)
+		}
 		return
 	}
 
 	usagePermille := cgroupMemoryUsagePermille(sample.usageBytes, sample.limitBytes)
 	b.usagePermille.Store(usagePermille)
-	if usagePermille >= highPercent*10 {
-		b.tripped.Store(true)
-	} else if usagePermille <= lowPercent*10 {
-		b.tripped.Store(false)
-	}
 	b.available.Store(true)
+	if b.disarmed.Load() {
+		b.tripped.Store(false)
+		b.trippedSinceUnixNano.Store(0)
+		if usagePermille <= lowPercent*10 {
+			b.disarmed.Store(false)
+			SysLog(fmt.Sprintf(
+				"cgroup memory breaker state changed: usage=%d limit=%d permille=%d high=%d low=%d tripped=false disarmed=false rearmed=true",
+				sample.usageBytes,
+				sample.limitBytes,
+				usagePermille,
+				highPercent,
+				lowPercent,
+			))
+		}
+		return
+	}
+
+	if b.tripped.Load() && maxTripSeconds > 0 {
+		trippedSince := b.trippedSinceUnixNano.Load()
+		now := cgroupMemoryNowFunc().UnixNano()
+		if trippedSince > 0 && now >= trippedSince && (now-trippedSince)/int64(time.Second) >= int64(maxTripSeconds) {
+			b.tripped.Store(false)
+			b.trippedSinceUnixNano.Store(0)
+			b.disarmed.Store(true)
+			b.forcedResetCount.Add(1)
+			SysLog(fmt.Sprintf(
+				"cgroup memory breaker state changed: usage=%d limit=%d permille=%d high=%d low=%d tripped=false disarmed=true forced_reset=true",
+				sample.usageBytes,
+				sample.limitBytes,
+				usagePermille,
+				highPercent,
+				lowPercent,
+			))
+			return
+		}
+	}
+
+	nextTripped := b.tripped.Load()
+	if usagePermille >= highPercent*10 {
+		nextTripped = true
+	} else if usagePermille <= lowPercent*10 {
+		nextTripped = false
+	}
+	previousTripped := b.tripped.Swap(nextTripped)
+	if previousTripped != nextTripped {
+		if nextTripped {
+			b.trippedSinceUnixNano.Store(cgroupMemoryNowFunc().UnixNano())
+			b.tripCount.Add(1)
+		} else {
+			b.trippedSinceUnixNano.Store(0)
+		}
+		b.logTransition(sample, usagePermille, highPercent, lowPercent, nextTripped)
+	} else if !nextTripped {
+		b.trippedSinceUnixNano.Store(0)
+	}
+}
+
+func (b *cgroupMemoryBreaker) logTransition(sample cgroupMemorySample, usagePermille uint64, highPercent uint64, lowPercent uint64, tripped bool) {
+	now := cgroupMemoryNowFunc().UnixNano()
+	for {
+		last := b.lastTransitionLog.Load()
+		if last != 0 && now-last < int64(cgroupMemoryLogInterval) {
+			return
+		}
+		if b.lastTransitionLog.CompareAndSwap(last, now) {
+			SysLog(fmt.Sprintf(
+				"cgroup memory breaker state changed: usage=%d limit=%d permille=%d high=%d low=%d tripped=%t",
+				sample.usageBytes,
+				sample.limitBytes,
+				usagePermille,
+				highPercent,
+				lowPercent,
+				tripped,
+			))
+			return
+		}
+	}
 }
 
 func (b *cgroupMemoryBreaker) isTripped() bool {
@@ -294,10 +409,17 @@ type cgroupMemorySampler struct {
 	highPercent   uint64
 	lowPercent    uint64
 	breaker       *cgroupMemoryBreaker
+	rawStatus     *cgroupMemoryRawStatus
 }
 
 func (s *cgroupMemorySampler) sample() {
-	s.breaker.update(readCgroupMemorySample(s.cgroupFile, s.mountInfoFile), s.highPercent, s.lowPercent)
+	sample := readCgroupMemorySample(s.cgroupFile, s.mountInfoFile)
+	rawStatus := s.rawStatus
+	if rawStatus == nil {
+		rawStatus = &relayCgroupMemoryRawStatus
+	}
+	rawStatus.store(sample)
+	s.breaker.update(sample, s.highPercent, s.lowPercent, RelayMemoryBreakerMaxTripSeconds)
 }
 
 func (s *cgroupMemorySampler) run(ticks <-chan time.Time) {
@@ -308,14 +430,20 @@ func (s *cgroupMemorySampler) run(ticks <-chan time.Time) {
 
 var (
 	relayCgroupMemoryBreaker            cgroupMemoryBreaker
+	relayCgroupMemoryRawStatus          cgroupMemoryRawStatus
 	cgroupMemorySamplerOnce             sync.Once
 	relayMemoryBreakerConfigWarningOnce sync.Once
+	cgroupMemoryNowFunc                 = time.Now
 )
+
+func shouldInitCgroupMemorySampler(highPercent int, runningInContainer bool, monitorConfig PerformanceMonitorConfig) bool {
+	return highPercent > 0 || (runningInContainer && monitorConfig.Enabled && monitorConfig.MemoryThreshold > 0)
+}
 
 // InitCgroupMemorySampler starts one process-wide sampler. Requests only read the
 // atomic breaker state; cgroup files are never opened on the request path.
 func InitCgroupMemorySampler() {
-	if RelayMemoryBreakerHighPercent <= 0 {
+	if !shouldInitCgroupMemorySampler(RelayMemoryBreakerHighPercent, IsRunningInContainer(), GetPerformanceMonitorConfig()) {
 		return
 	}
 	cgroupMemorySamplerOnce.Do(func() {
@@ -325,6 +453,7 @@ func InitCgroupMemorySampler() {
 			highPercent:   uint64(RelayMemoryBreakerHighPercent),
 			lowPercent:    uint64(RelayMemoryBreakerLowPercent),
 			breaker:       &relayCgroupMemoryBreaker,
+			rawStatus:     &relayCgroupMemoryRawStatus,
 		}
 		sampler.sample()
 		go func() {
@@ -340,4 +469,29 @@ func InitCgroupMemorySampler() {
 // memory outside the Go heap without treating reclaimable page cache as pressure.
 func IsCgroupMemoryPressure() bool {
 	return relayCgroupMemoryBreaker.isTripped()
+}
+
+// GetCgroupMemoryStatus returns the last raw sample. It is independent of the
+// relay breaker thresholds so the dashboard can show real cgroup usage even
+// when the breaker is disabled.
+func GetCgroupMemoryStatus() CgroupMemoryStatus {
+	tripped := relayCgroupMemoryBreaker.isTripped()
+	trippedSinceUnix := 0
+	if tripped {
+		trippedSinceUnix = int(relayCgroupMemoryBreaker.trippedSinceUnixNano.Load() / int64(time.Second))
+	}
+	return CgroupMemoryStatus{
+		Available:        relayCgroupMemoryRawStatus.available.Load(),
+		UsageBytes:       relayCgroupMemoryRawStatus.usageBytes.Load(),
+		LimitBytes:       relayCgroupMemoryRawStatus.limitBytes.Load(),
+		UsagePermille:    relayCgroupMemoryRawStatus.usagePermille.Load(),
+		HighPercent:      RelayMemoryBreakerHighPercent,
+		LowPercent:       RelayMemoryBreakerLowPercent,
+		Tripped:          tripped,
+		TrippedSinceUnix: trippedSinceUnix,
+		TripCount:        relayCgroupMemoryBreaker.tripCount.Load(),
+		ForcedResetCount: relayCgroupMemoryBreaker.forcedResetCount.Load(),
+		MaxTripSeconds:   RelayMemoryBreakerMaxTripSeconds,
+		Disarmed:         relayCgroupMemoryBreaker.disarmed.Load(),
+	}
 }

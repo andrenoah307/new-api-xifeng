@@ -25,6 +25,32 @@ type BodyStorage interface {
 // ErrStorageClosed 存储已关闭错误
 var ErrStorageClosed = fmt.Errorf("body storage is closed")
 
+const (
+	// Fallback ceiling when the active-body budget or the concurrency limit is
+	// unset or out of range.
+	bodyPreallocFallbackBytes int64 = 10 << 20
+	bodyPreallocMinBytes      int64 = 64 << 10
+)
+
+// relayBodyPreallocCap derives the per-request read-buffer ceiling from the
+// process-wide active body budget, so concurrent preallocations stay within
+// RELAY_MAX_ACTIVE_BODY_BYTES instead of trusting Content-Length outright.
+func relayBodyPreallocCap() int64 {
+	budget := RelayMaxActiveBodyBytes
+	concurrency := int64(RelayMaxConcurrentRequests)
+	if budget <= 0 || concurrency <= 0 {
+		return bodyPreallocFallbackBytes
+	}
+	share := budget / concurrency
+	if share < bodyPreallocMinBytes {
+		return bodyPreallocMinBytes
+	}
+	if share > bodyPreallocFallbackBytes {
+		return bodyPreallocFallbackBytes
+	}
+	return share
+}
+
 // memoryStorage 内存存储实现
 type memoryStorage struct {
 	data   []byte
@@ -281,10 +307,21 @@ func CreateBodyStorageFromReader(reader io.Reader, contentLength int64, maxBytes
 	}
 
 	// 使用内存读取
-	data, err := io.ReadAll(io.LimitReader(reader, maxBytes+1))
-	if err != nil {
+	prealloc := relayBodyPreallocCap()
+	if contentLength > 0 && contentLength < prealloc {
+		prealloc = contentLength
+	}
+	if prealloc > maxBytes {
+		prealloc = maxBytes
+	}
+	if prealloc < 0 {
+		prealloc = 0
+	}
+	buf := bytes.NewBuffer(make([]byte, 0, prealloc))
+	if _, err := buf.ReadFrom(io.LimitReader(reader, maxBytes+1)); err != nil {
 		return nil, err
 	}
+	data := buf.Bytes()
 	if int64(len(data)) > maxBytes {
 		return nil, ErrRequestBodyTooLarge
 	}

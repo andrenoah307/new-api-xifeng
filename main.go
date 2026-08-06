@@ -385,6 +385,8 @@ func InitResources() error {
 
 	perfmetrics.Init()
 
+	common.InitCgroupMemorySampler()
+
 	// 启动系统监控
 	common.StartSystemMonitor()
 

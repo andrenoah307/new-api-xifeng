@@ -4,11 +4,34 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync/atomic"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 )
+
+var (
+	systemGateRejectedCPUOverloaded    atomic.Uint64
+	systemGateRejectedMemoryOverloaded atomic.Uint64
+	systemGateRejectedDiskOverloaded   atomic.Uint64
+)
+
+// SystemGateStats contains counters for performance-gate 503 responses.
+type SystemGateStats struct {
+	RejectedCPUOverloaded    uint64 `json:"rejected_cpu_overloaded"`
+	RejectedMemoryOverloaded uint64 `json:"rejected_memory_overloaded"`
+	RejectedDiskOverloaded   uint64 `json:"rejected_disk_overloaded"`
+}
+
+// GetSystemGateStats returns a lock-free snapshot of performance-gate rejects.
+func GetSystemGateStats() SystemGateStats {
+	return SystemGateStats{
+		RejectedCPUOverloaded:    systemGateRejectedCPUOverloaded.Load(),
+		RejectedMemoryOverloaded: systemGateRejectedMemoryOverloaded.Load(),
+		RejectedDiskOverloaded:   systemGateRejectedDiskOverloaded.Load(),
+	}
+}
 
 // SystemPerformanceCheck 检查系统性能中间件
 func SystemPerformanceCheck() gin.HandlerFunc {
@@ -48,6 +71,7 @@ func checkSystemPerformance() *types.NewAPIError {
 
 	// 检查 CPU
 	if config.CPUThreshold > 0 && int(status.CPUUsage) > config.CPUThreshold {
+		systemGateRejectedCPUOverloaded.Add(1)
 		return types.NewErrorWithStatusCode(
 			fmt.Errorf("system cpu overloaded (current: %.1f%%, threshold: %d%%)", status.CPUUsage, config.CPUThreshold),
 			"system_cpu_overloaded", http.StatusServiceUnavailable)
@@ -55,6 +79,7 @@ func checkSystemPerformance() *types.NewAPIError {
 
 	// 检查内存
 	if config.MemoryThreshold > 0 && int(status.MemoryUsage) > config.MemoryThreshold {
+		systemGateRejectedMemoryOverloaded.Add(1)
 		return types.NewErrorWithStatusCode(
 			fmt.Errorf("system memory overloaded (current: %.1f%%, threshold: %d%%)", status.MemoryUsage, config.MemoryThreshold),
 			"system_memory_overloaded", http.StatusServiceUnavailable)
@@ -62,6 +87,7 @@ func checkSystemPerformance() *types.NewAPIError {
 
 	// 检查磁盘
 	if config.DiskThreshold > 0 && int(status.DiskUsage) > config.DiskThreshold {
+		systemGateRejectedDiskOverloaded.Add(1)
 		return types.NewErrorWithStatusCode(
 			fmt.Errorf("system disk overloaded (current: %.1f%%, threshold: %d%%)", status.DiskUsage, config.DiskThreshold),
 			"system_disk_overloaded", http.StatusServiceUnavailable)

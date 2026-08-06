@@ -224,6 +224,7 @@ var RelayMaxConcurrentRequests int
 var RelayMaxActiveBodyBytes int64
 var RelayMemoryBreakerHighPercent int
 var RelayMemoryBreakerLowPercent int
+var RelayMemoryBreakerMaxTripSeconds int
 var RelayAdmissionRetryAfterSeconds int
 
 var GeminiSafetySetting string

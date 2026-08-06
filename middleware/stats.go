@@ -3,6 +3,7 @@ package middleware
 import (
 	"sync/atomic"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/gin-gonic/gin"
 )
 
@@ -30,12 +31,18 @@ func StatsMiddleware() gin.HandlerFunc {
 
 // StatsInfo 统计信息结构
 type StatsInfo struct {
-	ActiveConnections int64 `json:"active_connections"`
+	ActiveConnections int64                     `json:"active_connections"`
+	RelayAdmission    RelayAdmissionStats       `json:"relay_admission"`
+	SystemGate        SystemGateStats           `json:"system_gate"`
+	CgroupMemory      common.CgroupMemoryStatus `json:"cgroup_memory"`
 }
 
 // GetStats 获取统计信息
 func GetStats() StatsInfo {
 	return StatsInfo{
 		ActiveConnections: atomic.LoadInt64(&globalStats.activeConnections),
+		RelayAdmission:    GetRelayAdmissionStats(),
+		SystemGate:        GetSystemGateStats(),
+		CgroupMemory:      common.GetCgroupMemoryStatus(),
 	}
 }

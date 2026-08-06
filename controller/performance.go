@@ -13,11 +13,18 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	"github.com/QuantumNous/new-api/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 // PerformanceStats 性能统计信息
 type PerformanceStats struct {
+	// Relay admission state and rejection counters
+	RelayAdmission middleware.RelayAdmissionStats `json:"relay_admission"`
+	// System performance gate rejection counters
+	SystemGate middleware.SystemGateStats `json:"system_gate"`
+	// Latest raw cgroup memory sample and breaker state
+	CgroupMemory common.CgroupMemoryStatus `json:"cgroup_memory"`
 	// 缓存统计
 	CacheStats common.DiskCacheStats `json:"cache_stats"`
 	// 系统内存统计
@@ -106,6 +113,7 @@ func GetPerformanceStats(c *gin.Context) {
 		MonitorMemoryThreshold: monitorConfig.MemoryThreshold,
 		MonitorDiskThreshold:   monitorConfig.DiskThreshold,
 	}
+	statsSnapshot := middleware.GetStats()
 
 	// 获取磁盘空间信息
 	// 使用缓存的系统状态，避免频繁调用系统 API
@@ -120,7 +128,10 @@ func GetPerformanceStats(c *gin.Context) {
 	diskSpaceInfo = common.GetDiskSpaceInfo()
 
 	stats := PerformanceStats{
-		CacheStats: cacheStats,
+		RelayAdmission: statsSnapshot.RelayAdmission,
+		SystemGate:     statsSnapshot.SystemGate,
+		CgroupMemory:   statsSnapshot.CgroupMemory,
+		CacheStats:     cacheStats,
 		MemoryStats: MemoryStats{
 			Alloc:        memStats.Alloc,
 			TotalAlloc:   memStats.TotalAlloc,
