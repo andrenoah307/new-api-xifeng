@@ -78,4 +78,8 @@ const (
 	// transient rate-limit detour does not displace cache affinity on the
 	// original channel.
 	ContextKeyRateLimitSkipped ContextKey = "rate_limit_skipped"
+
+	// ContextKeyModelNameRPMChecked marks that model-name RPM admission has been
+	// checked for this request, including unmatched-rule and fail-open paths.
+	ContextKeyModelNameRPMChecked ContextKey = "model_name_rpm_checked"
 )

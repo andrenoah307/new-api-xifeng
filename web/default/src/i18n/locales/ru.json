@@ -1626,6 +1626,7 @@
     "Enable io.net deployments": "Включить развертывания io.net",
     "Enable io.net model deployment service in console": "Включить сервис развертывания моделей io.net в консоли",
     "Enable LinuxDO OAuth": "Включить LinuxDO OAuth",
+    "Enable model name RPM rate limiting": "Включить ограничение RPM по имени модели",
     "Enable model performance metrics": "Включить метрики производительности моделей",
     "Enable OIDC": "Включить OIDC",
     "Enable or disable this channel": "Включить или отключить этот канал",
@@ -2166,6 +2167,7 @@
     "Global Coverage": "Глобальное покрытие",
     "Global Model Configuration": "Глобальная конфигурация модели",
     "Global throughput": "Общая пропускная способность",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm должен быть положительным целым числом; чтобы отключить модель, удалите её правило, а чтобы отключить всё, установите enabled в false.",
     "Go Back": "Назад",
     "Go back and edit": "Вернуться и изменить",
     "Go to Dashboard": "Перейти в панель управления",
@@ -2206,6 +2208,7 @@
     "Group details": "Детали группы",
     "Group identifier": "Идентификатор группы",
     "Group is required": "Группа обязательна",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Групповые лимиты являются более строгими подлимитами глобального лимита; действуют оба (один запрос одновременно использует глобальное и групповое ведро).",
     "Group Model Blacklist": "Group Model Blacklist",
     "Group Monitoring": "分组监控",
     "Group name": "Имя группы",
@@ -2777,6 +2780,9 @@
     "Model Name": "Название модели",
     "Model Name *": "Имя модели *",
     "Model name is required": "Название модели обязательно",
+    "Model name RPM configuration": "Настройка ограничения RPM по модели",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM rate limiting": "Ограничение RPM по имени модели",
     "Model names copied to clipboard": "Названия моделей скопированы в буфер обмена",
     "Model not found": "Модель не найдена",
     "Model performance metrics": "Метрики производительности моделей",
@@ -2822,6 +2828,7 @@
     "Models losing positions": "Модели, теряющие позиции",
     "Models losing the most positions": "Модели, потерявшие больше всего позиций",
     "Models not in list, may fail to invoke": "Модели не в списке, вызов может не сработать",
+    "Models not listed here are not subject to this limit.": "Модели, не указанные здесь, не подпадают под это ограничение.",
     "Models that are being used but not configured in the system": "Модели, которые используются, но не настроены в системе",
     "Models that skip thinking suffix processing": "Модели, пропускающие обработку суффиксов thinking",
     "Models updated successfully": "Модели успешно обновлены",
@@ -2902,6 +2909,7 @@
     "Native format": "Собственный формат",
     "Native forwarding": "Нативная пересылка",
     "Native quota": "Исходная квота",
+    "Native quota limits must be positive integers": "Ограничения исходной квоты должны быть положительными целыми числами",
     "Need a redemption code?": "Нужен код активации?",
     "Needs API key": "Нужен API-ключ",
     "Nested JSON defining per-group rules for adding (+:), removing (-:), or appending usable groups.": "Вложенный JSON, определяющий правила для каждой группы для добавления (+:), удаления (-:) или добавления используемых групп.",
@@ -5368,7 +5376,6 @@
     "Zero retention": "Без хранения данных",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom",
-    "Native quota limits must be positive integers": "Ограничения исходной квоты должны быть положительными целыми числами"
+    "Zoom": "Zoom"
   }
 }

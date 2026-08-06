@@ -59,6 +59,10 @@ func Distribute() func(c *gin.Context) {
 				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorChannelDisabled))
 				return
 			}
+			if shouldSelectChannel && !enforceModelNameRPM(c, modelRequest.Model,
+				common.GetContextKeyString(c, constant.ContextKeyUsingGroup), c.Request.URL.Path) {
+				return
+			}
 		} else {
 			// Select a channel for the user
 			// check token model mapping
@@ -142,6 +146,9 @@ func Distribute() func(c *gin.Context) {
 						usingGroup = playgroundRequest.Group
 						common.SetContextKey(c, constant.ContextKeyUsingGroup, usingGroup)
 					}
+				}
+				if !enforceModelNameRPM(c, modelRequest.Model, usingGroup, c.Request.URL.Path) {
+					return
 				}
 
 				if preferredChannelID, found := service.GetPreferredChannelByAffinity(c, modelRequest.Model, usingGroup); found {

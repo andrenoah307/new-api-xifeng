@@ -5051,6 +5051,14 @@
     "周期天数必须在 1 到 3650 之间": "Period days must be between 1 and 3650",
     "原生额度必须为正整数": "Native quota must be a positive integer",
     "周期限额超出可用范围": "Period limit is outside the allowed range",
-    "周期限额必须大于 0": "Period limit must be greater than zero"
+    "周期限额必须大于 0": "Period limit must be greater than zero",
+    "Model name RPM rate limiting": "Model name RPM rate limiting",
+    "Enable model name RPM rate limiting": "Enable model name RPM rate limiting",
+    "Model name RPM configuration": "Model name RPM configuration",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Save model name RPM rate limit": "Save model name RPM rate limit",
+    "Models not listed here are not subject to this limit.": "Models not listed here are not subject to this limit.",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules."
   }
 }

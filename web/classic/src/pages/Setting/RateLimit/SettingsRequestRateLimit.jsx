@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Button, Col, Form, Row, Spin } from '@douyinfe/semi-ui';
+import { Button, Col, Form, Row, Spin, Switch } from '@douyinfe/semi-ui';
 import {
   compareObjects,
   API,
@@ -28,6 +28,30 @@ import {
   verifyJSON,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+
+const MODEL_NAME_RPM_OPTION_KEY = 'ModelNameRPMRateLimit';
+const DEFAULT_MODEL_NAME_RPM_RATE_LIMIT = JSON.stringify(
+  {
+    enabled: false,
+    models: {},
+  },
+  null,
+  2,
+);
+
+function getModelNameRPMEnabled(value) {
+  try {
+    const config = JSON.parse(value);
+    return (
+      config !== null &&
+      typeof config === 'object' &&
+      !Array.isArray(config) &&
+      config.enabled === true
+    );
+  } catch {
+    return false;
+  }
+}
 
 export default function RequestRateLimit(props) {
   const { t } = useTranslation();
@@ -39,25 +63,88 @@ export default function RequestRateLimit(props) {
     ModelRequestRateLimitSuccessCount: 1000,
     ModelRequestRateLimitDurationMinutes: 1,
     ModelRequestRateLimitGroup: '',
+    [MODEL_NAME_RPM_OPTION_KEY]: DEFAULT_MODEL_NAME_RPM_RATE_LIMIT,
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
 
+  function onModelNameRPMEnabledChange(value) {
+    const currentValue = inputs[MODEL_NAME_RPM_OPTION_KEY];
+    if (!verifyJSON(currentValue)) {
+      showError(t('不是合法的 JSON 字符串'));
+      return;
+    }
+
+    try {
+      const config = JSON.parse(currentValue);
+      if (
+        config === null ||
+        typeof config !== 'object' ||
+        Array.isArray(config)
+      ) {
+        return;
+      }
+
+      config.enabled = value;
+      const nextValue = JSON.stringify(config, null, 2);
+      setInputs((prev) => ({
+        ...prev,
+        [MODEL_NAME_RPM_OPTION_KEY]: nextValue,
+      }));
+      if (refForm.current) {
+        refForm.current.setValues({
+          [MODEL_NAME_RPM_OPTION_KEY]: nextValue,
+        });
+      }
+    } catch {
+      showError(t('不是合法的 JSON 字符串'));
+    }
+  }
+
   function onSubmit() {
     const updateArray = compareObjects(inputs, inputsRow);
     if (!updateArray.length) return showWarning(t('你似乎并没有修改什么'));
+
+    let modelNameRPMValue = inputs[MODEL_NAME_RPM_OPTION_KEY];
+    if (updateArray.some((item) => item.key === MODEL_NAME_RPM_OPTION_KEY)) {
+      if (!verifyJSON(modelNameRPMValue)) {
+        return showError(t('不是合法的 JSON 字符串'));
+      }
+
+      // Keep the switch and JSON in sync while leaving semantic validation to the backend.
+      try {
+        const config = JSON.parse(modelNameRPMValue);
+        if (
+          config !== null &&
+          typeof config === 'object' &&
+          !Array.isArray(config)
+        ) {
+          config.enabled = getModelNameRPMEnabled(modelNameRPMValue);
+          modelNameRPMValue = JSON.stringify(config, null, 2);
+        }
+      } catch {
+        return showError(t('不是合法的 JSON 字符串'));
+      }
+    }
+
     const requestQueue = updateArray.map((item) => {
       let value = '';
-      if (typeof inputs[item.key] === 'boolean') {
+      if (item.key === MODEL_NAME_RPM_OPTION_KEY) {
+        value = modelNameRPMValue;
+      } else if (typeof inputs[item.key] === 'boolean') {
         value = String(inputs[item.key]);
       } else {
         value = inputs[item.key];
       }
       return API.put('/api/option/', {
-        key: item.key,
+        key:
+          item.key === MODEL_NAME_RPM_OPTION_KEY
+            ? 'ModelNameRPMRateLimit'
+            : item.key,
         value,
       });
     });
+
     setLoading(true);
     Promise.all(requestQueue)
       .then((res) => {
@@ -89,8 +176,32 @@ export default function RequestRateLimit(props) {
     const currentInputs = {};
     for (let key in props.options) {
       if (Object.keys(inputs).includes(key)) {
-        currentInputs[key] = props.options[key];
+        if (
+          key === MODEL_NAME_RPM_OPTION_KEY &&
+          typeof props.options[key] === 'string'
+        ) {
+          try {
+            currentInputs[key] = JSON.stringify(
+              JSON.parse(props.options[key]),
+              null,
+              2,
+            );
+          } catch {
+            currentInputs[key] = props.options[key];
+          }
+        } else {
+          currentInputs[key] = props.options[key];
+        }
       }
+    }
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        currentInputs,
+        MODEL_NAME_RPM_OPTION_KEY,
+      )
+    ) {
+      currentInputs[MODEL_NAME_RPM_OPTION_KEY] =
+        DEFAULT_MODEL_NAME_RPM_RATE_LIMIT;
     }
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
@@ -232,6 +343,77 @@ export default function RequestRateLimit(props) {
             <Row>
               <Button size='default' onClick={onSubmit}>
                 {t('保存模型速率限制')}
+              </Button>
+            </Row>
+          </Form.Section>
+
+          <Form.Section text={t('Model name RPM rate limiting')}>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Slot label={t('Enable model name RPM rate limiting')}>
+                  <Switch
+                    checked={getModelNameRPMEnabled(
+                      inputs[MODEL_NAME_RPM_OPTION_KEY],
+                    )}
+                    size='default'
+                    checkedText='｜'
+                    uncheckedText='〇'
+                    aria-label={t('Enable model name RPM rate limiting')}
+                    onChange={onModelNameRPMEnabledChange}
+                  />
+                </Form.Slot>
+              </Col>
+            </Row>
+            <Row>
+              <Col xs={24} sm={24} md={16} lg={16} xl={16}>
+                <Form.TextArea
+                  label={t('Model name RPM configuration')}
+                  placeholder={t('Model name RPM configuration example')}
+                  field={MODEL_NAME_RPM_OPTION_KEY}
+                  autosize={{ minRows: 10, maxRows: 20 }}
+                  trigger='blur'
+                  stopValidateWithError
+                  style={{ fontFamily: 'monospace' }}
+                  rules={[
+                    {
+                      validator: (rule, value) => verifyJSON(value),
+                      message: t('不是合法的 JSON 字符串'),
+                    },
+                  ]}
+                  extraText={
+                    <div>
+                      <p>{t('说明：')}</p>
+                      <ul>
+                        <li>
+                          {t(
+                            'Models not listed here are not subject to this limit.',
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            'Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).',
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            'global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.',
+                          )}
+                        </li>
+                      </ul>
+                    </div>
+                  }
+                  onChange={(value) => {
+                    setInputs((prev) => ({
+                      ...prev,
+                      [MODEL_NAME_RPM_OPTION_KEY]: value,
+                    }));
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row>
+              <Button size='default' onClick={onSubmit}>
+                {t('Save model name RPM rate limit')}
               </Button>
             </Row>
           </Form.Section>

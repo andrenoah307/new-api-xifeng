@@ -4845,6 +4845,14 @@
     "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "5m缓存创建": "Создание кеша (5 мин)",
     "1h缓存创建": "Создание кеша (1 ч)",
-    "命中档位：{{tier}}": "Применённый уровень: {{tier}}"
+    "命中档位：{{tier}}": "Применённый уровень: {{tier}}",
+    "Model name RPM rate limiting": "Ограничение RPM по имени модели",
+    "Enable model name RPM rate limiting": "Включить ограничение RPM по имени модели",
+    "Model name RPM configuration": "Настройка ограничения RPM по модели",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Save model name RPM rate limit": "Сохранить ограничение RPM по имени модели",
+    "Models not listed here are not subject to this limit.": "Модели, не указанные здесь, не подпадают под это ограничение.",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Групповые лимиты являются более строгими подлимитами глобального лимита; действуют оба (один запрос одновременно использует глобальное и групповое ведро).",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm должен быть положительным целым числом; чтобы отключить модель, удалите её правило, а чтобы отключить всё, установите enabled в false."
   }
 }

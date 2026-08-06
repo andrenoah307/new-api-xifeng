@@ -4791,6 +4791,14 @@
     "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "5m缓存创建": "5分キャッシュ作成",
     "1h缓存创建": "1時間キャッシュ作成",
-    "命中档位：{{tier}}": "適用ティア：{{tier}}"
+    "命中档位：{{tier}}": "適用ティア：{{tier}}",
+    "Model name RPM rate limiting": "モデル名ごとの RPM 制限",
+    "Enable model name RPM rate limiting": "モデル名ごとの RPM 制限を有効にする",
+    "Model name RPM configuration": "モデル名ごとの RPM 制限設定",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Save model name RPM rate limit": "モデル名ごとの RPM 制限を保存",
+    "Models not listed here are not subject to this limit.": "ここに記載されていないモデルにはこの制限は適用されません。",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "グループ別の上限はグローバル上限より厳しいサブ上限で、両方が同時に適用されます（1 回のリクエストでグローバルバケットとグループバケットの両方を消費します）。",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "`global_rpm` は正の整数である必要があります。モデルを無効にするにはそのルールを削除し、すべて無効にするには `enabled` を false に設定してください。"
   }
 }

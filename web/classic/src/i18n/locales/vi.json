@@ -5335,6 +5335,14 @@
     "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "5m缓存创建": "Tạo bộ nhớ đệm (5 phút)",
     "1h缓存创建": "Tạo bộ nhớ đệm (1 giờ)",
-    "命中档位：{{tier}}": "Bậc áp dụng: {{tier}}"
+    "命中档位：{{tier}}": "Bậc áp dụng: {{tier}}",
+    "Model name RPM rate limiting": "Giới hạn RPM theo tên mô hình",
+    "Enable model name RPM rate limiting": "Bật giới hạn RPM theo tên mô hình",
+    "Model name RPM configuration": "Cấu hình giới hạn RPM theo tên mô hình",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Save model name RPM rate limit": "Lưu giới hạn RPM theo tên mô hình",
+    "Models not listed here are not subject to this limit.": "Các mô hình không được liệt kê ở đây không chịu giới hạn này.",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Giới hạn theo nhóm là giới hạn con chặt hơn của giới hạn toàn cục; cả hai cùng có hiệu lực (mỗi yêu cầu đồng thời dùng cả bucket toàn cục và bucket nhóm).",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm phải là số nguyên dương; để tắt một mô hình, hãy xóa quy tắc của mô hình đó; để tắt tất cả, đặt enabled thành false."
   }
 }

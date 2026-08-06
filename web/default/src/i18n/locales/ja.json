@@ -1626,6 +1626,7 @@
     "Enable io.net deployments": "io.net デプロイを有効化",
     "Enable io.net model deployment service in console": "コンソールで io.net モデルデプロイサービスを有効化",
     "Enable LinuxDO OAuth": "LinuxDO OAuthを有効にする",
+    "Enable model name RPM rate limiting": "モデル名ごとの RPM 制限を有効にする",
     "Enable model performance metrics": "モデル性能メトリクスを有効化",
     "Enable OIDC": "OIDCを有効にする",
     "Enable or disable this channel": "このチャネルを有効または無効にする",
@@ -2166,6 +2167,7 @@
     "Global Coverage": "グローバルカバレッジ",
     "Global Model Configuration": "グローバルモデル設定",
     "Global throughput": "全体スループット",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "`global_rpm` は正の整数である必要があります。モデルを無効にするにはそのルールを削除し、すべて無効にするには `enabled` を false に設定してください。",
     "Go Back": "戻る",
     "Go back and edit": "戻って編集",
     "Go to Dashboard": "ダッシュボードへ移動",
@@ -2206,6 +2208,7 @@
     "Group details": "グループの詳細",
     "Group identifier": "グループ識別子",
     "Group is required": "グループは必須です",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "グループ別の上限はグローバル上限より厳しいサブ上限で、両方が同時に適用されます（1 回のリクエストでグローバルバケットとグループバケットの両方を消費します）。",
     "Group Model Blacklist": "Group Model Blacklist",
     "Group Monitoring": "分组监控",
     "Group name": "グループ名",
@@ -2777,6 +2780,9 @@
     "Model Name": "モデル名",
     "Model Name *": "モデル名 *",
     "Model name is required": "モデル名は必須です",
+    "Model name RPM configuration": "モデル名ごとの RPM 制限設定",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM rate limiting": "モデル名ごとの RPM 制限",
     "Model names copied to clipboard": "モデル名がクリップボードにコピーされました",
     "Model not found": "モデルが見つかりません",
     "Model performance metrics": "モデル性能メトリクス",
@@ -2822,6 +2828,7 @@
     "Models losing positions": "順位を下げているモデル",
     "Models losing the most positions": "順位を最も落としているモデル",
     "Models not in list, may fail to invoke": "リストにないモデル、呼び出しに失敗する可能性があります",
+    "Models not listed here are not subject to this limit.": "ここに記載されていないモデルにはこの制限は適用されません。",
     "Models that are being used but not configured in the system": "使用されているがシステムに設定されていないモデル",
     "Models that skip thinking suffix processing": "thinking サフィックス処理をスキップするモデル",
     "Models updated successfully": "モデルが正常に更新されました",
@@ -2902,6 +2909,7 @@
     "Native format": "ネイティブ形式",
     "Native forwarding": "ネイティブ転送",
     "Native quota": "ネイティブクォータ",
+    "Native quota limits must be positive integers": "ネイティブクォータの上限は正の整数で指定してください",
     "Need a redemption code?": "引き換えコードが必要ですか？",
     "Needs API key": "API キーが必要",
     "Nested JSON defining per-group rules for adding (+:), removing (-:), or appending usable groups.": "追加 (+:)、削除 (-:)、または使用可能なグループの追加を行うグループごとのルールを定義するネストされたJSON。",
@@ -5368,7 +5376,6 @@
     "Zero retention": "データ保持なし",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム",
-    "Native quota limits must be positive integers": "ネイティブクォータの上限は正の整数で指定してください"
+    "Zoom": "ズーム"
   }
 }

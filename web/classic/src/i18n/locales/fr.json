@@ -4824,6 +4824,14 @@
     "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.",
     "5m缓存创建": "Création du cache (5 min)",
     "1h缓存创建": "Création du cache (1 h)",
-    "命中档位：{{tier}}": "Palier appliqué : {{tier}}"
+    "命中档位：{{tier}}": "Palier appliqué : {{tier}}",
+    "Model name RPM rate limiting": "Limitation RPM par nom de modèle",
+    "Enable model name RPM rate limiting": "Activer la limitation RPM par nom de modèle",
+    "Model name RPM configuration": "Configuration de la limitation RPM par modèle",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Save model name RPM rate limit": "Enregistrer la limite RPM par nom de modèle",
+    "Models not listed here are not subject to this limit.": "Les modèles non répertoriés ne sont pas soumis à cette limite.",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Les limites par groupe sont des sous-limites plus strictes de la limite globale ; les deux s’appliquent à chaque requête (une requête utilise à la fois le bucket global et celui du groupe).",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm doit être un entier positif ; pour désactiver un modèle, supprimez sa règle ; pour tout désactiver, définissez enabled sur false."
   }
 }

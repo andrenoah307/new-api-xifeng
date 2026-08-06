@@ -54,6 +54,12 @@ func ResolveOriginTask(c *gin.Context, info *relaycommon.RelayInfo) *dto.TaskErr
 	if info.OriginTaskID == "" {
 		return nil
 	}
+	// Remix/continuation can reach this resolver before a channel has been
+	// selected. The locked-channel fields below are embedded in ChannelMeta, so
+	// initialize that metadata container before filling them.
+	if info.ChannelMeta == nil {
+		info.ChannelMeta = &relaycommon.ChannelMeta{}
+	}
 
 	// 查找原始任务
 	originTask, exist, err := model.GetByTaskId(info.UserId, info.OriginTaskID)

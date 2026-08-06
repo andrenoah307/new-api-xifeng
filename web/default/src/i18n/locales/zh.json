@@ -1626,6 +1626,7 @@
     "Enable io.net deployments": "启用 io.net 部署",
     "Enable io.net model deployment service in console": "在控制台启用 io.net 模型部署服务",
     "Enable LinuxDO OAuth": "启用 LinuxDO OAuth",
+    "Enable model name RPM rate limiting": "启用按模型名 RPM 限流",
     "Enable model performance metrics": "启用模型性能指标",
     "Enable OIDC": "启用 OIDC",
     "Enable or disable this channel": "启用或禁用此渠道",
@@ -2166,6 +2167,7 @@
     "Global Coverage": "全球覆盖",
     "Global Model Configuration": "全局模型配置",
     "Global throughput": "全局吞吐量",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm 必须为正整数；要关闭某个模型请删除该条规则，要全部关闭请将 enabled 设为 false。",
     "Go Back": "返回",
     "Go back and edit": "返回修改",
     "Go to Dashboard": "前往仪表板",
@@ -2206,6 +2208,7 @@
     "Group details": "分组详情",
     "Group identifier": "分组标识符",
     "Group is required": "组是必需的",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "分组限额是全局限额的更严子限，两者同时生效（一次请求同时占用全局桶与分组桶）。",
     "Group Model Blacklist": "分组模型黑名单",
     "Group Monitoring": "分组监控",
     "Group name": "分组名称",
@@ -2777,6 +2780,9 @@
     "Model Name": "模型名称",
     "Model Name *": "模型名称 *",
     "Model name is required": "模型名称为必填项",
+    "Model name RPM configuration": "按模型名 RPM 限流配置",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM rate limiting": "按模型名 RPM 限流",
     "Model names copied to clipboard": "模型名称已复制到剪贴板",
     "Model not found": "模型未找到",
     "Model performance metrics": "模型性能指标",
@@ -2822,6 +2828,7 @@
     "Models losing positions": "排名下滑的模型",
     "Models losing the most positions": "名次下滑最多的模型",
     "Models not in list, may fail to invoke": "模型未加入列表，可能无法调用",
+    "Models not listed here are not subject to this limit.": "未列出的模型不受此限制。",
     "Models that are being used but not configured in the system": "正在使用但未在系统中配置的模型",
     "Models that skip thinking suffix processing": "不自动处理思考后缀的模型",
     "Models updated successfully": "模型更新成功",
@@ -2902,6 +2909,7 @@
     "Native format": "原生格式",
     "Native forwarding": "原生转发",
     "Native quota": "原生额度",
+    "Native quota limits must be positive integers": "原生额度限额必须为正整数",
     "Need a redemption code?": "需要兑换码？",
     "Needs API key": "需要 API 密钥",
     "Nested JSON defining per-group rules for adding (+:), removing (-:), or appending usable groups.": "嵌套 JSON，定义按分组添加（+:）、移除（-:）或追加可用分组的规则。",
@@ -5368,7 +5376,6 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放",
-    "Native quota limits must be positive integers": "原生额度限额必须为正整数"
+    "Zoom": "缩放"
   }
 }

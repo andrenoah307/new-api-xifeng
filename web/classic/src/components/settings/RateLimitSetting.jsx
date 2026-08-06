@@ -24,6 +24,16 @@ import { API, showError, toBoolean } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 import RequestRateLimit from '../../pages/Setting/RateLimit/SettingsRequestRateLimit';
 
+const MODEL_NAME_RPM_OPTION_KEY = 'ModelNameRPMRateLimit';
+const DEFAULT_MODEL_NAME_RPM_RATE_LIMIT = JSON.stringify(
+  {
+    enabled: false,
+    models: {},
+  },
+  null,
+  2,
+);
+
 const RateLimitSetting = () => {
   const { t } = useTranslation();
   let [inputs, setInputs] = useState({
@@ -32,6 +42,7 @@ const RateLimitSetting = () => {
     ModelRequestRateLimitSuccessCount: 1000,
     ModelRequestRateLimitDurationMinutes: 1,
     ModelRequestRateLimitGroup: '',
+    [MODEL_NAME_RPM_OPTION_KEY]: DEFAULT_MODEL_NAME_RPM_RATE_LIMIT,
   });
 
   let [loading, setLoading] = useState(false);
@@ -46,12 +57,33 @@ const RateLimitSetting = () => {
           item.value = JSON.stringify(JSON.parse(item.value), null, 2);
         }
 
+        if (
+          item.key === MODEL_NAME_RPM_OPTION_KEY &&
+          typeof item.value === 'string'
+        ) {
+          try {
+            item.value = JSON.stringify(JSON.parse(item.value), null, 2);
+          } catch {
+            // Keep an invalid value visible so the administrator can fix it.
+          }
+        }
+
         if (item.key.endsWith('Enabled')) {
           newInputs[item.key] = toBoolean(item.value);
         } else {
           newInputs[item.key] = item.value;
         }
       });
+
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          newInputs,
+          MODEL_NAME_RPM_OPTION_KEY,
+        )
+      ) {
+        newInputs[MODEL_NAME_RPM_OPTION_KEY] =
+          DEFAULT_MODEL_NAME_RPM_RATE_LIMIT;
+      }
 
       setInputs(newInputs);
     } else {

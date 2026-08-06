@@ -29,6 +29,7 @@ import (
 	"github.com/QuantumNous/new-api/router"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/QuantumNous/new-api/service/model_name_limiter"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	_ "github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -380,6 +381,7 @@ func InitResources() error {
 	if err != nil {
 		return err
 	}
+	model_name_limiter.InitModelNameLimiter()
 
 	perfmetrics.Init()
 

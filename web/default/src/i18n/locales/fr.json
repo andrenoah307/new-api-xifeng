@@ -1626,6 +1626,7 @@
     "Enable io.net deployments": "Activer les déploiements io.net",
     "Enable io.net model deployment service in console": "Activer le service de déploiement de modèles io.net dans la console",
     "Enable LinuxDO OAuth": "Activer LinuxDO OAuth",
+    "Enable model name RPM rate limiting": "Activer la limitation RPM par nom de modèle",
     "Enable model performance metrics": "Activer les indicateurs de performance des modèles",
     "Enable OIDC": "Activer OIDC",
     "Enable or disable this channel": "Activer ou désactiver ce canal",
@@ -2166,6 +2167,7 @@
     "Global Coverage": "Couverture mondiale",
     "Global Model Configuration": "Configuration globale du modèle",
     "Global throughput": "Débit global",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm doit être un entier positif ; pour désactiver un modèle, supprimez sa règle ; pour tout désactiver, définissez enabled sur false.",
     "Go Back": "Retour",
     "Go back and edit": "Retour et modifier",
     "Go to Dashboard": "Aller au tableau de bord",
@@ -2206,6 +2208,7 @@
     "Group details": "Détails du groupe",
     "Group identifier": "Identifiant du groupe",
     "Group is required": "Le groupe est requis",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Les limites par groupe sont des sous-limites plus strictes de la limite globale ; les deux s’appliquent à chaque requête (une requête utilise à la fois le bucket global et celui du groupe).",
     "Group Model Blacklist": "Group Model Blacklist",
     "Group Monitoring": "分组监控",
     "Group name": "Nom du groupe",
@@ -2777,6 +2780,9 @@
     "Model Name": "Nom du modèle",
     "Model Name *": "Nom du modèle *",
     "Model name is required": "Le nom du modèle est requis",
+    "Model name RPM configuration": "Configuration de la limitation RPM par modèle",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM rate limiting": "Limitation RPM par nom de modèle",
     "Model names copied to clipboard": "Noms des modèles copiés dans le presse-papiers",
     "Model not found": "Modèle introuvable",
     "Model performance metrics": "Indicateurs de performance des modèles",
@@ -2822,6 +2828,7 @@
     "Models losing positions": "Modèles perdant des positions",
     "Models losing the most positions": "Modèles qui perdent le plus de places",
     "Models not in list, may fail to invoke": "Modèles non listés, peut échouer lors de l'invocation",
+    "Models not listed here are not subject to this limit.": "Les modèles non répertoriés ne sont pas soumis à cette limite.",
     "Models that are being used but not configured in the system": "Modèles utilisés mais non configurés dans le système",
     "Models that skip thinking suffix processing": "Modèles qui ignorent le traitement des suffixes thinking",
     "Models updated successfully": "Modèles mis à jour avec succès",
@@ -2902,6 +2909,7 @@
     "Native format": "Format natif",
     "Native forwarding": "Transfert natif",
     "Native quota": "Quota natif",
+    "Native quota limits must be positive integers": "Les limites de quota natif doivent être des entiers positifs",
     "Need a redemption code?": "Besoin d'un code d'échange ?",
     "Needs API key": "Clé API requise",
     "Nested JSON defining per-group rules for adding (+:), removing (-:), or appending usable groups.": "JSON imbriqué définissant des règles par groupe pour ajouter (+:), supprimer (-:), ou ajouter des groupes utilisables.",
@@ -5368,7 +5376,6 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom",
-    "Native quota limits must be positive integers": "Les limites de quota natif doivent être des entiers positifs"
+    "Zoom": "Zoom"
   }
 }

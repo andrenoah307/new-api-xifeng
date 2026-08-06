@@ -34,6 +34,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -66,6 +67,44 @@ const isValidJSON = (value: string | undefined) => {
   }
 }
 
+const isValidJsonDocument = (value: string): boolean => {
+  try {
+    JSON.parse(value)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function getModelNameRPMEnabled(value: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return isJsonObject(parsed) && typeof parsed.enabled === 'boolean'
+      ? parsed.enabled
+      : false
+  } catch {
+    return false
+  }
+}
+
+function setModelNameRPMEnabled(value: string, enabled: boolean): string {
+  let parsed: unknown = {}
+
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    parsed = {}
+  }
+
+  const config = isJsonObject(parsed) ? { ...parsed } : {}
+  config.enabled = enabled
+  return JSON.stringify(config, null, 2)
+}
+
 const createRateLimitSchema = (t: (key: string) => string) =>
   z.object({
     ModelRequestRateLimitEnabled: z.boolean(),
@@ -78,6 +117,9 @@ const createRateLimitSchema = (t: (key: string) => string) =>
       .refine(isValidJSON, {
         message: t('Invalid JSON format or values out of allowed range'),
       }),
+    ModelNameRPMRateLimit: z.string().refine(isValidJsonDocument, {
+      message: t('Invalid JSON format'),
+    }),
   })
 
 type RateLimitFormValues = z.infer<ReturnType<typeof createRateLimitSchema>>
@@ -106,11 +148,19 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
   const onSubmit = async (values: RateLimitFormValues) => {
     const updates = Object.entries(values).filter(
       ([key, value]) =>
+        key !== 'ModelNameRPMRateLimit' &&
         value !== defaultValues[key as keyof RateLimitFormValues]
     )
 
     for (const [key, value] of updates) {
       await updateOption.mutateAsync({ key, value: value ?? '' })
+    }
+
+    if (values.ModelNameRPMRateLimit !== defaultValues.ModelNameRPMRateLimit) {
+      await updateOption.mutateAsync({
+        key: 'ModelNameRPMRateLimit',
+        value: values.ModelNameRPMRateLimit,
+      })
     }
   }
 
@@ -312,6 +362,71 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
               </FormItem>
             )}
           />
+
+          <div className='border-border/70 mt-2 space-y-4 border-t pt-6'>
+            <div className='space-y-1'>
+              <h4 className='text-sm font-semibold'>
+                {t('Model name RPM rate limiting')}
+              </h4>
+            </div>
+
+            <FormField
+              control={form.control}
+              name='ModelNameRPMRateLimit'
+              render={({ field }) => (
+                <FormItem>
+                  <div className='flex min-w-0 flex-row items-center justify-between gap-4 py-2.5'>
+                    <div className='min-w-0 space-y-0.5'>
+                      <Label htmlFor='model-name-rpm-rate-limit-enabled'>
+                        {t('Enable model name RPM rate limiting')}
+                      </Label>
+                    </div>
+                    <Switch
+                      id='model-name-rpm-rate-limit-enabled'
+                      checked={getModelNameRPMEnabled(field.value)}
+                      onCheckedChange={(checked) =>
+                        field.onChange(
+                          setModelNameRPMEnabled(field.value, checked)
+                        )
+                      }
+                      aria-label={t('Enable model name RPM rate limiting')}
+                    />
+                  </div>
+
+                  <FormLabel>{t('Model name RPM configuration')}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={12}
+                      placeholder={t('Model name RPM configuration example')}
+                      className='font-mono text-sm'
+                      spellCheck={false}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    <ul className='list-inside list-disc space-y-1'>
+                      <li>
+                        {t(
+                          'Models not listed here are not subject to this limit.'
+                        )}
+                      </li>
+                      <li>
+                        {t(
+                          'Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).'
+                        )}
+                      </li>
+                      <li>
+                        {t(
+                          'global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.'
+                        )}
+                      </li>
+                    </ul>
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </SettingsForm>
       </Form>
     </SettingsSection>

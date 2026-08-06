@@ -1626,6 +1626,7 @@
     "Enable io.net deployments": "Bật triển khai io.net",
     "Enable io.net model deployment service in console": "Bật dịch vụ triển khai mô hình io.net trong bảng điều khiển",
     "Enable LinuxDO OAuth": "Bật LinuxDO OAuth",
+    "Enable model name RPM rate limiting": "Bật giới hạn RPM theo tên mô hình",
     "Enable model performance metrics": "Bật chỉ số hiệu năng mô hình",
     "Enable OIDC": "Bật OIDC",
     "Enable or disable this channel": "Bật hoặc tắt kênh này",
@@ -2166,6 +2167,7 @@
     "Global Coverage": "Phạm vi toàn cầu",
     "Global Model Configuration": "Cấu hình Mô hình Toàn cầu",
     "Global throughput": "Thông lượng toàn hệ thống",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm phải là số nguyên dương; để tắt một mô hình, hãy xóa quy tắc của mô hình đó; để tắt tất cả, đặt enabled thành false.",
     "Go Back": "Quay lại",
     "Go back and edit": "Quay lại và chỉnh sửa",
     "Go to Dashboard": "Truy cập Dashboard",
@@ -2206,6 +2208,7 @@
     "Group details": "Chi tiết nhóm",
     "Group identifier": "Định danh nhóm",
     "Group is required": "Yêu cầu nhóm",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Giới hạn theo nhóm là giới hạn con chặt hơn của giới hạn toàn cục; cả hai cùng có hiệu lực (mỗi yêu cầu đồng thời dùng cả bucket toàn cục và bucket nhóm).",
     "Group Model Blacklist": "Group Model Blacklist",
     "Group Monitoring": "分组监控",
     "Group name": "Tên nhóm",
@@ -2777,6 +2780,9 @@
     "Model Name": "Tên mẫu",
     "Model Name *": "Tên mẫu *",
     "Model name is required": "Tên mô hình là bắt buộc",
+    "Model name RPM configuration": "Cấu hình giới hạn RPM theo tên mô hình",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM rate limiting": "Giới hạn RPM theo tên mô hình",
     "Model names copied to clipboard": "Tên mô hình đã được sao chép vào bộ nhớ tạm",
     "Model not found": "Không tìm thấy mô hình",
     "Model performance metrics": "Chỉ số hiệu năng mô hình",
@@ -2822,6 +2828,7 @@
     "Models losing positions": "Các mô hình đang mất vị trí",
     "Models losing the most positions": "Mô hình tụt hạng nhiều nhất",
     "Models not in list, may fail to invoke": "Các mô hình không có trong danh sách, có thể gọi thất bại",
+    "Models not listed here are not subject to this limit.": "Các mô hình không được liệt kê ở đây không chịu giới hạn này.",
     "Models that are being used but not configured in the system": "Mô hình đang được sử dụng nhưng chưa được cấu hình trong hệ thống",
     "Models that skip thinking suffix processing": "Mô hình bỏ qua xử lý hậu tố thinking",
     "Models updated successfully": "Mô hình đã được cập nhật thành công",
@@ -2902,6 +2909,7 @@
     "Native format": "Định dạng gốc",
     "Native forwarding": "Chuyển tiếp nguyên bản",
     "Native quota": "Quota gốc",
+    "Native quota limits must be positive integers": "Hạn mức quota gốc phải là số nguyên dương",
     "Need a redemption code?": "Cần mã đổi thưởng?",
     "Needs API key": "Cần khóa API",
     "Nested JSON defining per-group rules for adding (+:), removing (-:), or appending usable groups.": "JSON lồng nhau xác định quy tắc theo nhóm để thêm (+:), xóa (-:), hoặc nối các nhóm có thể sử dụng.",
@@ -5368,7 +5376,6 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom",
-    "Native quota limits must be positive integers": "Hạn mức quota gốc phải là số nguyên dương"
+    "Zoom": "Zoom"
   }
 }

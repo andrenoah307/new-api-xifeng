@@ -4979,6 +4979,14 @@
     "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first.": "余额不足时每自然周仅可新建一次工单申请，本周已用完。如需帮助，请先联系客服咨询。",
     "5m缓存创建": "5 分钟缓存创建",
     "1h缓存创建": "1 小时缓存创建",
-    "命中档位：{{tier}}": "命中档位：{{tier}}"
+    "命中档位：{{tier}}": "命中档位：{{tier}}",
+    "Model name RPM rate limiting": "按模型名 RPM 限流",
+    "Enable model name RPM rate limiting": "启用按模型名 RPM 限流",
+    "Model name RPM configuration": "按模型名 RPM 限流配置",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Save model name RPM rate limit": "保存按模型名 RPM 限流",
+    "Models not listed here are not subject to this limit.": "未列出的模型不受此限制",
+    "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "分组限额是全局限额的更严子限，两者同时生效（一次请求同时占用全局桶与分组桶）",
+    "global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm 必须为正整数；要关闭某个模型请删除该条规则，要全部关闭请设 enabled 为 false"
   }
 }
