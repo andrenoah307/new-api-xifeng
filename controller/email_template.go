@@ -95,7 +95,6 @@ func PreviewEmailTemplate(c *gin.Context) {
 type resetEmailTemplateRequest struct {
 	Key string `json:"key"`
 }
-
 // ResetEmailTemplate 清空某个模板的自定义值（让系统回落到默认）。Root only。
 func ResetEmailTemplate(c *gin.Context) {
 	var req resetEmailTemplateRequest
@@ -119,4 +118,30 @@ func ResetEmailTemplate(c *gin.Context) {
 	common.ApiSuccess(c, gin.H{
 		"key": spec.Key,
 	})
+}
+
+type testEmailTemplateRequest struct {
+	Key     string `json:"key"`
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+}
+
+// SendEmailTemplateTest 把当前编辑中的模板渲染后发到调用管理员本人的邮箱。Root only。
+//
+// 与 PreviewEmailTemplate 共用渲染逻辑；收件人固定为调用者，不接受任意收件人，不写库。
+func SendEmailTemplateTest(c *gin.Context) {
+	var req testEmailTemplateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ApiErrorMsg(c, "参数错误")
+		return
+	}
+	if req.Key == "" {
+		common.ApiErrorMsg(c, "缺少 key")
+		return
+	}
+	if err := service.SendEmailTemplateTest(req.Key, req.Subject, req.Body, c.GetInt("id")); err != nil {
+		common.ApiErrorMsg(c, err.Error())
+		return
+	}
+	common.ApiSuccess(c, gin.H{"sent": true})
 }

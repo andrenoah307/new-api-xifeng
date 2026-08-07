@@ -2285,6 +2285,8 @@
     "搜索部署名称": "Search deployment name",
     "操作": "Actions",
     "操作失败": "Operation failed",
+    "发送测试邮件": "Send Test Email",
+    "测试邮件已发送至您绑定的邮箱": "Test email sent to your bound mailbox",
     "操作失败，请重试": "Operation failed, please retry",
     "操作成功完成！": "Operation completed successfully!",
     "操作暂时被禁用": "Operation temporarily disabled",

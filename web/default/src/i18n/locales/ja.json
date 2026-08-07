@@ -5402,6 +5402,14 @@
     "Zero retention": "データ保持なし",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Email Templates": "メールテンプレート",
+    "Configure email notification templates": "メール通知テンプレートを設定します",
+    "Insert Variable": "変数を挿入",
+    "Customized": "カスタム済み",
+    "Template Preview": "テンプレートプレビュー",
+    "This will reset the template to the system default. Continue?": "テンプレートをシステム既定値に戻します。続行しますか？",
+    "Send Test Email": "テストメールを送信",
+    "Test email sent to your bound mailbox": "登録済みのメールアドレスにテストメールを送信しました"
   }
 }

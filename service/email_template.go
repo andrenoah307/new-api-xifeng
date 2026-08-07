@@ -2,9 +2,11 @@ package service
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/model"
 )
 
 // GetEmailTemplate 读取保存的自定义主题/正文；若 OptionMap 中对应 key 为空，回落到 spec 默认值。
@@ -71,4 +73,28 @@ func sampleVarsFromSpec(spec constant.EmailTemplateSpec) map[string]string {
 		vars[v.Name] = v.Sample
 	}
 	return vars
+}
+
+// SendEmailTemplateTest 把编辑中的模板按示例变量渲染后发到**调用管理员本人**的邮箱，
+// 供管理员自验 SMTP 配置与报文编码是否正常。
+//
+// 收件人固定为调用者（与 SendEnforcementTestEmail 一致），不接受任意收件人，
+// 避免该端点被当成任意邮件转发器；全过程不写库。
+func SendEmailTemplateTest(key, subject, body string, adminUserID int) error {
+	if adminUserID <= 0 {
+		return fmt.Errorf("无效的管理员账号")
+	}
+	renderedSubject, renderedBody, err := PreviewEmailTemplate(key, subject, body)
+	if err != nil {
+		return err
+	}
+	user, err := model.GetUserById(adminUserID, false)
+	if err != nil {
+		return err
+	}
+	email := strings.TrimSpace(user.Email)
+	if email == "" {
+		return fmt.Errorf("当前账号未绑定邮箱，无法接收测试邮件")
+	}
+	return common.SendEmail("[测试] "+renderedSubject, email, renderedBody)
 }

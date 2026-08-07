@@ -25,6 +25,7 @@ const { Text, Title, Paragraph } = Typography;
  * 后端接口：
  *   GET  /api/option/email_templates
  *   POST /api/option/email_templates/preview   { key, subject, body }
+ *   POST /api/option/email_templates/test      { key, subject, body }
  *   POST /api/option/email_templates/reset     { key }
  *   PUT  /api/option/                          { key, value }  (用来保存单项)
  */
@@ -34,6 +35,7 @@ const EmailTemplateSetting = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [activeKey, setActiveKey] = useState('');
   const [drafts, setDrafts] = useState({});
@@ -152,6 +154,28 @@ const EmailTemplateSetting = () => {
       showError(t('预览失败'));
     } finally {
       setPreviewing(false);
+    }
+  };
+
+  // 收件人由后端固定为当前管理员账号绑定的邮箱，前端不传收件人
+  const handleSendTest = async () => {
+    if (!activeKey) return;
+    setTesting(true);
+    try {
+      const res = await API.post('/api/option/email_templates/test', {
+        key: activeKey,
+        subject: currentDraft.subject,
+        body: currentDraft.body,
+      });
+      if (!res.data.success) {
+        showError(res.data.message);
+        return;
+      }
+      showSuccess(t('测试邮件已发送至您绑定的邮箱'));
+    } catch (e) {
+      showError(t('操作失败'));
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -329,6 +353,9 @@ const EmailTemplateSetting = () => {
                     </Button>
                     <Button loading={previewing} onClick={handlePreview}>
                       {t('预览')}
+                    </Button>
+                    <Button loading={testing} onClick={handleSendTest}>
+                      {t('发送测试邮件')}
                     </Button>
                     <Popconfirm
                       title={t('确定恢复为默认模板？')}

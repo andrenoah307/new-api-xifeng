@@ -5402,6 +5402,14 @@
     "Zero retention": "零数据保留",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Email Templates": "邮件模板",
+    "Configure email notification templates": "配置邮件通知模板",
+    "Insert Variable": "插入变量",
+    "Customized": "已自定义",
+    "Template Preview": "模板预览",
+    "This will reset the template to the system default. Continue?": "这将把模板恢复为系统默认值，是否继续？",
+    "Send Test Email": "发送测试邮件",
+    "Test email sent to your bound mailbox": "测试邮件已发送至您绑定的邮箱"
   }
 }

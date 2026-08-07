@@ -5402,6 +5402,14 @@
     "Zero retention": "Aucune rétention",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Email Templates": "Modèles d'e-mail",
+    "Configure email notification templates": "Configurer les modèles de notification par e-mail",
+    "Insert Variable": "Insérer une variable",
+    "Customized": "Personnalisé",
+    "Template Preview": "Aperçu du modèle",
+    "This will reset the template to the system default. Continue?": "Le modèle sera réinitialisé aux valeurs par défaut du système. Continuer ?",
+    "Send Test Email": "Envoyer un e-mail de test",
+    "Test email sent to your bound mailbox": "E-mail de test envoyé à votre adresse enregistrée"
   }
 }

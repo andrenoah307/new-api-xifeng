@@ -257,6 +257,7 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.GET("/email_templates", controller.ListEmailTemplates)
 			optionRoute.POST("/email_templates/preview", controller.PreviewEmailTemplate)
 			optionRoute.POST("/email_templates/reset", controller.ResetEmailTemplate)
+			optionRoute.POST("/email_templates/test", controller.SendEmailTemplateTest)
 		}
 
 		// Custom OAuth provider management (root only)

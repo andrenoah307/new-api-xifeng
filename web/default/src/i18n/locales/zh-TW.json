@@ -5402,6 +5402,14 @@
     "Zero retention": "零數據保留",
     "Zhipu": "智譜",
     "Zhipu V4": "智譜 V4",
-    "Zoom": "縮放"
+    "Zoom": "縮放",
+    "Email Templates": "郵件範本",
+    "Configure email notification templates": "設定郵件通知範本",
+    "Insert Variable": "插入變數",
+    "Customized": "已自訂",
+    "Template Preview": "範本預覽",
+    "This will reset the template to the system default. Continue?": "這將把範本還原為系統預設值，是否繼續？",
+    "Send Test Email": "發送測試郵件",
+    "Test email sent to your bound mailbox": "測試郵件已發送至您綁定的信箱"
   }
 }

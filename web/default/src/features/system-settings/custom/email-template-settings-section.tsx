@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { RotateCcw, Eye } from 'lucide-react'
+import { RotateCcw, Eye, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -65,6 +65,21 @@ async function resetTemplate(key: string): Promise<void> {
   await api.post('/api/option/email_templates/reset', { key })
 }
 
+// 收件人由后端固定为当前管理员账号绑定的邮箱，前端不传收件人。
+// 业务失败（未绑定邮箱、SMTP 未配置、发信被拒）由 api 拦截器统一弹出后端 message。
+async function sendTestTemplate(
+  key: string,
+  subject: string,
+  body: string
+): Promise<boolean> {
+  const res = await api.post('/api/option/email_templates/test', {
+    key,
+    subject,
+    body,
+  })
+  return res.data?.success === true
+}
+
 export function EmailTemplateSettingsSection() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -83,6 +98,7 @@ export function EmailTemplateSettingsSection() {
   const [showPreview, setShowPreview] = useState(false)
   const [showReset, setShowReset] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [sendingTest, setSendingTest] = useState(false)
 
   const current = templates.find((t) => t.key === selectedKey)
 
@@ -168,6 +184,21 @@ export function EmailTemplateSettingsSection() {
       toast.success(t('Config saved'))
     } catch {
       toast.error(t('Operation failed'))
+    }
+  }
+
+  // 失败时由 api 拦截器统一弹出后端 message（如未绑定邮箱、SMTP 未配置）
+  const handleSendTest = async () => {
+    if (!current) return
+    setSendingTest(true)
+    try {
+      if (await sendTestTemplate(current.key, draftSubject, draftBody)) {
+        toast.success(t('Test email sent to your bound mailbox'))
+      }
+    } catch {
+      /* 拦截器已提示 */
+    } finally {
+      setSendingTest(false)
     }
   }
 
@@ -274,6 +305,14 @@ export function EmailTemplateSettingsSection() {
           <Button variant='outline' onClick={handlePreview}>
             <Eye className='mr-1 h-3.5 w-3.5' />
             {t('Template Preview')}
+          </Button>
+          <Button
+            variant='outline'
+            onClick={handleSendTest}
+            disabled={sendingTest}
+          >
+            <Send className='mr-1 h-3.5 w-3.5' />
+            {sendingTest ? t('Sending...') : t('Send Test Email')}
           </Button>
         </div>
       </div>

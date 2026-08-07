@@ -2235,6 +2235,8 @@
     "搜索部署名称": "Search deployment name",
     "操作": "Actions",
     "操作失败": "Opération échouée",
+    "发送测试邮件": "Envoyer un e-mail de test",
+    "测试邮件已发送至您绑定的邮箱": "E-mail de test envoyé à votre boîte mail associée",
     "操作失败，请重试": "L'opération a échoué, veuillez réessayer",
     "操作成功完成！": "Opération terminée avec succès !",
     "操作暂时被禁用": "Opération temporairement désactivée",

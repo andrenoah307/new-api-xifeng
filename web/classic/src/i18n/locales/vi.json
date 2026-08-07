@@ -2205,6 +2205,8 @@
     "搜索部署名称": "Search deployment name",
     "操作": "Hành động",
     "操作失败": "Thao tác thất bại",
+    "发送测试邮件": "Gửi email thử nghiệm",
+    "测试邮件已发送至您绑定的邮箱": "Email thử nghiệm đã được gửi đến hộp thư đã liên kết của bạn",
     "操作失败，请重试": "Thao tác thất bại, vui lòng thử lại",
     "操作成功完成！": "Thao tác hoàn tất thành công!",
     "操作暂时被禁用": "Thao tác tạm thời bị vô hiệu hóa",

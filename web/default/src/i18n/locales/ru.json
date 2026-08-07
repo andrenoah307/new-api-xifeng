@@ -5402,6 +5402,14 @@
     "Zero retention": "Без хранения данных",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Email Templates": "Шаблоны писем",
+    "Configure email notification templates": "Настройка шаблонов уведомлений по электронной почте",
+    "Insert Variable": "Вставить переменную",
+    "Customized": "Изменён",
+    "Template Preview": "Предпросмотр шаблона",
+    "This will reset the template to the system default. Continue?": "Шаблон будет сброшен к системным значениям по умолчанию. Продолжить?",
+    "Send Test Email": "Отправить тестовое письмо",
+    "Test email sent to your bound mailbox": "Тестовое письмо отправлено на привязанную почту"
   }
 }

@@ -5402,6 +5402,14 @@
     "Zero retention": "Không lưu dữ liệu",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Email Templates": "Mẫu email",
+    "Configure email notification templates": "Cấu hình mẫu thông báo email",
+    "Insert Variable": "Chèn biến",
+    "Customized": "Đã tùy chỉnh",
+    "Template Preview": "Xem trước mẫu",
+    "This will reset the template to the system default. Continue?": "Thao tác này sẽ đặt lại mẫu về mặc định hệ thống. Tiếp tục?",
+    "Send Test Email": "Gửi email thử",
+    "Test email sent to your bound mailbox": "Đã gửi email thử đến hộp thư đã liên kết của bạn"
   }
 }
