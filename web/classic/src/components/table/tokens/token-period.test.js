@@ -4,10 +4,12 @@ import { describe, test } from 'node:test';
 import {
   TOKEN_PERIOD_MAX_DAYS,
   canonicalQuotaToCny,
+  canonicalQuotaToCnyInputString,
   canonicalQuotaToCnyString,
   cnyToCanonicalQuota,
   convertPeriodLimitUnit,
   formatCnyAmount,
+  formatPeriodLimitValue,
   formatPeriodQuotaValue,
   formatPeriodResetAt,
   getPeriodBounds,
@@ -29,6 +31,25 @@ const fixture = [
   ['1.00', 7.3, 500000, 68493],
   ['0.000001', 7.3, 500000, 0],
   ['30000', 7.3, 500000, 2054794521],
+];
+
+const canonicalQuotaInputFixture = [
+  [0, '0'],
+  [1, '0.00001'],
+  [7, '0.0001'],
+  [685, '0.01'],
+  [12345, '0.18024'],
+  [34247, '0.5'],
+  [68493, '1'],
+  [205479, '3'],
+  [342466, '5'],
+  [500000, '7.3'],
+  [684932, '10'],
+  [999999, '14.59999'],
+  [6849315, '100'],
+  [84558904, '1234.56'],
+  [2054794521, '30000'],
+  [2147483647, '31353.26125'],
 ];
 
 describe('fixed CNY quota conversion', () => {
@@ -94,7 +115,7 @@ describe('fixed CNY quota conversion', () => {
     );
     assert.deepEqual(quota, { value: '684932', canonicalQuota: 684932 });
     assert.deepEqual(cny, {
-      value: '10.0000072',
+      value: '10',
       canonicalQuota: 684932,
     });
     assert.deepEqual(quotaAgain, quota);
@@ -102,6 +123,118 @@ describe('fixed CNY quota conversion', () => {
       normalizePeriodConversion({ usdExchangeRate: 0, quotaPerUnit: -1 }),
       { usdExchangeRate: 1, quotaPerUnit: 1 },
     );
+  });
+});
+
+describe('shortest CNY quota input representatives', () => {
+  test('returns the shortest decimal string for every canonical quota fixture', () => {
+    for (const [quota, expected] of canonicalQuotaInputFixture) {
+      const result = canonicalQuotaToCnyInputString(
+        quota,
+        conversion.usdExchangeRate,
+        conversion.quotaPerUnit,
+      );
+      assert.equal(result, expected);
+      assert.equal(
+        cnyToCanonicalQuota(
+          result,
+          conversion.usdExchangeRate,
+          conversion.quotaPerUnit,
+        ),
+        quota,
+      );
+      assert.match(result, /^-?\d+(\.\d*[1-9])?$/);
+      const decimalDigits = result.includes('.')
+        ? result.length - result.indexOf('.') - 1
+        : 0;
+      if (decimalDigits > 0) {
+        assert.notEqual(
+          cnyToCanonicalQuota(
+            canonicalQuotaToCnyString(
+              quota,
+              conversion.usdExchangeRate,
+              conversion.quotaPerUnit,
+              decimalDigits - 1,
+            ),
+            conversion.usdExchangeRate,
+            conversion.quotaPerUnit,
+          ),
+          quota,
+        );
+      }
+    }
+  });
+
+  test('keeps representative strings stable through quantization boundaries', () => {
+    assert.equal(
+      canonicalQuotaToCnyInputString(
+        cnyToCanonicalQuota('0.000015', 7.3, 500000),
+        7.3,
+        500000,
+      ),
+      '0.00001',
+    );
+    assert.equal(cnyToCanonicalQuota('0.000015', 7.3, 500000), 1);
+    assert.equal(cnyToCanonicalQuota('0.0000073', 7.3, 500000), 1);
+    assert.equal(cnyToCanonicalQuota('0.0000072999', 7.3, 500000), 0);
+    assert.equal(cnyToCanonicalQuota('0.0000219', 7.3, 500000), 2);
+    assert.equal(cnyToCanonicalQuota('0.0000218999', 7.3, 500000), 1);
+  });
+
+  test('supports alternate conversion parameters and invalid inputs', () => {
+    assert.equal(canonicalQuotaToCnyInputString(1, 1, 2), '0.5');
+    assert.equal(canonicalQuotaToCnyInputString(1, 0.25, 1), '0.3');
+    assert.equal(canonicalQuotaToCnyInputString(68493, 1, 500000), '0.136986');
+    assert.equal(canonicalQuotaToCnyInputString(10, 0, 500000), '0');
+    assert.equal(canonicalQuotaToCnyInputString(10, 7.3, 0), '0');
+    assert.equal(canonicalQuotaToCnyInputString('bad', 7.3, 500000), '0');
+  });
+
+  test('uses the input representative for period limits but center values for usage', () => {
+    assert.equal(
+      formatPeriodLimitValue(68493, 'cny', conversion, 'en-US'),
+      '¥1.00',
+    );
+    assert.equal(
+      formatPeriodQuotaValue(1, 'cny', conversion, 'en-US'),
+      '¥0.000015',
+    );
+    assert.equal(formatPeriodLimitValue(12, 'quota', conversion, 'en-US'), '12');
+    assert.equal(formatPeriodLimitValue(NaN, 'cny', conversion, 'en-US'), '-');
+  });
+
+  test('keeps canonical quota stable across repeated unit switches', () => {
+    const quota = convertPeriodLimitUnit('1', 'cny', 'quota', conversion);
+    const cny = convertPeriodLimitUnit(
+      quota.value,
+      'quota',
+      'cny',
+      conversion,
+      quota.canonicalQuota,
+    );
+    const quotaAgain = convertPeriodLimitUnit(
+      cny.value,
+      'cny',
+      'quota',
+      conversion,
+      cny.canonicalQuota,
+    );
+    assert.deepEqual(quota, { value: '68493', canonicalQuota: 68493 });
+    assert.deepEqual(cny, { value: '1', canonicalQuota: 68493 });
+    assert.deepEqual(quotaAgain, quota);
+  });
+
+  test('hydrates the shortest CNY period limit representative', () => {
+    const form = periodResponseToForm(
+      {
+        period_type: 'month',
+        period_quota_limit: 68493,
+        period_limit_unit: 'cny',
+      },
+      conversion,
+    );
+    assert.equal(form.period_limit_value, '1');
+    assert.equal(form.canonicalQuota, 68493);
   });
 });
 
@@ -164,7 +297,7 @@ describe('period form contract', () => {
       period_type: 'week',
       period_days: 0,
       period_limit_unit: 'cny',
-      period_limit_value: '10.0000072',
+      period_limit_value: '10',
       period_reset_at: 1800000000,
       canonicalQuota: 684932,
       period_anchor_at: 0,

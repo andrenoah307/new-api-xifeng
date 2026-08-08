@@ -36,6 +36,7 @@ import {
 import { copyToClipboard } from '@/lib/copy-to-clipboard'
 
 import {
+  formatPeriodLimitValue,
   formatPeriodQuotaValue,
   formatPeriodResetAt,
   type PeriodConversionConfig,
@@ -84,7 +85,7 @@ export function ApiKeyPeriodLimitCell({
         {formatPeriodQuotaValue(used, unit, conversion, locale)}
         <span className='text-muted-foreground font-normal'>
           {' / '}
-          {formatPeriodQuotaValue(limit, unit, conversion, locale)}
+          {formatPeriodLimitValue(limit, unit, conversion, locale)}
         </span>
       </div>
       <div className='text-muted-foreground text-xs tabular-nums'>

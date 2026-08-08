@@ -35,6 +35,19 @@ export const quotaToDisplayAmount = (quota) => {
   return sign * usd * (rate || 1);
 };
 
+// 最短且能往返回同一 quota 的展示金额，仅用于预填可编辑输入框；
+// 只读余额、上下界与图表继续用 quotaToDisplayAmount 的精确商。
+export const quotaToDisplayInputAmount = (quota) => {
+  const exact = quotaToDisplayAmount(quota);
+  if (!Number.isFinite(exact) || Math.abs(exact) >= 1e21) return exact;
+  for (let digits = 0; digits <= 8; digits++) {
+    const candidate = Number(exact.toFixed(digits));
+    if (displayAmountToQuota(candidate) === Number(quota || 0))
+      return candidate;
+  }
+  return exact;
+};
+
 export const displayAmountToQuota = (amount) => {
   const val = Number(amount || 0);
   if (!Number.isFinite(val) || val === 0) return 0;

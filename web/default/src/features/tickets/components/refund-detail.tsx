@@ -8,7 +8,7 @@ import {
   formatTimestampToDate,
   formatQuota,
   parseQuotaFromDollars,
-  quotaUnitsToDollars,
+  quotaUnitsToInputAmount,
 } from '@/lib/format'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -245,7 +245,9 @@ export function RefundDetail({
       setClawbackEnabled(true)
       setClawbackAmount(
         commissionInfo?.suggested_clawback_quota
-          ? String(quotaUnitsToDollars(commissionInfo.suggested_clawback_quota))
+          ? String(
+              quotaUnitsToInputAmount(commissionInfo.suggested_clawback_quota)
+            )
           : ''
       )
     }

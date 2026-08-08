@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import type { TFunction } from 'i18next'
 import { z } from 'zod'
 
-import { parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
+import { parseQuotaFromDollars, quotaUnitsToInputAmount } from '@/lib/format'
 
 import { DEFAULT_GROUP } from '../constants'
 import {
@@ -32,7 +32,7 @@ import {
   type TokenPeriodType,
 } from '../types'
 import {
-  canonicalQuotaToCnyString,
+  canonicalQuotaToCnyInputString,
   isPositiveDecimalString,
   isPositiveIntegerString,
 } from './token-period'
@@ -54,11 +54,7 @@ export function getApiKeyFormSchema(t: TFunction) {
       cross_group_retry: z.boolean().optional(),
       tokenCount: z.number().min(1).optional(),
       period_type: z.enum(TOKEN_PERIOD_TYPES),
-      period_days: z
-        .number()
-        .int()
-        .min(0)
-        .max(TOKEN_PERIOD_MAX_DAYS),
+      period_days: z.number().int().min(0).max(TOKEN_PERIOD_MAX_DAYS),
       period_limit_unit: z.enum(TOKEN_PERIOD_LIMIT_UNITS),
       period_limit_value: z.string(),
       period_reset_at: z.number().optional(),
@@ -201,7 +197,7 @@ export function transformApiKeyToFormDefaults(
     apiKey.period_limit_unit === 'quota' ? 'quota' : 'cny'
   let periodLimitValue = '0'
   if (periodEnabled && periodUnit === 'cny') {
-    periodLimitValue = canonicalQuotaToCnyString(
+    periodLimitValue = canonicalQuotaToCnyInputString(
       apiKey.period_quota_limit,
       conversion.usdExchangeRate,
       conversion.quotaPerUnit
@@ -216,7 +212,7 @@ export function transformApiKeyToFormDefaults(
     name: apiKey.name,
     remain_quota_dollars: apiKey.unlimited_quota
       ? 0
-      : quotaUnitsToDollars(apiKey.remain_quota),
+      : quotaUnitsToInputAmount(apiKey.remain_quota),
     expired_time:
       apiKey.expired_time > 0
         ? new Date(apiKey.expired_time * 1000)

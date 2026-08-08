@@ -193,6 +193,41 @@ export function canonicalQuotaToCnyString(
   )
 }
 
+/**
+ * Shortest decimal string that maps back to the same canonical quota.
+ *
+ * CNY amounts quantize onto integer quota with step `usdExchangeRate /
+ * quotaPerUnit`, so the exact quotient of a stored quota is rarely the string
+ * the user typed. Walk decimal precisions upward and return the first
+ * candidate that the real quantizer maps back to `quota`.
+ *
+ * The 18-digit fallback is only reachable when no representative exists within
+ * 18 digits; it returns the same value `canonicalQuotaToCnyString` does today.
+ */
+export function canonicalQuotaToCnyInputString(
+  quota: number | string,
+  usdExchangeRate: number,
+  quotaPerUnit: number
+): string {
+  const quotaFraction = parseDecimal(quota)
+  if (!quotaFraction) return '0'
+  const target = roundFractionAwayFromZero(quotaFraction)
+  for (let digits = 0; digits <= 18; digits++) {
+    const candidate = canonicalQuotaToCnyString(
+      quota,
+      usdExchangeRate,
+      quotaPerUnit,
+      digits
+    )
+    if (
+      cnyToCanonicalQuota(candidate, usdExchangeRate, quotaPerUnit) === target
+    ) {
+      return candidate
+    }
+  }
+  return canonicalQuotaToCnyString(quota, usdExchangeRate, quotaPerUnit)
+}
+
 export interface PeriodLimitUnitConversion {
   value: string
   canonicalQuota: number
@@ -224,7 +259,7 @@ export function convertPeriodLimitUnit(
   if (!Number.isFinite(canonicalQuota)) canonicalQuota = 0
   if (toUnit === 'cny') {
     return {
-      value: canonicalQuotaToCnyString(
+      value: canonicalQuotaToCnyInputString(
         canonicalQuota,
         conversion.usdExchangeRate,
         conversion.quotaPerUnit
@@ -270,6 +305,30 @@ export function formatPeriodQuotaValue(
   }
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
     Math.max(0, Math.trunc(quota))
+  )
+}
+
+/**
+ * Format a period *limit* — a value the user typed — so it reads back as typed.
+ * Accumulated usage keeps `formatPeriodQuotaValue`'s exact center value.
+ */
+export function formatPeriodLimitValue(
+  quota: number,
+  unit: TokenPeriodLimitUnit,
+  conversion: PeriodConversionConfig,
+  locale?: string | undefined
+): string {
+  if (!Number.isFinite(quota)) return '-'
+  if (unit !== 'cny') {
+    return formatPeriodQuotaValue(quota, unit, conversion, locale)
+  }
+  return formatCnyAmount(
+    canonicalQuotaToCnyInputString(
+      Math.max(0, Math.trunc(quota)),
+      conversion.usdExchangeRate,
+      conversion.quotaPerUnit
+    ),
+    locale
   )
 }
 

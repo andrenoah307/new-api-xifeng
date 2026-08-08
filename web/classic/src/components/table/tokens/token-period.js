@@ -173,6 +173,41 @@ export function canonicalQuotaToCnyString(
   );
 }
 
+/**
+ * Shortest decimal string that maps back to the same canonical quota.
+ *
+ * CNY amounts quantize onto integer quota with step `usdExchangeRate /
+ * quotaPerUnit`, so the exact quotient of a stored quota is rarely the string
+ * the user typed. Walk decimal precisions upward and return the first
+ * candidate that the real quantizer maps back to `quota`.
+ *
+ * The 18-digit fallback is only reachable when no representative exists within
+ * 18 digits; it returns the same value `canonicalQuotaToCnyString` does today.
+ */
+export function canonicalQuotaToCnyInputString(
+  quota,
+  usdExchangeRate,
+  quotaPerUnit,
+) {
+  const quotaFraction = parseDecimal(quota);
+  if (!quotaFraction) return '0';
+  const target = roundFractionAwayFromZero(quotaFraction);
+  for (let digits = 0; digits <= 18; digits++) {
+    const candidate = canonicalQuotaToCnyString(
+      quota,
+      usdExchangeRate,
+      quotaPerUnit,
+      digits,
+    );
+    if (
+      cnyToCanonicalQuota(candidate, usdExchangeRate, quotaPerUnit) === target
+    ) {
+      return candidate;
+    }
+  }
+  return canonicalQuotaToCnyString(quota, usdExchangeRate, quotaPerUnit);
+}
+
 export function normalizePeriodConversion(conversion = {}) {
   const usdExchangeRate = Number(conversion.usdExchangeRate);
   const quotaPerUnit = Number(conversion.quotaPerUnit);
@@ -212,7 +247,7 @@ export function convertPeriodLimitUnit(
   if (!Number.isFinite(canonicalQuota)) canonicalQuota = 0;
   if (toUnit === 'cny') {
     return {
-      value: canonicalQuotaToCnyString(
+      value: canonicalQuotaToCnyInputString(
         canonicalQuota,
         normalizedConversion.usdExchangeRate,
         normalizedConversion.quotaPerUnit,
@@ -252,6 +287,24 @@ export function formatPeriodQuotaValue(quota, unit, conversion, locale) {
   }
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
     normalizedQuota,
+  );
+}
+
+/**
+ * Format a period *limit* — a value the user typed — so it reads back as typed.
+ * Accumulated usage keeps formatPeriodQuotaValue's exact center value.
+ */
+export function formatPeriodLimitValue(quota, unit, conversion, locale) {
+  if (!Number.isFinite(Number(quota))) return '-';
+  if (unit !== 'cny') return formatPeriodQuotaValue(quota, unit, conversion, locale);
+  const normalizedConversion = normalizePeriodConversion(conversion);
+  return formatCnyAmount(
+    canonicalQuotaToCnyInputString(
+      Math.max(0, Math.trunc(quota)),
+      normalizedConversion.usdExchangeRate,
+      normalizedConversion.quotaPerUnit,
+    ),
+    locale,
   );
 }
 
@@ -402,7 +455,7 @@ export function periodResponseToForm(token = {}, conversion) {
   const normalizedConversion = normalizePeriodConversion(conversion);
   let periodLimitValue = '0';
   if (enabled && periodUnit === 'cny') {
-    periodLimitValue = canonicalQuotaToCnyString(
+    periodLimitValue = canonicalQuotaToCnyInputString(
       limit,
       normalizedConversion.usdExchangeRate,
       normalizedConversion.quotaPerUnit,

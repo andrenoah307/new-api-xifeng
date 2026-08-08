@@ -23,7 +23,7 @@ import {
   type AdminPermissionMatrix,
   normalizeAdminPermissions,
 } from '@/lib/admin-permissions'
-import { quotaUnitsToDollars } from '@/lib/format'
+import { quotaUnitsToInputAmount } from '@/lib/format'
 import { ROLE } from '@/lib/roles'
 
 import { DEFAULT_GROUP } from '../constants'
@@ -122,7 +122,7 @@ export function transformUserToFormDefaults(user: User): UserFormValues {
     display_name: user.display_name,
     password: '',
     role: user.role,
-    quota_dollars: quotaUnitsToDollars(user.quota),
+    quota_dollars: quotaUnitsToInputAmount(user.quota),
     group: user.group || DEFAULT_GROUP,
     remark: user.remark || '',
     inviter_id: user.inviter_id ?? 0,

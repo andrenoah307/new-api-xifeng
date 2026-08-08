@@ -28,6 +28,7 @@ import {
 } from '../../../../helpers';
 import {
   quotaToDisplayAmount,
+  quotaToDisplayInputAmount,
   displayAmountToQuota,
 } from '../../../../helpers/quota';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
@@ -114,9 +115,7 @@ const EditUserModal = (props) => {
     const { success, message, data } = res.data;
     if (success) {
       data.password = '';
-      data.quota_amount = Number(
-        quotaToDisplayAmount(data.quota || 0).toFixed(6),
-      );
+      data.quota_amount = quotaToDisplayInputAmount(data.quota || 0);
       setInputs({ ...getInitValues(), ...data });
     } else {
       showError(message);
@@ -189,9 +188,7 @@ const EditUserModal = (props) => {
         if (userRes.data.success) {
           const data = userRes.data.data;
           data.password = '';
-          data.quota_amount = Number(
-            quotaToDisplayAmount(data.quota || 0).toFixed(6),
-          );
+          data.quota_amount = quotaToDisplayInputAmount(data.quota || 0);
           setInputs({ ...getInitValues(), ...data });
         }
         props.refresh();

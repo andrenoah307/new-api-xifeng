@@ -30,6 +30,7 @@ import {
 } from '../../../../helpers';
 import {
   quotaToDisplayAmount,
+  quotaToDisplayInputAmount,
   displayAmountToQuota,
 } from '../../../../helpers/quota';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
@@ -231,9 +232,7 @@ const EditTokenModal = (props) => {
           ...getInitValues(),
           name: data.name || '',
           remain_quota: Number(data.remain_quota) || 0,
-          remain_amount: Number(
-            quotaToDisplayAmount(data.remain_quota || 0).toFixed(6),
-          ),
+          remain_amount: quotaToDisplayInputAmount(data.remain_quota || 0),
           expired_time: expiredTime,
           unlimited_quota: Boolean(data.unlimited_quota),
           model_limits_enabled: Boolean(data.model_limits_enabled),

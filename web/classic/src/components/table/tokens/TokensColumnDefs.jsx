@@ -47,6 +47,7 @@ import {
   IconEyeClosed,
 } from '@douyinfe/semi-icons';
 import {
+  formatPeriodLimitValue,
   formatPeriodQuotaValue,
   formatPeriodResetAt,
   getPeriodResetAt,
@@ -394,7 +395,7 @@ const renderPeriodLimit = (record, t, periodConversion, locale) => {
         {formatPeriodQuotaValue(used, unit, periodConversion, locale)}
         <span className='font-normal opacity-70'>
           {' / '}
-          {formatPeriodQuotaValue(limit, unit, periodConversion, locale)}
+          {formatPeriodLimitValue(limit, unit, periodConversion, locale)}
         </span>
       </div>
       <div className='text-xs opacity-70 tabular-nums'>

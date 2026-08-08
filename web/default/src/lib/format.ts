@@ -116,6 +116,22 @@ export function quotaUnitsToDollars(units: number): number {
   return usdAmount * exchangeRate
 }
 
+/**
+ * Shortest display amount that parses back to the same quota units.
+ *
+ * Use for values that prefill an editable amount input. Read-only balances,
+ * bounds and charts must keep `quotaUnitsToDollars`' exact quotient.
+ */
+export function quotaUnitsToInputAmount(units: number): number {
+  const exact = quotaUnitsToDollars(units)
+  if (!Number.isFinite(exact) || Math.abs(exact) >= 1e21) return exact
+  for (let digits = 0; digits <= 8; digits++) {
+    const candidate = Number(exact.toFixed(digits))
+    if (parseQuotaFromDollars(candidate) === units) return candidate
+  }
+  return exact
+}
+
 // ============================================================================
 // Timestamp Formatting
 // ============================================================================

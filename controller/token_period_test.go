@@ -339,3 +339,62 @@ func TestGetAllTokensReturnsEffectivePeriodStateWithoutWriting(t *testing.T) {
 	assert.Equal(t, currentStart-24*60*60, persisted.PeriodStartAt)
 	assert.Equal(t, int64(80), persisted.PeriodUsedQuota)
 }
+
+func TestNormalizeTokenPeriodCNYQuantizationMatchesFrontend(t *testing.T) {
+	oldQuotaPerUnit := common.QuotaPerUnit
+	oldUSD := operation_setting.USDExchangeRate
+	common.QuotaPerUnit = 500000
+	operation_setting.USDExchangeRate = 7.3
+	t.Cleanup(func() {
+		common.QuotaPerUnit = oldQuotaPerUnit
+		operation_setting.USDExchangeRate = oldUSD
+	})
+
+	tests := []struct {
+		name      string
+		value     string
+		wantLimit int64
+		expectErr bool
+	}{
+		{name: "minimum representable amount", value: "0.0000073", wantLimit: 1},
+		{name: "below minimum quota", value: "0.0000072999", expectErr: true},
+		{name: "two quota units", value: "0.0000219", wantLimit: 2},
+		{name: "just below two units", value: "0.0000218999", wantLimit: 1},
+		{name: "rounded fractional unit", value: "0.000015", wantLimit: 1},
+		{name: "one quota unit representative", value: "0.00001", wantLimit: 1},
+		{name: "seven quota units", value: "0.0001", wantLimit: 7},
+		{name: "685 quota units", value: "0.01", wantLimit: 685},
+		{name: "12345 quota units", value: "0.18024", wantLimit: 12345},
+		{name: "34247 quota units", value: "0.5", wantLimit: 34247},
+		{name: "canonical one CNY", value: "0.9999978", wantLimit: 68493},
+		{name: "one CNY", value: "1", wantLimit: 68493},
+		{name: "three CNY", value: "3", wantLimit: 205479},
+		{name: "five CNY", value: "5", wantLimit: 342466},
+		{name: "one USD in CNY", value: "7.3", wantLimit: 500000},
+		{name: "ten CNY", value: "10", wantLimit: 684932},
+		{name: "near fifteen CNY", value: "14.59999", wantLimit: 999999},
+		{name: "one hundred CNY", value: "100", wantLimit: 6849315},
+		{name: "large decimal amount", value: "1234.56", wantLimit: 84558904},
+		{name: "maximum ordinary amount", value: "30000", wantLimit: 2054794521},
+		// common.saturateQuota clamps on `>= MaxQuota`, so the CNY path can never
+		// express the ceiling itself; the quota unit still accepts 2147483647.
+		{name: "quota ceiling is unreachable via CNY", value: "31353.2612462", expectErr: true},
+		{name: "just past the quota ceiling", value: "31353.26125", expectErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config, err := normalizeTokenPeriod(dto.TokenRequest{
+				PeriodType:       common.TokenPeriodTypeMonth,
+				PeriodLimitUnit:  "cny",
+				PeriodLimitValue: tt.value,
+			})
+			if tt.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantLimit, config.limit)
+		})
+	}
+}

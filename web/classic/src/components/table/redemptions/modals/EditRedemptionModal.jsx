@@ -29,6 +29,7 @@ import {
 } from '../../../../helpers';
 import {
   quotaToDisplayAmount,
+  quotaToDisplayInputAmount,
   displayAmountToQuota,
 } from '../../../../helpers/quota';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
@@ -67,7 +68,7 @@ const EditRedemptionModal = (props) => {
   const getInitValues = () => ({
     name: '',
     quota: 100000,
-    amount: Number(quotaToDisplayAmount(100000).toFixed(6)),
+    amount: quotaToDisplayInputAmount(100000),
     count: 1,
     expired_time: null,
   });
@@ -86,7 +87,7 @@ const EditRedemptionModal = (props) => {
       } else {
         data.expired_time = new Date(data.expired_time * 1000);
       }
-      data.amount = Number(quotaToDisplayAmount(data.quota || 0).toFixed(6));
+      data.amount = quotaToDisplayInputAmount(data.quota || 0);
       formApiRef.current?.setValues({ ...getInitValues(), ...data });
     } else {
       showError(message);

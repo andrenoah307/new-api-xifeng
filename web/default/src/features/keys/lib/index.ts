@@ -30,10 +30,12 @@ export {
 
 export {
   canonicalQuotaToCny,
+  canonicalQuotaToCnyInputString,
   canonicalQuotaToCnyString,
   cnyToCanonicalQuota,
   convertPeriodLimitUnit,
   formatCnyAmount,
+  formatPeriodLimitValue,
   formatPeriodQuotaValue,
   formatPeriodResetAt,
   getPeriodBounds,
