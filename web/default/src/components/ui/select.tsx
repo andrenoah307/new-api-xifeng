@@ -31,7 +31,38 @@ import * as React from 'react'
 import { useMediaQuery } from '@/hooks'
 import { cn } from '@/lib/utils'
 
-const Select = SelectPrimitive.Root
+function collectSelectItemLabels(
+  children: React.ReactNode,
+  acc: Array<{ value: string; label: React.ReactNode }>
+) {
+  React.Children.forEach(children, (child) => {
+    if (!React.isValidElement(child)) return
+    const props = child.props as {
+      value?: unknown
+      children?: React.ReactNode
+    }
+    if (child.type === SelectItem) {
+      if (typeof props.value === 'string' && props.value !== '') {
+        acc.push({ value: props.value, label: props.children })
+      }
+      return
+    }
+    if (props.children != null) collectSelectItemLabels(props.children, acc)
+  })
+  return acc
+}
+
+function Select({ items, children, ...props }: SelectPrimitive.Root.Props) {
+  const derivedItems = React.useMemo(
+    () => (items ? undefined : collectSelectItemLabels(children, [])),
+    [items, children]
+  )
+  return (
+    <SelectPrimitive.Root items={items ?? derivedItems} {...props}>
+      {children}
+    </SelectPrimitive.Root>
+  )
+}
 
 function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   return (
