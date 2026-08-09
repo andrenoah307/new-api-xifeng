@@ -24,5 +24,5 @@ func RefundMidjourneyTokenQuota(ctx context.Context, task *model.Midjourney) err
 	if err != nil {
 		return err
 	}
-	return model.AdjustTokenQuota(task.TokenId, token.Key, -task.Quota, task.TokenPeriodStartAt)
+	return model.AdjustTokenQuota(task.TokenId, token.Key, -task.Quota, task.TokenPeriodStartAt, nil)
 }

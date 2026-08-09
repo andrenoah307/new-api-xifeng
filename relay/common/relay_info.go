@@ -90,15 +90,19 @@ type RelayInfo struct {
 	// TokenPeriodStartAt is the period bucket that admitted this request. It is
 	// captured once at pre-consume time and reused for reserve/settle/refund.
 	TokenPeriodStartAt int64
-	TokenKey           string
-	TokenGroup         string
-	UserId             int
-	UsingGroup         string // 使用的分组，当auto跨分组重试时，会变动
-	UserGroup          string // 用户所在分组
-	TokenUnlimited     bool
-	StartTime          time.Time
-	FirstResponseTime  time.Time
-	isFirstResponse    bool
+	// TokenPeriodAttributionLoaded distinguishes a confirmed disabled policy
+	// (true with start 0) from a state that has not been queried yet.
+	TokenPeriodAttributionLoaded bool
+
+	TokenKey          string
+	TokenGroup        string
+	UserId            int
+	UsingGroup        string // 使用的分组，当auto跨分组重试时，会变动
+	UserGroup         string // 用户所在分组
+	TokenUnlimited    bool
+	StartTime         time.Time
+	FirstResponseTime time.Time
+	isFirstResponse   bool
 	//SendLastReasoningResponse bool
 	IsStream               bool
 	IsGeminiBatchEmbedding bool

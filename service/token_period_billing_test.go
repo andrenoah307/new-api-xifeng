@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,7 +18,23 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
+
+func countTokenPeriodStateQueries(t *testing.T) *atomic.Int64 {
+	t.Helper()
+	var count atomic.Int64
+	callbackName := "test:count_token_period_state:" + strings.ReplaceAll(t.Name(), "/", "_")
+	require.NoError(t, model.DB.Callback().Query().Before("gorm:query").Register(callbackName, func(tx *gorm.DB) {
+		if _, ok := tx.Statement.Dest.(*model.TokenPeriodState); ok {
+			count.Add(1)
+		}
+	}))
+	t.Cleanup(func() {
+		require.NoError(t, model.DB.Callback().Query().Remove(callbackName))
+	})
+	return &count
+}
 
 func periodBillingContext() *gin.Context {
 	gin.SetMode(gin.TestMode)
@@ -189,7 +206,7 @@ func TestTokenPeriodRefundUsesOriginalAttribution(t *testing.T) {
 	seedUser(t, userID, 100000)
 	token := seedBillingPeriodToken(t, tokenID, userID, "period-refund", 0, 1000)
 	start := token.PeriodStartAt
-	require.NoError(t, model.AdjustTokenQuota(token.Id, token.Key, 80, start))
+	require.NoError(t, model.AdjustTokenQuota(token.Id, token.Key, 80, start, nil))
 
 	info := &relaycommon.RelayInfo{
 		TokenId:            token.Id,
@@ -227,8 +244,10 @@ func TestWssSegmentsCountAndRefreshStaleBucket(t *testing.T) {
 		InputTokens:       10,
 		InputTokenDetails: dto.InputTokenDetails{TextTokens: 10},
 	}
+	queries := countTokenPeriodStateQueries(t)
 
 	require.NoError(t, PreWssConsumeQuota(periodBillingContext(), info, usage))
+	assert.Equal(t, int64(2), queries.Load(), "an enabled segment reads once for its gate and once for its atomic adjustment")
 	var first model.Token
 	require.NoError(t, model.DB.First(&first, token.Id).Error)
 	require.Positive(t, first.PeriodUsedQuota)
@@ -243,6 +262,7 @@ func TestWssSegmentsCountAndRefreshStaleBucket(t *testing.T) {
 	}).Error)
 	info.TokenPeriodStartAt = token.PeriodStartAt - 24*60*60
 	require.NoError(t, PreWssConsumeQuota(periodBillingContext(), info, usage))
+	assert.Equal(t, int64(4), queries.Load(), "each WSS segment refreshes its authoritative gate and enabled adjustment")
 
 	var second model.Token
 	require.NoError(t, model.DB.First(&second, token.Id).Error)
@@ -443,6 +463,286 @@ func TestTokenPeriodAttributionAndGateStateBranches(t *testing.T) {
 	assert.Equal(t, types.ErrorCodeQueryDataError, apiErr.GetErrorCode())
 }
 
+func TestDisabledTokenPeriodAttributionIsMemoizedAndRefreshStillReads(t *testing.T) {
+	truncate(t)
+	const userID, tokenID = 730, 731
+	seedUser(t, userID, 10000)
+	token := seedBillingPeriodToken(t, tokenID, userID, "period-disabled-memo", 0, 100)
+	require.NoError(t, model.DB.Model(&model.Token{}).Where("id = ?", token.Id).Updates(map[string]any{
+		"period_type":        "",
+		"period_quota_limit": 0,
+	}).Error)
+	queries := countTokenPeriodStateQueries(t)
+	info := &relaycommon.RelayInfo{TokenId: token.Id}
+
+	_, _, apiErr := checkTokenPeriodGate(info, time.Now())
+	require.Nil(t, apiErr)
+	assert.True(t, info.TokenPeriodAttributionLoaded)
+	assert.Zero(t, info.TokenPeriodStartAt)
+	assert.Equal(t, int64(1), queries.Load())
+
+	start, err := loadTokenPeriodAttribution(info, false)
+	require.NoError(t, err)
+	assert.Zero(t, start)
+	assert.Equal(t, int64(1), queries.Load(), "a confirmed disabled policy must be memoized")
+
+	_, err = loadTokenPeriodAttribution(info, true)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), queries.Load(), "WSS refresh must bypass the normal memo")
+}
+
+func TestDisabledAttributionPreAndPostConsumeUseOneStateRead(t *testing.T) {
+	truncate(t)
+	const userID, tokenID = 741, 742
+	seedUser(t, userID, 10000)
+	token := seedBillingPeriodToken(t, tokenID, userID, "period-disabled-direct", 0, 100)
+	require.NoError(t, model.DB.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 0, 0, "", 0, 0, 0, token.Id).Error)
+	queries := countTokenPeriodStateQueries(t)
+	info := &relaycommon.RelayInfo{
+		TokenId:        token.Id,
+		TokenKey:       token.Key,
+		TokenUnlimited: true,
+		UserId:         userID,
+	}
+
+	require.NoError(t, PreConsumeTokenQuota(info, 10))
+	assert.Equal(t, int64(1), queries.Load(), "the attribution read also validates the disabled adjustment hint")
+	require.NoError(t, PostConsumeQuota(info, 5, 0, false))
+	assert.Equal(t, int64(1), queries.Load(), "post-consume reuses the confirmed disabled decision")
+
+	var got model.Token
+	require.NoError(t, model.DB.First(&got, token.Id).Error)
+	assert.Equal(t, token.RemainQuota-15, got.RemainQuota)
+	assert.Equal(t, 15, got.UsedQuota)
+	assert.Zero(t, got.PeriodUsedQuota)
+}
+
+func TestDisabledBillingSessionReusesOneDecisionAcrossAdjustments(t *testing.T) {
+	truncate(t)
+	const userID, tokenID, rollbackTokenID = 732, 733, 734
+	seedUser(t, userID, 10000)
+	token := seedBillingPeriodToken(t, tokenID, userID, "period-disabled-session", 0, 100)
+	require.NoError(t, model.DB.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 0, 0, "", 0, 0, 0, token.Id).Error)
+	queries := countTokenPeriodStateQueries(t)
+	info := &relaycommon.RelayInfo{
+		TokenId:         token.Id,
+		TokenKey:        token.Key,
+		TokenUnlimited:  true,
+		UserId:          userID,
+		UserQuota:       10000,
+		ForcePreConsume: true,
+	}
+	session := &BillingSession{relayInfo: info, funding: &WalletFunding{userId: userID}}
+
+	require.Nil(t, session.preConsume(periodBillingContext(), 40))
+	require.NoError(t, session.Reserve(60))
+	require.NoError(t, session.Settle(50))
+	assert.Equal(t, int64(1), queries.Load(), "gate, pre-consume, reserve and settle share the disabled decision")
+
+	var updated model.Token
+	require.NoError(t, model.DB.First(&updated, token.Id).Error)
+	assert.Equal(t, token.RemainQuota-50, updated.RemainQuota)
+	assert.Equal(t, 50, updated.UsedQuota)
+	assert.Zero(t, updated.PeriodStartAt)
+	assert.Zero(t, updated.PeriodUsedQuota)
+
+	rollbackToken := seedBillingPeriodToken(t, rollbackTokenID, userID, "period-disabled-rollback", 0, 100)
+	require.NoError(t, model.DB.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 0, 0, "", 0, 0, 0, rollbackToken.Id).Error)
+	rollbackInfo := &relaycommon.RelayInfo{
+		TokenId:         rollbackToken.Id,
+		TokenKey:        rollbackToken.Key,
+		TokenUnlimited:  true,
+		UserId:          userID,
+		UserQuota:       10000,
+		ForcePreConsume: true,
+	}
+	rollback := &BillingSession{relayInfo: rollbackInfo, funding: failingPeriodFunding{}}
+	require.NotNil(t, rollback.preConsume(periodBillingContext(), 20))
+	assert.Equal(t, int64(2), queries.Load(), "rollback reuses its session's single disabled decision")
+	updated = model.Token{}
+	require.NoError(t, model.DB.First(&updated, rollbackToken.Id).Error)
+	assert.Equal(t, rollbackToken.RemainQuota, updated.RemainQuota)
+	assert.Zero(t, updated.PeriodUsedQuota)
+}
+
+func TestDisabledBillingSessionReserveCapturesFirstDecision(t *testing.T) {
+	truncate(t)
+	const userID, tokenID = 743, 744
+	seedUser(t, userID, 10000)
+	token := seedBillingPeriodToken(t, tokenID, userID, "period-disabled-first-reserve", 0, 100)
+	require.NoError(t, model.DB.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 0, 0, "", 0, 0, 0, token.Id).Error)
+	queries := countTokenPeriodStateQueries(t)
+	info := &relaycommon.RelayInfo{
+		TokenId:         token.Id,
+		TokenKey:        token.Key,
+		TokenUnlimited:  true,
+		UserId:          userID,
+		UserQuota:       10000,
+		ForcePreConsume: true,
+	}
+	session := &BillingSession{relayInfo: info, funding: &WalletFunding{userId: userID}}
+
+	require.Nil(t, session.preConsume(periodBillingContext(), 0))
+	assert.Zero(t, queries.Load())
+	require.NoError(t, session.Reserve(20))
+	assert.Equal(t, int64(1), queries.Load())
+	require.NoError(t, session.Settle(30))
+	assert.Equal(t, int64(1), queries.Load(), "settle must reuse the decision first established by Reserve")
+	assert.True(t, session.tokenPeriodAdjustmentHintSet)
+	assert.True(t, session.tokenPeriodAdjustmentHint.KnownDisabled)
+}
+
+type blockingRefundFunding struct {
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (funding *blockingRefundFunding) Source() string       { return BillingSourceWallet }
+func (funding *blockingRefundFunding) PreConsume(int) error { return nil }
+func (funding *blockingRefundFunding) Settle(int) error     { return nil }
+func (funding *blockingRefundFunding) Refund() error {
+	close(funding.entered)
+	<-funding.release
+	return nil
+}
+
+func TestBillingSessionAsyncRefundCopiesDisabledDecision(t *testing.T) {
+	truncate(t)
+	const userID, tokenID = 735, 736
+	seedUser(t, userID, 10000)
+	token := seedBillingPeriodToken(t, tokenID, userID, "period-disabled-refund", 0, 100)
+	require.NoError(t, model.DB.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 0, 0, "", 0, 0, 0, token.Id).Error)
+	queries := countTokenPeriodStateQueries(t)
+	funding := &blockingRefundFunding{entered: make(chan struct{}), release: make(chan struct{})}
+	info := &relaycommon.RelayInfo{
+		TokenId:                      token.Id,
+		TokenKey:                     token.Key,
+		TokenPeriodAttributionLoaded: true,
+		UserId:                       userID,
+	}
+	session := &BillingSession{
+		relayInfo:                    info,
+		funding:                      funding,
+		preConsumedQuota:             10,
+		tokenConsumed:                10,
+		tokenPeriodAdjustmentHint:    model.TokenPeriodAdjustmentHint{KnownDisabled: true},
+		tokenPeriodAdjustmentHintSet: true,
+	}
+	updated := make(chan struct{}, 1)
+	callbackName := "test:disabled_refund_updated"
+	require.NoError(t, model.DB.Callback().Update().After("gorm:update").Register(callbackName, func(tx *gorm.DB) {
+		if tx.Statement.Table == "tokens" {
+			select {
+			case updated <- struct{}{}:
+			default:
+			}
+		}
+	}))
+	t.Cleanup(func() {
+		require.NoError(t, model.DB.Callback().Update().Remove(callbackName))
+	})
+
+	session.Refund(periodBillingContext())
+	select {
+	case <-funding.entered:
+	case <-time.After(2 * time.Second):
+		require.FailNow(t, "refund goroutine did not start")
+	}
+	session.tokenPeriodAdjustmentHint.KnownDisabled = false
+	info.TokenPeriodAttributionLoaded = false
+	close(funding.release)
+	select {
+	case <-updated:
+	case <-time.After(2 * time.Second):
+		require.FailNow(t, "refund token update did not finish")
+	}
+
+	assert.Zero(t, queries.Load(), "the goroutine must use its copied KnownDisabled decision")
+	var got model.Token
+	require.NoError(t, model.DB.First(&got, token.Id).Error)
+	assert.Equal(t, token.RemainQuota+10, got.RemainQuota)
+}
+
+func TestBillingSessionPolicyChangesRespectAdmissionDecision(t *testing.T) {
+	t.Run("active reset is reloaded", func(t *testing.T) {
+		truncate(t)
+		const userID, tokenID = 737, 738
+		seedUser(t, userID, 10000)
+		token := seedBillingPeriodToken(t, tokenID, userID, "period-active-reset", 0, 1000)
+		info := &relaycommon.RelayInfo{
+			TokenId:         token.Id,
+			TokenKey:        token.Key,
+			TokenUnlimited:  true,
+			UserId:          userID,
+			UserQuota:       10000,
+			ForcePreConsume: true,
+		}
+		session := &BillingSession{relayInfo: info, funding: &WalletFunding{userId: userID}}
+		require.Nil(t, session.preConsume(periodBillingContext(), 20))
+
+		now := time.Now()
+		anchor := common.TokenPeriodAnchorNow(now)
+		start, _, ok := common.TokenPeriodBounds(common.TokenPeriodTypeMonth, 0, anchor, now)
+		require.True(t, ok)
+		require.NoError(t, model.DB.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 3, start, common.TokenPeriodTypeMonth, 0, 1000, anchor, token.Id).Error)
+		session.tokenPeriodStartAt = start - 24*60*60
+		info.TokenPeriodStartAt = session.tokenPeriodStartAt
+
+		require.NoError(t, session.Settle(30))
+		var got model.Token
+		require.NoError(t, model.DB.First(&got, token.Id).Error)
+		assert.Equal(t, start, got.PeriodStartAt)
+		assert.Equal(t, int64(13), got.PeriodUsedQuota)
+	})
+
+	t.Run("disabled admission stays legacy after enable", func(t *testing.T) {
+		truncate(t)
+		const userID, tokenID = 739, 740
+		seedUser(t, userID, 10000)
+		token := seedBillingPeriodToken(t, tokenID, userID, "period-disabled-enable", 0, 1000)
+		require.NoError(t, model.DB.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 0, 0, "", 0, 0, 0, token.Id).Error)
+		info := &relaycommon.RelayInfo{
+			TokenId:         token.Id,
+			TokenKey:        token.Key,
+			TokenUnlimited:  true,
+			UserId:          userID,
+			UserQuota:       10000,
+			ForcePreConsume: true,
+		}
+		session := &BillingSession{relayInfo: info, funding: &WalletFunding{userId: userID}}
+		require.Nil(t, session.preConsume(periodBillingContext(), 20))
+
+		now := time.Now()
+		anchor := common.TokenPeriodAnchorNow(now)
+		start, _, ok := common.TokenPeriodBounds(common.TokenPeriodTypeMonth, 0, anchor, now)
+		require.True(t, ok)
+		require.NoError(t, model.DB.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 0, start, common.TokenPeriodTypeMonth, 0, 1000, anchor, token.Id).Error)
+
+		require.NoError(t, session.Settle(30))
+		var got model.Token
+		require.NoError(t, model.DB.First(&got, token.Id).Error)
+		assert.Equal(t, start, got.PeriodStartAt)
+		assert.Zero(t, got.PeriodUsedQuota)
+		assert.Equal(t, token.RemainQuota-30, got.RemainQuota)
+	})
+}
+
 func TestTokenPeriodAttributionAndGateSkipAndFailureInputs(t *testing.T) {
 	for _, info := range []*relaycommon.RelayInfo{
 		nil,
@@ -458,11 +758,15 @@ func TestTokenPeriodAttributionAndGateSkipAndFailureInputs(t *testing.T) {
 
 	oldDB := model.DB
 	model.DB = nil
-	_, err := loadTokenPeriodAttribution(&relaycommon.RelayInfo{TokenId: 1}, true)
+	attributionInfo := &relaycommon.RelayInfo{TokenId: 1, TokenPeriodAttributionLoaded: true}
+	_, err := loadTokenPeriodAttribution(attributionInfo, true)
 	assert.Error(t, err)
-	_, _, apiErr := checkTokenPeriodGate(&relaycommon.RelayInfo{TokenId: 1}, time.Now())
+	assert.False(t, attributionInfo.TokenPeriodAttributionLoaded)
+	gateInfo := &relaycommon.RelayInfo{TokenId: 1, TokenPeriodAttributionLoaded: true}
+	_, _, apiErr := checkTokenPeriodGate(gateInfo, time.Now())
 	assert.NotNil(t, apiErr)
 	assert.Equal(t, types.ErrorCodeQueryDataError, apiErr.GetErrorCode())
+	assert.False(t, gateInfo.TokenPeriodAttributionLoaded)
 	model.DB = oldDB
 
 	assert.Nil(t, CheckTokenPeriodGate(&relaycommon.RelayInfo{TokenId: 1}, 0))
@@ -476,9 +780,16 @@ func TestPublicTokenPeriodGateCoversAdmissionBranches(t *testing.T) {
 	info := &relaycommon.RelayInfo{TokenId: token.Id}
 	assert.Nil(t, CheckTokenPeriodGate(info, 1))
 	require.NoError(t, model.DB.Model(&model.Token{}).Where("id = ?", token.Id).Update("period_used_quota", 100).Error)
-	apiErr := CheckTokenPeriodGate(&relaycommon.RelayInfo{TokenId: token.Id}, 1)
+	staleCachedDecision := &relaycommon.RelayInfo{
+		TokenId:                      token.Id,
+		TokenPeriodAttributionLoaded: true,
+		TokenPeriodStartAt:           0,
+	}
+	apiErr := CheckTokenPeriodGate(staleCachedDecision, 1)
 	require.NotNil(t, apiErr)
 	assert.Equal(t, types.ErrorCodeTokenPeriodQuotaExceeded, apiErr.GetErrorCode())
+	assert.True(t, staleCachedDecision.TokenPeriodAttributionLoaded)
+	assert.Equal(t, token.PeriodStartAt, staleCachedDecision.TokenPeriodStartAt)
 }
 
 func TestPeriodRejectionDoesNotFallBackBetweenWalletAndSubscription(t *testing.T) {

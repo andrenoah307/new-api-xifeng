@@ -72,12 +72,16 @@ func cacheGetTokenByKey(key string) (*Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	token.Key = key
-	if token.PeriodStartAt < 0 || token.PeriodUsedQuota < 0 {
-		// A cached policy row is never authoritative for period state, including
-		// hashes written before the sentinel rollout. Force the caller through a
-		// database read so no stale counter can be consumed.
+	if token.PeriodStartAt != -1 || token.PeriodUsedQuota != -1 {
+		// RedisHGetObj leaves fields missing from an old hash at their Go zero
+		// values. Only the exact marker pair identifies the current projection;
+		// missing, partial, or otherwise polluted markers must be rebuilt from DB.
 		return nil, fmt.Errorf("token period state must be loaded from database")
 	}
+	token.Key = key
+	// Cache contract: PeriodType, PeriodDays, PeriodQuotaLimit,
+	// PeriodLimitUnit, and PeriodAnchorAt are usable policy metadata.
+	// PeriodStartAt, PeriodUsedQuota, PeriodResetAt, and PeriodRemainingQuota
+	// are unavailable; period consumers must call LoadTokenPeriodState.
 	return &token, nil
 }

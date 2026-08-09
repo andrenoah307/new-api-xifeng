@@ -108,7 +108,7 @@ func taskAdjustTokenQuota(ctx context.Context, task *model.Task, delta int) {
 		return
 	}
 	var err error
-	err = model.AdjustTokenQuota(task.PrivateData.TokenId, tokenKey, delta, task.PrivateData.TokenPeriodStartAt)
+	err = model.AdjustTokenQuota(task.PrivateData.TokenId, tokenKey, delta, task.PrivateData.TokenPeriodStartAt, nil)
 	if err != nil {
 		logger.LogWarn(ctx, fmt.Sprintf("调整令牌额度失败 (delta=%d, task=%s): %s", delta, task.TaskID, err.Error()))
 	}

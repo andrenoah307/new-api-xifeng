@@ -69,15 +69,17 @@ func loadTokenPeriodAttribution(info *relaycommon.RelayInfo, refresh bool) (int6
 	if info == nil || info.IsPlayground || info.TokenId <= 0 {
 		return 0, nil
 	}
-	if !refresh && info.TokenPeriodStartAt > 0 {
+	if !refresh && info.TokenPeriodAttributionLoaded {
 		return info.TokenPeriodStartAt, nil
 	}
+	info.TokenPeriodAttributionLoaded = false
 	state, err := model.LoadTokenPeriodState(info.TokenId)
 	if err != nil {
 		return 0, err
 	}
 	if !state.PeriodLimitEnabled() {
 		info.TokenPeriodStartAt = 0
+		info.TokenPeriodAttributionLoaded = true
 		return 0, nil
 	}
 	start := state.CurrentStart(time.Now())
@@ -85,7 +87,15 @@ func loadTokenPeriodAttribution(info *relaycommon.RelayInfo, refresh bool) (int6
 		return 0, errors.New("令牌周期配置无效")
 	}
 	info.TokenPeriodStartAt = start
+	info.TokenPeriodAttributionLoaded = true
 	return start, nil
+}
+
+func tokenPeriodAdjustmentHint(info *relaycommon.RelayInfo) *model.TokenPeriodAdjustmentHint {
+	if info == nil || !info.TokenPeriodAttributionLoaded || info.TokenPeriodStartAt != 0 {
+		return nil
+	}
+	return &model.TokenPeriodAdjustmentHint{KnownDisabled: true}
 }
 
 // checkTokenPeriodGate implements E3 soft gating: only the already-used
@@ -95,12 +105,14 @@ func checkTokenPeriodGate(info *relaycommon.RelayInfo, now time.Time) (*model.To
 	if info == nil || info.IsPlayground || info.TokenId <= 0 {
 		return nil, 0, nil
 	}
+	info.TokenPeriodAttributionLoaded = false
 	state, err := model.LoadTokenPeriodState(info.TokenId)
 	if err != nil {
 		return nil, 0, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 	}
 	if !state.PeriodLimitEnabled() {
 		info.TokenPeriodStartAt = 0
+		info.TokenPeriodAttributionLoaded = true
 		return state, 0, nil
 	}
 	currentStart := state.CurrentStart(now)
@@ -109,6 +121,7 @@ func checkTokenPeriodGate(info *relaycommon.RelayInfo, now time.Time) (*model.To
 	}
 	used := state.EffectiveUsed(now)
 	info.TokenPeriodStartAt = currentStart
+	info.TokenPeriodAttributionLoaded = true
 	if used >= state.Limit {
 		return state, used, tokenPeriodQuotaExceededError(state, used, now)
 	}

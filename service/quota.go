@@ -399,6 +399,10 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 }
 
 func PreConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int) error {
+	return preConsumeTokenQuota(relayInfo, quota, tokenPeriodAdjustmentHint(relayInfo))
+}
+
+func preConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int, hint *model.TokenPeriodAdjustmentHint) error {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
@@ -418,11 +422,16 @@ func PreConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int) error {
 	if !relayInfo.TokenUnlimited && token.RemainQuota < quota {
 		return fmt.Errorf("token quota is not enough, token remain quota: %s, need quota: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(quota))
 	}
-	attributedPeriodStart, attributionErr := loadTokenPeriodAttribution(relayInfo, false)
-	if attributionErr != nil {
-		return attributionErr
+	var attributedPeriodStart int64
+	if hint == nil || !hint.KnownDisabled {
+		var attributionErr error
+		attributedPeriodStart, attributionErr = loadTokenPeriodAttribution(relayInfo, false)
+		if attributionErr != nil {
+			return attributionErr
+		}
+		hint = tokenPeriodAdjustmentHint(relayInfo)
 	}
-	err = model.AdjustTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota, attributedPeriodStart)
+	err = model.AdjustTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota, attributedPeriodStart, hint)
 	if err != nil {
 		return err
 	}
@@ -456,11 +465,17 @@ func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQu
 	}
 
 	if !relayInfo.IsPlayground && quota != 0 {
-		attributedPeriodStart, attributionErr := loadTokenPeriodAttribution(relayInfo, false)
-		if attributionErr != nil {
-			return attributionErr
+		hint := tokenPeriodAdjustmentHint(relayInfo)
+		var attributedPeriodStart int64
+		if hint == nil || !hint.KnownDisabled {
+			var attributionErr error
+			attributedPeriodStart, attributionErr = loadTokenPeriodAttribution(relayInfo, false)
+			if attributionErr != nil {
+				return attributionErr
+			}
+			hint = tokenPeriodAdjustmentHint(relayInfo)
 		}
-		err = model.AdjustTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota, attributedPeriodStart)
+		err = model.AdjustTokenQuota(relayInfo.TokenId, relayInfo.TokenKey, quota, attributedPeriodStart, hint)
 		if err != nil {
 			return err
 		}

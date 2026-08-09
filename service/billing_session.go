@@ -25,18 +25,21 @@ import (
 // BillingSession 封装单次请求的预扣费/结算/退款生命周期。
 // 实现 relaycommon.BillingSettler 接口。
 type BillingSession struct {
-	relayInfo          *relaycommon.RelayInfo
-	funding            FundingSource
-	preConsumedQuota   int   // 实际预扣额度（信任用户可能为 0）
-	tokenConsumed      int   // 令牌额度实际扣减量
-	tokenPeriodStartAt int64 // 令牌预扣/结算/退款归属的周期桶
-	periodGateChecked  bool  // admission gate already evaluated for this session
-	extraReserved      int   // 发送前补充预扣的额度（订阅退款时需要单独回滚）
-	trusted            bool  // 是否命中信任额度旁路
-	fundingSettled     bool  // funding.Settle 已成功，资金来源已提交
-	settled            bool  // Settle 全部完成（资金 + 令牌）
-	refunded           bool  // Refund 已调用
-	mu                 sync.Mutex
+	relayInfo                    *relaycommon.RelayInfo
+	funding                      FundingSource
+	preConsumedQuota             int   // 实际预扣额度（信任用户可能为 0）
+	tokenConsumed                int   // 令牌额度实际扣减量
+	tokenPeriodStartAt           int64 // 令牌预扣/结算/退款归属的周期桶
+	periodGateChecked            bool  // admission gate already evaluated for this session
+	tokenPeriodDecisionCaptured  bool
+	tokenPeriodAdjustmentHint    model.TokenPeriodAdjustmentHint
+	tokenPeriodAdjustmentHintSet bool
+	extraReserved                int  // 发送前补充预扣的额度（订阅退款时需要单独回滚）
+	trusted                      bool // 是否命中信任额度旁路
+	fundingSettled               bool // funding.Settle 已成功，资金来源已提交
+	settled                      bool // Settle 全部完成（资金 + 令牌）
+	refunded                     bool // Refund 已调用
+	mu                           sync.Mutex
 }
 
 // Settle 根据实际消耗额度进行结算。
@@ -103,6 +106,8 @@ func (s *BillingSession) Refund(c *gin.Context) {
 	if tokenPeriodStartAt <= 0 {
 		tokenPeriodStartAt = s.relayInfo.TokenPeriodStartAt
 	}
+	tokenPeriodAdjustmentHint := s.tokenPeriodAdjustmentHint
+	tokenPeriodAdjustmentHintSet := s.tokenPeriodAdjustmentHintSet
 	extraReserved := s.extraReserved
 	subscriptionId := s.relayInfo.SubscriptionId
 	funding := s.funding
@@ -119,7 +124,11 @@ func (s *BillingSession) Refund(c *gin.Context) {
 		}
 		// 2) 退还令牌额度
 		if tokenConsumed > 0 && !isPlayground {
-			if err := model.AdjustTokenQuota(tokenId, tokenKey, -tokenConsumed, tokenPeriodStartAt); err != nil {
+			var hint *model.TokenPeriodAdjustmentHint
+			if tokenPeriodAdjustmentHintSet {
+				hint = &tokenPeriodAdjustmentHint
+			}
+			if err := model.AdjustTokenQuota(tokenId, tokenKey, -tokenConsumed, tokenPeriodStartAt, hint); err != nil {
 				common.SysLog("error refunding token quota: " + err.Error())
 			}
 		}
@@ -216,7 +225,7 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 
 	// ---- 1) 预扣令牌额度 ----
 	if effectiveQuota > 0 {
-		if err := PreConsumeTokenQuota(s.relayInfo, effectiveQuota); err != nil {
+		if err := s.preConsumeTokenQuota(effectiveQuota); err != nil {
 			return types.NewErrorWithStatusCode(err, types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 		}
 		s.tokenConsumed = effectiveQuota
@@ -291,7 +300,7 @@ func (s *BillingSession) reserveToken(delta int) error {
 	if delta <= 0 || s.relayInfo.IsPlayground {
 		return nil
 	}
-	if err := PreConsumeTokenQuota(s.relayInfo, delta); err != nil {
+	if err := s.preConsumeTokenQuota(delta); err != nil {
 		return types.NewErrorWithStatusCode(err, types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 	}
 	return nil
@@ -366,7 +375,40 @@ func (s *BillingSession) adjustTokenQuota(delta int) error {
 	if attributed <= 0 {
 		attributed = s.relayInfo.TokenPeriodStartAt
 	}
-	return model.AdjustTokenQuota(s.relayInfo.TokenId, s.relayInfo.TokenKey, delta, attributed)
+	return model.AdjustTokenQuota(s.relayInfo.TokenId, s.relayInfo.TokenKey, delta, attributed, s.tokenAdjustmentHint())
+}
+
+func (s *BillingSession) tokenAdjustmentHint() *model.TokenPeriodAdjustmentHint {
+	if s == nil || !s.tokenPeriodAdjustmentHintSet {
+		return nil
+	}
+	hint := s.tokenPeriodAdjustmentHint
+	return &hint
+}
+
+func (s *BillingSession) preConsumeTokenQuota(quota int) error {
+	if err := preConsumeTokenQuota(s.relayInfo, quota, s.tokenAdjustmentHint()); err != nil {
+		return err
+	}
+	if !s.tokenPeriodDecisionCaptured {
+		s.captureTokenPeriodDecision()
+	}
+	return nil
+}
+
+func (s *BillingSession) captureTokenPeriodDecision() {
+	if s == nil || s.relayInfo == nil || !s.relayInfo.TokenPeriodAttributionLoaded {
+		return
+	}
+	s.tokenPeriodStartAt = s.relayInfo.TokenPeriodStartAt
+	if hint := tokenPeriodAdjustmentHint(s.relayInfo); hint != nil {
+		s.tokenPeriodAdjustmentHint = *hint
+		s.tokenPeriodAdjustmentHintSet = true
+	} else {
+		s.tokenPeriodAdjustmentHint = model.TokenPeriodAdjustmentHint{}
+		s.tokenPeriodAdjustmentHintSet = false
+	}
+	s.tokenPeriodDecisionCaptured = true
 }
 
 // checkPeriodGateAfterTrust is shared by the factory preflight and
@@ -379,7 +421,7 @@ func (s *BillingSession) checkPeriodGateAfterTrust(quota int) *types.NewAPIError
 	}
 	_, _, apiErr := checkTokenPeriodGate(s.relayInfo, time.Now())
 	if apiErr == nil {
-		s.tokenPeriodStartAt = s.relayInfo.TokenPeriodStartAt
+		s.captureTokenPeriodDecision()
 		s.periodGateChecked = true
 	}
 	return apiErr

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -13,6 +14,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
+
+func countModelTokenPeriodStateQueries(t *testing.T, db *gorm.DB) *atomic.Int64 {
+	t.Helper()
+	var count atomic.Int64
+	callbackName := "test:count_token_period_state:" + strings.ReplaceAll(t.Name(), "/", "_")
+	require.NoError(t, db.Callback().Query().Before("gorm:query").Register(callbackName, func(tx *gorm.DB) {
+		if _, ok := tx.Statement.Dest.(*TokenPeriodState); ok {
+			count.Add(1)
+		}
+	}))
+	t.Cleanup(func() {
+		require.NoError(t, db.Callback().Query().Remove(callbackName))
+	})
+	return &count
+}
 
 func setupTokenPeriodTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
@@ -106,7 +122,7 @@ func TestAdjustTokenQuotaUpdatesPeriodStateAtomically(t *testing.T) {
 	start, _ := currentDayPeriod(t)
 	token := seedPeriodToken(t, db, common.TokenPeriodTypeDays, 1, start, 20)
 
-	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 30, 0))
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 30, 0, nil))
 	var updated Token
 	require.NoError(t, db.First(&updated, token.Id).Error)
 	assert.Equal(t, 70, updated.RemainQuota)
@@ -114,7 +130,7 @@ func TestAdjustTokenQuotaUpdatesPeriodStateAtomically(t *testing.T) {
 	assert.Equal(t, start, updated.PeriodStartAt)
 	assert.Equal(t, int64(50), updated.PeriodUsedQuota)
 
-	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, -80, start))
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, -80, start, nil))
 	require.NoError(t, db.First(&updated, token.Id).Error)
 	assert.Equal(t, 150, updated.RemainQuota)
 	assert.Equal(t, -50, updated.UsedQuota)
@@ -126,13 +142,13 @@ func TestAdjustTokenQuotaResetsStaleBucketAndPreservesCurrentBucketOnOldRefund(t
 	start, _ := currentDayPeriod(t)
 	token := seedPeriodToken(t, db, common.TokenPeriodTypeDays, 1, start-24*60*60, 90)
 
-	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 7, 0))
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 7, 0, nil))
 	var updated Token
 	require.NoError(t, db.First(&updated, token.Id).Error)
 	assert.Equal(t, start, updated.PeriodStartAt)
 	assert.Equal(t, int64(7), updated.PeriodUsedQuota)
 
-	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, -5, start-24*60*60))
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, -5, start-24*60*60, nil))
 	require.NoError(t, db.First(&updated, token.Id).Error)
 	assert.Equal(t, start, updated.PeriodStartAt)
 	assert.Equal(t, int64(7), updated.PeriodUsedQuota)
@@ -267,7 +283,7 @@ func TestAdjustTokenQuotaConcurrentDeltasHaveExactSum(t *testing.T) {
 		go func(delta int) {
 			defer wg.Done()
 			<-begin
-			errs <- AdjustTokenQuota(token.Id, token.Key, delta, start)
+			errs <- AdjustTokenQuota(token.Id, token.Key, delta, start, nil)
 		}(delta)
 	}
 	close(begin)
@@ -339,8 +355,8 @@ func TestAdjustTokenQuotaLegacyPathLeavesPeriodColumnsUntouched(t *testing.T) {
 	require.NoError(t, db.Model(&Token{}).Where("id = ?", token.Id).
 		Update("period_quota_limit", 0).Error)
 
-	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 30, 0))
-	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, -10, 0))
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 30, 0, nil))
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, -10, 0, nil))
 
 	var got Token
 	require.NoError(t, db.First(&got, token.Id).Error)
@@ -356,7 +372,7 @@ func TestAdjustTokenQuotaRejectsInvalidPeriodConfigAndMissingRows(t *testing.T) 
 
 	// period_type=days 但 period_days=0：边界无法求解，必须报错而不是静默漏计。
 	broken := seedPeriodToken(t, db, common.TokenPeriodTypeDays, 0, start, 0)
-	err := AdjustTokenQuota(broken.Id, broken.Key, 10, 0)
+	err := AdjustTokenQuota(broken.Id, broken.Key, 10, 0, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "令牌周期配置无效")
 
@@ -367,7 +383,7 @@ func TestAdjustTokenQuotaRejectsInvalidPeriodConfigAndMissingRows(t *testing.T) 
 	// 周期令牌被删除后，UPDATE 影响 0 行，必须冒泡而不是当作成功。
 	live := seedPeriodToken(t, db, common.TokenPeriodTypeDays, 1, start, 0)
 	require.NoError(t, db.Delete(&Token{}, live.Id).Error)
-	assert.ErrorIs(t, AdjustTokenQuota(live.Id, live.Key, 10, 0), gorm.ErrRecordNotFound)
+	assert.ErrorIs(t, AdjustTokenQuota(live.Id, live.Key, 10, 0, nil), gorm.ErrRecordNotFound)
 
 	_, stateErr := LoadTokenPeriodState(live.Id)
 	assert.Error(t, stateErr, "a deleted token has no period state to trust")
@@ -377,4 +393,129 @@ func TestAdjustTokenQuotaRejectsInvalidPeriodConfigAndMissingRows(t *testing.T) 
 
 	// 跨周期退款同样不得把「影响 0 行」当成功，否则用户余额会静默丢失返还。
 	assert.ErrorIs(t, adjustTokenQuotaAttributedPeriod(live.Id, -10), gorm.ErrRecordNotFound)
+}
+
+func TestAdjustTokenQuotaLegacyRejectsMissingRows(t *testing.T) {
+	setupTokenPeriodTestDB(t)
+	assert.ErrorIs(t, adjustTokenQuotaLegacy(999999, 10), gorm.ErrRecordNotFound)
+}
+
+func TestAdjustTokenQuotaKnownDisabledSkipsStateRead(t *testing.T) {
+	db := setupTokenPeriodTestDB(t)
+	oldBatch := common.BatchUpdateEnabled
+	common.BatchUpdateEnabled = false
+	t.Cleanup(func() { common.BatchUpdateEnabled = oldBatch })
+	token := seedPeriodToken(t, db, "", 0, 77, 33)
+	token.PeriodQuotaLimit = 0
+	require.NoError(t, db.Model(&Token{}).Where("id = ?", token.Id).Update("period_quota_limit", 0).Error)
+	queries := countModelTokenPeriodStateQueries(t, db)
+
+	hint := &TokenPeriodAdjustmentHint{KnownDisabled: true}
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 30, 0, hint))
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, -10, 0, hint))
+	assert.Zero(t, queries.Load())
+
+	var got Token
+	require.NoError(t, db.First(&got, token.Id).Error)
+	assert.Equal(t, 80, got.RemainQuota)
+	assert.Equal(t, 20, got.UsedQuota)
+	assert.Equal(t, int64(77), got.PeriodStartAt)
+	assert.Equal(t, int64(33), got.PeriodUsedQuota)
+}
+
+func TestAdjustTokenQuotaNilHintReadsStateAndHintCannotHideDeletedRow(t *testing.T) {
+	db := setupTokenPeriodTestDB(t)
+	oldBatch := common.BatchUpdateEnabled
+	common.BatchUpdateEnabled = false
+	t.Cleanup(func() { common.BatchUpdateEnabled = oldBatch })
+	token := seedPeriodToken(t, db, "", 0, 0, 0)
+	token.PeriodQuotaLimit = 0
+	require.NoError(t, db.Model(&Token{}).Where("id = ?", token.Id).Update("period_quota_limit", 0).Error)
+	queries := countModelTokenPeriodStateQueries(t, db)
+
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 5, 0, nil))
+	assert.Equal(t, int64(1), queries.Load(), "nil must preserve the authoritative state read")
+
+	require.NoError(t, db.Delete(&Token{}, token.Id).Error)
+	err := AdjustTokenQuota(token.Id, token.Key, 5, 0, &TokenPeriodAdjustmentHint{KnownDisabled: true})
+	assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+	assert.Equal(t, int64(1), queries.Load(), "KnownDisabled reaches the guarded legacy update directly")
+}
+
+func TestAdjustTokenQuotaActiveStateUsesAdministratorReset(t *testing.T) {
+	db := setupTokenPeriodTestDB(t)
+	oldStart, _ := currentDayPeriod(t)
+	token := seedPeriodToken(t, db, common.TokenPeriodTypeDays, 1, oldStart, 40)
+
+	now := time.Now()
+	newAnchor := common.TokenPeriodAnchorNow(now)
+	newStart, _, ok := common.TokenPeriodBounds(common.TokenPeriodTypeMonth, 0, newAnchor, now)
+	require.True(t, ok)
+	require.NoError(t, db.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_anchor_at = ?
+WHERE id = ?`, 3, newStart, common.TokenPeriodTypeMonth, 0, newAnchor, token.Id).Error)
+
+	oldAttribution := newStart - 24*60*60
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 7, oldAttribution, nil))
+	var got Token
+	require.NoError(t, db.First(&got, token.Id).Error)
+	assert.Equal(t, newStart, got.PeriodStartAt)
+	assert.Equal(t, int64(10), got.PeriodUsedQuota)
+}
+
+func TestAdjustTokenQuotaKnownDisabledKeepsInflightDecisionAfterEnable(t *testing.T) {
+	db := setupTokenPeriodTestDB(t)
+	token := seedPeriodToken(t, db, "", 0, 0, 0)
+	token.PeriodQuotaLimit = 0
+	require.NoError(t, db.Model(&Token{}).Where("id = ?", token.Id).Update("period_quota_limit", 0).Error)
+	hint := &TokenPeriodAdjustmentHint{KnownDisabled: true}
+
+	now := time.Now()
+	anchor := common.TokenPeriodAnchorNow(now)
+	start, _, ok := common.TokenPeriodBounds(common.TokenPeriodTypeMonth, 0, anchor, now)
+	require.True(t, ok)
+	require.NoError(t, db.Exec(`UPDATE tokens
+SET period_used_quota = ?, period_start_at = ?, period_type = ?, period_days = ?, period_quota_limit = ?, period_anchor_at = ?
+WHERE id = ?`, 0, start, common.TokenPeriodTypeMonth, 0, 1000, anchor, token.Id).Error)
+
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 9, 0, hint))
+	var got Token
+	require.NoError(t, db.First(&got, token.Id).Error)
+	assert.Equal(t, 91, got.RemainQuota)
+	assert.Equal(t, 9, got.UsedQuota)
+	assert.Equal(t, start, got.PeriodStartAt)
+	assert.Zero(t, got.PeriodUsedQuota, "an admitted disabled request retains legacy semantics if policy is enabled in flight")
+}
+
+func TestAdjustTokenQuotaBatchQueueConservativelyReloadsHint(t *testing.T) {
+	db := setupTokenPeriodTestDB(t)
+	oldBatch := common.BatchUpdateEnabled
+	common.BatchUpdateEnabled = true
+	batchUpdateLocks[BatchUpdateTypeTokenQuota].Lock()
+	batchUpdateStores[BatchUpdateTypeTokenQuota] = make(map[int]int)
+	batchUpdateLocks[BatchUpdateTypeTokenQuota].Unlock()
+	t.Cleanup(func() {
+		common.BatchUpdateEnabled = oldBatch
+		batchUpdateLocks[BatchUpdateTypeTokenQuota].Lock()
+		batchUpdateStores[BatchUpdateTypeTokenQuota] = make(map[int]int)
+		batchUpdateLocks[BatchUpdateTypeTokenQuota].Unlock()
+	})
+	token := seedPeriodToken(t, db, "", 0, 0, 0)
+	token.PeriodQuotaLimit = 0
+	require.NoError(t, db.Model(&Token{}).Where("id = ?", token.Id).Update("period_quota_limit", 0).Error)
+	queries := countModelTokenPeriodStateQueries(t, db)
+	hint := &TokenPeriodAdjustmentHint{KnownDisabled: true}
+
+	require.NoError(t, AdjustTokenQuota(token.Id, token.Key, 8, 0, hint))
+	assert.Equal(t, int64(1), queries.Load(), "batch enqueue must validate the row and current disabled state")
+	batchUpdateLocks[BatchUpdateTypeTokenQuota].Lock()
+	assert.Equal(t, -8, batchUpdateStores[BatchUpdateTypeTokenQuota][token.Id])
+	batchUpdateLocks[BatchUpdateTypeTokenQuota].Unlock()
+
+	require.NoError(t, db.Delete(&Token{}, token.Id).Error)
+	assert.ErrorIs(t, AdjustTokenQuota(token.Id, token.Key, 3, 0, hint), gorm.ErrRecordNotFound)
+	assert.Equal(t, int64(2), queries.Load())
+	batchUpdateLocks[BatchUpdateTypeTokenQuota].Lock()
+	assert.Equal(t, -8, batchUpdateStores[BatchUpdateTypeTokenQuota][token.Id], "a deleted row must not add another batch delta")
+	batchUpdateLocks[BatchUpdateTypeTokenQuota].Unlock()
 }

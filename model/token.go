@@ -62,6 +62,13 @@ type TokenPeriodState struct {
 	UsedQuota int64  `gorm:"column:period_used_quota"`
 }
 
+// TokenPeriodAdjustmentHint carries only a previously validated disabled
+// decision. Enabled policies still reload authoritative counters for every
+// adjustment.
+type TokenPeriodAdjustmentHint struct {
+	KnownDisabled bool
+}
+
 // PeriodLimitEnabled mirrors Token.PeriodLimitEnabled for a loaded snapshot.
 func (state *TokenPeriodState) PeriodLimitEnabled() bool {
 	return state != nil && state.Type != "" && state.Limit > 0
@@ -332,14 +339,6 @@ func GetTokenById(id int) (*Token, error) {
 	token := Token{Id: id}
 	var err error = nil
 	err = DB.First(&token, "id = ?", id).Error
-	if shouldUpdateRedis(true, err) {
-		gopool.Go(func() {
-			// 失效而非整 hash 覆盖 RemainQuota（Lost Update）；失效后下次读从库重建。
-			if err := cacheDeleteToken(token.Key); err != nil {
-				common.SysLog("failed to invalidate token cache: " + err.Error())
-			}
-		})
-	}
 	return &token, err
 }
 
@@ -523,7 +522,7 @@ func IncreaseTokenQuota(tokenId int, key string, quota int) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
-	return AdjustTokenQuota(tokenId, key, -quota, 0)
+	return AdjustTokenQuota(tokenId, key, -quota, 0, nil)
 }
 
 func increaseTokenQuota(id int, quota int) (err error) {
@@ -541,7 +540,7 @@ func DecreaseTokenQuota(id int, key string, quota int) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
-	return AdjustTokenQuota(id, key, quota, 0)
+	return AdjustTokenQuota(id, key, quota, 0, nil)
 }
 
 func decreaseTokenQuota(id int, quota int) (err error) {
@@ -558,7 +557,16 @@ func decreaseTokenQuota(id int, quota int) (err error) {
 // AdjustTokenQuota applies a signed quota delta. Positive values consume
 // quota; negative values refund it. attributedPeriodStart identifies the
 // original bucket for refunds and is zero for the current bucket.
-func AdjustTokenQuota(id int, key string, delta int, attributedPeriodStart int64) error {
+func AdjustTokenQuota(id int, key string, delta int, attributedPeriodStart int64, hint *TokenPeriodAdjustmentHint) error {
+	// Batch enqueue has no immediate RowsAffected check. Reload the row before
+	// deciding whether it is eligible for the legacy queue so a stale disabled
+	// decision cannot hide an already deleted or newly enabled token.
+	if common.BatchUpdateEnabled {
+		hint = nil
+	}
+	if err := adjustTokenQuota(id, delta, attributedPeriodStart, hint); err != nil {
+		return err
+	}
 	if common.RedisEnabled {
 		cacheDelta := -int64(delta)
 		gopool.Go(func() {
@@ -567,18 +575,22 @@ func AdjustTokenQuota(id int, key string, delta int, attributedPeriodStart int64
 			}
 		})
 	}
-	return adjustTokenQuota(id, delta, attributedPeriodStart)
+	return nil
 }
 
 // adjustTokenQuota is the single model-level accounting implementation. It
 // selects the legacy batch path only after confirming that the token has no
 // active period policy.
-func adjustTokenQuota(id int, delta int, attributedPeriodStart int64) error {
-	state, err := LoadTokenPeriodState(id)
-	if err != nil {
-		return err
+func adjustTokenQuota(id int, delta int, attributedPeriodStart int64, hint *TokenPeriodAdjustmentHint) error {
+	var state *TokenPeriodState
+	if hint == nil || !hint.KnownDisabled {
+		var err error
+		state, err = LoadTokenPeriodState(id)
+		if err != nil {
+			return err
+		}
 	}
-	if !state.PeriodLimitEnabled() {
+	if state == nil || !state.PeriodLimitEnabled() {
 		if common.BatchUpdateEnabled {
 			addNewRecord(BatchUpdateTypeTokenQuota, id, -delta)
 			return nil
@@ -636,11 +648,18 @@ WHERE id = ? AND deleted_at IS NULL`,
 // adjustTokenQuotaLegacy keeps the pre-period behavior byte-for-byte in terms
 // of arithmetic and batch semantics for tokens without a period policy.
 func adjustTokenQuotaLegacy(id int, delta int) error {
-	return DB.Model(&Token{}).Where("id = ?", id).Updates(map[string]interface{}{
+	result := DB.Model(&Token{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"remain_quota":  gorm.Expr("remain_quota - ?", delta),
 		"used_quota":    gorm.Expr("used_quota + ?", delta),
 		"accessed_time": common.GetTimestamp(),
-	}).Error
+	})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // A refund attributed to an older bucket must not reset or mutate the current
