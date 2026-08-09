@@ -156,11 +156,17 @@ func TestT3ModelNameRPMRejectsWithRedactedOpenAIResponse(t *testing.T) {
 	})
 
 	require.False(t, enforceModelNameRPM(c, "secret-model", "secret-group", c.Request.URL.Path))
-	assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Code)
 	assert.Equal(t, "60", recorder.Header().Get("Retry-After"))
+	var response struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.Equal(t, string(types.ErrorCodeModelNameRateLimited), response.Error.Code)
 	body := recorder.Body.String()
 	assert.Contains(t, body, "模型请求过于频繁，请稍后重试")
-	assert.Contains(t, body, string(types.ErrorCodeModelNameRateLimited))
 	assert.NotContains(t, body, "secret-model")
 	assert.NotContains(t, body, "secret-group")
 	assert.NotContains(t, body, "17")
@@ -195,7 +201,7 @@ func TestT3ModelNameRPMTaskResponseUsesTaskShape(t *testing.T) {
 	})
 
 	require.False(t, EnforceModelNameRPMForTask(c, "remix-model", "free", c.Request.URL.Path))
-	assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Code)
 	assert.Equal(t, "60", recorder.Header().Get("Retry-After"))
 	var response dto.TaskError
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
@@ -263,7 +269,7 @@ func TestT3E1SpecifiedChannelBranchCountsRPM(t *testing.T) {
 
 	Distribute()(c)
 	assert.Equal(t, 1, *calls)
-	assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Code)
 }
 
 func TestT3E2OrdinaryBranchCountsBeforeChannelSelection(t *testing.T) {
@@ -281,7 +287,7 @@ func TestT3E2OrdinaryBranchCountsBeforeChannelSelection(t *testing.T) {
 
 	Distribute()(c)
 	assert.Equal(t, 1, *calls)
-	assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Code)
 }
 
 func TestT3E2PlaygroundUsesAuthorizedGroup(t *testing.T) {
@@ -303,7 +309,7 @@ func TestT3E2PlaygroundUsesAuthorizedGroup(t *testing.T) {
 
 	Distribute()(c)
 	assert.Equal(t, 1, *calls)
-	assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Code)
 }
 
 func TestT3E2PlaygroundRejectsUnauthorizedGroupBeforeRPM(t *testing.T) {

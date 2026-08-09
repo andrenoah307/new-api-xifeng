@@ -136,8 +136,10 @@ func TestT3RelayTaskRemixGateUsesResolvedOriginModel(t *testing.T) {
 	require.True(t, first.Allowed)
 	RelayTask(c)
 
-	assert.Equal(t, http.StatusTooManyRequests, recorder.Code)
-	assert.Contains(t, recorder.Body.String(), string(types.ErrorCodeModelNameRateLimited))
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Code)
+	var response dto.TaskError
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.Equal(t, string(types.ErrorCodeModelNameRateLimited), response.Code)
 	assert.NotContains(t, recorder.Body.String(), modelName)
 	assert.Empty(t, c.GetStringSlice("use_channel"), "RPM rejection must happen before the retry loop")
 }

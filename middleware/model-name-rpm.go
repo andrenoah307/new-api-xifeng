@@ -36,7 +36,7 @@ const (
 )
 
 // enforceModelNameRPM returns true when the request may continue. On a normal
-// policy rejection it writes the OpenAI-compatible 429 response and aborts the
+// policy rejection it writes the OpenAI-compatible 503 response and aborts the
 // Gin context before returning false.
 func enforceModelNameRPM(c *gin.Context, modelName, policyGroup, route string) bool {
 	return enforceModelNameRPMWithResponse(c, modelName, policyGroup, route, modelNameRPMOpenAIResponse)
@@ -96,9 +96,11 @@ func markModelNameRPMChecked(c *gin.Context) {
 	common.SetContextKey(c, constant.ContextKeyModelNameRPMChecked, true)
 }
 
+// Use 503 per project convention so downstream clients retry; clients use
+// code == "model:rate_limited" to distinguish this gate from other 503s.
 func writeModelNameRPMOpenAIError(c *gin.Context, message string) {
 	c.Header("Retry-After", modelNameRPMRetryAfter)
-	c.JSON(http.StatusTooManyRequests, gin.H{
+	c.JSON(http.StatusServiceUnavailable, gin.H{
 		"error": gin.H{
 			"message": message,
 			"type":    "new_api_error",
@@ -113,10 +115,10 @@ func writeModelNameRPMTaskError(c *gin.Context, message string) {
 	taskErr := &dto.TaskError{
 		Code:       string(types.ErrorCodeModelNameRateLimited),
 		Message:    message,
-		StatusCode: http.StatusTooManyRequests,
+		StatusCode: http.StatusServiceUnavailable,
 		LocalError: true,
 		Error:      errors.New(message),
 	}
-	c.JSON(http.StatusTooManyRequests, taskErr)
+	c.JSON(http.StatusServiceUnavailable, taskErr)
 	c.Abort()
 }
