@@ -26,7 +26,7 @@ import {
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
 import { getTokensColumns } from './TokensColumnDefs';
-import { normalizePeriodConversion } from './token-period';
+import { getPeriodConversionConfig } from '../../../helpers/quota';
 import { StatusContext } from '../../../context/Status';
 
 const TokensTable = (tokensData) => {
@@ -59,27 +59,12 @@ const TokensTable = (tokensData) => {
     t,
   } = tokensData;
 
-  const periodConversion = useMemo(() => {
-    let storedStatus = {};
-    let storedQuotaPerUnit;
-    try {
-      if (typeof localStorage !== 'undefined') {
-        storedStatus = JSON.parse(localStorage.getItem('status') || '{}');
-        storedQuotaPerUnit = localStorage.getItem('quota_per_unit');
-      }
-    } catch (_) {
-      storedStatus = {};
-    }
-    const status = statusState?.status || {};
-    return normalizePeriodConversion({
-      usdExchangeRate:
-        status.usd_exchange_rate ?? storedStatus.usd_exchange_rate,
-      quotaPerUnit:
-        status.quota_per_unit ??
-        storedStatus.quota_per_unit ??
-        storedQuotaPerUnit,
-    });
-  }, [statusState?.status]);
+  // 周期限额金额跟随管理员配置的站点展示币种，与令牌额度同源；
+  // statusState 变化即代表管理员改了汇率/币种，重新取一次配置。
+  const periodConversion = useMemo(
+    () => getPeriodConversionConfig(),
+    [statusState?.status],
+  );
 
   // Get all columns
   const columns = useMemo(() => {

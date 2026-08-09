@@ -83,13 +83,19 @@ func normalizeTokenPeriod(req dto.TokenRequest) (normalizedTokenPeriod, error) {
 		}
 		limit = parsed.IntPart()
 	} else {
-		if operation_setting.USDExchangeRate <= 0 || math.IsNaN(operation_setting.USDExchangeRate) || math.IsInf(operation_setting.USDExchangeRate, 0) ||
-			common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
-			return normalizedTokenPeriod{}, errors.New("当前汇率配置无效")
+		// 金额单位跟随站点额度展示口径，与令牌余额同源：
+		// TOKENS 展示时用户填的就是原生额度，其余按管理员配置的展示汇率折算。
+		quotaDecimal := parsed
+		if operation_setting.GetQuotaDisplayType() != operation_setting.QuotaDisplayTypeTokens {
+			displayRate := operation_setting.GetUsdToCurrencyRate(operation_setting.USDExchangeRate)
+			if displayRate <= 0 || math.IsNaN(displayRate) || math.IsInf(displayRate, 0) ||
+				common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
+				return normalizedTokenPeriod{}, errors.New("当前汇率配置无效")
+			}
+			quotaDecimal = parsed.
+				Div(decimal.NewFromFloat(displayRate)).
+				Mul(decimal.NewFromFloat(common.QuotaPerUnit))
 		}
-		quotaDecimal := parsed.
-			Div(decimal.NewFromFloat(operation_setting.USDExchangeRate)).
-			Mul(decimal.NewFromFloat(common.QuotaPerUnit))
 		quota, clamp := common.QuotaFromDecimalChecked(quotaDecimal)
 		if clamp != nil {
 			return normalizedTokenPeriod{}, errors.New("period_limit_value 超出额度上限")

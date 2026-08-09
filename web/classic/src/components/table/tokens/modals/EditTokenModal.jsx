@@ -32,6 +32,7 @@ import {
   quotaToDisplayAmount,
   quotaToDisplayInputAmount,
   displayAmountToQuota,
+  getPeriodConversionConfig,
 } from '../../../../helpers/quota';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
 import {
@@ -62,11 +63,10 @@ import {
   convertPeriodLimitUnit,
   formatPeriodResetAt,
   getPeriodResetAt,
-  normalizePeriodConversion,
   periodFormToPayload,
   periodResponseToForm,
   validatePeriodForm,
-  cnyToCanonicalQuota,
+  amountToCanonicalQuota,
   isPositiveIntegerString,
 } from '../token-period';
 
@@ -85,37 +85,19 @@ const EditTokenModal = (props) => {
   const periodAnchorAtRef = useRef(0);
   const isEdit = props.editingToken.id !== undefined;
 
-  // Period limits always use CNY. The display-mode helpers above remain only
-  // for the legacy token balance. StatusContext is preferred, with the status
-  // snapshot in localStorage as a refresh-safe fallback.
-  const periodConversion = useMemo(() => {
-    let storedStatus = {};
-    try {
-      if (typeof localStorage !== 'undefined') {
-        storedStatus = JSON.parse(localStorage.getItem('status') || '{}');
-      }
-    } catch (_) {
-      storedStatus = {};
-    }
-    const status = statusState?.status || {};
-    let storedQuotaPerUnit;
-    try {
-      storedQuotaPerUnit =
-        typeof localStorage !== 'undefined'
-          ? localStorage.getItem('quota_per_unit')
-          : undefined;
-    } catch (_) {
-      storedQuotaPerUnit = undefined;
-    }
-    return normalizePeriodConversion({
-      usdExchangeRate:
-        status.usd_exchange_rate ?? storedStatus.usd_exchange_rate,
-      quotaPerUnit:
-        status.quota_per_unit ??
-        storedStatus.quota_per_unit ??
-        storedQuotaPerUnit,
-    });
-  }, [statusState?.status]);
+  // 周期限额金额与令牌额度同口径：都走管理员配置的站点展示币种与汇率。
+  // statusState 变化即代表管理员改了汇率/币种，重新取一次配置。
+  const periodConversion = useMemo(
+    () => getPeriodConversionConfig(),
+    [statusState?.status],
+  );
+  // TOKENS 口径没有货币符号，金额与原生额度同刻度，标签与占位符跟着走
+  const periodAmountPlaceholder = periodConversion.symbol
+    ? '10.00'
+    : String(Math.max(1, Math.trunc(periodConversion.quotaPerUnit)));
+  const periodAmountUnitLabel = periodConversion.symbol
+    ? t('金额（{{symbol}}）', { symbol: periodConversion.symbol })
+    : t('金额');
 
   const getInitValues = () => ({
     name: '',
@@ -296,10 +278,7 @@ const EditTokenModal = (props) => {
     if (errors.includes('period_limit_value_integer')) {
       return '原生额度必须为正整数';
     }
-    if (errors.includes('period_limit_value_range')) {
-      return '周期限额超出可用范围';
-    }
-    return '周期限额必须大于 0';
+    return '周期限额超出可用范围';
   };
 
   const buildWritableTokenInputs = (values, name) => {
@@ -428,7 +407,7 @@ const EditTokenModal = (props) => {
       currentValue && currentValue !== '0'
         ? currentValue
         : periodUnit === 'cny'
-          ? '10.00'
+          ? periodAmountPlaceholder
           : String(Math.max(1, Math.trunc(periodConversion.quotaPerUnit)));
     const nextType =
       current.period_type === 'days' ||
@@ -444,9 +423,9 @@ const EditTokenModal = (props) => {
           : 0;
     periodCanonicalQuotaRef.current =
       periodUnit === 'cny'
-        ? cnyToCanonicalQuota(
+        ? amountToCanonicalQuota(
             nextValue,
-            periodConversion.usdExchangeRate,
+            periodConversion.displayRate,
             periodConversion.quotaPerUnit,
           )
         : isPositiveIntegerString(nextValue)
@@ -519,9 +498,9 @@ const EditTokenModal = (props) => {
     const text = String(inputValue);
     const unit = formApiRef.current.getValue('period_limit_unit') || 'cny';
     if (unit === 'cny') {
-      periodCanonicalQuotaRef.current = cnyToCanonicalQuota(
+      periodCanonicalQuotaRef.current = amountToCanonicalQuota(
         text.trim(),
-        periodConversion.usdExchangeRate,
+        periodConversion.displayRate,
         periodConversion.quotaPerUnit,
       );
     } else if (isPositiveIntegerString(text.trim())) {
@@ -918,7 +897,7 @@ const EditTokenModal = (props) => {
                           field='period_limit_unit'
                           label={t('周期限额单位')}
                           optionList={[
-                            { value: 'cny', label: t('人民币（¥）') },
+                            { value: 'cny', label: periodAmountUnitLabel },
                             { value: 'quota', label: t('原生额度') },
                           ]}
                           onChange={setPeriodUnit}
@@ -930,7 +909,12 @@ const EditTokenModal = (props) => {
                         <Form.Input
                           field='period_limit_value'
                           label={t('周期限额值')}
-                          prefix={values.period_limit_unit === 'cny' ? '¥' : undefined}
+                          prefix={
+                            values.period_limit_unit === 'cny'
+                              ? periodConversion.symbol || undefined
+                              : undefined
+                          }
+                          extraText={t('填 0 即关闭周期限额')}
                           inputMode={
                             values.period_limit_unit === 'quota'
                               ? 'numeric'
@@ -938,7 +922,7 @@ const EditTokenModal = (props) => {
                           }
                           placeholder={
                             values.period_limit_unit === 'cny'
-                              ? '10.00'
+                              ? periodAmountPlaceholder
                               : String(Math.max(1, Math.trunc(periodConversion.quotaPerUnit)))
                           }
                           onChange={setPeriodLimitValue}

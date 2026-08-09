@@ -19,6 +19,7 @@ func TestAddTokenPeriodRequestNormalizesCNYAndIgnoresStateFields(t *testing.T) {
 	oldUSD := operation_setting.USDExchangeRate
 	common.QuotaPerUnit = 500000
 	operation_setting.USDExchangeRate = 5
+	setTokenPeriodDisplayCurrency(t, operation_setting.QuotaDisplayTypeCNY, 1)
 	t.Cleanup(func() {
 		common.QuotaPerUnit = oldRate
 		operation_setting.USDExchangeRate = oldUSD
@@ -150,6 +151,7 @@ func TestNormalizeTokenPeriodValidatesBoundariesAndConversion(t *testing.T) {
 	oldUSD := operation_setting.USDExchangeRate
 	common.QuotaPerUnit = 500000
 	operation_setting.USDExchangeRate = 5
+	setTokenPeriodDisplayCurrency(t, operation_setting.QuotaDisplayTypeCNY, 1)
 	t.Cleanup(func() {
 		common.QuotaPerUnit = oldQuotaPerUnit
 		operation_setting.USDExchangeRate = oldUSD
@@ -233,6 +235,7 @@ func TestNormalizeTokenPeriodDisabledAndMissingValueCases(t *testing.T) {
 
 	oldUSD := operation_setting.USDExchangeRate
 	operation_setting.USDExchangeRate = 0
+	setTokenPeriodDisplayCurrency(t, operation_setting.QuotaDisplayTypeCNY, 1)
 	t.Cleanup(func() { operation_setting.USDExchangeRate = oldUSD })
 	_, err := normalizeTokenPeriod(dto.TokenRequest{
 		PeriodType:       common.TokenPeriodTypeMonth,
@@ -345,6 +348,7 @@ func TestNormalizeTokenPeriodCNYQuantizationMatchesFrontend(t *testing.T) {
 	oldUSD := operation_setting.USDExchangeRate
 	common.QuotaPerUnit = 500000
 	operation_setting.USDExchangeRate = 7.3
+	setTokenPeriodDisplayCurrency(t, operation_setting.QuotaDisplayTypeCNY, 1)
 	t.Cleanup(func() {
 		common.QuotaPerUnit = oldQuotaPerUnit
 		operation_setting.USDExchangeRate = oldUSD
@@ -397,4 +401,70 @@ func TestNormalizeTokenPeriodCNYQuantizationMatchesFrontend(t *testing.T) {
 			assert.Equal(t, tt.wantLimit, config.limit)
 		})
 	}
+}
+
+// 金额单位的周期限额必须与令牌余额走同一套展示口径（管理员配置的展示币种与汇率），
+// 否则同一张表单里「令牌额度 300」与「周期限额 300」会静默换算出不同的 quota。
+func TestNormalizeTokenPeriodAmountFollowsDisplayCurrency(t *testing.T) {
+	oldQuotaPerUnit := common.QuotaPerUnit
+	oldUSD := operation_setting.USDExchangeRate
+	common.QuotaPerUnit = 500000
+	operation_setting.USDExchangeRate = 7.3
+	t.Cleanup(func() {
+		common.QuotaPerUnit = oldQuotaPerUnit
+		operation_setting.USDExchangeRate = oldUSD
+	})
+
+	tests := []struct {
+		name        string
+		displayType string
+		customRate  float64
+		usdRate     float64
+		unit        string
+		value       string
+		wantLimit   int64
+		expectErr   bool
+	}{
+		{name: "usd display ignores cny rate", displayType: operation_setting.QuotaDisplayTypeUSD, usdRate: 7.3, unit: "cny", value: "300", wantLimit: 150000000},
+		{name: "cny display uses admin rate", displayType: operation_setting.QuotaDisplayTypeCNY, usdRate: 7.3, unit: "cny", value: "300", wantLimit: 20547945},
+		{name: "custom display uses custom rate", displayType: operation_setting.QuotaDisplayTypeCustom, customRate: 2, usdRate: 7.3, unit: "cny", value: "300", wantLimit: 75000000},
+		{name: "custom display falls back to one", displayType: operation_setting.QuotaDisplayTypeCustom, customRate: 0, usdRate: 7.3, unit: "cny", value: "300", wantLimit: 150000000},
+		{name: "tokens display is identity", displayType: operation_setting.QuotaDisplayTypeTokens, usdRate: 7.3, unit: "cny", value: "300", wantLimit: 300},
+		{name: "tokens display rounds fractions", displayType: operation_setting.QuotaDisplayTypeTokens, usdRate: 7.3, unit: "cny", value: "300.6", wantLimit: 301},
+		{name: "tokens display ignores broken rate", displayType: operation_setting.QuotaDisplayTypeTokens, usdRate: 0, unit: "cny", value: "300", wantLimit: 300},
+		{name: "usd display rejects broken rate is impossible", displayType: operation_setting.QuotaDisplayTypeUSD, usdRate: 0, unit: "cny", value: "300", wantLimit: 150000000},
+		{name: "cny display rejects broken rate", displayType: operation_setting.QuotaDisplayTypeCNY, usdRate: 0, unit: "cny", value: "300", expectErr: true},
+		{name: "quota unit is display independent", displayType: operation_setting.QuotaDisplayTypeCNY, usdRate: 7.3, unit: "quota", value: "300", wantLimit: 300},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setTokenPeriodDisplayCurrency(t, tt.displayType, tt.customRate)
+			operation_setting.USDExchangeRate = tt.usdRate
+			config, err := normalizeTokenPeriod(dto.TokenRequest{
+				PeriodType:       common.TokenPeriodTypeMonth,
+				PeriodLimitUnit:  tt.unit,
+				PeriodLimitValue: tt.value,
+			})
+			if tt.expectErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantLimit, config.limit)
+		})
+	}
+}
+
+func setTokenPeriodDisplayCurrency(t *testing.T, displayType string, customRate float64) {
+	t.Helper()
+	general := operation_setting.GetGeneralSetting()
+	oldType := general.QuotaDisplayType
+	oldCustomRate := general.CustomCurrencyExchangeRate
+	general.QuotaDisplayType = displayType
+	general.CustomCurrencyExchangeRate = customRate
+	t.Cleanup(func() {
+		general.QuotaDisplayType = oldType
+		general.CustomCurrencyExchangeRate = oldCustomRate
+	})
 }

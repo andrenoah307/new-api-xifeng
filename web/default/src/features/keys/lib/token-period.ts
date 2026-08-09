@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+import { getCurrencyDisplay } from '@/lib/currency'
+
 import type { TokenPeriodLimitUnit, TokenPeriodType } from '../types'
 
 const UTC8_OFFSET_MS = 8 * 60 * 60 * 1000
@@ -28,9 +30,35 @@ interface Fraction {
   denominator: bigint
 }
 
+/**
+ * Conversion between a displayed amount and canonical quota units.
+ *
+ * `displayRate` is `1 USD = X <display currency>` as configured by the admin.
+ * TOKENS display is encoded as `displayRate === quotaPerUnit` with an empty
+ * symbol, which collapses the amount conversion to identity without adding a
+ * branch to the arithmetic below.
+ */
 export interface PeriodConversionConfig {
-  usdExchangeRate: number
+  displayRate: number
   quotaPerUnit: number
+  symbol: string
+}
+
+/** Period amount limits follow the same display currency as the token balance. */
+export function getPeriodConversionConfig(): PeriodConversionConfig {
+  const { config, meta } = getCurrencyDisplay()
+  if (meta.kind === 'tokens') {
+    return {
+      displayRate: config.quotaPerUnit,
+      quotaPerUnit: config.quotaPerUnit,
+      symbol: '',
+    }
+  }
+  return {
+    displayRate: meta.exchangeRate > 0 ? meta.exchangeRate : 1,
+    quotaPerUnit: config.quotaPerUnit,
+    symbol: meta.symbol,
+  }
 }
 
 function parseDecimal(value: number | string): Fraction | null {
@@ -117,39 +145,40 @@ export function roundHalfAwayFromZero(value: number | string): number {
   return fraction ? roundFractionAwayFromZero(fraction) : 0
 }
 
-/** Convert a fixed CNY amount to canonical quota units. */
-export function cnyToCanonicalQuota(
-  cny: number | string,
-  usdExchangeRate: number,
+/** Convert a displayed amount to canonical quota units. */
+export function amountToCanonicalQuota(
+  amount: number | string,
+  displayRate: number,
   quotaPerUnit: number
 ): number {
-  const cnyFraction = parseDecimal(cny)
-  const rateFraction = parseDecimal(usdExchangeRate)
+  const amountFraction = parseDecimal(amount)
+  const rateFraction = parseDecimal(displayRate)
   const quotaPerUnitFraction = parseDecimal(quotaPerUnit)
-  if (!cnyFraction || !rateFraction || !quotaPerUnitFraction) return 0
+  if (!amountFraction || !rateFraction || !quotaPerUnitFraction) return 0
 
-  const usdFraction = divideFractions(cnyFraction, rateFraction)
+  const usdFraction = divideFractions(amountFraction, rateFraction)
   if (!usdFraction) return 0
   return roundFractionAwayFromZero(
     multiplyFractions(usdFraction, quotaPerUnitFraction)
   )
 }
 
-/** Convert canonical quota units to a fixed CNY amount. */
-export function canonicalQuotaToCny(
+/** Convert canonical quota units to a displayed amount. */
+export function canonicalQuotaToAmount(
   quota: number | string,
-  usdExchangeRate: number,
+  displayRate: number,
   quotaPerUnit: number
 ): number {
   const quotaFraction = parseDecimal(quota)
-  const rateFraction = parseDecimal(usdExchangeRate)
+  const rateFraction = parseDecimal(displayRate)
   const quotaPerUnitFraction = parseDecimal(quotaPerUnit)
   if (!quotaFraction || !rateFraction || !quotaPerUnitFraction) return 0
 
   const usdFraction = divideFractions(quotaFraction, quotaPerUnitFraction)
   if (!usdFraction) return 0
-  const cnyFraction = multiplyFractions(usdFraction, rateFraction)
-  const result = Number(cnyFraction.numerator) / Number(cnyFraction.denominator)
+  const amountFraction = multiplyFractions(usdFraction, rateFraction)
+  const result =
+    Number(amountFraction.numerator) / Number(amountFraction.denominator)
   return Number.isFinite(result) ? result : 0
 }
 
@@ -174,14 +203,14 @@ function fractionToDecimal(value: Fraction, maxFractionDigits: number): string {
 }
 
 /** Return a stable decimal string for form inputs and unit toggles. */
-export function canonicalQuotaToCnyString(
+export function canonicalQuotaToAmountString(
   quota: number | string,
-  usdExchangeRate: number,
+  displayRate: number,
   quotaPerUnit: number,
   maxFractionDigits = 18
 ): string {
   const quotaFraction = parseDecimal(quota)
-  const rateFraction = parseDecimal(usdExchangeRate)
+  const rateFraction = parseDecimal(displayRate)
   const quotaPerUnitFraction = parseDecimal(quotaPerUnit)
   if (!quotaFraction || !rateFraction || !quotaPerUnitFraction) return '0'
 
@@ -196,36 +225,36 @@ export function canonicalQuotaToCnyString(
 /**
  * Shortest decimal string that maps back to the same canonical quota.
  *
- * CNY amounts quantize onto integer quota with step `usdExchangeRate /
- * quotaPerUnit`, so the exact quotient of a stored quota is rarely the string
- * the user typed. Walk decimal precisions upward and return the first
- * candidate that the real quantizer maps back to `quota`.
+ * Amounts quantize onto integer quota with step `displayRate / quotaPerUnit`,
+ * so the exact quotient of a stored quota is rarely the string the user typed.
+ * Walk decimal precisions upward and return the first candidate that the real
+ * quantizer maps back to `quota`.
  *
  * The 18-digit fallback is only reachable when no representative exists within
- * 18 digits; it returns the same value `canonicalQuotaToCnyString` does today.
+ * 18 digits; it returns the same value `canonicalQuotaToAmountString` does.
  */
-export function canonicalQuotaToCnyInputString(
+export function canonicalQuotaToAmountInputString(
   quota: number | string,
-  usdExchangeRate: number,
+  displayRate: number,
   quotaPerUnit: number
 ): string {
   const quotaFraction = parseDecimal(quota)
   if (!quotaFraction) return '0'
   const target = roundFractionAwayFromZero(quotaFraction)
   for (let digits = 0; digits <= 18; digits++) {
-    const candidate = canonicalQuotaToCnyString(
+    const candidate = canonicalQuotaToAmountString(
       quota,
-      usdExchangeRate,
+      displayRate,
       quotaPerUnit,
       digits
     )
     if (
-      cnyToCanonicalQuota(candidate, usdExchangeRate, quotaPerUnit) === target
+      amountToCanonicalQuota(candidate, displayRate, quotaPerUnit) === target
     ) {
       return candidate
     }
   }
-  return canonicalQuotaToCnyString(quota, usdExchangeRate, quotaPerUnit)
+  return canonicalQuotaToAmountString(quota, displayRate, quotaPerUnit)
 }
 
 export interface PeriodLimitUnitConversion {
@@ -244,9 +273,9 @@ export function convertPeriodLimitUnit(
   let canonicalQuota = canonicalHint
   if (canonicalQuota === null || !Number.isFinite(canonicalQuota)) {
     if (fromUnit === 'cny') {
-      canonicalQuota = cnyToCanonicalQuota(
+      canonicalQuota = amountToCanonicalQuota(
         value.trim(),
-        conversion.usdExchangeRate,
+        conversion.displayRate,
         conversion.quotaPerUnit
       )
     } else if (isPositiveIntegerString(value.trim())) {
@@ -259,9 +288,9 @@ export function convertPeriodLimitUnit(
   if (!Number.isFinite(canonicalQuota)) canonicalQuota = 0
   if (toUnit === 'cny') {
     return {
-      value: canonicalQuotaToCnyInputString(
+      value: canonicalQuotaToAmountInputString(
         canonicalQuota,
-        conversion.usdExchangeRate,
+        conversion.displayRate,
         conversion.quotaPerUnit
       ),
       canonicalQuota,
@@ -273,17 +302,24 @@ export function convertPeriodLimitUnit(
   }
 }
 
-export function formatCnyAmount(
+/** Format an amount with the site's display symbol; TOKENS mode has none. */
+export function formatDisplayAmount(
   value: number | string,
+  symbol: string,
   locale?: string | undefined
 ): string {
   const parsed = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(parsed)) return '-'
+  if (!symbol) {
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
+      parsed
+    )
+  }
   const number = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
   }).format(parsed)
-  return `¥${number}`
+  return `${symbol}${number}`
 }
 
 export function formatPeriodQuotaValue(
@@ -294,12 +330,13 @@ export function formatPeriodQuotaValue(
 ): string {
   if (!Number.isFinite(quota)) return '-'
   if (unit === 'cny') {
-    return formatCnyAmount(
-      canonicalQuotaToCnyString(
+    return formatDisplayAmount(
+      canonicalQuotaToAmountString(
         Math.max(0, Math.trunc(quota)),
-        conversion.usdExchangeRate,
+        conversion.displayRate,
         conversion.quotaPerUnit
       ),
+      conversion.symbol,
       locale
     )
   }
@@ -322,12 +359,13 @@ export function formatPeriodLimitValue(
   if (unit !== 'cny') {
     return formatPeriodQuotaValue(quota, unit, conversion, locale)
   }
-  return formatCnyAmount(
-    canonicalQuotaToCnyInputString(
+  return formatDisplayAmount(
+    canonicalQuotaToAmountInputString(
       Math.max(0, Math.trunc(quota)),
-      conversion.usdExchangeRate,
+      conversion.displayRate,
       conversion.quotaPerUnit
     ),
+    conversion.symbol,
     locale
   )
 }

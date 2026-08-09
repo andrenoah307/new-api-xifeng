@@ -58,3 +58,20 @@ export const displayAmountToQuota = (amount) => {
   const usd = type === 'USD' ? abs : abs / (rate || 1);
   return sign * Math.round(usd * getQuotaPerUnit());
 };
+
+// 周期限额金额跟随管理员配置的站点展示币种，与令牌额度同源。
+// TOKENS 口径编码成 displayRate === quotaPerUnit + 空符号，换算自然退化成恒等。
+export const getPeriodConversionConfig = () => {
+  const { type, rate, symbol } = getCurrencyConfig();
+  const quotaPerUnit = getQuotaPerUnit();
+  if (type === 'TOKENS') {
+    return { displayRate: quotaPerUnit, quotaPerUnit, symbol: '' };
+  }
+  const displayRate = Number(rate);
+  return {
+    displayRate:
+      Number.isFinite(displayRate) && displayRate > 0 ? displayRate : 1,
+    quotaPerUnit,
+    symbol: String(symbol || ''),
+  };
+};

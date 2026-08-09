@@ -19,6 +19,13 @@ For commercial licensing, please contact support@quantumnous.com
 
 // This file deliberately has no React, i18n, or browser-storage dependency.
 // Keep the arithmetic in lockstep with web/default/src/features/keys/lib/token-period.ts.
+//
+// The conversion config is `{ displayRate, quotaPerUnit, symbol }`, where
+// `displayRate` is `1 USD = X <站点展示币种>` as configured by the admin.
+// TOKENS display is encoded as `displayRate === quotaPerUnit` with an empty
+// symbol, which collapses the amount conversion to identity without adding a
+// branch to the arithmetic below. Callers build it with
+// `getPeriodConversionConfig()` from src/helpers/quota.js.
 
 export const TOKEN_PERIOD_MAX_DAYS = 3650;
 export const TOKEN_PERIOD_TYPES = ['', 'days', 'week', 'month'];
@@ -108,29 +115,30 @@ export function isPositiveIntegerString(value) {
   return /^\d+$/.test(String(value ?? '')) && BigInt(value) > 0n;
 }
 
-export function cnyToCanonicalQuota(cny, usdExchangeRate, quotaPerUnit) {
-  const cnyFraction = parseDecimal(cny);
-  const rateFraction = parseDecimal(usdExchangeRate);
+export function amountToCanonicalQuota(amount, displayRate, quotaPerUnit) {
+  const amountFraction = parseDecimal(amount);
+  const rateFraction = parseDecimal(displayRate);
   const quotaPerUnitFraction = parseDecimal(quotaPerUnit);
-  if (!cnyFraction || !rateFraction || !quotaPerUnitFraction) return 0;
+  if (!amountFraction || !rateFraction || !quotaPerUnitFraction) return 0;
 
-  const usdFraction = divideFractions(cnyFraction, rateFraction);
+  const usdFraction = divideFractions(amountFraction, rateFraction);
   if (!usdFraction) return 0;
   return roundFractionAwayFromZero(
     multiplyFractions(usdFraction, quotaPerUnitFraction),
   );
 }
 
-export function canonicalQuotaToCny(quota, usdExchangeRate, quotaPerUnit) {
+export function canonicalQuotaToAmount(quota, displayRate, quotaPerUnit) {
   const quotaFraction = parseDecimal(quota);
-  const rateFraction = parseDecimal(usdExchangeRate);
+  const rateFraction = parseDecimal(displayRate);
   const quotaPerUnitFraction = parseDecimal(quotaPerUnit);
   if (!quotaFraction || !rateFraction || !quotaPerUnitFraction) return 0;
 
   const usdFraction = divideFractions(quotaFraction, quotaPerUnitFraction);
   if (!usdFraction) return 0;
-  const cnyFraction = multiplyFractions(usdFraction, rateFraction);
-  const result = Number(cnyFraction.numerator) / Number(cnyFraction.denominator);
+  const amountFraction = multiplyFractions(usdFraction, rateFraction);
+  const result =
+    Number(amountFraction.numerator) / Number(amountFraction.denominator);
   return Number.isFinite(result) ? result : 0;
 }
 
@@ -154,14 +162,14 @@ function fractionToDecimal(value, maxFractionDigits) {
   return `${negative ? '-' : ''}${integerText}.${fractionText}`;
 }
 
-export function canonicalQuotaToCnyString(
+export function canonicalQuotaToAmountString(
   quota,
-  usdExchangeRate,
+  displayRate,
   quotaPerUnit,
   maxFractionDigits = 18,
 ) {
   const quotaFraction = parseDecimal(quota);
-  const rateFraction = parseDecimal(usdExchangeRate);
+  const rateFraction = parseDecimal(displayRate);
   const quotaPerUnitFraction = parseDecimal(quotaPerUnit);
   if (!quotaFraction || !rateFraction || !quotaPerUnitFraction) return '0';
 
@@ -176,48 +184,47 @@ export function canonicalQuotaToCnyString(
 /**
  * Shortest decimal string that maps back to the same canonical quota.
  *
- * CNY amounts quantize onto integer quota with step `usdExchangeRate /
+ * Amounts quantize onto integer quota with step `displayRate /
  * quotaPerUnit`, so the exact quotient of a stored quota is rarely the string
  * the user typed. Walk decimal precisions upward and return the first
  * candidate that the real quantizer maps back to `quota`.
  *
  * The 18-digit fallback is only reachable when no representative exists within
- * 18 digits; it returns the same value `canonicalQuotaToCnyString` does today.
+ * 18 digits; it returns the same value `canonicalQuotaToAmountString` does today.
  */
-export function canonicalQuotaToCnyInputString(
+export function canonicalQuotaToAmountInputString(
   quota,
-  usdExchangeRate,
+  displayRate,
   quotaPerUnit,
 ) {
   const quotaFraction = parseDecimal(quota);
   if (!quotaFraction) return '0';
   const target = roundFractionAwayFromZero(quotaFraction);
   for (let digits = 0; digits <= 18; digits++) {
-    const candidate = canonicalQuotaToCnyString(
+    const candidate = canonicalQuotaToAmountString(
       quota,
-      usdExchangeRate,
+      displayRate,
       quotaPerUnit,
       digits,
     );
     if (
-      cnyToCanonicalQuota(candidate, usdExchangeRate, quotaPerUnit) === target
+      amountToCanonicalQuota(candidate, displayRate, quotaPerUnit) === target
     ) {
       return candidate;
     }
   }
-  return canonicalQuotaToCnyString(quota, usdExchangeRate, quotaPerUnit);
+  return canonicalQuotaToAmountString(quota, displayRate, quotaPerUnit);
 }
 
 export function normalizePeriodConversion(conversion = {}) {
-  const usdExchangeRate = Number(conversion.usdExchangeRate);
+  const displayRate = Number(conversion.displayRate);
   const quotaPerUnit = Number(conversion.quotaPerUnit);
   return {
-    usdExchangeRate:
-      Number.isFinite(usdExchangeRate) && usdExchangeRate > 0
-        ? usdExchangeRate
-        : 1,
+    displayRate:
+      Number.isFinite(displayRate) && displayRate > 0 ? displayRate : 1,
     quotaPerUnit:
       Number.isFinite(quotaPerUnit) && quotaPerUnit > 0 ? quotaPerUnit : 1,
+    symbol: typeof conversion.symbol === 'string' ? conversion.symbol : '',
   };
 }
 
@@ -232,9 +239,9 @@ export function convertPeriodLimitUnit(
   let canonicalQuota = canonicalHint;
   if (canonicalQuota === null || !Number.isFinite(canonicalQuota)) {
     if (fromUnit === 'cny') {
-      canonicalQuota = cnyToCanonicalQuota(
+      canonicalQuota = amountToCanonicalQuota(
         String(value ?? '').trim(),
-        normalizedConversion.usdExchangeRate,
+        normalizedConversion.displayRate,
         normalizedConversion.quotaPerUnit,
       );
     } else if (isPositiveIntegerString(String(value ?? '').trim())) {
@@ -247,9 +254,9 @@ export function convertPeriodLimitUnit(
   if (!Number.isFinite(canonicalQuota)) canonicalQuota = 0;
   if (toUnit === 'cny') {
     return {
-      value: canonicalQuotaToCnyInputString(
+      value: canonicalQuotaToAmountInputString(
         canonicalQuota,
-        normalizedConversion.usdExchangeRate,
+        normalizedConversion.displayRate,
         normalizedConversion.quotaPerUnit,
       ),
       canonicalQuota,
@@ -261,14 +268,20 @@ export function convertPeriodLimitUnit(
   };
 }
 
-export function formatCnyAmount(value, locale) {
+/** Format an amount with the site's display symbol; TOKENS mode has none. */
+export function formatDisplayAmount(value, symbol, locale) {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(parsed)) return '-';
+  if (!symbol) {
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(
+      parsed,
+    );
+  }
   const number = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
   }).format(parsed);
-  return `¥${number}`;
+  return `${symbol}${number}`;
 }
 
 export function formatPeriodQuotaValue(quota, unit, conversion, locale) {
@@ -276,12 +289,13 @@ export function formatPeriodQuotaValue(quota, unit, conversion, locale) {
   const normalizedConversion = normalizePeriodConversion(conversion);
   const normalizedQuota = Math.max(0, Math.trunc(Number(quota)));
   if (unit === 'cny') {
-    return formatCnyAmount(
-      canonicalQuotaToCnyString(
+    return formatDisplayAmount(
+      canonicalQuotaToAmountString(
         normalizedQuota,
-        normalizedConversion.usdExchangeRate,
+        normalizedConversion.displayRate,
         normalizedConversion.quotaPerUnit,
       ),
+      normalizedConversion.symbol,
       locale,
     );
   }
@@ -298,12 +312,13 @@ export function formatPeriodLimitValue(quota, unit, conversion, locale) {
   if (!Number.isFinite(Number(quota))) return '-';
   if (unit !== 'cny') return formatPeriodQuotaValue(quota, unit, conversion, locale);
   const normalizedConversion = normalizePeriodConversion(conversion);
-  return formatCnyAmount(
-    canonicalQuotaToCnyInputString(
+  return formatDisplayAmount(
+    canonicalQuotaToAmountInputString(
       Math.max(0, Math.trunc(quota)),
-      normalizedConversion.usdExchangeRate,
+      normalizedConversion.displayRate,
       normalizedConversion.quotaPerUnit,
     ),
+    normalizedConversion.symbol,
     locale,
   );
 }
@@ -426,7 +441,9 @@ export function periodFormToPayload(values = {}) {
   const enabled = values.period_enabled === undefined
     ? periodType !== ''
     : Boolean(values.period_enabled);
-  if (!enabled || periodType === '') {
+  const value = String(values.period_limit_value ?? '').trim();
+  // 限额填 0 / 留空即视为关闭周期限额，与后端的「禁用」分支对齐
+  if (!enabled || periodType === '' || !isPositiveDecimalString(value)) {
     return {
       period_type: '',
       period_days: 0,
@@ -438,12 +455,11 @@ export function periodFormToPayload(values = {}) {
   const rawDays = Number(values.period_days);
   const periodDays =
     periodType === 'days' && Number.isInteger(rawDays) ? rawDays : 0;
-  const value = String(values.period_limit_value ?? '').trim();
   return {
     period_type: periodType,
     period_days: periodDays,
     period_limit_unit: periodUnit,
-    period_limit_value: value || '0',
+    period_limit_value: value,
   };
 }
 
@@ -455,9 +471,9 @@ export function periodResponseToForm(token = {}, conversion) {
   const normalizedConversion = normalizePeriodConversion(conversion);
   let periodLimitValue = '0';
   if (enabled && periodUnit === 'cny') {
-    periodLimitValue = canonicalQuotaToCnyInputString(
+    periodLimitValue = canonicalQuotaToAmountInputString(
       limit,
-      normalizedConversion.usdExchangeRate,
+      normalizedConversion.displayRate,
       normalizedConversion.quotaPerUnit,
     );
   } else if (enabled) {
@@ -480,8 +496,10 @@ export function periodResponseToForm(token = {}, conversion) {
 
 export function validatePeriodForm(values = {}, conversion) {
   const payload = periodFormToPayload(values);
+  // 关闭态（含限额填 0 / 留空）没有可校验的限额
   if (payload.period_type === '') return { valid: true, errors: [] };
 
+  const normalizedConversion = normalizePeriodConversion(conversion);
   const errors = [];
   if (
     payload.period_type === 'days' &&
@@ -491,20 +509,18 @@ export function validatePeriodForm(values = {}, conversion) {
   ) {
     errors.push('period_days');
   }
-  const value = payload.period_limit_value.trim();
-  if (!isPositiveDecimalString(value)) {
-    errors.push('period_limit_value');
-  } else if (
+  const value = payload.period_limit_value;
+  if (
     payload.period_limit_unit === 'quota' &&
     !isPositiveIntegerString(value)
   ) {
     errors.push('period_limit_value_integer');
   } else {
     const quota = payload.period_limit_unit === 'cny'
-      ? cnyToCanonicalQuota(
+      ? amountToCanonicalQuota(
         value,
-        normalizePeriodConversion(conversion).usdExchangeRate,
-        normalizePeriodConversion(conversion).quotaPerUnit,
+        normalizedConversion.displayRate,
+        normalizedConversion.quotaPerUnit,
       )
       : Number(value);
     if (!Number.isSafeInteger(quota) || quota < 1 || quota > MAX_PERIOD_QUOTA) {
@@ -513,7 +529,3 @@ export function validatePeriodForm(values = {}, conversion) {
   }
   return { valid: errors.length === 0, errors };
 }
-
-// Friendly aliases for callers that use the shorter domain terminology.
-export const cnyToQuota = cnyToCanonicalQuota;
-export const quotaToCny = canonicalQuotaToCny;

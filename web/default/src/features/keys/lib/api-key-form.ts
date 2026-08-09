@@ -32,9 +32,10 @@ import {
   type TokenPeriodType,
 } from '../types'
 import {
-  canonicalQuotaToCnyInputString,
+  canonicalQuotaToAmountInputString,
   isPositiveDecimalString,
   isPositiveIntegerString,
+  type PeriodConversionConfig,
 } from './token-period'
 
 // ============================================================================
@@ -74,6 +75,10 @@ export function getApiKeyFormSchema(t: TFunction) {
 
       if (data.period_type === '') return
 
+      const periodValue = data.period_limit_value.trim()
+      // 非正数表示「不启用周期限额」，由 payload 转换负责整体关闭，不再拦截提交
+      if (!isPositiveDecimalString(periodValue)) return
+
       if (
         data.period_type === 'days' &&
         (!Number.isInteger(data.period_days) ||
@@ -87,14 +92,7 @@ export function getApiKeyFormSchema(t: TFunction) {
         })
       }
 
-      const periodValue = data.period_limit_value.trim()
-      if (!isPositiveDecimalString(periodValue)) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['period_limit_value'],
-          message: t('Period limit must be greater than zero'),
-        })
-      } else if (
+      if (
         data.period_limit_unit === 'quota' &&
         !isPositiveIntegerString(periodValue)
       ) {
@@ -152,12 +150,13 @@ export function transformFormDataToPayload(
 ): ApiKeyFormData {
   const periodType = data.period_type || ''
   const periodUnit = data.period_limit_unit || 'cny'
-  const periodValue = data.period_limit_value || '0'
-  const periodEnabled = periodType !== ''
+  const periodValue = (data.period_limit_value || '0').trim()
+  // 限额填 0 / 留空即视为关闭周期限额，与后端的「禁用」分支对齐
+  const periodEnabled = periodType !== '' && isPositiveDecimalString(periodValue)
   return {
     name: data.name,
-    // The legacy token balance still follows the site's display mode. Period
-    // limits are converted separately by token-period.ts using fixed CNY.
+    // The legacy token balance still follows the site's display mode, and so
+    // does the period limit amount — both go through the admin display rate.
     remain_quota: data.unlimited_quota
       ? 0
       : parseQuotaFromDollars(data.remain_quota_dollars || 0),
@@ -170,10 +169,10 @@ export function transformFormDataToPayload(
     allow_ips: data.allow_ips || '',
     group: data.group || '',
     cross_group_retry: data.group === 'auto' ? !!data.cross_group_retry : false,
-    period_type: periodType,
+    period_type: periodEnabled ? periodType : '',
     period_days: periodEnabled && periodType === 'days' ? data.period_days : 0,
     period_limit_unit: periodUnit,
-    period_limit_value: periodEnabled ? periodValue.trim() || '0' : '0',
+    period_limit_value: periodEnabled ? periodValue : '0',
   }
 }
 
@@ -182,10 +181,7 @@ export function transformFormDataToPayload(
  */
 export function transformApiKeyToFormDefaults(
   apiKey: ApiKey,
-  conversion: {
-    usdExchangeRate: number
-    quotaPerUnit: number
-  }
+  conversion: PeriodConversionConfig
 ): ApiKeyFormValues {
   const periodType: TokenPeriodType = TOKEN_PERIOD_TYPES.includes(
     (apiKey.period_type || '') as TokenPeriodType
@@ -197,9 +193,9 @@ export function transformApiKeyToFormDefaults(
     apiKey.period_limit_unit === 'quota' ? 'quota' : 'cny'
   let periodLimitValue = '0'
   if (periodEnabled && periodUnit === 'cny') {
-    periodLimitValue = canonicalQuotaToCnyInputString(
+    periodLimitValue = canonicalQuotaToAmountInputString(
       apiKey.period_quota_limit,
-      conversion.usdExchangeRate,
+      conversion.displayRate,
       conversion.quotaPerUnit
     )
   } else if (periodEnabled) {

@@ -25,7 +25,7 @@ import {
   Settings2,
   WalletCards,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm, type SubmitErrorHandler } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -81,7 +81,6 @@ import { useStatus } from '@/hooks/use-status'
 import { getUserModels, getUserGroups } from '@/lib/api'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
 import { cn } from '@/lib/utils'
-import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import { createApiKey, updateApiKey, getApiKey } from '../api'
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
@@ -93,9 +92,10 @@ import {
   transformApiKeyToFormDefaults,
 } from '../lib/api-key-form'
 import {
-  cnyToCanonicalQuota,
+  amountToCanonicalQuota,
   convertPeriodLimitUnit,
   formatPeriodResetAt,
+  getPeriodConversionConfig,
   getPeriodResetAt,
   isPositiveIntegerString,
 } from '../lib/token-period'
@@ -130,16 +130,19 @@ export function ApiKeysMutateDrawer({
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const periodCanonicalQuotaRef = useRef<number | null>(null)
   const defaultUseAutoGroup = status?.default_use_auto_group === true
-  const statusUsdExchangeRate = Number(status?.usd_exchange_rate)
-  const statusQuotaPerUnit = Number(status?.quota_per_unit)
-  const usdExchangeRate =
-    Number.isFinite(statusUsdExchangeRate) && statusUsdExchangeRate > 0
-      ? statusUsdExchangeRate
-      : 1
-  const quotaPerUnit =
-    Number.isFinite(statusQuotaPerUnit) && statusQuotaPerUnit > 0
-      ? statusQuotaPerUnit
-      : DEFAULT_CURRENCY_CONFIG.quotaPerUnit
+  // 周期限额金额跟随管理员配置的站点展示币种，与令牌额度同源
+  const periodConversion = useMemo(() => getPeriodConversionConfig(), [status])
+  const quotaPerUnit = periodConversion.quotaPerUnit
+  // TOKENS 展示口径没有货币符号，金额与原生额度同刻度，标签与占位符跟着走
+  const periodAmountPlaceholder = periodConversion.symbol
+    ? '10.00'
+    : String(Math.trunc(quotaPerUnit))
+  const periodAmountUnitLabel = periodConversion.symbol
+    ? t('Amount ({{symbol}})', { symbol: periodConversion.symbol })
+    : t('Amount')
+  const periodAmountLimitLabel = periodConversion.symbol
+    ? t('Period limit ({{symbol}})', { symbol: periodConversion.symbol })
+    : t('Period limit (amount)')
 
   // Fetch models
   const { data: modelsData } = useQuery({
@@ -186,10 +189,7 @@ export function ApiKeysMutateDrawer({
               ? result.data.period_quota_limit
               : null
           form.reset(
-            transformApiKeyToFormDefaults(result.data, {
-              usdExchangeRate,
-              quotaPerUnit,
-            })
+            transformApiKeyToFormDefaults(result.data, periodConversion)
           )
         }
       })
@@ -206,8 +206,7 @@ export function ApiKeysMutateDrawer({
     form,
     defaultUseAutoGroup,
     backendHasAuto,
-    usdExchangeRate,
-    quotaPerUnit,
+    periodConversion,
   ])
 
   // Correct group after groups load: if the form value is not in available groups, fall back
@@ -367,7 +366,9 @@ export function ApiKeysMutateDrawer({
     let nextValue = currentValue
     if (!nextValue || nextValue === '0') {
       nextValue =
-        periodUnit === 'cny' ? '10.00' : String(Math.trunc(quotaPerUnit))
+        periodUnit === 'cny'
+          ? periodAmountPlaceholder
+          : String(Math.trunc(quotaPerUnit))
     }
     form.setValue('period_limit_value', nextValue, {
       shouldDirty: true,
@@ -375,7 +376,11 @@ export function ApiKeysMutateDrawer({
     })
     periodCanonicalQuotaRef.current =
       periodUnit === 'cny'
-        ? cnyToCanonicalQuota(nextValue, usdExchangeRate, quotaPerUnit)
+        ? amountToCanonicalQuota(
+            nextValue,
+            periodConversion.displayRate,
+            periodConversion.quotaPerUnit
+          )
         : Number(nextValue)
   }
 
@@ -385,7 +390,7 @@ export function ApiKeysMutateDrawer({
       currentValue,
       periodUnit,
       nextUnit,
-      { usdExchangeRate, quotaPerUnit },
+      periodConversion,
       periodCanonicalQuotaRef.current
     )
     periodCanonicalQuotaRef.current = converted.canonicalQuota
@@ -404,10 +409,10 @@ export function ApiKeysMutateDrawer({
     const trimmedValue = value.trim()
     let canonicalQuota = 0
     if (periodUnit === 'cny') {
-      canonicalQuota = cnyToCanonicalQuota(
+      canonicalQuota = amountToCanonicalQuota(
         trimmedValue,
-        usdExchangeRate,
-        quotaPerUnit
+        periodConversion.displayRate,
+        periodConversion.quotaPerUnit
       )
     } else if (isPositiveIntegerString(trimmedValue)) {
       canonicalQuota = Number(trimmedValue)
@@ -805,7 +810,7 @@ export function ApiKeysMutateDrawer({
                             aria-label={t('Limit unit')}
                           >
                             <ToggleGroupItem value='cny' className='flex-1'>
-                              {t('CNY (¥)')}
+                              {periodAmountUnitLabel}
                             </ToggleGroupItem>
                             <ToggleGroupItem value='quota' className='flex-1'>
                               {t('Native quota')}
@@ -824,7 +829,7 @@ export function ApiKeysMutateDrawer({
                       <FormItem>
                         <FormLabel>
                           {periodUnit === 'cny'
-                            ? t('Period limit (¥)')
+                            ? periodAmountLimitLabel
                             : t('Period limit (quota)')}
                         </FormLabel>
                         <FormControl>
@@ -836,7 +841,7 @@ export function ApiKeysMutateDrawer({
                             }
                             placeholder={
                               periodUnit === 'cny'
-                                ? '10.00'
+                                ? periodAmountPlaceholder
                                 : String(Math.trunc(quotaPerUnit))
                             }
                             onChange={(event) =>
@@ -845,7 +850,7 @@ export function ApiKeysMutateDrawer({
                           />
                         </FormControl>
                         <FormDescription>
-                          {t('The limit must be greater than zero')}
+                          {t('Set it to 0 to disable the period limit')}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

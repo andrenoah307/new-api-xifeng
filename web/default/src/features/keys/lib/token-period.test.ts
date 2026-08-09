@@ -3,6 +3,11 @@ import { describe, test } from 'node:test'
 
 import type { TFunction } from 'i18next'
 
+import {
+  DEFAULT_CURRENCY_CONFIG,
+  useSystemConfigStore,
+} from '@/stores/system-config-store'
+
 import type { TokenPeriodType } from '../types'
 import {
   API_KEY_FORM_DEFAULT_VALUES,
@@ -12,23 +17,29 @@ import {
   transformFormDataToPayload,
 } from './api-key-form'
 import {
-  canonicalQuotaToCny,
-  canonicalQuotaToCnyInputString,
-  canonicalQuotaToCnyString,
-  cnyToCanonicalQuota,
+  amountToCanonicalQuota,
+  canonicalQuotaToAmount,
+  canonicalQuotaToAmountInputString,
+  canonicalQuotaToAmountString,
   convertPeriodLimitUnit,
-  formatCnyAmount,
+  formatDisplayAmount,
   formatPeriodLimitValue,
   formatPeriodQuotaValue,
   formatPeriodResetAt,
   getPeriodBounds,
+  getPeriodConversionConfig,
   getPeriodResetAt,
   isPositiveDecimalString,
   isPositiveIntegerString,
   roundHalfAwayFromZero,
+  type PeriodConversionConfig,
 } from './token-period'
 
-const conversion = { usdExchangeRate: 7.3, quotaPerUnit: 500_000 }
+const conversion: PeriodConversionConfig = {
+  displayRate: 7.3,
+  quotaPerUnit: 500_000,
+  symbol: '¥',
+}
 const translate = ((key: string) => key) as unknown as TFunction
 
 const shortestInputCases = [
@@ -63,13 +74,13 @@ const fixture = [
   },
 ] as const
 
-describe('fixed CNY quota conversion', () => {
+describe('display amount quota conversion', () => {
   test('returns the shortest decimal representative for canonical quotas', () => {
     for (const { quota, expected } of shortestInputCases) {
       assert.equal(
-        canonicalQuotaToCnyInputString(
+        canonicalQuotaToAmountInputString(
           quota,
-          conversion.usdExchangeRate,
+          conversion.displayRate,
           conversion.quotaPerUnit
         ),
         expected,
@@ -81,9 +92,9 @@ describe('fixed CNY quota conversion', () => {
   test('round-trips every shortest representative without loss', () => {
     for (const { quota, expected } of shortestInputCases) {
       assert.equal(
-        cnyToCanonicalQuota(
+        amountToCanonicalQuota(
           expected,
-          conversion.usdExchangeRate,
+          conversion.displayRate,
           conversion.quotaPerUnit
         ),
         quota,
@@ -99,14 +110,14 @@ describe('fixed CNY quota conversion', () => {
         : 0
       if (decimalDigits === 0) continue
       assert.notEqual(
-        cnyToCanonicalQuota(
-          canonicalQuotaToCnyString(
+        amountToCanonicalQuota(
+          canonicalQuotaToAmountString(
             quota,
-            conversion.usdExchangeRate,
+            conversion.displayRate,
             conversion.quotaPerUnit,
             decimalDigits - 1
           ),
-          conversion.usdExchangeRate,
+          conversion.displayRate,
           conversion.quotaPerUnit
         ),
         quota,
@@ -125,22 +136,22 @@ describe('fixed CNY quota conversion', () => {
   })
 
   test('normalizes an already quantized input to its shortest representative', () => {
-    const quota = cnyToCanonicalQuota(
+    const quota = amountToCanonicalQuota(
       '0.000015',
-      conversion.usdExchangeRate,
+      conversion.displayRate,
       conversion.quotaPerUnit
     )
-    const representative = canonicalQuotaToCnyInputString(
+    const representative = canonicalQuotaToAmountInputString(
       quota,
-      conversion.usdExchangeRate,
+      conversion.displayRate,
       conversion.quotaPerUnit
     )
     assert.equal(quota, 1)
     assert.equal(representative, '0.00001')
     assert.equal(
-      cnyToCanonicalQuota(
+      amountToCanonicalQuota(
         representative,
-        conversion.usdExchangeRate,
+        conversion.displayRate,
         conversion.quotaPerUnit
       ),
       1
@@ -148,28 +159,28 @@ describe('fixed CNY quota conversion', () => {
   })
 
   test('assigns quantization boundaries with half-away-from-zero rounding', () => {
-    assert.equal(cnyToCanonicalQuota('0.0000073', 7.3, 500_000), 1)
-    assert.equal(cnyToCanonicalQuota('0.0000072999', 7.3, 500_000), 0)
-    assert.equal(cnyToCanonicalQuota('0.0000219', 7.3, 500_000), 2)
-    assert.equal(cnyToCanonicalQuota('0.0000218999', 7.3, 500_000), 1)
+    assert.equal(amountToCanonicalQuota('0.0000073', 7.3, 500_000), 1)
+    assert.equal(amountToCanonicalQuota('0.0000072999', 7.3, 500_000), 0)
+    assert.equal(amountToCanonicalQuota('0.0000219', 7.3, 500_000), 2)
+    assert.equal(amountToCanonicalQuota('0.0000218999', 7.3, 500_000), 1)
   })
 
   test('finds representatives with non-production conversion parameters', () => {
-    assert.equal(canonicalQuotaToCnyInputString(1, 1, 2), '0.5')
-    assert.equal(canonicalQuotaToCnyInputString(1, 0.25, 1), '0.3')
-    assert.equal(canonicalQuotaToCnyInputString(68493, 1, 500_000), '0.136986')
+    assert.equal(canonicalQuotaToAmountInputString(1, 1, 2), '0.5')
+    assert.equal(canonicalQuotaToAmountInputString(1, 0.25, 1), '0.3')
+    assert.equal(canonicalQuotaToAmountInputString(68493, 1, 500_000), '0.136986')
   })
 
   test('returns zero for invalid conversion inputs', () => {
-    assert.equal(canonicalQuotaToCnyInputString(10, 0, 500_000), '0')
-    assert.equal(canonicalQuotaToCnyInputString(10, 7.3, 0), '0')
-    assert.equal(canonicalQuotaToCnyInputString('bad', 7.3, 500_000), '0')
+    assert.equal(canonicalQuotaToAmountInputString(10, 0, 500_000), '0')
+    assert.equal(canonicalQuotaToAmountInputString(10, 7.3, 0), '0')
+    assert.equal(canonicalQuotaToAmountInputString('bad', 7.3, 500_000), '0')
   })
 
   test('matches the shared canonical quota fixture', () => {
     for (const entry of fixture) {
       assert.equal(
-        cnyToCanonicalQuota(entry.cny, entry.rate, entry.quotaPerUnit),
+        amountToCanonicalQuota(entry.cny, entry.rate, entry.quotaPerUnit),
         entry.expected,
         `${entry.cny}/${entry.rate}/${entry.quotaPerUnit}`
       )
@@ -180,20 +191,20 @@ describe('fixed CNY quota conversion', () => {
     assert.equal(roundHalfAwayFromZero(1.5), 2)
     assert.equal(roundHalfAwayFromZero(-1.5), -2)
     assert.equal(roundHalfAwayFromZero(1.49), 1)
-    assert.equal(cnyToCanonicalQuota('1e-6', 1, 1_000_000), 1)
-    assert.equal(cnyToCanonicalQuota('1e6', 1, 1), 1_000_000)
-    assert.equal(cnyToCanonicalQuota('1', 0, 500_000), 0)
-    assert.equal(cnyToCanonicalQuota('1', -1, 500_000), -500_000)
-    assert.equal(cnyToCanonicalQuota('bad', 7.3, 500_000), 0)
+    assert.equal(amountToCanonicalQuota('1e-6', 1, 1_000_000), 1)
+    assert.equal(amountToCanonicalQuota('1e6', 1, 1), 1_000_000)
+    assert.equal(amountToCanonicalQuota('1', 0, 500_000), 0)
+    assert.equal(amountToCanonicalQuota('1', -1, 500_000), -500_000)
+    assert.equal(amountToCanonicalQuota('bad', 7.3, 500_000), 0)
     assert.equal(isPositiveDecimalString('NaN'), false)
     assert.equal(isPositiveDecimalString('1e1001'), false)
   })
 
   test('converts canonical quota back to a stable CNY string', () => {
-    assert.equal(canonicalQuotaToCny(684_932, 7.3, 500_000), 10.0000072)
-    assert.equal(canonicalQuotaToCnyString(684_932, 7.3, 500_000), '10.0000072')
-    assert.equal(canonicalQuotaToCnyString(0, 7.3, 500_000), '0')
-    assert.equal(canonicalQuotaToCnyString(10, 0, 500_000), '0')
+    assert.equal(canonicalQuotaToAmount(684_932, 7.3, 500_000), 10.0000072)
+    assert.equal(canonicalQuotaToAmountString(684_932, 7.3, 500_000), '10.0000072')
+    assert.equal(canonicalQuotaToAmountString(0, 7.3, 500_000), '0')
+    assert.equal(canonicalQuotaToAmountString(10, 0, 500_000), '0')
   })
 
   test('keeps canonical quota stable when switching units repeatedly', () => {
@@ -268,13 +279,23 @@ describe('token period form contract', () => {
       }).success,
       false
     )
+    // 限额填 0 = 关闭周期限额，不再是校验错误
     assert.equal(
       schema.safeParse({
         ...base,
         period_type: 'week',
         period_limit_value: '0',
       }).success,
-      false
+      true
+    )
+    assert.equal(
+      schema.safeParse({
+        ...base,
+        period_type: 'days',
+        period_days: 0,
+        period_limit_value: '0',
+      }).success,
+      true
     )
     assert.equal(
       schema.safeParse({
@@ -333,6 +354,19 @@ describe('token period form contract', () => {
     assert.equal(disabled.period_type, '')
     assert.equal(disabled.period_days, 0)
     assert.equal(disabled.period_limit_value, '0')
+
+    // 周期类型仍在、限额被清成 0 或留空 => 整体关闭，而不是提交一个不可能的限额
+    for (const value of ['0', '', '  ', '0.00']) {
+      const cleared = transformFormDataToPayload({
+        ...API_KEY_FORM_DEFAULT_VALUES,
+        period_type: 'days',
+        period_days: 3,
+        period_limit_value: value,
+      })
+      assert.equal(cleared.period_type, '', `value ${JSON.stringify(value)}`)
+      assert.equal(cleared.period_days, 0)
+      assert.equal(cleared.period_limit_value, '0')
+    }
   })
 
   test('hydrates CNY and native quota values from canonical responses', () => {
@@ -411,6 +445,111 @@ describe('token period form contract', () => {
   })
 })
 
+describe('period amount follows the site display currency', () => {
+  function withCurrency(
+    currency: Partial<typeof DEFAULT_CURRENCY_CONFIG>,
+    run: () => void
+  ) {
+    const original = useSystemConfigStore.getState().config
+    try {
+      useSystemConfigStore.getState().setConfig({
+        currency: { ...DEFAULT_CURRENCY_CONFIG, ...currency },
+      })
+      run()
+    } finally {
+      useSystemConfigStore.setState({ config: original })
+    }
+  }
+
+  test('reads the admin-configured display rate instead of assuming CNY', () => {
+    withCurrency(
+      { quotaDisplayType: 'USD', quotaPerUnit: 500_000, usdExchangeRate: 7.3 },
+      () => {
+        const config = getPeriodConversionConfig()
+        assert.equal(config.displayRate, 1)
+        assert.equal(config.symbol, '$')
+        // 「300」在令牌额度与周期限额两处必须换算出同一个 quota
+        assert.equal(
+          amountToCanonicalQuota('300', config.displayRate, config.quotaPerUnit),
+          150_000_000
+        )
+      }
+    )
+
+    withCurrency(
+      { quotaDisplayType: 'CNY', quotaPerUnit: 500_000, usdExchangeRate: 7.3 },
+      () => {
+        const config = getPeriodConversionConfig()
+        assert.equal(config.displayRate, 7.3)
+        assert.equal(config.symbol, '¥')
+        assert.equal(
+          amountToCanonicalQuota('300', config.displayRate, config.quotaPerUnit),
+          20_547_945
+        )
+      }
+    )
+
+    withCurrency(
+      {
+        quotaDisplayType: 'CUSTOM',
+        quotaPerUnit: 500_000,
+        usdExchangeRate: 7.3,
+        customCurrencySymbol: '€',
+        customCurrencyExchangeRate: 2,
+      },
+      () => {
+        const config = getPeriodConversionConfig()
+        assert.equal(config.displayRate, 2)
+        assert.equal(config.symbol, '€')
+        assert.equal(
+          amountToCanonicalQuota('300', config.displayRate, config.quotaPerUnit),
+          75_000_000
+        )
+      }
+    )
+  })
+
+  test('treats the tokens display mode as an identity conversion', () => {
+    withCurrency(
+      {
+        quotaDisplayType: 'TOKENS',
+        quotaPerUnit: 500_000,
+        usdExchangeRate: 7.3,
+      },
+      () => {
+        const config = getPeriodConversionConfig()
+        assert.equal(config.displayRate, config.quotaPerUnit)
+        assert.equal(config.symbol, '')
+        assert.equal(
+          amountToCanonicalQuota('300', config.displayRate, config.quotaPerUnit),
+          300
+        )
+        assert.equal(
+          canonicalQuotaToAmountInputString(
+            300,
+            config.displayRate,
+            config.quotaPerUnit
+          ),
+          '300'
+        )
+        assert.equal(
+          formatPeriodLimitValue(684_932, 'cny', config, 'en-US'),
+          '684,932'
+        )
+      }
+    )
+  })
+
+  test('falls back to a rate of one when the admin rate is unusable', () => {
+    withCurrency(
+      { quotaDisplayType: 'CNY', quotaPerUnit: 500_000, usdExchangeRate: 0 },
+      () => {
+        assert.equal(getPeriodConversionConfig().displayRate, 1)
+      }
+    )
+  })
+})
+
 describe('token period boundaries and display', () => {
   const monday = Date.UTC(2026, 7, 3, 0, 0, 0) - 8 * 60 * 60 * 1000
   const sunday = monday + 6 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000
@@ -449,7 +588,9 @@ describe('token period boundaries and display', () => {
     const resetAt = Math.floor(Date.UTC(2026, 7, 3, 16, 0, 0) / 1000)
     assert.match(formatPeriodResetAt(resetAt, 'en-US'), /UTC\+8/)
     assert.equal(formatPeriodResetAt(0, 'en-US'), '-')
-    assert.equal(formatCnyAmount('10', 'en-US'), '¥10.00')
+    assert.equal(formatDisplayAmount('10', '¥', 'en-US'), '¥10.00')
+    assert.equal(formatDisplayAmount('10', '$', 'en-US'), '$10.00')
+    assert.equal(formatDisplayAmount('684932', '', 'en-US'), '684,932')
     assert.equal(
       formatPeriodQuotaValue(684_932, 'cny', conversion, 'en-US'),
       '¥10.000007'

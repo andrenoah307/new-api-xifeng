@@ -36,9 +36,9 @@ import { getUserGroups } from '@/lib/api'
 import dayjs from '@/lib/dayjs'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import { API_KEY_STATUSES } from '../constants'
+import { getPeriodConversionConfig } from '../lib/token-period'
 import type { ApiKey } from '../types'
 import { ApiKeyTimestampCell } from './api-key-timestamp-cell'
 import {
@@ -85,18 +85,8 @@ export function useApiKeysColumns(now: number): ColumnDef<ApiKey>[] {
     String(status?.region_console_message ?? '').trim() ||
     t('Not available in current region')
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
-  const statusUsdExchangeRate = Number(status?.usd_exchange_rate)
-  const statusQuotaPerUnit = Number(status?.quota_per_unit)
-  const periodConversion = {
-    usdExchangeRate:
-      Number.isFinite(statusUsdExchangeRate) && statusUsdExchangeRate > 0
-        ? statusUsdExchangeRate
-        : 1,
-    quotaPerUnit:
-      Number.isFinite(statusQuotaPerUnit) && statusQuotaPerUnit > 0
-        ? statusQuotaPerUnit
-        : DEFAULT_CURRENCY_CONFIG.quotaPerUnit,
-  }
+  // 周期限额金额跟随管理员配置的站点展示币种，与令牌额度同源
+  const periodConversion = getPeriodConversionConfig()
   const justNowLabel = t('Just now')
   const staleAccessThreshold = dayjs(now).subtract(3, 'month').valueOf()
   return [

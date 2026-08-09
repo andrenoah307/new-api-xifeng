@@ -41,12 +41,10 @@ import {
 } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useStatus } from '@/hooks/use-status'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatQuota } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { DEFAULT_CURRENCY_CONFIG } from '@/stores/system-config-store'
 
 import { getApiKeys, searchApiKeys } from '../api'
 import {
@@ -55,6 +53,7 @@ import {
   API_KEY_STATUSES,
   ERROR_MESSAGES,
 } from '../constants'
+import { getPeriodConversionConfig } from '../lib/token-period'
 import type { ApiKey } from '../types'
 import { ApiKeyCell, ApiKeyPeriodLimitCell } from './api-keys-cells'
 import { useApiKeysColumns } from './api-keys-columns'
@@ -104,19 +103,8 @@ function ApiKeysMobileList({
   isLoading: boolean
 }) {
   const { t, i18n } = useTranslation()
-  const { status } = useStatus()
-  const statusUsdExchangeRate = Number(status?.usd_exchange_rate)
-  const statusQuotaPerUnit = Number(status?.quota_per_unit)
-  const periodConversion = {
-    usdExchangeRate:
-      Number.isFinite(statusUsdExchangeRate) && statusUsdExchangeRate > 0
-        ? statusUsdExchangeRate
-        : 1,
-    quotaPerUnit:
-      Number.isFinite(statusQuotaPerUnit) && statusQuotaPerUnit > 0
-        ? statusQuotaPerUnit
-        : DEFAULT_CURRENCY_CONFIG.quotaPerUnit,
-  }
+  // 周期限额金额跟随管理员配置的站点展示币种，与令牌额度同源
+  const periodConversion = getPeriodConversionConfig()
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const rows = table.getRowModel().rows
 

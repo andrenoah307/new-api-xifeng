@@ -29,16 +29,17 @@ export {
 } from './api-key-form'
 
 export {
-  canonicalQuotaToCny,
-  canonicalQuotaToCnyInputString,
-  canonicalQuotaToCnyString,
-  cnyToCanonicalQuota,
+  amountToCanonicalQuota,
+  canonicalQuotaToAmount,
+  canonicalQuotaToAmountInputString,
+  canonicalQuotaToAmountString,
   convertPeriodLimitUnit,
-  formatCnyAmount,
+  formatDisplayAmount,
   formatPeriodLimitValue,
   formatPeriodQuotaValue,
   formatPeriodResetAt,
   getPeriodBounds,
+  getPeriodConversionConfig,
   getPeriodResetAt,
   isPositiveDecimalString,
   isPositiveIntegerString,
