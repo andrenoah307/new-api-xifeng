@@ -1277,8 +1277,8 @@ func ManageUser(c *gin.Context) {
 				common.ApiError(c, err)
 				return
 			}
-			recordManageAuditFor(c, user.Id, "user.quota_add", map[string]interface{}{
-				"quota": logger.LogQuota(req.Value),
+			recordUserAccountAudit(c, user.Id, "user.quota_add", map[string]interface{}{
+				"quota": req.Value,
 			})
 		case "subtract":
 			if req.Value <= 0 {
@@ -1289,8 +1289,8 @@ func ManageUser(c *gin.Context) {
 				common.ApiError(c, err)
 				return
 			}
-			recordManageAuditFor(c, user.Id, "user.quota_subtract", map[string]interface{}{
-				"quota": logger.LogQuota(req.Value),
+			recordUserAccountAudit(c, user.Id, "user.quota_subtract", map[string]interface{}{
+				"quota": req.Value,
 			})
 		case "override":
 			oldQuota := user.Quota
@@ -1298,9 +1298,12 @@ func ManageUser(c *gin.Context) {
 				common.ApiError(c, err)
 				return
 			}
-			recordManageAuditFor(c, user.Id, "user.quota_override", map[string]interface{}{
-				"from": logger.LogQuota(oldQuota),
-				"to":   logger.LogQuota(req.Value),
+			if err := model.InvalidateUserCache(user.Id); err != nil {
+				common.SysLog(fmt.Sprintf("failed to invalidate user cache for user %d: %s", user.Id, err.Error()))
+			}
+			recordUserAccountAudit(c, user.Id, "user.quota_override", map[string]interface{}{
+				"from": oldQuota,
+				"to":   req.Value,
 			})
 		default:
 			common.ApiErrorI18n(c, i18n.MsgInvalidParams)

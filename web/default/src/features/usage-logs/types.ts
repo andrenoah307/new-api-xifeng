@@ -425,6 +425,7 @@ export interface SubmitOfflineExportParams {
   filters: {
     start_timestamp: number
     end_timestamp: number
+    type: number
     model_name?: string
     token_name?: string
   }

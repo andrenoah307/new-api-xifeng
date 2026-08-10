@@ -23,6 +23,7 @@ import {
   parseTiersFromExpr,
   type ParsedTier,
 } from '@/features/pricing/lib/billing-expr'
+import { formatLogQuota } from '@/lib/format'
 
 import type { UsageLog } from '../data/schema'
 import type { LogOtherData } from '../types'
@@ -315,9 +316,10 @@ const AUDIT_TEMPLATES: Record<string, string> = {
   'user.update': 'Updated user {{username}} (ID: {{id}})',
   'user.delete': 'Deleted user {{username}} (ID: {{id}})',
   'user.manage': 'Performed {{action}} on user {{username}} (ID: {{id}})',
-  'user.quota_add': 'Increased user quota by {{quota}}',
-  'user.quota_subtract': 'Decreased user quota by {{quota}}',
-  'user.quota_override': 'Overrode user quota from {{from}} to {{to}}',
+  'user.quota_add': 'Administrator increased account quota by {{quota}}',
+  'user.quota_subtract': 'Administrator decreased account quota by {{quota}}',
+  'user.quota_override':
+    'Administrator changed account quota from {{from}} to {{to}}',
   'user.binding_clear': 'Cleared {{bindingType}} binding for user {{username}}',
   'user.2fa_disable': 'Force-disabled two-factor authentication for the user',
   'user.passkey_register': 'Registered a passkey',
@@ -403,5 +405,23 @@ export function renderAuditContent(
   if (!op?.action) return null
   const template = AUDIT_TEMPLATES[op.action]
   if (!template) return null
-  return t(template, (op.params ?? {}) as Record<string, unknown>)
+
+  const params: Record<string, unknown> = { ...op.params }
+  if (
+    op.action === 'user.quota_add' ||
+    op.action === 'user.quota_subtract'
+  ) {
+    if (typeof params.quota === 'number') {
+      params.quota = formatLogQuota(params.quota)
+    }
+  } else if (op.action === 'user.quota_override') {
+    if (typeof params.from === 'number') {
+      params.from = formatLogQuota(params.from)
+    }
+    if (typeof params.to === 'number') {
+      params.to = formatLogQuota(params.to)
+    }
+  }
+
+  return t(template, params)
 }

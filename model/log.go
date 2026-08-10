@@ -128,6 +128,9 @@ func formatUserLogs(logs []*Log, startIdx int) {
 		var otherMap map[string]interface{}
 		otherMap, _ = common.StrToMap(logs[i].Other)
 		if otherMap != nil {
+			if _, hasAdminInfo := otherMap["admin_info"]; hasAdminInfo {
+				logs[i].Ip = ""
+			}
 			// Remove admin-only debug fields.
 			delete(otherMap, "admin_info")
 			// Remove operation-audit details (operator/route info), admin-only.
@@ -230,13 +233,13 @@ func RecordLoginLog(userId int, username string, content string, ip string, acti
 }
 
 // RecordOperationAuditLog 记录管理/高危操作审计日志（type=LogTypeManage）。
-// logUserId 为日志归属者，管理审计日志应归属实际操作者；目标资源/用户放入
-// action params。username 内部按 logUserId 查询。content 为英文兜底文本（导出/经典前端用）。
+// subjectUserId 是事件主体及 /self 可见性归属者，不是操作者；操作者身份放在 adminInfo。
+// username 内部按 subjectUserId 查询。content 为英文兜底文本（导出/经典前端用）。
 // action+params 写入 Other.op，供前端本地化渲染（普通用户可见，不含敏感信息）。
 // adminInfo 存放操作者身份（写入 Other.admin_info，普通用户查询时剥离）；
 // auditInfo 存放路由/方法/结果等中间件兜底信息（写入 Other.audit_info，普通用户查询时剥离）。
-func RecordOperationAuditLog(logUserId int, content string, ip string, action string, params map[string]interface{}, adminInfo map[string]interface{}, auditInfo map[string]interface{}) {
-	username, _ := GetUsernameById(logUserId, false)
+func RecordOperationAuditLog(subjectUserId int, content string, ip string, action string, params map[string]interface{}, adminInfo map[string]interface{}, auditInfo map[string]interface{}) {
+	username, _ := GetUsernameById(subjectUserId, false)
 	other := map[string]interface{}{
 		"op": buildOpField(action, params),
 	}
@@ -247,7 +250,7 @@ func RecordOperationAuditLog(logUserId int, content string, ip string, action st
 		other["audit_info"] = auditInfo
 	}
 	log := &Log{
-		UserId:    logUserId,
+		UserId:    subjectUserId,
 		Username:  username,
 		CreatedAt: common.GetTimestamp(),
 		Type:      LogTypeManage,

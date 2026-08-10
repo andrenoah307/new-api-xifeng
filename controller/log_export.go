@@ -19,6 +19,7 @@ import (
 type offlineExportFilters struct {
 	StartTimestamp int64  `json:"start_timestamp"`
 	EndTimestamp   int64  `json:"end_timestamp"`
+	Type           int    `json:"type"`
 	ModelName      string `json:"model_name"`
 	TokenName      string `json:"token_name"`
 }

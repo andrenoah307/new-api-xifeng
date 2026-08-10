@@ -21,7 +21,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { CommonLogFilters } from '../types.ts'
-import { buildExportParams } from './export-params.ts'
+import {
+  buildExportParams,
+  buildOfflineExportFilters,
+} from './export-params.ts'
 
 const startTime = new Date(1_700_000_000_999)
 const endTime = new Date(1_700_000_123_456)
@@ -140,4 +143,23 @@ test('omits empty string filters', () => {
     start_timestamp: 1_700_000_000,
     end_timestamp: 1_700_000_123,
   })
+})
+
+test('includes the selected log type in offline export filters, including all types', () => {
+  assert.deepEqual(
+    buildOfflineExportFilters({ startTime, endTime }, '3'),
+    {
+      start_timestamp: 1_700_000_000,
+      end_timestamp: 1_700_000_123,
+      type: 3,
+    }
+  )
+  assert.deepEqual(
+    buildOfflineExportFilters({ startTime, endTime }, '0'),
+    {
+      start_timestamp: 1_700_000_000,
+      end_timestamp: 1_700_000_123,
+      type: 0,
+    }
+  )
 })

@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { formatTimestampToDate } from '@/lib/format'
 import { submitOfflineExport } from '../api'
+import { buildOfflineExportFilters } from '../lib/export-params'
 import type { CommonLogFilters } from '../types'
 
 interface OfflineExportDialogProps {
@@ -49,21 +50,14 @@ export function OfflineExportDialog({
   })
 
   const handleSubmit = () => {
-    if (!filters.startTime || !filters.endTime) {
+    const exportFilters = buildOfflineExportFilters(filters, logType)
+    if (!exportFilters) {
       toast.error(t('Please select a time range'))
       return
     }
 
-    const startTs = Math.floor(filters.startTime.getTime() / 1000)
-    const endTs = Math.floor(filters.endTime.getTime() / 1000)
-
     mutation.mutate({
-      filters: {
-        start_timestamp: startTs,
-        end_timestamp: endTs,
-        ...(filters.model ? { model_name: filters.model } : {}),
-        ...(filters.token ? { token_name: filters.token } : {}),
-      },
+      filters: exportFilters,
     })
   }
 

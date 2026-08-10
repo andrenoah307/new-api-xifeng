@@ -18,7 +18,11 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import { LOG_TYPE_ALL_VALUE } from '../constants'
-import type { CommonLogFilters, LogExportParams } from '../types'
+import type {
+  CommonLogFilters,
+  LogExportParams,
+  SubmitOfflineExportParams,
+} from '../types'
 
 export function buildExportParams(
   filters: CommonLogFilters,
@@ -49,4 +53,19 @@ export function buildExportParams(
   }
 
   return params
+}
+
+export function buildOfflineExportFilters(
+  filters: CommonLogFilters,
+  logType: string | undefined
+): SubmitOfflineExportParams['filters'] | null {
+  if (!filters.startTime || !filters.endTime) return null
+
+  return {
+    start_timestamp: Math.floor(filters.startTime.getTime() / 1000),
+    end_timestamp: Math.floor(filters.endTime.getTime() / 1000),
+    type: Number(logType ?? LOG_TYPE_ALL_VALUE),
+    ...(filters.model ? { model_name: filters.model } : {}),
+    ...(filters.token ? { token_name: filters.token } : {}),
+  }
 }

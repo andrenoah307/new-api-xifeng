@@ -56,6 +56,7 @@ const LogsPage = () => {
     const formValues = logsData.formApi ? logsData.formApi.getValues() : {};
     const dateRange = formValues.dateRange || [];
     return {
+      type: Number(formValues.logType ?? 0),
       start_timestamp: dateRange[0] ? Math.floor(Date.parse(dateRange[0]) / 1000) : undefined,
       end_timestamp: dateRange[1] ? Math.floor(Date.parse(dateRange[1]) / 1000) : undefined,
       model_name: formValues.model_name || undefined,

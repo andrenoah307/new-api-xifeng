@@ -639,7 +639,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
     .map((field) => t(CHANNEL_FIELD_LABELS[field] ?? field))
     .join(', ')
   const showManageAuditSection =
-    isManage && props.isAdmin && (operationText != null || auditRoute != null)
+    isManage &&
+    props.isAdmin &&
+    (operationText != null ||
+      authMethodLabel !== '' ||
+      changedFieldsText !== '' ||
+      auditRoute != null)
 
   // Login audit (type=7); visible to the log owner, not admin-only.
   const isLogin = props.log.type === 7
@@ -1026,6 +1031,11 @@ export function DetailsDialog(props: DetailsDialogProps) {
           />
         )}
 
+        {/* Manage operation content (type=3, visible to non-admin owners) */}
+        {isManage && !props.isAdmin && operationText != null && (
+          <DetailRow label={t('Operation')} value={operationText} />
+        )}
+
         {/* Operation audit info (type=3, admin only) */}
         {showManageAuditSection && (
           <DetailSection
@@ -1356,7 +1366,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
         )}
 
         {/* Content */}
-        {details && (
+        {details && !(isManage && operationText != null) && (
           <div className='space-y-1.5'>
             <Label className='text-xs font-semibold'>{t('Content')}</Label>
             <div className='bg-muted/30 relative min-w-0 overflow-hidden rounded-md border p-2.5'>

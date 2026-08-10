@@ -232,8 +232,8 @@ func TestSubmitOfflineExportTimeValidation(t *testing.T) {
 		})
 	}
 
-	t.Run("合法长区间通过且忽略 channel_id", func(t *testing.T) {
-		body := `{"filters":{"start_timestamp":100,"end_timestamp":7776100,"channel_id":99},"email":"test@example.com"}`
+	t.Run("合法长区间保存类型且忽略 channel_id", func(t *testing.T) {
+		body := `{"filters":{"start_timestamp":100,"end_timestamp":7776100,"type":3,"channel_id":99},"email":"test@example.com"}`
 		recorder := httptest.NewRecorder()
 		ctx, _ := gin.CreateTestContext(recorder)
 		ctx.Request = httptest.NewRequest(http.MethodPost, "/api/log/self/export-offline", strings.NewReader(body))
@@ -249,6 +249,11 @@ func TestSubmitOfflineExportTimeValidation(t *testing.T) {
 		require.Positive(t, response.Data.Id)
 		var task model.LogExportTask
 		require.NoError(t, db.First(&task, response.Data.Id).Error)
+		var savedFilters struct {
+			Type int `json:"type"`
+		}
+		require.NoError(t, common.UnmarshalJsonStr(task.Filters, &savedFilters))
+		assert.Equal(t, model.LogTypeManage, savedFilters.Type)
 		assert.NotContains(t, task.Filters, "channel_id")
 	})
 }

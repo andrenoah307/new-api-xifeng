@@ -2,10 +2,12 @@ package controller
 
 import (
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 
 	"github.com/gin-gonic/gin"
@@ -58,10 +60,25 @@ func auditContentEN(action string, params map[string]interface{}) string {
 		return action
 	}
 	return os.Expand(tmpl, func(key string) string {
-		if v, ok := params[key]; ok {
-			return fmt.Sprintf("%v", v)
+		v, ok := params[key]
+		if !ok {
+			return ""
 		}
-		return ""
+		if key == "quota" || key == "from" || key == "to" {
+			switch value := v.(type) {
+			case int:
+				return logger.FormatQuota(value)
+			case int32:
+				return logger.FormatQuota(int(value))
+			case int64:
+				return logger.FormatQuota(int(value))
+			case float64:
+				if !math.IsNaN(value) && !math.IsInf(value, 0) && value == math.Trunc(value) {
+					return logger.FormatQuota(int(value))
+				}
+			}
+		}
+		return fmt.Sprintf("%v", v)
 	})
 }
 
@@ -105,6 +122,23 @@ func recordManageAuditFor(c *gin.Context, targetUserId int, action string, param
 		params["target_user_id"] = targetUserId
 	}
 	model.RecordOperationAuditLog(operatorUserId, auditContentEN(action, params), c.ClientIP(), action, params, auditOperatorInfo(c), nil)
+	markAuditLogged(c)
+}
+
+// recordUserAccountAudit 记录一条以「被操作用户」为主体的管理审计日志：
+// logs.user_id/username 归属目标用户，操作者身份只保留在 other.admin_info。
+// 用于用户账户事件（额度增减/覆盖、订阅重置），使管理员按目标用户名筛选、
+// 用户自查与自助导出都能看到同一条记录，便于双方对账。
+func recordUserAccountAudit(c *gin.Context, subjectUserId int, action string, params map[string]interface{}) {
+	if subjectUserId <= 0 {
+		recordManageAudit(c, action, params)
+		return
+	}
+	if params == nil {
+		params = map[string]interface{}{}
+	}
+	params["target_user_id"] = subjectUserId
+	model.RecordOperationAuditLog(subjectUserId, auditContentEN(action, params), c.ClientIP(), action, params, auditOperatorInfo(c), nil)
 	markAuditLogged(c)
 }
 

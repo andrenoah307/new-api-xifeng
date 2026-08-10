@@ -240,7 +240,7 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 	var rowCount int
 	var truncated bool
 
-	streamErr := model.ExportUserLogs(ctx, task.UserId, 0,
+	streamErr := model.ExportUserLogs(ctx, task.UserId, filters.Type,
 		filters.StartTimestamp, filters.EndTimestamp,
 		filters.ModelName, filters.TokenName, filters.Group, "", "",
 		func(logs []*model.Log) error {
@@ -442,6 +442,7 @@ func (ec *logExportCenter) cleanupExpiredFiles() {
 type exportFilters struct {
 	StartTimestamp int64  `json:"start_timestamp"`
 	EndTimestamp   int64  `json:"end_timestamp"`
+	Type           int    `json:"type"`
 	ModelName      string `json:"model_name"`
 	TokenName      string `json:"token_name"`
 	Group          string `json:"group"`

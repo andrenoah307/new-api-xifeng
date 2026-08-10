@@ -38,6 +38,10 @@ import {
 } from '../../../helpers';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
 import { CircleAlert, Route, Sparkles } from 'lucide-react';
+import {
+  getUsageLogOperationText,
+  isUsageLogOperationAction,
+} from './usage-log-operation';
 
 const colors = [
   'amber',
@@ -431,6 +435,20 @@ function getUsageLogDetailSummary(record, text, billingDisplayMode, t) {
   if (record.type === 6) {
     return {
       segments: [{ text: t('异步任务退款'), tone: 'primary' }],
+    };
+  }
+
+  if (record.type === 3) {
+    if (!isUsageLogOperationAction(other?.op?.action)) {
+      return null;
+    }
+    return {
+      segments: [
+        {
+          text: getUsageLogOperationText(other, text, t, renderQuota),
+          tone: 'primary',
+        },
+      ],
     };
   }
 
