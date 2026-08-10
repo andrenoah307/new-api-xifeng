@@ -91,6 +91,7 @@ import {
   transformFormDataToPayload,
   transformApiKeyToFormDefaults,
 } from '../lib/api-key-form'
+import { isLatestApiKeyLoadRequest } from '../lib/api-key-load'
 import {
   amountToCanonicalQuota,
   convertPeriodLimitUnit,
@@ -129,6 +130,7 @@ export function ApiKeysMutateDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const periodCanonicalQuotaRef = useRef<number | null>(null)
+  const apiKeyLoadSequenceRef = useRef(0)
   const defaultUseAutoGroup = status?.default_use_auto_group === true
   // 周期限额金额跟随管理员配置的站点展示币种，与令牌额度同源
   const periodConversion = useMemo(() => getPeriodConversionConfig(), [status])
@@ -179,35 +181,70 @@ export function ApiKeysMutateDrawer({
     defaultValues: getApiKeyFormDefaultValues(defaultUseAutoGroup),
   })
 
+  const periodConversionRef = useRef(periodConversion)
+  const backendHasAutoRef = useRef(backendHasAuto)
+  const defaultUseAutoGroupRef = useRef(defaultUseAutoGroup)
+  const formRef = useRef(form)
+  const translationRef = useRef(t)
+  periodConversionRef.current = periodConversion
+  backendHasAutoRef.current = backendHasAuto
+  defaultUseAutoGroupRef.current = defaultUseAutoGroup
+  formRef.current = form
+  translationRef.current = t
+
   // Load existing data when updating
   useEffect(() => {
-    if (open && isUpdate && currentRow) {
-      void getApiKey(currentRow.id).then((result) => {
-        if (result.success && result.data) {
-          periodCanonicalQuotaRef.current =
-            result.data.period_quota_limit > 0
-              ? result.data.period_quota_limit
-              : null
-          form.reset(
-            transformApiKeyToFormDefaults(result.data, periodConversion)
-          )
-        }
-      })
+    const requestSequence = ++apiKeyLoadSequenceRef.current
+    if (open && isUpdate && currentRow?.id != null) {
+      void getApiKey(currentRow.id)
+        .then((result) => {
+          if (
+            !isLatestApiKeyLoadRequest(
+              requestSequence,
+              apiKeyLoadSequenceRef.current
+            )
+          ) {
+            return
+          }
+
+          if (result.success && result.data) {
+            periodCanonicalQuotaRef.current =
+              result.data.period_quota_limit > 0
+                ? result.data.period_quota_limit
+                : null
+            formRef.current.reset(
+              transformApiKeyToFormDefaults(
+                result.data,
+                periodConversionRef.current
+              )
+            )
+          } else {
+            toast.error(
+              result.message ||
+                translationRef.current(ERROR_MESSAGES.UNEXPECTED)
+            )
+          }
+        })
+        .catch(() => {
+          if (
+            !isLatestApiKeyLoadRequest(
+              requestSequence,
+              apiKeyLoadSequenceRef.current
+            )
+          ) {
+            return
+          }
+          toast.error(translationRef.current(ERROR_MESSAGES.UNEXPECTED))
+        })
     } else if (open && !isUpdate) {
       periodCanonicalQuotaRef.current = null
-      form.reset(
-        getApiKeyFormDefaultValues(defaultUseAutoGroup && backendHasAuto)
+      formRef.current.reset(
+        getApiKeyFormDefaultValues(
+          defaultUseAutoGroupRef.current && backendHasAutoRef.current
+        )
       )
     }
-  }, [
-    open,
-    isUpdate,
-    currentRow,
-    form,
-    defaultUseAutoGroup,
-    backendHasAuto,
-    periodConversion,
-  ])
+  }, [open, isUpdate, currentRow?.id])
 
   // Correct group after groups load: if the form value is not in available groups, fall back
   useEffect(() => {

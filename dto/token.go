@@ -20,3 +20,14 @@ type TokenRequest struct {
 	PeriodLimitUnit  string `json:"period_limit_unit"`
 	PeriodLimitValue string `json:"period_limit_value"`
 }
+
+// TokenUpdateRequest keeps update-only presence information for period policy
+// fields without changing TokenRequest's create-token contract.
+type TokenUpdateRequest struct {
+	TokenRequest
+
+	PeriodType       *string `json:"period_type"`
+	PeriodDays       *int    `json:"period_days"`
+	PeriodLimitUnit  *string `json:"period_limit_unit"`
+	PeriodLimitValue *string `json:"period_limit_value"`
+}

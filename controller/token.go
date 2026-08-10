@@ -437,7 +437,7 @@ func DeleteToken(c *gin.Context) {
 func UpdateToken(c *gin.Context) {
 	userId := c.GetInt("id")
 	statusOnly := c.Query("status_only")
-	request := dto.TokenRequest{}
+	request := dto.TokenUpdateRequest{}
 	err := c.ShouldBindJSON(&request)
 	if err != nil {
 		tokenBadRequest(c, err)
@@ -474,17 +474,55 @@ func UpdateToken(c *gin.Context) {
 		}
 	}
 	periodStateReset := false
+	periodFieldsPresent := request.PeriodType != nil || request.PeriodDays != nil ||
+		request.PeriodLimitUnit != nil || request.PeriodLimitValue != nil
 	if statusOnly != "" {
 		// status_only is intentionally isolated from period configuration and
 		// counters, including malformed client-supplied period fields.
 		cleanToken.Status = request.Status
 	} else {
-		periodConfig, periodErr := normalizeTokenPeriod(request)
-		if periodErr != nil {
-			tokenBadRequest(c, periodErr)
-			return
+		if periodFieldsPresent {
+			if request.PeriodType == nil {
+				tokenBadRequest(c, errors.New("period_type 必须与周期限额字段一起提供"))
+				return
+			}
+			periodType := strings.TrimSpace(*request.PeriodType)
+			if periodType != "" && (request.PeriodLimitUnit == nil || request.PeriodLimitValue == nil ||
+				(periodType == common.TokenPeriodTypeDays && request.PeriodDays == nil)) {
+				tokenBadRequest(c, errors.New("周期限额字段必须完整提供"))
+				return
+			}
+
+			// Materialize the update-only pointer patch into the shared request
+			// shape so all period validation remains in normalizeTokenPeriod.
+			periodRequest := request.TokenRequest
+			periodRequest.PeriodType = *request.PeriodType
+			if request.PeriodDays != nil {
+				periodRequest.PeriodDays = *request.PeriodDays
+			} else {
+				periodRequest.PeriodDays = 0
+			}
+			if request.PeriodLimitUnit != nil {
+				periodRequest.PeriodLimitUnit = *request.PeriodLimitUnit
+			} else {
+				periodRequest.PeriodLimitUnit = ""
+			}
+			if request.PeriodLimitValue != nil {
+				periodRequest.PeriodLimitValue = *request.PeriodLimitValue
+			} else {
+				periodRequest.PeriodLimitValue = ""
+			}
+			periodConfig, periodErr := normalizeTokenPeriod(periodRequest)
+			if periodErr != nil {
+				tokenBadRequest(c, periodErr)
+				return
+			}
+			periodStateReset = tokenPeriodConfigNeedsReset(cleanToken, periodConfig)
+			if periodErr := applyTokenPeriodConfig(cleanToken, periodConfig, time.Now()); periodErr != nil {
+				tokenBadRequest(c, periodErr)
+				return
+			}
 		}
-		periodStateReset = tokenPeriodConfigNeedsReset(cleanToken, periodConfig)
 		// If you add more fields, please also update token.Update()
 		cleanToken.Name = request.Name
 		cleanToken.ExpiredTime = request.ExpiredTime
@@ -495,13 +533,11 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.AllowIps = request.AllowIps
 		cleanToken.Group = request.Group
 		cleanToken.CrossGroupRetry = request.CrossGroupRetry
-		if periodErr := applyTokenPeriodConfig(cleanToken, periodConfig, time.Now()); periodErr != nil {
-			tokenBadRequest(c, periodErr)
-			return
-		}
 	}
 	if statusOnly != "" {
 		err = cleanToken.SelectUpdate()
+	} else if !periodFieldsPresent {
+		err = cleanToken.UpdateWithoutPeriodConfig()
 	} else if periodStateReset {
 		err = cleanToken.UpdatePeriodConfig()
 	} else {

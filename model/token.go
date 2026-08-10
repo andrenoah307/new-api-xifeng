@@ -399,17 +399,24 @@ func (token *Token) Update() (err error) {
 // out of Update's snapshot whitelist, but a policy transition still needs one
 // explicit write so config and reset state cannot be split across requests.
 func (token *Token) UpdatePeriodConfig() error {
-	return token.updatePeriodConfig(true)
+	return token.updatePeriodConfig(true, true)
 }
 
 // UpdatePeriodConfigPreserveState changes policy metadata without copying the
 // snapshot counters. It is used for limit/unit-only edits so an in-flight
 // accounting SQL cannot be lost to a stale controller object.
 func (token *Token) UpdatePeriodConfigPreserveState() error {
-	return token.updatePeriodConfig(false)
+	return token.updatePeriodConfig(true, false)
 }
 
-func (token *Token) updatePeriodConfig(resetState bool) error {
+// UpdateWithoutPeriodConfig updates token metadata while leaving every period
+// policy and accounting column untouched. It is used for legacy update
+// payloads that do not carry the period policy patch.
+func (token *Token) UpdateWithoutPeriodConfig() error {
+	return token.updatePeriodConfig(false, false)
+}
+
+func (token *Token) updatePeriodConfig(includePolicy bool, resetState bool) error {
 	updates := map[string]interface{}{
 		"name":                 token.Name,
 		"status":               token.Status,
@@ -421,11 +428,13 @@ func (token *Token) updatePeriodConfig(resetState bool) error {
 		"allow_ips":            token.AllowIps,
 		"group":                token.Group,
 		"cross_group_retry":    token.CrossGroupRetry,
-		"period_type":          token.PeriodType,
-		"period_days":          token.PeriodDays,
-		"period_quota_limit":   token.PeriodQuotaLimit,
-		"period_limit_unit":    token.PeriodLimitUnit,
-		"period_anchor_at":     token.PeriodAnchorAt,
+	}
+	if includePolicy {
+		updates["period_type"] = token.PeriodType
+		updates["period_days"] = token.PeriodDays
+		updates["period_quota_limit"] = token.PeriodQuotaLimit
+		updates["period_limit_unit"] = token.PeriodLimitUnit
+		updates["period_anchor_at"] = token.PeriodAnchorAt
 	}
 	if resetState {
 		updates["period_start_at"] = token.PeriodStartAt

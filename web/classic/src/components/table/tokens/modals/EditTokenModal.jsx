@@ -69,6 +69,11 @@ import {
   amountToCanonicalQuota,
   isPositiveIntegerString,
 } from '../token-period';
+import {
+  buildTokenFormValues,
+  getTokenFormInitValues,
+  isCurrentTokenLoadRequest,
+} from '../token-form-values';
 
 const { Text, Title } = Typography;
 
@@ -83,6 +88,7 @@ const EditTokenModal = (props) => {
   const [showQuotaInput, setShowQuotaInput] = useState(false);
   const periodCanonicalQuotaRef = useRef(null);
   const periodAnchorAtRef = useRef(0);
+  const tokenLoadRequestSequenceRef = useRef(0);
   const isEdit = props.editingToken.id !== undefined;
 
   // 周期限额金额与令牌额度同口径：都走管理员配置的站点展示币种与汇率。
@@ -98,26 +104,6 @@ const EditTokenModal = (props) => {
   const periodAmountUnitLabel = periodConversion.symbol
     ? t('金额（{{symbol}}）', { symbol: periodConversion.symbol })
     : t('金额');
-
-  const getInitValues = () => ({
-    name: '',
-    remain_quota: 0,
-    remain_amount: 0,
-    expired_time: -1,
-    unlimited_quota: true,
-    model_limits_enabled: false,
-    model_limits: [],
-    allow_ips: '',
-    group: '',
-    cross_group_retry: false,
-    tokenCount: 1,
-    period_enabled: false,
-    period_type: '',
-    period_days: 0,
-    period_limit_unit: 'cny',
-    period_limit_value: '0',
-    period_reset_at: 0,
-  });
 
   const handleCancel = () => {
     props.handleClose();
@@ -195,35 +181,35 @@ const EditTokenModal = (props) => {
   };
 
   const loadToken = async () => {
+    const requestSequence = ++tokenLoadRequestSequenceRef.current;
     setLoading(true);
     let res = await API.get(`/api/token/${props.editingToken.id}`);
+    if (
+      !isCurrentTokenLoadRequest(
+        requestSequence,
+        tokenLoadRequestSequenceRef.current,
+      )
+    ) {
+      return;
+    }
     const { success, message, data } = res.data;
     if (success) {
       const periodValues = periodResponseToForm(data, periodConversion);
       periodCanonicalQuotaRef.current = periodValues.canonicalQuota;
       periodAnchorAtRef.current = periodValues.period_anchor_at;
-      const expiredTime =
-        data.expired_time === -1
-          ? -1
-          : timestamp2string(data.expired_time);
-      const modelLimits = data.model_limits
-        ? data.model_limits.split(',').filter(Boolean)
-        : [];
       if (formApiRef.current) {
-        formApiRef.current.setValues({
-          ...getInitValues(),
-          name: data.name || '',
-          remain_quota: Number(data.remain_quota) || 0,
-          remain_amount: quotaToDisplayInputAmount(data.remain_quota || 0),
-          expired_time: expiredTime,
-          unlimited_quota: Boolean(data.unlimited_quota),
-          model_limits_enabled: Boolean(data.model_limits_enabled),
-          model_limits: modelLimits,
-          allow_ips: data.allow_ips || '',
-          group: data.group || '',
-          cross_group_retry: Boolean(data.cross_group_retry),
-          ...periodValues,
-        });
+        formApiRef.current.setValues(
+          buildTokenFormValues(data, periodConversion, {
+            expiredTime:
+              data.expired_time === -1
+                ? -1
+                : timestamp2string(data.expired_time),
+            remainAmount: quotaToDisplayInputAmount(data.remain_quota || 0),
+          }),
+          // Conditionally rendered period fields are not mounted yet, so a
+          // non-override setValues would silently drop their values.
+          { isOverride: true },
+        );
       }
     } else {
       showError(message);
@@ -236,7 +222,9 @@ const EditTokenModal = (props) => {
       if (!isEdit) {
         periodCanonicalQuotaRef.current = null;
         periodAnchorAtRef.current = 0;
-        formApiRef.current.setValues(getInitValues());
+        formApiRef.current.setValues(getTokenFormInitValues(), {
+          isOverride: true,
+        });
       }
     }
     loadModels();
@@ -250,9 +238,12 @@ const EditTokenModal = (props) => {
       } else {
         periodCanonicalQuotaRef.current = null;
         periodAnchorAtRef.current = 0;
-        formApiRef.current?.setValues(getInitValues());
+        formApiRef.current?.setValues(getTokenFormInitValues(), {
+          isOverride: true,
+        });
       }
     } else {
+      tokenLoadRequestSequenceRef.current += 1;
       periodCanonicalQuotaRef.current = null;
       periodAnchorAtRef.current = 0;
       formApiRef.current?.reset();
@@ -383,7 +374,9 @@ const EditTokenModal = (props) => {
       }
     }
     setLoading(false);
-    formApiRef.current?.setValues(getInitValues());
+    formApiRef.current?.setValues(getTokenFormInitValues(), {
+      isOverride: true,
+    });
   };
 
   const setPeriodEnabled = (enabled) => {
@@ -576,7 +569,7 @@ const EditTokenModal = (props) => {
       <Spin spinning={loading}>
         <Form
           key={isEdit ? 'edit' : 'new'}
-          initValues={getInitValues()}
+          initValues={getTokenFormInitValues()}
           getFormApi={(api) => (formApiRef.current = api)}
           onSubmit={submit}
         >
