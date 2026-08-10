@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Button, Col, Form, Row, Spin, Switch } from '@douyinfe/semi-ui';
+import { Button, Col, Form, Row, Space, Spin, Switch } from '@douyinfe/semi-ui';
 import {
   compareObjects,
   API,
@@ -27,7 +27,9 @@ import {
   showWarning,
   verifyJSON,
 } from '../../../helpers';
+import { parseModelNameRPMConfig } from '../../../helpers/model-name-rpm';
 import { useTranslation } from 'react-i18next';
+import ModelNameRPMVisualEditor from './ModelNameRPMVisualEditor';
 
 const MODEL_NAME_RPM_OPTION_KEY = 'ModelNameRPMRateLimit';
 const DEFAULT_MODEL_NAME_RPM_RATE_LIMIT = JSON.stringify(
@@ -67,6 +69,35 @@ export default function RequestRateLimit(props) {
   });
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
+  // null means "not chosen yet": the mode then follows whether the stored
+  // document can be represented visually without rewriting it.
+  const [modelNameRPMEditMode, setModelNameRPMEditMode] = useState(null);
+  const prevModelNameRPMEditModeRef = useRef(null);
+
+  const modelNameRPMValue = inputs[MODEL_NAME_RPM_OPTION_KEY];
+  const modelNameRPMEditModeResolved =
+    modelNameRPMEditMode ??
+    (parseModelNameRPMConfig(modelNameRPMValue).ok ? 'visual' : 'json');
+
+  function setModelNameRPMValue(nextValue) {
+    setInputs((prev) => ({
+      ...prev,
+      [MODEL_NAME_RPM_OPTION_KEY]: nextValue,
+    }));
+    if (refForm.current) {
+      // Use setValue instead of setValues. Semi Form's setValues assigns
+      // undefined to every registered field not included in the payload.
+      refForm.current.setValue(MODEL_NAME_RPM_OPTION_KEY, nextValue);
+    }
+  }
+
+  function switchToModelNameRPMVisualMode() {
+    if (!parseModelNameRPMConfig(modelNameRPMValue).ok) {
+      showError(t('Fix the JSON before switching to the visual editor.'));
+      return;
+    }
+    setModelNameRPMEditMode('visual');
+  }
 
   function onModelNameRPMEnabledChange(value) {
     const currentValue = inputs[MODEL_NAME_RPM_OPTION_KEY];
@@ -86,16 +117,7 @@ export default function RequestRateLimit(props) {
       }
 
       config.enabled = value;
-      const nextValue = JSON.stringify(config, null, 2);
-      setInputs((prev) => ({
-        ...prev,
-        [MODEL_NAME_RPM_OPTION_KEY]: nextValue,
-      }));
-      if (refForm.current) {
-        refForm.current.setValues({
-          [MODEL_NAME_RPM_OPTION_KEY]: nextValue,
-        });
-      }
+      setModelNameRPMValue(JSON.stringify(config, null, 2));
     } catch {
       showError(t('不是合法的 JSON 字符串'));
     }
@@ -207,6 +229,17 @@ export default function RequestRateLimit(props) {
     setInputsRow(structuredClone(currentInputs));
     refForm.current.setValues(currentInputs);
   }, [props.options]);
+
+  useEffect(() => {
+    // The JSON textarea is unmounted in visual mode, so Semi drops any value
+    // written while it was hidden. Re-seed it right after it mounts again.
+    const previousMode = prevModelNameRPMEditModeRef.current;
+    prevModelNameRPMEditModeRef.current = modelNameRPMEditModeResolved;
+    if (previousMode === modelNameRPMEditModeResolved) return;
+    if (modelNameRPMEditModeResolved !== 'json') return;
+    if (!refForm.current) return;
+    refForm.current.setValue(MODEL_NAME_RPM_OPTION_KEY, modelNameRPMValue);
+  }, [modelNameRPMEditModeResolved, modelNameRPMValue]);
 
   return (
     <>
@@ -366,49 +399,78 @@ export default function RequestRateLimit(props) {
             </Row>
             <Row>
               <Col xs={24} sm={24} md={16} lg={16} xl={16}>
-                <Form.TextArea
-                  label={t('Model name RPM configuration')}
-                  placeholder={t('Model name RPM configuration example')}
-                  field={MODEL_NAME_RPM_OPTION_KEY}
-                  autosize={{ minRows: 10, maxRows: 20 }}
-                  trigger='blur'
-                  stopValidateWithError
-                  style={{ fontFamily: 'monospace' }}
-                  rules={[
-                    {
-                      validator: (rule, value) => verifyJSON(value),
-                      message: t('不是合法的 JSON 字符串'),
-                    },
-                  ]}
-                  extraText={
-                    <div>
-                      <p>{t('说明：')}</p>
-                      <ul>
-                        <li>
-                          {t(
-                            'Models not listed here are not subject to this limit.',
-                          )}
-                        </li>
-                        <li>
-                          {t(
-                            'Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).',
-                          )}
-                        </li>
-                        <li>
-                          {t(
-                            'global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.',
-                          )}
-                        </li>
-                      </ul>
-                    </div>
-                  }
-                  onChange={(value) => {
-                    setInputs((prev) => ({
-                      ...prev,
-                      [MODEL_NAME_RPM_OPTION_KEY]: value,
-                    }));
-                  }}
-                />
+                <Space style={{ marginBottom: 10 }}>
+                  <Button
+                    type={
+                      modelNameRPMEditModeResolved === 'visual'
+                        ? 'primary'
+                        : 'tertiary'
+                    }
+                    onClick={switchToModelNameRPMVisualMode}
+                  >
+                    {t('可视化')}
+                  </Button>
+                  <Button
+                    type={
+                      modelNameRPMEditModeResolved === 'json'
+                        ? 'primary'
+                        : 'tertiary'
+                    }
+                    onClick={() => setModelNameRPMEditMode('json')}
+                  >
+                    {t('JSON 模式')}
+                  </Button>
+                </Space>
+
+                {modelNameRPMEditModeResolved === 'visual' ? (
+                  <ModelNameRPMVisualEditor
+                    value={modelNameRPMValue}
+                    onChange={setModelNameRPMValue}
+                  />
+                ) : (
+                  <Form.TextArea
+                    label={t('Model name RPM configuration')}
+                    placeholder={t('Model name RPM configuration example')}
+                    field={MODEL_NAME_RPM_OPTION_KEY}
+                    autosize={{ minRows: 10, maxRows: 20 }}
+                    trigger='blur'
+                    stopValidateWithError
+                    style={{ fontFamily: 'monospace' }}
+                    rules={[
+                      {
+                        validator: (rule, value) => verifyJSON(value),
+                        message: t('不是合法的 JSON 字符串'),
+                      },
+                    ]}
+                    onChange={(value) => {
+                      setInputs((prev) => ({
+                        ...prev,
+                        [MODEL_NAME_RPM_OPTION_KEY]: value,
+                      }));
+                    }}
+                  />
+                )}
+
+                <div style={{ marginTop: 8 }}>
+                  <p>{t('说明：')}</p>
+                  <ul>
+                    <li>
+                      {t(
+                        'Models not listed here are not subject to this limit.',
+                      )}
+                    </li>
+                    <li>
+                      {t(
+                        'Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).',
+                      )}
+                    </li>
+                    <li>
+                      {t(
+                        'global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.',
+                      )}
+                    </li>
+                  </ul>
+                </div>
               </Col>
             </Row>
             <Row>
