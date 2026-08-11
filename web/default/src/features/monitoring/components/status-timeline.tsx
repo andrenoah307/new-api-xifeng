@@ -65,8 +65,7 @@ export default function StatusTimeline({
           {segments.map((seg, idx) => {
             const rate = seg?.availability_rate ?? null
             const avgFrt = seg?.avg_frt ?? null
-            const reqCount = seg?.request_count ?? null
-            const bg = segmentColor(rate, avgFrt, reqCount)
+            const bg = segmentColor(rate, avgFrt)
             const isEmpty = seg == null
 
             return (
@@ -92,7 +91,7 @@ export default function StatusTimeline({
                         {formatDateTime(seg.recorded_at)}
                       </div>
                       <div>
-                        {t('Status')}: {segmentLabel(rate, avgFrt, t, reqCount)}
+                        {t('Status')}: {segmentLabel(rate, avgFrt, t)}
                       </div>
                       {rate != null && rate >= 0 && (
                         <div>

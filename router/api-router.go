@@ -351,7 +351,7 @@ func SetApiRouter(router *gin.Engine) {
 			monitoringAdminRoute.DELETE("/groups/:group/records", controller.DeleteMonitoringGroupRecords)
 		}
 		monitoringPublicRoute := apiRouter.Group("/monitoring/public")
-		monitoringPublicRoute.Use(middleware.TryUserAuth())
+		monitoringPublicRoute.Use(middleware.HeaderNavModuleAuth("monitoring"))
 		{
 			monitoringPublicRoute.GET("/groups", controller.GetPublicMonitoringGroups)
 			monitoringPublicRoute.GET("/groups/:group/history", controller.GetPublicMonitoringGroupHistory)

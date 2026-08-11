@@ -25,11 +25,9 @@ import { useTranslation } from 'react-i18next';
  * Color mapping for availability segments. Uses Semi design tokens so dark
  * mode is automatic via `theme-mode=dark` on body.
  */
-function segmentColor(rate, avgFrt, requestCount) {
-  // 无请求 / 无数据留灰；否则按每区间可用率梯度着色，
+function segmentColor(rate, avgFrt) {
+  // 无数据留灰；否则按每区间可用率梯度着色，
   // FRT 仅用于把健康块降级为“响应缓慢”（warning）
-  if (requestCount != null && requestCount <= 0)
-    return 'var(--semi-color-fill-1)';
   if (rate == null || rate < 0) return 'var(--semi-color-fill-1)';
   if (rate >= 99)
     return avgFrt != null && avgFrt > 8000
@@ -41,8 +39,7 @@ function segmentColor(rate, avgFrt, requestCount) {
   return 'var(--semi-color-danger)';
 }
 
-function segmentLabel(rate, avgFrt, t, requestCount) {
-  if (requestCount != null && requestCount <= 0) return t('暂无数据');
+function segmentLabel(rate, avgFrt, t) {
   if (rate == null || rate < 0) return t('暂无数据');
   if (rate >= 99)
     return avgFrt != null && avgFrt > 8000 ? t('响应缓慢') : t('正常');
@@ -109,8 +106,7 @@ const StatusTimeline = ({ history, segmentCount = 60, compact = false }) => {
         {segments.map((seg, idx) => {
           const rate = seg?.availability_rate;
           const avgFrt = seg?.avg_frt;
-          const requestCount = seg?.request_count;
-          const bg = segmentColor(rate, avgFrt, requestCount);
+          const bg = segmentColor(rate, avgFrt);
           const isEmpty = seg == null;
           const tip = isEmpty ? (
             <span className='text-xs'>{t('暂无数据')}</span>
@@ -118,7 +114,7 @@ const StatusTimeline = ({ history, segmentCount = 60, compact = false }) => {
             <div className='space-y-0.5 text-xs'>
               <div className='font-medium'>{formatTime(seg.recorded_at)}</div>
               <div>
-                {t('状态')}: {segmentLabel(rate, avgFrt, t, requestCount)}
+                {t('状态')}: {segmentLabel(rate, avgFrt, t)}
               </div>
               {rate != null && rate >= 0 && (
                 <div>

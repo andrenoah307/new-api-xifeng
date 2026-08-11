@@ -200,6 +200,13 @@ func DeleteMonitoringGroupRecords(c *gin.Context) {
 
 func GetPublicMonitoringGroups(c *gin.Context) {
 	setting := operation_setting.GetGroupMonitoringSetting()
+	if !setting.Enabled {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"success": false,
+			"message": "分组监控功能未启用",
+		})
+		return
+	}
 
 	monitoringGroups := filterRegionBlockedGroupNames(c, setting.MonitoringGroups)
 	if len(monitoringGroups) == 0 {
@@ -236,6 +243,13 @@ func GetPublicMonitoringGroups(c *gin.Context) {
 
 func GetPublicMonitoringGroupHistory(c *gin.Context) {
 	setting := operation_setting.GetGroupMonitoringSetting()
+	if !setting.Enabled {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"success": false,
+			"message": "分组监控功能未启用",
+		})
+		return
+	}
 
 	groupName := c.Param("group")
 	if groupName == "" {
@@ -246,7 +260,7 @@ func GetPublicMonitoringGroupHistory(c *gin.Context) {
 		return
 	}
 
-	monitoringGroups := setting.MonitoringGroups
+	monitoringGroups := filterRegionBlockedGroupNames(c, setting.MonitoringGroups)
 	found := false
 	for _, g := range monitoringGroups {
 		if g == groupName {
@@ -275,11 +289,20 @@ func GetPublicMonitoringGroupHistory(c *gin.Context) {
 	}
 
 	history = prependSeedRecord(groupName, startTime, history)
+	records := make([]gin.H, 0, len(history))
+	for _, h := range history {
+		records = append(records, gin.H{
+			"recorded_at":       h.RecordedAt,
+			"availability_rate": h.AvailabilityRate,
+			"cache_hit_rate":    h.CacheHitRate,
+			"avg_frt":           h.AvgFRT,
+		})
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success":                      true,
 		"message":                      "",
-		"data":                         history,
+		"data":                         records,
 		"period_minutes":               setting.AvailabilityPeriodMinutes,
 		"aggregation_interval_minutes": setting.AggregationIntervalMinutes,
 	})

@@ -2,12 +2,14 @@ package controller
 
 import (
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/QuantumNous/new-api/model"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
+	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
-	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
@@ -21,7 +23,7 @@ func GetPerfMetricsSummary(c *gin.Context) {
 		}
 	}
 
-	activeGroups := append(lo.Keys(ratio_setting.GetGroupRatioCopy()), "auto")
+	activeGroups := getVisiblePerfMetricGroupNames(c)
 	result, err := perfmetrics.QuerySummaryAll(hours, activeGroups)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -75,21 +77,50 @@ func GetPerfMetrics(c *gin.Context) {
 	})
 }
 
-// filterVisibleGroups 只保留当前登录账号可见的分组；未登录时按 "default" 权限
-// （与刚注册用户同权）计算可用分组。"auto" 元分组始终保留。
-func filterVisibleGroups(c *gin.Context, groups []perfmetrics.GroupResult) []perfmetrics.GroupResult {
+// getVisiblePerfMetricGroupNames returns the groups visible to the current
+// account and region. Anonymous requests use the default user's permissions.
+// The synthetic "auto" group is always included.
+func getVisiblePerfMetricGroupNames(c *gin.Context) []string {
 	group := "default"
-	if userId, exists := c.Get("id"); exists {
-		if user, err := model.GetUserCache(userId.(int)); err == nil && user.Group != "" {
-			group = user.Group
+	if userID, exists := c.Get("id"); exists {
+		if userID, ok := userID.(int); ok {
+			if user, err := model.GetUserCache(userID); err == nil && user.Group != "" {
+				group = user.Group
+			}
 		}
 	}
+
 	usable := service.GetUserUsableGroups(group)
-	return lo.Filter(groups, func(g perfmetrics.GroupResult, _ int) bool {
-		if g.Group == "auto" {
-			return true
+	regionSetting := operation_setting.GetRegionRestrictionSetting()
+	countryCode := ""
+	if regionSetting.Enabled && regionSetting.FilterConsole {
+		countryCode = requestip.GetClientCountry(c)
+	}
+
+	visible := make([]string, 0, len(usable)+1)
+	for groupName := range usable {
+		if groupName == "auto" {
+			continue
 		}
-		_, ok := usable[g.Group]
+		if countryCode != "" && operation_setting.IsGroupBlockedForCountry(countryCode, groupName) {
+			continue
+		}
+		visible = append(visible, groupName)
+	}
+	sort.Strings(visible)
+	return append(visible, "auto")
+}
+
+// filterVisibleGroups keeps only the groups returned by the shared visibility
+// policy; "auto" is retained by that policy as well.
+func filterVisibleGroups(c *gin.Context, groups []perfmetrics.GroupResult) []perfmetrics.GroupResult {
+	visibleGroups := getVisiblePerfMetricGroupNames(c)
+	visibleSet := make(map[string]struct{}, len(visibleGroups))
+	for _, groupName := range visibleGroups {
+		visibleSet[groupName] = struct{}{}
+	}
+	return lo.Filter(groups, func(g perfmetrics.GroupResult, _ int) bool {
+		_, ok := visibleSet[g.Group]
 		return ok
 	})
 }

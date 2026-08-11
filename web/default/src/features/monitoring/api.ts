@@ -24,7 +24,6 @@ export interface MonitoringHistoryPoint {
   recorded_at: number
   availability_rate: number | null
   avg_frt: number | null
-  request_count: number | null
   cache_hit_rate: number | null
 }
 
@@ -57,7 +56,9 @@ export async function getMonitoringGroups(
   admin: boolean
 ): Promise<MonitoringGroup[]> {
   const prefix = admin ? 'admin' : 'public'
-  const res = await api.get(`/api/monitoring/${prefix}/groups`)
+  const res = await api.get(`/api/monitoring/${prefix}/groups`, {
+    skipErrorHandler: true,
+  })
   return res.data.data ?? []
 }
 
@@ -67,7 +68,8 @@ export async function getGroupHistory(
 ): Promise<{ history: MonitoringHistoryPoint[]; intervalMinutes: number }> {
   const prefix = admin ? 'admin' : 'public'
   const res = await api.get(
-    `/api/monitoring/${prefix}/groups/${encodeURIComponent(groupName)}/history`
+    `/api/monitoring/${prefix}/groups/${encodeURIComponent(groupName)}/history`,
+    { skipErrorHandler: true }
   )
   const data = res.data.data
   const history = data?.history ?? data ?? []

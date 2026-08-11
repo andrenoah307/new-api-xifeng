@@ -56,8 +56,6 @@ function computeRateFromHistory(history, field) {
   if (!Array.isArray(history) || history.length === 0) return null;
   const valid = history.filter(
     (h) =>
-      h.request_count != null &&
-      h.request_count > 0 &&
       h[field] != null &&
       h[field] >= 0,
   );

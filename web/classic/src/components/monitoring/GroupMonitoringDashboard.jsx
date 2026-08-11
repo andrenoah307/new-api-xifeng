@@ -113,7 +113,9 @@ const GroupMonitoringDashboard = () => {
     async (includeHistory) => {
       try {
         const prefix = admin ? 'admin' : 'public';
-        const res = await API.get(`/api/monitoring/${prefix}/groups`);
+        const res = await API.get(`/api/monitoring/${prefix}/groups`, {
+          skipErrorHandler: true,
+        });
         if (res.data.success) {
           let groupData = res.data.data || [];
 
@@ -122,6 +124,7 @@ const GroupMonitoringDashboard = () => {
               try {
                 const hRes = await API.get(
                   `/api/monitoring/${prefix}/groups/${encodeURIComponent(g.group_name)}/history`,
+                  { skipErrorHandler: true },
                 );
                 if (hRes.data.success) {
                   return {
@@ -160,7 +163,8 @@ const GroupMonitoringDashboard = () => {
         } else {
           showError(res.data.message || t('获取监控数据失败'));
         }
-      } catch {
+      } catch (err) {
+        if (err?.response?.status === 503) return;
         showError(t('获取监控数据失败'));
       }
     },

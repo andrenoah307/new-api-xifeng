@@ -63,7 +63,6 @@ export function avgAvailability(
 export function computeRateFromHistory(
   history:
     | {
-        request_count?: number | null
         availability_rate?: number | null
         cache_hit_rate?: number | null
       }[]
@@ -72,23 +71,10 @@ export function computeRateFromHistory(
 ): number | null {
   if (!history || history.length === 0) return null
   const valid = history.filter(
-    (h) =>
-      h.request_count != null &&
-      h.request_count > 0 &&
-      h[field] != null &&
-      (h[field] as number) >= 0
+    (h) => h[field] != null && (h[field] as number) >= 0
   )
   if (valid.length === 0) return null
-  const totalRequests = valid.reduce(
-    (s, h) => s + (h.request_count as number),
-    0
-  )
-  if (totalRequests === 0) return null
-  const weightedSum = valid.reduce(
-    (s, h) => s + (h[field] as number) * (h.request_count as number),
-    0
-  )
-  return weightedSum / totalRequests
+  return valid.reduce((s, h) => s + (h[field] as number), 0) / valid.length
 }
 
 // 'default' = 保持后端顺序（管理员在分组监控设置里配置的 group_display_order）
@@ -148,13 +134,11 @@ export function saveSortMode(mode: SortMode): void {
 
 export function segmentColor(
   rate: number | null | undefined,
-  avgFrt: number | null | undefined,
-  requestCount?: number | null | undefined
+  avgFrt: number | null | undefined
 ): string {
-  // 无请求 / 无数据的时段留灰；否则按每区间可用率梯度着色，
+  // 无数据的时段留灰；否则按每区间可用率梯度着色，
   // FRT 仅用于把健康块（可用率高）降级为黄色“慢响应”
   const noData = 'color-mix(in oklch, var(--muted) 50%, transparent)'
-  if (requestCount != null && requestCount <= 0) return noData
   if (rate == null || rate < 0) return noData
   if (rate >= 99) return avgFrt != null && avgFrt > 8000 ? '#eab308' : '#22c55e'
   if (rate >= 95) return 'rgba(34,197,94,0.7)'
@@ -166,10 +150,8 @@ export function segmentColor(
 export function segmentLabel(
   rate: number | null | undefined,
   avgFrt: number | null | undefined,
-  t: (key: string) => string,
-  requestCount?: number | null | undefined
+  t: (key: string) => string
 ): string {
-  if (requestCount != null && requestCount <= 0) return t('No data available')
   if (rate == null || rate < 0) return t('No data available')
   if (rate >= 99) {
     return avgFrt != null && avgFrt > 8000 ? t('Slow Response') : t('Normal')
