@@ -42,6 +42,7 @@ import {
   showWarning,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+import RealtimeLoadPanel from './RealtimeLoadPanel';
 
 const { Text } = Typography;
 
@@ -574,6 +575,9 @@ export default function SettingsPerformance(props) {
           />
         )}
       </Form.Section>
+
+      {/* 实时负载（Redis 聚合，10s 轮询） */}
+      <RealtimeLoadPanel />
 
       {/* 性能统计 */}
       <Spin spinning={statsLoading}>

@@ -9,6 +9,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
+	realtimemetrics "github.com/QuantumNous/new-api/pkg/realtime_metrics"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/types"
 
@@ -355,6 +356,7 @@ type RecordConsumeLogParams struct {
 }
 
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
+	realtimemetrics.RecordUsage(int64(params.PromptTokens), int64(params.CompletionTokens), int64(params.Quota))
 	if common.GroupMonitoringHook != nil {
 		frtMs := 0
 		if frt, ok := params.Other["frt"]; ok {

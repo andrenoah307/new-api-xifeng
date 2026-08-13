@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
+	realtimemetrics "github.com/QuantumNous/new-api/pkg/realtime_metrics"
 	"github.com/QuantumNous/new-api/service/model_name_limiter"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/types"
@@ -99,6 +100,7 @@ func markModelNameRPMChecked(c *gin.Context) {
 // Use 503 per project convention so downstream clients retry; clients use
 // code == "model:rate_limited" to distinguish this gate from other 503s.
 func writeModelNameRPMOpenAIError(c *gin.Context, message string) {
+	recordRelayRejection(c, realtimemetrics.RejectionModelRPM)
 	c.Header("Retry-After", modelNameRPMRetryAfter)
 	c.JSON(http.StatusServiceUnavailable, gin.H{
 		"error": gin.H{
@@ -111,6 +113,7 @@ func writeModelNameRPMOpenAIError(c *gin.Context, message string) {
 }
 
 func writeModelNameRPMTaskError(c *gin.Context, message string) {
+	recordRelayRejection(c, realtimemetrics.RejectionModelRPM)
 	c.Header("Retry-After", modelNameRPMRetryAfter)
 	taskErr := &dto.TaskError{
 		Code:       string(types.ErrorCodeModelNameRateLimited),

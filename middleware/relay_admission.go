@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/QuantumNous/new-api/common"
+	realtimemetrics "github.com/QuantumNous/new-api/pkg/realtime_metrics"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 )
@@ -158,10 +159,13 @@ func rejectRelayAdmission(c *gin.Context, retryAfterSeconds int, errorCode types
 	switch errorCode {
 	case "too_many_concurrent_requests":
 		relayAdmissionRejectedConcurrent.Add(1)
+		recordRelayRejection(c, realtimemetrics.RejectionConcurrency)
 	case "request_body_budget_exhausted":
 		relayAdmissionRejectedBody.Add(1)
+		recordRelayRejection(c, realtimemetrics.RejectionBody)
 	case "memory_pressure":
 		relayAdmissionRejectedMemory.Add(1)
+		recordRelayRejection(c, realtimemetrics.RejectionMemory)
 	}
 	c.Header("Retry-After", strconv.Itoa(retryAfterSeconds))
 	err := types.NewErrorWithStatusCode(errors.New(message), errorCode, http.StatusServiceUnavailable)

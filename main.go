@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -25,6 +26,7 @@ import (
 	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/pkg/geoip"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
+	realtimemetrics "github.com/QuantumNous/new-api/pkg/realtime_metrics"
 	"github.com/QuantumNous/new-api/relay"
 	"github.com/QuantumNous/new-api/router"
 	"github.com/QuantumNous/new-api/service"
@@ -386,6 +388,24 @@ func InitResources() error {
 	perfmetrics.Init()
 
 	common.InitCgroupMemorySampler()
+
+	// The gauge sources live in packages that import realtime_metrics, so the
+	// provider is wired here instead of sampled inside the package.
+	realtimemetrics.Init(func() realtimemetrics.InstanceGauges {
+		admission := middleware.GetRelayAdmissionStats()
+		memory := common.GetCgroupMemoryStatus()
+		return realtimemetrics.InstanceGauges{
+			ActiveRequests:   admission.ActiveRequests,
+			ActiveBodyBytes:  admission.ActiveBodyBytes,
+			MaxConcurrent:    int64(admission.MaxConcurrentRequests),
+			MaxBodyBytes:     admission.MaxActiveBodyBytes,
+			CgroupPermille:   int64(memory.UsagePermille),
+			CgroupTripped:    memory.Tripped,
+			TripCount:        int64(memory.TripCount),
+			ForcedResetCount: int64(memory.ForcedResetCount),
+			Goroutines:       int64(runtime.NumGoroutine()),
+		}
+	})
 
 	// 启动系统监控
 	common.StartSystemMonitor()
