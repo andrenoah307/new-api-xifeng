@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
+	realtimemetrics "github.com/QuantumNous/new-api/pkg/realtime_metrics"
 	"github.com/QuantumNous/new-api/relay"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
@@ -67,6 +69,32 @@ func geminiRelayHandler(c *gin.Context, info *relaycommon.RelayInfo) *types.NewA
 	return err
 }
 
+// relayAttempt runs one upstream attempt and converts a panic into a
+// *types.NewAPIError.
+//
+// Without it a panic unwinds straight past `newAPIError = relayHandler(...)`,
+// so the caller's refund defer — which fires only on `newAPIError != nil` —
+// sees nil and the already pre-consumed quota is never returned. The outer
+// middleware.RelayPanicRecover then writes a 500 and the user is silently
+// charged for a request that produced nothing, with no logs row to show for it.
+// This is the same class of defect as the skip path recorded in pitfall #168.
+func relayAttempt(c *gin.Context, info *relaycommon.RelayInfo, handler func(*gin.Context, *relaycommon.RelayInfo) *types.NewAPIError) (apiErr *types.NewAPIError) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		logger.LogError(c, fmt.Sprintf("relay panic recovered: %v\n%s", r, string(debug.Stack())))
+		apiErr = types.NewErrorWithStatusCode(
+			fmt.Errorf("relay panic: %v", r),
+			types.ErrorCodeRelayPanic,
+			http.StatusInternalServerError,
+			types.ErrOptionWithSkipRetry(),
+		)
+	}()
+	return handler(c, info)
+}
+
 func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	requestId := c.GetString(common.RequestIdKey)
@@ -98,6 +126,16 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			}
 			logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(errMsg)))
 			newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
+			// A panic can surface after the response is already committed (SSE
+			// mid-stream). Appending a JSON error body there corrupts the stream
+			// the client is still reading, so skip the body — the refund and the
+			// consume log still run via the defers above. Scoped to panics so no
+			// existing error path changes shape.
+			if newAPIError.GetErrorCode() == types.ErrorCodeRelayPanic &&
+				relayFormat != types.RelayFormatOpenAIRealtime &&
+				c.Writer.Written() {
+				return
+			}
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
 				helper.WssError(c, ws, newAPIError.ToOpenAIError())
@@ -292,15 +330,23 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
 
+		// The per-channel gauge is deliberately not gated on the channel rate
+		// limiter being configured: an operator most needs to see load on the
+		// channels that have no limit yet.
+		releaseChannelGauge := realtimemetrics.ChannelAttempt(channel.Id)
 		switch relayFormat {
 		case types.RelayFormatOpenAIRealtime:
-			newAPIError = relay.WssHelper(c, relayInfo)
+			newAPIError = relayAttempt(c, relayInfo, relay.WssHelper)
 		case types.RelayFormatClaude:
-			newAPIError = relay.ClaudeHelper(c, relayInfo)
+			newAPIError = relayAttempt(c, relayInfo, relay.ClaudeHelper)
 		case types.RelayFormatGemini:
-			newAPIError = geminiRelayHandler(c, relayInfo)
+			newAPIError = relayAttempt(c, relayInfo, geminiRelayHandler)
 		default:
-			newAPIError = relayHandler(c, relayInfo)
+			newAPIError = relayAttempt(c, relayInfo, relayHandler)
+		}
+		releaseChannelGauge()
+		if newAPIError != nil {
+			realtimemetrics.RecordChannelError(channel.Id)
 		}
 
 		if newAPIError == nil {
@@ -351,6 +397,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
 		logger.LogInfo(c, retryLogStr)
 	}
+	// One record per client request, after every retry is exhausted, so the
+	// dashboard counts what the caller saw rather than upstream attempts. A client
+	// that hung up is neither a success nor an upstream failure, so it is counted
+	// separately and still charged to errors only if the relay itself failed.
+	clientGone := relayInfo != nil && relayInfo.StreamStatus != nil &&
+		relayInfo.StreamStatus.EndReason == relaycommon.StreamEndReasonClientGone
+	realtimemetrics.RecordRelayOutcome(newAPIError == nil, clientGone)
 	if newAPIError != nil {
 		statusCode := newAPIError.StatusCode
 		errContent := newAPIError.MaskSensitiveErrorWithStatusCode()
@@ -861,7 +914,12 @@ func relayTaskSubmitWithRetry(
 		}
 		c.Request.Body = io.NopCloser(bodyStorage)
 
+		releaseChannelGauge := realtimemetrics.ChannelAttempt(channel.Id)
 		result, taskErr = dependencies.submit(c, relayInfo)
+		releaseChannelGauge()
+		if taskErr != nil {
+			realtimemetrics.RecordChannelError(channel.Id)
+		}
 		if rateLimitToken != nil {
 			rateLimitToken.Release()
 			rateLimitToken = nil

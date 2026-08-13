@@ -51,6 +51,10 @@ const (
 	ErrorCodeDoRequestFailed    ErrorCode = "do_request_failed"
 	ErrorCodeGetChannelFailed   ErrorCode = "get_channel_failed"
 	ErrorCodeGenRelayInfoFailed ErrorCode = "gen_relay_info_failed"
+	// ErrorCodeRelayPanic marks a request whose upstream attempt panicked. It is
+	// always SkipRetry: a payload that crashes the relay crashes every retry too,
+	// so retrying only multiplies the panic.
+	ErrorCodeRelayPanic ErrorCode = "relay_panic"
 
 	// channel error
 	ErrorCodeChannelNoAvailableKey        ErrorCode = "channel:no_available_key"
