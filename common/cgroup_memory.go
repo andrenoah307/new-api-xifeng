@@ -69,7 +69,13 @@ type cgroupMemoryBreaker struct {
 	disarmed             atomic.Bool
 	tripCount            atomic.Uint64
 	forcedResetCount     atomic.Uint64
-	lastTransitionLog    atomic.Int64
+	// Trip and untrip are rate limited independently. A single shared window
+	// let a trip swallow the recovery that followed it within the same minute,
+	// so the log showed the breaker going red and never coming back — the exact
+	// artifact that made a self-healing 30s trip look like a stuck breaker
+	// during the 2026-08-13 incident review.
+	lastTripLog   atomic.Int64
+	lastUntripLog atomic.Int64
 }
 
 func (b *cgroupMemoryBreaker) update(sample cgroupMemorySample, highPercent uint64, lowPercent uint64, maxTripSeconds int) {
@@ -146,13 +152,17 @@ func (b *cgroupMemoryBreaker) update(sample cgroupMemorySample, highPercent uint
 }
 
 func (b *cgroupMemoryBreaker) logTransition(sample cgroupMemorySample, usagePermille uint64, highPercent uint64, lowPercent uint64, tripped bool) {
+	window := &b.lastUntripLog
+	if tripped {
+		window = &b.lastTripLog
+	}
 	now := cgroupMemoryNowFunc().UnixNano()
 	for {
-		last := b.lastTransitionLog.Load()
+		last := window.Load()
 		if last != 0 && now-last < int64(cgroupMemoryLogInterval) {
 			return
 		}
-		if b.lastTransitionLog.CompareAndSwap(last, now) {
+		if window.CompareAndSwap(last, now) {
 			SysLog(fmt.Sprintf(
 				"cgroup memory breaker state changed: usage=%d limit=%d permille=%d high=%d low=%d tripped=%t",
 				sample.usageBytes,

@@ -506,7 +506,10 @@ func TestGetCgroupMemoryStatusBeforeFirstSampleReturnsZeroValues(t *testing.T) {
 	assert.Equal(t, CgroupMemoryStatus{}, GetCgroupMemoryStatus())
 }
 
-func TestCgroupMemoryBreakerTransitionLogsAreRateLimited(t *testing.T) {
+// Trip and untrip carry their own 60s window. A shared window let the trip line
+// swallow the recovery that followed it in the same minute, so operators saw the
+// breaker go red and never come back and read a self-healing trip as a stuck one.
+func TestCgroupMemoryBreakerTransitionLogsAreRateLimitedPerState(t *testing.T) {
 	previousNowFunc := cgroupMemoryNowFunc
 	previousWriter := gin.DefaultWriter
 	currentTime := time.Date(2026, time.August, 7, 12, 0, 0, 0, time.UTC)
@@ -522,18 +525,24 @@ func TestCgroupMemoryBreakerTransitionLogsAreRateLimited(t *testing.T) {
 	breaker.update(cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}, 80, 70, 0)
 	require.True(t, breaker.isTripped())
 	assert.Equal(t, 1, strings.Count(logs.String(), "cgroup memory breaker state changed"))
-	assert.Contains(t, logs.String(), "tripped=true")
+	assert.Equal(t, 1, strings.Count(logs.String(), "tripped=true"))
 
+	// Same instant: the recovery must still be reported, it does not share the
+	// trip's window.
 	breaker.update(cgroupMemorySample{usageBytes: 65, limitBytes: 100, available: true}, 80, 70, 0)
 	require.False(t, breaker.isTripped())
+	assert.Equal(t, 1, strings.Count(logs.String(), "tripped=false"))
+
+	// Re-tripping inside the trip window stays suppressed, so a flapping breaker
+	// still cannot exceed two lines per minute.
 	breaker.update(cgroupMemorySample{usageBytes: 85, limitBytes: 100, available: true}, 80, 70, 0)
 	require.True(t, breaker.isTripped())
-	assert.Equal(t, 1, strings.Count(logs.String(), "cgroup memory breaker state changed"))
+	assert.Equal(t, 2, strings.Count(logs.String(), "cgroup memory breaker state changed"))
 
 	currentTime = currentTime.Add(60 * time.Second)
 	breaker.update(cgroupMemorySample{usageBytes: 65, limitBytes: 100, available: true}, 80, 70, 0)
 	require.False(t, breaker.isTripped())
-	assert.Equal(t, 2, strings.Count(logs.String(), "cgroup memory breaker state changed"))
+	assert.Equal(t, 3, strings.Count(logs.String(), "cgroup memory breaker state changed"))
 	assert.Contains(t, logs.String(), "usage=65 limit=100 permille=650 high=80 low=70 tripped=false")
 }
 
@@ -587,7 +596,7 @@ func TestCgroupMemoryBreakerMaxTripForcesDisarmUntilLowRecovery(t *testing.T) {
 	assert.Zero(t, breaker.forcedResetCount.Load())
 
 	currentTime = currentTime.Add(time.Second)
-	breaker.lastTransitionLog.Store(currentTime.UnixNano())
+	breaker.lastUntripLog.Store(currentTime.UnixNano())
 	breaker.update(highSample, 80, 70, 300)
 	require.False(t, breaker.isTripped())
 	assert.True(t, breaker.disarmed.Load())
