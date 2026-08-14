@@ -168,6 +168,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
 		return
 	}
+	// Registered as a defer rather than written at the tail of the function: the
+	// success path returns from inside the retry loop below, so a tail-position
+	// hook would only ever see failures.
+	defer func() { recordRelayOutcome(relayInfo, newAPIError) }()
 	c.Set("risk_audit", relayInfo.RiskAudit)
 	if riskErr := service.RiskControlBeforeRelay(c, relayInfo); riskErr != nil {
 		newAPIError = riskErr
@@ -397,13 +401,6 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		retryLogStr := fmt.Sprintf("重试：%s", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(useChannel)), "->"), "[]"))
 		logger.LogInfo(c, retryLogStr)
 	}
-	// One record per client request, after every retry is exhausted, so the
-	// dashboard counts what the caller saw rather than upstream attempts. A client
-	// that hung up is neither a success nor an upstream failure, so it is counted
-	// separately and still charged to errors only if the relay itself failed.
-	clientGone := relayInfo != nil && relayInfo.StreamStatus != nil &&
-		relayInfo.StreamStatus.EndReason == relaycommon.StreamEndReasonClientGone
-	realtimemetrics.RecordRelayOutcome(newAPIError == nil, clientGone)
 	if newAPIError != nil {
 		statusCode := newAPIError.StatusCode
 		errContent := newAPIError.MaskSensitiveErrorWithStatusCode()
@@ -411,6 +408,18 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			perfmetrics.RecordRelaySample(relayInfo, false, 0, statusCode, errContent)
 		})
 	}
+}
+
+// recordRelayOutcome reports one finished client request to the realtime
+// dashboard. It is registered as a defer rather than called at the tail of
+// Relay: the success path returns from inside the retry loop, so a
+// tail-position hook would only ever see failures.
+func recordRelayOutcome(relayInfo *relaycommon.RelayInfo, apiErr *types.NewAPIError) {
+	// A client that hung up mid-stream is reported separately; it is charged to
+	// errors only when the relay itself also failed.
+	clientGone := relayInfo != nil && relayInfo.StreamStatus != nil &&
+		relayInfo.StreamStatus.EndReason == relaycommon.StreamEndReasonClientGone
+	realtimemetrics.RecordRelayOutcome(apiErr == nil, clientGone)
 }
 
 var upgrader = websocket.Upgrader{
