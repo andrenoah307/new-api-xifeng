@@ -41,6 +41,7 @@ func callCapacityHandler(t *testing.T, scope string) map[string]any {
 }
 
 func TestRateLimitCapacityHTTPThreeStatesAlwaysReturnOK(t *testing.T) {
+	t.Setenv("USER_MODEL_RPM_ENABLED", "false")
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
 	previousA1 := setting.ModelRequestRateLimitEnabled
 	previousService := rateLimitCapacityService
@@ -81,6 +82,7 @@ func TestRateLimitCapacityHTTPThreeStatesAlwaysReturnOK(t *testing.T) {
 }
 
 func TestGetStatusRateLimitCapacityBooleanUsesMemorySnapshots(t *testing.T) {
+	t.Setenv("USER_MODEL_RPM_ENABLED", "false")
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
 	previousGroup := setting.ModelRequestRateLimitGroup2JSONString()
 	previousA1 := setting.ModelRequestRateLimitEnabled
@@ -97,11 +99,15 @@ func TestGetStatusRateLimitCapacityBooleanUsesMemorySnapshots(t *testing.T) {
 
 	setting.ModelRequestRateLimitEnabled = true
 	require.NoError(t, setting.UpdateModelRequestRateLimitGroupByJSONString(`{"default":[1,1]}`))
-	assert.Equal(t, true, statusRateLimitCapacityEnabled(t))
+	assert.Equal(t, false, statusRateLimitCapacityEnabled(t))
 
 	setting.ModelRequestRateLimitEnabled = false
 	require.NoError(t, setting.UpdateModelRequestRateLimitGroupByJSONString(`{}`))
 	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":1}}}`))
+	assert.Equal(t, true, statusRateLimitCapacityEnabled(t))
+
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":false,"models":{}}`))
+	t.Setenv("USER_MODEL_RPM_ENABLED", "true")
 	assert.Equal(t, true, statusRateLimitCapacityEnabled(t))
 }
 

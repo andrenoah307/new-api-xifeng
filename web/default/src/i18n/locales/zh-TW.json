@@ -5477,22 +5477,20 @@
     "Must be ≤ 2,147,483,647": "必須小於或等於 2,147,483,647",
     "Must be ≥ 1": "必須大於或等於 1",
     "60-second window": "60 秒視窗",
-    "Configured window: {{minutes}} minutes": "設定週期：{{minutes}} 分鐘",
-    "Config versions: {{model}} / {{group}}": "設定版本：{{model}} / {{group}}",
     "Hide additional capacity": "收合更多容量",
     "Instance-only data": "僅目前實例資料",
-    "My request limits": "我的請求限額",
     "Not configured": "未設定",
-    "RPM capacity": "RPM 容量",
     "Read-only rate-limit capacity snapshot": "唯讀速率限制容量快照",
     "Show all {{total}} items": "顯示全部 {{total}} 項",
     "Site group RPM": "站點分組 RPM",
     "Site model RPM": "站點模型 RPM",
-    "Snapshot: {{time}}": "快照：{{time}}",
+    "Data updated: {{time}}": "資料更新：{{time}}",
     "Some capacity data is temporarily unavailable": "部分容量資料暫時不可用",
-    "Successful requests": "成功請求數",
     "Temporarily unavailable": "暫時不可用",
-    "Total requests": "總請求數",
-    "Snapshot may be up to 5 seconds old": "快照最多可能延遲 5 秒"
+    "My model RPM": "我的模型 RPM",
+    "Last 60 seconds": "最近 60 秒",
+    "No request data yet": "暫無請求資料統計",
+    "Data refreshes every 15 seconds": "資料每 15 秒自動重新整理",
+    "RPM overview": "RPM 概覽"
   }
 }

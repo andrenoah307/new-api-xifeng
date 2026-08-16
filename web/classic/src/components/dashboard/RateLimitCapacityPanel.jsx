@@ -28,9 +28,16 @@ import { Banner, Button, Card, Spin, Typography } from '@douyinfe/semi-ui';
 import { ChevronDown, ChevronUp, Gauge } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../../helpers';
+import {
+  installVisibleTopRefresh,
+  normalizePersonalRPMItems,
+} from '../../helpers/personal-rpm';
 import { UserContext } from '../../context/User';
 
 const { Text } = Typography;
+// Dedupes fetches triggered close together (mount, identity change, hover).
+// It is deliberately shorter than the poll interval so a scheduled refresh is
+// never swallowed by the timestamp its own previous run wrote.
 const STALE_TIME = 5000;
 const RETRY_COOLDOWN = 3000;
 
@@ -105,7 +112,7 @@ function CapacityBar({ metric }) {
   );
 }
 
-function CapacityRow({ label, metric, model, group, t }) {
+function CapacityRow({ label, metric, group, t }) {
   const available = metricAvailable(metric);
   const percent = formatPercent(metric?.utilization);
   let value = t('暂时不可用');
@@ -122,30 +129,29 @@ function CapacityRow({ label, metric, model, group, t }) {
       : undefined;
 
   return (
-    <div className='border-b border-gray-200 px-4 py-3 last:border-b-0 sm:px-5'>
-      <div className='flex min-w-0 items-start justify-between gap-3'>
-        <div className='min-w-0'>
-          <Text strong ellipsis={{ showTooltip: true }}>
-            {label}
-          </Text>
-          {(model || group) && (
-            <div className='mt-1 truncate text-xs text-gray-500'>
-              {model}
-              {group ? ` · ${group}` : ''}
-            </div>
-          )}
+    <div className='rounded-lg border border-gray-200 p-3'>
+      <div className='min-w-0 truncate text-sm'>
+        <Text strong ellipsis={{ showTooltip: true }}>
+          {label}
+        </Text>
+      </div>
+      {group && (
+        <div className='mt-1 truncate text-xs text-gray-500'>
+          {group}
         </div>
+      )}
+      <div className='mt-2 flex min-w-0 items-baseline gap-2'>
         <div
-          className='shrink-0 text-right font-mono text-sm font-semibold tabular-nums'
+          className='min-w-0 truncate font-mono text-sm font-semibold tabular-nums'
           style={{ color: valueColor }}
         >
-          <div>{value}</div>
-          {available && percent && (
-            <div className='mt-1 text-xs font-normal text-gray-500'>
-              {percent}
-            </div>
-          )}
+          {value}
         </div>
+        {available && percent && (
+          <div className='shrink-0 text-xs font-normal text-gray-500'>
+            {percent}
+          </div>
+        )}
       </div>
       <div className='mt-2'>
         <CapacityBar metric={metric} />
@@ -163,65 +169,65 @@ function SiteSection({ title, windowLabel, items, t }) {
           {windowLabel} · {t('全站用户')}
         </div>
       </div>
-      {items.map((item) => (
-        <CapacityRow
-          key={`${item.model}:${item.group || ''}`}
-          label={item.model}
-          model={item.model}
-          group={item.group}
-          metric={item}
-          t={t}
-        />
-      ))}
+      <div
+        className='grid gap-3 px-4 py-3 sm:px-5'
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))' }}
+      >
+        {items.map((item) => (
+          <CapacityRow
+            key={`${item.model}:${item.group || ''}`}
+            label={item.model}
+            group={item.group}
+            metric={item}
+            t={t}
+          />
+        ))}
+      </div>
     </section>
   );
 }
 
 function PersonalSection({ personal, t }) {
-  const windowLabel =
-    personal.status === 'disabled'
-      ? t('未启用')
-      : t('配置周期：{{minutes}} 分钟', {
-          minutes: personal.window_minutes,
-        });
+  const items = normalizePersonalRPMItems(personal?.items);
+  const unavailable =
+    personal?.status === 'unavailable' || personal?.status === 'overflow';
+  const showEmpty = personal?.status === 'empty' || (!unavailable && items.length === 0);
 
   return (
-    <section aria-label={t('我的请求限额')}>
+    <section aria-label={t('我的模型 RPM')}>
       <div className='border-b border-gray-200 bg-gray-50 px-4 py-3 sm:px-5'>
-        <Text strong>{t('我的请求限额')}</Text>
-        <div className='mt-1 text-xs text-gray-500'>
-          {windowLabel}
-          {personal.group ? ` · ${personal.group}` : ''}
-        </div>
+        <Text strong>{t('我的模型 RPM')}</Text>
+        <div className='mt-1 text-xs text-gray-500'>{t('最近 60 秒')}</div>
       </div>
-      {personal.status === 'disabled' && (
+      {showEmpty && (
         <div className='px-4 py-4 text-sm text-gray-500 sm:px-5'>
-          {t('未启用')}
+          {t('暂无请求数据统计')}
         </div>
       )}
-      {personal.status === 'unconfigured' && (
+      {unavailable && (
         <div className='px-4 py-4 text-sm text-gray-500 sm:px-5'>
-          {t('未配置')}
+          {t('暂时不可用')}
         </div>
       )}
-      {personal.status !== 'disabled' && personal.status !== 'unconfigured' && (
-        <>
-          {personal.total && (
-            <CapacityRow label={t('总请求数')} metric={personal.total} t={t} />
-          )}
-          {personal.success && (
-            <CapacityRow
-              label={t('成功请求数')}
-              metric={personal.success}
-              t={t}
-            />
-          )}
-          {!personal.total && !personal.success && (
-            <div className='px-4 py-4 text-sm text-gray-500 sm:px-5'>
-              {t('暂时不可用')}
+      {!showEmpty && !unavailable && (
+        <div
+          className='grid gap-3 px-4 py-3 sm:px-5'
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(13rem, 1fr))' }}
+        >
+          {items.map((item) => (
+            <div
+              key={item.model}
+              className='rounded-lg border border-gray-200 p-3'
+            >
+              <div className='min-w-0 truncate text-sm' title={item.model}>
+                {item.model}
+              </div>
+              <div className='mt-2 truncate font-mono text-sm font-semibold tabular-nums'>
+                {formatCount(item.rpm)} RPM
+              </div>
             </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
     </section>
   );
@@ -235,15 +241,9 @@ function CapacityMetadata({ data, t }) {
   return (
     <div className='flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-xs text-gray-500 sm:px-5'>
       <span>
-        {t('快照：{{time}}', { time: formatObservedAt(data.observed_at) })}
+        {t('数据更新：{{time}}', { time: formatObservedAt(data.observed_at) })}
       </span>
-      <span>
-        {t('配置版本：{{model}} / {{group}}', {
-          model: data.model_name_rpm_version,
-          group: data.group_rate_limit_version,
-        })}
-      </span>
-      <span>{t('快照最多可能滞后 5 秒')}</span>
+      <span>{t('数据每 15 秒自动刷新')}</span>
       {instanceOnly && (
         <span className='text-amber-600'>{t('仅当前实例')}</span>
       )}
@@ -379,6 +379,15 @@ export default function RateLimitCapacityPanel() {
     if (hasUser) void loadCapacity('top');
   }, [identityKey, hasUser, loadCapacity]);
 
+  useEffect(() => {
+    if (!hasUser || typeof document === 'undefined') return undefined;
+    return installVisibleTopRefresh({
+      documentRef: document,
+      windowRef: window,
+      refresh: () => void loadCapacity('top'),
+    });
+  }, [hasUser, loadCapacity]);
+
   const requestAll = useCallback(() => {
     void loadCapacity('all');
   }, [loadCapacity]);
@@ -389,8 +398,6 @@ export default function RateLimitCapacityPanel() {
     }
     setExpanded((value) => !value);
   };
-
-  if (topData?.total === 0 || allData?.total === 0) return null;
 
   const data = (expanded && allData) || topData || allData;
   const site = data?.site;
@@ -412,7 +419,7 @@ export default function RateLimitCapacityPanel() {
       title={
         <div className='flex items-center gap-2'>
           <Gauge size={16} />
-          {t('RPM 容量')}
+          {t('RPM 概览')}
         </div>
       }
       bodyStyle={{ padding: 0 }}

@@ -203,13 +203,15 @@ export interface RateLimitCapacitySection<TItem = RateLimitCapacityItem> {
 }
 
 export interface RateLimitCapacityPersonal {
-  enabled: boolean
-  status: 'disabled' | 'unconfigured' | 'available' | 'unavailable' | string
-  group?: string
-  window_minutes: number
+  status: 'available' | 'empty' | 'unavailable' | 'overflow' | string
+  window_seconds: number
+  observed_at: string
   instance_only: boolean
-  total?: RateLimitCapacityMetric | null
-  success?: RateLimitCapacityMetric | null
+  total: number
+  items: Array<{
+    model: string
+    rpm: number
+  }>
 }
 
 export interface RateLimitCapacityResponse {

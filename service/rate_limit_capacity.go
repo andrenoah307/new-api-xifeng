@@ -3,15 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
-	"math"
 	"sort"
-	"strconv"
 	"sync"
 	"time"
 
-	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/common/limiter"
 	"github.com/QuantumNous/new-api/service/model_name_limiter"
+	"github.com/QuantumNous/new-api/service/user_model_rpm"
 	"github.com/QuantumNous/new-api/setting"
 	"golang.org/x/sync/singleflight"
 )
@@ -24,15 +21,6 @@ const RateLimitCapacitySnapshotTTL = 5 * time.Second
 type CapacityItem struct {
 	Model       string   `json:"model"`
 	Group       string   `json:"group,omitempty"`
-	Current     *int     `json:"current"`
-	Limit       int      `json:"limit"`
-	Unlimited   bool     `json:"unlimited"`
-	Utilization *float64 `json:"utilization"`
-	OverLimit   bool     `json:"over_limit"`
-	Available   bool     `json:"available"`
-}
-
-type CapacityMetric struct {
 	Current     *int     `json:"current"`
 	Limit       int      `json:"limit"`
 	Unlimited   bool     `json:"unlimited"`
@@ -77,17 +65,18 @@ func (modelNameRPMInspector) Inspect(ctx context.Context, keys []string) ([]int,
 }
 
 // RateLimitCapacityService owns the five-second site snapshot and its
-// singleflight refresh. Personal A1 data is intentionally read outside this
-// cache because it is keyed by the authenticated user.
+// singleflight refresh. Personal observations are read outside this cache
+// because they are keyed by the authenticated user and have their own window.
 type RateLimitCapacityService struct {
-	inspector     RPMCapacityInspector
-	instanceOnly  func() bool
-	personalRead  func(context.Context, int, string) (*PersonalCapacity, bool, string)
-	clockMu       sync.RWMutex
-	clock         func() time.Time
-	cacheMu       sync.Mutex
-	cache         *cachedSiteCapacity
-	refreshSingle singleflight.Group
+	inspector            RPMCapacityInspector
+	instanceOnly         func() bool
+	personalRead         func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error)
+	personalInstanceOnly func() bool
+	clockMu              sync.RWMutex
+	clock                func() time.Time
+	cacheMu              sync.Mutex
+	cache                *cachedSiteCapacity
+	refreshSingle        singleflight.Group
 }
 
 func NewRateLimitCapacityService(inspector RPMCapacityInspector) *RateLimitCapacityService {
@@ -100,10 +89,11 @@ func NewRateLimitCapacityService(inspector RPMCapacityInspector) *RateLimitCapac
 		instanceOnlyDetector = model_name_limiter.UsingMemoryBackend
 	}
 	return &RateLimitCapacityService{
-		inspector:    inspector,
-		instanceOnly: instanceOnlyDetector,
-		personalRead: readPersonalCapacity,
-		clock:        time.Now,
+		inspector:            inspector,
+		instanceOnly:         instanceOnlyDetector,
+		personalRead:         user_model_rpm.Inspect,
+		personalInstanceOnly: user_model_rpm.UsingMemoryBackend,
+		clock:                time.Now,
 	}
 }
 
@@ -136,16 +126,26 @@ func (s *RateLimitCapacityService) SetInstanceOnlyDetector(detector func() bool)
 	s.cacheMu.Unlock()
 }
 
-func (s *RateLimitCapacityService) SetPersonalReader(reader func(context.Context, int, string) (*PersonalCapacity, bool, string)) {
+func (s *RateLimitCapacityService) SetPersonalReader(reader func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error)) {
 	if s == nil {
 		return
 	}
 	s.cacheMu.Lock()
 	if reader == nil {
-		s.personalRead = readPersonalCapacity
+		s.personalRead = user_model_rpm.Inspect
 	} else {
 		s.personalRead = reader
 	}
+	s.cacheMu.Unlock()
+}
+
+// SetPersonalInstanceOnlyDetector is useful for deterministic endpoint tests.
+func (s *RateLimitCapacityService) SetPersonalInstanceOnlyDetector(detector func() bool) {
+	if s == nil {
+		return
+	}
+	s.cacheMu.Lock()
+	s.personalInstanceOnly = detector
 	s.cacheMu.Unlock()
 }
 
@@ -432,13 +432,12 @@ type SiteCapacityResponse struct {
 }
 
 type PersonalCapacity struct {
-	Enabled       bool            `json:"enabled"`
-	Status        string          `json:"status"`
-	Group         string          `json:"group,omitempty"`
-	WindowMinutes int             `json:"window_minutes"`
-	InstanceOnly  bool            `json:"instance_only"`
-	Total         *CapacityMetric `json:"total,omitempty"`
-	Success       *CapacityMetric `json:"success,omitempty"`
+	Status        string                    `json:"status"`
+	WindowSeconds int                       `json:"window_seconds"`
+	ObservedAt    time.Time                 `json:"observed_at"`
+	InstanceOnly  bool                      `json:"instance_only"`
+	Total         int                       `json:"total"`
+	Items         []user_model_rpm.ModelRPM `json:"items"`
 }
 
 // Get builds the user-facing response. Site candidates are filtered before
@@ -512,37 +511,45 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 	}
 	response.Total = globalTotal + groupTotal
 
-	var personal *PersonalCapacity
-	var personalDegraded bool
-	var personalWarning string
-	if !setting.ModelRequestRateLimitEnabled {
-		// Do this gate before selecting the reader so stale A1 keys cannot make a
-		// disabled personal section look like a zero-valued active limiter.
-		personal = &PersonalCapacity{
-			Enabled:       false,
-			Status:        "disabled",
-			Group:         request.UserGroup,
-			WindowMinutes: setting.ModelRequestRateLimitDurationMinutes,
-		}
-	} else {
-		s.cacheMu.Lock()
-		personalReader := s.personalRead
-		s.cacheMu.Unlock()
-		if personalReader == nil {
-			personalReader = readPersonalCapacity
-		}
-		personal, personalDegraded, personalWarning = personalReader(ctx, request.UserID, request.UserGroup)
+	s.cacheMu.Lock()
+	personalReader := s.personalRead
+	personalInstanceOnlyDetector := s.personalInstanceOnly
+	s.cacheMu.Unlock()
+	if personalReader == nil {
+		personalReader = user_model_rpm.Inspect
 	}
-	response.Personal = personal
-	if personal != nil && personal.Status != "disabled" && personal.Status != "unconfigured" {
-		// The personal A1 section is itself a visible capacity item. Count it so
-		// the public status pre-gate cannot hide a card that has no A2 rules.
-		response.Total++
+	items, personalStatus, personalErr := personalReader(ctx, request.UserID)
+	personal := &PersonalCapacity{
+		Status:        personalStatus,
+		WindowSeconds: user_model_rpm.WindowSeconds,
+		ObservedAt:    s.now().UTC(),
+		Items:         []user_model_rpm.ModelRPM{},
 	}
-	if personalDegraded {
+	if user_model_rpm.Enabled() && personalInstanceOnlyDetector != nil {
+		personal.InstanceOnly = personalInstanceOnlyDetector()
+	}
+	if personalErr != nil {
+		personal.Status = "unavailable"
 		response.Degraded = true
-		response.Warning = joinWarnings(response.Warning, personalWarning)
+		response.Warning = joinWarnings(response.Warning, "personal backend is unavailable: "+personalErr.Error())
 	}
+	if personal.Status != "available" && personal.Status != "empty" && personal.Status != "overflow" && personal.Status != "unavailable" {
+		personal.Status = "unavailable"
+		if personalErr == nil {
+			response.Degraded = true
+			response.Warning = joinWarnings(response.Warning, "personal backend returned an unknown status")
+		}
+	}
+	if personal.Status == "available" && personalErr == nil {
+		if items != nil {
+			personal.Items = append(personal.Items, items...)
+		}
+		user_model_rpm.SortByRPM(personal.Items)
+		personal.Total = len(personal.Items)
+	}
+	// Empty, unavailable, and overflow deliberately expose no synthetic model
+	// rows. In particular, overflow is a state marker rather than a partial list.
+	response.Personal = personal
 	return response
 }
 
@@ -554,126 +561,6 @@ func joinWarnings(first, second string) string {
 		return first
 	}
 	return first + "; " + second
-}
-
-func readPersonalCapacity(ctx context.Context, userID int, userGroup string) (*PersonalCapacity, bool, string) {
-	personal := &PersonalCapacity{Enabled: setting.ModelRequestRateLimitEnabled, Status: "disabled", Group: userGroup, WindowMinutes: setting.ModelRequestRateLimitDurationMinutes}
-	if !setting.ModelRequestRateLimitEnabled {
-		return personal, false, ""
-	}
-	groupLimits := setting.ListGroupRateLimits()
-	configuredLimits, found := groupLimits[userGroup]
-	totalLimit, successLimit := configuredLimits[0], configuredLimits[1]
-	if !found {
-		totalLimit = setting.ModelRequestRateLimitCount
-		successLimit = setting.ModelRequestRateLimitSuccessCount
-	}
-	if !found && totalLimit == 0 && successLimit == 0 {
-		personal.Status = "unconfigured"
-		return personal, false, ""
-	}
-	personal.Status = "available"
-	if totalLimit == 0 {
-		personal.Total = &CapacityMetric{Limit: 0, Unlimited: true, Available: true}
-	}
-	if successLimit == 0 {
-		personal.Success = &CapacityMetric{Limit: 0, Unlimited: true, Available: true}
-	}
-	if !common.RedisEnabled || common.RDB == nil {
-		personal.Status = "unavailable"
-		personal.InstanceOnly = true
-		markPersonalUnavailable(personal, totalLimit, successLimit)
-		return personal, true, "A1 backend is unavailable"
-	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	userKey := strconv.Itoa(userID)
-	degraded := false
-	warning := ""
-	if successLimit > 0 {
-		length, err := common.RDB.LLen(ctx, "rateLimit:MRRLS:"+userKey).Result()
-		if err != nil {
-			degraded = true
-			warning = joinWarnings(warning, "A1 success counter is unavailable")
-			personal.Success = unavailableMetric(successLimit)
-		} else {
-			current := int(length)
-			personal.Success = metricFromCurrent(current, successLimit, true)
-		}
-	}
-	if totalLimit > 0 {
-		minutes := int64(setting.ModelRequestRateLimitDurationMinutes)
-		if minutes <= 0 || minutes > math.MaxInt64/60 {
-			degraded = true
-			warning = joinWarnings(warning, "A1 total counter configuration is invalid")
-			personal.Total = unavailableMetric(totalLimit)
-			personal.Status = "unavailable"
-			return personal, degraded, warning
-		}
-		duration := minutes * 60
-		if int64(totalLimit) > math.MaxInt64/duration {
-			degraded = true
-			warning = joinWarnings(warning, "A1 total counter configuration is invalid")
-			personal.Total = unavailableMetric(totalLimit)
-			personal.Status = "unavailable"
-			return personal, degraded, warning
-		}
-		capacity := int64(totalLimit) * duration
-		tb := limiter.New(ctx, common.RDB)
-		tokens, exists, err := tb.Peek(ctx, "rateLimit:"+userKey, limiter.WithCapacity(capacity), limiter.WithRate(int64(totalLimit)), limiter.WithRequested(duration))
-		if err != nil {
-			degraded = true
-			warning = joinWarnings(warning, "A1 total counter is unavailable")
-			personal.Total = unavailableMetric(totalLimit)
-		} else {
-			current := 0
-			if exists {
-				// The Lua peek deliberately returns raw tokens. A1 configures the
-				// bucket as capacity=totalLimit*duration, rate=totalLimit,
-				// requested=duration, so the window usage seen by Allow is
-				// (capacity-tokens)/duration. Keep this conversion on the Go side.
-				if tokens < 0 {
-					tokens = 0
-				} else if tokens > capacity {
-					tokens = capacity
-				}
-				used := capacity - tokens
-				if used > 0 && duration > 0 {
-					current = int(used / duration)
-				}
-			}
-			personal.Total = metricFromCurrent(current, totalLimit, true)
-		}
-	}
-	if degraded {
-		personal.Status = "unavailable"
-	}
-	return personal, degraded, warning
-}
-
-func markPersonalUnavailable(personal *PersonalCapacity, totalLimit, successLimit int) {
-	if totalLimit > 0 {
-		personal.Total = unavailableMetric(totalLimit)
-	}
-	if successLimit > 0 {
-		personal.Success = unavailableMetric(successLimit)
-	}
-}
-
-func unavailableMetric(limit int) *CapacityMetric {
-	return &CapacityMetric{Limit: limit, Available: false}
-}
-
-func metricFromCurrent(current, limit int, available bool) *CapacityMetric {
-	metric := &CapacityMetric{Current: &current, Limit: limit, Available: available}
-	metric.Unlimited = limit == 0
-	if limit > 0 {
-		ratio := float64(current) / float64(limit)
-		metric.Utilization = &ratio
-		metric.OverLimit = current > limit
-	}
-	return metric
 }
 
 var defaultRateLimitCapacityService = NewRateLimitCapacityService(nil)

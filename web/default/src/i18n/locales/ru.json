@@ -5477,22 +5477,20 @@
     "Must be ≤ 2,147,483,647": "Должно быть не больше 2 147 483 647",
     "Must be ≥ 1": "Должно быть не меньше 1",
     "60-second window": "Окно 60 секунд",
-    "Configured window: {{minutes}} minutes": "Настроенное окно: {{minutes}} мин",
-    "Config versions: {{model}} / {{group}}": "Версии конфигурации: {{model}} / {{group}}",
     "Hide additional capacity": "Скрыть дополнительные данные",
     "Instance-only data": "Данные только этого экземпляра",
-    "My request limits": "Мои лимиты запросов",
     "Not configured": "Не настроено",
-    "RPM capacity": "Ёмкость RPM",
     "Read-only rate-limit capacity snapshot": "Моментальный снимок лимитов только для чтения",
     "Show all {{total}} items": "Показать все элементы ({{total}})",
     "Site group RPM": "RPM группы сайта",
     "Site model RPM": "RPM модели сайта",
-    "Snapshot: {{time}}": "Снимок: {{time}}",
+    "Data updated: {{time}}": "Данные обновлены: {{time}}",
     "Some capacity data is temporarily unavailable": "Некоторые данные ёмкости временно недоступны",
-    "Successful requests": "Успешные запросы",
     "Temporarily unavailable": "Временно недоступно",
-    "Total requests": "Всего запросов",
-    "Snapshot may be up to 5 seconds old": "Снимок может отставать максимум на 5 секунд"
+    "My model RPM": "Мой RPM по моделям",
+    "Last 60 seconds": "Последние 60 секунд",
+    "No request data yet": "Данных о запросах пока нет",
+    "Data refreshes every 15 seconds": "Данные обновляются каждые 15 секунд",
+    "RPM overview": "Обзор RPM"
   }
 }

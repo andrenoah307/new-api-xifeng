@@ -5477,22 +5477,20 @@
     "Must be ≤ 2,147,483,647": "必须小于等于 2,147,483,647",
     "Must be ≥ 1": "必须大于等于 1",
     "60-second window": "60 秒窗口",
-    "Configured window: {{minutes}} minutes": "配置周期：{{minutes}} 分钟",
-    "Config versions: {{model}} / {{group}}": "配置版本：{{model}} / {{group}}",
     "Hide additional capacity": "收起更多容量",
     "Instance-only data": "仅当前实例数据",
-    "My request limits": "我的请求限额",
     "Not configured": "未配置",
-    "RPM capacity": "RPM 容量",
     "Read-only rate-limit capacity snapshot": "只读限流容量快照",
     "Show all {{total}} items": "显示全部 {{total}} 项",
     "Site group RPM": "站点分组 RPM",
     "Site model RPM": "站点模型 RPM",
-    "Snapshot: {{time}}": "快照：{{time}}",
+    "Data updated: {{time}}": "数据更新：{{time}}",
     "Some capacity data is temporarily unavailable": "部分容量数据暂时不可用",
-    "Successful requests": "成功请求数",
     "Temporarily unavailable": "暂时不可用",
-    "Total requests": "总请求数",
-    "Snapshot may be up to 5 seconds old": "快照最多可能滞后 5 秒"
+    "My model RPM": "我的模型 RPM",
+    "Last 60 seconds": "最近 60 秒",
+    "No request data yet": "暂无请求数据统计",
+    "Data refreshes every 15 seconds": "数据每 15 秒自动刷新",
+    "RPM overview": "RPM 概览"
   }
 }

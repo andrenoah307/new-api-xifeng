@@ -5477,22 +5477,20 @@
     "Must be ≤ 2,147,483,647": "Must be ≤ 2,147,483,647",
     "Must be ≥ 1": "Must be ≥ 1",
     "60-second window": "60-second window",
-    "Configured window: {{minutes}} minutes": "Configured window: {{minutes}} minutes",
-    "Config versions: {{model}} / {{group}}": "Config versions: {{model}} / {{group}}",
     "Hide additional capacity": "Hide additional capacity",
     "Instance-only data": "Instance-only data",
-    "My request limits": "My request limits",
     "Not configured": "Not configured",
-    "RPM capacity": "RPM capacity",
     "Read-only rate-limit capacity snapshot": "Read-only rate-limit capacity snapshot",
     "Show all {{total}} items": "Show all {{total}} items",
     "Site group RPM": "Site group RPM",
     "Site model RPM": "Site model RPM",
-    "Snapshot: {{time}}": "Snapshot: {{time}}",
+    "Data updated: {{time}}": "Data updated: {{time}}",
     "Some capacity data is temporarily unavailable": "Some capacity data is temporarily unavailable",
-    "Successful requests": "Successful requests",
     "Temporarily unavailable": "Temporarily unavailable",
-    "Total requests": "Total requests",
-    "Snapshot may be up to 5 seconds old": "Snapshot may be up to 5 seconds old"
+    "My model RPM": "My model RPM",
+    "Last 60 seconds": "Last 60 seconds",
+    "No request data yet": "No request data yet",
+    "Data refreshes every 15 seconds": "Data refreshes every 15 seconds",
+    "RPM overview": "RPM overview"
   }
 }

@@ -20,6 +20,7 @@ import (
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/channel_limiter"
+	"github.com/QuantumNous/new-api/service/user_model_rpm"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -28,6 +29,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
 )
+
+// This indirection keeps the two Distribute checkpoints deterministic in
+// tests while production uses the synchronous, fail-open collector.
+var recordUserModelRPM = user_model_rpm.Record
 
 type ModelRequest struct {
 	Model string `json:"model"`
@@ -58,6 +63,14 @@ func Distribute() func(c *gin.Context) {
 			if channel.Status != common.ChannelStatusEnabled {
 				abortWithOpenAiMessage(c, http.StatusForbidden, i18n.T(c, i18n.MsgDistributorChannelDisabled))
 				return
+			}
+			if shouldSelectChannel && modelRequest.Model != "" {
+				requestID := c.GetString(common.RequestIdKey)
+				if requestID != "" {
+					// The normal checkpoint below can be reached by another distributor
+					// entry path; the same request ID/model is idempotent via ZADD NX.
+					_ = recordUserModelRPM(c.Request.Context(), common.GetContextKeyInt(c, constant.ContextKeyUserId), requestID, modelRequest.Model)
+				}
 			}
 			if shouldSelectChannel && !enforceModelNameRPM(c, modelRequest.Model,
 				common.GetContextKeyString(c, constant.ContextKeyUsingGroup), c.Request.URL.Path) {
@@ -145,6 +158,14 @@ func Distribute() func(c *gin.Context) {
 						}
 						usingGroup = playgroundRequest.Group
 						common.SetContextKey(c, constant.ContextKeyUsingGroup, usingGroup)
+					}
+				}
+				if modelRequest.Model != "" {
+					requestID := c.GetString(common.RequestIdKey)
+					if requestID != "" {
+						// Both checkpoints use this unchanged downstream model value. If a
+						// request traverses both, ZADD NX prevents duplicate observation.
+						_ = recordUserModelRPM(c.Request.Context(), common.GetContextKeyInt(c, constant.ContextKeyUserId), requestID, modelRequest.Model)
 					}
 				}
 				if !enforceModelNameRPM(c, modelRequest.Model, usingGroup, c.Request.URL.Path) {

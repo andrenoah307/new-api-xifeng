@@ -5150,12 +5150,9 @@
     "没有匹配的分组": "No groups match your search",
     "添加分组速率限制": "Add group rate limit",
     "编辑分组速率限制": "Edit group rate limit",
-    "RPM 容量": "RPM Capacity",
     "站点模型 RPM": "Site model RPM",
     "站点分组 RPM": "Site group RPM",
-    "我的请求限额": "My request limits",
     "固定 60 秒窗口": "Fixed 60-second window",
-    "配置周期：{{minutes}} 分钟": "Configured window: {{minutes}} minutes",
     "全站用户": "All users",
     "暂时不可用": "Temporarily unavailable",
     "容量数据暂时不可用，请稍后重试。": "Capacity data is temporarily unavailable. Please try again later.",
@@ -5163,11 +5160,12 @@
     "部分计数器暂时无法读取，不会将不可用数据显示为 0。": "Some counters could not be read temporarily; unavailable values are not shown as 0.",
     "收起更多容量": "Hide additional capacity",
     "显示全部 {{total}} 项": "Show all {{total}} items",
-    "快照：{{time}}": "Snapshot: {{time}}",
-    "配置版本：{{model}} / {{group}}": "Config versions: {{model}} / {{group}}",
+    "数据更新：{{time}}": "Data updated: {{time}}",
     "仅当前实例": "This instance only",
-    "总请求数": "Total requests",
-    "成功请求数": "Successful requests",
-    "快照最多可能滞后 5 秒": "The snapshot may be up to 5 seconds old"
+    "我的模型 RPM": "My model RPM",
+    "最近 60 秒": "Last 60 seconds",
+    "暂无请求数据统计": "No request data yet",
+    "数据每 15 秒自动刷新": "Data refreshes every 15 seconds",
+    "RPM 概览": "RPM overview"
   }
 }

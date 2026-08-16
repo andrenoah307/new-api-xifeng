@@ -52,6 +52,14 @@ export const STATIC_I18N_KEYS = [
   'Worker instances do not run master-only background tasks.',
   'Drawing task polling',
 
+  // Rate-limit capacity metadata
+  'Data updated: {{time}}',
+  'Data refreshes every 15 seconds',
+  'My model RPM',
+  'Last 60 seconds',
+  'No request data yet',
+  'RPM overview',
+
   // Pricing constants
   'Name',
   'Price: Low to High',

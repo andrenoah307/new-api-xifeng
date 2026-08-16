@@ -40,6 +40,7 @@ func TestListModelNameRPMRulesReturnsDeepCopyAndVersion(t *testing.T) {
 }
 
 func TestRateLimitCapacityEnabledTruthTable(t *testing.T) {
+	t.Setenv("USER_MODEL_RPM_ENABLED", "false")
 	previousGroup := ModelRequestRateLimitGroup2JSONString()
 	previousRPM := ModelNameRPMRateLimit2JSONString()
 	previousEnabled := ModelRequestRateLimitEnabled
@@ -65,10 +66,11 @@ func TestRateLimitCapacityEnabledTruthTable(t *testing.T) {
 		want       bool
 	}{
 		{"nothing", false, `{}`, `{"enabled":false,"models":{}}`, 0, 0, false},
-		{"a1", true, `{"free":[1,1]}`, `{"enabled":false,"models":{}}`, 0, 0, true},
-		{"a1-global-default", true, `{}`, `{"enabled":false,"models":{}}`, 0, 1000, true},
+		{"a1-is-ignored", true, `{"free":[1,1]}`, `{"enabled":false,"models":{}}`, 0, 0, false},
+		{"a1-global-default-is-ignored", true, `{}`, `{"enabled":false,"models":{}}`, 0, 1000, false},
 		{"a2", false, `{}`, `{"enabled":true,"models":{"gpt-4o":{"global_rpm":1}}}`, 0, 0, true},
 		{"disabled-rpm", false, `{}`, `{"enabled":false,"models":{"gpt-4o":{"global_rpm":1}}}`, 0, 0, false},
+		{"collector", false, `{}`, `{"enabled":false,"models":{}}`, 0, 0, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -79,6 +81,11 @@ func TestRateLimitCapacityEnabledTruthTable(t *testing.T) {
 			ModelRequestRateLimitSuccessCount = tt.success
 			ModelRequestRateLimitMutex.Unlock()
 			require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(tt.rpmJSON))
+			if tt.name == "collector" {
+				t.Setenv("USER_MODEL_RPM_ENABLED", "true")
+			} else {
+				t.Setenv("USER_MODEL_RPM_ENABLED", "false")
+			}
 			assert.Equal(t, tt.want, IsRateLimitCapacityEnabled())
 		})
 	}

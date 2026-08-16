@@ -22,7 +22,10 @@ func GetRateLimitCapacity(c *gin.Context) {
 	if rateLimitCapacityService == nil {
 		rateLimitCapacityService = service.DefaultRateLimitCapacityService()
 	}
-	userGroup, _ := model.GetUserGroup(c.GetInt("id"), false)
+	userGroup := c.GetString("user_group")
+	if userGroup == "" {
+		userGroup, _ = model.GetUserGroup(c.GetInt("id"), false)
+	}
 	requestContext := context.Background()
 	if c.Request != nil {
 		requestContext = c.Request.Context()

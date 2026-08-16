@@ -5477,22 +5477,20 @@
     "Must be ≤ 2,147,483,647": "Doit être inférieur ou égal à 2 147 483 647",
     "Must be ≥ 1": "Doit être supérieur ou égal à 1",
     "60-second window": "Fenêtre de 60 secondes",
-    "Configured window: {{minutes}} minutes": "Fenêtre configurée : {{minutes}} minutes",
-    "Config versions: {{model}} / {{group}}": "Versions de configuration : {{model}} / {{group}}",
     "Hide additional capacity": "Masquer les capacités supplémentaires",
     "Instance-only data": "Données de cette instance uniquement",
-    "My request limits": "Mes limites de requêtes",
     "Not configured": "Non configuré",
-    "RPM capacity": "Capacité RPM",
     "Read-only rate-limit capacity snapshot": "Instantané en lecture seule de la capacité de limitation",
     "Show all {{total}} items": "Afficher les {{total}} éléments",
     "Site group RPM": "RPM de groupe du site",
     "Site model RPM": "RPM de modèle du site",
-    "Snapshot: {{time}}": "Instantané : {{time}}",
+    "Data updated: {{time}}": "Données mises à jour : {{time}}",
     "Some capacity data is temporarily unavailable": "Certaines données de capacité sont temporairement indisponibles",
-    "Successful requests": "Requêtes réussies",
     "Temporarily unavailable": "Temporairement indisponible",
-    "Total requests": "Requêtes totales",
-    "Snapshot may be up to 5 seconds old": "L'instantané peut dater de 5 secondes au maximum"
+    "My model RPM": "Mon RPM par modèle",
+    "Last 60 seconds": "60 dernières secondes",
+    "No request data yet": "Aucune donnée de requête",
+    "Data refreshes every 15 seconds": "Les données sont actualisées toutes les 15 secondes",
+    "RPM overview": "Aperçu RPM"
   }
 }

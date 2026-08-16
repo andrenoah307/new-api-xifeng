@@ -25,6 +25,10 @@ import { IconBadge } from '@/components/ui/icon-badge'
 import { Spinner } from '@/components/ui/spinner'
 import { PanelWrapper } from '@/features/dashboard/components/ui/panel-wrapper'
 import { getRateLimitCapacity } from '@/features/dashboard/api'
+import {
+  normalizePersonalRPMItems,
+  PERSONAL_RPM_REFRESH_INTERVAL,
+} from '@/features/dashboard/lib/personal-rpm'
 import type {
   RateLimitCapacityItem,
   RateLimitCapacityMetric,
@@ -34,7 +38,6 @@ import type {
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
-const CAPACITY_STALE_TIME = 5_000
 const RETRY_COOLDOWN = 3_000
 
 function formatCount(value: number): string {
@@ -100,7 +103,6 @@ function CapacityBar(props: { metric: RateLimitCapacityMetric }) {
 function CapacityRow(props: {
   label: string
   metric: RateLimitCapacityMetric
-  model?: string
   group?: string
 }) {
   const { t } = useTranslation()
@@ -115,20 +117,19 @@ function CapacityRow(props: {
   }
 
   return (
-    <div className='border-border/60 border-b px-4 py-3 last:border-b-0 sm:px-5'>
-      <div className='flex min-w-0 items-start justify-between gap-3'>
-        <div className='min-w-0'>
-          <div className='truncate text-sm font-medium'>{props.label}</div>
-          {(props.model || props.group) && (
-            <div className='text-muted-foreground mt-0.5 truncate text-xs'>
-              {props.model}
-              {props.group ? ` · ${props.group}` : ''}
-            </div>
-          )}
+    <div className='rounded-lg border border-border/60 bg-card/40 p-3'>
+      <div className='min-w-0 truncate text-sm font-medium' title={props.label}>
+        {props.label}
+      </div>
+      {props.group && (
+        <div className='text-muted-foreground mt-0.5 truncate text-xs'>
+          {props.group}
         </div>
+      )}
+      <div className='mt-2 flex min-w-0 items-baseline gap-2'>
         <div
           className={cn(
-            'shrink-0 text-right font-mono text-sm font-semibold tabular-nums',
+            'min-w-0 truncate font-mono text-sm font-semibold tabular-nums',
             metric.over_limit && 'text-destructive',
             !metric.over_limit &&
               available &&
@@ -137,13 +138,13 @@ function CapacityRow(props: {
               'text-warning'
           )}
         >
-          <div>{value}</div>
-          {available && percent && (
-            <div className='text-muted-foreground mt-0.5 text-xs font-normal'>
-              {percent}
-            </div>
-          )}
+          {value}
         </div>
+        {available && percent && (
+          <div className='text-muted-foreground shrink-0 text-xs font-normal'>
+            {percent}
+          </div>
+        )}
       </div>
       <div className='mt-2'>
         <CapacityBar metric={metric} />
@@ -166,15 +167,19 @@ function SiteSection(props: {
           {props.windowLabel} · {t('All users')}
         </p>
       </div>
-      {props.items.map((item) => (
-        <CapacityRow
-          key={`${item.model}:${item.group ?? ''}`}
-          label={item.model}
-          model={item.model}
-          group={item.group}
-          metric={item}
-        />
-      ))}
+      <div
+        className='grid gap-3 px-4 py-3 sm:px-5'
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))' }}
+      >
+        {props.items.map((item) => (
+          <CapacityRow
+            key={`${item.model}:${item.group ?? ''}`}
+            label={item.model}
+            group={item.group}
+            metric={item}
+          />
+        ))}
+      </div>
     </section>
   )
 }
@@ -182,52 +187,45 @@ function SiteSection(props: {
 function PersonalSection(props: { personal: RateLimitCapacityPersonal }) {
   const { t } = useTranslation()
   const personal = props.personal
-  const windowLabel =
-    personal.status === 'disabled'
-      ? t('Not enabled')
-      : t('Configured window: {{minutes}} minutes', {
-          minutes: personal.window_minutes,
-        })
+  const items = normalizePersonalRPMItems(personal.items)
+  const unavailable = personal.status === 'unavailable' || personal.status === 'overflow'
+  const showEmpty = personal.status === 'empty' || (!unavailable && items.length === 0)
 
   return (
-    <section aria-label={t('My request limits')}>
+    <section aria-label={t('My model RPM')}>
       <div className='bg-muted/30 border-border/60 border-b px-4 py-3 sm:px-5'>
-        <h3 className='text-sm font-semibold'>{t('My request limits')}</h3>
-        <p className='text-muted-foreground mt-0.5 text-xs'>
-          {windowLabel}
-          {personal.group ? ` · ${personal.group}` : ''}
-        </p>
+        <h3 className='text-sm font-semibold'>{t('My model RPM')}</h3>
+        <p className='text-muted-foreground mt-0.5 text-xs'>{t('Last 60 seconds')}</p>
       </div>
-      {personal.status === 'disabled' && (
+      {showEmpty && (
         <div className='text-muted-foreground px-4 py-4 text-sm sm:px-5'>
-          {t('Not enabled')}
+          {t('No request data yet')}
         </div>
       )}
-      {personal.status === 'unconfigured' && (
+      {unavailable && (
         <div className='text-muted-foreground px-4 py-4 text-sm sm:px-5'>
-          {t('Not configured')}
+          {t('Temporarily unavailable')}
         </div>
       )}
-      {personal.status !== 'disabled' && personal.status !== 'unconfigured' && (
-        <>
-          {personal.total && (
-            <CapacityRow
-              label={t('Total requests')}
-              metric={personal.total}
-            />
-          )}
-          {personal.success && (
-            <CapacityRow
-              label={t('Successful requests')}
-              metric={personal.success}
-            />
-          )}
-          {!personal.total && !personal.success && (
-            <div className='text-muted-foreground px-4 py-4 text-sm sm:px-5'>
-              {t('Temporarily unavailable')}
+      {!showEmpty && !unavailable && (
+        <div
+          className='grid gap-3 px-4 py-3 sm:px-5'
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(13rem, 1fr))' }}
+        >
+          {items.map((item) => (
+            <div
+              key={item.model}
+              className='rounded-lg border border-border/60 bg-card/40 p-3'
+            >
+              <div className='min-w-0 truncate text-sm' title={item.model}>
+                {item.model}
+              </div>
+              <div className='mt-2 truncate font-mono text-sm font-semibold tabular-nums'>
+                {formatCount(item.rpm)} RPM
+              </div>
             </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
     </section>
   )
@@ -242,17 +240,11 @@ function CapacityMetadata(props: { data: RateLimitCapacityResponse }) {
   return (
     <div className='text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-xs sm:px-5'>
       <span>
-        {t('Snapshot: {{time}}', {
+        {t('Data updated: {{time}}', {
           time: formatObservedAt(props.data.observed_at),
         })}
       </span>
-      <span>
-        {t('Config versions: {{model}} / {{group}}', {
-          model: props.data.model_name_rpm_version,
-          group: props.data.group_rate_limit_version,
-        })}
-      </span>
-      <span>{t('Snapshot may be up to 5 seconds old')}</span>
+      <span>{t('Data refreshes every 15 seconds')}</span>
       {instanceOnly && (
         <span className='text-warning'>{t('Instance-only data')}</span>
       )}
@@ -315,7 +307,9 @@ export function RateLimitCapacityPanel() {
     queryKey: [...queryKeyBase, 'top'],
     queryFn: () => queryCapacity('top'),
     enabled: Boolean(user),
-    staleTime: CAPACITY_STALE_TIME,
+    staleTime: PERSONAL_RPM_REFRESH_INTERVAL,
+    refetchInterval: PERSONAL_RPM_REFRESH_INTERVAL,
+    refetchIntervalInBackground: false,
     retry: 1,
     retryDelay: RETRY_COOLDOWN,
   })
@@ -323,7 +317,7 @@ export function RateLimitCapacityPanel() {
     queryKey: [...queryKeyBase, 'all'],
     queryFn: () => queryCapacity('all'),
     enabled: expanded && Boolean(user),
-    staleTime: CAPACITY_STALE_TIME,
+    staleTime: PERSONAL_RPM_REFRESH_INTERVAL,
     retry: false,
   })
   const {
@@ -341,7 +335,7 @@ export function RateLimitCapacityPanel() {
     if (
       !allData ||
       (allIsError && elapsed >= RETRY_COOLDOWN) ||
-      (allIsStale && elapsed >= CAPACITY_STALE_TIME)
+      (allIsStale && elapsed >= PERSONAL_RPM_REFRESH_INTERVAL)
     ) {
       void refetchAll()
     }
@@ -357,8 +351,6 @@ export function RateLimitCapacityPanel() {
   }, [expanded, handleExpandIntent])
 
   const topData = topQuery.data
-  if (topData?.total === 0 || allData?.total === 0) return null
-
   const data = (expanded && allData) || topData || allData
   const site = data?.site
   const global = site?.global
@@ -379,7 +371,7 @@ export function RateLimitCapacityPanel() {
           <IconBadge tone='info' size='sm'>
             <Gauge />
           </IconBadge>
-          {t('RPM capacity')}
+          {t('RPM overview')}
         </span>
       }
       description={t('Read-only rate-limit capacity snapshot')}

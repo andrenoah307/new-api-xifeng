@@ -5477,22 +5477,20 @@
     "Must be ≤ 2,147,483,647": "2,147,483,647 以下で指定してください",
     "Must be ≥ 1": "1 以上で指定してください",
     "60-second window": "60 秒ウィンドウ",
-    "Configured window: {{minutes}} minutes": "設定ウィンドウ：{{minutes}} 分",
-    "Config versions: {{model}} / {{group}}": "設定バージョン：{{model}} / {{group}}",
     "Hide additional capacity": "追加の容量を隠す",
     "Instance-only data": "このインスタンスのみのデータ",
-    "My request limits": "自分のリクエスト制限",
     "Not configured": "未設定",
-    "RPM capacity": "RPM 容量",
     "Read-only rate-limit capacity snapshot": "読み取り専用のレート制限容量スナップショット",
     "Show all {{total}} items": "{{total}} 件すべてを表示",
     "Site group RPM": "サイトグループ RPM",
     "Site model RPM": "サイトモデル RPM",
-    "Snapshot: {{time}}": "スナップショット：{{time}}",
+    "Data updated: {{time}}": "データ更新：{{time}}",
     "Some capacity data is temporarily unavailable": "一部の容量データは一時的に利用できません",
-    "Successful requests": "成功したリクエスト数",
     "Temporarily unavailable": "一時的に利用できません",
-    "Total requests": "リクエスト総数",
-    "Snapshot may be up to 5 seconds old": "スナップショットは最大 5 秒遅れる場合があります"
+    "My model RPM": "モデル別 RPM",
+    "Last 60 seconds": "過去 60 秒",
+    "No request data yet": "リクエストデータはまだありません",
+    "Data refreshes every 15 seconds": "データは 15 秒ごとに更新されます",
+    "RPM overview": "RPM 概要"
   }
 }

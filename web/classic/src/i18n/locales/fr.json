@@ -4923,12 +4923,9 @@
     "没有匹配的分组": "Aucun groupe ne correspond à la recherche",
     "添加分组速率限制": "Ajouter une limite de groupe",
     "编辑分组速率限制": "Modifier la limite de groupe",
-    "RPM 容量": "Capacité RPM",
     "站点模型 RPM": "RPM du modèle du site",
     "站点分组 RPM": "RPM du groupe du site",
-    "我的请求限额": "Mes limites de requêtes",
     "固定 60 秒窗口": "Fenêtre fixe de 60 secondes",
-    "配置周期：{{minutes}} 分钟": "Fenêtre configurée : {{minutes}} minutes",
     "全站用户": "Tous les utilisateurs",
     "暂时不可用": "Temporairement indisponible",
     "容量数据暂时不可用，请稍后重试。": "Les données de capacité sont temporairement indisponibles. Réessayez plus tard.",
@@ -4936,11 +4933,12 @@
     "部分计数器暂时无法读取，不会将不可用数据显示为 0。": "Certains compteurs sont temporairement illisibles ; les valeurs indisponibles ne sont pas affichées comme 0.",
     "收起更多容量": "Masquer les capacités supplémentaires",
     "显示全部 {{total}} 项": "Afficher les {{total}} éléments",
-    "快照：{{time}}": "Instantané : {{time}}",
-    "配置版本：{{model}} / {{group}}": "Versions de configuration : {{model}} / {{group}}",
+    "数据更新：{{time}}": "Données mises à jour : {{time}}",
     "仅当前实例": "Cette instance uniquement",
-    "总请求数": "Requêtes totales",
-    "成功请求数": "Requêtes réussies",
-    "快照最多可能滞后 5 秒": "L'instantané peut dater de 5 secondes au maximum"
+    "我的模型 RPM": "Mon RPM par modèle",
+    "最近 60 秒": "60 dernières secondes",
+    "暂无请求数据统计": "Aucune donnée de requête",
+    "数据每 15 秒自动刷新": "Les données sont actualisées toutes les 15 secondes",
+    "RPM 概览": "Aperçu RPM"
   }
 }

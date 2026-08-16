@@ -5433,12 +5433,9 @@
     "没有匹配的分组": "Không có nhóm phù hợp với tìm kiếm",
     "添加分组速率限制": "Thêm giới hạn nhóm",
     "编辑分组速率限制": "Sửa giới hạn nhóm",
-    "RPM 容量": "Dung lượng RPM",
     "站点模型 RPM": "RPM mô hình toàn site",
     "站点分组 RPM": "RPM nhóm toàn site",
-    "我的请求限额": "Giới hạn yêu cầu của tôi",
     "固定 60 秒窗口": "Cửa sổ cố định 60 giây",
-    "配置周期：{{minutes}} 分钟": "Cửa sổ đã cấu hình: {{minutes}} phút",
     "全站用户": "Tất cả người dùng",
     "暂时不可用": "Tạm thời không khả dụng",
     "容量数据暂时不可用，请稍后重试。": "Dữ liệu dung lượng tạm thời không khả dụng. Vui lòng thử lại sau.",
@@ -5446,11 +5443,12 @@
     "部分计数器暂时无法读取，不会将不可用数据显示为 0。": "Một số bộ đếm tạm thời không đọc được; giá trị không khả dụng không hiển thị là 0.",
     "收起更多容量": "Ẩn dung lượng bổ sung",
     "显示全部 {{total}} 项": "Hiện tất cả {{total}} mục",
-    "快照：{{time}}": "Ảnh chụp: {{time}}",
-    "配置版本：{{model}} / {{group}}": "Phiên bản cấu hình: {{model}} / {{group}}",
+    "数据更新：{{time}}": "Dữ liệu được cập nhật: {{time}}",
     "仅当前实例": "Chỉ instance này",
-    "总请求数": "Tổng số yêu cầu",
-    "成功请求数": "Yêu cầu thành công",
-    "快照最多可能滞后 5 秒": "Ảnh chụp có thể trễ tối đa 5 giây"
+    "我的模型 RPM": "RPM theo mô hình của tôi",
+    "最近 60 秒": "60 giây gần nhất",
+    "暂无请求数据统计": "Chưa có dữ liệu yêu cầu",
+    "数据每 15 秒自动刷新": "Dữ liệu tự động làm mới mỗi 15 giây",
+    "RPM 概览": "Tổng quan RPM"
   }
 }

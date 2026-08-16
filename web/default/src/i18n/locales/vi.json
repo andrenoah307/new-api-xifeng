@@ -5477,22 +5477,20 @@
     "Must be ≤ 2,147,483,647": "Phải nhỏ hơn hoặc bằng 2.147.483.647",
     "Must be ≥ 1": "Phải lớn hơn hoặc bằng 1",
     "60-second window": "Cửa sổ 60 giây",
-    "Configured window: {{minutes}} minutes": "Cửa sổ đã cấu hình: {{minutes}} phút",
-    "Config versions: {{model}} / {{group}}": "Phiên bản cấu hình: {{model}} / {{group}}",
     "Hide additional capacity": "Ẩn dung lượng bổ sung",
     "Instance-only data": "Dữ liệu chỉ trên instance này",
-    "My request limits": "Giới hạn yêu cầu của tôi",
     "Not configured": "Chưa cấu hình",
-    "RPM capacity": "Dung lượng RPM",
     "Read-only rate-limit capacity snapshot": "Ảnh chụp dung lượng giới hạn tốc độ chỉ đọc",
     "Show all {{total}} items": "Hiện tất cả {{total}} mục",
     "Site group RPM": "RPM nhóm toàn site",
     "Site model RPM": "RPM mô hình toàn site",
-    "Snapshot: {{time}}": "Ảnh chụp: {{time}}",
+    "Data updated: {{time}}": "Dữ liệu được cập nhật: {{time}}",
     "Some capacity data is temporarily unavailable": "Một phần dữ liệu dung lượng tạm thời không khả dụng",
-    "Successful requests": "Yêu cầu thành công",
     "Temporarily unavailable": "Tạm thời không khả dụng",
-    "Total requests": "Tổng số yêu cầu",
-    "Snapshot may be up to 5 seconds old": "Ảnh chụp có thể trễ tối đa 5 giây"
+    "My model RPM": "RPM theo mô hình của tôi",
+    "Last 60 seconds": "60 giây gần nhất",
+    "No request data yet": "Chưa có dữ liệu yêu cầu",
+    "Data refreshes every 15 seconds": "Dữ liệu tự động làm mới mỗi 15 giây",
+    "RPM overview": "Tổng quan RPM"
   }
 }

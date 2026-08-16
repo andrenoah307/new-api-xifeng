@@ -17,6 +17,14 @@ var ModelRequestRateLimitGroup = map[string][2]int{}
 var ModelRequestRateLimitMutex sync.RWMutex
 var modelRequestRateLimitConfigVersion atomic.Uint64
 
+// UserModelRPMEnabled is the shared startup-level switch for per-user model
+// observations. Keeping the environment read in setting avoids a dependency
+// from this package back into service while letting both the capacity pre-gate
+// and the collector use exactly the same policy.
+func UserModelRPMEnabled() bool {
+	return common.GetEnvOrDefaultBool("USER_MODEL_RPM_ENABLED", true)
+}
+
 func ModelRequestRateLimitGroup2JSONString() string {
 	ModelRequestRateLimitMutex.RLock()
 	defer ModelRequestRateLimitMutex.RUnlock()
@@ -66,36 +74,18 @@ func ModelRequestRateLimitConfigVersion() uint64 {
 	return modelRequestRateLimitConfigVersion.Load()
 }
 
-// IsRateLimitCapacityEnabled is a cheap public-card pre-gate. It cannot know
-// a requesting user's visible groups; the capacity endpoint remains the
-// authoritative per-user visibility check and may return total == 0.
+// IsRateLimitCapacityEnabled is a cheap public-card pre-gate. Personal model
+// observations are independent of A1/A2 configuration, while site visibility
+// still requires at least one configured A2 rule.
 func IsRateLimitCapacityEnabled() bool {
-	if ModelRequestRateLimitEnabled {
-		ModelRequestRateLimitMutex.RLock()
-		hasCapacity := ModelRequestRateLimitCount > 0 || ModelRequestRateLimitSuccessCount > 0
-		if !hasCapacity {
-			for _, limits := range ModelRequestRateLimitGroup {
-				if limits[0] > 0 || limits[1] > 0 {
-					hasCapacity = true
-					break
-				}
-			}
-		}
-		ModelRequestRateLimitMutex.RUnlock()
-		if hasCapacity {
-			return true
-		}
+	if UserModelRPMEnabled() {
+		return true
 	}
 	rules := ListModelNameRPMRules()
-	if !rules.Enabled {
+	if !rules.Enabled || len(rules.Models) == 0 {
 		return false
 	}
-	for _, rule := range rules.Models {
-		if rule.GlobalRPM > 0 {
-			return true
-		}
-	}
-	return false
+	return true
 }
 
 func GetGroupRateLimit(group string) (totalCount, successCount int, found bool) {

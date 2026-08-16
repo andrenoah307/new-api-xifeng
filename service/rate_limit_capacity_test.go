@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/QuantumNous/new-api/service/user_model_rpm"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/stretchr/testify/assert"
@@ -167,17 +168,15 @@ func TestRateLimitCapacityFiltersBeforeRankingAndScopeAllCannotBypass(t *testing
 
 func TestRateLimitCapacityUsesInjectedPersonalReaderAndJoinsWarnings(t *testing.T) {
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
-	previousA1 := setting.ModelRequestRateLimitEnabled
 	defer func() {
 		require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM))
-		setting.ModelRequestRateLimitEnabled = previousA1
 	}()
-	setting.ModelRequestRateLimitEnabled = true
+	t.Setenv("USER_MODEL_RPM_ENABLED", "true")
 	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10}}}`))
 
 	svc := NewRateLimitCapacityService(&capacityInspectorStub{err: errors.New("site unavailable")})
-	svc.SetPersonalReader(func(context.Context, int, string) (*PersonalCapacity, bool, string) {
-		return &PersonalCapacity{Enabled: true, Status: "unavailable"}, true, "personal unavailable"
+	svc.SetPersonalReader(func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error) {
+		return nil, "unavailable", errors.New("personal unavailable")
 	})
 	response := svc.Get(context.Background(), CapacityRequest{UserID: 9})
 	assert.True(t, response.Degraded)
@@ -186,32 +185,56 @@ func TestRateLimitCapacityUsesInjectedPersonalReaderAndJoinsWarnings(t *testing.
 	assert.Equal(t, "unavailable", response.Personal.Status)
 }
 
-func TestRateLimitCapacityDoesNotReadPersonalBackendWhenA1Disabled(t *testing.T) {
-	previousEnabled := setting.ModelRequestRateLimitEnabled
-	defer func() { setting.ModelRequestRateLimitEnabled = previousEnabled }()
-	setting.ModelRequestRateLimitEnabled = false
+func TestRateLimitCapacityPersonalPayloadIsIndependentFromSiteSnapshot(t *testing.T) {
+	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
+	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
+	t.Setenv("USER_MODEL_RPM_ENABLED", "true")
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":false,"models":{}}`))
 
 	svc := NewRateLimitCapacityService(&capacityInspectorStub{})
-	called := false
-	svc.SetPersonalReader(func(context.Context, int, string) (*PersonalCapacity, bool, string) {
-		called = true
-		return nil, true, "unexpected"
+	svc.SetClock(func() time.Time { return time.Unix(123, 456000000).UTC() })
+	svc.SetPersonalReader(func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error) {
+		return []user_model_rpm.ModelRPM{
+			{Model: "z-model", RPM: 2},
+			{Model: "a-model", RPM: 4},
+		}, "available", nil
 	})
-	response := svc.Get(context.Background(), CapacityRequest{})
-	assert.False(t, called)
+	response := svc.Get(context.Background(), CapacityRequest{UserID: 9})
 	require.NotNil(t, response.Personal)
-	assert.Equal(t, "disabled", response.Personal.Status)
-	assert.False(t, response.Degraded)
+	assert.Equal(t, "available", response.Personal.Status)
+	assert.Equal(t, 60, response.Personal.WindowSeconds)
+	assert.Equal(t, 2, response.Personal.Total)
+	assert.Equal(t, []user_model_rpm.ModelRPM{
+		{Model: "a-model", RPM: 4},
+		{Model: "z-model", RPM: 2},
+	}, response.Personal.Items)
+	assert.Equal(t, time.Unix(123, 456000000).UTC(), response.Personal.ObservedAt)
+	assert.Equal(t, 0, response.Total)
+}
+
+func TestRateLimitCapacityPersonalOverflowHasNoItems(t *testing.T) {
+	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
+	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
+	t.Setenv("USER_MODEL_RPM_ENABLED", "true")
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":false,"models":{}}`))
+
+	svc := NewRateLimitCapacityService(&capacityInspectorStub{})
+	svc.SetPersonalReader(func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error) {
+		return []user_model_rpm.ModelRPM{{Model: "should-not-render", RPM: 5001}}, "overflow", nil
+	})
+	response := svc.Get(context.Background(), CapacityRequest{UserID: 1})
+	require.NotNil(t, response.Personal)
+	assert.Equal(t, "overflow", response.Personal.Status)
+	assert.Empty(t, response.Personal.Items)
+	assert.Equal(t, 0, response.Personal.Total)
 }
 
 func TestRateLimitCapacityMarksProcessLocalBackend(t *testing.T) {
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
-	previousA1 := setting.ModelRequestRateLimitEnabled
 	defer func() {
 		_ = setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)
-		setting.ModelRequestRateLimitEnabled = previousA1
 	}()
-	setting.ModelRequestRateLimitEnabled = false
+	t.Setenv("USER_MODEL_RPM_ENABLED", "false")
 	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":1}}}`))
 	svc := NewRateLimitCapacityService(&capacityInspectorStub{counts: []int{0}})
 	svc.SetInstanceOnlyDetector(func() bool { return true })
@@ -219,55 +242,6 @@ func TestRateLimitCapacityMarksProcessLocalBackend(t *testing.T) {
 	assert.True(t, response.InstanceOnly)
 	assert.Equal(t, "instance", response.BackendScope)
 	assert.True(t, response.Degraded)
-}
-
-func TestPersonalCapacityDisabledAndUnconfiguredStates(t *testing.T) {
-	previousEnabled := setting.ModelRequestRateLimitEnabled
-	previousCount := setting.ModelRequestRateLimitCount
-	previousSuccess := setting.ModelRequestRateLimitSuccessCount
-	previousGroup := setting.ModelRequestRateLimitGroup2JSONString()
-	defer func() {
-		setting.ModelRequestRateLimitEnabled = previousEnabled
-		setting.ModelRequestRateLimitCount = previousCount
-		setting.ModelRequestRateLimitSuccessCount = previousSuccess
-		_ = setting.UpdateModelRequestRateLimitGroupByJSONString(previousGroup)
-	}()
-
-	setting.ModelRequestRateLimitEnabled = false
-	disabled, degraded, warning := readPersonalCapacity(context.Background(), 1, "default")
-	require.NotNil(t, disabled)
-	assert.Equal(t, "disabled", disabled.Status)
-	assert.False(t, degraded)
-	assert.Empty(t, warning)
-
-	setting.ModelRequestRateLimitEnabled = true
-	setting.ModelRequestRateLimitCount = 0
-	setting.ModelRequestRateLimitSuccessCount = 0
-	require.NoError(t, setting.UpdateModelRequestRateLimitGroupByJSONString(`{}`))
-	unconfigured, degraded, warning := readPersonalCapacity(context.Background(), 1, "default")
-	require.NotNil(t, unconfigured)
-	assert.Equal(t, "unconfigured", unconfigured.Status)
-	assert.False(t, degraded)
-	assert.Empty(t, warning)
-}
-
-func TestCapacityMetricHelpersPreserveZeroAndOverLimitValues(t *testing.T) {
-	zero := metricFromCurrent(0, 10, true)
-	require.NotNil(t, zero.Current)
-	assert.Equal(t, 0, *zero.Current)
-	assert.Equal(t, float64(0), *zero.Utilization)
-	assert.False(t, zero.OverLimit)
-
-	over := metricFromCurrent(12, 10, true)
-	require.NotNil(t, over.Utilization)
-	assert.Equal(t, 1.2, *over.Utilization)
-	assert.True(t, over.OverLimit)
-
-	unlimited := metricFromCurrent(12, 0, true)
-	assert.True(t, unlimited.Unlimited)
-	assert.Nil(t, unlimited.Utilization)
-	assert.False(t, unlimited.OverLimit)
-	assert.False(t, unavailableMetric(10).Available)
 }
 
 func intPtr(value int) *int { return &value }
