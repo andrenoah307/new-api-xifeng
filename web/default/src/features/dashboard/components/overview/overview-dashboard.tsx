@@ -64,6 +64,7 @@ import { AnnouncementsPanel } from './announcements-panel'
 import { ApiInfoPanel } from './api-info-panel'
 import { FAQPanel } from './faq-panel'
 import { PerformanceHealthPanel } from './performance-health-panel'
+import { RateLimitCapacityPanel } from './rate-limit-capacity-panel'
 import { SummaryCards } from './summary-cards'
 import { UptimePanel } from './uptime-panel'
 
@@ -464,6 +465,7 @@ export function OverviewDashboard() {
     announcements: showAnnouncementsPanel,
     faq: showFAQPanel,
     uptimeKuma: showUptimePanel,
+    rateLimitCapacity: showRateLimitCapacityPanel,
   } = useDashboardContentVisibility()
   const [manualSetupGuideExpanded, setManualSetupGuideExpanded] = useState<
     boolean | null
@@ -797,6 +799,8 @@ export function OverviewDashboard() {
           )}
         </CardStaggerContainer>
       )}
+
+      {showRateLimitCapacityPanel && <RateLimitCapacityPanel />}
     </div>
   )
 }

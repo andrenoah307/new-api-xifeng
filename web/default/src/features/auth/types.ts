@@ -135,6 +135,7 @@ export interface SystemStatus {
     password_login_enabled?: boolean
     password_register_enabled?: boolean
     custom_oauth_providers?: CustomOAuthProviderInfo[]
+    rate_limit_capacity_enabled?: boolean
     [key: string]: unknown
   }
   // Allow direct access to common properties
@@ -180,6 +181,7 @@ export interface SystemStatus {
   password_login_enabled?: boolean
   password_register_enabled?: boolean
   custom_oauth_providers?: CustomOAuthProviderInfo[]
+  rate_limit_capacity_enabled?: boolean
   region_blocked_groups?: string[]
   region_detected_country?: string
   region_console_message?: string

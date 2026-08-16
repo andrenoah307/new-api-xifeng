@@ -17,6 +17,9 @@ import (
 //go:embed lua/rpm_acquire.lua
 var redisAcquireScript string
 
+//go:embed lua/rpm_inspect.lua
+var redisInspectScript string
+
 type redisBackend struct {
 	client *redis.Client
 
@@ -24,6 +27,7 @@ type redisBackend struct {
 	// acquireSHA mirrors the channel limiter naming and is replaced when a
 	// NOSCRIPT response forces a reload.
 	acquireSHA string
+	inspectSHA string
 }
 
 var tokenCounter uint64
@@ -98,6 +102,93 @@ func (b *redisBackend) Acquire(ctx context.Context, keys []string, limits []int)
 		return Result{Allowed: true}
 	}
 	return parseAcquireResult(result)
+}
+
+// Inspect reads all requested buckets in one script invocation. The script
+// uses an open lower bound because rpm_acquire.lua removes the closed boundary
+// before admitting a request; this keeps the two paths exactly complementary.
+func (b *redisBackend) Inspect(ctx context.Context, keys []string) ([]int, error) {
+	if len(keys) == 0 {
+		return []int{}, nil
+	}
+	if b == nil || b.client == nil {
+		return nil, fmt.Errorf("redis client not initialized")
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	operationCtx, cancel := context.WithTimeout(ctx, backendOperationTimeout)
+	defer cancel()
+	if err := b.ensureInspectScript(operationCtx); err != nil {
+		return nil, err
+	}
+	result, err := b.evalInspect(operationCtx, keys)
+	if err != nil && isNoScriptError(err) {
+		if loadErr := b.loadInspectScript(operationCtx); loadErr != nil {
+			return nil, fmt.Errorf("reload inspect script: %w", loadErr)
+		}
+		result, err = b.evalInspect(operationCtx, keys)
+	}
+	if err != nil {
+		return nil, err
+	}
+	counts := make([]int, len(result))
+	for i, value := range result {
+		text, convertErr := redisResultString(value)
+		if convertErr != nil {
+			return nil, convertErr
+		}
+		count, parseErr := strconv.Atoi(text)
+		if parseErr != nil || count < 0 {
+			return nil, fmt.Errorf("malformed redis inspect count %q", text)
+		}
+		counts[i] = count
+	}
+	if len(counts) != len(keys) {
+		return nil, fmt.Errorf("malformed redis inspect response length=%d want=%d", len(counts), len(keys))
+	}
+	return counts, nil
+}
+
+func (b *redisBackend) ensureInspectScript(ctx context.Context) error {
+	if b.currentInspectSHA() != "" {
+		return nil
+	}
+	return b.loadInspectScript(ctx)
+}
+
+func (b *redisBackend) currentInspectSHA() string {
+	if b == nil {
+		return ""
+	}
+	b.shaMu.RLock()
+	defer b.shaMu.RUnlock()
+	return b.inspectSHA
+}
+
+func (b *redisBackend) loadInspectScript(ctx context.Context) error {
+	if b == nil || b.client == nil {
+		return fmt.Errorf("redis client not initialized")
+	}
+	sha, err := b.client.ScriptLoad(ctx, redisInspectScript).Result()
+	if err != nil {
+		return err
+	}
+	if sha == "" {
+		return fmt.Errorf("redis returned an empty inspect script SHA")
+	}
+	b.shaMu.Lock()
+	b.inspectSHA = sha
+	b.shaMu.Unlock()
+	return nil
+}
+
+func (b *redisBackend) evalInspect(ctx context.Context, keys []string) ([]interface{}, error) {
+	sha := b.currentInspectSHA()
+	if sha == "" {
+		return nil, fmt.Errorf("inspect script SHA is empty")
+	}
+	return b.client.EvalSha(ctx, sha, keys, windowSeconds).Slice()
 }
 
 func (b *redisBackend) eval(ctx context.Context, keys []string, args []interface{}) ([]string, error) {

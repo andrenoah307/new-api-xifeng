@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	// Kept for package-local compatibility; actual construction is delegated to
+	// model_name_limiter so admission and inspection cannot drift.
 	modelNameRPMModelKeyPrefix = "mdrl:v1:rpm:model:"
 	modelNameRPMGroupKeyPrefix = "mdrl:v1:rpm:group:"
 	modelNameRPMRetryAfter     = "60"
@@ -61,10 +63,10 @@ func enforceModelNameRPMWithResponse(c *gin.Context, modelName, policyGroup, rou
 		return true
 	}
 
-	keys := []string{modelNameRPMModelKeyPrefix + decision.RuleModel}
+	keys := []string{model_name_limiter.ModelKey(decision.RuleModel)}
 	limits := []int{decision.GlobalRPM}
 	if decision.GroupRPM > 0 {
-		keys = append(keys, modelNameRPMGroupKeyPrefix+decision.RuleModel+":"+policyGroup)
+		keys = append(keys, model_name_limiter.GroupKey(decision.RuleModel, policyGroup))
 		limits = append(limits, decision.GroupRPM)
 	}
 

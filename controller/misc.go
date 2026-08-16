@@ -113,6 +113,9 @@ func GetStatus(c *gin.Context) {
 		"uptime_kuma_enabled":   cs.UptimeKumaEnabled,
 		"announcements_enabled": cs.AnnouncementsEnabled,
 		"faq_enabled":           cs.FAQEnabled,
+		// This is only a cheap public pre-gate. The authenticated capacity
+		// endpoint applies per-user visibility and its total is authoritative.
+		"rate_limit_capacity_enabled": setting.IsRateLimitCapacityEnabled(),
 
 		// 模块管理配置
 		"HeaderNavModules":    common.OptionMap["HeaderNavModules"],

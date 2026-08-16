@@ -22,6 +22,9 @@ func SetApiRouter(router *gin.Engine) {
 		apiRouter.GET("/setup", controller.GetSetup)
 		apiRouter.POST("/setup", anonymousRequestBodyLimit, controller.PostSetup)
 		apiRouter.GET("/status", controller.GetStatus)
+		// UserAuth keeps this diagnostic read path separate from AdminAuth; the
+		// handler filters group candidates again for non-admin users.
+		apiRouter.GET("/rate_limit/capacity", middleware.UserAuth(), controller.GetRateLimitCapacity)
 		apiRouter.GET("/uptime/status", controller.GetUptimeKumaStatus)
 		apiRouter.GET("/models", middleware.UserAuth(), controller.DashboardListModels)
 		apiRouter.GET("/status/test", middleware.AdminAuth(), controller.TestStatus)

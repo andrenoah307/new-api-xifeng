@@ -70,5 +70,7 @@ export function useDashboardContentVisibility() {
     announcements: hasStatus && status?.announcements_enabled !== false,
     faq: hasStatus && status?.faq_enabled !== false,
     uptimeKuma: hasStatus && status?.uptime_kuma_enabled !== false,
+    rateLimitCapacity:
+      hasStatus && status?.rate_limit_capacity_enabled !== false,
   }
 }

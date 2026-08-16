@@ -53,8 +53,15 @@ const RateLimitSetting = () => {
     if (success) {
       let newInputs = {};
       data.forEach((item) => {
-        if (item.key === 'ModelRequestRateLimitGroup') {
-          item.value = JSON.stringify(JSON.parse(item.value), null, 2);
+        if (
+          item.key === 'ModelRequestRateLimitGroup' &&
+          typeof item.value === 'string'
+        ) {
+          try {
+            item.value = JSON.stringify(JSON.parse(item.value), null, 2);
+          } catch {
+            // Keep an invalid document visible so the JSON editor can repair it.
+          }
         }
 
         if (

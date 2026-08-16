@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 )
 
@@ -62,4 +63,34 @@ func GetUserGroupRatio(userGroup, group string) float64 {
 		return ratio
 	}
 	return ratio_setting.GetGroupRatio(group)
+}
+
+// GetVisibleUserGroups is the canonical console visibility chain shared by
+// the user-groups endpoint and read-only capacity views. It intentionally
+// accepts the already-known country so callers do not need a database lookup
+// or a second, subtly different filtering implementation.
+func GetVisibleUserGroups(userGroup, country string) map[string]string {
+	usable := GetUserUsableGroups(userGroup)
+	ratios := ratio_setting.GetGroupRatioCopy()
+	visible := make(map[string]string)
+	for groupName := range ratios {
+		if desc, ok := usable[groupName]; ok {
+			visible[groupName] = desc
+		}
+	}
+	// "auto" is a virtual selectable group and has historically been exposed
+	// by GetUserGroups even though it has no ordinary ratio entry.
+	if _, ok := usable["auto"]; ok {
+		visible["auto"] = setting.GetUsableGroupDescription("auto")
+	}
+
+	region := operation_setting.GetRegionRestrictionSetting()
+	if region.Enabled && region.FilterConsole && country != "" {
+		for groupName := range visible {
+			if groupName != "auto" && operation_setting.IsGroupBlockedForCountry(country, groupName) {
+				delete(visible, groupName)
+			}
+		}
+	}
+	return visible
 }

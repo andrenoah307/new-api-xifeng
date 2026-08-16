@@ -29,6 +29,7 @@ import ApiInfoPanel from './ApiInfoPanel';
 import AnnouncementsPanel from './AnnouncementsPanel';
 import FaqPanel from './FaqPanel';
 import UptimePanel from './UptimePanel';
+import RateLimitCapacityPanel from './RateLimitCapacityPanel';
 import SearchModal from './modals/SearchModal';
 
 import { useDashboardData } from '../../hooks/dashboard/useDashboardData';
@@ -290,6 +291,12 @@ const Dashboard = () => {
               />
             )}
           </div>
+        </div>
+      )}
+
+      {dashboardData.hasRateLimitCapacityPanel && (
+        <div className='mb-4'>
+          <RateLimitCapacityPanel />
         </div>
       )}
     </div>

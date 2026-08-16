@@ -25,17 +25,21 @@ type ModelNameRPMDecision struct {
 	GroupRPM  int // 0 means that the group has no sub-limit.
 }
 
-type modelNameRPMRule struct {
+type ModelNameRPMRule struct {
 	GlobalRPM int            `json:"global_rpm"`
 	GroupRPM  map[string]int `json:"group_rpm,omitempty"`
 }
 
-type modelNameRPMConfig struct {
+type ModelNameRPMConfig struct {
 	Enabled bool                        `json:"enabled"`
-	Models  map[string]modelNameRPMRule `json:"models"`
+	Models  map[string]ModelNameRPMRule `json:"models"`
 }
 
+type modelNameRPMRule = ModelNameRPMRule
+type modelNameRPMConfig = ModelNameRPMConfig
+
 var modelNameRPMSnapshot atomic.Pointer[modelNameRPMConfig]
+var modelNameRPMConfigVersion atomic.Uint64
 
 func init() {
 	modelNameRPMSnapshot.Store(&modelNameRPMConfig{
@@ -99,7 +103,31 @@ func UpdateModelNameRPMRateLimitByJSONString(jsonStr string) error {
 		return err
 	}
 	modelNameRPMSnapshot.Store(config)
+	modelNameRPMConfigVersion.Add(1)
 	return nil
+}
+
+// ListModelNameRPMRules returns a deep copy of the active immutable snapshot.
+func ListModelNameRPMRules() ModelNameRPMConfig {
+	snapshot := modelNameRPMSnapshot.Load()
+	if snapshot == nil {
+		return ModelNameRPMConfig{Models: make(map[string]ModelNameRPMRule)}
+	}
+	return *cloneModelNameRPMConfig(snapshot)
+}
+
+func ListModelNameRPMRulesWithVersion() (ModelNameRPMConfig, uint64) {
+	for {
+		versionBefore := ModelNameRPMConfigVersion()
+		rules := ListModelNameRPMRules()
+		if versionBefore == ModelNameRPMConfigVersion() {
+			return rules, versionBefore
+		}
+	}
+}
+
+func ModelNameRPMConfigVersion() uint64 {
+	return modelNameRPMConfigVersion.Load()
 }
 
 // CheckModelNameRPMRateLimit validates a configuration without changing the

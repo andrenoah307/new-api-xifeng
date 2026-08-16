@@ -28,7 +28,7 @@ import {
   type ModelNameRPMErrorCode,
   type ModelNameRPMGroupLimit,
   type ModelNameRPMRule,
-} from './model-name-rpm'
+} from './model-name-rpm.ts'
 
 function rule(overrides: Partial<ModelNameRPMRule> = {}): ModelNameRPMRule {
   return { modelName: 'gpt-4o', globalRpm: 100, groups: [], ...overrides }

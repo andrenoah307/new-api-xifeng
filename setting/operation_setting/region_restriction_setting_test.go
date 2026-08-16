@@ -5,6 +5,12 @@ import (
 )
 
 func TestIsModelBlockedForCountry(t *testing.T) {
+	previousSetting := regionRestrictionSetting
+	defer func() {
+		regionRestrictionSetting = previousSetting
+		RebuildRegionRestrictionIndex()
+	}()
+	regionRestrictionSetting.Enabled = true
 	// Setup blocked models and rebuild index
 	regionRestrictionSetting.BlockedModels = map[string][]string{
 		"CN": {"gpt-4o", "claude-*", "*"},
@@ -52,6 +58,12 @@ func TestIsModelBlockedForCountry(t *testing.T) {
 }
 
 func TestRebuildRegionRestrictionIndex(t *testing.T) {
+	previousSetting := regionRestrictionSetting
+	defer func() {
+		regionRestrictionSetting = previousSetting
+		RebuildRegionRestrictionIndex()
+	}()
+	regionRestrictionSetting.Enabled = true
 	// Start with empty
 	regionRestrictionSetting.BlockedModels = map[string][]string{}
 	RebuildRegionRestrictionIndex()

@@ -12,6 +12,7 @@ import (
 type memoryBackend struct {
 	mu      sync.Mutex
 	entries map[string][]int64
+	now     func() time.Time
 }
 
 func newMemoryBackend() *memoryBackend {
@@ -32,7 +33,7 @@ func (b *memoryBackend) Acquire(_ context.Context, keys []string, limits []int) 
 		b.entries = make(map[string][]int64)
 	}
 
-	now := time.Now().UnixMilli()
+	now := b.nowMillis()
 	windowStart := now - int64(windowSeconds*1000)
 	trimmed := make(map[string][]int64, len(keys))
 	for i, key := range keys {
@@ -62,6 +63,25 @@ func (b *memoryBackend) Acquire(_ context.Context, keys []string, limits []int) 
 	return Result{Allowed: true}
 }
 
+func (b *memoryBackend) Inspect(_ context.Context, keys []string) ([]int, error) {
+	if b == nil {
+		return nil, nil
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.entries == nil {
+		b.entries = make(map[string][]int64)
+	}
+	windowStart := b.nowMillis() - int64(windowSeconds*1000)
+	counts := make([]int, len(keys))
+	for i, key := range keys {
+		hits := trimHits(b.entries[key], windowStart)
+		b.entries[key] = hits
+		counts[i] = len(hits)
+	}
+	return counts, nil
+}
+
 func trimHits(hits []int64, windowStart int64) []int64 {
 	idx := 0
 	for idx < len(hits) && hits[idx] <= windowStart {
@@ -87,7 +107,14 @@ func (b *memoryBackend) count(key string) int {
 	if b.entries == nil {
 		return 0
 	}
-	hits := trimHits(b.entries[key], time.Now().UnixMilli()-int64(windowSeconds*1000))
+	hits := trimHits(b.entries[key], b.nowMillis()-int64(windowSeconds*1000))
 	b.entries[key] = hits
 	return len(hits)
+}
+
+func (b *memoryBackend) nowMillis() int64 {
+	if b != nil && b.now != nil {
+		return b.now().UnixMilli()
+	}
+	return time.Now().UnixMilli()
 }

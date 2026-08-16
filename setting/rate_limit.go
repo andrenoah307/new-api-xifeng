@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"sync/atomic"
 
 	"github.com/QuantumNous/new-api/common"
 )
@@ -14,6 +15,7 @@ var ModelRequestRateLimitCount = 0
 var ModelRequestRateLimitSuccessCount = 1000
 var ModelRequestRateLimitGroup = map[string][2]int{}
 var ModelRequestRateLimitMutex sync.RWMutex
+var modelRequestRateLimitConfigVersion atomic.Uint64
 
 func ModelRequestRateLimitGroup2JSONString() string {
 	ModelRequestRateLimitMutex.RLock()
@@ -35,7 +37,65 @@ func UpdateModelRequestRateLimitGroupByJSONString(jsonStr string) error {
 	ModelRequestRateLimitMutex.Lock()
 	ModelRequestRateLimitGroup = newGroup
 	ModelRequestRateLimitMutex.Unlock()
+	modelRequestRateLimitConfigVersion.Add(1)
 	return nil
+}
+
+// ListGroupRateLimits returns a detached copy of the configured A1 limits.
+func ListGroupRateLimits() map[string][2]int {
+	ModelRequestRateLimitMutex.RLock()
+	defer ModelRequestRateLimitMutex.RUnlock()
+	copyOfLimits := make(map[string][2]int, len(ModelRequestRateLimitGroup))
+	for group, limits := range ModelRequestRateLimitGroup {
+		copyOfLimits[group] = limits
+	}
+	return copyOfLimits
+}
+
+func ListGroupRateLimitsWithVersion() (map[string][2]int, uint64) {
+	for {
+		versionBefore := ModelRequestRateLimitConfigVersion()
+		limits := ListGroupRateLimits()
+		if versionBefore == ModelRequestRateLimitConfigVersion() {
+			return limits, versionBefore
+		}
+	}
+}
+
+func ModelRequestRateLimitConfigVersion() uint64 {
+	return modelRequestRateLimitConfigVersion.Load()
+}
+
+// IsRateLimitCapacityEnabled is a cheap public-card pre-gate. It cannot know
+// a requesting user's visible groups; the capacity endpoint remains the
+// authoritative per-user visibility check and may return total == 0.
+func IsRateLimitCapacityEnabled() bool {
+	if ModelRequestRateLimitEnabled {
+		ModelRequestRateLimitMutex.RLock()
+		hasCapacity := ModelRequestRateLimitCount > 0 || ModelRequestRateLimitSuccessCount > 0
+		if !hasCapacity {
+			for _, limits := range ModelRequestRateLimitGroup {
+				if limits[0] > 0 || limits[1] > 0 {
+					hasCapacity = true
+					break
+				}
+			}
+		}
+		ModelRequestRateLimitMutex.RUnlock()
+		if hasCapacity {
+			return true
+		}
+	}
+	rules := ListModelNameRPMRules()
+	if !rules.Enabled {
+		return false
+	}
+	for _, rule := range rules.Models {
+		if rule.GlobalRPM > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func GetGroupRateLimit(group string) (totalCount, successCount int, found bool) {

@@ -29,6 +29,7 @@ type Result struct {
 
 type backend interface {
 	Acquire(context.Context, []string, []int) Result
+	Inspect(context.Context, []string) ([]int, error)
 }
 
 var (
@@ -72,6 +73,36 @@ func Acquire(ctx context.Context, keys []string, limits []int) Result {
 		return Result{Allowed: true}
 	}
 	return getBackend().Acquire(ctx, keys, limits)
+}
+
+// Inspect returns current sliding-window counts without changing any bucket.
+// Unlike Acquire, inspection errors are returned to the caller so dashboards
+// can distinguish an unavailable backend from a genuine zero count.
+func Inspect(ctx context.Context, keys []string) ([]int, error) {
+	if len(keys) == 0 {
+		return []int{}, nil
+	}
+	return getBackend().Inspect(ctx, keys)
+}
+
+// UsingMemoryBackend reports whether the active backend is the process-local
+// fallback. Counts from that backend are valid only for this instance.
+func UsingMemoryBackend() bool {
+	backendInstance := getBackend()
+	memoryBackend, ok := backendInstance.(interface{ IsMemory() bool })
+	return ok && memoryBackend.IsMemory()
+}
+
+// IsMemory is intentionally kept on the private backend contract so the
+// capacity service can label fallback data without type assertions.
+func (b *memoryBackend) IsMemory() bool { return true }
+func (b *redisBackend) IsMemory() bool  { return false }
+
+// ModelKey and GroupKey are the single key builders shared by the admission
+// middleware and read-only capacity paths.
+func ModelKey(model string) string { return "mdrl:v1:rpm:model:" + model }
+func GroupKey(model, group string) string {
+	return "mdrl:v1:rpm:group:" + model + ":" + group
 }
 
 func scopeForIndex(index int) string {

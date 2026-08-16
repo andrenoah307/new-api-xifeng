@@ -1,0 +1,172 @@
+{
+  "cases": [
+    {
+      "id": "valid-single",
+      "rawJson": "{\"default\":[200,100]}",
+      "rule": {"groupName":"vip","totalCount":60,"successCount":30},
+      "originalGroupName": null,
+      "deleteGroupName": "default"
+    },
+    {
+      "id": "valid-multiple",
+      "rawJson": "{\"default\":[200,100],\"vip\":[0,1000]}",
+      "rule": {"groupName":"standard","totalCount":10,"successCount":2},
+      "originalGroupName": null,
+      "deleteGroupName": "vip"
+    },
+    {
+      "id": "empty-string",
+      "rawJson": "",
+      "rule": {"groupName":"default","totalCount":0,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "whitespace-document",
+      "rawJson": "   \n\t",
+      "rule": {"groupName":"default","totalCount":0,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "empty-object",
+      "rawJson": "{}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "invalid-json",
+      "rawJson": "{",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "top-level-array",
+      "rawJson": "[]",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "top-level-null",
+      "rawJson": "null",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "top-level-string",
+      "rawJson": "\"groups\"",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "top-level-number",
+      "rawJson": "42",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "value-not-array",
+      "rawJson": "{\"default\":{\"total\":1}}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "array-length-one",
+      "rawJson": "{\"default\":[1]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "array-length-three",
+      "rawJson": "{\"default\":[1,2,3]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "fractional-element",
+      "rawJson": "{\"default\":[1.5,2]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "string-element",
+      "rawJson": "{\"default\":[\"1\",2]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "null-element",
+      "rawJson": "{\"default\":[null,2]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "boolean-element",
+      "rawJson": "{\"default\":[true,2]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "decimal-integer-literal",
+      "rawJson": "{\"default\":[1.0,2.0]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": "default",
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "negative-total",
+      "rawJson": "{\"default\":[-1,1]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "zero-success",
+      "rawJson": "{\"default\":[0,0]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "above-int32",
+      "rawJson": "{\"default\":[2147483648,1]}",
+      "rule": {"groupName":"default","totalCount":1,"successCount":1},
+      "originalGroupName": null,
+      "deleteGroupName": "missing"
+    },
+    {
+      "id": "unknown-top-level-key-preserved",
+      "rawJson": "{\"future_group\":[7,8],\"vip\":[3,2]}",
+      "rule": {"groupName":"vip","totalCount":4,"successCount":3},
+      "originalGroupName": "vip",
+      "deleteGroupName": "vip"
+    },
+    {
+      "id": "rename",
+      "rawJson": "{\"old\":[4,2],\"other\":[9,3]}",
+      "rule": {"groupName":"new","totalCount":5,"successCount":2},
+      "originalGroupName": "old",
+      "deleteGroupName": "other"
+    },
+    {
+      "id": "delete-missing-key",
+      "rawJson": "{\"default\":[2,1]}",
+      "rule": {"groupName":"default","totalCount":2,"successCount":1},
+      "originalGroupName": "default",
+      "deleteGroupName": "missing"
+    }
+  ]
+}

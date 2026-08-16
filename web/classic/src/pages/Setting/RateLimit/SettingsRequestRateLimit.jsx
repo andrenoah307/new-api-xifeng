@@ -28,8 +28,13 @@ import {
   verifyJSON,
 } from '../../../helpers';
 import { parseModelNameRPMConfig } from '../../../helpers/model-name-rpm';
+import {
+  parseGroupRateLimitConfig,
+  validateGroupRateLimitRule,
+} from '../../../helpers/group-rate-limit';
 import { useTranslation } from 'react-i18next';
 import ModelNameRPMVisualEditor from './ModelNameRPMVisualEditor';
+import GroupRateLimitVisualEditor from './GroupRateLimitVisualEditor';
 
 const MODEL_NAME_RPM_OPTION_KEY = 'ModelNameRPMRateLimit';
 const DEFAULT_MODEL_NAME_RPM_RATE_LIMIT = JSON.stringify(
@@ -55,6 +60,14 @@ function getModelNameRPMEnabled(value) {
   }
 }
 
+function isValidGroupRateLimitDocument(value) {
+  const parsed = parseGroupRateLimitConfig(value ?? '');
+  return (
+    parsed.ok &&
+    parsed.rules.every((rule) => validateGroupRateLimitRule(rule).ok)
+  );
+}
+
 export default function RequestRateLimit(props) {
   const { t } = useTranslation();
 
@@ -73,11 +86,17 @@ export default function RequestRateLimit(props) {
   // document can be represented visually without rewriting it.
   const [modelNameRPMEditMode, setModelNameRPMEditMode] = useState(null);
   const prevModelNameRPMEditModeRef = useRef(null);
+  const [groupRateLimitEditMode, setGroupRateLimitEditMode] = useState(null);
+  const prevGroupRateLimitEditModeRef = useRef(null);
 
   const modelNameRPMValue = inputs[MODEL_NAME_RPM_OPTION_KEY];
   const modelNameRPMEditModeResolved =
     modelNameRPMEditMode ??
     (parseModelNameRPMConfig(modelNameRPMValue).ok ? 'visual' : 'json');
+  const groupRateLimitValue = inputs.ModelRequestRateLimitGroup;
+  const groupRateLimitEditModeResolved =
+    groupRateLimitEditMode ??
+    (parseGroupRateLimitConfig(groupRateLimitValue).ok ? 'visual' : 'json');
 
   function setModelNameRPMValue(nextValue) {
     setInputs((prev) => ({
@@ -85,8 +104,7 @@ export default function RequestRateLimit(props) {
       [MODEL_NAME_RPM_OPTION_KEY]: nextValue,
     }));
     if (refForm.current) {
-      // Use setValue instead of setValues. Semi Form's setValues assigns
-      // undefined to every registered field not included in the payload.
+      // Update this field directly so omitted registered fields keep their values.
       refForm.current.setValue(MODEL_NAME_RPM_OPTION_KEY, nextValue);
     }
   }
@@ -97,6 +115,25 @@ export default function RequestRateLimit(props) {
       return;
     }
     setModelNameRPMEditMode('visual');
+  }
+
+  function setGroupRateLimitValue(nextValue) {
+    setInputs((prev) => ({
+      ...prev,
+      ModelRequestRateLimitGroup: nextValue,
+    }));
+    if (refForm.current) {
+      refForm.current.setValue('ModelRequestRateLimitGroup', nextValue);
+    }
+  }
+
+  function switchToGroupRateLimitVisualMode() {
+    if (!parseGroupRateLimitConfig(groupRateLimitValue).ok) {
+      showError(t('修复 JSON 后再切换到可视化编辑器。'));
+      setGroupRateLimitEditMode('json');
+      return;
+    }
+    setGroupRateLimitEditMode('visual');
   }
 
   function onModelNameRPMEnabledChange(value) {
@@ -146,6 +183,12 @@ export default function RequestRateLimit(props) {
         }
       } catch {
         return showError(t('不是合法的 JSON 字符串'));
+      }
+    }
+
+    if (updateArray.some((item) => item.key === 'ModelRequestRateLimitGroup')) {
+      if (!isValidGroupRateLimitDocument(inputs.ModelRequestRateLimitGroup)) {
+        return showError(t('分组速率限制包含无效或越界规则，请先修正'));
       }
     }
 
@@ -227,7 +270,11 @@ export default function RequestRateLimit(props) {
     }
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
-    refForm.current.setValues(currentInputs);
+    if (refForm.current) {
+      for (const [key, value] of Object.entries(currentInputs)) {
+        refForm.current.setValue(key, value);
+      }
+    }
   }, [props.options]);
 
   useEffect(() => {
@@ -240,6 +287,15 @@ export default function RequestRateLimit(props) {
     if (!refForm.current) return;
     refForm.current.setValue(MODEL_NAME_RPM_OPTION_KEY, modelNameRPMValue);
   }, [modelNameRPMEditModeResolved, modelNameRPMValue]);
+
+  useEffect(() => {
+    const previousMode = prevGroupRateLimitEditModeRef.current;
+    prevGroupRateLimitEditModeRef.current = groupRateLimitEditModeResolved;
+    if (previousMode === groupRateLimitEditModeResolved) return;
+    if (groupRateLimitEditModeResolved !== 'json') return;
+    if (!refForm.current) return;
+    refForm.current.setValue('ModelRequestRateLimitGroup', groupRateLimitValue);
+  }, [groupRateLimitEditModeResolved, groupRateLimitValue]);
 
   return (
     <>
@@ -323,54 +379,83 @@ export default function RequestRateLimit(props) {
             </Row>
             <Row>
               <Col xs={24} sm={16}>
-                <Form.TextArea
-                  label={t('分组速率限制')}
-                  placeholder={t(
-                    '{\n  "default": [200, 100],\n  "vip": [0, 1000]\n}',
-                  )}
-                  field={'ModelRequestRateLimitGroup'}
-                  autosize={{ minRows: 5, maxRows: 15 }}
-                  trigger='blur'
-                  stopValidateWithError
-                  rules={[
-                    {
-                      validator: (rule, value) => verifyJSON(value),
-                      message: t('不是合法的 JSON 字符串'),
-                    },
-                  ]}
-                  extraText={
-                    <div>
-                      <p>{t('说明：')}</p>
-                      <ul>
-                        <li>
-                          {t(
-                            '使用 JSON 对象格式，格式为：{"组名": [最多请求次数, 最多请求完成次数]}',
-                          )}
-                        </li>
-                        <li>
-                          {t(
-                            '示例：{"default": [200, 100], "vip": [0, 1000]}。',
-                          )}
-                        </li>
-                        <li>
-                          {t(
-                            '[最多请求次数]必须大于等于0，[最多请求完成次数]必须大于等于1。',
-                          )}
-                        </li>
-                        <li>
-                          {t(
-                            '[最多请求次数]和[最多请求完成次数]的最大值为2147483647。',
-                          )}
-                        </li>
-                        <li>{t('分组速率配置优先级高于全局速率限制。')}</li>
-                        <li>{t('限制周期统一使用上方配置的“限制周期”值。')}</li>
-                      </ul>
-                    </div>
-                  }
-                  onChange={(value) => {
-                    setInputs({ ...inputs, ModelRequestRateLimitGroup: value });
-                  }}
-                />
+                <Space style={{ marginBottom: 10 }}>
+                  <Button
+                    type={
+                      groupRateLimitEditModeResolved === 'visual'
+                        ? 'primary'
+                        : 'tertiary'
+                    }
+                    onClick={switchToGroupRateLimitVisualMode}
+                  >
+                    {t('可视化')}
+                  </Button>
+                  <Button
+                    type={
+                      groupRateLimitEditModeResolved === 'json'
+                        ? 'primary'
+                        : 'tertiary'
+                    }
+                    onClick={() => setGroupRateLimitEditMode('json')}
+                  >
+                    {t('JSON 模式')}
+                  </Button>
+                </Space>
+                {groupRateLimitEditModeResolved === 'visual' ? (
+                  <GroupRateLimitVisualEditor
+                    value={groupRateLimitValue ?? ''}
+                    onChange={setGroupRateLimitValue}
+                  />
+                ) : (
+                  <Form.TextArea
+                    label={t('分组速率限制')}
+                    placeholder={t(
+                      '{\n  "default": [200, 100],\n  "vip": [0, 1000]\n}',
+                    )}
+                    field={'ModelRequestRateLimitGroup'}
+                    autosize={{ minRows: 5, maxRows: 15 }}
+                    trigger='blur'
+                    stopValidateWithError
+                    rules={[
+                      {
+                        validator: (rule, value) => verifyJSON(value),
+                        message: t('不是合法的 JSON 字符串'),
+                      },
+                    ]}
+                    extraText={
+                      <div>
+                        <p>{t('说明：')}</p>
+                        <ul>
+                          <li>
+                            {t(
+                              '使用 JSON 对象格式，格式为：{"组名": [最多请求次数, 最多请求完成次数]}',
+                            )}
+                          </li>
+                          <li>
+                            {t(
+                              '示例：{"default": [200, 100], "vip": [0, 1000]}。',
+                            )}
+                          </li>
+                          <li>
+                            {t(
+                              '[最多请求次数]必须大于等于0，[最多请求完成次数]必须大于等于1。',
+                            )}
+                          </li>
+                          <li>
+                            {t(
+                              '[最多请求次数]和[最多请求完成次数]的最大值为2147483647。',
+                            )}
+                          </li>
+                          <li>{t('分组速率配置优先级高于全局速率限制。')}</li>
+                          <li>
+                            {t('限制周期统一使用上方配置的“限制周期”值。')}
+                          </li>
+                        </ul>
+                      </div>
+                    }
+                    onChange={setGroupRateLimitValue}
+                  />
+                )}
               </Col>
             </Row>
             <Row>

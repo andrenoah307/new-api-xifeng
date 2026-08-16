@@ -21,6 +21,7 @@ import { api } from '@/lib/api'
 import type {
   FlowQuotaDataItem,
   QuotaDataItem,
+  RateLimitCapacityResponse,
   UptimeGroupResult,
 } from './types'
 
@@ -92,5 +93,26 @@ export async function getUptimeStatus() {
   const res = await api.get<{ success: boolean; data: UptimeGroupResult[] }>(
     '/api/uptime/status'
   )
+  return res.data
+}
+
+export async function getRateLimitCapacity(
+  scope: 'top' | 'all'
+): Promise<{
+  success: boolean
+  message?: string
+  data?: RateLimitCapacityResponse
+}> {
+  const res = await api.get<{
+    success: boolean
+    message?: string
+    data?: RateLimitCapacityResponse
+  }>('/api/rate_limit/capacity', {
+    params: { scope },
+    // Capacity is optional dashboard data. A transient failure must not show a
+    // global toast or turn the whole dashboard into an error state.
+    skipErrorHandler: true,
+    skipBusinessError: true,
+  })
   return res.data
 }

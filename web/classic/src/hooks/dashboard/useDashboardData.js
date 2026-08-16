@@ -96,9 +96,13 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
     statusState?.status?.announcements_enabled ?? true;
   const faqEnabled = statusState?.status?.faq_enabled ?? true;
   const uptimeEnabled = statusState?.status?.uptime_kuma_enabled ?? true;
+  const rateLimitCapacityEnabled = statusState?.status
+    ? statusState.status.rate_limit_capacity_enabled !== false
+    : false;
 
   const hasApiInfoPanel = apiInfoEnabled;
   const hasInfoPanels = announcementsEnabled || faqEnabled || uptimeEnabled;
+  const hasRateLimitCapacityPanel = rateLimitCapacityEnabled;
 
   // ========== Memoized Values ==========
   const timeOptions = useMemo(
@@ -355,6 +359,8 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
     announcementsEnabled,
     faqEnabled,
     uptimeEnabled,
+    rateLimitCapacityEnabled,
+    hasRateLimitCapacityPanel,
 
     // 函数
     handleInputChange,

@@ -180,6 +180,55 @@ export interface UptimeGroupResult {
   monitors: UptimeMonitor[]
 }
 
+// Read-only rate-limit capacity snapshot returned by /api/rate_limit/capacity.
+// A null current value is intentional: it means the counter backend could not
+// be read and must never be rendered as zero.
+export interface RateLimitCapacityMetric {
+  current: number | null
+  limit: number
+  unlimited: boolean
+  utilization: number | null
+  over_limit: boolean
+  available: boolean
+}
+
+export interface RateLimitCapacityItem extends RateLimitCapacityMetric {
+  model: string
+  group?: string
+}
+
+export interface RateLimitCapacitySection<TItem = RateLimitCapacityItem> {
+  items: TItem[]
+  total: number
+}
+
+export interface RateLimitCapacityPersonal {
+  enabled: boolean
+  status: 'disabled' | 'unconfigured' | 'available' | 'unavailable' | string
+  group?: string
+  window_minutes: number
+  instance_only: boolean
+  total?: RateLimitCapacityMetric | null
+  success?: RateLimitCapacityMetric | null
+}
+
+export interface RateLimitCapacityResponse {
+  scope: 'top' | 'all' | string
+  observed_at: string
+  model_name_rpm_version: number
+  group_rate_limit_version: number
+  degraded: boolean
+  warning?: string
+  instance_only: boolean
+  backend_scope: string
+  site?: {
+    global: RateLimitCapacitySection
+    groups: RateLimitCapacitySection
+  } | null
+  personal?: RateLimitCapacityPersonal | null
+  total: number
+}
+
 // ============================================================================
 // Dashboard Filter Types
 // ============================================================================
