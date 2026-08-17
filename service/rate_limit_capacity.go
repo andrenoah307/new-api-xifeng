@@ -34,6 +34,17 @@ type CapacitySection struct {
 	Total int            `json:"total"`
 }
 
+type CapacityGroup struct {
+	Group string         `json:"group"`
+	Items []CapacityItem `json:"items"`
+	Total int            `json:"total"`
+}
+
+type CapacityGroupSection struct {
+	Groups []CapacityGroup `json:"groups"`
+	Total  int             `json:"total"`
+}
+
 // SiteCapacitySnapshot is the cached, user-independent A2 view. The exported
 // slices make the service straightforward to test with an injected backend;
 // callers receive a detached copy from SiteSnapshot.
@@ -346,7 +357,31 @@ func prepareCapacityItem(item *CapacityItem) {
 	item.OverLimit = *item.Current > item.Limit
 }
 
-// sortCapacityItems applies the four documented stable ranking keys. It is
+// capacityItemLess applies the documented ranking keys. Both item and group
+// sorting use this comparison so their ranking stays identical.
+func capacityItemLess(a, b CapacityItem) bool {
+	if a.Available != b.Available {
+		return a.Available
+	}
+	if a.Unlimited != b.Unlimited {
+		return !a.Unlimited
+	}
+	if a.OverLimit != b.OverLimit {
+		return a.OverLimit
+	}
+	if a.Utilization != nil && b.Utilization != nil && *a.Utilization != *b.Utilization {
+		return *a.Utilization > *b.Utilization
+	}
+	if a.Current != nil && b.Current != nil && *a.Current != *b.Current {
+		return *a.Current > *b.Current
+	}
+	if a.Model != b.Model {
+		return a.Model < b.Model
+	}
+	return a.Group < b.Group
+}
+
+// sortCapacityItems applies the documented stable ranking keys. It is
 // package-local so table tests can exercise every tie-break without an HTTP
 // fixture.
 func sortCapacityItems(items []CapacityItem) {
@@ -354,24 +389,34 @@ func sortCapacityItems(items []CapacityItem) {
 		prepareCapacityItem(&items[i])
 	}
 	sort.SliceStable(items, func(i, j int) bool {
-		a, b := items[i], items[j]
-		if a.Available != b.Available {
-			return a.Available
+		return capacityItemLess(items[i], items[j])
+	})
+}
+
+func sortCapacityGroups(groups []CapacityGroup) {
+	for i := range groups {
+		sortCapacityItems(groups[i].Items)
+	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		a, b := groups[i], groups[j]
+		if len(a.Items) == 0 || len(b.Items) == 0 {
+			if len(a.Items) != len(b.Items) {
+				return len(a.Items) > 0
+			}
+			return a.Group < b.Group
 		}
-		if a.Unlimited != b.Unlimited {
-			return !a.Unlimited
+		firstA, firstB := a.Items[0], b.Items[0]
+		// Model names are not visible at the group layer; clear both item
+		// identity fields so the fallback uses the visible group names directly.
+		firstA.Model = ""
+		firstA.Group = ""
+		firstB.Model = ""
+		firstB.Group = ""
+		if capacityItemLess(firstA, firstB) {
+			return true
 		}
-		if a.OverLimit != b.OverLimit {
-			return a.OverLimit
-		}
-		if a.Utilization != nil && b.Utilization != nil && *a.Utilization != *b.Utilization {
-			return *a.Utilization > *b.Utilization
-		}
-		if a.Current != nil && b.Current != nil && *a.Current != *b.Current {
-			return *a.Current > *b.Current
-		}
-		if a.Model != b.Model {
-			return a.Model < b.Model
+		if capacityItemLess(firstB, firstA) {
+			return false
 		}
 		return a.Group < b.Group
 	})
@@ -423,12 +468,13 @@ type RateLimitCapacityResponse struct {
 	BackendScope          string                `json:"backend_scope"`
 	Site                  *SiteCapacityResponse `json:"site,omitempty"`
 	Personal              *PersonalCapacity     `json:"personal,omitempty"`
-	Total                 int                   `json:"total"`
+	// Total is the number of rate-limit buckets, not the number of groups.
+	Total int `json:"total"`
 }
 
 type SiteCapacityResponse struct {
-	Global CapacitySection `json:"global"`
-	Groups CapacitySection `json:"groups"`
+	Global CapacitySection      `json:"global"`
+	Groups CapacityGroupSection `json:"groups"`
 }
 
 type PersonalCapacity struct {
@@ -487,29 +533,48 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 		}
 	}
 	sortCapacityItems(global)
-	sortCapacityItems(filteredGroups)
-	globalTotal, groupTotal := len(global), len(filteredGroups)
+	grouped := make(map[string][]CapacityItem)
+	for _, item := range filteredGroups {
+		grouped[item.Group] = append(grouped[item.Group], item)
+	}
+	groupSections := make([]CapacityGroup, 0, len(grouped))
+	groupBucketTotal := 0
+	for groupName, items := range grouped {
+		groupSections = append(groupSections, CapacityGroup{
+			Group: groupName,
+			Items: items,
+			Total: len(items),
+		})
+		groupBucketTotal += len(items)
+	}
+	sortCapacityGroups(groupSections)
+	globalTotal, groupTotal := len(global), len(groupSections)
 	if request.Scope == "top" {
 		if len(global) > 3 {
 			global = global[:3]
 		}
-		if len(filteredGroups) > 3 {
-			filteredGroups = filteredGroups[:3]
+		if len(groupSections) > 3 {
+			groupSections = groupSections[:3]
+		}
+		for i := range groupSections {
+			if len(groupSections[i].Items) > 3 {
+				groupSections[i].Items = groupSections[i].Items[:3]
+			}
 		}
 	}
 	if globalTotal > 0 || groupTotal > 0 {
 		if global == nil {
 			global = []CapacityItem{}
 		}
-		if filteredGroups == nil {
-			filteredGroups = []CapacityItem{}
+		if groupSections == nil {
+			groupSections = []CapacityGroup{}
 		}
 		response.Site = &SiteCapacityResponse{
 			Global: CapacitySection{Items: global, Total: globalTotal},
-			Groups: CapacitySection{Items: filteredGroups, Total: groupTotal},
+			Groups: CapacityGroupSection{Groups: groupSections, Total: groupTotal},
 		}
 	}
-	response.Total = globalTotal + groupTotal
+	response.Total = globalTotal + groupBucketTotal
 
 	s.cacheMu.Lock()
 	personalReader := s.personalRead

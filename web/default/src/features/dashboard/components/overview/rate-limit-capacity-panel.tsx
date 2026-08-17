@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronUp, Gauge } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { IconBadge } from '@/components/ui/icon-badge'
@@ -30,7 +30,7 @@ import {
   PERSONAL_RPM_REFRESH_INTERVAL,
 } from '@/features/dashboard/lib/personal-rpm'
 import type {
-  RateLimitCapacityItem,
+  RateLimitCapacityGroup,
   RateLimitCapacityMetric,
   RateLimitCapacityPersonal,
   RateLimitCapacityResponse,
@@ -103,7 +103,6 @@ function CapacityBar(props: { metric: RateLimitCapacityMetric }) {
 function CapacityRow(props: {
   label: string
   metric: RateLimitCapacityMetric
-  group?: string
 }) {
   const { t } = useTranslation()
   const metric = props.metric
@@ -121,11 +120,6 @@ function CapacityRow(props: {
       <div className='min-w-0 truncate text-sm font-medium' title={props.label}>
         {props.label}
       </div>
-      {props.group && (
-        <div className='text-muted-foreground mt-0.5 truncate text-xs'>
-          {props.group}
-        </div>
-      )}
       <div className='mt-2 flex min-w-0 items-baseline gap-2'>
         <div
           className={cn(
@@ -153,34 +147,90 @@ function CapacityRow(props: {
   )
 }
 
-function SiteSection(props: {
+function CapacitySectionHeader(props: {
   title: string
   windowLabel: string
-  items: RateLimitCapacityItem[]
+  total: number
+  displayedCount: number
+  expanded: boolean
+  loading: boolean
+  controlsId: string
+  label: 'models' | 'groups'
+  onIntent: () => void
+  onToggle: () => void
 }) {
   const { t } = useTranslation()
   return (
-    <section aria-label={props.title}>
-      <div className='bg-muted/30 border-border/60 border-b px-4 py-3 sm:px-5'>
+    <div className='bg-muted/30 border-border/60 flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5'>
+      <div className='min-w-0'>
         <h3 className='text-sm font-semibold'>{props.title}</h3>
         <p className='text-muted-foreground mt-0.5 text-xs'>
           {props.windowLabel} · {t('All users')}
         </p>
       </div>
+      {(props.expanded || props.total > props.displayedCount) && (
+        <CapacityExpandButton
+          expanded={props.expanded}
+          total={props.total}
+          loading={props.loading}
+          label={props.label}
+          controlsId={props.controlsId}
+          onIntent={props.onIntent}
+          onToggle={props.onToggle}
+        />
+      )}
+    </div>
+  )
+}
+
+function CapacityGroupCard(props: {
+  group: RateLimitCapacityGroup
+  index: number
+  expanded: boolean
+  loading: boolean
+  onIntent: () => void
+  onToggle: () => void
+}) {
+  const { t } = useTranslation()
+  const contentId = `rate-limit-capacity-group-${props.index}`
+  const items = props.expanded ? props.group.items : props.group.items.slice(0, 3)
+  return (
+    <article className='rounded-lg border border-border/60 bg-card/30 p-3'>
+      <div className='min-w-0'>
+        <div className='truncate text-sm font-semibold' title={props.group.group}>
+          {props.group.group}
+        </div>
+        <div className='text-muted-foreground mt-0.5 text-xs'>
+          {t('{{count}} models', { count: props.group.total })}
+        </div>
+      </div>
       <div
-        className='grid gap-3 px-4 py-3 sm:px-5'
-        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))' }}
+        id={contentId}
+        className='mt-3 grid gap-3'
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(13rem, 1fr))' }}
       >
-        {props.items.map((item) => (
+        {items.map((item) => (
           <CapacityRow
             key={`${item.model}:${item.group ?? ''}`}
             label={item.model}
-            group={item.group}
             metric={item}
           />
         ))}
       </div>
-    </section>
+      {(props.expanded || props.group.total > items.length) && (
+        <div className='mt-2 flex justify-end'>
+          <CapacityExpandButton
+            expanded={props.expanded}
+            total={props.group.total}
+            loading={props.loading}
+            label='models'
+            controlsId={contentId}
+            onIntent={props.onIntent}
+            onToggle={props.onToggle}
+          />
+        </div>
+      )}
+    </article>
   )
 }
 
@@ -256,30 +306,35 @@ function CapacityExpandButton(props: {
   expanded: boolean
   total: number
   loading: boolean
+  label: 'models' | 'groups'
+  controlsId: string
   onIntent: () => void
   onToggle: () => void
 }) {
   const { t } = useTranslation()
   let icon = <ChevronDown className='size-3.5' aria-hidden='true' />
+  let label = t('Show all {{total}} models', { total: props.total })
   if (props.expanded) {
     icon = <ChevronUp className='size-3.5' aria-hidden='true' />
+    label = t('Collapse')
   } else if (props.loading) {
     icon = <Spinner className='size-3.5' aria-label={t('Loading')} />
+  }
+  if (!props.expanded && props.label === 'groups') {
+    label = t('Show all {{total}} groups', { total: props.total })
   }
   return (
     <button
       type='button'
       className='text-primary focus-visible:ring-ring inline-flex min-h-8 items-center gap-1 rounded-md px-2 text-xs font-medium outline-none focus-visible:ring-2'
       aria-expanded={props.expanded}
-      aria-controls='rate-limit-capacity-all'
+      aria-controls={props.controlsId}
       onMouseEnter={props.onIntent}
       onFocus={props.onIntent}
       onTouchStart={props.onIntent}
       onClick={props.onToggle}
     >
-      {props.expanded
-        ? t('Hide additional capacity')
-        : t('Show all {{total}} items', { total: props.total })}
+      {label}
       {icon}
     </button>
   )
@@ -288,11 +343,21 @@ function CapacityExpandButton(props: {
 export function RateLimitCapacityPanel() {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.auth.user)
-  const [expanded, setExpanded] = useState(false)
+  const [globalExpanded, setGlobalExpanded] = useState(false)
+  const [groupsExpanded, setGroupsExpanded] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+    {},
+  )
   const allAttemptAtRef = useRef(0)
 
   const identityKey = `${user?.id ?? 'anonymous'}:${user?.group ?? ''}`
   const queryKeyBase = ['dashboard', 'rate-limit-capacity', identityKey]
+
+  useEffect(() => {
+    setGlobalExpanded(false)
+    setGroupsExpanded(false)
+    setExpandedGroups({})
+  }, [identityKey])
 
   const queryCapacity = useCallback(async (scope: 'top' | 'all') => {
     if (scope === 'all') allAttemptAtRef.current = Date.now()
@@ -302,6 +367,9 @@ export function RateLimitCapacityPanel() {
     }
     return result.data
   }, [])
+
+  const anyGroupExpanded = Object.values(expandedGroups).some(Boolean)
+  const anyExpanded = globalExpanded || groupsExpanded || anyGroupExpanded
 
   const topQuery = useQuery({
     queryKey: [...queryKeyBase, 'top'],
@@ -316,7 +384,7 @@ export function RateLimitCapacityPanel() {
   const allQuery = useQuery({
     queryKey: [...queryKeyBase, 'all'],
     queryFn: () => queryCapacity('all'),
-    enabled: expanded && Boolean(user),
+    enabled: anyExpanded && Boolean(user),
     staleTime: PERSONAL_RPM_REFRESH_INTERVAL,
     retry: false,
   })
@@ -341,27 +409,41 @@ export function RateLimitCapacityPanel() {
     }
   }, [allData, allIsError, allIsFetching, allIsStale, refetchAll])
 
-  const handleToggle = useCallback(() => {
-    if (expanded) {
-      setExpanded(false)
-      return
-    }
-    handleExpandIntent()
-    setExpanded(true)
-  }, [expanded, handleExpandIntent])
+  const toggleGlobal = useCallback(() => {
+    if (!globalExpanded) handleExpandIntent()
+    setGlobalExpanded((value) => !value)
+  }, [globalExpanded, handleExpandIntent])
+
+  const toggleGroups = useCallback(() => {
+    if (!groupsExpanded) handleExpandIntent()
+    setGroupsExpanded((value) => !value)
+  }, [groupsExpanded, handleExpandIntent])
+
+  const toggleGroup = useCallback(
+    (groupName: string) => {
+      if (!expandedGroups[groupName]) handleExpandIntent()
+      setExpandedGroups((value) => ({
+        ...value,
+        [groupName]: !value[groupName],
+      }))
+    },
+    [expandedGroups, handleExpandIntent],
+  )
 
   const topData = topQuery.data
-  const data = (expanded && allData) || topData || allData
+  // The all snapshot is a source only while an area is expanded. Once
+  // collapsed, return to the 15-second top snapshot so personal data and
+  // metadata keep refreshing.
+  const data = anyExpanded && allData ? allData : (topData || allData)
   const site = data?.site
   const global = site?.global
   const groups = site?.groups
-  const hasGroups = (groups?.total ?? 0) > 0
-  const hasHiddenItems = Boolean(
-    site &&
-      ((global?.total ?? 0) > (global?.items.length ?? 0) ||
-        (groups?.total ?? 0) > (groups?.items.length ?? 0))
-  )
-  const showExpandControl = hasHiddenItems || expanded
+  const globalItems = global?.items ?? []
+  const groupItems = groups?.groups ?? []
+  const displayedGlobalItems = globalExpanded
+    ? globalItems
+    : globalItems.slice(0, 3)
+  const displayedGroups = groupsExpanded ? groupItems : groupItems.slice(0, 3)
   const topLoading = topQuery.isPending && !topData
 
   return (
@@ -389,100 +471,84 @@ export function RateLimitCapacityPanel() {
         </div>
       )}
 
-      {global?.items.length ? (
-        <SiteSection
-          title={t('Site model RPM')}
-          windowLabel={t('60-second window')}
-          items={global.items}
-        />
-      ) : null}
+      {anyExpanded && allIsFetching && (
+        <div className='text-muted-foreground flex items-center gap-2 border-border/60 border-b px-4 py-3 text-xs sm:px-5'>
+          <Spinner className='size-3.5' aria-label={t('Loading')} />
+          {t('Loading')}
+        </div>
+      )}
+      {anyExpanded && allIsError && (
+        <div className='text-muted-foreground border-border/60 border-b px-4 py-3 text-xs sm:px-5'>
+          {t('Temporarily unavailable')}
+        </div>
+      )}
 
-      {!hasGroups && showExpandControl && (
-        <div className='border-border/60 flex items-center justify-between gap-3 border-y bg-transparent px-4 py-2 sm:px-5'>
-          <div className='text-muted-foreground text-xs'>{t('Site model RPM')}</div>
-          <CapacityExpandButton
-            expanded={expanded}
-            total={global?.total ?? 0}
+      {global && (global.total > 0 || globalItems.length > 0) && (
+        <section aria-label={t('Site model RPM')}>
+          <CapacitySectionHeader
+            title={t('Site model RPM')}
+            windowLabel={t('60-second window')}
+            total={global.total}
+            displayedCount={displayedGlobalItems.length}
+            expanded={globalExpanded}
             loading={allIsFetching}
+            label='models'
+            controlsId='rate-limit-capacity-global'
             onIntent={handleExpandIntent}
-            onToggle={handleToggle}
+            onToggle={toggleGlobal}
           />
-        </div>
-      )}
-      {!hasGroups && (
-        <div id='rate-limit-capacity-all' hidden={!expanded}>
-          {expanded && allQuery.isFetching && (
-            <div className='text-muted-foreground flex items-center gap-2 px-4 py-3 text-xs sm:px-5'>
-              <Spinner className='size-3.5' aria-label={t('Loading')} />
-              {t('Loading')}
-            </div>
-          )}
-          {expanded && allQuery.isError && !allData && (
-            <div className='text-muted-foreground px-4 py-3 text-xs sm:px-5'>
-              {t('Temporarily unavailable')}
-            </div>
-          )}
-        </div>
+          <div
+            id='rate-limit-capacity-global'
+            className='grid gap-3 px-4 py-3 sm:px-5'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))',
+            }}
+          >
+            {displayedGlobalItems.map((item) => (
+              <CapacityRow
+                key={`${item.model}:${item.group ?? ''}`}
+                label={item.model}
+                metric={item}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
-      {hasGroups && (
-        <>
-          <div className='border-border/60 flex items-center justify-between gap-3 border-y bg-transparent px-4 py-2 sm:px-5'>
-            <div className='text-muted-foreground text-xs'>
-              {t('Site group RPM')}
-            </div>
-            {showExpandControl && (
-              <CapacityExpandButton
-                expanded={expanded}
-                total={(global?.total ?? 0) + (groups?.total ?? 0)}
+      {groups && (groups.total > 0 || groupItems.length > 0) && (
+        <section aria-label={t('Site group RPM')}>
+          <CapacitySectionHeader
+            title={t('Site group RPM')}
+            windowLabel={t('60-second window')}
+            total={groups.total}
+            displayedCount={displayedGroups.length}
+            expanded={groupsExpanded}
+            loading={allIsFetching}
+            label='groups'
+            controlsId='rate-limit-capacity-groups'
+            onIntent={handleExpandIntent}
+            onToggle={toggleGroups}
+          />
+          <div
+            id='rate-limit-capacity-groups'
+            className='grid gap-3 px-4 py-3 sm:px-5'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, minmax(20rem, 1fr))',
+            }}
+          >
+            {displayedGroups.map((group, index) => (
+              <CapacityGroupCard
+                key={group.group}
+                group={group}
+                index={index}
+                expanded={Boolean(expandedGroups[group.group])}
                 loading={allIsFetching}
                 onIntent={handleExpandIntent}
-                onToggle={handleToggle}
+                onToggle={() => toggleGroup(group.group)}
               />
-            )}
+            ))}
           </div>
-          {!expanded && (
-            <SiteSection
-              title={t('Site group RPM')}
-              windowLabel={t('60-second window')}
-              items={groups?.items ?? []}
-            />
-          )}
-          <div id='rate-limit-capacity-all' hidden={!expanded}>
-            {expanded && allQuery.isFetching && (
-              <div className='text-muted-foreground flex items-center gap-2 px-4 py-3 text-xs sm:px-5'>
-                <Spinner className='size-3.5' aria-label={t('Loading')} />
-                {t('Loading')}
-              </div>
-            )}
-            {expanded && allQuery.isError && !allData && (
-              <div className='text-muted-foreground px-4 py-3 text-xs sm:px-5'>
-                {t('Temporarily unavailable')}
-              </div>
-            )}
-            {expanded && !allData && (allQuery.isFetching || allQuery.isError) && (
-              <SiteSection
-                title={t('Site group RPM')}
-                windowLabel={t('60-second window')}
-                items={groups?.items ?? []}
-              />
-            )}
-            {expanded && allData?.site?.groups.items && (
-              <SiteSection
-                title={t('Site group RPM')}
-                windowLabel={t('60-second window')}
-                items={allData.site.groups.items}
-              />
-            )}
-            {expanded && !allData && !allQuery.isFetching && !allQuery.isError && (
-              <SiteSection
-                title={t('Site group RPM')}
-                windowLabel={t('60-second window')}
-                items={groups?.items ?? []}
-              />
-            )}
-          </div>
-        </>
+        </section>
       )}
 
       {data?.personal && <PersonalSection personal={data.personal} />}

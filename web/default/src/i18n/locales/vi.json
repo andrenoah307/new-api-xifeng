@@ -5482,6 +5482,8 @@
     "Not configured": "Chưa cấu hình",
     "Read-only rate-limit capacity snapshot": "Ảnh chụp dung lượng giới hạn tốc độ chỉ đọc",
     "Show all {{total}} items": "Hiện tất cả {{total}} mục",
+    "Show all {{total}} groups": "Hiển thị tất cả {{total}} nhóm",
+    "Show all {{total}} models": "Hiển thị tất cả {{total}} mô hình",
     "Site group RPM": "RPM nhóm toàn site",
     "Site model RPM": "RPM mô hình toàn site",
     "Data updated: {{time}}": "Dữ liệu được cập nhật: {{time}}",

@@ -5482,6 +5482,8 @@
     "Not configured": "未設定",
     "Read-only rate-limit capacity snapshot": "読み取り専用のレート制限容量スナップショット",
     "Show all {{total}} items": "{{total}} 件すべてを表示",
+    "Show all {{total}} groups": "{{total}} グループをすべて表示",
+    "Show all {{total}} models": "{{total}} 件のモデルをすべて表示",
     "Site group RPM": "サイトグループ RPM",
     "Site model RPM": "サイトモデル RPM",
     "Data updated: {{time}}": "データ更新：{{time}}",

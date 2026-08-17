@@ -5482,6 +5482,8 @@
     "Not configured": "Not configured",
     "Read-only rate-limit capacity snapshot": "Read-only rate-limit capacity snapshot",
     "Show all {{total}} items": "Show all {{total}} items",
+    "Show all {{total}} groups": "Show all {{total}} groups",
+    "Show all {{total}} models": "Show all {{total}} models",
     "Site group RPM": "Site group RPM",
     "Site model RPM": "Site model RPM",
     "Data updated: {{time}}": "Data updated: {{time}}",

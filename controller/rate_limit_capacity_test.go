@@ -61,14 +61,25 @@ func TestRateLimitCapacityHTTPThreeStatesAlwaysReturnOK(t *testing.T) {
 
 	// Configured with a genuine zero count: zero is retained, not treated as
 	// absent.
-	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10}}}`))
-	rateLimitCapacityService = service.NewRateLimitCapacityService(controllerCapacityInspector{counts: []int{0}})
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"group_rpm":{"default":5}}}}`))
+	rateLimitCapacityService = service.NewRateLimitCapacityService(controllerCapacityInspector{counts: []int{0, 0}})
 	payload = callCapacityHandler(t, "all")
 	site, ok := payload["site"].(map[string]any)
 	require.True(t, ok)
 	global := site["global"].(map[string]any)
 	items := global["items"].([]any)
 	assert.Equal(t, float64(0), items[0].(map[string]any)["current"])
+	groups := site["groups"].(map[string]any)
+	groupSections := groups["groups"].([]any)
+	require.Len(t, groupSections, 1)
+	group := groupSections[0].(map[string]any)
+	assert.Equal(t, "default", group["group"])
+	groupItems := group["items"].([]any)
+	require.Len(t, groupItems, 1)
+	assert.Equal(t, "gpt-4o", groupItems[0].(map[string]any)["model"])
+	assert.Equal(t, float64(1), group["total"])
+	assert.Equal(t, float64(1), groups["total"])
+	assert.Equal(t, float64(2), payload["total"])
 	assert.Equal(t, false, payload["degraded"])
 
 	// Backend failure: still 200, with null current and degraded=true.
@@ -79,6 +90,11 @@ func TestRateLimitCapacityHTTPThreeStatesAlwaysReturnOK(t *testing.T) {
 	global = site["global"].(map[string]any)
 	items = global["items"].([]any)
 	assert.Nil(t, items[0].(map[string]any)["current"])
+	groups = site["groups"].(map[string]any)
+	groupSections = groups["groups"].([]any)
+	require.Len(t, groupSections, 1)
+	groupItems = groupSections[0].(map[string]any)["items"].([]any)
+	assert.Nil(t, groupItems[0].(map[string]any)["current"])
 }
 
 func TestGetStatusRateLimitCapacityBooleanUsesMemorySnapshots(t *testing.T) {

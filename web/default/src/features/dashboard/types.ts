@@ -202,6 +202,17 @@ export interface RateLimitCapacitySection<TItem = RateLimitCapacityItem> {
   total: number
 }
 
+export interface RateLimitCapacityGroup {
+  group: string
+  items: RateLimitCapacityItem[]
+  total: number
+}
+
+export interface RateLimitCapacityGroupSection {
+  groups: RateLimitCapacityGroup[]
+  total: number
+}
+
 export interface RateLimitCapacityPersonal {
   status: 'available' | 'empty' | 'unavailable' | 'overflow' | string
   window_seconds: number
@@ -225,7 +236,7 @@ export interface RateLimitCapacityResponse {
   backend_scope: string
   site?: {
     global: RateLimitCapacitySection
-    groups: RateLimitCapacitySection
+    groups: RateLimitCapacityGroupSection
   } | null
   personal?: RateLimitCapacityPersonal | null
   total: number

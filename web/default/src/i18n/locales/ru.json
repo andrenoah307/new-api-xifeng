@@ -5482,6 +5482,8 @@
     "Not configured": "Не настроено",
     "Read-only rate-limit capacity snapshot": "Моментальный снимок лимитов только для чтения",
     "Show all {{total}} items": "Показать все элементы ({{total}})",
+    "Show all {{total}} groups": "Показать все группы ({{total}})",
+    "Show all {{total}} models": "Показать все модели ({{total}})",
     "Site group RPM": "RPM группы сайта",
     "Site model RPM": "RPM модели сайта",
     "Data updated: {{time}}": "Данные обновлены: {{time}}",

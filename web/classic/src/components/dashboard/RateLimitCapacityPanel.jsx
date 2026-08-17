@@ -112,7 +112,7 @@ function CapacityBar({ metric }) {
   );
 }
 
-function CapacityRow({ label, metric, group, t }) {
+function CapacityRow({ label, metric, t }) {
   const available = metricAvailable(metric);
   const percent = formatPercent(metric?.utilization);
   let value = t('暂时不可用');
@@ -135,11 +135,6 @@ function CapacityRow({ label, metric, group, t }) {
           {label}
         </Text>
       </div>
-      {group && (
-        <div className='mt-1 truncate text-xs text-gray-500'>
-          {group}
-        </div>
-      )}
       <div className='mt-2 flex min-w-0 items-baseline gap-2'>
         <div
           className='min-w-0 truncate font-mono text-sm font-semibold tabular-nums'
@@ -160,30 +155,95 @@ function CapacityRow({ label, metric, group, t }) {
   );
 }
 
-function SiteSection({ title, windowLabel, items, t }) {
+function CapacitySectionHeader({
+  title,
+  windowLabel,
+  total,
+  displayedCount,
+  expanded,
+  loading,
+  label,
+  controlsId,
+  onIntent,
+  onToggle,
+  t,
+}) {
   return (
-    <section aria-label={title}>
-      <div className='border-b border-gray-200 bg-gray-50 px-4 py-3 sm:px-5'>
+    <div className='flex items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 sm:px-5'>
+      <div className='min-w-0'>
         <Text strong>{title}</Text>
         <div className='mt-1 text-xs text-gray-500'>
           {windowLabel} · {t('全站用户')}
         </div>
       </div>
+      {(expanded || total > displayedCount) && (
+        <CapacityExpandButton
+          expanded={expanded}
+          total={total}
+          loading={loading}
+          label={label}
+          controlsId={controlsId}
+          onIntent={onIntent}
+          onToggle={onToggle}
+          t={t}
+        />
+      )}
+    </div>
+  );
+}
+
+function CapacityGroupCard({
+  group,
+  index,
+  expanded,
+  loading,
+  onIntent,
+  onToggle,
+  t,
+}) {
+  const contentId = `classic-rate-limit-capacity-group-${index}`;
+  const items = expanded ? group.items : group.items.slice(0, 3);
+  return (
+    <article className='rounded-lg border border-gray-200 bg-white p-3'>
+      <div className='min-w-0'>
+        <div className='min-w-0 truncate text-sm'>
+          <Text strong ellipsis={{ showTooltip: true }}>
+            {group.group}
+          </Text>
+        </div>
+        <div className='mt-1 text-xs text-gray-500'>
+          {t('{{count}} 个模型', { count: group.total })}
+        </div>
+      </div>
       <div
-        className='grid gap-3 px-4 py-3 sm:px-5'
-        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))' }}
+        id={contentId}
+        className='mt-3 grid gap-3'
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(13rem, 1fr))' }}
       >
         {items.map((item) => (
           <CapacityRow
             key={`${item.model}:${item.group || ''}`}
             label={item.model}
-            group={item.group}
             metric={item}
             t={t}
           />
         ))}
       </div>
-    </section>
+      {(expanded || group.total > items.length) && (
+        <div className='mt-2 flex justify-end'>
+          <CapacityExpandButton
+            expanded={expanded}
+            total={group.total}
+            loading={loading}
+            label='models'
+            controlsId={contentId}
+            onIntent={onIntent}
+            onToggle={onToggle}
+            t={t}
+          />
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -255,15 +315,22 @@ function CapacityExpandButton({
   expanded,
   total,
   loading,
+  label,
+  controlsId,
   onIntent,
   onToggle,
   t,
 }) {
   let icon = <ChevronDown size={14} />;
+  let buttonLabel = t('显示全部 {{total}} 个模型', { total });
   if (expanded) {
     icon = <ChevronUp size={14} />;
+    buttonLabel = t('收起');
   } else if (loading) {
     icon = <Spin size='small' spinning />;
+  }
+  if (!expanded && label === 'groups') {
+    buttonLabel = t('显示全部 {{total}} 个分组', { total });
   }
   return (
     <Button
@@ -271,13 +338,13 @@ function CapacityExpandButton({
       size='small'
       icon={icon}
       aria-expanded={expanded}
-      aria-controls='classic-rate-limit-capacity-all'
+      aria-controls={controlsId}
       onMouseEnter={onIntent}
       onFocus={onIntent}
       onTouchStart={onIntent}
       onClick={onToggle}
     >
-      {expanded ? t('收起更多容量') : t('显示全部 {{total}} 项', { total })}
+      {buttonLabel}
     </Button>
   );
 }
@@ -288,7 +355,9 @@ export default function RateLimitCapacityPanel() {
   const user = userState?.user;
   const hasUser = Boolean(user);
   const identityKey = `${user?.id || 'anonymous'}:${user?.group || ''}`;
-  const [expanded, setExpanded] = useState(false);
+  const [globalExpanded, setGlobalExpanded] = useState(false);
+  const [groupsExpanded, setGroupsExpanded] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
   const [topData, setTopData] = useState(null);
   const [allData, setAllData] = useState(null);
   const [topLoading, setTopLoading] = useState(false);
@@ -375,7 +444,9 @@ export default function RateLimitCapacityPanel() {
     setAllData(null);
     setTopError(false);
     setAllError(false);
-    setExpanded(false);
+    setGlobalExpanded(false);
+    setGroupsExpanded(false);
+    setExpandedGroups({});
     if (hasUser) void loadCapacity('top');
   }, [identityKey, hasUser, loadCapacity]);
 
@@ -392,27 +463,41 @@ export default function RateLimitCapacityPanel() {
     void loadCapacity('all');
   }, [loadCapacity]);
 
-  const toggleAll = () => {
-    if (!expanded && !loadedRef.current.all) {
-      void loadCapacity('all');
-    }
-    setExpanded((value) => !value);
+  const toggleGlobal = () => {
+    if (!globalExpanded) requestAll();
+    setGlobalExpanded((value) => !value);
   };
 
-  const data = (expanded && allData) || topData || allData;
+  const toggleGroups = () => {
+    if (!groupsExpanded) requestAll();
+    setGroupsExpanded((value) => !value);
+  };
+
+  const toggleGroup = (groupName) => {
+    if (!expandedGroups[groupName]) requestAll();
+    setExpandedGroups((value) => ({
+      ...value,
+      [groupName]: !value[groupName],
+    }));
+  };
+
+  const anyExpanded =
+    globalExpanded ||
+    groupsExpanded ||
+    Object.values(expandedGroups).some(Boolean);
+  // The all snapshot is a source only while an area is expanded. Once
+  // collapsed, return to the 15-second top snapshot so personal data and
+  // metadata keep refreshing.
+  const data = anyExpanded && allData ? allData : (topData || allData);
   const site = data?.site;
   const global = site?.global;
   const groups = site?.groups;
-  const hasGroups = (site?.groups?.total || 0) > 0;
-  const hasHiddenItems = Boolean(
-    site &&
-    ((global?.total || 0) > (global?.items?.length || 0) ||
-      (groups?.total || 0) > (groups?.items?.length || 0)),
-  );
-  const showExpandControl = hasHiddenItems || expanded;
-  const topItems = topData?.site?.groups?.items || site?.groups?.items || [];
-  const allItems = allData?.site?.groups?.items || null;
-
+  const globalItems = global?.items || [];
+  const groupItems = groups?.groups || [];
+  const displayedGlobalItems = globalExpanded
+    ? globalItems
+    : globalItems.slice(0, 3);
+  const displayedGroups = groupsExpanded ? groupItems : groupItems.slice(0, 3);
   return (
     <Card
       className='shadow-sm !rounded-2xl'
@@ -444,89 +529,88 @@ export default function RateLimitCapacityPanel() {
         />
       )}
 
-      {global?.items?.length > 0 && (
-        <SiteSection
-          title={t('站点模型 RPM')}
-          windowLabel={t('固定 60 秒窗口')}
-          items={global.items}
-          t={t}
-        />
+      {anyExpanded && allLoading && (
+        <div className='flex items-center gap-2 border-b border-gray-200 px-4 py-3 text-xs text-gray-500 sm:px-5'>
+          <Spin size='small' spinning />
+          {t('加载中...')}
+        </div>
+      )}
+      {anyExpanded && allError && (
+        <div className='border-b border-gray-200 px-4 py-3 text-xs text-gray-500 sm:px-5'>
+          {t('暂时不可用')}
+        </div>
       )}
 
-      {!hasGroups && showExpandControl && (
-        <div className='flex items-center justify-between gap-3 border-y border-gray-200 px-4 py-2 sm:px-5'>
-          <Text type='tertiary'>{t('站点模型 RPM')}</Text>
-          <CapacityExpandButton
-            expanded={expanded}
-            total={global?.total || 0}
+      {global && (global.total > 0 || globalItems.length > 0) && (
+        <section aria-label={t('全站模型 RPM')}>
+          <CapacitySectionHeader
+            title={t('全站模型 RPM')}
+            windowLabel={t('固定 60 秒窗口')}
+            total={global.total}
+            displayedCount={displayedGlobalItems.length}
+            expanded={globalExpanded}
             loading={allLoading}
+            label='models'
+            controlsId='classic-rate-limit-capacity-global'
             onIntent={requestAll}
-            onToggle={toggleAll}
+            onToggle={toggleGlobal}
             t={t}
           />
-        </div>
-      )}
-      {!hasGroups && (
-        <div id='classic-rate-limit-capacity-all' hidden={!expanded}>
-          {expanded && allLoading && (
-            <div className='flex items-center justify-center gap-2 px-4 py-4 text-xs text-gray-500 sm:px-5'>
-              <Spin size='small' spinning />
-              {t('加载中...')}
-            </div>
-          )}
-          {expanded && allError && !allData && (
-            <div className='px-4 py-3 text-xs text-gray-500 sm:px-5'>
-              {t('暂时不可用')}
-            </div>
-          )}
-        </div>
+          <div
+            id='classic-rate-limit-capacity-global'
+            className='grid gap-3 px-4 py-3 sm:px-5'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))',
+            }}
+          >
+            {displayedGlobalItems.map((item) => (
+              <CapacityRow
+                key={`${item.model}:${item.group || ''}`}
+                label={item.model}
+                metric={item}
+                t={t}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
-      {hasGroups && (
-        <>
-          <div className='flex items-center justify-between gap-3 border-y border-gray-200 px-4 py-2 sm:px-5'>
-            <Text type='tertiary'>{t('站点分组 RPM')}</Text>
-            {showExpandControl && (
-              <CapacityExpandButton
-                expanded={expanded}
-                total={(global?.total || 0) + (groups?.total || 0)}
+      {groups && (groups.total > 0 || groupItems.length > 0) && (
+        <section aria-label={t('全站分组 RPM')}>
+          <CapacitySectionHeader
+            title={t('全站分组 RPM')}
+            windowLabel={t('固定 60 秒窗口')}
+            total={groups.total}
+            displayedCount={displayedGroups.length}
+            expanded={groupsExpanded}
+            loading={allLoading}
+            label='groups'
+            controlsId='classic-rate-limit-capacity-groups'
+            onIntent={requestAll}
+            onToggle={toggleGroups}
+            t={t}
+          />
+          <div
+            id='classic-rate-limit-capacity-groups'
+            className='grid gap-3 px-4 py-3 sm:px-5'
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, minmax(20rem, 1fr))',
+            }}
+          >
+            {displayedGroups.map((group, index) => (
+              <CapacityGroupCard
+                key={group.group}
+                group={group}
+                index={index}
+                expanded={Boolean(expandedGroups[group.group])}
                 loading={allLoading}
                 onIntent={requestAll}
-                onToggle={toggleAll}
+                onToggle={() => toggleGroup(group.group)}
                 t={t}
               />
-            )}
+            ))}
           </div>
-          {!expanded && (
-            <SiteSection
-              title={t('站点分组 RPM')}
-              windowLabel={t('固定 60 秒窗口')}
-              items={topItems}
-              t={t}
-            />
-          )}
-          <div id='classic-rate-limit-capacity-all' hidden={!expanded}>
-            {expanded && allLoading && (
-              <div className='flex items-center justify-center gap-2 px-4 py-4 text-xs text-gray-500 sm:px-5'>
-                <Spin size='small' spinning />
-                {t('加载中...')}
-              </div>
-            )}
-            {expanded && allError && !allData && (
-              <div className='px-4 py-3 text-xs text-gray-500 sm:px-5'>
-                {t('暂时不可用')}
-              </div>
-            )}
-            {expanded && (allItems || topItems) && (
-              <SiteSection
-                title={t('站点分组 RPM')}
-                windowLabel={t('固定 60 秒窗口')}
-                items={allItems || topItems}
-                t={t}
-              />
-            )}
-          </div>
-        </>
+        </section>
       )}
 
       {data?.personal && <PersonalSection personal={data.personal} t={t} />}

@@ -59,6 +59,9 @@ export const STATIC_I18N_KEYS = [
   'Last 60 seconds',
   'No request data yet',
   'RPM overview',
+  'Show all {{total}} groups',
+  'Show all {{total}} models',
+  '{{count}} models',
 
   // Pricing constants
   'Name',
