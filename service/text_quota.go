@@ -408,13 +408,12 @@ func buildUsageSemanticProbe(relayInfo *relaycommon.RelayInfo, usage *dto.Usage)
 }
 
 // normalizeInclusivePromptForNetSemantics 收口「口径自相矛盾」的上游 usage：
-// 标记为净口径（anthropic / legacyClaudeDerived，即结算会跳过减缓存的那两个条件），
-// 却把含缓存的 prompt_tokens 一起发来（prompt_tokens 恰好等于 cached + cache_creation）。
-// 此时沿用净口径不减缓存，同一批 token 会被输入价与缓存价双收（生产实测 10.9 倍超收，坑点 #169）。
-//
-// 判定条件用「严格相等」：这是唯一可证伪的结构性信号。放宽成 >= 会让大量真实 Anthropic
-// 流量被误减而巨额少收；严格相等的误判上限是少收一次 prompt 部分（安全方向），
-// 且每次触发都会落 other.admin_info.usage_semantic_mismatch 标记可审计。
+// 分支 A 用 prompt_tokens == cached + cache_creation 的结构自证，不需要本地估算 L；
+// 即使 CountToken 关闭、L 为 0，也必须继续生效，这是既有行为。
+// 分支 B 在 prompt_tokens > cached + cache_creation 时用本地估算 L 判别；S/4 是保守假设值而非
+// 生产实测值（探针数据尚未回流），因此结构上自限：S 越小闸门越紧。误判成含缓存只会少收，
+// 属于安全方向，且每次触发都会落 admin 标记并写后端 warn 日志可审计。
+// prompt_tokens < S 直接返回：这种形态本身就证明是净口径。
 //
 // 返回浅拷贝而非就地改写：调用方仍要用原 usage 做日志计费路径分类。
 func normalizeInclusivePromptForNetSemantics(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) (*dto.Usage, map[string]interface{}) {
@@ -424,18 +423,47 @@ func normalizeInclusivePromptForNetSemantics(relayInfo *relaycommon.RelayInfo, u
 	cacheTokens := usage.PromptTokensDetails.CachedTokens
 	cacheCreationTokens := usage.PromptTokensDetails.CacheCreationTokensTotal()
 	netExcluded := cacheTokens + cacheCreationTokens
-	if netExcluded <= 0 || usage.PromptTokens != netExcluded {
+	if netExcluded <= 0 || usage.PromptTokens < netExcluded {
+		return usage, nil
+	}
+
+	// 分支 A（既有行为，不依赖本地估算）：p 恰好等于 S ⇒ base 为 0，是结构上自证的含缓存计数
+	if usage.PromptTokens == netExcluded {
+		normalized := *usage
+		normalized.PromptTokens = 0
+		return &normalized, map[string]interface{}{
+			"reason":                   "anthropic_inclusive_prompt",
+			"prompt_tokens":            usage.PromptTokens,
+			"cache_tokens":             cacheTokens,
+			"cache_creation_tokens":    cacheCreationTokens,
+			"normalized_prompt_tokens": normalized.PromptTokens,
+		}
+	}
+
+	// 分支 B（新增）：p > S，需要本地估算做判别
+	estimatePromptTokens := relayInfo.GetEstimatePromptTokens()
+	if estimatePromptTokens <= 0 {
+		return usage, nil
+	}
+	// 两个假设下 L 都不该低于 p 的一半；低于说明本地估算本身不可信（如未计入的多模态内容），不判定
+	if estimatePromptTokens < usage.PromptTokens/2 {
+		return usage, nil
+	}
+	threshold := usage.PromptTokens + netExcluded/4
+	if estimatePromptTokens > threshold {
 		return usage, nil
 	}
 
 	normalized := *usage
-	normalized.PromptTokens = 0
+	normalized.PromptTokens = usage.PromptTokens - netExcluded
 	return &normalized, map[string]interface{}{
-		"reason":                   "anthropic_inclusive_prompt",
+		"reason":                   "anthropic_inclusive_prompt_estimated",
 		"prompt_tokens":            usage.PromptTokens,
 		"cache_tokens":             cacheTokens,
 		"cache_creation_tokens":    cacheCreationTokens,
 		"normalized_prompt_tokens": normalized.PromptTokens,
+		"estimate_prompt_tokens":   estimatePromptTokens,
+		"threshold":                threshold,
 	}
 }
 

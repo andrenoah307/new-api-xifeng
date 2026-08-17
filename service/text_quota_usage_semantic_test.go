@@ -421,3 +421,249 @@ func TestAttachUsageSemanticProbePreservesAdminInfo(t *testing.T) {
 	var nilOther map[string]interface{}
 	attachUsageSemanticProbe(nilOther, probe)
 }
+
+func TestNormalizeInclusivePromptForNetSemanticsUsesEstimateThreshold(t *testing.T) {
+	tests := []struct {
+		name             string
+		relayInfo        func() *relaycommon.RelayInfo
+		promptTokens     int
+		cacheTokens      int
+		cacheCreation    int
+		estimatePrompt   int
+		semantic         string
+		wantPromptTokens int
+		wantReason       string
+		wantMismatch     bool
+		wantEstimate     bool
+		wantThreshold    int
+	}{
+		{
+			name:             "structural equality works without estimate",
+			relayInfo:        newInclusiveSemanticRelayInfo,
+			promptTokens:     5000,
+			cacheTokens:      5000,
+			wantPromptTokens: 0,
+			wantReason:       "anthropic_inclusive_prompt",
+			wantMismatch:     true,
+		},
+		{
+			name: "prompt below cache sum is net semantic",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(51000)
+				return info
+			},
+			promptTokens:     1000,
+			cacheTokens:      50000,
+			estimatePrompt:   51000,
+			wantPromptTokens: 1000,
+		},
+		{
+			name: "net semantic small cache is not normalized",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(34628)
+				return info
+			},
+			promptTokens:     29764,
+			cacheTokens:      4864,
+			estimatePrompt:   34628,
+			wantPromptTokens: 29764,
+		},
+		{
+			name: "threshold lower boundary is inclusive",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(30980)
+				return info
+			},
+			promptTokens:     29764,
+			cacheTokens:      4864,
+			estimatePrompt:   30980,
+			wantPromptTokens: 24900,
+			wantReason:       "anthropic_inclusive_prompt_estimated",
+			wantMismatch:     true,
+			wantEstimate:     true,
+			wantThreshold:    30980,
+		},
+		{
+			name: "threshold outside by one token",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(30981)
+				return info
+			},
+			promptTokens:     29764,
+			cacheTokens:      4864,
+			estimatePrompt:   30981,
+			wantPromptTokens: 29764,
+		},
+		{
+			name: "inclusive prompt typical contamination",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(29764)
+				return info
+			},
+			promptTokens:     29764,
+			cacheTokens:      4864,
+			estimatePrompt:   29764,
+			wantPromptTokens: 24900,
+			wantReason:       "anthropic_inclusive_prompt_estimated",
+			wantMismatch:     true,
+			wantEstimate:     true,
+			wantThreshold:    30980,
+		},
+		{
+			name: "cache creation participates",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(10000)
+				return info
+			},
+			promptTokens:     10000,
+			cacheTokens:      6000,
+			cacheCreation:    2000,
+			estimatePrompt:   10000,
+			wantPromptTokens: 2000,
+			wantReason:       "anthropic_inclusive_prompt_estimated",
+			wantMismatch:     true,
+			wantEstimate:     true,
+			wantThreshold:    12000,
+		},
+		{
+			name: "untrusted estimate below half",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(30000)
+				return info
+			},
+			promptTokens:     100000,
+			cacheTokens:      20000,
+			estimatePrompt:   30000,
+			wantPromptTokens: 100000,
+		},
+		{
+			name:             "estimate disabled",
+			relayInfo:        newInclusiveSemanticRelayInfo,
+			promptTokens:     10000,
+			cacheTokens:      4000,
+			wantPromptTokens: 10000,
+		},
+		{
+			name: "openrouter channel",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.ChannelMeta = &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeOpenRouter}
+				info.SetEstimatePromptTokens(10000)
+				return info
+			},
+			promptTokens:     10000,
+			cacheTokens:      4000,
+			estimatePrompt:   10000,
+			wantPromptTokens: 10000,
+		},
+		{
+			name: "openai semantic non legacy claude derived",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(10000)
+				return info
+			},
+			promptTokens:     10000,
+			cacheTokens:      4000,
+			estimatePrompt:   10000,
+			semantic:         dto.BillingUsageSemanticOpenAI,
+			wantPromptTokens: 10000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			relayInfo := tt.relayInfo()
+			semantic := tt.semantic
+			if semantic == "" {
+				semantic = dto.BillingUsageSemanticAnthropic
+			}
+			usage := &dto.Usage{
+				PromptTokens:  tt.promptTokens,
+				UsageSemantic: semantic,
+			}
+			usage.PromptTokensDetails.CachedTokens = tt.cacheTokens
+			usage.PromptTokensDetails.CachedCreationTokens = tt.cacheCreation
+			if tt.estimatePrompt > 0 {
+				relayInfo.SetEstimatePromptTokens(tt.estimatePrompt)
+			}
+
+			normalized, mismatch := normalizeInclusivePromptForNetSemantics(relayInfo, usage)
+
+			assert.Equal(t, tt.promptTokens, usage.PromptTokens)
+			assert.Equal(t, tt.wantPromptTokens, normalized.PromptTokens)
+			if !tt.wantMismatch {
+				assert.Nil(t, mismatch)
+				assert.Same(t, usage, normalized)
+				return
+			}
+			require.NotNil(t, mismatch)
+			assert.NotSame(t, usage, normalized)
+			assert.Equal(t, tt.wantReason, mismatch["reason"])
+			if tt.wantEstimate {
+				assert.Equal(t, tt.estimatePrompt, mismatch["estimate_prompt_tokens"])
+				assert.Equal(t, tt.wantThreshold, mismatch["threshold"])
+			} else {
+				assert.NotContains(t, mismatch, "estimate_prompt_tokens")
+			}
+		})
+	}
+}
+
+func TestAttachUsageSemanticMismatchPreservesAdminInfoForBothReasons(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	relayInfo := newInclusiveSemanticRelayInfo()
+
+	tests := []struct {
+		name           string
+		mismatch       map[string]interface{}
+		wantAdminValue string
+	}{
+		{
+			name: "structural reason",
+			mismatch: map[string]interface{}{
+				"reason":                   "anthropic_inclusive_prompt",
+				"prompt_tokens":            5000,
+				"cache_tokens":             5000,
+				"cache_creation_tokens":    0,
+				"normalized_prompt_tokens": 0,
+			},
+			wantAdminValue: "root",
+		},
+		{
+			name: "estimated reason",
+			mismatch: map[string]interface{}{
+				"reason":                   "anthropic_inclusive_prompt_estimated",
+				"prompt_tokens":            29764,
+				"cache_tokens":             4864,
+				"cache_creation_tokens":    0,
+				"estimate_prompt_tokens":   29764,
+				"threshold":                30980,
+				"normalized_prompt_tokens": 24900,
+			},
+			wantAdminValue: "root",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			other := map[string]interface{}{
+				"admin_info": map[string]interface{}{"admin_username": tt.wantAdminValue},
+			}
+			attachUsageSemanticMismatch(ctx, relayInfo, other, tt.mismatch)
+
+			adminInfo, ok := other["admin_info"].(map[string]interface{})
+			require.True(t, ok)
+			assert.Equal(t, tt.wantAdminValue, adminInfo["admin_username"])
+			assert.Equal(t, tt.mismatch, adminInfo["usage_semantic_mismatch"])
+		})
+	}
+}
