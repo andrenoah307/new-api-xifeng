@@ -238,3 +238,186 @@ func TestAttachUsageSemanticMismatchNestsUnderAdminInfo(t *testing.T) {
 	attachUsageSemanticMismatch(ctx, relayInfo, clean, nil)
 	assert.Empty(t, clean)
 }
+
+func TestBuildUsageSemanticProbe(t *testing.T) {
+	tests := []struct {
+		name         string
+		relayInfo    func() *relaycommon.RelayInfo
+		usage        func() *dto.Usage
+		want         map[string]interface{}
+		wantMismatch bool
+	}{
+		{
+			name: "anthropic net semantic sample",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(51000)
+				return info
+			},
+			usage: func() *dto.Usage {
+				usage := &dto.Usage{
+					PromptTokens:  1000,
+					UsageSemantic: dto.BillingUsageSemanticAnthropic,
+				}
+				usage.PromptTokensDetails.CachedTokens = 50000
+				return usage
+			},
+			want: map[string]interface{}{
+				"l": 51000, "p": 1000, "cr": 50000, "cc": 0, "sem": dto.BillingUsageSemanticAnthropic,
+			},
+		},
+		{
+			name: "inclusive prompt keeps original probe value",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(1500)
+				return info
+			},
+			usage: func() *dto.Usage {
+				usage := &dto.Usage{
+					PromptTokens:  1500,
+					UsageSemantic: dto.BillingUsageSemanticAnthropic,
+				}
+				usage.PromptTokensDetails.CachedTokens = 1000
+				usage.PromptTokensDetails.CachedCreationTokens = 500
+				return usage
+			},
+			want: map[string]interface{}{
+				"l": 1500, "p": 1500, "cr": 1000, "cc": 500, "sem": dto.BillingUsageSemanticAnthropic,
+			},
+			wantMismatch: true,
+		},
+		{
+			name: "zero cache sum",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(100)
+				return info
+			},
+			usage: func() *dto.Usage {
+				return &dto.Usage{PromptTokens: 100, UsageSemantic: dto.BillingUsageSemanticAnthropic}
+			},
+		},
+		{
+			name:      "estimate prompt tokens disabled",
+			relayInfo: newInclusiveSemanticRelayInfo,
+			usage: func() *dto.Usage {
+				usage := &dto.Usage{PromptTokens: 1000, UsageSemantic: dto.BillingUsageSemanticAnthropic}
+				usage.PromptTokensDetails.CachedTokens = 500
+				return usage
+			},
+		},
+		{
+			name: "openrouter",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.ChannelMeta = &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeOpenRouter}
+				info.SetEstimatePromptTokens(1000)
+				return info
+			},
+			usage: func() *dto.Usage {
+				usage := &dto.Usage{PromptTokens: 1000, UsageSemantic: dto.BillingUsageSemanticAnthropic}
+				usage.PromptTokensDetails.CachedTokens = 500
+				return usage
+			},
+		},
+		{
+			name: "openai non legacy claude derived",
+			relayInfo: func() *relaycommon.RelayInfo {
+				info := newInclusiveSemanticRelayInfo()
+				info.SetEstimatePromptTokens(1000)
+				return info
+			},
+			usage: func() *dto.Usage {
+				usage := &dto.Usage{
+					PromptTokens:  1000,
+					UsageSemantic: dto.BillingUsageSemanticOpenAI,
+					UsageSource:   dto.BillingUsageSourceOAIChat,
+				}
+				usage.PromptTokensDetails.CachedTokens = 500
+				return usage
+			},
+		},
+		{
+			name:      "nil usage",
+			relayInfo: newInclusiveSemanticRelayInfo,
+			usage:     func() *dto.Usage { return nil },
+		},
+		{
+			name: "nil relay info",
+			relayInfo: func() *relaycommon.RelayInfo {
+				return nil
+			},
+			usage: func() *dto.Usage {
+				usage := &dto.Usage{PromptTokens: 1000, UsageSemantic: dto.BillingUsageSemanticAnthropic}
+				usage.PromptTokensDetails.CachedTokens = 500
+				return usage
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			relayInfo := tt.relayInfo()
+			usage := tt.usage()
+			probe := buildUsageSemanticProbe(relayInfo, usage)
+			if tt.want == nil {
+				assert.Nil(t, probe)
+			} else {
+				require.Equal(t, tt.want, probe)
+			}
+
+			_, mismatch := normalizeInclusivePromptForNetSemantics(relayInfo, usage)
+			if tt.wantMismatch {
+				require.NotNil(t, mismatch)
+				assert.Equal(t, tt.want["p"], mismatch["prompt_tokens"])
+				assert.Equal(t, tt.want["p"], usage.PromptTokens)
+			} else {
+				assert.Nil(t, mismatch)
+			}
+		})
+	}
+}
+
+func TestAttachUsageSemanticProbePreservesAdminInfo(t *testing.T) {
+	probe := map[string]interface{}{"l": 51000, "p": 1000, "cr": 50000, "cc": 0, "sem": "anthropic"}
+	other := map[string]interface{}{
+		"admin_info": map[string]interface{}{"admin_username": "root"},
+	}
+
+	attachUsageSemanticProbe(other, probe)
+
+	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "root", adminInfo["admin_username"])
+	assert.Equal(t, probe, adminInfo["usage_semantic_probe"])
+
+	gin.SetMode(gin.TestMode)
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	relayInfo := newInclusiveSemanticRelayInfo()
+	usage := &dto.Usage{PromptTokens: 1500, UsageSemantic: dto.BillingUsageSemanticAnthropic}
+	usage.PromptTokensDetails.CachedTokens = 1000
+	usage.PromptTokensDetails.CachedCreationTokens = 500
+	_, mismatch := normalizeInclusivePromptForNetSemantics(relayInfo, usage)
+	require.NotNil(t, mismatch)
+	attachUsageSemanticMismatch(ctx, relayInfo, other, mismatch)
+	assert.Equal(t, mismatch, adminInfo["usage_semantic_mismatch"])
+	assert.Equal(t, probe, adminInfo["usage_semantic_probe"])
+
+	created := map[string]interface{}{}
+	attachUsageSemanticProbe(created, probe)
+	createdAdminInfo, ok := created["admin_info"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, probe, createdAdminInfo["usage_semantic_probe"])
+
+	clean := map[string]interface{}{}
+	attachUsageSemanticProbe(clean, nil)
+	assert.NotContains(t, clean, "admin_info")
+
+	emptyProbe := map[string]interface{}{}
+	attachUsageSemanticProbe(clean, emptyProbe)
+	assert.NotContains(t, clean, "admin_info")
+
+	var nilOther map[string]interface{}
+	attachUsageSemanticProbe(nilOther, probe)
+}

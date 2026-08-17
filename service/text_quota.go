@@ -364,6 +364,49 @@ func usageSemanticFromUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) 
 	return "openai"
 }
 
+// isNetSemanticUsage reports whether usage follows the net-semantic settlement
+// path: calculateTextQuotaSummary skips subtracting cache tokens from prompt
+// tokens for these usages. Normalization and observation share this admission
+// predicate so the probe describes exactly the population normalization could affect.
+func isNetSemanticUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) bool {
+	if usage == nil || relayInfo == nil {
+		return false
+	}
+	if relayInfo.ChannelMeta != nil && relayInfo.ChannelType == constant.ChannelTypeOpenRouter {
+		return false
+	}
+	return usageSemanticFromUsage(relayInfo, usage) == "anthropic" || isLegacyClaudeDerivedOpenAIUsage(relayInfo, usage)
+}
+
+// buildUsageSemanticProbe captures the local prompt estimate alongside the
+// upstream prompt/cache fields for calibrating the net-semantic versus
+// inclusive-semantic threshold. It intentionally samples only ambiguous
+// semantic inputs. When CountToken is disabled, L is always zero and the
+// sample has no value; callers must pass usage before normalization because
+// normalization rewrites prompt_tokens to zero. The short keys keep the
+// per-request log overhead small on full traffic.
+func buildUsageSemanticProbe(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) map[string]interface{} {
+	if !isNetSemanticUsage(relayInfo, usage) {
+		return nil
+	}
+	cachedTokens := usage.PromptTokensDetails.CachedTokens
+	cacheCreationTokens := usage.PromptTokensDetails.CacheCreationTokensTotal()
+	if cachedTokens+cacheCreationTokens <= 0 {
+		return nil
+	}
+	estimatePromptTokens := relayInfo.GetEstimatePromptTokens()
+	if estimatePromptTokens <= 0 {
+		return nil
+	}
+	return map[string]interface{}{
+		"l":   estimatePromptTokens,
+		"p":   usage.PromptTokens,
+		"cr":  cachedTokens,
+		"cc":  cacheCreationTokens,
+		"sem": usageSemanticFromUsage(relayInfo, usage),
+	}
+}
+
 // normalizeInclusivePromptForNetSemantics 收口「口径自相矛盾」的上游 usage：
 // 标记为净口径（anthropic / legacyClaudeDerived，即结算会跳过减缓存的那两个条件），
 // 却把含缓存的 prompt_tokens 一起发来（prompt_tokens 恰好等于 cached + cache_creation）。
@@ -375,14 +418,7 @@ func usageSemanticFromUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) 
 //
 // 返回浅拷贝而非就地改写：调用方仍要用原 usage 做日志计费路径分类。
 func normalizeInclusivePromptForNetSemantics(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) (*dto.Usage, map[string]interface{}) {
-	if usage == nil || relayInfo == nil {
-		return usage, nil
-	}
-	// OpenRouter Claude 在 calculateTextQuotaSummary 内已做同类扣减，二次扣减会让 PromptTokens 变负
-	if relayInfo.ChannelMeta != nil && relayInfo.ChannelType == constant.ChannelTypeOpenRouter {
-		return usage, nil
-	}
-	if usageSemanticFromUsage(relayInfo, usage) != "anthropic" && !isLegacyClaudeDerivedOpenAIUsage(relayInfo, usage) {
+	if !isNetSemanticUsage(relayInfo, usage) {
 		return usage, nil
 	}
 	cacheTokens := usage.PromptTokensDetails.CachedTokens
@@ -406,6 +442,7 @@ func normalizeInclusivePromptForNetSemantics(relayInfo *relaycommon.RelayInfo, u
 func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent []string) {
 	originUsage := usage
 	billingUsage := effectiveBillingUsage(usage)
+	usageSemanticProbe := buildUsageSemanticProbe(relayInfo, billingUsage)
 	// 必须在 affinity 观测、summary 与 BuildTieredTokenParams 之前收口，
 	// 这样写入日志的 prompt_tokens、quota、tiered_expr 的 p/Len 全部同源为净口径
 	// （坑点 #166 的容差 0 依赖日志与实扣同源）
@@ -561,6 +598,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 
 	attachQuotaSaturation(ctx, relayInfo, other)
 	attachUsageSemanticMismatch(ctx, relayInfo, other, usageSemanticMismatch)
+	attachUsageSemanticProbe(other, usageSemanticProbe)
 
 	model.RecordConsumeLog(ctx, relayInfo.UserId, model.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,

@@ -80,6 +80,23 @@ func attachUsageSemanticMismatch(ctx *gin.Context, relayInfo *relaycommon.RelayI
 		mismatch["prompt_tokens"], mismatch["cache_tokens"], mismatch["cache_creation_tokens"]))
 }
 
+// attachUsageSemanticProbe nests the prompt/cache observation under
+// other.admin_info. Like quota_saturation and usage_semantic_mismatch,
+// model.formatUserLogs strips admin_info for non-administrators, making this
+// marker admin-only. This intentionally emits no backend log: it runs on
+// ordinary traffic and logging every sample would flood the backend logs.
+func attachUsageSemanticProbe(other map[string]interface{}, probe map[string]interface{}) {
+	if len(probe) == 0 || other == nil {
+		return
+	}
+	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	if !ok || adminInfo == nil {
+		adminInfo = map[string]interface{}{}
+		other["admin_info"] = adminInfo
+	}
+	adminInfo["usage_semantic_probe"] = probe
+}
+
 func appendRequestPath(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
 	if other == nil {
 		return
