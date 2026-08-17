@@ -25,19 +25,19 @@ import React, {
   useState,
 } from 'react';
 import { Banner, Button, Card, Spin, Typography } from '@douyinfe/semi-ui';
-import { ChevronDown, ChevronUp, Gauge } from 'lucide-react';
+import { ChevronDown, ChevronUp, Gauge, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../../helpers';
 import {
-  installVisibleTopRefresh,
   normalizePersonalRPMItems,
+  personalRPMDisplayState,
 } from '../../helpers/personal-rpm';
+import { shouldRequestRateLimitCapacity } from '../../helpers/rate-limit-capacity';
 import { UserContext } from '../../context/User';
 
 const { Text } = Typography;
-// Dedupes fetches triggered close together (mount, identity change, hover).
-// It is deliberately shorter than the poll interval so a scheduled refresh is
-// never swallowed by the timestamp its own previous run wrote.
+// Dedupes non-interactive fetches triggered close together (mount, identity
+// change, hover). Explicit refreshes bypass this window.
 const STALE_TIME = 5000;
 const RETRY_COOLDOWN = 3000;
 
@@ -249,9 +249,7 @@ function CapacityGroupCard({
 
 function PersonalSection({ personal, t }) {
   const items = normalizePersonalRPMItems(personal?.items);
-  const unavailable =
-    personal?.status === 'unavailable' || personal?.status === 'overflow';
-  const showEmpty = personal?.status === 'empty' || (!unavailable && items.length === 0);
+  const displayState = personalRPMDisplayState(personal?.status, items);
 
   return (
     <section aria-label={t('我的模型 RPM')}>
@@ -259,33 +257,30 @@ function PersonalSection({ personal, t }) {
         <Text strong>{t('我的模型 RPM')}</Text>
         <div className='mt-1 text-xs text-gray-500'>{t('最近 60 秒')}</div>
       </div>
-      {showEmpty && (
+      {displayState === 'empty' && (
         <div className='px-4 py-4 text-sm text-gray-500 sm:px-5'>
           {t('暂无请求数据统计')}
         </div>
       )}
-      {unavailable && (
+      {displayState === 'unavailable' && (
         <div className='px-4 py-4 text-sm text-gray-500 sm:px-5'>
           {t('暂时不可用')}
         </div>
       )}
-      {!showEmpty && !unavailable && (
+      {displayState === 'available' && (
         <div
           className='grid gap-3 px-4 py-3 sm:px-5'
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(13rem, 1fr))' }}
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))',
+          }}
         >
           {items.map((item) => (
-            <div
+            <CapacityRow
               key={item.model}
-              className='rounded-lg border border-gray-200 p-3'
-            >
-              <div className='min-w-0 truncate text-sm' title={item.model}>
-                {item.model}
-              </div>
-              <div className='mt-2 truncate font-mono text-sm font-semibold tabular-nums'>
-                {formatCount(item.rpm)} RPM
-              </div>
-            </div>
+              label={item.model}
+              metric={item}
+              t={t}
+            />
           ))}
         </div>
       )}
@@ -293,7 +288,7 @@ function PersonalSection({ personal, t }) {
   );
 }
 
-function CapacityMetadata({ data, t }) {
+function CapacityMetadata({ data, refreshing, onRefresh, t }) {
   const instanceOnly =
     data.instance_only ||
     data.backend_scope === 'instance' ||
@@ -303,10 +298,23 @@ function CapacityMetadata({ data, t }) {
       <span>
         {t('数据更新：{{time}}', { time: formatObservedAt(data.observed_at) })}
       </span>
-      <span>{t('数据每 15 秒自动刷新')}</span>
+      <span>{t('点击刷新获取最新数据')}</span>
       {instanceOnly && (
         <span className='text-amber-600'>{t('仅当前实例')}</span>
       )}
+      <Button
+        type='button'
+        theme='borderless'
+        size='small'
+        className='ml-auto shrink-0'
+        icon={<RefreshCw size={14} />}
+        loading={refreshing}
+        disabled={refreshing}
+        aria-label={t('刷新')}
+        onClick={onRefresh}
+      >
+        {t('刷新')}
+      </Button>
     </div>
   );
 }
@@ -372,19 +380,20 @@ export default function RateLimitCapacityPanel() {
   const initializedIdentityRef = useRef(null);
 
   const loadCapacity = useCallback(
-    async (scope) => {
+    async (scope, { force = false } = {}) => {
       if (!hasUser) return;
       const requestIdentity = identityKey;
       const now = Date.now();
-      if (
-        loadedRef.current[scope] &&
-        now - loadedAtRef.current[scope] < STALE_TIME
-      ) {
-        return;
-      }
-      if (inFlightRef.current[scope] || now < retryAfterRef.current[scope]) {
-        return;
-      }
+      const shouldRequest = shouldRequestRateLimitCapacity({
+        force,
+        loaded: loadedRef.current[scope],
+        loadedAt: loadedAtRef.current[scope],
+        now,
+        inFlight: inFlightRef.current[scope],
+        retryAfterAt: retryAfterRef.current[scope],
+        staleTime: STALE_TIME,
+      });
+      if (!shouldRequest) return;
 
       inFlightRef.current[scope] = true;
       loadedRef.current[scope] = false;
@@ -450,15 +459,6 @@ export default function RateLimitCapacityPanel() {
     if (hasUser) void loadCapacity('top');
   }, [identityKey, hasUser, loadCapacity]);
 
-  useEffect(() => {
-    if (!hasUser || typeof document === 'undefined') return undefined;
-    return installVisibleTopRefresh({
-      documentRef: document,
-      windowRef: window,
-      refresh: () => void loadCapacity('top'),
-    });
-  }, [hasUser, loadCapacity]);
-
   const requestAll = useCallback(() => {
     void loadCapacity('all');
   }, [loadCapacity]);
@@ -485,9 +485,14 @@ export default function RateLimitCapacityPanel() {
     globalExpanded ||
     groupsExpanded ||
     Object.values(expandedGroups).some(Boolean);
+  const refreshCapacity = () => {
+    void loadCapacity('top', { force: true });
+    if (anyExpanded) void loadCapacity('all', { force: true });
+  };
   // The all snapshot is a source only while an area is expanded. Once
-  // collapsed, return to the 15-second top snapshot so personal data and
-  // metadata keep refreshing.
+  // collapsed, return to the latest top snapshot for personal data and
+  // metadata.
+  // prettier-ignore
   const data = anyExpanded && allData ? allData : (topData || allData);
   const site = data?.site;
   const global = site?.global;
@@ -614,7 +619,14 @@ export default function RateLimitCapacityPanel() {
       )}
 
       {data?.personal && <PersonalSection personal={data.personal} t={t} />}
-      {data && <CapacityMetadata data={data} t={t} />}
+      {data && (
+        <CapacityMetadata
+          data={data}
+          refreshing={topLoading || allLoading}
+          onRefresh={refreshCapacity}
+          t={t}
+        />
+      )}
     </Card>
   );
 }

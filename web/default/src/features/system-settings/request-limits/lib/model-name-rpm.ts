@@ -33,6 +33,7 @@ export type ModelNameRPMGroupLimit = {
 export type ModelNameRPMRule = {
   modelName: string
   globalRpm: number
+  userRpm: number
   groups: ModelNameRPMGroupLimit[]
 }
 
@@ -46,6 +47,8 @@ export type ModelNameRPMErrorCode =
   | 'model-name-whitespace'
   | 'model-name-duplicate'
   | 'global-rpm-range'
+  | 'user-rpm-range'
+  | 'user-rpm-exceeds-global'
   | 'group-name-required'
   | 'group-name-too-long'
   | 'group-name-whitespace'
@@ -117,6 +120,14 @@ export function parseModelNameRPMConfig(
     if (!isRecord(rawRule)) return { ok: false }
     if (!isCountableInteger(rawRule.global_rpm)) return { ok: false }
 
+    let userRpm = 0
+    if (rawRule.user_rpm !== undefined) {
+      if (!isCountableInteger(rawRule.user_rpm) || rawRule.user_rpm < 0) {
+        return { ok: false }
+      }
+      userRpm = rawRule.user_rpm
+    }
+
     const groups: ModelNameRPMGroupLimit[] = []
     const rawGroups = rawRule.group_rpm
     if (rawGroups !== undefined && rawGroups !== null) {
@@ -127,7 +138,7 @@ export function parseModelNameRPMConfig(
       }
     }
 
-    rules.push({ modelName, globalRpm: rawRule.global_rpm, groups })
+    rules.push({ modelName, globalRpm: rawRule.global_rpm, userRpm, groups })
   }
 
   return { ok: true, enabled, rules }
@@ -168,6 +179,11 @@ export function upsertModelNameRPMRule(
   }
 
   existing.global_rpm = rule.globalRpm
+  if (rule.userRpm === 0) {
+    delete existing.user_rpm
+  } else {
+    existing.user_rpm = rule.userRpm
+  }
   if (rule.groups.length === 0) {
     delete existing.group_rpm
   } else {
@@ -238,6 +254,13 @@ export function validateModelNameRPMRule(
     rule.globalRpm > MODEL_NAME_RPM_MAX_GLOBAL
   ) {
     return { code: 'global-rpm-range' }
+  }
+
+  if (!Number.isSafeInteger(rule.userRpm) || rule.userRpm < 0) {
+    return { code: 'user-rpm-range' }
+  }
+  if (rule.userRpm > rule.globalRpm) {
+    return { code: 'user-rpm-exceeds-global' }
   }
 
   const seenGroups = new Set<string>()

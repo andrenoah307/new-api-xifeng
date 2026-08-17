@@ -54,7 +54,7 @@ export const STATIC_I18N_KEYS = [
 
   // Rate-limit capacity metadata
   'Data updated: {{time}}',
-  'Data refreshes every 15 seconds',
+  'Click refresh for the latest data',
   'My model RPM',
   'Last 60 seconds',
   'No request data yet',
@@ -62,6 +62,12 @@ export const STATIC_I18N_KEYS = [
   'Show all {{total}} groups',
   'Show all {{total}} models',
   '{{count}} models',
+
+  // Model-name RPM editor
+  'Per-user RPM',
+  'Requests consume the global bucket and, when configured, the matching group and per-user buckets.',
+  'Per-user RPM must be a positive integer when set',
+  'Per-user RPM must not exceed the global RPM',
 
   // Pricing constants
   'Name',

@@ -285,9 +285,11 @@ const (
 
 // Rate limit related messages
 const (
-	MsgRateLimitReached      = "rate_limit.reached"
-	MsgRateLimitTotalReached = "rate_limit.total_reached"
-	MsgModelNameRateLimited  = "model_name.rate_limited"
+	MsgRateLimitReached           = "rate_limit.reached"
+	MsgRateLimitTotalReached      = "rate_limit.total_reached"
+	MsgRateLimitCapacityThrottled = "rate_limit_capacity.throttled"
+	MsgModelNameRateLimited       = "model_name.rate_limited"
+	MsgModelNameUserRateLimited   = "model_name.user_rate_limited"
 )
 
 // Setting related messages

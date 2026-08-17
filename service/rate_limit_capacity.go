@@ -7,9 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/service/model_name_limiter"
-	"github.com/QuantumNous/new-api/service/user_model_rpm"
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -20,7 +21,7 @@ const RateLimitCapacitySnapshotTTL = 5 * time.Second
 // combined because each pair has its own admission gate.
 type CapacityItem struct {
 	Model       string   `json:"model"`
-	Group       string   `json:"group,omitempty"`
+	Group       string   `json:"group"`
 	Current     *int     `json:"current"`
 	Limit       int      `json:"limit"`
 	Unlimited   bool     `json:"unlimited"`
@@ -54,7 +55,13 @@ type SiteCapacitySnapshot struct {
 	GroupRateLimitVersion uint64
 	Global                []CapacityItem
 	Groups                []CapacityItem
+	UserLimits            []UserRPMCapacityLimit
 	InstanceOnly          bool
+}
+
+type UserRPMCapacityLimit struct {
+	Model string
+	Limit int
 }
 
 type cachedSiteCapacity struct {
@@ -79,15 +86,13 @@ func (modelNameRPMInspector) Inspect(ctx context.Context, keys []string) ([]int,
 // singleflight refresh. Personal observations are read outside this cache
 // because they are keyed by the authenticated user and have their own window.
 type RateLimitCapacityService struct {
-	inspector            RPMCapacityInspector
-	instanceOnly         func() bool
-	personalRead         func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error)
-	personalInstanceOnly func() bool
-	clockMu              sync.RWMutex
-	clock                func() time.Time
-	cacheMu              sync.Mutex
-	cache                *cachedSiteCapacity
-	refreshSingle        singleflight.Group
+	inspector     RPMCapacityInspector
+	instanceOnly  func() bool
+	clockMu       sync.RWMutex
+	clock         func() time.Time
+	cacheMu       sync.Mutex
+	cache         *cachedSiteCapacity
+	refreshSingle singleflight.Group
 }
 
 func NewRateLimitCapacityService(inspector RPMCapacityInspector) *RateLimitCapacityService {
@@ -100,11 +105,9 @@ func NewRateLimitCapacityService(inspector RPMCapacityInspector) *RateLimitCapac
 		instanceOnlyDetector = model_name_limiter.UsingMemoryBackend
 	}
 	return &RateLimitCapacityService{
-		inspector:            inspector,
-		instanceOnly:         instanceOnlyDetector,
-		personalRead:         user_model_rpm.Inspect,
-		personalInstanceOnly: user_model_rpm.UsingMemoryBackend,
-		clock:                time.Now,
+		inspector:    inspector,
+		instanceOnly: instanceOnlyDetector,
+		clock:        time.Now,
 	}
 }
 
@@ -134,29 +137,6 @@ func (s *RateLimitCapacityService) SetInstanceOnlyDetector(detector func() bool)
 	s.cacheMu.Lock()
 	s.instanceOnly = detector
 	s.cache = nil
-	s.cacheMu.Unlock()
-}
-
-func (s *RateLimitCapacityService) SetPersonalReader(reader func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error)) {
-	if s == nil {
-		return
-	}
-	s.cacheMu.Lock()
-	if reader == nil {
-		s.personalRead = user_model_rpm.Inspect
-	} else {
-		s.personalRead = reader
-	}
-	s.cacheMu.Unlock()
-}
-
-// SetPersonalInstanceOnlyDetector is useful for deterministic endpoint tests.
-func (s *RateLimitCapacityService) SetPersonalInstanceOnlyDetector(detector func() bool) {
-	if s == nil {
-		return
-	}
-	s.cacheMu.Lock()
-	s.personalInstanceOnly = detector
 	s.cacheMu.Unlock()
 }
 
@@ -250,12 +230,20 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 		modelNames = append(modelNames, modelName)
 	}
 	sort.Strings(modelNames)
-	keys := make([]string, 0)
-	// A2 has only site model and model+group buckets. Do not manufacture a
-	// per-user RPM key here: it would add write amplification without changing
-	// admission semantics.
+	ruleModels := make(map[string]string, len(modelNames))
 	for _, modelName := range modelNames {
-		keys = append(keys, model_name_limiter.ModelKey(modelName))
+		ruleModels[modelName] = ratio_setting.FormatMatchingModelName(modelName)
+	}
+	keys := make([]string, 0)
+	// The site Redis read contains only site model and model+group buckets.
+	// Per-user limits are cached as metadata and read with the authenticated ID.
+	for _, modelName := range modelNames {
+		rule := rules.Models[modelName]
+		ruleModel := ruleModels[modelName]
+		keys = append(keys, model_name_limiter.ModelKey(ruleModel))
+		if rule.UserRPM > 0 {
+			snapshot.UserLimits = append(snapshot.UserLimits, UserRPMCapacityLimit{Model: ruleModel, Limit: rule.UserRPM})
+		}
 	}
 	for _, modelName := range modelNames {
 		groups := make([]string, 0, len(rules.Models[modelName].GroupRPM))
@@ -266,7 +254,7 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 		}
 		sort.Strings(groups)
 		for _, groupName := range groups {
-			keys = append(keys, model_name_limiter.GroupKey(modelName, groupName))
+			keys = append(keys, model_name_limiter.GroupKey(ruleModels[modelName], groupName))
 		}
 	}
 
@@ -300,7 +288,7 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 			value := counts[countIndex]
 			current = &value
 		}
-		snapshot.Global = append(snapshot.Global, makeCapacityItem(modelName, "", current, rule.GlobalRPM, available))
+		snapshot.Global = append(snapshot.Global, makeCapacityItem(ruleModels[modelName], "", current, rule.GlobalRPM, available))
 		countIndex++
 	}
 	for _, modelName := range modelNames {
@@ -318,7 +306,7 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 				value := counts[countIndex]
 				current = &value
 			}
-			snapshot.Groups = append(snapshot.Groups, makeCapacityItem(modelName, groupName, current, rule.GroupRPM[groupName], available))
+			snapshot.Groups = append(snapshot.Groups, makeCapacityItem(ruleModels[modelName], groupName, current, rule.GroupRPM[groupName], available))
 			countIndex++
 		}
 	}
@@ -426,6 +414,7 @@ func cloneSiteSnapshot(source SiteCapacitySnapshot) SiteCapacitySnapshot {
 	clone := source
 	clone.Global = cloneCapacityItems(source.Global)
 	clone.Groups = cloneCapacityItems(source.Groups)
+	clone.UserLimits = append([]UserRPMCapacityLimit(nil), source.UserLimits...)
 	return clone
 }
 
@@ -478,12 +467,12 @@ type SiteCapacityResponse struct {
 }
 
 type PersonalCapacity struct {
-	Status        string                    `json:"status"`
-	WindowSeconds int                       `json:"window_seconds"`
-	ObservedAt    time.Time                 `json:"observed_at"`
-	InstanceOnly  bool                      `json:"instance_only"`
-	Total         int                       `json:"total"`
-	Items         []user_model_rpm.ModelRPM `json:"items"`
+	Status        string         `json:"status"`
+	WindowSeconds int            `json:"window_seconds"`
+	ObservedAt    time.Time      `json:"observed_at"`
+	InstanceOnly  bool           `json:"instance_only"`
+	Total         int            `json:"total"`
+	Items         []CapacityItem `json:"items"`
 }
 
 // Get builds the user-facing response. Site candidates are filtered before
@@ -513,7 +502,8 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 		response.Warning = "A2 backend is process-local; counts cover this instance only"
 	}
 	if snapshotErr != nil {
-		response.Warning = joinWarnings(response.Warning, "A2 backend is unavailable: "+snapshotErr.Error())
+		common.SysError(fmt.Sprintf("rate_limit_capacity: A2 snapshot unavailable: %v", snapshotErr))
+		response.Warning = joinWarnings(response.Warning, "A2 backend is unavailable")
 	}
 
 	global := cloneCapacityItems(snapshot.Global)
@@ -576,44 +566,58 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 	}
 	response.Total = globalTotal + groupBucketTotal
 
-	s.cacheMu.Lock()
-	personalReader := s.personalRead
-	personalInstanceOnlyDetector := s.personalInstanceOnly
-	s.cacheMu.Unlock()
-	if personalReader == nil {
-		personalReader = user_model_rpm.Inspect
+	if len(snapshot.UserLimits) == 0 {
+		return response
 	}
-	items, personalStatus, personalErr := personalReader(ctx, request.UserID)
+
 	personal := &PersonalCapacity{
-		Status:        personalStatus,
-		WindowSeconds: user_model_rpm.WindowSeconds,
+		Status:        "ok",
+		WindowSeconds: model_name_limiter.WindowSeconds,
 		ObservedAt:    s.now().UTC(),
-		Items:         []user_model_rpm.ModelRPM{},
+		InstanceOnly:  snapshot.InstanceOnly,
+		Total:         len(snapshot.UserLimits),
+		Items:         make([]CapacityItem, 0, len(snapshot.UserLimits)),
 	}
-	if user_model_rpm.Enabled() && personalInstanceOnlyDetector != nil {
-		personal.InstanceOnly = personalInstanceOnlyDetector()
+	var personalCounts []int
+	var personalErr error
+	if request.UserID <= 0 {
+		personalErr = fmt.Errorf("invalid authenticated user id")
+	} else if s.inspector == nil {
+		personalErr = fmt.Errorf("capacity inspector is nil")
+	} else {
+		keys := make([]string, len(snapshot.UserLimits))
+		for i, limit := range snapshot.UserLimits {
+			keys[i] = model_name_limiter.UserKey(limit.Model, request.UserID)
+		}
+		personalCounts, personalErr = s.inspector.Inspect(ctx, keys)
+		if personalErr == nil && len(personalCounts) != len(keys) {
+			personalErr = fmt.Errorf("capacity inspector returned %d personal counts for %d keys", len(personalCounts), len(keys))
+		}
 	}
+	if personalErr == nil {
+		for _, count := range personalCounts {
+			if count < 0 {
+				personalErr = fmt.Errorf("capacity inspector returned a negative personal count")
+				break
+			}
+		}
+	}
+	personalAvailable := personalErr == nil
 	if personalErr != nil {
 		personal.Status = "unavailable"
 		response.Degraded = true
-		response.Warning = joinWarnings(response.Warning, "personal backend is unavailable: "+personalErr.Error())
+		common.SysError(fmt.Sprintf("rate_limit_capacity: personal snapshot unavailable: %v", personalErr))
+		response.Warning = joinWarnings(response.Warning, "personal backend is unavailable")
 	}
-	if personal.Status != "available" && personal.Status != "empty" && personal.Status != "overflow" && personal.Status != "unavailable" {
-		personal.Status = "unavailable"
-		if personalErr == nil {
-			response.Degraded = true
-			response.Warning = joinWarnings(response.Warning, "personal backend returned an unknown status")
+	for i, limit := range snapshot.UserLimits {
+		var current *int
+		if personalAvailable {
+			value := personalCounts[i]
+			current = &value
 		}
+		personal.Items = append(personal.Items, makeCapacityItem(limit.Model, "", current, limit.Limit, personalAvailable))
 	}
-	if personal.Status == "available" && personalErr == nil {
-		if items != nil {
-			personal.Items = append(personal.Items, items...)
-		}
-		user_model_rpm.SortByRPM(personal.Items)
-		personal.Total = len(personal.Items)
-	}
-	// Empty, unavailable, and overflow deliberately expose no synthetic model
-	// rows. In particular, overflow is a state marker rather than a partial list.
+	sortCapacityItems(personal.Items)
 	response.Personal = personal
 	return response
 }

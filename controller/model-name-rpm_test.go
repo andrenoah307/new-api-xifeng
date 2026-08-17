@@ -31,10 +31,12 @@ import (
 )
 
 type t3ControllerModelNameRPMRule struct {
-	GlobalRPM int `json:"global_rpm"`
+	GlobalRPM int            `json:"global_rpm"`
+	UserRPM   int            `json:"user_rpm,omitempty"`
+	GroupRPM  map[string]int `json:"group_rpm,omitempty"`
 }
 
-func t3ControllerConfigureModelNameRPM(t *testing.T, modelName string, globalRPM int) {
+func t3ControllerConfigureModelNameRPM(t *testing.T, modelName string, globalRPM, userRPM int, groupRPM map[string]int) {
 	t.Helper()
 	previous := setting.ModelNameRPMRateLimit2JSONString()
 	t.Cleanup(func() {
@@ -46,7 +48,7 @@ func t3ControllerConfigureModelNameRPM(t *testing.T, modelName string, globalRPM
 	}{
 		Enabled: true,
 		Models: map[string]t3ControllerModelNameRPMRule{
-			modelName: {GlobalRPM: globalRPM},
+			modelName: {GlobalRPM: globalRPM, UserRPM: userRPM, GroupRPM: groupRPM},
 		},
 	})
 	require.NoError(t, err)
@@ -94,7 +96,7 @@ func t3ControllerLimiterUsesMemory(t *testing.T) {
 
 func TestT3RelayTaskRemixGateUsesResolvedOriginModel(t *testing.T) {
 	modelName := "t3-remix-controller-model"
-	t3ControllerConfigureModelNameRPM(t, modelName, 1)
+	t3ControllerConfigureModelNameRPM(t, modelName, 2, 1, map[string]int{"default": 2})
 	t3ControllerLimiterUsesMemory(t)
 	db := t3ControllerSetupModelDB(t)
 
@@ -129,10 +131,11 @@ func TestT3RelayTaskRemixGateUsesResolvedOriginModel(t *testing.T) {
 	common.SetContextKey(c, constant.ContextKeyUserSetting, dto.UserSetting{Language: i18n.LangEn})
 	t.Cleanup(func() { common.CleanupBodyStorage(c) })
 
-	// Consume the only slot so the controller's E3 call must reject. The
-	// request itself has no E1/E2 opportunity because remix is shouldSelect=false.
-	key := "mdrl:v1:rpm:model:" + modelName
-	first := model_name_limiter.Acquire(context.Background(), []string{key}, []int{1})
+	// Consume the user's only slot so the controller's E3 call must inspect all
+	// three buckets and reject atomically. Remix has no E1/E2 opportunity.
+	first := model_name_limiter.Acquire(context.Background(), []model_name_limiter.Bucket{{
+		Key: model_name_limiter.UserKey(modelName, userID), Limit: 1, Scope: "user",
+	}})
 	require.True(t, first.Allowed)
 	RelayTask(c)
 
@@ -140,16 +143,27 @@ func TestT3RelayTaskRemixGateUsesResolvedOriginModel(t *testing.T) {
 	var response dto.TaskError
 	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
 	assert.Equal(t, string(types.ErrorCodeModelNameRateLimited), response.Code)
+	assert.Equal(t, "You are sending requests to this model too frequently. Please try again later.", response.Message)
 	assert.NotContains(t, recorder.Body.String(), modelName)
+	assert.NotContains(t, recorder.Body.String(), "default")
+	assert.NotContains(t, recorder.Body.String(), "\"limit\":1")
 	assert.Empty(t, c.GetStringSlice("use_channel"), "RPM rejection must happen before the retry loop")
+	counts, err := model_name_limiter.Inspect(context.Background(), []string{
+		model_name_limiter.ModelKey(modelName),
+		model_name_limiter.GroupKey(modelName, "default"),
+		model_name_limiter.UserKey(modelName, userID),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []int{0, 0, 1}, counts)
 }
 
 func TestT3RelayTaskRetryLoopDoesNotReacquireModelRPM(t *testing.T) {
 	modelName := "t3-retry-controller-model"
-	t3ControllerConfigureModelNameRPM(t, modelName, 2)
+	t3ControllerConfigureModelNameRPM(t, modelName, 2, 2, nil)
 	t3ControllerLimiterUsesMemory(t)
 
 	c := newRelayRateLimitTestContext(t)
+	common.SetContextKey(c, constant.ContextKeyUserId, 731004)
 	common.SetContextKey(c, constant.ContextKeyUserSetting, dto.UserSetting{Language: i18n.LangEn})
 	common.SetContextKey(c, constant.ContextKeyUsingGroup, "default")
 	common.SetContextKey(c, constant.ContextKeyTokenGroup, "default")
@@ -193,6 +207,11 @@ func TestT3RelayTaskRetryLoopDoesNotReacquireModelRPM(t *testing.T) {
 	// The gate's one hit plus this probe fit under the limit. A second gate
 	// invocation from the retry loop would have consumed the second slot and
 	// made this probe reject.
-	second := model_name_limiter.Acquire(context.Background(), []string{"mdrl:v1:rpm:model:" + modelName}, []int{2})
+	second := model_name_limiter.Acquire(context.Background(), []model_name_limiter.Bucket{{
+		Key: model_name_limiter.ModelKey(modelName), Limit: 2, Scope: "global",
+	}})
 	assert.True(t, second.Allowed)
+	counts, err := model_name_limiter.Inspect(context.Background(), []string{model_name_limiter.UserKey(modelName, 731004)})
+	require.NoError(t, err)
+	assert.Equal(t, []int{1}, counts)
 }

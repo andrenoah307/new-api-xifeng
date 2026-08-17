@@ -50,6 +50,8 @@ const ERROR_MESSAGES = {
     'Model name must not contain whitespace or control characters',
   'model-name-duplicate': 'This model already has a rule',
   'global-rpm-range': 'Global RPM must be an integer between 1 and 1,000,000',
+  'user-rpm-range': 'User RPM must be 0 or a positive integer',
+  'user-rpm-exceeds-global': 'User RPM must not exceed the global RPM',
   'group-name-required': 'Select a group',
   'group-name-too-long': 'Group name must not exceed 64 characters',
   'group-name-whitespace':
@@ -83,6 +85,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
   const [editingModelName, setEditingModelName] = useState(null);
   const [modelName, setModelName] = useState('');
   const [globalRpm, setGlobalRpm] = useState(60);
+  const [userRpm, setUserRpm] = useState(0);
   const [groups, setGroups] = useState([]);
   const [error, setError] = useState(null);
   const [groupOptions, setGroupOptions] = useState([]);
@@ -123,6 +126,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
     setEditingModelName(rule ? rule.modelName : null);
     setModelName(rule ? rule.modelName : '');
     setGlobalRpm(rule ? rule.globalRpm : 60);
+    setUserRpm(rule ? rule.userRpm : 0);
     setGroups(rule ? rule.groups.map((group) => ({ ...group })) : []);
     setModalVisible(true);
     loadGroupOptions();
@@ -137,7 +141,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
   }
 
   function handleSave() {
-    const rule = { modelName, globalRpm, groups };
+    const rule = { modelName, globalRpm, userRpm, groups };
     const otherModelNames = rules
       .map((item) => item.modelName)
       .filter((name) => name !== editingModelName);
@@ -183,6 +187,12 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
       title: t('Global RPM'),
       dataIndex: 'globalRpm',
       render: (globalRpmValue) => globalRpmValue.toLocaleString(),
+    },
+    {
+      title: t('Per-user RPM'),
+      dataIndex: 'userRpm',
+      render: (userRpmValue) =>
+        userRpmValue === 0 ? t('None') : userRpmValue.toLocaleString(),
     },
     {
       title: t('Group sub-limits'),
@@ -278,7 +288,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
       >
         <Text type='tertiary' size='small'>
           {t(
-            'Requests consume the global bucket and, when configured, the matching group bucket.',
+            'Requests consume the global bucket and, when configured, the per-user and matching group buckets.',
           )}
         </Text>
 
@@ -316,6 +326,24 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
             </Text>
           </div>
           {fieldError(['global-rpm-range'])}
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <Text strong>{t('Per-user RPM')}</Text>
+          <InputNumber
+            value={userRpm}
+            min={0}
+            max={MODEL_NAME_RPM_MAX_GLOBAL}
+            step={1}
+            onChange={(next) => setUserRpm(Number(next) || 0)}
+            style={{ marginTop: 4, width: '100%' }}
+          />
+          <div>
+            <Text type='tertiary' size='small'>
+              {t('Optional limit for each user. Set to 0 to disable.')}
+            </Text>
+          </div>
+          {fieldError(['user-rpm-range', 'user-rpm-exceeds-global'])}
         </div>
 
         <div style={{ marginTop: 16 }}>

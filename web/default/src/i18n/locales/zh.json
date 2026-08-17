@@ -5414,10 +5414,11 @@
     "Search model names...": "搜索模型名称...",
     "No model RPM rules configured. Click \"Add model\" to get started.": "尚未配置模型 RPM 规则，点击「添加模型」开始配置。",
     "Global RPM": "全局 RPM",
+    "Per-user RPM": "单用户 RPM",
     "Group sub-limits": "分组子限制",
     "Edit model RPM rule": "编辑模型 RPM 规则",
     "Add model RPM rule": "添加模型 RPM 规则",
-    "Requests consume the global bucket and, when configured, the matching group bucket.": "每个请求会消耗全局配额；若配置了分组子限制，同时消耗对应分组的配额。",
+    "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "每个请求会消耗全局配额；若已配置，还会同时消耗对应分组和单用户配额。",
     "e.g., gpt-4o": "例如：gpt-4o",
     "Must match the model name the client requests, including aliases.": "必须与客户端请求的模型名称完全一致，包括别名。",
     "Hard ceiling shared by every group, in requests per minute.": "所有分组共享的硬性上限，单位为每分钟请求数。",
@@ -5429,6 +5430,8 @@
     "Model name must not contain whitespace or control characters": "模型名称不能包含空白字符或控制字符",
     "This model already has a rule": "该模型已存在规则",
     "Global RPM must be an integer between 1 and 1,000,000": "全局 RPM 必须是 1 到 1,000,000 之间的整数",
+    "Per-user RPM must be a positive integer when set": "单用户 RPM 设置后必须为正整数",
+    "Per-user RPM must not exceed the global RPM": "单用户 RPM 不能超过全局 RPM",
     "Group name must not exceed 64 characters": "分组名称不能超过 64 个字符",
     "Group name must not contain whitespace or control characters": "分组名称不能包含空白字符或控制字符",
     "This group already has a limit for this model": "该分组已为此模型配置了限制",
@@ -5492,7 +5495,7 @@
     "My model RPM": "我的模型 RPM",
     "Last 60 seconds": "最近 60 秒",
     "No request data yet": "暂无请求数据统计",
-    "Data refreshes every 15 seconds": "数据每 15 秒自动刷新",
+    "Click refresh for the latest data": "点击刷新获取最新数据",
     "RPM overview": "RPM 概览"
   }
 }

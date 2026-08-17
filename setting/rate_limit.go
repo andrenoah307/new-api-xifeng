@@ -17,14 +17,6 @@ var ModelRequestRateLimitGroup = map[string][2]int{}
 var ModelRequestRateLimitMutex sync.RWMutex
 var modelRequestRateLimitConfigVersion atomic.Uint64
 
-// UserModelRPMEnabled is the shared startup-level switch for per-user model
-// observations. Keeping the environment read in setting avoids a dependency
-// from this package back into service while letting both the capacity pre-gate
-// and the collector use exactly the same policy.
-func UserModelRPMEnabled() bool {
-	return common.GetEnvOrDefaultBool("USER_MODEL_RPM_ENABLED", true)
-}
-
 func ModelRequestRateLimitGroup2JSONString() string {
 	ModelRequestRateLimitMutex.RLock()
 	defer ModelRequestRateLimitMutex.RUnlock()
@@ -74,18 +66,12 @@ func ModelRequestRateLimitConfigVersion() uint64 {
 	return modelRequestRateLimitConfigVersion.Load()
 }
 
-// IsRateLimitCapacityEnabled is a cheap public-card pre-gate. Personal model
-// observations are independent of A1/A2 configuration, while site visibility
-// still requires at least one configured A2 rule.
+// IsRateLimitCapacityEnabled is the O(1) public-card pre-gate. The status
+// endpoint is high traffic, so this reads the immutable snapshot directly
+// instead of cloning all model and group rules.
 func IsRateLimitCapacityEnabled() bool {
-	if UserModelRPMEnabled() {
-		return true
-	}
-	rules := ListModelNameRPMRules()
-	if !rules.Enabled || len(rules.Models) == 0 {
-		return false
-	}
-	return true
+	snapshot := modelNameRPMSnapshot.Load()
+	return snapshot != nil && snapshot.Enabled && len(snapshot.Models) > 0
 }
 
 func GetGroupRateLimit(group string) (totalCount, successCount int, found bool) {

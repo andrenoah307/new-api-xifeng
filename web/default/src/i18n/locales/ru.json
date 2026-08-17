@@ -5414,10 +5414,11 @@
     "Search model names...": "Поиск по названию модели...",
     "No model RPM rules configured. Click \"Add model\" to get started.": "Правила RPM для моделей не настроены. Нажмите «Добавить модель», чтобы начать.",
     "Global RPM": "Глобальный RPM",
+    "Per-user RPM": "RPM на пользователя",
     "Group sub-limits": "Подлимиты по группам",
     "Edit model RPM rule": "Изменить правило RPM модели",
     "Add model RPM rule": "Добавить правило RPM модели",
-    "Requests consume the global bucket and, when configured, the matching group bucket.": "Каждый запрос расходует глобальный лимит и, если настроено, лимит соответствующей группы.",
+    "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "Каждый запрос расходует глобальный лимит, а если настроено — также лимит соответствующей группы и пользователя.",
     "e.g., gpt-4o": "например, gpt-4o",
     "Must match the model name the client requests, including aliases.": "Должно точно совпадать с именем модели в запросе клиента, включая псевдонимы.",
     "Hard ceiling shared by every group, in requests per minute.": "Жёсткий предел, общий для всех групп, в запросах в минуту.",
@@ -5429,6 +5430,8 @@
     "Model name must not contain whitespace or control characters": "Название модели не должно содержать пробельные и управляющие символы",
     "This model already has a rule": "Для этой модели уже есть правило",
     "Global RPM must be an integer between 1 and 1,000,000": "Глобальный RPM должен быть целым числом от 1 до 1 000 000",
+    "Per-user RPM must be a positive integer when set": "RPM на пользователя должен быть положительным целым числом, если он задан",
+    "Per-user RPM must not exceed the global RPM": "RPM на пользователя не должен превышать глобальный RPM",
     "Group name must not exceed 64 characters": "Название группы не должно превышать 64 символа",
     "Group name must not contain whitespace or control characters": "Название группы не должно содержать пробельные и управляющие символы",
     "This group already has a limit for this model": "Для этой группы уже задан лимит для этой модели",
@@ -5492,7 +5495,7 @@
     "My model RPM": "Мой RPM по моделям",
     "Last 60 seconds": "Последние 60 секунд",
     "No request data yet": "Данных о запросах пока нет",
-    "Data refreshes every 15 seconds": "Данные обновляются каждые 15 секунд",
+    "Click refresh for the latest data": "Нажмите «Обновить», чтобы получить последние данные",
     "RPM overview": "Обзор RPM"
   }
 }

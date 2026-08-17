@@ -125,6 +125,110 @@ func TestT1ModelNameRPMRateLimitJSONStringRoundTrip(t *testing.T) {
 	assert.Nil(t, decoded.Models["claude-3"].GroupRPM)
 }
 
+func TestT1ModelNameRPMUserRPMValidationBoundaries(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     string
+		wantError bool
+		errorPart string
+	}{
+		{
+			name:  "missing disables user limit",
+			value: `{"enabled":true,"models":{"gpt-4o":{"global_rpm":10}}}`,
+		},
+		{
+			name:  "zero disables user limit",
+			value: `{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":0}}}`,
+		},
+		{
+			name:  "one is accepted",
+			value: `{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":1}}}`,
+		},
+		{
+			name:  "equal to global is accepted",
+			value: `{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":10}}}`,
+		},
+		{
+			name:      "over global is rejected",
+			value:     `{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":11}}}`,
+			wantError: true,
+			errorPart: "user_rpm must not exceed global_rpm",
+		},
+		{
+			name:      "negative is rejected",
+			value:     `{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":-1}}}`,
+			wantError: true,
+			errorPart: "user_rpm must be at least 1 or 0 to disable",
+		},
+		{
+			name:      "floating point is rejected",
+			value:     `{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":1.5}}}`,
+			wantError: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := CheckModelNameRPMRateLimit(test.value)
+			if !test.wantError {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			if test.errorPart != "" {
+				assert.ErrorContains(t, err, test.errorPart)
+			}
+		})
+	}
+}
+
+func TestT1MatchModelNameRPMReturnsUserRPMForNormalizedRule(t *testing.T) {
+	t1PreserveModelNameRPMSnapshot(t)
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gemini-2.5-pro":{"global_rpm":10,"user_rpm":3}}}`))
+
+	decision := MatchModelNameRPM("gemini-2.5-pro[1m]", "free")
+	require.True(t, decision.Matched)
+	assert.Equal(t, "gemini-2.5-pro", decision.RuleModel)
+	assert.Equal(t, 3, decision.UserRPM)
+}
+
+func TestT1MatchModelNameRPMNormalizesExactRuleModel(t *testing.T) {
+	t1PreserveModelNameRPMSnapshot(t)
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o-gizmo-private":{"global_rpm":10,"user_rpm":3}}}`))
+
+	decision := MatchModelNameRPM("gpt-4o-gizmo-private", "free")
+	require.True(t, decision.Matched)
+	assert.Equal(t, "gpt-4o-gizmo-*", decision.RuleModel)
+}
+
+func TestT1ModelNameRPMUserRPMJSONRoundTrip(t *testing.T) {
+	t1PreserveModelNameRPMSnapshot(t)
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":3}}}`))
+
+	var decoded struct {
+		Models map[string]struct {
+			GlobalRPM int `json:"global_rpm"`
+			UserRPM   int `json:"user_rpm"`
+		} `json:"models"`
+	}
+	require.NoError(t, common.UnmarshalJsonStr(ModelNameRPMRateLimit2JSONString(), &decoded))
+	assert.Equal(t, 10, decoded.Models["gpt-4o"].GlobalRPM)
+	assert.Equal(t, 3, decoded.Models["gpt-4o"].UserRPM)
+}
+
+func TestT1CloneModelNameRPMConfigPreservesUserRPM(t *testing.T) {
+	t1PreserveModelNameRPMSnapshot(t)
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":3}}}`))
+
+	var decoded struct {
+		Models map[string]struct {
+			UserRPM int `json:"user_rpm"`
+		} `json:"models"`
+	}
+	require.NoError(t, common.UnmarshalJsonStr(ModelNameRPMRateLimit2JSONString(), &decoded))
+	assert.Equal(t, 3, decoded.Models["gpt-4o"].UserRPM)
+}
+
 func TestT1CheckModelNameRPMRateLimitRejectsInvalidConfigurations(t *testing.T) {
 	longModel := strings.Repeat("m", 256)
 	longGroup := strings.Repeat("g", 65)
@@ -197,11 +301,8 @@ func TestT1CheckModelNameRPMRateLimitRejectsInvalidConfigurations(t *testing.T) 
 			}),
 		},
 		{
-			name: "normalized model collision",
-			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-				"gemini-2.5-pro-thinking-1024": {GlobalRPM: 10},
-				"gemini-2.5-pro-thinking-2048": {GlobalRPM: 10},
-			}),
+			name:  "normalized model collision",
+			value: `{"enabled":true,"models":{"gemini-2.5-pro-thinking-1024":{"global_rpm":10,"user_rpm":2},"gemini-2.5-pro-thinking-2048":{"global_rpm":10,"user_rpm":2}}}`,
 		},
 	}
 

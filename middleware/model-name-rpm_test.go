@@ -29,6 +29,7 @@ import (
 
 type t3ModelNameRPMRule struct {
 	GlobalRPM int            `json:"global_rpm"`
+	UserRPM   int            `json:"user_rpm,omitempty"`
 	GroupRPM  map[string]int `json:"group_rpm,omitempty"`
 }
 
@@ -58,13 +59,13 @@ func t3NewModelNameRPMTestContext(t *testing.T, path string) (*gin.Context, *htt
 	return c, recorder
 }
 
-func t3SetModelNameRPMAcquireSpy(t *testing.T, fn func(context.Context, []string, []int) model_name_limiter.Result) *int {
+func t3SetModelNameRPMAcquireSpy(t *testing.T, fn func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result) *int {
 	t.Helper()
 	previous := modelNameRPMAcquire
 	calls := 0
-	modelNameRPMAcquire = func(ctx context.Context, keys []string, limits []int) model_name_limiter.Result {
+	modelNameRPMAcquire = func(ctx context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
 		calls++
-		return fn(ctx, keys, limits)
+		return fn(ctx, buckets)
 	}
 	t.Cleanup(func() { modelNameRPMAcquire = previous })
 	return &calls
@@ -101,27 +102,34 @@ func TestT3ModelNameRPMUnmatchedDoesNotAcquire(t *testing.T) {
 		"configured-model": {GlobalRPM: 10},
 	})
 	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
-	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []string, []int) model_name_limiter.Result {
+	db := t3SetupChannelDB(t)
+	dbQueries := 0
+	require.NoError(t, db.Callback().Query().Before("gorm:query").Register("t3:count_unmatched_queries", func(*gorm.DB) {
+		dbQueries++
+	}))
+	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
 		t.Fatal("Acquire must not be called for an unmatched model")
 		return model_name_limiter.Result{}
 	})
 
 	require.True(t, enforceModelNameRPM(c, "unconfigured-model", "free", c.Request.URL.Path))
 	assert.Equal(t, 0, *calls)
+	assert.Equal(t, 0, dbQueries)
 	assert.True(t, common.GetContextKeyBool(c, constant.ContextKeyModelNameRPMChecked))
 }
 
-func TestT3ModelNameRPMBuildsGlobalAndGroupKeys(t *testing.T) {
+func TestT3ModelNameRPMBuildsGlobalGroupAndUserBuckets(t *testing.T) {
 	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
-		"gpt-4o": {GlobalRPM: 10, GroupRPM: map[string]int{"free": 3}},
+		"gpt-4o": {GlobalRPM: 10, UserRPM: 2, GroupRPM: map[string]int{"free": 3}},
 	})
 	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
-	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, keys []string, limits []int) model_name_limiter.Result {
-		assert.Equal(t, []string{
-			"mdrl:v1:rpm:model:gpt-4o",
-			"mdrl:v1:rpm:group:gpt-4o:free",
-		}, keys)
-		assert.Equal(t, []int{10, 3}, limits)
+	common.SetContextKey(c, constant.ContextKeyUserId, 42)
+	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{
+			{Key: "mdrl:v1:rpm:model:gpt-4o", Limit: 10, Scope: "global"},
+			{Key: "mdrl:v1:rpm:group:gpt-4o:free", Limit: 3, Scope: "group"},
+			{Key: "mdrl:v1:rpm:user:gpt-4o:42", Limit: 2, Scope: "user"},
+		}, buckets)
 		return model_name_limiter.Result{Allowed: true}
 	})
 
@@ -130,12 +138,32 @@ func TestT3ModelNameRPMBuildsGlobalAndGroupKeys(t *testing.T) {
 	assert.True(t, common.GetContextKeyBool(c, constant.ContextKeyModelNameRPMChecked))
 }
 
+func TestT3ModelNameRPMMissingUserIDSkipsOnlyUserBucket(t *testing.T) {
+	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
+		"gpt-4o": {GlobalRPM: 10, UserRPM: 2, GroupRPM: map[string]int{"free": 3}},
+	})
+	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
+	t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{
+			{Key: "mdrl:v1:rpm:model:gpt-4o", Limit: 10, Scope: "global"},
+			{Key: "mdrl:v1:rpm:group:gpt-4o:free", Limit: 3, Scope: "group"},
+		}, buckets)
+		for _, bucket := range buckets {
+			assert.NotContains(t, bucket.Key, ":user:")
+			assert.NotContains(t, bucket.Key, ":0")
+		}
+		return model_name_limiter.Result{Allowed: true}
+	})
+
+	require.True(t, enforceModelNameRPM(c, "gpt-4o", "free", c.Request.URL.Path))
+}
+
 func TestT3ModelNameRPMIsIdempotentAcrossEntries(t *testing.T) {
 	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
 		"gpt-4o": {GlobalRPM: 10},
 	})
 	c, _ := t3NewModelNameRPMTestContext(t, "/v1/videos")
-	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []string, []int) model_name_limiter.Result {
+	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
 		return model_name_limiter.Result{Allowed: false, Scope: "global", Limit: 10, Current: 10}
 	})
 
@@ -151,7 +179,7 @@ func TestT3ModelNameRPMRejectsWithRedactedOpenAIResponse(t *testing.T) {
 	})
 	c, recorder := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
 	c.Set(string(constant.ContextKeyLanguage), i18n.LangZhCN)
-	t3SetModelNameRPMAcquireSpy(t, func(context.Context, []string, []int) model_name_limiter.Result {
+	t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
 		return model_name_limiter.Result{Allowed: false, Scope: "group", Limit: 4, Current: 4}
 	})
 
@@ -174,12 +202,44 @@ func TestT3ModelNameRPMRejectsWithRedactedOpenAIResponse(t *testing.T) {
 	assert.True(t, common.GetContextKeyBool(c, constant.ContextKeyModelNameRPMChecked))
 }
 
+func TestT3ModelNameRPMUserRejectionUsesDistinctRedactedMessage(t *testing.T) {
+	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
+		"secret-model": {GlobalRPM: 17, UserRPM: 13, GroupRPM: map[string]int{"secret-group": 14}},
+	})
+
+	globalContext, globalRecorder := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
+	globalContext.Set(string(constant.ContextKeyLanguage), i18n.LangZhCN)
+	common.SetContextKey(globalContext, constant.ContextKeyUserId, 42)
+	rejectScope := "global"
+	t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
+		if rejectScope == "user" {
+			return model_name_limiter.Result{Allowed: false, Scope: "user", Limit: 13, Current: 13}
+		}
+		return model_name_limiter.Result{Allowed: false, Scope: rejectScope, Limit: 17, Current: 17}
+	})
+	require.False(t, enforceModelNameRPM(globalContext, "secret-model", "secret-group", globalContext.Request.URL.Path))
+
+	userContext, userRecorder := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
+	userContext.Set(string(constant.ContextKeyLanguage), i18n.LangZhCN)
+	common.SetContextKey(userContext, constant.ContextKeyUserId, 42)
+	rejectScope = "user"
+	require.False(t, enforceModelNameRPM(userContext, "secret-model", "secret-group", userContext.Request.URL.Path))
+
+	assert.Equal(t, http.StatusServiceUnavailable, userRecorder.Code)
+	assert.Contains(t, globalRecorder.Body.String(), "模型请求过于频繁，请稍后重试")
+	assert.Contains(t, userRecorder.Body.String(), "你对该模型的请求过于频繁，请稍后重试")
+	assert.NotEqual(t, globalRecorder.Body.String(), userRecorder.Body.String())
+	for _, secret := range []string{"secret-model", "secret-group", "17", "14", "13", "global", "user"} {
+		assert.NotContains(t, userRecorder.Body.String(), secret)
+	}
+}
+
 func TestT3ModelNameRPMFailOpenMarksRequestChecked(t *testing.T) {
 	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
 		"gpt-4o": {GlobalRPM: 10},
 	})
 	c, recorder := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
-	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []string, []int) model_name_limiter.Result {
+	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
 		// T2 represents Redis failures as an allowed result.
 		return model_name_limiter.Result{Allowed: true}
 	})
@@ -196,7 +256,7 @@ func TestT3ModelNameRPMTaskResponseUsesTaskShape(t *testing.T) {
 	})
 	c, recorder := t3NewModelNameRPMTestContext(t, "/v1/videos/origin/remix")
 	c.Set(string(constant.ContextKeyLanguage), i18n.LangEn)
-	t3SetModelNameRPMAcquireSpy(t, func(context.Context, []string, []int) model_name_limiter.Result {
+	t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
 		return model_name_limiter.Result{Allowed: false, Scope: "global", Limit: 2, Current: 2}
 	})
 
@@ -218,7 +278,7 @@ func TestT3ModelNameRPMAlreadyCheckedSkipsAcquire(t *testing.T) {
 	})
 	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
 	common.SetContextKey(c, constant.ContextKeyModelNameRPMChecked, true)
-	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []string, []int) model_name_limiter.Result {
+	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
 		t.Fatal("an already checked request must not acquire")
 		return model_name_limiter.Result{}
 	})
@@ -233,9 +293,8 @@ func TestT3ModelNameRPMUsesGlobalOnlyWhenNoGroupRule(t *testing.T) {
 		"gpt-4o": {GlobalRPM: 10},
 	})
 	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
-	t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, keys []string, limits []int) model_name_limiter.Result {
-		assert.Equal(t, []string{"mdrl:v1:rpm:model:gpt-4o"}, keys)
-		assert.Equal(t, []int{10}, limits)
+	t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{{Key: "mdrl:v1:rpm:model:gpt-4o", Limit: 10, Scope: "global"}}, buckets)
 		return model_name_limiter.Result{Allowed: true}
 	})
 	require.True(t, enforceModelNameRPM(c, "gpt-4o", "free", c.Request.URL.Path))
@@ -243,7 +302,7 @@ func TestT3ModelNameRPMUsesGlobalOnlyWhenNoGroupRule(t *testing.T) {
 
 func TestT3E1SpecifiedChannelBranchCountsRPM(t *testing.T) {
 	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
-		"gpt-4o": {GlobalRPM: 10},
+		"gpt-4o": {GlobalRPM: 10, UserRPM: 2, GroupRPM: map[string]int{"default": 4}},
 	})
 	db := t3SetupChannelDB(t)
 	channelID := 940001
@@ -260,10 +319,14 @@ func TestT3E1SpecifiedChannelBranchCountsRPM(t *testing.T) {
 	c.Request.Body = io.NopCloser(strings.NewReader(`{"model":"gpt-4o"}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 	common.SetContextKey(c, constant.ContextKeyUsingGroup, "default")
+	common.SetContextKey(c, constant.ContextKeyUserId, 71)
 	common.SetContextKey(c, constant.ContextKeyTokenSpecificChannelId, strconv.Itoa(channelID))
-	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, keys []string, limits []int) model_name_limiter.Result {
-		assert.Equal(t, []string{"mdrl:v1:rpm:model:gpt-4o"}, keys)
-		assert.Equal(t, []int{10}, limits)
+	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{
+			{Key: "mdrl:v1:rpm:model:gpt-4o", Limit: 10, Scope: "global"},
+			{Key: "mdrl:v1:rpm:group:gpt-4o:default", Limit: 4, Scope: "group"},
+			{Key: "mdrl:v1:rpm:user:gpt-4o:71", Limit: 2, Scope: "user"},
+		}, buckets)
 		return model_name_limiter.Result{Allowed: false, Scope: "global", Limit: 10, Current: 10}
 	})
 
@@ -274,14 +337,18 @@ func TestT3E1SpecifiedChannelBranchCountsRPM(t *testing.T) {
 
 func TestT3E2OrdinaryBranchCountsBeforeChannelSelection(t *testing.T) {
 	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
-		"gpt-4o": {GlobalRPM: 10},
+		"gpt-4o": {GlobalRPM: 10, UserRPM: 2, GroupRPM: map[string]int{"free": 4}},
 	})
 	c, recorder := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
 	c.Request.Body = io.NopCloser(strings.NewReader(`{"model":"gpt-4o"}`))
 	c.Request.Header.Set("Content-Type", "application/json")
-	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, keys []string, limits []int) model_name_limiter.Result {
-		assert.Equal(t, []string{"mdrl:v1:rpm:model:gpt-4o"}, keys)
-		assert.Equal(t, []int{10}, limits)
+	common.SetContextKey(c, constant.ContextKeyUserId, 72)
+	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{
+			{Key: "mdrl:v1:rpm:model:gpt-4o", Limit: 10, Scope: "global"},
+			{Key: "mdrl:v1:rpm:group:gpt-4o:free", Limit: 4, Scope: "group"},
+			{Key: "mdrl:v1:rpm:user:gpt-4o:72", Limit: 2, Scope: "user"},
+		}, buckets)
 		return model_name_limiter.Result{Allowed: false, Scope: "global", Limit: 10, Current: 10}
 	})
 
@@ -292,18 +359,19 @@ func TestT3E2OrdinaryBranchCountsBeforeChannelSelection(t *testing.T) {
 
 func TestT3E2PlaygroundUsesAuthorizedGroup(t *testing.T) {
 	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
-		"gpt-4o": {GlobalRPM: 10, GroupRPM: map[string]int{"vip": 3}},
+		"gpt-4o": {GlobalRPM: 10, UserRPM: 2, GroupRPM: map[string]int{"vip": 3}},
 	})
 	c, recorder := t3NewModelNameRPMTestContext(t, "/pg/chat/completions")
 	c.Request.Body = io.NopCloser(strings.NewReader(`{"model":"gpt-4o","group":"vip"}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 	common.SetContextKey(c, constant.ContextKeyUsingGroup, "default")
-	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, keys []string, limits []int) model_name_limiter.Result {
-		assert.Equal(t, []string{
-			"mdrl:v1:rpm:model:gpt-4o",
-			"mdrl:v1:rpm:group:gpt-4o:vip",
-		}, keys)
-		assert.Equal(t, []int{10, 3}, limits)
+	common.SetContextKey(c, constant.ContextKeyUserId, 73)
+	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{
+			{Key: "mdrl:v1:rpm:model:gpt-4o", Limit: 10, Scope: "global"},
+			{Key: "mdrl:v1:rpm:group:gpt-4o:vip", Limit: 3, Scope: "group"},
+			{Key: "mdrl:v1:rpm:user:gpt-4o:73", Limit: 2, Scope: "user"},
+		}, buckets)
 		return model_name_limiter.Result{Allowed: false, Scope: "group", Limit: 3, Current: 3}
 	})
 
@@ -320,7 +388,7 @@ func TestT3E2PlaygroundRejectsUnauthorizedGroupBeforeRPM(t *testing.T) {
 	c.Request.Body = io.NopCloser(strings.NewReader(`{"model":"gpt-4o","group":"not-usable"}`))
 	c.Request.Header.Set("Content-Type", "application/json")
 	common.SetContextKey(c, constant.ContextKeyUsingGroup, "default")
-	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []string, []int) model_name_limiter.Result {
+	calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
 		t.Fatal("unauthorized playground group must not reach the RPM gate")
 		return model_name_limiter.Result{}
 	})
@@ -355,9 +423,12 @@ func TestT3FetchModesLeaveRPMUnchecked(t *testing.T) {
 			if test.name == "jimeng get result mode" {
 				c.Set("relay_mode", relayconstant.RelayModeVideoFetchByID)
 			}
-			_, shouldSelectChannel, err := getModelRequest(c)
-			require.NoError(t, err)
-			assert.False(t, shouldSelectChannel)
+			calls := t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
+				t.Fatal("fetch and notify routes must not acquire model-name RPM buckets")
+				return model_name_limiter.Result{}
+			})
+			Distribute()(c)
+			assert.Equal(t, 0, *calls)
 			_, marked := c.Get(string(constant.ContextKeyModelNameRPMChecked))
 			assert.False(t, marked)
 		})

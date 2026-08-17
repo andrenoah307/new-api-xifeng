@@ -1,4 +1,5 @@
 -- Read the current members in each RPM bucket.
+-- KEYS: any number of buckets to inspect in one invocation.
 -- ARGV[1]: sliding-window length in seconds
 
 local window = tonumber(ARGV[1])

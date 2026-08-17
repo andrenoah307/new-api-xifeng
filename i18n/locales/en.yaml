@@ -247,7 +247,9 @@ twofa.code_invalid: "Verification code or backup code is incorrect"
 # Rate limit messages
 rate_limit.reached: "You have reached the request limit: maximum {{.Max}} requests in {{.Minutes}} minutes"
 rate_limit.total_reached: "You have reached the total request limit: maximum {{.Max}} requests in {{.Minutes}} minutes, including failed attempts"
+rate_limit_capacity.throttled: "Too many requests. Please try again later."
 model_name.rate_limited: "Too many requests for this model. Please try again later."
+model_name.user_rate_limited: "You are sending requests to this model too frequently. Please try again later."
 
 # Setting messages
 setting.invalid_type: "Invalid warning type"

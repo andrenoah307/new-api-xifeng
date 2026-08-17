@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -15,11 +16,16 @@ import (
 )
 
 type controllerCapacityInspector struct {
-	counts []int
-	err    error
+	counts        []int
+	err           error
+	personalCount []int
+	personalErr   error
 }
 
-func (s controllerCapacityInspector) Inspect(context.Context, []string) ([]int, error) {
+func (s controllerCapacityInspector) Inspect(_ context.Context, keys []string) ([]int, error) {
+	if len(keys) > 0 && strings.Contains(keys[0], ":user:") {
+		return s.personalCount, s.personalErr
+	}
 	return s.counts, s.err
 }
 
@@ -41,7 +47,6 @@ func callCapacityHandler(t *testing.T, scope string) map[string]any {
 }
 
 func TestRateLimitCapacityHTTPThreeStatesAlwaysReturnOK(t *testing.T) {
-	t.Setenv("USER_MODEL_RPM_ENABLED", "false")
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
 	previousA1 := setting.ModelRequestRateLimitEnabled
 	previousService := rateLimitCapacityService
@@ -97,8 +102,37 @@ func TestRateLimitCapacityHTTPThreeStatesAlwaysReturnOK(t *testing.T) {
 	assert.Nil(t, groupItems[0].(map[string]any)["current"])
 }
 
+func TestRateLimitCapacityHTTPPersonalItemsMatchSiteItemShape(t *testing.T) {
+	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
+	previousService := rateLimitCapacityService
+	defer func() {
+		require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM))
+		rateLimitCapacityService = previousService
+	}()
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":2}}}`))
+	rateLimitCapacityService = service.NewRateLimitCapacityService(controllerCapacityInspector{
+		counts:        []int{0},
+		personalCount: []int{0},
+	})
+
+	payload := callCapacityHandler(t, "top")
+	personal, ok := payload["personal"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "ok", personal["status"])
+	items := personal["items"].([]any)
+	require.Len(t, items, 1)
+	item := items[0].(map[string]any)
+	assert.Equal(t, "gpt-4o", item["model"])
+	assert.Equal(t, "", item["group"])
+	assert.Equal(t, float64(0), item["current"])
+	assert.Equal(t, float64(2), item["limit"])
+	assert.Equal(t, float64(0), item["utilization"])
+	assert.Equal(t, true, item["available"])
+	assert.Equal(t, false, item["unlimited"])
+	assert.Equal(t, false, item["over_limit"])
+}
+
 func TestGetStatusRateLimitCapacityBooleanUsesMemorySnapshots(t *testing.T) {
-	t.Setenv("USER_MODEL_RPM_ENABLED", "false")
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
 	previousGroup := setting.ModelRequestRateLimitGroup2JSONString()
 	previousA1 := setting.ModelRequestRateLimitEnabled
@@ -123,8 +157,7 @@ func TestGetStatusRateLimitCapacityBooleanUsesMemorySnapshots(t *testing.T) {
 	assert.Equal(t, true, statusRateLimitCapacityEnabled(t))
 
 	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":false,"models":{}}`))
-	t.Setenv("USER_MODEL_RPM_ENABLED", "true")
-	assert.Equal(t, true, statusRateLimitCapacityEnabled(t))
+	assert.Equal(t, false, statusRateLimitCapacityEnabled(t))
 }
 
 func statusRateLimitCapacityEnabled(t *testing.T) bool {

@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Plus, X } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
@@ -47,6 +47,9 @@ const ERROR_MESSAGES: Record<ModelNameRPMErrorCode, string> = {
     'Model name must not contain whitespace or control characters',
   'model-name-duplicate': 'This model already has a rule',
   'global-rpm-range': 'Global RPM must be an integer between 1 and 1,000,000',
+  'user-rpm-range': 'Per-user RPM must be a positive integer when set',
+  'user-rpm-exceeds-global':
+    'Per-user RPM must not exceed the global RPM',
   'group-name-required': 'Select a group',
   'group-name-too-long': 'Group name must not exceed 64 characters',
   'group-name-whitespace':
@@ -67,6 +70,10 @@ type ModelNameRPMDialogProps = {
   groupOptions: string[]
 }
 
+type EditableGroupLimit = ModelNameRPMGroupLimit & {
+  rowKey: number
+}
+
 export function ModelNameRPMDialog({
   open,
   onOpenChange,
@@ -80,16 +87,27 @@ export function ModelNameRPMDialog({
 
   const [modelName, setModelName] = useState('')
   const [globalRpm, setGlobalRpm] = useState(60)
-  const [groups, setGroups] = useState<ModelNameRPMGroupLimit[]>([])
+  const [userRpm, setUserRpm] = useState(0)
+  const [groups, setGroups] = useState<EditableGroupLimit[]>([])
   const [errorCode, setErrorCode] = useState<ModelNameRPMErrorCode | null>(null)
   const [errorGroupIndex, setErrorGroupIndex] = useState<number | null>(null)
+  const nextGroupRowKey = useRef(0)
 
   useEffect(() => {
     setErrorCode(null)
     setErrorGroupIndex(null)
     setModelName(editData?.modelName ?? '')
     setGlobalRpm(editData?.globalRpm ?? 60)
-    setGroups(editData ? editData.groups.map((group) => ({ ...group })) : [])
+    setUserRpm(editData?.userRpm ?? 0)
+    nextGroupRowKey.current = 0
+    setGroups(
+      editData
+        ? editData.groups.map((group) => ({
+            ...group,
+            rowKey: nextGroupRowKey.current++,
+          }))
+        : []
+    )
   }, [editData, open])
 
   // A group already present in the document must stay selectable even if it was
@@ -107,7 +125,15 @@ export function ModelNameRPMDialog({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
-    const rule: ModelNameRPMRule = { modelName, globalRpm, groups }
+    const rule: ModelNameRPMRule = {
+      modelName,
+      globalRpm,
+      userRpm,
+      groups: groups.map((group) => ({
+        groupName: group.groupName,
+        rpm: group.rpm,
+      })),
+    }
     const error = validateModelNameRPMRule(rule, existingModelNames)
     if (error) {
       setErrorCode(error.code)
@@ -140,7 +166,7 @@ export function ModelNameRPMDialog({
       onOpenChange={onOpenChange}
       title={isEditMode ? t('Edit model RPM rule') : t('Add model RPM rule')}
       description={t(
-        'Requests consume the global bucket and, when configured, the matching group bucket.'
+        'Requests consume the global bucket and, when configured, the matching group and per-user buckets.'
       )}
       contentClassName='sm:max-w-[560px]'
       contentHeight='auto'
@@ -197,13 +223,31 @@ export function ModelNameRPMDialog({
             step={1}
             value={globalRpm}
             onChange={(event) =>
-              setGlobalRpm(parseInt(event.target.value, 10) || 0)
+              setGlobalRpm(Number.parseInt(event.target.value, 10) || 0)
             }
           />
           <p className='text-muted-foreground text-xs'>
             {t('Hard ceiling shared by every group, in requests per minute.')}
           </p>
           {fieldError('global-rpm-range')}
+        </div>
+
+        <div className='space-y-2'>
+          <Label htmlFor='model-name-rpm-user'>{t('Per-user RPM')}</Label>
+          <Input
+            id='model-name-rpm-user'
+            type='number'
+            min={1}
+            max={MODEL_NAME_RPM_MAX_GLOBAL}
+            step={1}
+            value={userRpm || ''}
+            onChange={(event) =>
+              setUserRpm(
+                event.target.value === '' ? 0 : event.target.valueAsNumber
+              )
+            }
+          />
+          {fieldError(['user-rpm-range', 'user-rpm-exceeds-global'])}
         </div>
 
         <div className='space-y-2'>
@@ -216,7 +260,11 @@ export function ModelNameRPMDialog({
               onClick={() =>
                 setGroups((previous) => [
                   ...previous,
-                  { groupName: '', rpm: 1 },
+                  {
+                    groupName: '',
+                    rpm: 1,
+                    rowKey: nextGroupRowKey.current++,
+                  },
                 ])
               }
             >
@@ -231,7 +279,7 @@ export function ModelNameRPMDialog({
             </p>
           ) : (
             groups.map((group, index) => (
-              <div key={index} className='space-y-1'>
+              <div key={group.rowKey} className='space-y-1'>
                 <div className='flex items-center gap-2'>
                   <Select
                     value={group.groupName}
@@ -260,7 +308,7 @@ export function ModelNameRPMDialog({
                     value={group.rpm}
                     onChange={(event) =>
                       updateGroup(index, {
-                        rpm: parseInt(event.target.value, 10) || 0,
+                        rpm: Number.parseInt(event.target.value, 10) || 0,
                       })
                     }
                   />

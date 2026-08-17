@@ -84,6 +84,15 @@ export function parseModelNameRPMConfig(value) {
     if (!isRecord(rawRule)) return { ok: false };
     if (!isCountableInteger(rawRule.global_rpm)) return { ok: false };
 
+    const rawUserRpm = rawRule.user_rpm;
+    let userRpm = 0;
+    if (rawUserRpm !== undefined) {
+      if (!isCountableInteger(rawUserRpm) || rawUserRpm < 0) {
+        return { ok: false };
+      }
+      userRpm = rawUserRpm;
+    }
+
     const groups = [];
     const rawGroups = rawRule.group_rpm;
     if (rawGroups !== undefined && rawGroups !== null) {
@@ -94,7 +103,12 @@ export function parseModelNameRPMConfig(value) {
       }
     }
 
-    rules.push({ modelName, globalRpm: rawRule.global_rpm, groups });
+    rules.push({
+      modelName,
+      globalRpm: rawRule.global_rpm,
+      userRpm,
+      groups,
+    });
   }
 
   return { ok: true, enabled, rules };
@@ -129,6 +143,11 @@ export function upsertModelNameRPMRule(value, previousModelName, rule) {
   }
 
   existing.global_rpm = rule.globalRpm;
+  if (rule.userRpm === 0) {
+    delete existing.user_rpm;
+  } else {
+    existing.user_rpm = rule.userRpm;
+  }
   if (rule.groups.length === 0) {
     delete existing.group_rpm;
   } else {
@@ -185,6 +204,13 @@ export function validateModelNameRPMRule(rule, otherModelNames) {
     rule.globalRpm > MODEL_NAME_RPM_MAX_GLOBAL
   ) {
     return { code: 'global-rpm-range' };
+  }
+
+  if (!Number.isSafeInteger(rule.userRpm) || rule.userRpm < 0) {
+    return { code: 'user-rpm-range' };
+  }
+  if (rule.userRpm > rule.globalRpm) {
+    return { code: 'user-rpm-exceeds-global' };
   }
 
   const seenGroups = new Set();

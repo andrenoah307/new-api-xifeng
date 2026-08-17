@@ -5414,10 +5414,11 @@
     "Search model names...": "Rechercher des noms de modèles...",
     "No model RPM rules configured. Click \"Add model\" to get started.": "Aucune règle RPM de modèle configurée. Cliquez sur « Ajouter un modèle » pour commencer.",
     "Global RPM": "RPM global",
+    "Per-user RPM": "RPM par utilisateur",
     "Group sub-limits": "Sous-limites par groupe",
     "Edit model RPM rule": "Modifier la règle RPM du modèle",
     "Add model RPM rule": "Ajouter une règle RPM de modèle",
-    "Requests consume the global bucket and, when configured, the matching group bucket.": "Chaque requête consomme le quota global et, si configuré, celui du groupe correspondant.",
+    "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "Chaque requête consomme le quota global et, s'ils sont configurés, les quotas du groupe correspondant et de l'utilisateur.",
     "e.g., gpt-4o": "ex. : gpt-4o",
     "Must match the model name the client requests, including aliases.": "Doit correspondre exactement au nom de modèle demandé par le client, alias compris.",
     "Hard ceiling shared by every group, in requests per minute.": "Plafond strict partagé par tous les groupes, en requêtes par minute.",
@@ -5429,6 +5430,8 @@
     "Model name must not contain whitespace or control characters": "Le nom du modèle ne doit pas contenir d'espaces ni de caractères de contrôle",
     "This model already has a rule": "Ce modèle possède déjà une règle",
     "Global RPM must be an integer between 1 and 1,000,000": "Le RPM global doit être un entier compris entre 1 et 1 000 000",
+    "Per-user RPM must be a positive integer when set": "Le RPM par utilisateur doit être un entier positif s'il est défini",
+    "Per-user RPM must not exceed the global RPM": "Le RPM par utilisateur ne doit pas dépasser le RPM global",
     "Group name must not exceed 64 characters": "Le nom du groupe ne doit pas dépasser 64 caractères",
     "Group name must not contain whitespace or control characters": "Le nom du groupe ne doit pas contenir d'espaces ni de caractères de contrôle",
     "This group already has a limit for this model": "Ce groupe possède déjà une limite pour ce modèle",
@@ -5492,7 +5495,7 @@
     "My model RPM": "Mon RPM par modèle",
     "Last 60 seconds": "60 dernières secondes",
     "No request data yet": "Aucune donnée de requête",
-    "Data refreshes every 15 seconds": "Les données sont actualisées toutes les 15 secondes",
+    "Click refresh for the latest data": "Cliquez sur Actualiser pour obtenir les dernières données",
     "RPM overview": "Aperçu RPM"
   }
 }

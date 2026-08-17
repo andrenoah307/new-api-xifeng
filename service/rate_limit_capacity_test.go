@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/service/user_model_rpm"
+	"github.com/QuantumNous/new-api/service/model_name_limiter"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -19,18 +19,30 @@ import (
 )
 
 type capacityInspectorStub struct {
-	mu      sync.Mutex
-	counts  []int
-	err     error
-	calls   int
-	started chan struct{}
-	release chan struct{}
+	mu        sync.Mutex
+	counts    []int
+	err       error
+	responses []capacityInspectResponse
+	keys      [][]string
+	calls     int
+	started   chan struct{}
+	release   chan struct{}
 }
 
-func (s *capacityInspectorStub) Inspect(context.Context, []string) ([]int, error) {
+type capacityInspectResponse struct {
+	counts []int
+	err    error
+}
+
+func (s *capacityInspectorStub) Inspect(_ context.Context, keys []string) ([]int, error) {
 	s.mu.Lock()
 	s.calls++
 	counts, err := append([]int(nil), s.counts...), s.err
+	if len(s.responses) >= s.calls {
+		response := s.responses[s.calls-1]
+		counts, err = append([]int(nil), response.counts...), response.err
+	}
+	s.keys = append(s.keys, append([]string(nil), keys...))
 	started, wait := s.started, s.release
 	s.mu.Unlock()
 	if started != nil {
@@ -45,6 +57,16 @@ func (s *capacityInspectorStub) Inspect(context.Context, []string) ([]int, error
 	return counts, err
 }
 
+func (s *capacityInspectorStub) Keys() [][]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	keys := make([][]string, len(s.keys))
+	for i := range s.keys {
+		keys[i] = append([]string(nil), s.keys[i]...)
+	}
+	return keys
+}
+
 func (s *capacityInspectorStub) Calls() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -54,7 +76,7 @@ func (s *capacityInspectorStub) Calls() int {
 func TestRateLimitCapacitySnapshotCacheAndVersionInvalidation(t *testing.T) {
 	previous := setting.ModelNameRPMRateLimit2JSONString()
 	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previous)) }()
-	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"group_rpm":{"free":5}}}}`))
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":4,"group_rpm":{"free":5}}}}`))
 
 	stub := &capacityInspectorStub{counts: []int{3, 2}}
 	now := time.Unix(100, 0)
@@ -64,9 +86,12 @@ func TestRateLimitCapacitySnapshotCacheAndVersionInvalidation(t *testing.T) {
 	first, err := svc.SiteSnapshot(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 1, stub.Calls())
+	require.Len(t, first.UserLimits, 1)
+	first.UserLimits[0].Limit = 999
 	second, err := svc.SiteSnapshot(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, first.ObservedAt, second.ObservedAt)
+	assert.Equal(t, 4, second.UserLimits[0].Limit)
 	assert.Equal(t, 1, stub.Calls())
 
 	now = now.Add(6 * time.Second)
@@ -147,10 +172,6 @@ func TestRateLimitCapacityGroupsAggregateAndSortByBestItem(t *testing.T) {
 	snapshot.GroupRateLimitVersion = setting.ModelRequestRateLimitConfigVersion()
 	svc.cache = &cachedSiteCapacity{snapshot: snapshot}
 	svc.cacheMu.Unlock()
-	svc.SetPersonalReader(func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error) {
-		return nil, "empty", nil
-	})
-
 	response := svc.Get(context.Background(), CapacityRequest{IsAdmin: true, Scope: "all"})
 	require.NotNil(t, response.Site)
 	require.Len(t, response.Site.Groups.Groups, 6)
@@ -243,10 +264,6 @@ func TestRateLimitCapacityGroupsScopeAndTotals(t *testing.T) {
 			snapshot.GroupRateLimitVersion = setting.ModelRequestRateLimitConfigVersion()
 			svc.cache = &cachedSiteCapacity{snapshot: snapshot}
 			svc.cacheMu.Unlock()
-			svc.SetPersonalReader(func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error) {
-				return nil, "empty", nil
-			})
-
 			response := svc.Get(context.Background(), CapacityRequest{IsAdmin: true, Scope: testCase.scope})
 			require.NotNil(t, response.Site)
 			assert.Equal(t, 4, response.Site.Global.Total)
@@ -353,67 +370,138 @@ func TestRateLimitCapacityFiltersBeforeRankingAndScopeAllCannotBypass(t *testing
 	assert.Equal(t, 6, admin.Total)
 }
 
-func TestRateLimitCapacityUsesInjectedPersonalReaderAndJoinsWarnings(t *testing.T) {
+func TestRateLimitCapacityOmitsAllSectionsWhenA2IsDisabledOrEmpty(t *testing.T) {
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
-	defer func() {
-		require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM))
-	}()
-	t.Setenv("USER_MODEL_RPM_ENABLED", "true")
+	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
+
+	for _, test := range []struct {
+		name   string
+		config string
+	}{
+		{name: "disabled", config: `{"enabled":false,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":2}}}`},
+		{name: "zero models", config: `{"enabled":true,"models":{}}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(test.config))
+			stub := &capacityInspectorStub{}
+			response := NewRateLimitCapacityService(stub).Get(context.Background(), CapacityRequest{UserID: 9})
+			assert.Nil(t, response.Site)
+			assert.Nil(t, response.Personal)
+			assert.False(t, setting.IsRateLimitCapacityEnabled())
+			assert.Equal(t, 0, stub.Calls())
+		})
+	}
+}
+
+func TestRateLimitCapacityGlobalOnlyRuleDoesNotCreatePersonalSection(t *testing.T) {
+	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
+	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
 	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10}}}`))
 
-	svc := NewRateLimitCapacityService(&capacityInspectorStub{err: errors.New("site unavailable")})
-	svc.SetPersonalReader(func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error) {
-		return nil, "unavailable", errors.New("personal unavailable")
-	})
-	response := svc.Get(context.Background(), CapacityRequest{UserID: 9})
-	assert.True(t, response.Degraded)
-	assert.Contains(t, response.Warning, "A2 backend is unavailable")
-	assert.Contains(t, response.Warning, "personal unavailable")
-	assert.Equal(t, "unavailable", response.Personal.Status)
+	stub := &capacityInspectorStub{counts: []int{0}}
+	response := NewRateLimitCapacityService(stub).Get(context.Background(), CapacityRequest{UserID: 9})
+	require.NotNil(t, response.Site)
+	assert.Nil(t, response.Personal)
+	assert.Equal(t, 1, stub.Calls())
+	assert.Equal(t, [][]string{{model_name_limiter.ModelKey("gpt-4o")}}, stub.Keys())
 }
 
-func TestRateLimitCapacityPersonalPayloadIsIndependentFromSiteSnapshot(t *testing.T) {
+func TestRateLimitCapacityUsesNormalizedRuleModelForAdmissionKeys(t *testing.T) {
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
 	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
-	t.Setenv("USER_MODEL_RPM_ENABLED", "true")
-	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":false,"models":{}}`))
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o-gizmo-private":{"global_rpm":10,"user_rpm":2}}}`))
 
-	svc := NewRateLimitCapacityService(&capacityInspectorStub{})
+	stub := &capacityInspectorStub{responses: []capacityInspectResponse{{counts: []int{0}}, {counts: []int{0}}}}
+	response := NewRateLimitCapacityService(stub).Get(context.Background(), CapacityRequest{UserID: 9})
+	require.NotNil(t, response.Site)
+	require.NotNil(t, response.Personal)
+	assert.Equal(t, [][]string{
+		{model_name_limiter.ModelKey("gpt-4o-gizmo-*")},
+		{model_name_limiter.UserKey("gpt-4o-gizmo-*", 9)},
+	}, stub.Keys())
+	assert.Equal(t, "gpt-4o-gizmo-*", response.Site.Global.Items[0].Model)
+	assert.Equal(t, "gpt-4o-gizmo-*", response.Personal.Items[0].Model)
+}
+
+func TestRateLimitCapacityPersonalUsesAdmissionBucketsWithoutTopTruncation(t *testing.T) {
+	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
+	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"a":{"global_rpm":10,"user_rpm":4},"b":{"global_rpm":20,"user_rpm":5},"c":{"global_rpm":30,"user_rpm":6},"d":{"global_rpm":40,"user_rpm":7},"site-only":{"global_rpm":50}}}`))
+
+	stub := &capacityInspectorStub{responses: []capacityInspectResponse{
+		{counts: []int{0, 0, 0, 0, 0}},
+		{counts: []int{0, 1, 2, 3}},
+		{counts: []int{0, 1, 2, 3}},
+	}}
+	svc := NewRateLimitCapacityService(stub)
 	svc.SetClock(func() time.Time { return time.Unix(123, 456000000).UTC() })
-	svc.SetPersonalReader(func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error) {
-		return []user_model_rpm.ModelRPM{
-			{Model: "z-model", RPM: 2},
-			{Model: "a-model", RPM: 4},
-		}, "available", nil
-	})
-	response := svc.Get(context.Background(), CapacityRequest{UserID: 9})
+	response := svc.Get(context.Background(), CapacityRequest{UserID: 9, Scope: "top"})
 	require.NotNil(t, response.Personal)
-	assert.Equal(t, "available", response.Personal.Status)
+	assert.Equal(t, "ok", response.Personal.Status)
 	assert.Equal(t, 60, response.Personal.WindowSeconds)
-	assert.Equal(t, 2, response.Personal.Total)
-	assert.Equal(t, []user_model_rpm.ModelRPM{
-		{Model: "a-model", RPM: 4},
-		{Model: "z-model", RPM: 2},
-	}, response.Personal.Items)
 	assert.Equal(t, time.Unix(123, 456000000).UTC(), response.Personal.ObservedAt)
-	assert.Equal(t, 0, response.Total)
+	assert.Equal(t, 4, response.Personal.Total)
+	require.Len(t, response.Personal.Items, 4)
+	assert.Equal(t, 2, stub.Calls())
+	assert.Equal(t, []string{
+		model_name_limiter.UserKey("a", 9),
+		model_name_limiter.UserKey("b", 9),
+		model_name_limiter.UserKey("c", 9),
+		model_name_limiter.UserKey("d", 9),
+	}, stub.Keys()[1])
+	var zeroItem *CapacityItem
+	for i := range response.Personal.Items {
+		if response.Personal.Items[i].Model == "a" {
+			zeroItem = &response.Personal.Items[i]
+		}
+		assert.NotEqual(t, "site-only", response.Personal.Items[i].Model)
+	}
+	require.NotNil(t, zeroItem)
+	require.NotNil(t, zeroItem.Current)
+	assert.Equal(t, 0, *zeroItem.Current)
+	assert.Equal(t, 4, zeroItem.Limit)
+	require.NotNil(t, zeroItem.Utilization)
+	assert.Equal(t, 0.0, *zeroItem.Utilization)
+	assert.Empty(t, zeroItem.Group)
+	assert.True(t, zeroItem.Available)
+	assert.False(t, zeroItem.Unlimited)
+	assert.False(t, zeroItem.OverLimit)
+
+	second := svc.Get(context.Background(), CapacityRequest{UserID: 9, Scope: "all"})
+	require.NotNil(t, second.Personal)
+	assert.Equal(t, 3, stub.Calls(), "cached site data must leave exactly one personal Inspect per request")
 }
 
-func TestRateLimitCapacityPersonalOverflowHasNoItems(t *testing.T) {
+func TestRateLimitCapacityPersonalInspectFailureIsUnavailableAndRedacted(t *testing.T) {
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
 	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
-	t.Setenv("USER_MODEL_RPM_ENABLED", "true")
-	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":false,"models":{}}`))
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":2}}}`))
 
-	svc := NewRateLimitCapacityService(&capacityInspectorStub{})
-	svc.SetPersonalReader(func(context.Context, int) ([]user_model_rpm.ModelRPM, string, error) {
-		return []user_model_rpm.ModelRPM{{Model: "should-not-render", RPM: 5001}}, "overflow", nil
-	})
-	response := svc.Get(context.Background(), CapacityRequest{UserID: 1})
+	rawError := "redis://private-host:6379 unavailable"
+	stub := &capacityInspectorStub{responses: []capacityInspectResponse{
+		{counts: []int{1}},
+		{err: errors.New(rawError)},
+	}}
+	response := NewRateLimitCapacityService(stub).Get(context.Background(), CapacityRequest{UserID: 9})
 	require.NotNil(t, response.Personal)
-	assert.Equal(t, "overflow", response.Personal.Status)
-	assert.Empty(t, response.Personal.Items)
-	assert.Equal(t, 0, response.Personal.Total)
+	assert.Equal(t, "unavailable", response.Personal.Status)
+	require.Len(t, response.Personal.Items, 1)
+	assert.Nil(t, response.Personal.Items[0].Current)
+	assert.False(t, response.Personal.Items[0].Available)
+	assert.True(t, response.Degraded)
+	assert.NotContains(t, response.Warning, rawError)
+}
+
+func TestRateLimitCapacitySiteWarningDoesNotExposeBackendError(t *testing.T) {
+	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
+	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10}}}`))
+
+	rawError := "dial tcp redis.internal:6379: connection refused"
+	response := NewRateLimitCapacityService(&capacityInspectorStub{err: errors.New(rawError)}).Get(context.Background(), CapacityRequest{UserID: 9})
+	assert.True(t, response.Degraded)
+	assert.Equal(t, "A2 backend is unavailable", response.Warning)
+	assert.NotContains(t, response.Warning, rawError)
 }
 
 func TestRateLimitCapacityMarksProcessLocalBackend(t *testing.T) {
@@ -421,14 +509,15 @@ func TestRateLimitCapacityMarksProcessLocalBackend(t *testing.T) {
 	defer func() {
 		_ = setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)
 	}()
-	t.Setenv("USER_MODEL_RPM_ENABLED", "false")
-	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":1}}}`))
-	svc := NewRateLimitCapacityService(&capacityInspectorStub{counts: []int{0}})
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":2,"user_rpm":1}}}`))
+	svc := NewRateLimitCapacityService(&capacityInspectorStub{responses: []capacityInspectResponse{{counts: []int{0}}, {counts: []int{0}}}})
 	svc.SetInstanceOnlyDetector(func() bool { return true })
-	response := svc.Get(context.Background(), CapacityRequest{})
+	response := svc.Get(context.Background(), CapacityRequest{UserID: 9})
 	assert.True(t, response.InstanceOnly)
 	assert.Equal(t, "instance", response.BackendScope)
 	assert.True(t, response.Degraded)
+	require.NotNil(t, response.Personal)
+	assert.True(t, response.Personal.InstanceOnly)
 }
 
 func intPtr(value int) *int { return &value }

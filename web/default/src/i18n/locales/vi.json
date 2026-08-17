@@ -5414,10 +5414,11 @@
     "Search model names...": "Tìm kiếm tên mô hình...",
     "No model RPM rules configured. Click \"Add model\" to get started.": "Chưa cấu hình quy tắc RPM cho mô hình. Nhấn “Thêm mô hình” để bắt đầu.",
     "Global RPM": "RPM toàn cục",
+    "Per-user RPM": "RPM theo người dùng",
     "Group sub-limits": "Giới hạn con theo nhóm",
     "Edit model RPM rule": "Sửa quy tắc RPM của mô hình",
     "Add model RPM rule": "Thêm quy tắc RPM cho mô hình",
-    "Requests consume the global bucket and, when configured, the matching group bucket.": "Mỗi yêu cầu tiêu thụ hạn mức toàn cục và, nếu được cấu hình, cả hạn mức của nhóm tương ứng.",
+    "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "Mỗi yêu cầu tiêu thụ hạn mức toàn cục và, nếu được cấu hình, cả hạn mức của nhóm tương ứng và người dùng.",
     "e.g., gpt-4o": "ví dụ: gpt-4o",
     "Must match the model name the client requests, including aliases.": "Phải khớp với tên mô hình mà khách hàng yêu cầu, bao gồm cả bí danh.",
     "Hard ceiling shared by every group, in requests per minute.": "Giới hạn cứng dùng chung cho mọi nhóm, tính theo số yêu cầu mỗi phút.",
@@ -5429,6 +5430,8 @@
     "Model name must not contain whitespace or control characters": "Tên mô hình không được chứa khoảng trắng hoặc ký tự điều khiển",
     "This model already has a rule": "Mô hình này đã có quy tắc",
     "Global RPM must be an integer between 1 and 1,000,000": "RPM toàn cục phải là số nguyên từ 1 đến 1.000.000",
+    "Per-user RPM must be a positive integer when set": "RPM theo người dùng phải là số nguyên dương khi được đặt",
+    "Per-user RPM must not exceed the global RPM": "RPM theo người dùng không được vượt quá RPM toàn cục",
     "Group name must not exceed 64 characters": "Tên nhóm không được vượt quá 64 ký tự",
     "Group name must not contain whitespace or control characters": "Tên nhóm không được chứa khoảng trắng hoặc ký tự điều khiển",
     "This group already has a limit for this model": "Nhóm này đã có giới hạn cho mô hình này",
@@ -5492,7 +5495,7 @@
     "My model RPM": "RPM theo mô hình của tôi",
     "Last 60 seconds": "60 giây gần nhất",
     "No request data yet": "Chưa có dữ liệu yêu cầu",
-    "Data refreshes every 15 seconds": "Dữ liệu tự động làm mới mỗi 15 giây",
+    "Click refresh for the latest data": "Nhấn Làm mới để xem dữ liệu mới nhất",
     "RPM overview": "Tổng quan RPM"
   }
 }

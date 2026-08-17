@@ -27,12 +27,13 @@ func TestListModelNameRPMRulesReturnsDeepCopyAndVersion(t *testing.T) {
 	defer func() { require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(previous)) }()
 
 	before := ModelNameRPMConfigVersion()
-	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"group_rpm":{"free":3}}}}`))
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":2,"group_rpm":{"free":3}}}}`))
 	got := ListModelNameRPMRules()
 	got.Models["gpt-4o"].GroupRPM["free"] = 99
 	got.Models["gpt-4o"] = ModelNameRPMRule{GlobalRPM: 1}
 	latest := ListModelNameRPMRules()
 	assert.Equal(t, 10, latest.Models["gpt-4o"].GlobalRPM)
+	assert.Equal(t, 2, latest.Models["gpt-4o"].UserRPM)
 	assert.Equal(t, 3, latest.Models["gpt-4o"].GroupRPM["free"])
 	_, version := ListModelNameRPMRulesWithVersion()
 	assert.Equal(t, version, ModelNameRPMConfigVersion())
@@ -40,7 +41,6 @@ func TestListModelNameRPMRulesReturnsDeepCopyAndVersion(t *testing.T) {
 }
 
 func TestRateLimitCapacityEnabledTruthTable(t *testing.T) {
-	t.Setenv("USER_MODEL_RPM_ENABLED", "false")
 	previousGroup := ModelRequestRateLimitGroup2JSONString()
 	previousRPM := ModelNameRPMRateLimit2JSONString()
 	previousEnabled := ModelRequestRateLimitEnabled
@@ -70,7 +70,7 @@ func TestRateLimitCapacityEnabledTruthTable(t *testing.T) {
 		{"a1-global-default-is-ignored", true, `{}`, `{"enabled":false,"models":{}}`, 0, 1000, false},
 		{"a2", false, `{}`, `{"enabled":true,"models":{"gpt-4o":{"global_rpm":1}}}`, 0, 0, true},
 		{"disabled-rpm", false, `{}`, `{"enabled":false,"models":{"gpt-4o":{"global_rpm":1}}}`, 0, 0, false},
-		{"collector", false, `{}`, `{"enabled":false,"models":{}}`, 0, 0, true},
+		{"enabled-with-zero-models", false, `{}`, `{"enabled":true,"models":{}}`, 0, 0, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,11 +81,6 @@ func TestRateLimitCapacityEnabledTruthTable(t *testing.T) {
 			ModelRequestRateLimitSuccessCount = tt.success
 			ModelRequestRateLimitMutex.Unlock()
 			require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(tt.rpmJSON))
-			if tt.name == "collector" {
-				t.Setenv("USER_MODEL_RPM_ENABLED", "true")
-			} else {
-				t.Setenv("USER_MODEL_RPM_ENABLED", "false")
-			}
 			assert.Equal(t, tt.want, IsRateLimitCapacityEnabled())
 		})
 	}

@@ -31,7 +31,13 @@ import {
 } from './model-name-rpm.ts'
 
 function rule(overrides: Partial<ModelNameRPMRule> = {}): ModelNameRPMRule {
-  return { modelName: 'gpt-4o', globalRpm: 100, groups: [], ...overrides }
+  return {
+    modelName: 'gpt-4o',
+    globalRpm: 100,
+    userRpm: 0,
+    groups: [],
+    ...overrides,
+  }
 }
 
 describe('parseModelNameRPMConfig', () => {
@@ -64,12 +70,37 @@ describe('parseModelNameRPMConfig', () => {
         {
           modelName: 'gpt-4o',
           globalRpm: 100,
+          userRpm: 0,
           groups: [
             { groupName: 'vip', rpm: 30 },
             { groupName: 'free', rpm: 5 },
           ],
         },
-        { modelName: 'claude-3', globalRpm: 7, groups: [] },
+        { modelName: 'claude-3', globalRpm: 7, userRpm: 0, groups: [] },
+      ],
+    })
+  })
+
+  test('reads missing, disabled, boundary, and over-global per-user limits', () => {
+    const value = JSON.stringify({
+      models: {
+        missing: { global_rpm: 10 },
+        disabled: { global_rpm: 10, user_rpm: 0 },
+        one: { global_rpm: 10, user_rpm: 1 },
+        equal: { global_rpm: 10, user_rpm: 10 },
+        over: { global_rpm: 10, user_rpm: 11 },
+      },
+    })
+
+    assert.deepEqual(parseModelNameRPMConfig(value), {
+      ok: true,
+      enabled: false,
+      rules: [
+        { modelName: 'missing', globalRpm: 10, userRpm: 0, groups: [] },
+        { modelName: 'disabled', globalRpm: 10, userRpm: 0, groups: [] },
+        { modelName: 'one', globalRpm: 10, userRpm: 1, groups: [] },
+        { modelName: 'equal', globalRpm: 10, userRpm: 10, groups: [] },
+        { modelName: 'over', globalRpm: 10, userRpm: 11, groups: [] },
       ],
     })
   })
@@ -87,7 +118,7 @@ describe('parseModelNameRPMConfig', () => {
     assert.deepEqual(parseModelNameRPMConfig(value), {
       ok: true,
       enabled: false,
-      rules: [{ modelName: 'm', globalRpm: 5, groups: [] }],
+      rules: [{ modelName: 'm', globalRpm: 5, userRpm: 0, groups: [] }],
     })
   })
 
@@ -100,6 +131,22 @@ describe('parseModelNameRPMConfig', () => {
     ['a missing global_rpm', '{"models":{"m":{}}}'],
     ['a non-numeric global_rpm', '{"models":{"m":{"global_rpm":"5"}}}'],
     ['a fractional global_rpm', '{"models":{"m":{"global_rpm":1.5}}}'],
+    [
+      'a string user_rpm',
+      '{"models":{"m":{"global_rpm":5,"user_rpm":"1"}}}',
+    ],
+    [
+      'a null user_rpm',
+      '{"models":{"m":{"global_rpm":5,"user_rpm":null}}}',
+    ],
+    [
+      'a fractional user_rpm',
+      '{"models":{"m":{"global_rpm":5,"user_rpm":1.5}}}',
+    ],
+    [
+      'a negative user_rpm',
+      '{"models":{"m":{"global_rpm":5,"user_rpm":-1}}}',
+    ],
     [
       'a non-object group_rpm',
       '{"models":{"m":{"global_rpm":5,"group_rpm":[]}}}',
@@ -168,6 +215,29 @@ describe('upsertModelNameRPMRule', () => {
     assert.deepEqual(JSON.parse(cleared).models['gpt-4o'], { global_rpm: 100 })
   })
 
+  test('writes a per-user limit and deletes the key when it is disabled', () => {
+    const configured = upsertModelNameRPMRule(
+      '{"models":{"gpt-4o":{"global_rpm":10,"future_field":true}}}',
+      'gpt-4o',
+      rule({ globalRpm: 100, userRpm: 20 })
+    )
+    assert.deepEqual(JSON.parse(configured).models['gpt-4o'], {
+      global_rpm: 100,
+      user_rpm: 20,
+      future_field: true,
+    })
+
+    const disabled = upsertModelNameRPMRule(
+      configured,
+      'gpt-4o',
+      rule({ userRpm: 0 })
+    )
+    assert.deepEqual(JSON.parse(disabled).models['gpt-4o'], {
+      global_rpm: 100,
+      future_field: true,
+    })
+  })
+
   test('creates the models container when the document has none', () => {
     const next = JSON.parse(
       upsertModelNameRPMRule('{"enabled":false}', null, rule())
@@ -229,6 +299,24 @@ describe('validateModelNameRPMRule', () => {
       validateModelNameRPMRule(rule({ globalRpm: MODEL_NAME_RPM_MAX_GLOBAL }), []),
       null
     )
+  })
+
+  test('accepts disabled and boundary per-user limits', () => {
+    assert.equal(validateModelNameRPMRule(rule({ userRpm: 0 }), []), null)
+    assert.equal(validateModelNameRPMRule(rule({ userRpm: 1 }), []), null)
+    assert.equal(validateModelNameRPMRule(rule({ userRpm: 100 }), []), null)
+  })
+
+  test('validates the per-user limit range and global ceiling', () => {
+    assert.deepEqual(validateModelNameRPMRule(rule({ userRpm: -1 }), []), {
+      code: 'user-rpm-range',
+    })
+    assert.deepEqual(validateModelNameRPMRule(rule({ userRpm: 1.5 }), []), {
+      code: 'user-rpm-range',
+    })
+    assert.deepEqual(validateModelNameRPMRule(rule({ userRpm: 101 }), []), {
+      code: 'user-rpm-exceeds-global',
+    })
   })
 
   const groupErrorCases: [ModelNameRPMErrorCode, ModelNameRPMGroupLimit][] = [

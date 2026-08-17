@@ -1,5 +1,5 @@
 -- Atomic model-name RPM sliding-window acquire.
--- KEYS: one global bucket, optionally followed by one group bucket.
+-- KEYS: one to three buckets in caller-defined priority order.
 -- ARGV[1]: window length in seconds
 -- ARGV[2..#KEYS+1]: limits for the corresponding keys
 -- ARGV[#ARGV]: unique member token

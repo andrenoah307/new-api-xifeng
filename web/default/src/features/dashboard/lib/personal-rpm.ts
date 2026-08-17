@@ -1,28 +1,62 @@
-export const PERSONAL_RPM_REFRESH_INTERVAL = 15_000
+import type { RateLimitCapacityItem } from '@/features/dashboard/types'
 
-export interface PersonalRPMItem {
-  model: string
-  rpm: number
-}
+export const PERSONAL_RPM_STALE_TIME = 15_000
+
+export type PersonalRPMItem = RateLimitCapacityItem
 
 export type PersonalRPMDisplayState = 'available' | 'empty' | 'unavailable'
 
 export function normalizePersonalRPMItems(value: unknown): PersonalRPMItem[] {
   if (!Array.isArray(value)) return []
   return value
-    .filter(
-      (item): item is PersonalRPMItem =>
-        Boolean(item) &&
-        typeof item === 'object' &&
-        typeof (item as PersonalRPMItem).model === 'string' &&
-        (item as PersonalRPMItem).model.length > 0 &&
-        Number.isFinite((item as PersonalRPMItem).rpm) &&
-        (item as PersonalRPMItem).rpm > 0
-    )
-    .slice()
+    .filter((item): item is PersonalRPMItem => {
+      if (!item || typeof item !== 'object') return false
+      const metric = item as Partial<PersonalRPMItem>
+      if (typeof metric.model !== 'string' || metric.model.length === 0) {
+        return false
+      }
+      if (
+        metric.current !== null &&
+        (typeof metric.current !== 'number' ||
+          !Number.isFinite(metric.current) ||
+          metric.current < 0)
+      ) {
+        return false
+      }
+      if (
+        typeof metric.limit !== 'number' ||
+        !Number.isFinite(metric.limit) ||
+        metric.limit < 0
+      ) {
+        return false
+      }
+      if (
+        metric.utilization !== null &&
+        (typeof metric.utilization !== 'number' ||
+          !Number.isFinite(metric.utilization) ||
+          metric.utilization < 0)
+      ) {
+        return false
+      }
+      return (
+        typeof metric.available === 'boolean' &&
+        typeof metric.unlimited === 'boolean' &&
+        typeof metric.over_limit === 'boolean'
+      )
+    })
     .sort((a, b) => {
-      if (a.rpm !== b.rpm) return b.rpm - a.rpm
-      return a.model < b.model ? -1 : a.model > b.model ? 1 : 0
+      const aCurrent =
+        a.available && typeof a.current === 'number' ? a.current : null
+      const bCurrent =
+        b.available && typeof b.current === 'number' ? b.current : null
+      if (aCurrent !== null && bCurrent !== null && aCurrent !== bCurrent) {
+        return bCurrent - aCurrent
+      }
+      if (aCurrent !== null && bCurrent === null) return -1
+      if (aCurrent === null && bCurrent !== null) return 1
+      if (a.model < b.model) return -1
+      if (a.model > b.model) return 1
+      return 0
     })
 }
 

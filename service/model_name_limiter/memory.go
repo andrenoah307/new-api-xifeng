@@ -6,59 +6,74 @@ import (
 	"time"
 )
 
-// memoryBackend is deliberately unbounded in key count.  Entries are kept for
-// the process lifetime, while old timestamps are trimmed whenever a key is
-// touched, matching the channel limiter's v1 memory behaviour.
+const (
+	memoryEntryTTLMillis      = int64((65 * time.Second) / time.Millisecond)
+	memorySweepIntervalMillis = int64((5 * time.Second) / time.Millisecond)
+)
+
+type memoryEntry struct {
+	hits      []int64
+	expiresAt int64
+}
+
 type memoryBackend struct {
-	mu      sync.Mutex
-	entries map[string][]int64
-	now     func() time.Time
+	mu          sync.Mutex
+	entries     map[string]memoryEntry
+	nextSweepAt int64
+	now         func() time.Time
 }
 
 func newMemoryBackend() *memoryBackend {
-	return &memoryBackend{entries: make(map[string][]int64)}
+	return &memoryBackend{entries: make(map[string]memoryEntry)}
 }
 
-func (b *memoryBackend) Acquire(_ context.Context, keys []string, limits []int) Result {
-	if len(keys) == 0 {
+func (b *memoryBackend) Acquire(_ context.Context, buckets []Bucket) Result {
+	if len(buckets) == 0 {
 		return Result{Allowed: true}
 	}
-	if b == nil || len(keys) != len(limits) || (len(keys) != 1 && len(keys) != 2) {
+	if b == nil || !validAcquireBuckets(buckets) {
 		return Result{Allowed: true}
 	}
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.entries == nil {
-		b.entries = make(map[string][]int64)
+		b.entries = make(map[string]memoryEntry)
 	}
 
 	now := b.nowMillis()
+	b.sweepExpiredLocked(now)
 	windowStart := now - int64(windowSeconds*1000)
-	trimmed := make(map[string][]int64, len(keys))
-	for i, key := range keys {
-		hits, ok := trimmed[key]
+	trimmed := make(map[string]memoryEntry, len(buckets))
+	for _, bucket := range buckets {
+		entry, ok := trimmed[bucket.Key]
 		if !ok {
-			hits = trimHits(b.entries[key], windowStart)
-			trimmed[key] = hits
+			entry = b.entries[bucket.Key]
+			if now >= entry.expiresAt {
+				entry = memoryEntry{}
+			}
+			entry.hits = trimHits(entry.hits, windowStart)
+			trimmed[bucket.Key] = entry
 		}
-		if len(hits) >= limits[i] {
+		if len(entry.hits) >= bucket.Limit {
 			return Result{
 				Allowed: false,
-				Scope:   scopeForIndex(i + 1),
-				Limit:   limits[i],
-				Current: len(hits),
+				Scope:   bucket.Scope,
+				Limit:   bucket.Limit,
+				Current: len(entry.hits),
 			}
 		}
 	}
 
-	// Commit all buckets only after every bucket passed its check.  The lock
-	// also makes concurrent two-key acquires linearizable within this process.
-	for _, key := range keys {
-		trimmed[key] = append(trimmed[key], now)
+	// Commit all buckets only after every bucket passed its check.
+	for _, bucket := range buckets {
+		entry := trimmed[bucket.Key]
+		entry.hits = append(entry.hits, now)
+		entry.expiresAt = now + memoryEntryTTLMillis
+		trimmed[bucket.Key] = entry
 	}
-	for key, hits := range trimmed {
-		b.entries[key] = hits
+	for key, entry := range trimmed {
+		b.entries[key] = entry
 	}
 	return Result{Allowed: true}
 }
@@ -70,14 +85,24 @@ func (b *memoryBackend) Inspect(_ context.Context, keys []string) ([]int, error)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.entries == nil {
-		b.entries = make(map[string][]int64)
+		b.entries = make(map[string]memoryEntry)
 	}
-	windowStart := b.nowMillis() - int64(windowSeconds*1000)
+	now := b.nowMillis()
+	b.sweepExpiredLocked(now)
+	windowStart := now - int64(windowSeconds*1000)
 	counts := make([]int, len(keys))
 	for i, key := range keys {
-		hits := trimHits(b.entries[key], windowStart)
-		b.entries[key] = hits
-		counts[i] = len(hits)
+		entry, exists := b.entries[key]
+		if !exists {
+			continue
+		}
+		if now >= entry.expiresAt {
+			delete(b.entries, key)
+			continue
+		}
+		entry.hits = trimHits(entry.hits, windowStart)
+		b.entries[key] = entry
+		counts[i] = len(entry.hits)
 	}
 	return counts, nil
 }
@@ -107,9 +132,30 @@ func (b *memoryBackend) count(key string) int {
 	if b.entries == nil {
 		return 0
 	}
-	hits := trimHits(b.entries[key], b.nowMillis()-int64(windowSeconds*1000))
-	b.entries[key] = hits
-	return len(hits)
+	now := b.nowMillis()
+	entry, exists := b.entries[key]
+	if !exists || now >= entry.expiresAt {
+		delete(b.entries, key)
+		return 0
+	}
+	entry.hits = trimHits(entry.hits, now-int64(windowSeconds*1000))
+	b.entries[key] = entry
+	return len(entry.hits)
+}
+
+func (b *memoryBackend) sweepExpiredLocked(now int64) {
+	if now < b.nextSweepAt {
+		return
+	}
+	b.nextSweepAt = now + memorySweepIntervalMillis
+	for key, entry := range b.entries {
+		if now >= entry.expiresAt {
+			delete(b.entries, key)
+			continue
+		}
+		entry.hits = trimHits(entry.hits, now-int64(windowSeconds*1000))
+		b.entries[key] = entry
+	}
 }
 
 func (b *memoryBackend) nowMillis() int64 {

@@ -17,17 +17,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
+import { RefreshIcon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { ChevronDown, ChevronUp, Gauge } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Spinner } from '@/components/ui/spinner'
 import { PanelWrapper } from '@/features/dashboard/components/ui/panel-wrapper'
 import { getRateLimitCapacity } from '@/features/dashboard/api'
 import {
   normalizePersonalRPMItems,
-  PERSONAL_RPM_REFRESH_INTERVAL,
+  personalRPMDisplayState,
+  PERSONAL_RPM_STALE_TIME,
 } from '@/features/dashboard/lib/personal-rpm'
 import type {
   RateLimitCapacityGroup,
@@ -39,6 +43,17 @@ import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 const RETRY_COOLDOWN = 3_000
+
+// eslint-disable-next-line react-refresh/only-export-components -- shared with the focused refresh behavior tests
+export async function refetchCapacityQueries(
+  anyExpanded: boolean,
+  refetchTop: () => Promise<unknown>,
+  refetchAll: () => Promise<unknown>
+): Promise<void> {
+  const requests = [refetchTop()]
+  if (anyExpanded) requests.push(refetchAll())
+  await Promise.all(requests)
+}
 
 function formatCount(value: number): string {
   return Number.isFinite(value) ? value.toLocaleString() : '0'
@@ -238,8 +253,7 @@ function PersonalSection(props: { personal: RateLimitCapacityPersonal }) {
   const { t } = useTranslation()
   const personal = props.personal
   const items = normalizePersonalRPMItems(personal.items)
-  const unavailable = personal.status === 'unavailable' || personal.status === 'overflow'
-  const showEmpty = personal.status === 'empty' || (!unavailable && items.length === 0)
+  const displayState = personalRPMDisplayState(personal.status, items)
 
   return (
     <section aria-label={t('My model RPM')}>
@@ -247,33 +261,27 @@ function PersonalSection(props: { personal: RateLimitCapacityPersonal }) {
         <h3 className='text-sm font-semibold'>{t('My model RPM')}</h3>
         <p className='text-muted-foreground mt-0.5 text-xs'>{t('Last 60 seconds')}</p>
       </div>
-      {showEmpty && (
+      {displayState === 'empty' && (
         <div className='text-muted-foreground px-4 py-4 text-sm sm:px-5'>
           {t('No request data yet')}
         </div>
       )}
-      {unavailable && (
+      {displayState === 'unavailable' && (
         <div className='text-muted-foreground px-4 py-4 text-sm sm:px-5'>
           {t('Temporarily unavailable')}
         </div>
       )}
-      {!showEmpty && !unavailable && (
+      {displayState === 'available' && (
         <div
           className='grid gap-3 px-4 py-3 sm:px-5'
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(13rem, 1fr))' }}
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))' }}
         >
           {items.map((item) => (
-            <div
+            <CapacityRow
               key={item.model}
-              className='rounded-lg border border-border/60 bg-card/40 p-3'
-            >
-              <div className='min-w-0 truncate text-sm' title={item.model}>
-                {item.model}
-              </div>
-              <div className='mt-2 truncate font-mono text-sm font-semibold tabular-nums'>
-                {formatCount(item.rpm)} RPM
-              </div>
-            </div>
+              label={item.model}
+              metric={item}
+            />
           ))}
         </div>
       )}
@@ -281,23 +289,50 @@ function PersonalSection(props: { personal: RateLimitCapacityPersonal }) {
   )
 }
 
-function CapacityMetadata(props: { data: RateLimitCapacityResponse }) {
+function CapacityMetadata(props: {
+  data: RateLimitCapacityResponse
+  refreshing: boolean
+  onRefresh: () => void
+}) {
   const { t } = useTranslation()
   const instanceOnly =
     props.data.instance_only ||
     props.data.backend_scope === 'instance' ||
     Boolean(props.data.personal?.instance_only)
   return (
-    <div className='text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-xs sm:px-5'>
-      <span>
-        {t('Data updated: {{time}}', {
-          time: formatObservedAt(props.data.observed_at),
-        })}
-      </span>
-      <span>{t('Data refreshes every 15 seconds')}</span>
-      {instanceOnly && (
-        <span className='text-warning'>{t('Instance-only data')}</span>
-      )}
+    <div className='text-muted-foreground flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs sm:px-5'>
+      <div className='flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1'>
+        <span>
+          {t('Data updated: {{time}}', {
+            time: formatObservedAt(props.data.observed_at),
+          })}
+        </span>
+        <span>{t('Click refresh for the latest data')}</span>
+        {instanceOnly && (
+          <span className='text-warning'>{t('Instance-only data')}</span>
+        )}
+      </div>
+      <Button
+        type='button'
+        variant='outline'
+        size='sm'
+        className='min-w-28'
+        onClick={props.onRefresh}
+        disabled={props.refreshing}
+        aria-label={t('Refresh')}
+        aria-busy={props.refreshing}
+      >
+        {props.refreshing ? (
+          <Spinner data-icon='inline-start' aria-label={t('Loading')} />
+        ) : (
+          <HugeiconsIcon
+            icon={RefreshIcon}
+            data-icon='inline-start'
+            aria-hidden='true'
+          />
+        )}
+        {props.refreshing ? t('Refreshing...') : t('Refresh')}
+      </Button>
     </div>
   )
 }
@@ -375,9 +410,8 @@ export function RateLimitCapacityPanel() {
     queryKey: [...queryKeyBase, 'top'],
     queryFn: () => queryCapacity('top'),
     enabled: Boolean(user),
-    staleTime: PERSONAL_RPM_REFRESH_INTERVAL,
-    refetchInterval: PERSONAL_RPM_REFRESH_INTERVAL,
-    refetchIntervalInBackground: false,
+    staleTime: PERSONAL_RPM_STALE_TIME,
+    refetchOnWindowFocus: false,
     retry: 1,
     retryDelay: RETRY_COOLDOWN,
   })
@@ -385,7 +419,8 @@ export function RateLimitCapacityPanel() {
     queryKey: [...queryKeyBase, 'all'],
     queryFn: () => queryCapacity('all'),
     enabled: anyExpanded && Boolean(user),
-    staleTime: PERSONAL_RPM_REFRESH_INTERVAL,
+    staleTime: PERSONAL_RPM_STALE_TIME,
+    refetchOnWindowFocus: false,
     retry: false,
   })
   const {
@@ -403,11 +438,15 @@ export function RateLimitCapacityPanel() {
     if (
       !allData ||
       (allIsError && elapsed >= RETRY_COOLDOWN) ||
-      (allIsStale && elapsed >= PERSONAL_RPM_REFRESH_INTERVAL)
+      (allIsStale && elapsed >= PERSONAL_RPM_STALE_TIME)
     ) {
       void refetchAll()
     }
   }, [allData, allIsError, allIsFetching, allIsStale, refetchAll])
+
+  const handleRefresh = useCallback(() => {
+    void refetchCapacityQueries(anyExpanded, topQuery.refetch, refetchAll)
+  }, [anyExpanded, refetchAll, topQuery.refetch])
 
   const toggleGlobal = useCallback(() => {
     if (!globalExpanded) handleExpandIntent()
@@ -432,8 +471,7 @@ export function RateLimitCapacityPanel() {
 
   const topData = topQuery.data
   // The all snapshot is a source only while an area is expanded. Once
-  // collapsed, return to the 15-second top snapshot so personal data and
-  // metadata keep refreshing.
+  // collapsed, return to the top snapshot for personal data and metadata.
   const data = anyExpanded && allData ? allData : (topData || allData)
   const site = data?.site
   const global = site?.global
@@ -445,6 +483,7 @@ export function RateLimitCapacityPanel() {
     : globalItems.slice(0, 3)
   const displayedGroups = groupsExpanded ? groupItems : groupItems.slice(0, 3)
   const topLoading = topQuery.isPending && !topData
+  const refreshing = topQuery.isFetching || allIsFetching
 
   return (
     <PanelWrapper
@@ -552,7 +591,13 @@ export function RateLimitCapacityPanel() {
       )}
 
       {data?.personal && <PersonalSection personal={data.personal} />}
-      {data && <CapacityMetadata data={data} />}
+      {data && (
+        <CapacityMetadata
+          data={data}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
+      )}
     </PanelWrapper>
   )
 }

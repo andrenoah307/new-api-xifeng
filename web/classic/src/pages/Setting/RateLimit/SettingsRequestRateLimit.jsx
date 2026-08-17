@@ -554,6 +554,11 @@ export default function RequestRateLimit(props) {
                         'global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.',
                       )}
                     </li>
+                    <li>
+                      {t(
+                        'user_rpm is optional; omit it or set it to 0 to disable the per-user limit. Non-zero values must not exceed global_rpm.',
+                      )}
+                    </li>
                   </ul>
                 </div>
               </Col>

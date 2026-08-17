@@ -4,11 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/gin-gonic/gin"
+)
+
+const (
+	rateLimitCapacityMaxRequests         = 30
+	rateLimitCapacityWindowSeconds int64 = 60
 )
 
 var timeFormat = "2006-01-02T15:04:05.000Z"
@@ -194,6 +201,100 @@ func userRedisRateLimiter(c *gin.Context, maxRequestNum int, duration int64, key
 			rdb.Expire(ctx, key, common.RateLimitKeyExpirationDuration)
 		}
 	}
+}
+
+func RateLimitCapacityGate() func(c *gin.Context) {
+	useRedis := common.RedisEnabled
+	if !useRedis {
+		inMemoryRateLimiter.Init(common.RateLimitKeyExpirationDuration)
+	}
+
+	return func(c *gin.Context) {
+		userID := c.GetInt("id")
+		if userID <= 0 {
+			common.SysError("RateLimitCapacityGate: invalid user ID, allowing request")
+			return
+		}
+		key := fmt.Sprintf("rateLimit:RLC:user:%d", userID)
+
+		if !useRedis {
+			if !inMemoryRateLimiter.Request(key, rateLimitCapacityMaxRequests, rateLimitCapacityWindowSeconds) {
+				rejectRateLimitCapacity(c)
+			}
+			return
+		}
+
+		if common.RDB == nil {
+			common.SysError("RateLimitCapacityGate: Redis client is unavailable, allowing request")
+			return
+		}
+
+		ctx := context.Background()
+		listLength, err := common.RDB.LLen(ctx, key).Result()
+		if err != nil {
+			common.SysError("RateLimitCapacityGate: Redis LLen failed, allowing request: " + err.Error())
+			return
+		}
+
+		if listLength < int64(rateLimitCapacityMaxRequests) {
+			if err = common.RDB.LPush(ctx, key, time.Now().Format(timeFormat)).Err(); err != nil {
+				common.SysError("RateLimitCapacityGate: Redis LPush failed, allowing request: " + err.Error())
+				return
+			}
+			if err = common.RDB.Expire(ctx, key, common.RateLimitKeyExpirationDuration).Err(); err != nil {
+				common.SysError("RateLimitCapacityGate: Redis Expire failed, allowing request: " + err.Error())
+			}
+			return
+		}
+
+		oldTimeStr, err := common.RDB.LIndex(ctx, key, -1).Result()
+		if err != nil {
+			common.SysError("RateLimitCapacityGate: Redis LIndex failed, allowing request: " + err.Error())
+			return
+		}
+		oldTime, err := time.Parse(timeFormat, oldTimeStr)
+		if err != nil {
+			common.SysError("RateLimitCapacityGate: Redis time parsing failed, allowing request: " + err.Error())
+			return
+		}
+		nowTimeStr := time.Now().Format(timeFormat)
+		nowTime, err := time.Parse(timeFormat, nowTimeStr)
+		if err != nil {
+			common.SysError("RateLimitCapacityGate: current time parsing failed, allowing request: " + err.Error())
+			return
+		}
+
+		if int64(nowTime.Sub(oldTime).Seconds()) < rateLimitCapacityWindowSeconds {
+			if err = common.RDB.Expire(ctx, key, common.RateLimitKeyExpirationDuration).Err(); err != nil {
+				common.SysError("RateLimitCapacityGate: Redis Expire failed, allowing request: " + err.Error())
+				return
+			}
+			rejectRateLimitCapacity(c)
+			return
+		}
+
+		if err = common.RDB.LPush(ctx, key, time.Now().Format(timeFormat)).Err(); err != nil {
+			common.SysError("RateLimitCapacityGate: Redis LPush failed, allowing request: " + err.Error())
+			return
+		}
+		if err = common.RDB.LTrim(ctx, key, 0, int64(rateLimitCapacityMaxRequests-1)).Err(); err != nil {
+			common.SysError("RateLimitCapacityGate: Redis LTrim failed, allowing request: " + err.Error())
+			return
+		}
+		if err = common.RDB.Expire(ctx, key, common.RateLimitKeyExpirationDuration).Err(); err != nil {
+			common.SysError("RateLimitCapacityGate: Redis Expire failed, allowing request: " + err.Error())
+		}
+	}
+}
+
+func rejectRateLimitCapacity(c *gin.Context) {
+	c.Header("Retry-After", strconv.FormatInt(rateLimitCapacityWindowSeconds, 10))
+	c.JSON(http.StatusServiceUnavailable, gin.H{
+		"success": false,
+		"message": common.TranslateMessage(c, i18n.MsgRateLimitCapacityThrottled),
+		"data":    nil,
+	})
+	c.Abort()
 }
 
 // SearchRateLimit returns a per-user rate limiter for search endpoints.

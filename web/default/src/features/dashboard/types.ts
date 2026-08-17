@@ -214,15 +214,12 @@ export interface RateLimitCapacityGroupSection {
 }
 
 export interface RateLimitCapacityPersonal {
-  status: 'available' | 'empty' | 'unavailable' | 'overflow' | string
+  status: 'ok' | 'empty' | 'unavailable' | string
   window_seconds: number
   observed_at: string
   instance_only: boolean
   total: number
-  items: Array<{
-    model: string
-    rpm: number
-  }>
+  items: RateLimitCapacityItem[]
 }
 
 export interface RateLimitCapacityResponse {

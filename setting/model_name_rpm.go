@@ -23,10 +23,12 @@ type ModelNameRPMDecision struct {
 	RuleModel string
 	GlobalRPM int
 	GroupRPM  int // 0 means that the group has no sub-limit.
+	UserRPM   int // 0 means that the model has no per-user limit.
 }
 
 type ModelNameRPMRule struct {
 	GlobalRPM int            `json:"global_rpm"`
+	UserRPM   int            `json:"user_rpm,omitempty"`
 	GroupRPM  map[string]int `json:"group_rpm,omitempty"`
 }
 
@@ -57,11 +59,9 @@ func MatchModelNameRPM(model, group string) ModelNameRPMDecision {
 	}
 
 	rule, matched := snapshot.Models[model]
-	ruleModel := model
+	ruleModel := ratio_setting.FormatMatchingModelName(model)
 	if !matched {
-		normalizedModel := ratio_setting.FormatMatchingModelName(model)
-		rule, matched = snapshot.Models[normalizedModel]
-		ruleModel = normalizedModel
+		rule, matched = snapshot.Models[ruleModel]
 	}
 	if !matched {
 		return ModelNameRPMDecision{}
@@ -76,6 +76,7 @@ func MatchModelNameRPM(model, group string) ModelNameRPMDecision {
 		RuleModel: ruleModel,
 		GlobalRPM: rule.GlobalRPM,
 		GroupRPM:  groupRPM,
+		UserRPM:   rule.UserRPM,
 	}
 }
 
@@ -174,6 +175,12 @@ func validateModelNameRPMConfig(config *modelNameRPMConfig) error {
 		if rule.GlobalRPM > modelNameRPMMaxGlobal {
 			return fmt.Errorf("model %q global_rpm must not exceed %d", modelName, modelNameRPMMaxGlobal)
 		}
+		if rule.UserRPM < 0 {
+			return fmt.Errorf("model %q user_rpm must be at least 1 or 0 to disable", modelName)
+		}
+		if rule.UserRPM > rule.GlobalRPM {
+			return fmt.Errorf("model %q user_rpm must not exceed global_rpm", modelName)
+		}
 
 		groupNames := make([]string, 0, len(rule.GroupRPM))
 		for groupName := range rule.GroupRPM {
@@ -223,7 +230,7 @@ func cloneModelNameRPMConfig(source *modelNameRPMConfig) *modelNameRPMConfig {
 		Models:  make(map[string]modelNameRPMRule, len(source.Models)),
 	}
 	for modelName, sourceRule := range source.Models {
-		cloneRule := modelNameRPMRule{GlobalRPM: sourceRule.GlobalRPM}
+		cloneRule := modelNameRPMRule{GlobalRPM: sourceRule.GlobalRPM, UserRPM: sourceRule.UserRPM}
 		if sourceRule.GroupRPM != nil {
 			cloneRule.GroupRPM = make(map[string]int, len(sourceRule.GroupRPM))
 			for groupName, groupRPM := range sourceRule.GroupRPM {

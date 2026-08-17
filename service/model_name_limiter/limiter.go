@@ -6,6 +6,7 @@ package model_name_limiter
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -18,17 +19,27 @@ const (
 	backendOperationTimeout = 200 * time.Millisecond
 )
 
-// Result is the outcome of an acquire attempt.  Scope, Limit, and Current are
+// WindowSeconds is the shared admission and capacity observation window.
+const WindowSeconds = rpmWindowSeconds
+
+// Bucket keeps the key, limit, and rejection scope for one atomic counter.
+type Bucket struct {
+	Key   string
+	Limit int
+	Scope string // "global", "group", or "user"
+}
+
+// Result is the outcome of an acquire attempt. Scope, Limit, and Current are
 // populated only when a request is rejected by a limit.
 type Result struct {
 	Allowed bool
-	Scope   string // "global" or "group"
+	Scope   string // "global", "group", or "user"
 	Limit   int
 	Current int
 }
 
 type backend interface {
-	Acquire(context.Context, []string, []int) Result
+	Acquire(context.Context, []Bucket) Result
 	Inspect(context.Context, []string) ([]int, error)
 }
 
@@ -62,17 +73,17 @@ func getBackend() backend {
 }
 
 // Acquire atomically checks and, when allowed, records all supplied keys.
-// Invalid key/limit shapes fail open because they cannot safely be represented
+// Invalid bucket shapes fail open because they cannot safely be represented
 // by the v1 backend contract.
-func Acquire(ctx context.Context, keys []string, limits []int) Result {
-	if len(keys) == 0 {
+func Acquire(ctx context.Context, buckets []Bucket) Result {
+	if len(buckets) == 0 {
 		return Result{Allowed: true}
 	}
-	if len(keys) != len(limits) || (len(keys) != 1 && len(keys) != 2) {
-		common.SysError(fmt.Sprintf("model_name_limiter: invalid acquire arguments keys=%d limits=%d", len(keys), len(limits)))
+	if !validAcquireBuckets(buckets) {
+		common.SysError(fmt.Sprintf("model_name_limiter: invalid acquire buckets=%d", len(buckets)))
 		return Result{Allowed: true}
 	}
-	return getBackend().Acquire(ctx, keys, limits)
+	return getBackend().Acquire(ctx, buckets)
 }
 
 // Inspect returns current sliding-window counts without changing any bucket.
@@ -98,19 +109,26 @@ func UsingMemoryBackend() bool {
 func (b *memoryBackend) IsMemory() bool { return true }
 func (b *redisBackend) IsMemory() bool  { return false }
 
-// ModelKey and GroupKey are the single key builders shared by the admission
-// middleware and read-only capacity paths.
+// ModelKey, GroupKey, and UserKey are shared by admission and capacity reads.
 func ModelKey(model string) string { return "mdrl:v1:rpm:model:" + model }
 func GroupKey(model, group string) string {
 	return "mdrl:v1:rpm:group:" + model + ":" + group
 }
+func UserKey(model string, userID int) string {
+	return "mdrl:v1:rpm:user:" + model + ":" + strconv.Itoa(userID)
+}
 
-func scopeForIndex(index int) string {
-	if index == 1 {
-		return "global"
+func validAcquireBuckets(buckets []Bucket) bool {
+	if len(buckets) < 1 || len(buckets) > 3 {
+		return false
 	}
-	if index == 2 {
-		return "group"
+	for _, bucket := range buckets {
+		if bucket.Key == "" || bucket.Limit <= 0 {
+			return false
+		}
+		if bucket.Scope != "global" && bucket.Scope != "group" && bucket.Scope != "user" {
+			return false
+		}
 	}
-	return ""
+	return true
 }

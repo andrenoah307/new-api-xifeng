@@ -135,6 +135,22 @@ export function ModelNameRPMVisualEditor({
             ),
           },
           {
+            id: 'user-rpm',
+            header: t('Per-user RPM'),
+            className: 'text-right',
+            cellClassName: 'text-right',
+            cell: (rule) =>
+              rule.userRpm === 0 ? (
+                <span className='text-muted-foreground text-xs'>
+                  {t('None')}
+                </span>
+              ) : (
+                <span className='font-mono'>
+                  {rule.userRpm.toLocaleString()}
+                </span>
+              ),
+          },
+          {
             id: 'group-rpm',
             header: t('Group sub-limits'),
             cell: (rule) =>

@@ -22,6 +22,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { API, isAdmin, showError, timestamp2string } from '../../helpers';
 import { getDefaultTime, getInitialTimestamp } from '../../helpers/dashboard';
+import { isRateLimitCapacityEnabled } from '../../helpers/rate-limit-capacity';
 import { TIME_OPTIONS } from '../../constants/dashboard.constants';
 import { useIsMobile } from '../common/useIsMobile';
 import { useMinimumLoadingTime } from '../common/useMinimumLoadingTime';
@@ -96,9 +97,11 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
     statusState?.status?.announcements_enabled ?? true;
   const faqEnabled = statusState?.status?.faq_enabled ?? true;
   const uptimeEnabled = statusState?.status?.uptime_kuma_enabled ?? true;
-  const rateLimitCapacityEnabled = statusState?.status
-    ? statusState.status.rate_limit_capacity_enabled !== false
-    : false;
+  // RPM capacity is an opt-in hard gate: missing or unconfigured status stays
+  // hidden, unlike the intentionally opt-out panels above.
+  const rateLimitCapacityEnabled = isRateLimitCapacityEnabled(
+    statusState?.status,
+  );
 
   const hasApiInfoPanel = apiInfoEnabled;
   const hasInfoPanels = announcementsEnabled || faqEnabled || uptimeEnabled;

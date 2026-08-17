@@ -71,15 +71,15 @@ func (b *redisBackend) loadScript(ctx context.Context) error {
 	return nil
 }
 
-func (b *redisBackend) Acquire(ctx context.Context, keys []string, limits []int) Result {
-	if len(keys) == 0 {
+func (b *redisBackend) Acquire(ctx context.Context, buckets []Bucket) Result {
+	if len(buckets) == 0 {
 		return Result{Allowed: true}
 	}
 	if b == nil || b.client == nil {
 		common.SysError("model_name_limiter: redis acquire called without a client")
 		return Result{Allowed: true}
 	}
-	if len(keys) != len(limits) || (len(keys) != 1 && len(keys) != 2) {
+	if !validAcquireBuckets(buckets) {
 		return Result{Allowed: true}
 	}
 	if ctx == nil {
@@ -88,7 +88,11 @@ func (b *redisBackend) Acquire(ctx context.Context, keys []string, limits []int)
 
 	operationCtx, cancel := context.WithTimeout(ctx, backendOperationTimeout)
 	defer cancel()
-	args := scriptArgs(limits)
+	keys := make([]string, len(buckets))
+	for i, bucket := range buckets {
+		keys[i] = bucket.Key
+	}
+	args := scriptArgs(buckets)
 	result, err := b.eval(operationCtx, keys, args)
 	if err != nil && isNoScriptError(err) {
 		if loadErr := b.loadScript(operationCtx); loadErr == nil {
@@ -101,7 +105,7 @@ func (b *redisBackend) Acquire(ctx context.Context, keys []string, limits []int)
 		common.SysError(fmt.Sprintf("model_name_limiter: redis acquire failed: %v", err))
 		return Result{Allowed: true}
 	}
-	return parseAcquireResult(result)
+	return parseAcquireResult(result, buckets)
 }
 
 // Inspect reads all requested buckets in one script invocation. The script
@@ -228,17 +232,17 @@ func redisResultString(value interface{}) (string, error) {
 	}
 }
 
-func scriptArgs(limits []int) []interface{} {
-	args := make([]interface{}, 0, len(limits)+2)
+func scriptArgs(buckets []Bucket) []interface{} {
+	args := make([]interface{}, 0, len(buckets)+2)
 	args = append(args, windowSeconds)
-	for _, limit := range limits {
-		args = append(args, limit)
+	for _, bucket := range buckets {
+		args = append(args, bucket.Limit)
 	}
 	args = append(args, uniqueToken())
 	return args
 }
 
-func parseAcquireResult(values []string) Result {
+func parseAcquireResult(values []string, buckets []Bucket) Result {
 	if len(values) == 1 && values[0] == "1" {
 		return Result{Allowed: true}
 	}
@@ -261,12 +265,11 @@ func parseAcquireResult(values []string) Result {
 		common.SysError(fmt.Sprintf("model_name_limiter: malformed redis acquire current: %v", values))
 		return Result{Allowed: true}
 	}
-	scope := scopeForIndex(index)
-	if scope == "" {
+	if index < 1 || index > len(buckets) {
 		common.SysError(fmt.Sprintf("model_name_limiter: malformed redis acquire scope index: %v", values))
 		return Result{Allowed: true}
 	}
-	return Result{Allowed: false, Scope: scope, Limit: limit, Current: current}
+	return Result{Allowed: false, Scope: buckets[index-1].Scope, Limit: limit, Current: current}
 }
 
 func isNoScriptError(err error) bool {

@@ -5414,10 +5414,11 @@
     "Search model names...": "Search model names...",
     "No model RPM rules configured. Click \"Add model\" to get started.": "No model RPM rules configured. Click \"Add model\" to get started.",
     "Global RPM": "Global RPM",
+    "Per-user RPM": "Per-user RPM",
     "Group sub-limits": "Group sub-limits",
     "Edit model RPM rule": "Edit model RPM rule",
     "Add model RPM rule": "Add model RPM rule",
-    "Requests consume the global bucket and, when configured, the matching group bucket.": "Requests consume the global bucket and, when configured, the matching group bucket.",
+    "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "Requests consume the global bucket and, when configured, the matching group and per-user buckets.",
     "e.g., gpt-4o": "e.g., gpt-4o",
     "Must match the model name the client requests, including aliases.": "Must match the model name the client requests, including aliases.",
     "Hard ceiling shared by every group, in requests per minute.": "Hard ceiling shared by every group, in requests per minute.",
@@ -5429,6 +5430,8 @@
     "Model name must not contain whitespace or control characters": "Model name must not contain whitespace or control characters",
     "This model already has a rule": "This model already has a rule",
     "Global RPM must be an integer between 1 and 1,000,000": "Global RPM must be an integer between 1 and 1,000,000",
+    "Per-user RPM must be a positive integer when set": "Per-user RPM must be a positive integer when set",
+    "Per-user RPM must not exceed the global RPM": "Per-user RPM must not exceed the global RPM",
     "Group name must not exceed 64 characters": "Group name must not exceed 64 characters",
     "Group name must not contain whitespace or control characters": "Group name must not contain whitespace or control characters",
     "This group already has a limit for this model": "This group already has a limit for this model",
@@ -5492,7 +5495,7 @@
     "My model RPM": "My model RPM",
     "Last 60 seconds": "Last 60 seconds",
     "No request data yet": "No request data yet",
-    "Data refreshes every 15 seconds": "Data refreshes every 15 seconds",
+    "Click refresh for the latest data": "Click refresh for the latest data",
     "RPM overview": "RPM overview"
   }
 }

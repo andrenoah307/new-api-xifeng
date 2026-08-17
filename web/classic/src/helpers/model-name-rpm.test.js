@@ -29,7 +29,13 @@ import {
 } from './model-name-rpm.js';
 
 function rule(overrides = {}) {
-  return { modelName: 'gpt-4o', globalRpm: 100, groups: [], ...overrides };
+  return {
+    modelName: 'gpt-4o',
+    globalRpm: 100,
+    userRpm: 0,
+    groups: [],
+    ...overrides,
+  };
 }
 
 describe('parseModelNameRPMConfig', () => {
@@ -46,11 +52,15 @@ describe('parseModelNameRPMConfig', () => {
     });
   });
 
-  test('reads enabled flag, global limits and group sub-limits', () => {
+  test('reads enabled flag, global, per-user and group limits', () => {
     const value = JSON.stringify({
       enabled: true,
       models: {
-        'gpt-4o': { global_rpm: 100, group_rpm: { vip: 30, free: 5 } },
+        'gpt-4o': {
+          global_rpm: 100,
+          user_rpm: 20,
+          group_rpm: { vip: 30, free: 5 },
+        },
         'claude-3': { global_rpm: 7 },
       },
     });
@@ -62,12 +72,37 @@ describe('parseModelNameRPMConfig', () => {
         {
           modelName: 'gpt-4o',
           globalRpm: 100,
+          userRpm: 20,
           groups: [
             { groupName: 'vip', rpm: 30 },
             { groupName: 'free', rpm: 5 },
           ],
         },
-        { modelName: 'claude-3', globalRpm: 7, groups: [] },
+        { modelName: 'claude-3', globalRpm: 7, userRpm: 0, groups: [] },
+      ],
+    });
+  });
+
+  test('normalizes missing and zero user_rpm to the disabled editor value', () => {
+    const value = JSON.stringify({
+      models: {
+        missing: { global_rpm: 10 },
+        zero: { global_rpm: 10, user_rpm: 0 },
+        one: { global_rpm: 10, user_rpm: 1 },
+        equal: { global_rpm: 10, user_rpm: 10 },
+        over: { global_rpm: 10, user_rpm: 11 },
+      },
+    });
+
+    assert.deepEqual(parseModelNameRPMConfig(value), {
+      ok: true,
+      enabled: false,
+      rules: [
+        { modelName: 'missing', globalRpm: 10, userRpm: 0, groups: [] },
+        { modelName: 'zero', globalRpm: 10, userRpm: 0, groups: [] },
+        { modelName: 'one', globalRpm: 10, userRpm: 1, groups: [] },
+        { modelName: 'equal', globalRpm: 10, userRpm: 10, groups: [] },
+        { modelName: 'over', globalRpm: 10, userRpm: 11, groups: [] },
       ],
     });
   });
@@ -85,7 +120,7 @@ describe('parseModelNameRPMConfig', () => {
     assert.deepEqual(parseModelNameRPMConfig(value), {
       ok: true,
       enabled: false,
-      rules: [{ modelName: 'm', globalRpm: 5, groups: [] }],
+      rules: [{ modelName: 'm', globalRpm: 5, userRpm: 0, groups: [] }],
     });
   });
 
@@ -98,6 +133,12 @@ describe('parseModelNameRPMConfig', () => {
     ['a missing global_rpm', '{"models":{"m":{}}}'],
     ['a non-numeric global_rpm', '{"models":{"m":{"global_rpm":"5"}}}'],
     ['a fractional global_rpm', '{"models":{"m":{"global_rpm":1.5}}}'],
+    ['a string user_rpm', '{"models":{"m":{"global_rpm":5,"user_rpm":"1"}}}'],
+    [
+      'a fractional user_rpm',
+      '{"models":{"m":{"global_rpm":5,"user_rpm":1.5}}}',
+    ],
+    ['a negative user_rpm', '{"models":{"m":{"global_rpm":5,"user_rpm":-1}}}'],
     [
       'a non-object group_rpm',
       '{"models":{"m":{"global_rpm":5,"group_rpm":[]}}}',
@@ -166,6 +207,29 @@ describe('upsertModelNameRPMRule', () => {
     assert.deepEqual(JSON.parse(cleared).models['gpt-4o'], { global_rpm: 100 });
   });
 
+  test('writes a positive user limit and removes user_rpm when disabled', () => {
+    const withUserLimit = upsertModelNameRPMRule(
+      '{"models":{"gpt-4o":{"global_rpm":100,"future_field":true}}}',
+      'gpt-4o',
+      rule({ userRpm: 20 }),
+    );
+    assert.deepEqual(JSON.parse(withUserLimit).models['gpt-4o'], {
+      global_rpm: 100,
+      user_rpm: 20,
+      future_field: true,
+    });
+
+    const disabled = upsertModelNameRPMRule(
+      withUserLimit,
+      'gpt-4o',
+      rule({ userRpm: 0 }),
+    );
+    assert.deepEqual(JSON.parse(disabled).models['gpt-4o'], {
+      global_rpm: 100,
+      future_field: true,
+    });
+  });
+
   test('creates the models container when the document has none', () => {
     const next = JSON.parse(
       upsertModelNameRPMRule('{"enabled":false}', null, rule()),
@@ -232,6 +296,26 @@ describe('validateModelNameRPMRule', () => {
       null,
     );
   });
+
+  test('accepts disabled, minimum and global-equal user limits', () => {
+    for (const userRpm of [0, 1, 100]) {
+      assert.equal(validateModelNameRPMRule(rule({ userRpm }), []), null);
+    }
+  });
+
+  const userRPMErrorCases = [
+    ['user-rpm-range', -1],
+    ['user-rpm-range', 1.5],
+    ['user-rpm-exceeds-global', 101],
+  ];
+
+  for (const [code, userRpm] of userRPMErrorCases) {
+    test(`reports ${code} for user RPM ${userRpm}`, () => {
+      assert.deepEqual(validateModelNameRPMRule(rule({ userRpm }), []), {
+        code,
+      });
+    });
+  }
 
   const groupErrorCases = [
     ['group-name-required', { groupName: '', rpm: 5 }],
