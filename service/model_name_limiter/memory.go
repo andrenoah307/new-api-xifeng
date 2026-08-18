@@ -31,7 +31,7 @@ func (b *memoryBackend) Acquire(_ context.Context, buckets []Bucket) Result {
 	if len(buckets) == 0 {
 		return Result{Allowed: true}
 	}
-	if b == nil || !validAcquireBuckets(buckets) {
+	if b == nil {
 		return Result{Allowed: true}
 	}
 
@@ -55,7 +55,7 @@ func (b *memoryBackend) Acquire(_ context.Context, buckets []Bucket) Result {
 			entry.hits = trimHits(entry.hits, windowStart)
 			trimmed[bucket.Key] = entry
 		}
-		if len(entry.hits) >= bucket.Limit {
+		if bucket.Limit > 0 && len(entry.hits) >= bucket.Limit {
 			return Result{
 				Allowed: false,
 				Scope:   bucket.Scope,

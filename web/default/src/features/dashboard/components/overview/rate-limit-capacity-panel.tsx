@@ -124,7 +124,15 @@ function CapacityRow(props: {
   const available = isMetricAvailable(metric)
   const percent = formatPercent(metric.utilization)
   let value = t('Temporarily unavailable')
-  if (available && metric.unlimited) {
+  if (
+    available &&
+    metric.unlimited &&
+    typeof metric.current === 'number' &&
+    Number.isFinite(metric.current)
+  ) {
+    // An unlimited bucket is still counted, so keep showing the real usage.
+    value = `${formatCount(metric.current)} / ${t('Unlimited')}`
+  } else if (available && metric.unlimited) {
     value = t('Unlimited')
   } else if (available && metric.current !== null) {
     value = `${formatCount(metric.current)} / ${formatCount(metric.limit)}`

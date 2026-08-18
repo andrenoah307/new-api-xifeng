@@ -47,6 +47,7 @@ export type ModelNameRPMErrorCode =
   | 'model-name-whitespace'
   | 'model-name-duplicate'
   | 'global-rpm-range'
+  | 'unlimited-without-sublimit'
   | 'user-rpm-range'
   | 'user-rpm-exceeds-global'
   | 'group-name-required'
@@ -248,18 +249,30 @@ export function validateModelNameRPMRule(
     return { code: 'model-name-duplicate' }
   }
 
+  // 0 means unlimited: the bucket is still counted, it just never rejects.
   if (
     !Number.isSafeInteger(rule.globalRpm) ||
-    rule.globalRpm < 1 ||
+    rule.globalRpm < 0 ||
     rule.globalRpm > MODEL_NAME_RPM_MAX_GLOBAL
   ) {
     return { code: 'global-rpm-range' }
   }
+  if (
+    rule.globalRpm === 0 &&
+    rule.userRpm === 0 &&
+    rule.groups.length === 0
+  ) {
+    return { code: 'unlimited-without-sublimit' }
+  }
 
-  if (!Number.isSafeInteger(rule.userRpm) || rule.userRpm < 0) {
+  if (
+    !Number.isSafeInteger(rule.userRpm) ||
+    rule.userRpm < 0 ||
+    rule.userRpm > MODEL_NAME_RPM_MAX_GLOBAL
+  ) {
     return { code: 'user-rpm-range' }
   }
-  if (rule.userRpm > rule.globalRpm) {
+  if (rule.globalRpm > 0 && rule.userRpm > rule.globalRpm) {
     return { code: 'user-rpm-exceeds-global' }
   }
 
@@ -281,10 +294,14 @@ export function validateModelNameRPMRule(
     }
     seenGroups.add(group.groupName)
 
-    if (!Number.isSafeInteger(group.rpm) || group.rpm < 1) {
+    if (
+      !Number.isSafeInteger(group.rpm) ||
+      group.rpm < 1 ||
+      group.rpm > MODEL_NAME_RPM_MAX_GLOBAL
+    ) {
       return { code: 'group-rpm-range', groupIndex: index }
     }
-    if (group.rpm > rule.globalRpm) {
+    if (rule.globalRpm > 0 && group.rpm > rule.globalRpm) {
       return { code: 'group-rpm-exceeds-global', groupIndex: index }
     }
   }

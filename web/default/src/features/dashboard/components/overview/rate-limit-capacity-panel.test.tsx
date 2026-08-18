@@ -166,6 +166,59 @@ describe('personal rate-limit capacity section', () => {
     assert.doesNotMatch(markup, /No request data yet/)
   })
 
+  test('keeps showing the counted usage when the limit is unlimited', async () => {
+    const markup = await renderPanel(
+      response({
+        status: 'ok',
+        window_seconds: 60,
+        observed_at: '2026-08-18T00:00:00Z',
+        instance_only: false,
+        total: 1,
+        items: [
+          {
+            model: 'gpt-unlimited',
+            current: 7,
+            limit: 0,
+            utilization: null,
+            available: true,
+            unlimited: true,
+            over_limit: false,
+          },
+        ],
+      })
+    )
+
+    assert.match(markup, /gpt-unlimited/)
+    assert.match(markup, /7 \/ Unlimited/)
+    assert.doesNotMatch(markup, /7 \/ 0/)
+  })
+
+  test('renders a bare unlimited label when the counter is unreadable', async () => {
+    const markup = await renderPanel(
+      response({
+        status: 'ok',
+        window_seconds: 60,
+        observed_at: '2026-08-18T00:00:00Z',
+        instance_only: false,
+        total: 1,
+        items: [
+          {
+            model: 'gpt-unlimited',
+            current: null,
+            limit: 0,
+            utilization: null,
+            available: true,
+            unlimited: true,
+            over_limit: false,
+          },
+        ],
+      })
+    )
+
+    assert.match(markup, /Unlimited/)
+    assert.doesNotMatch(markup, /\d+ \/ Unlimited/)
+  })
+
   test('omits the entire section when personal data is absent', async () => {
     const markup = await renderPanel(response())
     assert.doesNotMatch(markup, /My model RPM/)

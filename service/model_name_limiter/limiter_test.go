@@ -105,6 +105,45 @@ func TestBackendsHaveTheSameAcquireSemantics(t *testing.T) {
 	}
 }
 
+func TestBackendsCountOnlyGlobalBucket(t *testing.T) {
+	for backendName, newFixture := range map[string]func(*testing.T) limiterFixture{
+		"memory": newMemoryFixture,
+		"redis":  newRedisFixture,
+	} {
+		t.Run(backendName, func(t *testing.T) {
+			fixture := newFixture(t)
+			defer fixture.close()
+			bucket := []Bucket{{Key: "global", Limit: 0, Scope: "global"}}
+			for i := 0; i < 3; i++ {
+				assert.Equal(t, Result{Allowed: true}, fixture.backend.Acquire(context.Background(), bucket))
+			}
+			assert.Equal(t, 3, fixture.count("global"))
+		})
+	}
+}
+
+func TestBackendsCountOnlyGlobalStillHonorsUserLimitAtomically(t *testing.T) {
+	for backendName, newFixture := range map[string]func(*testing.T) limiterFixture{
+		"memory": newMemoryFixture,
+		"redis":  newRedisFixture,
+	} {
+		t.Run(backendName, func(t *testing.T) {
+			fixture := newFixture(t)
+			defer fixture.close()
+			buckets := []Bucket{
+				{Key: "global", Limit: 0, Scope: "global"},
+				{Key: "user", Limit: 2, Scope: "user"},
+			}
+			for i := 0; i < 2; i++ {
+				require.Equal(t, Result{Allowed: true}, fixture.backend.Acquire(context.Background(), buckets))
+			}
+			assert.Equal(t, Result{Allowed: false, Scope: "user", Limit: 2, Current: 2}, fixture.backend.Acquire(context.Background(), buckets))
+			assert.Equal(t, 2, fixture.count("global"))
+			assert.Equal(t, 2, fixture.count("user"))
+		})
+	}
+}
+
 func TestBackendsKeepThreeBucketAcquireAtomicAndUseExplicitScopes(t *testing.T) {
 	newFixtures := map[string]func(*testing.T) limiterFixture{
 		"memory": newMemoryFixture,
@@ -278,6 +317,9 @@ func TestAcquireRejectsInvalidShapeOpen(t *testing.T) {
 		{Key: "d", Limit: 1, Scope: "user"},
 	}))
 	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), []Bucket{{Key: "a", Limit: 0, Scope: "global"}}))
+	assert.Equal(t, 1, fixture.count("a"))
+	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), []Bucket{{Key: "negative", Limit: -1, Scope: "global"}}))
+	assert.Equal(t, 0, fixture.count("negative"))
 	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), []Bucket{{Key: "a", Limit: 1, Scope: ""}}))
 }
 
@@ -725,7 +767,7 @@ func (f *fakeRedis) respondEval(command []string) string {
 			return "-ERR malformed limit\r\n"
 		}
 		current := len(f.hits[key])
-		if current >= limit {
+		if limit > 0 && current >= limit {
 			f.mu.Unlock()
 			return redisMixedArrayResponse("0", int64(i+1), int64(limit), int64(current))
 		}

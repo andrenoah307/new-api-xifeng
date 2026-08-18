@@ -21,13 +21,13 @@ const (
 type ModelNameRPMDecision struct {
 	Matched   bool
 	RuleModel string
-	GlobalRPM int
+	GlobalRPM int // 0 means unlimited (the bucket is still counted).
 	GroupRPM  int // 0 means that the group has no sub-limit.
 	UserRPM   int // 0 means that the model has no per-user limit.
 }
 
 type ModelNameRPMRule struct {
-	GlobalRPM int            `json:"global_rpm"`
+	GlobalRPM *int           `json:"global_rpm"`
 	UserRPM   int            `json:"user_rpm,omitempty"`
 	GroupRPM  map[string]int `json:"group_rpm,omitempty"`
 }
@@ -71,10 +71,14 @@ func MatchModelNameRPM(model, group string) ModelNameRPMDecision {
 	if rule.GroupRPM != nil {
 		groupRPM = rule.GroupRPM[group]
 	}
+	globalRPM := 0
+	if rule.GlobalRPM != nil {
+		globalRPM = *rule.GlobalRPM
+	}
 	return ModelNameRPMDecision{
 		Matched:   true,
 		RuleModel: ruleModel,
-		GlobalRPM: rule.GlobalRPM,
+		GlobalRPM: globalRPM,
 		GroupRPM:  groupRPM,
 		UserRPM:   rule.UserRPM,
 	}
@@ -169,16 +173,22 @@ func validateModelNameRPMConfig(config *modelNameRPMConfig) error {
 		}
 
 		rule := config.Models[modelName]
-		if rule.GlobalRPM <= 0 {
-			return fmt.Errorf("model %q global_rpm must be a positive integer", modelName)
+		if rule.GlobalRPM == nil {
+			return fmt.Errorf("model %q global_rpm is required", modelName)
 		}
-		if rule.GlobalRPM > modelNameRPMMaxGlobal {
+		if *rule.GlobalRPM < 0 {
+			return fmt.Errorf("model %q global_rpm must not be negative (0 means unlimited)", modelName)
+		}
+		if *rule.GlobalRPM > modelNameRPMMaxGlobal {
 			return fmt.Errorf("model %q global_rpm must not exceed %d", modelName, modelNameRPMMaxGlobal)
 		}
 		if rule.UserRPM < 0 {
 			return fmt.Errorf("model %q user_rpm must be at least 1 or 0 to disable", modelName)
 		}
-		if rule.UserRPM > rule.GlobalRPM {
+		if rule.UserRPM > modelNameRPMMaxGlobal {
+			return fmt.Errorf("model %q user_rpm must not exceed %d", modelName, modelNameRPMMaxGlobal)
+		}
+		if *rule.GlobalRPM > 0 && rule.UserRPM > *rule.GlobalRPM {
 			return fmt.Errorf("model %q user_rpm must not exceed global_rpm", modelName)
 		}
 
@@ -195,9 +205,15 @@ func validateModelNameRPMConfig(config *modelNameRPMConfig) error {
 			if groupRPM < 1 {
 				return fmt.Errorf("model %q group %q group_rpm must be at least 1", modelName, groupName)
 			}
-			if groupRPM > rule.GlobalRPM {
+			if groupRPM > modelNameRPMMaxGlobal {
+				return fmt.Errorf("model %q group %q group_rpm must not exceed %d", modelName, groupName, modelNameRPMMaxGlobal)
+			}
+			if *rule.GlobalRPM > 0 && groupRPM > *rule.GlobalRPM {
 				return fmt.Errorf("model %q group %q group_rpm must not exceed global_rpm", modelName, groupName)
 			}
+		}
+		if *rule.GlobalRPM == 0 && rule.UserRPM == 0 && len(rule.GroupRPM) == 0 {
+			return fmt.Errorf("model %q global_rpm is 0 (unlimited) but no user_rpm or group_rpm is configured; remove the model entry to disable rate limiting for it", modelName)
 		}
 
 		normalizedName := ratio_setting.FormatMatchingModelName(modelName)
@@ -230,7 +246,11 @@ func cloneModelNameRPMConfig(source *modelNameRPMConfig) *modelNameRPMConfig {
 		Models:  make(map[string]modelNameRPMRule, len(source.Models)),
 	}
 	for modelName, sourceRule := range source.Models {
-		cloneRule := modelNameRPMRule{GlobalRPM: sourceRule.GlobalRPM, UserRPM: sourceRule.UserRPM}
+		cloneRule := modelNameRPMRule{UserRPM: sourceRule.UserRPM}
+		if sourceRule.GlobalRPM != nil {
+			globalRPM := *sourceRule.GlobalRPM
+			cloneRule.GlobalRPM = &globalRPM
+		}
 		if sourceRule.GroupRPM != nil {
 			cloneRule.GroupRPM = make(map[string]int, len(sourceRule.GroupRPM))
 			for groupName, groupRPM := range sourceRule.GroupRPM {

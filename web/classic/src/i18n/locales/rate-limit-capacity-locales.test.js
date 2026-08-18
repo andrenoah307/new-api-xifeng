@@ -22,17 +22,26 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const locales = ['en', 'fr', 'ja', 'ru', 'vi', 'zh-CN', 'zh-TW'];
-const descriptionKey =
-  'Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.';
+const requiredKeys = [
+  'Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.',
+  'Unlimited',
+  '0 means unlimited; usage is still counted and displayed.',
+  'Global RPM must be an integer between 0 and 1,000,000 (0 means unlimited)',
+  'When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule',
+  'global_rpm must be an integer from 0 to 1,000,000; 0 means unlimited (usage is still counted) and then at least one user_rpm or group_rpm is required. Delete a model rule to disable it; set enabled to false to disable all rules.',
+  'user_rpm is optional; omit it or set it to 0 to disable the per-user limit. Non-zero values must not exceed global_rpm unless global_rpm is 0 (unlimited).',
+];
 
 for (const locale of locales) {
   test(`${locale} has non-empty RPM card settings copy`, () => {
     const document = JSON.parse(
       readFileSync(new URL(`./${locale}.json`, import.meta.url), 'utf8'),
     );
-    const value = document.translation?.[descriptionKey];
 
-    assert.equal(typeof value, 'string');
-    assert.notEqual(value.trim(), '');
+    for (const key of requiredKeys) {
+      const value = document.translation?.[key];
+      assert.equal(typeof value, 'string', `${locale} is missing ${key}`);
+      assert.notEqual(value.trim(), '');
+    }
   });
 }

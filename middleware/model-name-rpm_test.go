@@ -300,6 +300,42 @@ func TestT3ModelNameRPMUsesGlobalOnlyWhenNoGroupRule(t *testing.T) {
 	require.True(t, enforceModelNameRPM(c, "gpt-4o", "free", c.Request.URL.Path))
 }
 
+// Global RPM 0 means unlimited: the global bucket must still be sent (count-only)
+// and the user/group sub-limits must still reject with the standard 503 shape.
+func TestT3ModelNameRPMUnlimitedGlobalStillCountsAndEnforcesSubLimits(t *testing.T) {
+	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
+		"gpt-4o": {GlobalRPM: 0, UserRPM: 2, GroupRPM: map[string]int{"free": 3}},
+	})
+	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
+	common.SetContextKey(c, constant.ContextKeyUserId, 42)
+	t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{
+			{Key: "mdrl:v1:rpm:model:gpt-4o", Limit: 0, Scope: "global"},
+			{Key: "mdrl:v1:rpm:group:gpt-4o:free", Limit: 3, Scope: "group"},
+			{Key: "mdrl:v1:rpm:user:gpt-4o:42", Limit: 2, Scope: "user"},
+		}, buckets)
+		return model_name_limiter.Result{Allowed: true}
+	})
+	require.True(t, enforceModelNameRPM(c, "gpt-4o", "free", c.Request.URL.Path))
+
+	rejected, recorder := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
+	rejected.Set(string(constant.ContextKeyLanguage), i18n.LangZhCN)
+	common.SetContextKey(rejected, constant.ContextKeyUserId, 42)
+	t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
+		return model_name_limiter.Result{Allowed: false, Scope: "user", Limit: 2, Current: 2}
+	})
+	require.False(t, enforceModelNameRPM(rejected, "gpt-4o", "free", rejected.Request.URL.Path))
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Code)
+	assert.Equal(t, "60", recorder.Header().Get("Retry-After"))
+	var response struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+	}
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	assert.Equal(t, string(types.ErrorCodeModelNameRateLimited), response.Error.Code)
+}
+
 func TestT3E1SpecifiedChannelBranchCountsRPM(t *testing.T) {
 	t3ConfigureModelNameRPMTest(t, true, map[string]t3ModelNameRPMRule{
 		"gpt-4o": {GlobalRPM: 10, UserRPM: 2, GroupRPM: map[string]int{"default": 4}},

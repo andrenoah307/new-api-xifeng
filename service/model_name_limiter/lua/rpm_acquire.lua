@@ -15,7 +15,7 @@ for i = 1, #KEYS do
     local key = KEYS[i]
     redis.call('ZREMRANGEBYSCORE', key, 0, nowMs - window * 1000)
     local current = redis.call('ZCARD', key)
-    if current >= limit then
+    if limit > 0 and current >= limit then
         return { '0', i, limit, current }
     end
 end

@@ -49,7 +49,10 @@ const ERROR_MESSAGES = {
   'model-name-whitespace':
     'Model name must not contain whitespace or control characters',
   'model-name-duplicate': 'This model already has a rule',
-  'global-rpm-range': 'Global RPM must be an integer between 1 and 1,000,000',
+  'global-rpm-range':
+    'Global RPM must be an integer between 0 and 1,000,000 (0 means unlimited)',
+  'unlimited-without-sublimit':
+    'When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule',
   'user-rpm-range': 'User RPM must be 0 or a positive integer',
   'user-rpm-exceeds-global': 'User RPM must not exceed the global RPM',
   'group-name-required': 'Select a group',
@@ -186,7 +189,8 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
     {
       title: t('Global RPM'),
       dataIndex: 'globalRpm',
-      render: (globalRpmValue) => globalRpmValue.toLocaleString(),
+      render: (globalRpmValue) =>
+        globalRpmValue === 0 ? t('Unlimited') : globalRpmValue.toLocaleString(),
     },
     {
       title: t('Per-user RPM'),
@@ -314,7 +318,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
           <Text strong>{t('Global RPM')}</Text>
           <InputNumber
             value={globalRpm}
-            min={1}
+            min={0}
             max={MODEL_NAME_RPM_MAX_GLOBAL}
             step={1}
             onChange={(next) => setGlobalRpm(Number(next) || 0)}
@@ -325,7 +329,12 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
               {t('Hard ceiling shared by every group, in requests per minute.')}
             </Text>
           </div>
-          {fieldError(['global-rpm-range'])}
+          <div>
+            <Text type='tertiary' size='small'>
+              {t('0 means unlimited; usage is still counted and displayed.')}
+            </Text>
+          </div>
+          {fieldError(['global-rpm-range', 'unlimited-without-sublimit'])}
         </div>
 
         <div style={{ marginTop: 16 }}>

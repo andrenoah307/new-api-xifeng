@@ -46,7 +46,10 @@ const ERROR_MESSAGES: Record<ModelNameRPMErrorCode, string> = {
   'model-name-whitespace':
     'Model name must not contain whitespace or control characters',
   'model-name-duplicate': 'This model already has a rule',
-  'global-rpm-range': 'Global RPM must be an integer between 1 and 1,000,000',
+  'global-rpm-range':
+    'Global RPM must be an integer between 0 and 1,000,000 (0 means unlimited)',
+  'unlimited-without-sublimit':
+    'When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule',
   'user-rpm-range': 'Per-user RPM must be a positive integer when set',
   'user-rpm-exceeds-global':
     'Per-user RPM must not exceed the global RPM',
@@ -218,7 +221,7 @@ export function ModelNameRPMDialog({
           <Input
             id='model-name-rpm-global'
             type='number'
-            min={1}
+            min={0}
             max={MODEL_NAME_RPM_MAX_GLOBAL}
             step={1}
             value={globalRpm}
@@ -229,7 +232,10 @@ export function ModelNameRPMDialog({
           <p className='text-muted-foreground text-xs'>
             {t('Hard ceiling shared by every group, in requests per minute.')}
           </p>
-          {fieldError('global-rpm-range')}
+          <p className='text-muted-foreground text-xs'>
+            {t('0 means unlimited; usage is still counted and displayed.')}
+          </p>
+          {fieldError(['global-rpm-range', 'unlimited-without-sublimit'])}
         </div>
 
         <div className='space-y-2'>

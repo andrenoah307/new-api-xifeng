@@ -117,7 +117,11 @@ function CapacityRow({ label, metric, t }) {
   const percent = formatPercent(metric?.utilization);
   let value = t('暂时不可用');
   if (available && metric?.unlimited) {
-    value = t('无限制');
+    // 不限制的桶仍然计数，能读到真实用量时继续展示。
+    value =
+      typeof metric.current === 'number' && Number.isFinite(metric.current)
+        ? `${formatCount(metric.current)} / ${t('无限制')}`
+        : t('无限制');
   } else if (available) {
     value = `${formatCount(metric.current)} / ${formatCount(metric.limit)}`;
   }

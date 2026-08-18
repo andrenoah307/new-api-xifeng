@@ -230,6 +230,18 @@ describe('upsertModelNameRPMRule', () => {
     });
   });
 
+  test('serializes an unlimited global limit as an explicit zero', () => {
+    const next = upsertModelNameRPMRule(
+      '{"models":{"gpt-4o":{"global_rpm":100}}}',
+      'gpt-4o',
+      rule({ globalRpm: 0, userRpm: 10 }),
+    );
+    assert.deepEqual(JSON.parse(next).models['gpt-4o'], {
+      global_rpm: 0,
+      user_rpm: 10,
+    });
+  });
+
   test('creates the models container when the document has none', () => {
     const next = JSON.parse(
       upsertModelNameRPMRule('{"enabled":false}', null, rule()),
@@ -271,7 +283,7 @@ describe('validateModelNameRPMRule', () => {
     ['model-name-too-long', rule({ modelName: 'a'.repeat(256) }), []],
     ['model-name-whitespace', rule({ modelName: 'gpt 4o' }), []],
     ['model-name-duplicate', rule(), ['gpt-4o']],
-    ['global-rpm-range', rule({ globalRpm: 0 }), []],
+    ['unlimited-without-sublimit', rule({ globalRpm: 0 }), []],
     ['global-rpm-range', rule({ globalRpm: -1 }), []],
     ['global-rpm-range', rule({ globalRpm: 1.5 }), []],
     [
@@ -294,6 +306,54 @@ describe('validateModelNameRPMRule', () => {
         [],
       ),
       null,
+    );
+  });
+
+  test('accepts an unlimited global limit backed by a sub-limit', () => {
+    assert.equal(
+      validateModelNameRPMRule(rule({ globalRpm: 0, userRpm: 10 }), []),
+      null,
+    );
+    assert.equal(
+      validateModelNameRPMRule(
+        rule({ globalRpm: 0, groups: [{ groupName: 'vip', rpm: 30 }] }),
+        [],
+      ),
+      null,
+    );
+  });
+
+  test('drops the global ceiling comparison when the global limit is unlimited', () => {
+    assert.equal(
+      validateModelNameRPMRule(
+        rule({
+          globalRpm: 0,
+          userRpm: MODEL_NAME_RPM_MAX_GLOBAL,
+          groups: [{ groupName: 'vip', rpm: MODEL_NAME_RPM_MAX_GLOBAL }],
+        }),
+        [],
+      ),
+      null,
+    );
+  });
+
+  test('keeps the sub-limit ceiling even when the global limit is unlimited', () => {
+    assert.deepEqual(
+      validateModelNameRPMRule(
+        rule({ globalRpm: 0, userRpm: MODEL_NAME_RPM_MAX_GLOBAL + 1 }),
+        [],
+      ),
+      { code: 'user-rpm-range' },
+    );
+    assert.deepEqual(
+      validateModelNameRPMRule(
+        rule({
+          globalRpm: 0,
+          groups: [{ groupName: 'vip', rpm: MODEL_NAME_RPM_MAX_GLOBAL + 1 }],
+        }),
+        [],
+      ),
+      { code: 'group-rpm-range', groupIndex: 0 },
     );
   });
 

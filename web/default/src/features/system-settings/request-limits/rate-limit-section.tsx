@@ -515,7 +515,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                         </li>
                         <li>
                           {t(
-                            'global_rpm must be a positive integer. Delete a model rule to disable it; set enabled to false to disable all rules.'
+                            'global_rpm must be an integer from 0 to 1,000,000; 0 means unlimited (usage is still counted) and then at least one user_rpm or group_rpm is required. Delete a model rule to disable it; set enabled to false to disable all rules.'
                           )}
                         </li>
                       </ul>

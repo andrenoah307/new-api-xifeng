@@ -128,11 +128,16 @@ export function ModelNameRPMVisualEditor({
             header: t('Global RPM'),
             className: 'text-right',
             cellClassName: 'text-right',
-            cell: (rule) => (
-              <span className='font-mono'>
-                {rule.globalRpm.toLocaleString()}
-              </span>
-            ),
+            cell: (rule) =>
+              rule.globalRpm === 0 ? (
+                <span className='text-muted-foreground text-xs'>
+                  {t('Unlimited')}
+                </span>
+              ) : (
+                <span className='font-mono'>
+                  {rule.globalRpm.toLocaleString()}
+                </span>
+              ),
           },
           {
             id: 'user-rpm',

@@ -288,7 +288,11 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 			value := counts[countIndex]
 			current = &value
 		}
-		snapshot.Global = append(snapshot.Global, makeCapacityItem(ruleModels[modelName], "", current, rule.GlobalRPM, available))
+		globalLimit := 0
+		if rule.GlobalRPM != nil {
+			globalLimit = *rule.GlobalRPM
+		}
+		snapshot.Global = append(snapshot.Global, makeCapacityItem(ruleModels[modelName], "", current, globalLimit, available))
 		countIndex++
 	}
 	for _, modelName := range modelNames {

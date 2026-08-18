@@ -183,7 +183,8 @@ func TestGetStatusRateLimitCapacityBooleanUsesMemorySnapshots(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			models := map[string]setting.ModelNameRPMRule{}
 			if test.hasModels {
-				models["gpt-4o"] = setting.ModelNameRPMRule{GlobalRPM: 1}
+				globalRPM := 1
+				models["gpt-4o"] = setting.ModelNameRPMRule{GlobalRPM: &globalRPM}
 			}
 			setting.SetRateLimitCapacityCardEnabled(test.cardEnabled)
 			config, err := common.Marshal(setting.ModelNameRPMConfig{Enabled: test.a2Enabled, Models: models})

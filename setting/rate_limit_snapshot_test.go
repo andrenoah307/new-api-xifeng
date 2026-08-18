@@ -31,9 +31,12 @@ func TestListModelNameRPMRulesReturnsDeepCopyAndVersion(t *testing.T) {
 	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":2,"group_rpm":{"free":3}}}}`))
 	got := ListModelNameRPMRules()
 	got.Models["gpt-4o"].GroupRPM["free"] = 99
-	got.Models["gpt-4o"] = ModelNameRPMRule{GlobalRPM: 1}
+	require.NotNil(t, got.Models["gpt-4o"].GlobalRPM)
+	*got.Models["gpt-4o"].GlobalRPM = 99
+	got.Models["gpt-4o"] = ModelNameRPMRule{GlobalRPM: t1GlobalRPM(1)}
 	latest := ListModelNameRPMRules()
-	assert.Equal(t, 10, latest.Models["gpt-4o"].GlobalRPM)
+	require.NotNil(t, latest.Models["gpt-4o"].GlobalRPM)
+	assert.Equal(t, 10, *latest.Models["gpt-4o"].GlobalRPM)
 	assert.Equal(t, 2, latest.Models["gpt-4o"].UserRPM)
 	assert.Equal(t, 3, latest.Models["gpt-4o"].GroupRPM["free"])
 	_, version := ListModelNameRPMRulesWithVersion()
@@ -69,7 +72,7 @@ func TestRateLimitCapacityEnabledTruthTable(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			models := map[string]ModelNameRPMRule{}
 			if tt.hasModels {
-				models["gpt-4o"] = ModelNameRPMRule{GlobalRPM: 1}
+				models["gpt-4o"] = ModelNameRPMRule{GlobalRPM: t1GlobalRPM(1)}
 			}
 			SetRateLimitCapacityCardEnabled(tt.cardEnabled)
 			config, err := common.Marshal(ModelNameRPMConfig{Enabled: tt.a2Enabled, Models: models})

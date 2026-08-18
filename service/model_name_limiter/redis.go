@@ -79,9 +79,6 @@ func (b *redisBackend) Acquire(ctx context.Context, buckets []Bucket) Result {
 		common.SysError("model_name_limiter: redis acquire called without a client")
 		return Result{Allowed: true}
 	}
-	if !validAcquireBuckets(buckets) {
-		return Result{Allowed: true}
-	}
 	if ctx == nil {
 		ctx = context.Background()
 	}

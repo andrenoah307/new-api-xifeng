@@ -123,7 +123,8 @@ func validAcquireBuckets(buckets []Bucket) bool {
 		return false
 	}
 	for _, bucket := range buckets {
-		if bucket.Key == "" || bucket.Limit <= 0 {
+		// Limit == 0 is a count-only bucket: record hits without rejecting.
+		if bucket.Key == "" || bucket.Limit < 0 {
 			return false
 		}
 		if bucket.Scope != "global" && bucket.Scope != "group" && bucket.Scope != "user" {

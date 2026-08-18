@@ -11,6 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func t1GlobalRPM(value int) *int {
+	return &value
+}
+
 func t1ModelNameRPMTestJSON(t *testing.T, enabled bool, models map[string]modelNameRPMRule) string {
 	t.Helper()
 	jsonBytes, err := common.Marshal(modelNameRPMConfig{Enabled: enabled, Models: models})
@@ -30,10 +34,10 @@ func TestT1MatchModelNameRPM(t *testing.T) {
 	t1PreserveModelNameRPMSnapshot(t)
 	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
 		"gpt-4o": {
-			GlobalRPM: 120,
+			GlobalRPM: t1GlobalRPM(120),
 			GroupRPM:  map[string]int{"free": 30, "vip": 100},
 		},
-		"gemini-2.5-pro": {GlobalRPM: 60, GroupRPM: map[string]int{"vip": 20}},
+		"gemini-2.5-pro": {GlobalRPM: t1GlobalRPM(60), GroupRPM: map[string]int{"vip": 20}},
 	})))
 
 	tests := []struct {
@@ -94,7 +98,7 @@ func TestT1MatchModelNameRPM(t *testing.T) {
 func TestT1MatchModelNameRPMDisabled(t *testing.T) {
 	t1PreserveModelNameRPMSnapshot(t)
 	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(t1ModelNameRPMTestJSON(t, false, map[string]modelNameRPMRule{
-		"gpt-4o": {GlobalRPM: 120, GroupRPM: map[string]int{"free": 30}},
+		"gpt-4o": {GlobalRPM: t1GlobalRPM(120), GroupRPM: map[string]int{"free": 30}},
 	})))
 
 	decision := MatchModelNameRPM("gpt-4o", "free")
@@ -108,10 +112,10 @@ func TestT1ModelNameRPMRateLimitJSONStringRoundTrip(t *testing.T) {
 	t1PreserveModelNameRPMSnapshot(t)
 	configJSON := t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
 		"gpt-4o": {
-			GlobalRPM: 120,
+			GlobalRPM: t1GlobalRPM(120),
 			GroupRPM:  map[string]int{"free": 30},
 		},
-		"claude-3": {GlobalRPM: 60},
+		"claude-3": {GlobalRPM: t1GlobalRPM(60)},
 	})
 	require.NoError(t, CheckModelNameRPMRateLimit(configJSON))
 	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(configJSON))
@@ -119,10 +123,88 @@ func TestT1ModelNameRPMRateLimitJSONStringRoundTrip(t *testing.T) {
 	var decoded modelNameRPMConfig
 	require.NoError(t, common.UnmarshalJsonStr(ModelNameRPMRateLimit2JSONString(), &decoded))
 	assert.True(t, decoded.Enabled)
-	assert.Equal(t, 120, decoded.Models["gpt-4o"].GlobalRPM)
+	require.NotNil(t, decoded.Models["gpt-4o"].GlobalRPM)
+	assert.Equal(t, 120, *decoded.Models["gpt-4o"].GlobalRPM)
 	assert.Equal(t, 30, decoded.Models["gpt-4o"].GroupRPM["free"])
-	assert.Equal(t, 60, decoded.Models["claude-3"].GlobalRPM)
+	require.NotNil(t, decoded.Models["claude-3"].GlobalRPM)
+	assert.Equal(t, 60, *decoded.Models["claude-3"].GlobalRPM)
 	assert.Nil(t, decoded.Models["claude-3"].GroupRPM)
+}
+
+func TestT1ModelNameRPMGlobalUnlimitedSemantics(t *testing.T) {
+	tests := []struct {
+		name      string
+		config    string
+		wantError string
+	}{
+		{
+			name:      "missing global rpm is rejected explicitly",
+			config:    `{"enabled":true,"models":{"m":{"user_rpm":10}}}`,
+			wantError: "global_rpm is required",
+		},
+		{
+			name:   "zero global with user limit is valid",
+			config: `{"enabled":true,"models":{"m":{"global_rpm":0,"user_rpm":10}}}`,
+		},
+		{
+			name:   "zero global with group limit is valid",
+			config: `{"enabled":true,"models":{"m":{"global_rpm":0,"group_rpm":{"vip_2_cheap":30}}}}`,
+		},
+		{
+			name:      "zero global with no sub-limit is rejected",
+			config:    `{"enabled":true,"models":{"m":{"global_rpm":0}}}`,
+			wantError: "global_rpm is 0 (unlimited) but no user_rpm or group_rpm is configured",
+		},
+		{
+			name:      "negative global is rejected",
+			config:    `{"enabled":true,"models":{"m":{"global_rpm":-1,"user_rpm":1}}}`,
+			wantError: "global_rpm must not be negative",
+		},
+		{
+			name:      "zero global user limit has an absolute maximum",
+			config:    `{"enabled":true,"models":{"m":{"global_rpm":0,"user_rpm":1000001}}}`,
+			wantError: "user_rpm must not exceed 1000000",
+		},
+		{
+			name:      "zero global group limit has an absolute maximum",
+			config:    `{"enabled":true,"models":{"m":{"global_rpm":0,"group_rpm":{"vip":1000001}}}}`,
+			wantError: "group_rpm must not exceed 1000000",
+		},
+		{
+			name:   "zero global does not cap a sub-limit at zero",
+			config: `{"enabled":true,"models":{"m":{"global_rpm":0,"user_rpm":999999}}}`,
+		},
+		{
+			name:      "positive global still caps user limit",
+			config:    `{"enabled":true,"models":{"m":{"global_rpm":100,"user_rpm":101}}}`,
+			wantError: "user_rpm must not exceed global_rpm",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := CheckModelNameRPMRateLimit(test.config)
+			if test.wantError == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.ErrorContains(t, err, test.wantError)
+		})
+	}
+
+	t1PreserveModelNameRPMSnapshot(t)
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"m":{"global_rpm":0,"user_rpm":10}}}`))
+	decision := MatchModelNameRPM("m", "free")
+	assert.True(t, decision.Matched)
+	assert.Equal(t, 0, decision.GlobalRPM)
+	assert.Equal(t, 10, decision.UserRPM)
+}
+
+func TestT1ModelNameRPMUnlimitedGlobalRoundTripKeepsExplicitZero(t *testing.T) {
+	t1PreserveModelNameRPMSnapshot(t)
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"m":{"global_rpm":0,"user_rpm":10}}}`))
+	assert.Contains(t, ModelNameRPMRateLimit2JSONString(), `"global_rpm":0`)
 }
 
 func TestT1ModelNameRPMUserRPMValidationBoundaries(t *testing.T) {
@@ -237,67 +319,63 @@ func TestT1CheckModelNameRPMRateLimitRejectsInvalidConfigurations(t *testing.T) 
 		value string
 	}{
 		{
-			name:  "global rpm zero",
-			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt-4o": {GlobalRPM: 0}}),
-		},
-		{
 			name:  "global rpm negative",
-			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt-4o": {GlobalRPM: -1}}),
+			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt-4o": {GlobalRPM: t1GlobalRPM(-1), UserRPM: 1}}),
 		},
 		{
 			name:  "global rpm over maximum",
-			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt-4o": {GlobalRPM: 1_000_001}}),
+			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt-4o": {GlobalRPM: t1GlobalRPM(1_000_001), UserRPM: 1}}),
 		},
 		{
 			name: "group rpm over global",
 			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-				"gpt-4o": {GlobalRPM: 10, GroupRPM: map[string]int{"free": 11}},
+				"gpt-4o": {GlobalRPM: t1GlobalRPM(10), GroupRPM: map[string]int{"free": 11}},
 			}),
 		},
 		{
 			name: "group rpm below one",
 			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-				"gpt-4o": {GlobalRPM: 10, GroupRPM: map[string]int{"free": 0}},
+				"gpt-4o": {GlobalRPM: t1GlobalRPM(10), GroupRPM: map[string]int{"free": 0}},
 			}),
 		},
 		{
 			name:  "model name too long",
-			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{longModel: {GlobalRPM: 10}}),
+			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{longModel: {GlobalRPM: t1GlobalRPM(10)}}),
 		},
 		{
 			name: "group name too long",
 			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-				"gpt-4o": {GlobalRPM: 10, GroupRPM: map[string]int{longGroup: 1}},
+				"gpt-4o": {GlobalRPM: t1GlobalRPM(10), GroupRPM: map[string]int{longGroup: 1}},
 			}),
 		},
 		{
 			name:  "model name contains whitespace",
-			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt 4o": {GlobalRPM: 10}}),
+			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt 4o": {GlobalRPM: t1GlobalRPM(10)}}),
 		},
 		{
 			name: "group name contains whitespace",
 			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-				"gpt-4o": {GlobalRPM: 10, GroupRPM: map[string]int{"free group": 1}},
+				"gpt-4o": {GlobalRPM: t1GlobalRPM(10), GroupRPM: map[string]int{"free group": 1}},
 			}),
 		},
 		{
 			name:  "model name contains control character",
-			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt\n4o": {GlobalRPM: 10}}),
+			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt\n4o": {GlobalRPM: t1GlobalRPM(10)}}),
 		},
 		{
 			name: "group name contains control character",
 			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-				"gpt-4o": {GlobalRPM: 10, GroupRPM: map[string]int{"free\tgroup": 1}},
+				"gpt-4o": {GlobalRPM: t1GlobalRPM(10), GroupRPM: map[string]int{"free\tgroup": 1}},
 			}),
 		},
 		{
 			name:  "empty model name",
-			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"": {GlobalRPM: 10}}),
+			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"": {GlobalRPM: t1GlobalRPM(10)}}),
 		},
 		{
 			name: "empty group name",
 			value: t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-				"gpt-4o": {GlobalRPM: 10, GroupRPM: map[string]int{"": 1}},
+				"gpt-4o": {GlobalRPM: t1GlobalRPM(10), GroupRPM: map[string]int{"": 1}},
 			}),
 		},
 		{
@@ -316,7 +394,7 @@ func TestT1CheckModelNameRPMRateLimitRejectsInvalidConfigurations(t *testing.T) 
 func TestT1ModelNameRPMInvalidJSONDoesNotPolluteSnapshot(t *testing.T) {
 	t1PreserveModelNameRPMSnapshot(t)
 	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-		"gpt-4o": {GlobalRPM: 120, GroupRPM: map[string]int{"free": 30}},
+		"gpt-4o": {GlobalRPM: t1GlobalRPM(120), GroupRPM: map[string]int{"free": 30}},
 	})))
 
 	before := MatchModelNameRPM("gpt-4o", "free")
@@ -325,7 +403,7 @@ func TestT1ModelNameRPMInvalidJSONDoesNotPolluteSnapshot(t *testing.T) {
 	assert.Error(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":`))
 	assert.Equal(t, before, MatchModelNameRPM("gpt-4o", "free"))
 	assert.Error(t, UpdateModelNameRPMRateLimitByJSONString(t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{
-		"gpt-4o": {GlobalRPM: 0},
+		"gpt-4o": {GlobalRPM: t1GlobalRPM(-1), UserRPM: 1},
 	})))
 	assert.Equal(t, before, MatchModelNameRPM("gpt-4o", "free"))
 }
@@ -333,8 +411,8 @@ func TestT1ModelNameRPMInvalidJSONDoesNotPolluteSnapshot(t *testing.T) {
 func TestT1ModelNameRPMConcurrentSnapshotAccess(t *testing.T) {
 	t1PreserveModelNameRPMSnapshot(t)
 	configs := []string{
-		t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt-4o": {GlobalRPM: 120, GroupRPM: map[string]int{"free": 30}}}),
-		t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"claude-3": {GlobalRPM: 60}}),
+		t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"gpt-4o": {GlobalRPM: t1GlobalRPM(120), GroupRPM: map[string]int{"free": 30}}}),
+		t1ModelNameRPMTestJSON(t, true, map[string]modelNameRPMRule{"claude-3": {GlobalRPM: t1GlobalRPM(60)}}),
 	}
 	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(configs[0]))
 

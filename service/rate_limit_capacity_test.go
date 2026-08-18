@@ -406,6 +406,35 @@ func TestRateLimitCapacityGlobalOnlyRuleDoesNotCreatePersonalSection(t *testing.
 	assert.Equal(t, [][]string{{model_name_limiter.ModelKey("gpt-4o")}}, stub.Keys())
 }
 
+// global_rpm=0 is unlimited but still counted, so the card must expose the real
+// current value alongside Unlimited instead of dropping it.
+func TestRateLimitCapacityUnlimitedGlobalKeepsRealCurrent(t *testing.T) {
+	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
+	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":0,"user_rpm":4}}}`))
+
+	stub := &capacityInspectorStub{responses: []capacityInspectResponse{{counts: []int{7}}, {counts: []int{3}}}}
+	response := NewRateLimitCapacityService(stub).Get(context.Background(), CapacityRequest{UserID: 9})
+	require.NotNil(t, response.Site)
+	require.Len(t, response.Site.Global.Items, 1)
+	global := response.Site.Global.Items[0]
+	assert.True(t, global.Unlimited)
+	assert.Equal(t, 0, global.Limit)
+	require.NotNil(t, global.Current)
+	assert.Equal(t, 7, *global.Current)
+	assert.Nil(t, global.Utilization)
+	assert.False(t, global.OverLimit)
+	assert.True(t, global.Available)
+
+	require.NotNil(t, response.Personal)
+	require.Len(t, response.Personal.Items, 1)
+	personal := response.Personal.Items[0]
+	assert.False(t, personal.Unlimited)
+	assert.Equal(t, 4, personal.Limit)
+	require.NotNil(t, personal.Current)
+	assert.Equal(t, 3, *personal.Current)
+}
+
 func TestRateLimitCapacityUsesNormalizedRuleModelForAdmissionKeys(t *testing.T) {
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
 	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
