@@ -23,6 +23,10 @@ import { useTranslation } from 'react-i18next';
 import { API, isAdmin, showError, timestamp2string } from '../../helpers';
 import { getDefaultTime, getInitialTimestamp } from '../../helpers/dashboard';
 import { isRateLimitCapacityEnabled } from '../../helpers/rate-limit-capacity';
+import {
+  isUptimeRequestEnabled,
+  requestUptimeStatus,
+} from '../../helpers/uptime';
 import { TIME_OPTIONS } from '../../constants/dashboard.constants';
 import { useIsMobile } from '../common/useIsMobile';
 import { useMinimumLoadingTime } from '../common/useMinimumLoadingTime';
@@ -97,6 +101,7 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
     statusState?.status?.announcements_enabled ?? true;
   const faqEnabled = statusState?.status?.faq_enabled ?? true;
   const uptimeEnabled = statusState?.status?.uptime_kuma_enabled ?? true;
+  const uptimeRequestEnabled = isUptimeRequestEnabled(statusState?.status);
   // RPM capacity is an opt-in hard gate: missing or unconfigured status stays
   // hidden, unlike the intentionally opt-out panels above.
   const rateLimitCapacityEnabled = isRateLimitCapacityEnabled(
@@ -211,14 +216,20 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
   }, [inputs, dataExportDefaultTime, isAdminUser, now]);
 
   const loadUptimeData = useCallback(async () => {
+    if (!uptimeRequestEnabled) return;
+
     setUptimeLoading(true);
     try {
-      const res = await API.get('/api/uptime/status');
+      const res = await requestUptimeStatus(
+        { uptime_kuma_enabled: uptimeRequestEnabled },
+        () => API.get('/api/uptime/status'),
+      );
+      if (res === null) return;
       const { success, message, data } = res.data;
       if (success) {
         setUptimeData(data || []);
-        if (data && data.length > 0 && !activeUptimeTab) {
-          setActiveUptimeTab(data[0].categoryName);
+        if (data && data.length > 0) {
+          setActiveUptimeTab((current) => current || data[0].categoryName);
         }
       } else {
         showError(message);
@@ -228,7 +239,7 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
     } finally {
       setUptimeLoading(false);
     }
-  }, [activeUptimeTab]);
+  }, [uptimeRequestEnabled]);
 
   const loadUserQuotaData = useCallback(async () => {
     if (!isAdminUser) return [];
@@ -280,9 +291,11 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
 
   const refresh = useCallback(async () => {
     const data = await loadQuotaData();
-    await loadUptimeData();
+    if (uptimeRequestEnabled) {
+      await loadUptimeData();
+    }
     return data;
-  }, [loadQuotaData, loadUptimeData]);
+  }, [loadQuotaData, loadUptimeData, uptimeRequestEnabled]);
 
   const handleSearchConfirm = useCallback(
     async (updateChartDataCallback) => {
@@ -362,6 +375,7 @@ export const useDashboardData = (userState, userDispatch, statusState) => {
     announcementsEnabled,
     faqEnabled,
     uptimeEnabled,
+    uptimeRequestEnabled,
     rateLimitCapacityEnabled,
     hasRateLimitCapacityPanel,
 

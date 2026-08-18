@@ -17,16 +17,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { Card, Spin, Button, Modal } from '@douyinfe/semi-ui';
-import { API, showError, showSuccess, toBoolean } from '../../helpers';
+import {
+  API,
+  refreshStatusAfterOptionUpdate,
+  showError,
+  showSuccess,
+  toBoolean,
+} from '../../helpers';
 import SettingsAPIInfo from '../../pages/Setting/Dashboard/SettingsAPIInfo';
 import SettingsAnnouncements from '../../pages/Setting/Dashboard/SettingsAnnouncements';
 import SettingsFAQ from '../../pages/Setting/Dashboard/SettingsFAQ';
 import SettingsUptimeKuma from '../../pages/Setting/Dashboard/SettingsUptimeKuma';
 import SettingsDataDashboard from '../../pages/Setting/Dashboard/SettingsDataDashboard';
+import { StatusContext } from '../../context/Status';
 
 const DashboardSetting = () => {
+  const [, statusDispatch] = useContext(StatusContext);
   let [inputs, setInputs] = useState({
     'console_setting.api_info': '',
     'console_setting.announcements': '',
@@ -83,6 +91,9 @@ const DashboardSetting = () => {
       setLoading(false);
     }
   }
+
+  const refreshStatus = (key) =>
+    refreshStatusAfterOptionUpdate(key, statusDispatch, API);
 
   useEffect(() => {
     onRefresh();
@@ -148,22 +159,38 @@ const DashboardSetting = () => {
 
         {/* 系统公告管理 */}
         <Card style={{ marginTop: '10px' }}>
-          <SettingsAnnouncements options={inputs} refresh={onRefresh} />
+          <SettingsAnnouncements
+            options={inputs}
+            refresh={onRefresh}
+            refreshStatus={refreshStatus}
+          />
         </Card>
 
         {/* API信息管理 */}
         <Card style={{ marginTop: '10px' }}>
-          <SettingsAPIInfo options={inputs} refresh={onRefresh} />
+          <SettingsAPIInfo
+            options={inputs}
+            refresh={onRefresh}
+            refreshStatus={refreshStatus}
+          />
         </Card>
 
         {/* 常见问答管理 */}
         <Card style={{ marginTop: '10px' }}>
-          <SettingsFAQ options={inputs} refresh={onRefresh} />
+          <SettingsFAQ
+            options={inputs}
+            refresh={onRefresh}
+            refreshStatus={refreshStatus}
+          />
         </Card>
 
         {/* Uptime Kuma 监控设置 */}
         <Card style={{ marginTop: '10px' }}>
-          <SettingsUptimeKuma options={inputs} refresh={onRefresh} />
+          <SettingsUptimeKuma
+            options={inputs}
+            refresh={onRefresh}
+            refreshStatus={refreshStatus}
+          />
         </Card>
       </Spin>
     </>

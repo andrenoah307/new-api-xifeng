@@ -31,6 +31,7 @@ const SECURITY_SECTIONS = [
     build: (settings: SecuritySettings) => (
       <RateLimitSection
         defaultValues={{
+          RateLimitCapacityCardEnabled: settings.RateLimitCapacityCardEnabled,
           ModelRequestRateLimitEnabled: settings.ModelRequestRateLimitEnabled,
           ModelRequestRateLimitCount: settings.ModelRequestRateLimitCount,
           ModelRequestRateLimitSuccessCount:

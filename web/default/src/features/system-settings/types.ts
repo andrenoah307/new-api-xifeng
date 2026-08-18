@@ -372,6 +372,7 @@ export type OperationsSettings = {
 }
 
 export type SecuritySettings = {
+  RateLimitCapacityCardEnabled: boolean
   ModelRequestRateLimitEnabled: boolean
   ModelRequestRateLimitCount: number
   ModelRequestRateLimitSuccessCount: number

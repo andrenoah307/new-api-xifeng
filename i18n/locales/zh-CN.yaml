@@ -206,6 +206,11 @@ channel.query_failed: "查询渠道失败"
 channel.no_valid_upstream: "无有效上游渠道"
 channel.upstream_saturated: "当前分组上游负载已饱和，请稍后再试"
 channel.get_available_failed: "获取分组 {{.Group}} 下模型 {{.Model}} 的可用渠道失败"
+channel.rate_limited: "当前分组下请求过于频繁，请稍后重试"
+channel.no_available: "当前分组下暂无可用渠道，请稍后重试"
+
+# Group messages
+group.deprecated: "当前令牌所属分组已停用，请联系管理员"
 
 # Model messages
 model.name_empty: "模型名称不能为空"

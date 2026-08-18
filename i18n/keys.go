@@ -38,6 +38,7 @@ const (
 	MsgAuthUserIdMismatch        = "auth.user_id_mismatch"
 	MsgAuthUserBanned            = "auth.user_banned"
 	MsgAuthInsufficientPrivilege = "auth.insufficient_privilege"
+	MsgGroupDeprecated           = "group.deprecated"
 )
 
 // Token related messages
@@ -231,6 +232,8 @@ const (
 	MsgChannelNoValidUpstream    = "channel.no_valid_upstream"
 	MsgChannelUpstreamSaturated  = "channel.upstream_saturated"
 	MsgChannelGetAvailableFailed = "channel.get_available_failed"
+	MsgChannelRateLimited        = "channel.rate_limited"
+	MsgChannelNoAvailable        = "channel.no_available"
 )
 
 // Model related messages

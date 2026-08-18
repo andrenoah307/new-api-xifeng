@@ -205,6 +205,11 @@ channel.query_failed: "Failed to query channel"
 channel.no_valid_upstream: "No valid upstream channel"
 channel.upstream_saturated: "Current group upstream load is saturated, please try again later"
 channel.get_available_failed: "Failed to get available channels for model {{.Model}} under group {{.Group}}"
+channel.rate_limited: "Requests in the current group are too frequent. Please try again later."
+channel.no_available: "No available channel for the current group. Please try again later."
+
+# Group messages
+group.deprecated: "The group bound to this token has been retired. Please contact the administrator."
 
 # Model messages
 model.name_empty: "Model name cannot be empty"

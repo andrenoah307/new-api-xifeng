@@ -4940,6 +4940,8 @@
     "最近 60 秒": "最近 60 秒",
     "暂无请求数据统计": "暫無請求資料統計",
     "点击刷新获取最新数据": "點擊重新整理以取得最新資料",
-    "RPM 概览": "RPM 概覽"
+    "RPM 概览": "RPM 概覽",
+    "RPM overview card": "RPM 概覽卡片",
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "預設關閉。開啟後，使用者端資料看板才會顯示並查詢 RPM 概覽卡片。"
   }
 }

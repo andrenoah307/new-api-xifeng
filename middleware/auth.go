@@ -482,7 +482,8 @@ func TokenAuth() func(c *gin.Context) {
 			// check group in common.GroupRatio
 			if !ratio_setting.ContainsGroupRatio(tokenGroup) {
 				if tokenGroup != "auto" {
-					abortWithOpenAiMessage(c, http.StatusForbidden, fmt.Sprintf("分组 %s 已被弃用", tokenGroup))
+					logger.LogWarn(c, fmt.Sprintf("token group deprecated: %s", tokenGroup))
+					abortWithOpenAiMessage(c, http.StatusForbidden, common.TranslateMessage(c, i18n.MsgGroupDeprecated))
 					return
 				}
 			}

@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2025 QuantumNous
+Copyright (C) 2023-2026 QuantumNous
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as
@@ -16,17 +16,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { test } from 'node:test'
 
-export const toBoolean = (value) => {
-  // 兼容字符串、数字以及布尔原生类型
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value === 1;
-  if (typeof value === 'string') {
-    const v = value.toLowerCase();
-    return v === 'true' || v === '1';
-  }
-  return false;
-};
+test('renders the RPM card as a full-width sibling before content panels', () => {
+  const source = readFileSync(
+    new URL('./overview-dashboard.tsx', import.meta.url),
+    'utf8'
+  )
 
-export const normalizeEnabledOptionValue = (key, value) =>
-  key.endsWith('Enabled') ? toBoolean(value) : value;
+  assert.match(
+    source,
+    /<SummaryCards \/>\s*\{showRateLimitCapacityPanel && <RateLimitCapacityPanel \/>\}\s*\{showContentPanels && \(/
+  )
+  assert.equal(source.match(/<RateLimitCapacityPanel \/>/g)?.length, 1)
+})

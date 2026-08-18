@@ -2,13 +2,13 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/console_setting"
 
 	"github.com/gin-gonic/gin"
@@ -51,7 +51,7 @@ func getAndDecode(ctx context.Context, client *http.Client, url string, dest int
 		return errors.New("non-200 status")
 	}
 
-	return json.NewDecoder(resp.Body).Decode(dest)
+	return common.DecodeJson(resp.Body, dest)
 }
 
 func fetchGroupData(ctx context.Context, client *http.Client, groupConfig map[string]interface{}) UptimeGroupResult {
@@ -129,6 +129,10 @@ func fetchGroupData(ctx context.Context, client *http.Client, groupConfig map[st
 }
 
 func GetUptimeKumaStatus(c *gin.Context) {
+	if !console_setting.GetConsoleSetting().UptimeKumaEnabled {
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": []UptimeGroupResult{}})
+		return
+	}
 	groups := console_setting.GetUptimeKumaGroups()
 	if len(groups) == 0 {
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": []UptimeGroupResult{}})

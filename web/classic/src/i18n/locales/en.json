@@ -5175,6 +5175,8 @@
     "最近 60 秒": "Last 60 seconds",
     "暂无请求数据统计": "No request data yet",
     "点击刷新获取最新数据": "Click refresh to get the latest data",
-    "RPM 概览": "RPM overview"
+    "RPM 概览": "RPM overview",
+    "RPM overview card": "RPM overview card",
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card."
   }
 }

@@ -17,12 +17,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Card, Spin } from '@douyinfe/semi-ui';
 
-import { API, showError, toBoolean } from '../../helpers';
+import {
+  API,
+  normalizeEnabledOptionValue,
+  refreshStatusAfterOptionUpdate,
+  showError,
+} from '../../helpers';
 import { useTranslation } from 'react-i18next';
 import RequestRateLimit from '../../pages/Setting/RateLimit/SettingsRequestRateLimit';
+import { StatusContext } from '../../context/Status';
 
 const MODEL_NAME_RPM_OPTION_KEY = 'ModelNameRPMRateLimit';
 const DEFAULT_MODEL_NAME_RPM_RATE_LIMIT = JSON.stringify(
@@ -36,7 +42,9 @@ const DEFAULT_MODEL_NAME_RPM_RATE_LIMIT = JSON.stringify(
 
 const RateLimitSetting = () => {
   const { t } = useTranslation();
+  const [, statusDispatch] = useContext(StatusContext);
   let [inputs, setInputs] = useState({
+    RateLimitCapacityCardEnabled: false,
     ModelRequestRateLimitEnabled: false,
     ModelRequestRateLimitCount: 0,
     ModelRequestRateLimitSuccessCount: 1000,
@@ -75,11 +83,7 @@ const RateLimitSetting = () => {
           }
         }
 
-        if (item.key.endsWith('Enabled')) {
-          newInputs[item.key] = toBoolean(item.value);
-        } else {
-          newInputs[item.key] = item.value;
-        }
+        newInputs[item.key] = normalizeEnabledOptionValue(item.key, item.value);
       });
 
       if (
@@ -90,6 +94,14 @@ const RateLimitSetting = () => {
       ) {
         newInputs[MODEL_NAME_RPM_OPTION_KEY] =
           DEFAULT_MODEL_NAME_RPM_RATE_LIMIT;
+      }
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          newInputs,
+          'RateLimitCapacityCardEnabled',
+        )
+      ) {
+        newInputs.RateLimitCapacityCardEnabled = false;
       }
 
       setInputs(newInputs);
@@ -118,7 +130,13 @@ const RateLimitSetting = () => {
       <Spin spinning={loading} size='large'>
         {/* AI请求速率限制 */}
         <Card style={{ marginTop: '10px' }}>
-          <RequestRateLimit options={inputs} refresh={onRefresh} />
+          <RequestRateLimit
+            options={inputs}
+            refresh={onRefresh}
+            refreshStatus={(key) =>
+              refreshStatusAfterOptionUpdate(key, statusDispatch, API)
+            }
+          />
         </Card>
       </Spin>
     </>

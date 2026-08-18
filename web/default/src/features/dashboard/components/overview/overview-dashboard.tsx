@@ -753,6 +753,8 @@ export function OverviewDashboard() {
 
       <SummaryCards />
 
+      {showRateLimitCapacityPanel && <RateLimitCapacityPanel />}
+
       {showContentPanels && (
         <CardStaggerContainer
           className={cn(
@@ -799,8 +801,6 @@ export function OverviewDashboard() {
           )}
         </CardStaggerContainer>
       )}
-
-      {showRateLimitCapacityPanel && <RateLimitCapacityPanel />}
     </div>
   )
 }

@@ -57,7 +57,10 @@ import { RateLimitVisualEditor } from './rate-limit-visual-editor'
 
 const isValidGroupRateLimit = (value: string | undefined) => {
   const parsed = parseGroupRateLimitConfig(value ?? '')
-  return parsed.ok && parsed.rules.every((rule) => validateGroupRateLimitRule(rule).ok)
+  return (
+    parsed.ok &&
+    parsed.rules.every((rule) => validateGroupRateLimitRule(rule).ok)
+  )
 }
 
 const isValidJsonDocument = (value: string): boolean => {
@@ -100,6 +103,7 @@ function setModelNameRPMEnabled(value: string, enabled: boolean): string {
 
 const createRateLimitSchema = (t: (key: string) => string) =>
   z.object({
+    RateLimitCapacityCardEnabled: z.boolean(),
     ModelRequestRateLimitEnabled: z.boolean(),
     ModelRequestRateLimitDurationMinutes: z.number().min(0),
     ModelRequestRateLimitCount: z.number().min(0).max(100000000),
@@ -395,6 +399,29 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
 
             <FormField
               control={form.control}
+              name='RateLimitCapacityCardEnabled'
+              render={({ field }) => (
+                <SettingsSwitchItem>
+                  <SettingsSwitchContent>
+                    <FormLabel>{t('RPM overview card')}</FormLabel>
+                    <FormDescription>
+                      {t(
+                        'Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.'
+                      )}
+                    </FormDescription>
+                  </SettingsSwitchContent>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </SettingsSwitchItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name='ModelNameRPMRateLimit'
               render={({ field }) => {
                 const rpmVisualMode =
@@ -422,9 +449,7 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                     </div>
 
                     <div className='flex items-center justify-between'>
-                      <FormLabel>
-                        {t('Model name RPM configuration')}
-                      </FormLabel>
+                      <FormLabel>{t('Model name RPM configuration')}</FormLabel>
                       <Button
                         type='button'
                         variant='outline'

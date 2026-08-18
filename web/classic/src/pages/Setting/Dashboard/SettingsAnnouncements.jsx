@@ -48,7 +48,7 @@ import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
 
-const SettingsAnnouncements = ({ options, refresh }) => {
+const SettingsAnnouncements = ({ options, refresh, refreshStatus }) => {
   const { t } = useTranslation();
 
   const [announcementsList, setAnnouncementsList] = useState([]);
@@ -359,6 +359,7 @@ const SettingsAnnouncements = ({ options, refresh }) => {
       });
       if (res.data.success) {
         setPanelEnabled(checked);
+        await refreshStatus?.('console_setting.announcements_enabled');
         showSuccess(t('设置已保存'));
         refresh?.();
       } else {

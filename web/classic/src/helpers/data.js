@@ -57,6 +57,36 @@ export function setStatusData(data) {
   }
 }
 
+const STATUS_RELATED_OPTION_KEYS = new Set([
+  'RateLimitCapacityCardEnabled',
+  'ModelNameRPMRateLimit',
+  'console_setting.api_info_enabled',
+  'console_setting.uptime_kuma_enabled',
+  'console_setting.announcements_enabled',
+  'console_setting.faq_enabled',
+]);
+
+export async function refreshStatusAfterOptionUpdate(
+  optionKey,
+  statusDispatch,
+  api,
+  persistStatus = setStatusData,
+) {
+  if (!STATUS_RELATED_OPTION_KEYS.has(optionKey)) return false;
+
+  try {
+    const res = await api.get('/api/status');
+    const { success, data } = res.data;
+    if (!success || data === undefined || data === null) return false;
+
+    statusDispatch({ type: 'set', payload: data });
+    persistStatus(data);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function setUserData(data) {
   localStorage.setItem('user', JSON.stringify(data));
 }

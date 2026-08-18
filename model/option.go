@@ -193,6 +193,7 @@ func InitOptionMap() {
 	common.OptionMap["ModelRequestRateLimitSuccessCount"] = strconv.Itoa(setting.ModelRequestRateLimitSuccessCount)
 	common.OptionMap["ModelRequestRateLimitGroup"] = setting.ModelRequestRateLimitGroup2JSONString()
 	common.OptionMap["ModelNameRPMRateLimit"] = setting.ModelNameRPMRateLimit2JSONString()
+	common.OptionMap["RateLimitCapacityCardEnabled"] = strconv.FormatBool(false)
 	common.OptionMap["ModelRatio"] = ratio_setting.ModelRatio2JSONString()
 	common.OptionMap["ModelPrice"] = ratio_setting.ModelPrice2JSONString()
 	common.OptionMap["CacheRatio"] = ratio_setting.CacheRatio2JSONString()
@@ -412,6 +413,8 @@ func updateOptionMap(key string, value string) (err error) {
 			setting.CheckSensitiveOnPromptEnabled = boolValue
 		case "ModelRequestRateLimitEnabled":
 			setting.ModelRequestRateLimitEnabled = boolValue
+		case "RateLimitCapacityCardEnabled":
+			setting.SetRateLimitCapacityCardEnabled(boolValue)
 		case "StopOnSensitiveEnabled":
 			setting.StopOnSensitiveEnabled = boolValue
 		case "SMTPSSLEnabled":

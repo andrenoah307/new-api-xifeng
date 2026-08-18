@@ -52,25 +52,19 @@ function renderVisibility(status: SystemStatus | null): string {
 }
 
 describe('dashboard content visibility', () => {
-  const rateLimitCapacityCases: Array<[
-    string,
-    SystemStatus | null,
-    boolean,
-  ]> = [
-    ['true', { rate_limit_capacity_enabled: true }, true],
-    ['false', { rate_limit_capacity_enabled: false }, false],
-    ['undefined', { rate_limit_capacity_enabled: undefined }, false],
-    ['missing', {}, false],
-    ['null status', null, false],
-  ]
+  const rateLimitCapacityCases: Array<[string, SystemStatus | null, boolean]> =
+    [
+      ['true', { rate_limit_capacity_enabled: true }, true],
+      ['false', { rate_limit_capacity_enabled: false }, false],
+      ['undefined', { rate_limit_capacity_enabled: undefined }, false],
+      ['missing', {}, false],
+      ['null status', null, false],
+    ]
 
   for (const [label, status, expected] of rateLimitCapacityCases) {
     test(`shows rate-limit capacity only for ${label}`, () => {
       const markup = renderVisibility(status)
-      assert.equal(
-        markup.includes('data-rate-limit-capacity="true"'),
-        expected
-      )
+      assert.equal(markup.includes('data-rate-limit-capacity="true"'), expected)
     })
   }
 
@@ -80,5 +74,21 @@ describe('dashboard content visibility', () => {
     assert.match(markup, /data-announcements="true"/)
     assert.match(markup, /data-faq="true"/)
     assert.match(markup, /data-uptime-kuma="true"/)
+  })
+
+  test('keeps the RPM card visible when all four content panels are off', () => {
+    const markup = renderVisibility({
+      api_info_enabled: false,
+      announcements_enabled: false,
+      faq_enabled: false,
+      uptime_kuma_enabled: false,
+      rate_limit_capacity_enabled: true,
+    })
+
+    assert.match(markup, /data-api-info="false"/)
+    assert.match(markup, /data-announcements="false"/)
+    assert.match(markup, /data-faq="false"/)
+    assert.match(markup, /data-uptime-kuma="false"/)
+    assert.match(markup, /data-rate-limit-capacity="true"/)
   })
 })

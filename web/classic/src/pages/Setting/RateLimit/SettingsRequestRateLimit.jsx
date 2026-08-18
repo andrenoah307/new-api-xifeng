@@ -73,6 +73,7 @@ export default function RequestRateLimit(props) {
 
   const [loading, setLoading] = useState(false);
   const [inputs, setInputs] = useState({
+    RateLimitCapacityCardEnabled: false,
     ModelRequestRateLimitEnabled: false,
     ModelRequestRateLimitCount: -1,
     ModelRequestRateLimitSuccessCount: 1000,
@@ -163,6 +164,11 @@ export default function RequestRateLimit(props) {
   function onSubmit() {
     const updateArray = compareObjects(inputs, inputsRow);
     if (!updateArray.length) return showWarning(t('你似乎并没有修改什么'));
+    const statusRefreshKey = updateArray.find(
+      (item) =>
+        item.key === 'RateLimitCapacityCardEnabled' ||
+        item.key === MODEL_NAME_RPM_OPTION_KEY,
+    )?.key;
 
     let modelNameRPMValue = inputs[MODEL_NAME_RPM_OPTION_KEY];
     if (updateArray.some((item) => item.key === MODEL_NAME_RPM_OPTION_KEY)) {
@@ -212,7 +218,7 @@ export default function RequestRateLimit(props) {
 
     setLoading(true);
     Promise.all(requestQueue)
-      .then((res) => {
+      .then(async (res) => {
         if (requestQueue.length === 1) {
           if (res.includes(undefined)) return;
         } else if (requestQueue.length > 1) {
@@ -226,6 +232,9 @@ export default function RequestRateLimit(props) {
           }
         }
 
+        if (statusRefreshKey) {
+          await props.refreshStatus?.(statusRefreshKey);
+        }
         showSuccess(t('保存成功'));
         props.refresh();
       })
@@ -267,6 +276,14 @@ export default function RequestRateLimit(props) {
     ) {
       currentInputs[MODEL_NAME_RPM_OPTION_KEY] =
         DEFAULT_MODEL_NAME_RPM_RATE_LIMIT;
+    }
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        currentInputs,
+        'RateLimitCapacityCardEnabled',
+      )
+    ) {
+      currentInputs.RateLimitCapacityCardEnabled = false;
     }
     setInputs(currentInputs);
     setInputsRow(structuredClone(currentInputs));
@@ -467,6 +484,24 @@ export default function RequestRateLimit(props) {
 
           <Form.Section text={t('Model name RPM rate limiting')}>
             <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'RateLimitCapacityCardEnabled'}
+                  label={t('RPM overview card')}
+                  extraText={t(
+                    'Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.',
+                  )}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      RateLimitCapacityCardEnabled: value,
+                    });
+                  }}
+                />
+              </Col>
               <Col xs={24} sm={12} md={8} lg={8} xl={8}>
                 <Form.Slot label={t('Enable model name RPM rate limiting')}>
                   <Switch

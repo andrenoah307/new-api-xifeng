@@ -1,19 +1,62 @@
 package router
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
+
+type routeRedisCommandCounter struct {
+	count atomic.Int64
+}
+
+func (c *routeRedisCommandCounter) BeforeProcess(ctx context.Context, _ redis.Cmder) (context.Context, error) {
+	c.count.Add(1)
+	return ctx, nil
+}
+
+func (*routeRedisCommandCounter) AfterProcess(context.Context, redis.Cmder) error {
+	return nil
+}
+
+func (c *routeRedisCommandCounter) BeforeProcessPipeline(ctx context.Context, commands []redis.Cmder) (context.Context, error) {
+	c.count.Add(int64(len(commands)))
+	return ctx, nil
+}
+
+func (*routeRedisCommandCounter) AfterProcessPipeline(context.Context, []redis.Cmder) error {
+	return nil
+}
+
+func countRouteDBCommands(t *testing.T, db *gorm.DB) *atomic.Int64 {
+	t.Helper()
+	var count atomic.Int64
+	callbackName := "test:count_route_commands:" + strings.ReplaceAll(t.Name(), "/", "_")
+	callback := func(*gorm.DB) { count.Add(1) }
+	require.NoError(t, db.Callback().Create().Register(callbackName, callback))
+	require.NoError(t, db.Callback().Query().Register(callbackName, callback))
+	require.NoError(t, db.Callback().Update().Register(callbackName, callback))
+	require.NoError(t, db.Callback().Delete().Register(callbackName, callback))
+	require.NoError(t, db.Callback().Row().Register(callbackName, callback))
+	require.NoError(t, db.Callback().Raw().Register(callbackName, callback))
+	return &count
+}
 
 func TestRateLimitCapacityRouteUsesDedicatedGateAfterUserAuth(t *testing.T) {
 	db := setupMonitoringRouterTestDB(t)
@@ -81,4 +124,76 @@ func TestRateLimitCapacityRouteUsesDedicatedGateAfterUserAuth(t *testing.T) {
 	engine.ServeHTTP(rejected, request())
 	assert.Equal(t, http.StatusServiceUnavailable, rejected.Code)
 	assert.Equal(t, "60", rejected.Header().Get("Retry-After"))
+}
+
+func TestRateLimitCapacityDisabledRouteCommandBudget(t *testing.T) {
+	db := setupMonitoringRouterTestDB(t)
+	dbCommands := countRouteDBCommands(t, db)
+
+	redisServer := miniredis.RunT(t)
+	redisClient := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	redisCommands := &routeRedisCommandCounter{}
+	redisClient.AddHook(redisCommands)
+	previousRedisEnabled := common.RedisEnabled
+	previousRedisClient := common.RDB
+	common.RedisEnabled = true
+	common.RDB = redisClient
+	t.Cleanup(func() {
+		common.RedisEnabled = previousRedisEnabled
+		common.RDB = previousRedisClient
+		require.NoError(t, redisClient.Close())
+	})
+
+	previousGlobalRateLimit := common.GlobalApiRateLimitEnable
+	previousCardEnabled := setting.IsRateLimitCapacityCardEnabled()
+	common.GlobalApiRateLimitEnable = false
+	setting.SetRateLimitCapacityCardEnabled(false)
+	t.Cleanup(func() {
+		common.GlobalApiRateLimitEnable = previousGlobalRateLimit
+		setting.SetRateLimitCapacityCardEnabled(previousCardEnabled)
+	})
+
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("capacity-command-budget"))))
+	engine.GET("/test/session", func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set("username", "capacity-command-user")
+		session.Set("role", common.RoleCommonUser)
+		session.Set("id", 8801)
+		session.Set("status", common.UserStatusEnabled)
+		session.Set("group", "default")
+		require.NoError(t, session.Save())
+		c.Status(http.StatusNoContent)
+	})
+	SetApiRouter(engine)
+
+	sessionRecorder := httptest.NewRecorder()
+	engine.ServeHTTP(sessionRecorder, httptest.NewRequest(http.MethodGet, "/test/session", nil))
+	require.Equal(t, http.StatusNoContent, sessionRecorder.Code)
+	sessionResponse := sessionRecorder.Result()
+	require.NotEmpty(t, sessionResponse.Cookies())
+	sessionCookie := sessionResponse.Cookies()[0]
+
+	dbCommands.Store(0)
+	redisCommands.count.Store(0)
+	statusRecorder := httptest.NewRecorder()
+	engine.ServeHTTP(statusRecorder, httptest.NewRequest(http.MethodGet, "/api/status", nil))
+	require.Equal(t, http.StatusOK, statusRecorder.Code)
+	assert.Equal(t, int64(0), dbCommands.Load())
+	assert.Equal(t, int64(0), redisCommands.count.Load())
+
+	dbCommands.Store(0)
+	redisCommands.count.Store(0)
+	capacityRequest := httptest.NewRequest(http.MethodGet, "/api/rate_limit/capacity", nil)
+	capacityRequest.AddCookie(sessionCookie)
+	capacityRequest.Header.Set("New-Api-User", "8801")
+	capacityRecorder := httptest.NewRecorder()
+	engine.ServeHTTP(capacityRecorder, capacityRequest)
+	require.Equal(t, http.StatusOK, capacityRecorder.Code)
+	assert.Equal(t, int64(0), dbCommands.Load())
+	assert.GreaterOrEqual(t, redisCommands.count.Load(), int64(3))
+	assert.LessOrEqual(t, redisCommands.count.Load(), int64(5))
+	t.Logf("closed command counts: status db=%d redis=%d; capacity db=%d redis=%d",
+		0, 0, dbCommands.Load(), redisCommands.count.Load())
 }

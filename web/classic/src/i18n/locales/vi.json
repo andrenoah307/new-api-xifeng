@@ -5458,6 +5458,8 @@
     "最近 60 秒": "60 giây gần nhất",
     "暂无请求数据统计": "Chưa có dữ liệu yêu cầu",
     "点击刷新获取最新数据": "Nhấn Làm mới để lấy dữ liệu mới nhất",
-    "RPM 概览": "Tổng quan RPM"
+    "RPM 概览": "Tổng quan RPM",
+    "RPM overview card": "Thẻ tổng quan RPM",
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Mặc định tắt. Khi bật, bảng điều khiển người dùng sẽ hiển thị và truy vấn dữ liệu cho thẻ tổng quan RPM."
   }
 }

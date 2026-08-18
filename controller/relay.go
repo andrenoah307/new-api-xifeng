@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
@@ -297,20 +298,11 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 				}
 
 				logger.LogWarn(c, fmt.Sprintf("channel %d (%s) rate-limited: reason=%s, action=%s", channel.Id, channel.Name, decision.Reason, effectiveOnLimit))
-				rlErr := types.NewErrorWithStatusCode(
-					fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
-					types.ErrorCodeChannelRateLimited,
-					http.StatusTooManyRequests,
-				)
+				rlErr := newChannelRateLimitError(c, false)
 				relayInfo.LastError = rlErr
 				newAPIError = rlErr
 				if effectiveOnLimit == channel_limiter.OnLimitReject {
-					newAPIError = types.NewErrorWithStatusCode(
-						fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
-						types.ErrorCodeChannelRateLimited,
-						http.StatusTooManyRequests,
-						types.ErrOptionWithSkipRetry(),
-					)
+					newAPIError = newChannelRateLimitError(c, true)
 					break
 				}
 				// skip / queue-timeout / queue-full: signal the affinity layer
@@ -489,10 +481,12 @@ func getChannel(c *gin.Context, info *relaycommon.RelayInfo, retryParam *service
 	info.PriceData.GroupRatioInfo = helper.HandleGroupRatio(c, info)
 
 	if err != nil {
-		return nil, types.NewError(fmt.Errorf("获取分组 %s 下模型 %s 的可用渠道失败（retry）: %s", selectGroup, info.OriginModelName, err.Error()), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+		logger.LogError(c, fmt.Sprintf("get channel failed (retry): group=%s model=%s err=%s", selectGroup, info.OriginModelName, err.Error()))
+		return nil, types.NewError(errors.New(i18n.T(c, i18n.MsgChannelNoAvailable)), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
 	}
 	if channel == nil {
-		return nil, types.NewError(fmt.Errorf("分组 %s 下模型 %s 的可用渠道不存在（retry）", selectGroup, info.OriginModelName), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
+		logger.LogError(c, fmt.Sprintf("no available channel (retry): group=%s model=%s", selectGroup, info.OriginModelName))
+		return nil, types.NewError(errors.New(i18n.T(c, i18n.MsgChannelNoAvailable)), types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry())
 	}
 
 	newAPIError := middleware.SetupContextForSelectedChannel(c, channel, info.OriginModelName)
@@ -510,6 +504,14 @@ func getChannelRateLimitConfig(c *gin.Context, channel *model.Channel) *dto.Chan
 		}
 	}
 	return rateLimitCfg
+}
+
+func newChannelRateLimitError(c *gin.Context, skipRetry bool) *types.NewAPIError {
+	message := errors.New(i18n.T(c, i18n.MsgChannelRateLimited))
+	if skipRetry {
+		return types.NewErrorWithStatusCode(message, types.ErrorCodeChannelRateLimited, http.StatusTooManyRequests, types.ErrOptionWithSkipRetry())
+	}
+	return types.NewErrorWithStatusCode(message, types.ErrorCodeChannelRateLimited, http.StatusTooManyRequests)
 }
 
 func getErrorFilterMatchInput(apiErr *types.NewAPIError) (statusCode int, errorCode string, message string) {
@@ -895,11 +897,7 @@ func relayTaskSubmitWithRetry(
 				}
 
 				logger.LogWarn(c, fmt.Sprintf("channel %d (%s) rate-limited: reason=%s, action=%s", channel.Id, channel.Name, decision.Reason, effectiveOnLimit))
-				rlErr := types.NewErrorWithStatusCode(
-					fmt.Errorf("渠道 %s 已达限流 (%s)", channel.Name, decision.Reason),
-					types.ErrorCodeChannelRateLimited,
-					http.StatusTooManyRequests,
-				)
+				rlErr := newChannelRateLimitError(c, false)
 				relayInfo.LastError = rlErr
 				taskErr = service.TaskErrorWrapperLocal(rlErr.Err, string(types.ErrorCodeChannelRateLimited), http.StatusTooManyRequests)
 				if effectiveOnLimit == channel_limiter.OnLimitReject {
@@ -954,7 +952,9 @@ func relayTaskSubmitWithRetry(
 
 // respondTaskError 统一输出 Task 错误响应（含 429 限流提示改写）
 func respondTaskError(c *gin.Context, taskErr *dto.TaskError) {
-	if taskErr.StatusCode == http.StatusTooManyRequests {
+	if taskErr.Code == string(types.ErrorCodeChannelRateLimited) {
+		taskErr.Message = i18n.T(c, i18n.MsgChannelRateLimited)
+	} else if taskErr.StatusCode == http.StatusTooManyRequests {
 		taskErr.Message = "当前分组上游负载已饱和，请稍后再试"
 	}
 	c.JSON(taskErr.StatusCode, taskErr)

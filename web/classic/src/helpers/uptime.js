@@ -17,16 +17,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-export const toBoolean = (value) => {
-  // 兼容字符串、数字以及布尔原生类型
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value === 1;
-  if (typeof value === 'string') {
-    const v = value.toLowerCase();
-    return v === 'true' || v === '1';
-  }
-  return false;
-};
+export const isUptimeRequestEnabled = (status) =>
+  status?.uptime_kuma_enabled === true;
 
-export const normalizeEnabledOptionValue = (key, value) =>
-  key.endsWith('Enabled') ? toBoolean(value) : value;
+export async function requestUptimeStatus(status, request) {
+  if (!isUptimeRequestEnabled(status)) return null;
+  return request();
+}

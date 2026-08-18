@@ -3,15 +3,22 @@ package controller
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting"
 	"github.com/gin-gonic/gin"
 )
 
-var rateLimitCapacityService = service.DefaultRateLimitCapacityService()
+type rateLimitCapacityGetter interface {
+	Get(context.Context, service.CapacityRequest) service.RateLimitCapacityResponse
+}
+
+var rateLimitCapacityService rateLimitCapacityGetter = service.DefaultRateLimitCapacityService()
+var getRateLimitCapacityUserGroup = model.GetUserGroup
 
 // GetRateLimitCapacity is a read-only user endpoint. It reads the group through
 // the same Redis-backed path as /api/user/groups, so both endpoints share the
@@ -19,12 +26,31 @@ var rateLimitCapacityService = service.DefaultRateLimitCapacityService()
 // service always returns a body with HTTP 200, including backend degradation
 // details.
 func GetRateLimitCapacity(c *gin.Context) {
+	if !setting.IsRateLimitCapacityCardEnabled() {
+		scope := c.DefaultQuery("scope", "top")
+		if scope != "all" {
+			scope = "top"
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "",
+			"data": service.RateLimitCapacityResponse{
+				Success:               true,
+				Scope:                 scope,
+				ObservedAt:            time.Now().UTC(),
+				ModelRPMVersion:       setting.ModelNameRPMConfigVersion(),
+				GroupRateLimitVersion: setting.ModelRequestRateLimitConfigVersion(),
+				BackendScope:          "global",
+			},
+		})
+		return
+	}
 	if rateLimitCapacityService == nil {
 		rateLimitCapacityService = service.DefaultRateLimitCapacityService()
 	}
 	userGroup := c.GetString("user_group")
 	if userGroup == "" {
-		userGroup, _ = model.GetUserGroup(c.GetInt("id"), false)
+		userGroup, _ = getRateLimitCapacityUserGroup(c.GetInt("id"), false)
 	}
 	requestContext := context.Background()
 	if c.Request != nil {

@@ -17,16 +17,22 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-export const toBoolean = (value) => {
-  // 兼容字符串、数字以及布尔原生类型
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value === 1;
-  if (typeof value === 'string') {
-    const v = value.toLowerCase();
-    return v === 'true' || v === '1';
-  }
-  return false;
-};
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
 
-export const normalizeEnabledOptionValue = (key, value) =>
-  key.endsWith('Enabled') ? toBoolean(value) : value;
+const locales = ['en', 'fr', 'ja', 'ru', 'vi', 'zh-CN', 'zh-TW'];
+const descriptionKey =
+  'Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.';
+
+for (const locale of locales) {
+  test(`${locale} has non-empty RPM card settings copy`, () => {
+    const document = JSON.parse(
+      readFileSync(new URL(`./${locale}.json`, import.meta.url), 'utf8'),
+    );
+    const value = document.translation?.[descriptionKey];
+
+    assert.equal(typeof value, 'string');
+    assert.notEqual(value.trim(), '');
+  });
+}

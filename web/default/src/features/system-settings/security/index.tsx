@@ -25,6 +25,7 @@ import {
 } from './section-registry.tsx'
 
 const defaultSecuritySettings: SecuritySettings = {
+  RateLimitCapacityCardEnabled: false,
   ModelRequestRateLimitEnabled: false,
   ModelRequestRateLimitCount: 0,
   ModelRequestRateLimitSuccessCount: 1000,

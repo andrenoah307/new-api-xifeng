@@ -3,6 +3,7 @@ package setting
 import (
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,47 +42,53 @@ func TestListModelNameRPMRulesReturnsDeepCopyAndVersion(t *testing.T) {
 }
 
 func TestRateLimitCapacityEnabledTruthTable(t *testing.T) {
-	previousGroup := ModelRequestRateLimitGroup2JSONString()
 	previousRPM := ModelNameRPMRateLimit2JSONString()
-	previousEnabled := ModelRequestRateLimitEnabled
-	previousCount := ModelRequestRateLimitCount
-	previousSuccessCount := ModelRequestRateLimitSuccessCount
+	previousCardEnabled := IsRateLimitCapacityCardEnabled()
 	defer func() {
-		_ = UpdateModelRequestRateLimitGroupByJSONString(previousGroup)
-		_ = UpdateModelNameRPMRateLimitByJSONString(previousRPM)
-		ModelRequestRateLimitEnabled = previousEnabled
-		ModelRequestRateLimitMutex.Lock()
-		ModelRequestRateLimitCount = previousCount
-		ModelRequestRateLimitSuccessCount = previousSuccessCount
-		ModelRequestRateLimitMutex.Unlock()
+		require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(previousRPM))
+		SetRateLimitCapacityCardEnabled(previousCardEnabled)
 	}()
 
 	tests := []struct {
-		name       string
-		a1Enabled  bool
-		groupsJSON string
-		rpmJSON    string
-		count      int
-		success    int
-		want       bool
+		name        string
+		cardEnabled bool
+		a2Enabled   bool
+		hasModels   bool
+		want        bool
 	}{
-		{"nothing", false, `{}`, `{"enabled":false,"models":{}}`, 0, 0, false},
-		{"a1-is-ignored", true, `{"free":[1,1]}`, `{"enabled":false,"models":{}}`, 0, 0, false},
-		{"a1-global-default-is-ignored", true, `{}`, `{"enabled":false,"models":{}}`, 0, 1000, false},
-		{"a2", false, `{}`, `{"enabled":true,"models":{"gpt-4o":{"global_rpm":1}}}`, 0, 0, true},
-		{"disabled-rpm", false, `{}`, `{"enabled":false,"models":{"gpt-4o":{"global_rpm":1}}}`, 0, 0, false},
-		{"enabled-with-zero-models", false, `{}`, `{"enabled":true,"models":{}}`, 0, 0, false},
+		{name: "all false"},
+		{name: "models only", hasModels: true},
+		{name: "a2 only", a2Enabled: true},
+		{name: "a2 and models", a2Enabled: true, hasModels: true},
+		{name: "card only", cardEnabled: true},
+		{name: "card and models", cardEnabled: true, hasModels: true},
+		{name: "card and a2", cardEnabled: true, a2Enabled: true},
+		{name: "all true", cardEnabled: true, a2Enabled: true, hasModels: true, want: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ModelRequestRateLimitEnabled = tt.a1Enabled
-			require.NoError(t, UpdateModelRequestRateLimitGroupByJSONString(tt.groupsJSON))
-			ModelRequestRateLimitMutex.Lock()
-			ModelRequestRateLimitCount = tt.count
-			ModelRequestRateLimitSuccessCount = tt.success
-			ModelRequestRateLimitMutex.Unlock()
-			require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(tt.rpmJSON))
+			models := map[string]ModelNameRPMRule{}
+			if tt.hasModels {
+				models["gpt-4o"] = ModelNameRPMRule{GlobalRPM: 1}
+			}
+			SetRateLimitCapacityCardEnabled(tt.cardEnabled)
+			config, err := common.Marshal(ModelNameRPMConfig{Enabled: tt.a2Enabled, Models: models})
+			require.NoError(t, err)
+			require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(string(config)))
 			assert.Equal(t, tt.want, IsRateLimitCapacityEnabled())
 		})
 	}
+}
+
+func TestRateLimitCapacityCardEnabledDefaultsFalseAndRoundTrips(t *testing.T) {
+	previous := IsRateLimitCapacityCardEnabled()
+	t.Cleanup(func() { SetRateLimitCapacityCardEnabled(previous) })
+
+	assert.False(t, IsRateLimitCapacityCardEnabled())
+
+	SetRateLimitCapacityCardEnabled(true)
+	assert.True(t, IsRateLimitCapacityCardEnabled())
+
+	SetRateLimitCapacityCardEnabled(false)
+	assert.False(t, IsRateLimitCapacityCardEnabled())
 }

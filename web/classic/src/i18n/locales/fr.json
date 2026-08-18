@@ -4948,6 +4948,8 @@
     "最近 60 秒": "60 dernières secondes",
     "暂无请求数据统计": "Aucune donnée de requête",
     "点击刷新获取最新数据": "Cliquez sur Actualiser pour obtenir les dernières données",
-    "RPM 概览": "Aperçu RPM"
+    "RPM 概览": "Aperçu RPM",
+    "RPM overview card": "Carte d'aperçu RPM",
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Désactivée par défaut. Une fois activée, le tableau de bord utilisateur affiche et interroge la carte d'aperçu RPM."
   }
 }

@@ -41,7 +41,7 @@ import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
 
-const SettingsAPIInfo = ({ options, refresh }) => {
+const SettingsAPIInfo = ({ options, refresh, refreshStatus }) => {
   const { t } = useTranslation();
 
   const [apiInfoList, setApiInfoList] = useState([]);
@@ -228,6 +228,7 @@ const SettingsAPIInfo = ({ options, refresh }) => {
       });
       if (res.data.success) {
         setPanelEnabled(checked);
+        await refreshStatus?.('console_setting.api_info_enabled');
         showSuccess(t('设置已保存'));
         refresh?.();
       } else {

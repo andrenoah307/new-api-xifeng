@@ -16,6 +16,7 @@ var ModelRequestRateLimitSuccessCount = 1000
 var ModelRequestRateLimitGroup = map[string][2]int{}
 var ModelRequestRateLimitMutex sync.RWMutex
 var modelRequestRateLimitConfigVersion atomic.Uint64
+var rateLimitCapacityCardEnabled atomic.Bool
 
 func ModelRequestRateLimitGroup2JSONString() string {
 	ModelRequestRateLimitMutex.RLock()
@@ -71,7 +72,15 @@ func ModelRequestRateLimitConfigVersion() uint64 {
 // instead of cloning all model and group rules.
 func IsRateLimitCapacityEnabled() bool {
 	snapshot := modelNameRPMSnapshot.Load()
-	return snapshot != nil && snapshot.Enabled && len(snapshot.Models) > 0
+	return rateLimitCapacityCardEnabled.Load() && snapshot != nil && snapshot.Enabled && len(snapshot.Models) > 0
+}
+
+func IsRateLimitCapacityCardEnabled() bool {
+	return rateLimitCapacityCardEnabled.Load()
+}
+
+func SetRateLimitCapacityCardEnabled(enabled bool) {
+	rateLimitCapacityCardEnabled.Store(enabled)
 }
 
 func GetGroupRateLimit(group string) (totalCount, successCount int, found bool) {

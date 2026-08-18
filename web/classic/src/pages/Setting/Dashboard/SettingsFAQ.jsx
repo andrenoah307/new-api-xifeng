@@ -40,7 +40,7 @@ import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
 
-const SettingsFAQ = ({ options, refresh }) => {
+const SettingsFAQ = ({ options, refresh, refreshStatus }) => {
   const { t } = useTranslation();
 
   const [faqList, setFaqList] = useState([]);
@@ -278,6 +278,7 @@ const SettingsFAQ = ({ options, refresh }) => {
       });
       if (res.data.success) {
         setPanelEnabled(checked);
+        await refreshStatus?.('console_setting.faq_enabled');
         showSuccess(t('设置已保存'));
         refresh?.();
       } else {

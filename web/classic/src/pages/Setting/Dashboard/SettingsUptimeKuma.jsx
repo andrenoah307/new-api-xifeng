@@ -39,7 +39,7 @@ import { useTranslation } from 'react-i18next';
 
 const { Text } = Typography;
 
-const SettingsUptimeKuma = ({ options, refresh }) => {
+const SettingsUptimeKuma = ({ options, refresh, refreshStatus }) => {
   const { t } = useTranslation();
 
   const [uptimeGroupsList, setUptimeGroupsList] = useState([]);
@@ -300,6 +300,7 @@ const SettingsUptimeKuma = ({ options, refresh }) => {
       });
       if (res.data.success) {
         setPanelEnabled(checked);
+        await refreshStatus?.('console_setting.uptime_kuma_enabled');
         showSuccess(t('设置已保存'));
         refresh?.();
       } else {

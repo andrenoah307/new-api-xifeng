@@ -5103,6 +5103,8 @@
     "最近 60 秒": "最近 60 秒",
     "暂无请求数据统计": "暂无请求数据统计",
     "点击刷新获取最新数据": "点击刷新获取最新数据",
-    "RPM 概览": "RPM 概览"
+    "RPM 概览": "RPM 概览",
+    "RPM overview card": "RPM 概览卡片",
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "默认关闭。开启后，用户端数据看板才会展示并查询 RPM 概览卡片。"
   }
 }

@@ -16,7 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query'
 import i18next from 'i18next'
 import { toast } from 'sonner'
 
@@ -24,7 +28,7 @@ import { updateSystemOption } from '../api'
 import type { UpdateOptionRequest } from '../types'
 
 // Configuration keys that require status refresh
-const STATUS_RELATED_KEYS = [
+const STATUS_RELATED_KEYS = new Set([
   'theme.frontend',
   'HeaderNavModules',
   'SidebarModulesAdmin',
@@ -43,7 +47,29 @@ const STATUS_RELATED_KEYS = [
   'region_restriction.filter_console',
   'group_model_blacklist.enabled',
   'group_model_blacklist.blocked_models',
-]
+  'RateLimitCapacityCardEnabled',
+  'ModelNameRPMRateLimit',
+  'console_setting.api_info_enabled',
+  'console_setting.uptime_kuma_enabled',
+  'console_setting.announcements_enabled',
+  'console_setting.faq_enabled',
+])
+
+export function invalidateOptionQueries(
+  queryClient: QueryClient,
+  optionKey: string
+): void {
+  void queryClient.invalidateQueries({ queryKey: ['system-options'] })
+
+  if (!STATUS_RELATED_KEYS.has(optionKey)) return
+
+  void queryClient.invalidateQueries({ queryKey: ['status'] })
+  try {
+    window.localStorage.removeItem('status')
+  } catch {
+    /* empty */
+  }
+}
 
 export function useUpdateOption() {
   const queryClient = useQueryClient()
@@ -52,18 +78,7 @@ export function useUpdateOption() {
     mutationFn: (request: UpdateOptionRequest) => updateSystemOption(request),
     onSuccess: (data, variables) => {
       if (data.success) {
-        // Always refresh system-options
-        queryClient.invalidateQueries({ queryKey: ['system-options'] })
-
-        // If updating frontend-display-related config, also refresh status
-        if (STATUS_RELATED_KEYS.includes(variables.key)) {
-          queryClient.invalidateQueries({ queryKey: ['status'] })
-          try {
-            window.localStorage.removeItem('status')
-          } catch {
-            /* empty */
-          }
-        }
+        invalidateOptionQueries(queryClient, variables.key)
 
         toast.success(i18next.t('Setting updated successfully'))
       } else {

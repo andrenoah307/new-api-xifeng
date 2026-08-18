@@ -104,7 +104,6 @@ const Dashboard = () => {
       }
     });
     await loadUserData();
-    await dashboardData.loadUptimeData();
   };
 
   const handleRefresh = async () => {
@@ -151,6 +150,12 @@ const Dashboard = () => {
   useEffect(() => {
     initChart();
   }, []);
+
+  useEffect(() => {
+    if (dashboardData.uptimeRequestEnabled) {
+      dashboardData.loadUptimeData();
+    }
+  }, [dashboardData.uptimeRequestEnabled, dashboardData.loadUptimeData]);
 
   return (
     <div className='h-full'>
@@ -232,6 +237,12 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {dashboardData.hasRateLimitCapacityPanel && (
+        <div className='mb-4'>
+          <RateLimitCapacityPanel />
+        </div>
+      )}
+
       {/* 系统公告和常见问答卡片 */}
       {dashboardData.hasInfoPanels && (
         <div className='mb-4'>
@@ -291,12 +302,6 @@ const Dashboard = () => {
               />
             )}
           </div>
-        </div>
-      )}
-
-      {dashboardData.hasRateLimitCapacityPanel && (
-        <div className='mb-4'>
-          <RateLimitCapacityPanel />
         </div>
       )}
     </div>

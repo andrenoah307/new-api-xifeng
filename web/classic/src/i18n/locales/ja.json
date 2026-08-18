@@ -4915,6 +4915,8 @@
     "最近 60 秒": "過去 60 秒",
     "暂无请求数据统计": "リクエストデータはまだありません",
     "点击刷新获取最新数据": "更新をクリックして最新データを取得",
-    "RPM 概览": "RPM 概要"
+    "RPM 概览": "RPM 概要",
+    "RPM overview card": "RPM 概要カード",
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "デフォルトでは無効です。有効にすると、ユーザーダッシュボードに RPM 概要カードが表示され、データが取得されます。"
   }
 }
