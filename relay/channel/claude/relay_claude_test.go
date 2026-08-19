@@ -1,11 +1,17 @@
 package claude
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"unicode/utf8"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
+	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service/relayconvert"
+	"github.com/QuantumNous/new-api/types"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -218,6 +224,76 @@ func TestFormatClaudeResponseInfo_ContentBlockDelta(t *testing.T) {
 		t.Fatal("expected true")
 	}
 	assert.Equal(t, utf8.RuneCountInString("hello"), claudeInfo.ResponseTextRuneCount)
+}
+
+func TestHandleClaudeResponseDataPrefersUpstreamBillingUsage(t *testing.T) {
+	tests := []struct {
+		name                   string
+		upstreamBillingUsage   *dto.BillingUsage
+		wantSource             string
+		wantOpenAIPromptTokens int
+		wantClaudeInputTokens  int
+	}{
+		{
+			name: "preserves upstream billing usage",
+			upstreamBillingUsage: &dto.BillingUsage{
+				Source:   dto.BillingUsageSourceOAIChat,
+				Semantic: dto.BillingUsageSemanticOpenAI,
+				OpenAIUsage: &dto.Usage{
+					PromptTokens:     777,
+					CompletionTokens: 33,
+				},
+			},
+			wantSource:             dto.BillingUsageSourceOAIChat,
+			wantOpenAIPromptTokens: 777,
+		},
+		{
+			name:                  "reconstructs billing usage only when upstream omits it",
+			wantSource:            dto.BillingUsageSourceClaudeMessages,
+			wantClaudeInputTokens: 100,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+			payload := dto.ClaudeResponse{
+				Type: "message",
+				Content: []dto.ClaudeMediaMessage{
+					{Type: "text", Text: commonPointer("ok")},
+				},
+				Usage: &dto.ClaudeUsage{
+					InputTokens:  100,
+					OutputTokens: 20,
+					BillingUsage: tt.upstreamBillingUsage,
+				},
+			}
+			data, err := common.Marshal(payload)
+			require.NoError(t, err)
+			claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+
+			handleErr := HandleClaudeResponseData(
+				ctx,
+				&relaycommon.RelayInfo{RelayFormat: types.RelayFormatClaude},
+				claudeInfo,
+				&http.Response{StatusCode: http.StatusOK, Header: make(http.Header)},
+				data,
+			)
+
+			require.Nil(t, handleErr)
+			require.NotNil(t, claudeInfo.Usage.BillingUsage)
+			assert.Equal(t, tt.wantSource, claudeInfo.Usage.BillingUsage.Source)
+			if tt.upstreamBillingUsage != nil {
+				assert.Equal(t, tt.upstreamBillingUsage, claudeInfo.Usage.BillingUsage)
+				require.NotNil(t, claudeInfo.Usage.BillingUsage.OpenAIUsage)
+				assert.Equal(t, tt.wantOpenAIPromptTokens, claudeInfo.Usage.BillingUsage.OpenAIUsage.PromptTokens)
+				return
+			}
+			require.NotNil(t, claudeInfo.Usage.BillingUsage.ClaudeUsage)
+			assert.Equal(t, tt.wantClaudeInputTokens, claudeInfo.Usage.BillingUsage.ClaudeUsage.InputTokens)
+		})
+	}
 }
 
 func TestBuildOpenAIStyleUsageFromClaudeUsage(t *testing.T) {

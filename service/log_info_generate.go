@@ -78,9 +78,6 @@ func attachUsageSemanticMismatch(ctx *gin.Context, relayInfo *relaycommon.RelayI
 	msg := fmt.Sprintf("usage semantic mismatch normalized: reason=%v user=%d channel=%d model=%s prompt_tokens=%v cache_tokens=%v cache_creation_tokens=%v",
 		mismatch["reason"], userId, channelId, modelName,
 		mismatch["prompt_tokens"], mismatch["cache_tokens"], mismatch["cache_creation_tokens"])
-	if estimate, ok := mismatch["estimate_prompt_tokens"]; ok {
-		msg += fmt.Sprintf(" estimate_prompt_tokens=%v threshold=%v normalized_prompt_tokens=%v", estimate, mismatch["threshold"], mismatch["normalized_prompt_tokens"])
-	}
 	logger.LogWarn(ctx, msg)
 }
 

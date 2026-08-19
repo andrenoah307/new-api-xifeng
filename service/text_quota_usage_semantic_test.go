@@ -2,6 +2,8 @@ package service
 
 import (
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -422,197 +424,128 @@ func TestAttachUsageSemanticProbePreservesAdminInfo(t *testing.T) {
 	attachUsageSemanticProbe(nilOther, probe)
 }
 
-func TestNormalizeInclusivePromptForNetSemanticsUsesEstimateThreshold(t *testing.T) {
+func TestNormalizeInclusivePromptForNetSemanticsUsesChannelFingerprint(t *testing.T) {
+	const scenarioEnv = "NEW_API_TEST_INCLUSIVE_PROMPT_SCENARIO"
+	if scenario := os.Getenv(scenarioEnv); scenario != "" {
+		relayInfo := newInclusiveSemanticRelayInfo()
+		relayInfo.ChannelMeta = &relaycommon.ChannelMeta{ChannelId: 300}
+		usage := &dto.Usage{
+			PromptTokens:  5532,
+			UsageSemantic: dto.BillingUsageSemanticAnthropic,
+		}
+		usage.PromptTokensDetails.CachedTokens = 4864
+		wantPromptTokens := usage.PromptTokens
+		wantReason := ""
+
+		switch scenario {
+		case "whitelist_empty":
+		case "fingerprint_match":
+			wantPromptTokens = 668
+			wantReason = "anthropic_inclusive_prompt_fingerprint"
+		case "channel_not_whitelisted":
+			relayInfo.ChannelId = 289
+		case "not_multiple_of_128":
+			usage.PromptTokensDetails.CachedTokens = 4863
+		case "below_1024":
+			usage.PromptTokensDetails.CachedTokens = 896
+		case "cache_creation_present":
+			usage.PromptTokensDetails.CachedCreationTokens = 128
+		case "prompt_below_cache":
+			usage.PromptTokens = 4000
+			wantPromptTokens = 4000
+		case "structural_equality_without_whitelist_or_estimate":
+			usage.PromptTokens = 4864
+			wantPromptTokens = 0
+			wantReason = "anthropic_inclusive_prompt"
+		case "nil_channel_meta":
+			relayInfo.ChannelMeta = nil
+		default:
+			t.Fatalf("unknown scenario %q", scenario)
+		}
+
+		originalPromptTokens := usage.PromptTokens
+		normalized, mismatch := normalizeInclusivePromptForNetSemantics(relayInfo, usage)
+
+		assert.Equal(t, originalPromptTokens, usage.PromptTokens)
+		assert.Equal(t, wantPromptTokens, normalized.PromptTokens)
+		if wantReason == "" {
+			assert.Nil(t, mismatch)
+			assert.Same(t, usage, normalized)
+			return
+		}
+		require.NotNil(t, mismatch)
+		assert.NotSame(t, usage, normalized)
+		assert.Equal(t, wantReason, mismatch["reason"])
+		assert.Equal(t, originalPromptTokens, mismatch["prompt_tokens"])
+		assert.Equal(t, usage.PromptTokensDetails.CachedTokens, mismatch["cache_tokens"])
+		assert.Equal(t, usage.PromptTokensDetails.CacheCreationTokensTotal(), mismatch["cache_creation_tokens"])
+		assert.Equal(t, wantPromptTokens, mismatch["normalized_prompt_tokens"])
+		assert.NotContains(t, mismatch, "estimate_prompt_tokens")
+		assert.NotContains(t, mismatch, "threshold")
+		return
+	}
+
 	tests := []struct {
-		name             string
-		relayInfo        func() *relaycommon.RelayInfo
-		promptTokens     int
-		cacheTokens      int
-		cacheCreation    int
-		estimatePrompt   int
-		semantic         string
-		wantPromptTokens int
-		wantReason       string
-		wantMismatch     bool
-		wantEstimate     bool
-		wantThreshold    int
+		name      string
+		scenario  string
+		whitelist string
 	}{
 		{
-			name:             "structural equality works without estimate",
-			relayInfo:        newInclusiveSemanticRelayInfo,
-			promptTokens:     5000,
-			cacheTokens:      5000,
-			wantPromptTokens: 0,
-			wantReason:       "anthropic_inclusive_prompt",
-			wantMismatch:     true,
+			name:      "empty whitelist fails closed",
+			scenario:  "whitelist_empty",
+			whitelist: "",
 		},
 		{
-			name: "prompt below cache sum is net semantic",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.SetEstimatePromptTokens(51000)
-				return info
-			},
-			promptTokens:     1000,
-			cacheTokens:      50000,
-			estimatePrompt:   51000,
-			wantPromptTokens: 1000,
+			name:      "whitelisted channel and fingerprint normalize production sample",
+			scenario:  "fingerprint_match",
+			whitelist: "300",
 		},
 		{
-			name: "net semantic small cache is not normalized",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.SetEstimatePromptTokens(34628)
-				return info
-			},
-			promptTokens:     29764,
-			cacheTokens:      4864,
-			estimatePrompt:   34628,
-			wantPromptTokens: 29764,
+			name:      "fingerprint does not apply globally",
+			scenario:  "channel_not_whitelisted",
+			whitelist: "300",
 		},
 		{
-			name: "threshold lower boundary is inclusive",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.SetEstimatePromptTokens(30980)
-				return info
-			},
-			promptTokens:     29764,
-			cacheTokens:      4864,
-			estimatePrompt:   30980,
-			wantPromptTokens: 24900,
-			wantReason:       "anthropic_inclusive_prompt_estimated",
-			wantMismatch:     true,
-			wantEstimate:     true,
-			wantThreshold:    30980,
+			name:      "cache read is not a multiple of 128",
+			scenario:  "not_multiple_of_128",
+			whitelist: "300",
 		},
 		{
-			name: "threshold outside by one token",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.SetEstimatePromptTokens(30981)
-				return info
-			},
-			promptTokens:     29764,
-			cacheTokens:      4864,
-			estimatePrompt:   30981,
-			wantPromptTokens: 29764,
+			name:      "cache read is below OpenAI minimum",
+			scenario:  "below_1024",
+			whitelist: "300",
 		},
 		{
-			name: "inclusive prompt typical contamination",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.SetEstimatePromptTokens(29764)
-				return info
-			},
-			promptTokens:     29764,
-			cacheTokens:      4864,
-			estimatePrompt:   29764,
-			wantPromptTokens: 24900,
-			wantReason:       "anthropic_inclusive_prompt_estimated",
-			wantMismatch:     true,
-			wantEstimate:     true,
-			wantThreshold:    30980,
+			name:      "cache creation disables fingerprint",
+			scenario:  "cache_creation_present",
+			whitelist: "300",
 		},
 		{
-			name: "cache creation participates",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.SetEstimatePromptTokens(10000)
-				return info
-			},
-			promptTokens:     10000,
-			cacheTokens:      6000,
-			cacheCreation:    2000,
-			estimatePrompt:   10000,
-			wantPromptTokens: 2000,
-			wantReason:       "anthropic_inclusive_prompt_estimated",
-			wantMismatch:     true,
-			wantEstimate:     true,
-			wantThreshold:    12000,
+			name:      "prompt below cache remains unchanged",
+			scenario:  "prompt_below_cache",
+			whitelist: "300",
 		},
 		{
-			name: "untrusted estimate below half",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.SetEstimatePromptTokens(30000)
-				return info
-			},
-			promptTokens:     100000,
-			cacheTokens:      20000,
-			estimatePrompt:   30000,
-			wantPromptTokens: 100000,
+			name:      "structural branch works without whitelist or estimate",
+			scenario:  "structural_equality_without_whitelist_or_estimate",
+			whitelist: "",
 		},
 		{
-			name:             "estimate disabled",
-			relayInfo:        newInclusiveSemanticRelayInfo,
-			promptTokens:     10000,
-			cacheTokens:      4000,
-			wantPromptTokens: 10000,
-		},
-		{
-			name: "openrouter channel",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.ChannelMeta = &relaycommon.ChannelMeta{ChannelType: constant.ChannelTypeOpenRouter}
-				info.SetEstimatePromptTokens(10000)
-				return info
-			},
-			promptTokens:     10000,
-			cacheTokens:      4000,
-			estimatePrompt:   10000,
-			wantPromptTokens: 10000,
-		},
-		{
-			name: "openai semantic non legacy claude derived",
-			relayInfo: func() *relaycommon.RelayInfo {
-				info := newInclusiveSemanticRelayInfo()
-				info.SetEstimatePromptTokens(10000)
-				return info
-			},
-			promptTokens:     10000,
-			cacheTokens:      4000,
-			estimatePrompt:   10000,
-			semantic:         dto.BillingUsageSemanticOpenAI,
-			wantPromptTokens: 10000,
+			name:      "nil channel metadata fails closed",
+			scenario:  "nil_channel_meta",
+			whitelist: "300",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			relayInfo := tt.relayInfo()
-			semantic := tt.semantic
-			if semantic == "" {
-				semantic = dto.BillingUsageSemanticAnthropic
-			}
-			usage := &dto.Usage{
-				PromptTokens:  tt.promptTokens,
-				UsageSemantic: semantic,
-			}
-			usage.PromptTokensDetails.CachedTokens = tt.cacheTokens
-			usage.PromptTokensDetails.CachedCreationTokens = tt.cacheCreation
-			if tt.estimatePrompt > 0 {
-				relayInfo.SetEstimatePromptTokens(tt.estimatePrompt)
-			}
-
-			normalized, mismatch := normalizeInclusivePromptForNetSemantics(relayInfo, usage)
-
-			assert.Equal(t, tt.promptTokens, usage.PromptTokens)
-			assert.Equal(t, tt.wantPromptTokens, normalized.PromptTokens)
-			if !tt.wantMismatch {
-				assert.Nil(t, mismatch)
-				assert.Same(t, usage, normalized)
-				return
-			}
-			require.NotNil(t, mismatch)
-			assert.NotSame(t, usage, normalized)
-			assert.Equal(t, tt.wantReason, mismatch["reason"])
-			if tt.wantEstimate {
-				assert.Equal(t, tt.estimatePrompt, mismatch["estimate_prompt_tokens"])
-				assert.Equal(t, tt.wantThreshold, mismatch["threshold"])
-			} else {
-				assert.NotContains(t, mismatch, "estimate_prompt_tokens")
-			}
+			cmd := exec.Command(os.Args[0], "-test.run=^TestNormalizeInclusivePromptForNetSemanticsUsesChannelFingerprint$")
+			cmd.Env = append(os.Environ(),
+				scenarioEnv+"="+tt.scenario,
+				"INCLUSIVE_PROMPT_CHANNEL_IDS="+tt.whitelist,
+			)
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", output)
 		})
 	}
 }
@@ -639,15 +572,13 @@ func TestAttachUsageSemanticMismatchPreservesAdminInfoForBothReasons(t *testing.
 			wantAdminValue: "root",
 		},
 		{
-			name: "estimated reason",
+			name: "fingerprint reason",
 			mismatch: map[string]interface{}{
-				"reason":                   "anthropic_inclusive_prompt_estimated",
-				"prompt_tokens":            29764,
+				"reason":                   "anthropic_inclusive_prompt_fingerprint",
+				"prompt_tokens":            5532,
 				"cache_tokens":             4864,
 				"cache_creation_tokens":    0,
-				"estimate_prompt_tokens":   29764,
-				"threshold":                30980,
-				"normalized_prompt_tokens": 24900,
+				"normalized_prompt_tokens": 668,
 			},
 			wantAdminValue: "root",
 		},

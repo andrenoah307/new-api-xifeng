@@ -19,6 +19,7 @@ type ClaudeResponseInfo struct {
 	ResponseTextRuneCount int
 	Usage                 *dto.Usage
 	Done                  bool
+	billingUsageUpstream  bool
 }
 
 func StopReasonClaudeToOpenAI(reason string) string {
@@ -361,7 +362,12 @@ func FormatClaudeResponseInfo(claudeResponse *dto.ClaudeResponse, oaiResponse *d
 			claudeInfo.Usage.ClaudeCacheCreation5mTokens = claudeResponse.Message.Usage.GetCacheCreation5mTokens()
 			claudeInfo.Usage.ClaudeCacheCreation1hTokens = claudeResponse.Message.Usage.GetCacheCreation1hTokens()
 			claudeInfo.Usage.CompletionTokens = claudeResponse.Message.Usage.OutputTokens
-			claudeInfo.Usage.BillingUsage = claudeBillingUsageFromSemanticUsage(claudeInfo.Usage)
+			if claudeResponse.Message.Usage.BillingUsage != nil {
+				claudeInfo.Usage.BillingUsage = dto.CloneBillingUsage(claudeResponse.Message.Usage.BillingUsage)
+				claudeInfo.billingUsageUpstream = true
+			} else if !claudeInfo.billingUsageUpstream {
+				claudeInfo.Usage.BillingUsage = claudeBillingUsageFromSemanticUsage(claudeInfo.Usage)
+			}
 		}
 	} else if claudeResponse.Type == "content_block_delta" {
 		if claudeResponse.Delta != nil {
@@ -394,7 +400,12 @@ func FormatClaudeResponseInfo(claudeResponse *dto.ClaudeResponse, oaiResponse *d
 				claudeInfo.Usage.CompletionTokens = claudeResponse.Usage.OutputTokens
 			}
 			claudeInfo.Usage.TotalTokens = claudeInfo.Usage.PromptTokens + claudeInfo.Usage.CompletionTokens
-			claudeInfo.Usage.BillingUsage = claudeBillingUsageFromSemanticUsage(claudeInfo.Usage)
+			if claudeResponse.Usage.BillingUsage != nil {
+				claudeInfo.Usage.BillingUsage = dto.CloneBillingUsage(claudeResponse.Usage.BillingUsage)
+				claudeInfo.billingUsageUpstream = true
+			} else if !claudeInfo.billingUsageUpstream {
+				claudeInfo.Usage.BillingUsage = claudeBillingUsageFromSemanticUsage(claudeInfo.Usage)
+			}
 		}
 
 		claudeInfo.Done = true

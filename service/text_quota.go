@@ -410,9 +410,6 @@ func buildUsageSemanticProbe(relayInfo *relaycommon.RelayInfo, usage *dto.Usage)
 // normalizeInclusivePromptForNetSemantics 收口「口径自相矛盾」的上游 usage：
 // 分支 A 用 prompt_tokens == cached + cache_creation 的结构自证，不需要本地估算 L；
 // 即使 CountToken 关闭、L 为 0，也必须继续生效，这是既有行为。
-// 分支 B 在 prompt_tokens > cached + cache_creation 时用本地估算 L 判别；S/4 是保守假设值而非
-// 生产实测值（探针数据尚未回流），因此结构上自限：S 越小闸门越紧。误判成含缓存只会少收，
-// 属于安全方向，且每次触发都会落 admin 标记并写后端 warn 日志可审计。
 // prompt_tokens < S 直接返回：这种形态本身就证明是净口径。
 //
 // 返回浅拷贝而非就地改写：调用方仍要用原 usage 做日志计费路径分类。
@@ -440,31 +437,27 @@ func normalizeInclusivePromptForNetSemantics(relayInfo *relaycommon.RelayInfo, u
 		}
 	}
 
-	// 分支 B（新增）：p > S，需要本地估算做判别
-	estimatePromptTokens := relayInfo.GetEstimatePromptTokens()
-	if estimatePromptTokens <= 0 {
-		return usage, nil
-	}
-	// 两个假设下 L 都不该低于 p 的一半；低于说明本地估算本身不可信（如未计入的多模态内容），不判定
-	if estimatePromptTokens < usage.PromptTokens/2 {
-		return usage, nil
-	}
-	threshold := usage.PromptTokens + netExcluded/4
-	if estimatePromptTokens > threshold {
-		return usage, nil
+	// 分支 B：白名单渠道 ∧ OpenAI 前缀缓存的结构指纹。
+	// 两个条件都是必要条件：指纹只能证明 cr 源自 OpenAI 缓存，不能证明 p 里还含着 cr
+	// （一个正确的 OpenAI→Claude 转换器会产生同样的指纹），所以必须由管理员按渠道确认。
+	if relayInfo.ChannelMeta != nil &&
+		common.IsInclusivePromptChannel(relayInfo.ChannelId) &&
+		cacheCreationTokens == 0 &&
+		cacheTokens >= 1024 &&
+		cacheTokens%128 == 0 &&
+		usage.PromptTokens > netExcluded {
+		normalized := *usage
+		normalized.PromptTokens = usage.PromptTokens - netExcluded
+		return &normalized, map[string]interface{}{
+			"reason":                   "anthropic_inclusive_prompt_fingerprint",
+			"prompt_tokens":            usage.PromptTokens,
+			"cache_tokens":             cacheTokens,
+			"cache_creation_tokens":    cacheCreationTokens,
+			"normalized_prompt_tokens": normalized.PromptTokens,
+		}
 	}
 
-	normalized := *usage
-	normalized.PromptTokens = usage.PromptTokens - netExcluded
-	return &normalized, map[string]interface{}{
-		"reason":                   "anthropic_inclusive_prompt_estimated",
-		"prompt_tokens":            usage.PromptTokens,
-		"cache_tokens":             cacheTokens,
-		"cache_creation_tokens":    cacheCreationTokens,
-		"normalized_prompt_tokens": normalized.PromptTokens,
-		"estimate_prompt_tokens":   estimatePromptTokens,
-		"threshold":                threshold,
-	}
+	return usage, nil
 }
 
 func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent []string) {
