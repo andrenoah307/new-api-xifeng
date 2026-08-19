@@ -72,7 +72,8 @@ func ModelRequestRateLimitConfigVersion() uint64 {
 // instead of cloning all model and group rules.
 func IsRateLimitCapacityEnabled() bool {
 	snapshot := modelNameRPMSnapshot.Load()
-	return rateLimitCapacityCardEnabled.Load() && snapshot != nil && snapshot.Enabled && len(snapshot.Models) > 0
+	return rateLimitCapacityCardEnabled.Load() && snapshot != nil && snapshot.Enabled &&
+		(len(snapshot.Models) > 0 || len(snapshot.Groups) > 0)
 }
 
 func IsRateLimitCapacityCardEnabled() bool {

@@ -314,13 +314,19 @@ func TestAcquireRejectsInvalidShapeOpen(t *testing.T) {
 		{Key: "a", Limit: 1, Scope: "global"},
 		{Key: "b", Limit: 1, Scope: "group"},
 		{Key: "c", Limit: 1, Scope: "user"},
-		{Key: "d", Limit: 1, Scope: "user"},
+		{Key: "d", Limit: 1, Scope: "group_total"},
 	}))
 	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), []Bucket{{Key: "a", Limit: 0, Scope: "global"}}))
-	assert.Equal(t, 1, fixture.count("a"))
+	assert.Equal(t, 2, fixture.count("a"))
 	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), []Bucket{{Key: "negative", Limit: -1, Scope: "global"}}))
 	assert.Equal(t, 0, fixture.count("negative"))
-	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), []Bucket{{Key: "a", Limit: 1, Scope: ""}}))
+	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), []Bucket{
+		{Key: "a", Limit: 1, Scope: "global"},
+		{Key: "b", Limit: 1, Scope: "group"},
+		{Key: "c", Limit: 1, Scope: "user"},
+		{Key: "d", Limit: 1, Scope: "group_total"},
+		{Key: "e", Limit: 1, Scope: "global"},
+	}))
 }
 
 func TestAcquireAcceptsThreeBuckets(t *testing.T) {

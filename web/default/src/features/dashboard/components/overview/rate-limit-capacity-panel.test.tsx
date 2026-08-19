@@ -31,8 +31,10 @@ import { I18nextProvider } from 'react-i18next'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import type {
+  RateLimitCapacityItem,
   RateLimitCapacityPersonal,
   RateLimitCapacityResponse,
+  RateLimitCapacitySection,
 } from '@/features/dashboard/types'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -41,7 +43,7 @@ import * as capacityPanelModule from './rate-limit-capacity-panel'
 const bunTestModule: string = 'bun:test'
 const { jest } = await import(bunTestModule)
 
-const { RateLimitCapacityPanel } = capacityPanelModule
+const { GroupTotalCapacitySection, RateLimitCapacityPanel } = capacityPanelModule
 const topQueryKey = [
   'dashboard',
   'rate-limit-capacity',
@@ -88,6 +90,38 @@ function response(
   }
 }
 
+function groupTotalItem(
+  group: string,
+  overrides: Partial<RateLimitCapacityItem> = {}
+): RateLimitCapacityItem {
+  return {
+    model: '',
+    group,
+    current: 12,
+    limit: 30,
+    unlimited: false,
+    utilization: 0.4,
+    over_limit: false,
+    available: true,
+    ...overrides,
+  }
+}
+
+function groupTotalsResponse(
+  items: RateLimitCapacityItem[],
+  total = items.length
+): RateLimitCapacityResponse {
+  return {
+    ...response(),
+    site: {
+      global: { items: [], total: 0 },
+      groups: { groups: [], total: 0 },
+      group_totals: { items, total },
+    },
+    total,
+  }
+}
+
 async function renderPanelResult(
   data: RateLimitCapacityResponse,
   existingQueryClient?: QueryClient
@@ -125,6 +159,29 @@ async function renderPanelResult(
 
 async function renderPanel(data: RateLimitCapacityResponse): Promise<string> {
   return (await renderPanelResult(data)).markup
+}
+
+async function renderGroupTotals(
+  section: RateLimitCapacitySection,
+  expanded: boolean
+): Promise<string> {
+  const i18n = createInstance()
+  await i18n.init({
+    lng: 'en',
+    resources: { en: { translation: {} } },
+    interpolation: { escapeValue: false },
+  })
+  return renderToStaticMarkup(
+    <I18nextProvider i18n={i18n}>
+      <GroupTotalCapacitySection
+        section={section}
+        expanded={expanded}
+        loading={false}
+        onIntent={() => {}}
+        onToggle={() => {}}
+      />
+    </I18nextProvider>
+  )
 }
 
 async function capacityQueryOptions() {
@@ -249,6 +306,50 @@ describe('personal rate-limit capacity section', () => {
     assert.match(markup, /My model RPM/)
     assert.match(markup, /Temporarily unavailable/)
     assert.doesNotMatch(markup, /0 \/ 20/)
+  })
+})
+
+describe('group-total rate-limit capacity section', () => {
+  test('renders when it is the only configured site section', async () => {
+    const markup = await renderPanel(
+      groupTotalsResponse([groupTotalItem('vip_2_cheap')])
+    )
+
+    assert.match(markup, /Group total RPM/)
+    assert.match(markup, /vip_2_cheap · All models combined/)
+    assert.match(markup, /12 \/ 30/)
+    assert.doesNotMatch(markup, /title=""/)
+  })
+
+  test('shows three top rows and all rows after expansion', async () => {
+    const items = ['alpha', 'beta', 'gamma', 'omega'].map((group) =>
+      groupTotalItem(group)
+    )
+    const collapsed = await renderPanel(groupTotalsResponse(items, 4))
+    assert.match(collapsed, /alpha · All models combined/)
+    assert.match(collapsed, /gamma · All models combined/)
+    assert.doesNotMatch(collapsed, /omega · All models combined/)
+    assert.match(collapsed, /Show all 4 groups/)
+
+    const expanded = await renderGroupTotals({ items, total: 4 }, true)
+    assert.match(expanded, /omega · All models combined/)
+    assert.match(expanded, /Collapse/)
+  })
+
+  test('uses the existing unavailable rendering for null counters', async () => {
+    const markup = await renderPanel(
+      groupTotalsResponse([
+        groupTotalItem('vip_unavailable', {
+          current: null,
+          utilization: null,
+          available: false,
+        }),
+      ])
+    )
+
+    assert.match(markup, /vip_unavailable · All models combined/)
+    assert.match(markup, /Temporarily unavailable/)
+    assert.doesNotMatch(markup, /0 \/ 30/)
   })
 })
 

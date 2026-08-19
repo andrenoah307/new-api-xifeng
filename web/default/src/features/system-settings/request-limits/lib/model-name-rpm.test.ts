@@ -21,11 +21,15 @@ import { describe, test } from 'node:test'
 
 import {
   MODEL_NAME_RPM_MAX_GLOBAL,
+  deleteModelNameRPMGroupTotalRule,
   deleteModelNameRPMRule,
   parseModelNameRPMConfig,
+  upsertModelNameRPMGroupTotalRule,
   upsertModelNameRPMRule,
+  validateModelNameRPMGroupTotalRule,
   validateModelNameRPMRule,
   type ModelNameRPMErrorCode,
+  type ModelNameRPMGroupTotalRule,
   type ModelNameRPMGroupLimit,
   type ModelNameRPMRule,
 } from './model-name-rpm.ts'
@@ -46,11 +50,13 @@ describe('parseModelNameRPMConfig', () => {
       ok: true,
       enabled: false,
       rules: [],
+      groupTotals: [],
     })
     assert.deepEqual(parseModelNameRPMConfig('   '), {
       ok: true,
       enabled: false,
       rules: [],
+      groupTotals: [],
     })
   })
 
@@ -66,6 +72,7 @@ describe('parseModelNameRPMConfig', () => {
     assert.deepEqual(parseModelNameRPMConfig(value), {
       ok: true,
       enabled: true,
+      groupTotals: [],
       rules: [
         {
           modelName: 'gpt-4o',
@@ -95,6 +102,7 @@ describe('parseModelNameRPMConfig', () => {
     assert.deepEqual(parseModelNameRPMConfig(value), {
       ok: true,
       enabled: false,
+      groupTotals: [],
       rules: [
         { modelName: 'missing', globalRpm: 10, userRpm: 0, groups: [] },
         { modelName: 'disabled', globalRpm: 10, userRpm: 0, groups: [] },
@@ -110,6 +118,7 @@ describe('parseModelNameRPMConfig', () => {
       ok: true,
       enabled: true,
       rules: [],
+      groupTotals: [],
     })
   })
 
@@ -119,8 +128,70 @@ describe('parseModelNameRPMConfig', () => {
       ok: true,
       enabled: false,
       rules: [{ modelName: 'm', globalRpm: 5, userRpm: 0, groups: [] }],
+      groupTotals: [],
     })
   })
+
+  test('reads a groups-only document and accepts boundary totals', () => {
+    assert.deepEqual(
+      parseModelNameRPMConfig(
+        JSON.stringify({
+          enabled: true,
+          groups: {
+            'vip:cheap': { total_rpm: 1 },
+            enterprise: { total_rpm: MODEL_NAME_RPM_MAX_GLOBAL },
+          },
+        })
+      ),
+      {
+        ok: true,
+        enabled: true,
+        rules: [],
+        groupTotals: [
+          { groupName: 'vip:cheap', totalRpm: 1 },
+          { groupName: 'enterprise', totalRpm: MODEL_NAME_RPM_MAX_GLOBAL },
+        ],
+      }
+    )
+  })
+
+  test('treats missing and null groups as an empty map', () => {
+    for (const value of ['{"enabled":true}', '{"enabled":true,"groups":null}']) {
+      assert.deepEqual(parseModelNameRPMConfig(value), {
+        ok: true,
+        enabled: true,
+        rules: [],
+        groupTotals: [],
+      })
+    }
+  })
+
+  const malformedGroupDocuments: [string, unknown][] = [
+    ['a non-object groups value', []],
+    ['a non-object group rule', { vip: 30 }],
+    ['a missing total_rpm', { vip: {} }],
+    ['a zero total_rpm', { vip: { total_rpm: 0 } }],
+    ['a negative total_rpm', { vip: { total_rpm: -1 } }],
+    ['a fractional total_rpm', { vip: { total_rpm: 1.5 } }],
+    ['a string total_rpm', { vip: { total_rpm: '30' } }],
+    [
+      'an over-limit total_rpm',
+      { vip: { total_rpm: MODEL_NAME_RPM_MAX_GLOBAL + 1 } },
+    ],
+    ['an empty group name', { '': { total_rpm: 30 } }],
+    ['a whitespace-only group name', { '  ': { total_rpm: 30 } }],
+    ['a 65-rune group name', { ['😀'.repeat(65)]: { total_rpm: 30 } }],
+    ['a control character in the group name', { 'vip\u0000': { total_rpm: 30 } }],
+  ]
+
+  for (const [label, groups] of malformedGroupDocuments) {
+    test(`refuses ${label}`, () => {
+      assert.deepEqual(
+        parseModelNameRPMConfig(JSON.stringify({ enabled: true, groups })),
+        { ok: false }
+      )
+    })
+  }
 
   const unrepresentableDocuments: [string, string][] = [
     ['invalid JSON', '{'],
@@ -165,10 +236,11 @@ describe('parseModelNameRPMConfig', () => {
 })
 
 describe('upsertModelNameRPMRule', () => {
-  test('adds a rule while preserving unknown top-level keys', () => {
+  test('adds a rule while preserving group totals and unknown top-level keys', () => {
     const value = JSON.stringify({
       enabled: true,
       future_top_level: 'keep me',
+      groups: { vip: { total_rpm: 30, future_group_field: true } },
       models: { existing: { global_rpm: 4 } },
     })
 
@@ -179,6 +251,7 @@ describe('upsertModelNameRPMRule', () => {
     assert.deepEqual(next, {
       enabled: true,
       future_top_level: 'keep me',
+      groups: { vip: { total_rpm: 30, future_group_field: true } },
       models: {
         existing: { global_rpm: 4 },
         'gpt-4o': { global_rpm: 60 },
@@ -188,6 +261,8 @@ describe('upsertModelNameRPMRule', () => {
 
   test('renames a model without dropping unknown per-rule keys', () => {
     const value = JSON.stringify({
+      groups: { vip: { total_rpm: 30 } },
+      future_top_level: true,
       models: { old: { global_rpm: 4, future_field: 1 } },
     })
 
@@ -198,6 +273,8 @@ describe('upsertModelNameRPMRule', () => {
     assert.deepEqual(next.models, {
       new: { global_rpm: 100, future_field: 1 },
     })
+    assert.deepEqual(next.groups, { vip: { total_rpm: 30 } })
+    assert.equal(next.future_top_level, true)
   })
 
   test('writes group limits and removes them when the last group is deleted', () => {
@@ -262,17 +339,137 @@ describe('upsertModelNameRPMRule', () => {
 })
 
 describe('deleteModelNameRPMRule', () => {
-  test('removes only the requested model and keeps other keys', () => {
+  test('removes only the requested model and keeps group totals and other keys', () => {
     const value = JSON.stringify({
       enabled: true,
+      groups: { vip: { total_rpm: 30 } },
+      future_top_level: true,
       models: { a: { global_rpm: 1 }, b: { global_rpm: 2 } },
     })
 
     assert.deepEqual(JSON.parse(deleteModelNameRPMRule(value, 'a')), {
       enabled: true,
+      groups: { vip: { total_rpm: 30 } },
+      future_top_level: true,
       models: { b: { global_rpm: 2 } },
     })
   })
+})
+
+describe('group total RPM document updates', () => {
+  const groupTotal = (
+    overrides: Partial<ModelNameRPMGroupTotalRule> = {}
+  ): ModelNameRPMGroupTotalRule => ({
+    groupName: 'vip',
+    totalRpm: 30,
+    ...overrides,
+  })
+
+  test('adds, updates, renames, and deletes a group total', () => {
+    const initial = JSON.stringify({
+      enabled: true,
+      models: { m: { global_rpm: 10 } },
+      future_top_level: 'keep',
+    })
+    const added = upsertModelNameRPMGroupTotalRule(
+      initial,
+      null,
+      groupTotal()
+    )
+    assert.deepEqual(JSON.parse(added).groups, { vip: { total_rpm: 30 } })
+
+    const updated = upsertModelNameRPMGroupTotalRule(
+      added,
+      'vip',
+      groupTotal({ totalRpm: 40 })
+    )
+    assert.deepEqual(JSON.parse(updated).groups, { vip: { total_rpm: 40 } })
+
+    const renamed = upsertModelNameRPMGroupTotalRule(
+      updated,
+      'vip',
+      groupTotal({ groupName: 'vip:new', totalRpm: 50 })
+    )
+    assert.deepEqual(JSON.parse(renamed), {
+      enabled: true,
+      models: { m: { global_rpm: 10 } },
+      groups: { 'vip:new': { total_rpm: 50 } },
+      future_top_level: 'keep',
+    })
+
+    assert.deepEqual(
+      JSON.parse(deleteModelNameRPMGroupTotalRule(renamed, 'vip:new')),
+      {
+        enabled: true,
+        models: { m: { global_rpm: 10 } },
+        groups: {},
+        future_top_level: 'keep',
+      }
+    )
+  })
+
+  test('preserves unknown fields on an edited group total', () => {
+    const next = JSON.parse(
+      upsertModelNameRPMGroupTotalRule(
+        '{"groups":{"vip":{"total_rpm":30,"future_field":true}}}',
+        'vip',
+        groupTotal({ totalRpm: 40 })
+      )
+    )
+    assert.deepEqual(next.groups.vip, {
+      total_rpm: 40,
+      future_field: true,
+    })
+  })
+})
+
+describe('validateModelNameRPMGroupTotalRule', () => {
+  const groupTotal = (
+    overrides: Partial<ModelNameRPMGroupTotalRule> = {}
+  ): ModelNameRPMGroupTotalRule => ({
+    groupName: 'vip:cheap',
+    totalRpm: 30,
+    ...overrides,
+  })
+
+  test('accepts colons, spaces, Unicode names, and total RPM boundaries', () => {
+    for (const input of [
+      groupTotal({ totalRpm: 1 }),
+      groupTotal({ groupName: 'vip cheap', totalRpm: MODEL_NAME_RPM_MAX_GLOBAL }),
+      groupTotal({ groupName: '会员组' }),
+    ]) {
+      assert.equal(validateModelNameRPMGroupTotalRule(input, []), null)
+    }
+  })
+
+  const errorCases: [ModelNameRPMErrorCode, ModelNameRPMGroupTotalRule, string[]][] = [
+    ['group-total-name-required', groupTotal({ groupName: '' }), []],
+    ['group-total-name-required', groupTotal({ groupName: '　' }), []],
+    [
+      'group-total-name-too-long',
+      groupTotal({ groupName: '😀'.repeat(65) }),
+      [],
+    ],
+    ['group-total-name-control', groupTotal({ groupName: 'vip\n' }), []],
+    ['group-total-name-duplicate', groupTotal(), ['vip:cheap']],
+    ['group-total-rpm-range', groupTotal({ totalRpm: 0 }), []],
+    ['group-total-rpm-range', groupTotal({ totalRpm: -1 }), []],
+    ['group-total-rpm-range', groupTotal({ totalRpm: 1.5 }), []],
+    [
+      'group-total-rpm-range',
+      groupTotal({ totalRpm: MODEL_NAME_RPM_MAX_GLOBAL + 1 }),
+      [],
+    ],
+  ]
+
+  for (const [code, input, otherNames] of errorCases) {
+    test(`reports ${code}`, () => {
+      assert.deepEqual(
+        validateModelNameRPMGroupTotalRule(input, otherNames),
+        { code }
+      )
+    })
+  }
 })
 
 describe('validateModelNameRPMRule', () => {

@@ -576,7 +576,12 @@ export default function RequestRateLimit(props) {
                   <ul>
                     <li>
                       {t(
-                        'Models not listed here are not subject to this limit.',
+                        'Models not listed in the models section are not subject to model-specific RPM limits.',
+                      )}
+                    </li>
+                    <li>
+                      {t(
+                        'Top-level group total limits apply to every model in the group, including models not listed in the models section.',
                       )}
                     </li>
                     <li>

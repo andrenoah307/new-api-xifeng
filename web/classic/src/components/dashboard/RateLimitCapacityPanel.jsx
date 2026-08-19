@@ -32,7 +32,10 @@ import {
   normalizePersonalRPMItems,
   personalRPMDisplayState,
 } from '../../helpers/personal-rpm';
-import { shouldRequestRateLimitCapacity } from '../../helpers/rate-limit-capacity';
+import {
+  isAnyRateLimitCapacityExpanded,
+  shouldRequestRateLimitCapacity,
+} from '../../helpers/rate-limit-capacity';
 import { UserContext } from '../../context/User';
 
 const { Text } = Typography;
@@ -251,6 +254,56 @@ function CapacityGroupCard({
   );
 }
 
+function GroupTotalCapacitySection({
+  section,
+  expanded,
+  loading,
+  onIntent,
+  onToggle,
+  t,
+}) {
+  const items = section?.items || [];
+  if (!section || (section.total === 0 && items.length === 0)) return null;
+
+  const displayedItems = expanded ? items : items.slice(0, 3);
+  return (
+    <section aria-label={t('分组总额 RPM')}>
+      <CapacitySectionHeader
+        title={t('分组总额 RPM')}
+        windowLabel={t('固定 60 秒窗口')}
+        total={section.total}
+        displayedCount={displayedItems.length}
+        expanded={expanded}
+        loading={loading}
+        label='groups'
+        controlsId='classic-rate-limit-capacity-group-totals'
+        onIntent={onIntent}
+        onToggle={onToggle}
+        t={t}
+      />
+      <div
+        id='classic-rate-limit-capacity-group-totals'
+        className='grid gap-3 px-4 py-3 sm:px-5'
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))' }}
+      >
+        {displayedItems.map((item) => {
+          const label = item.group
+            ? `${item.group} · ${t('全组合计')}`
+            : t('全组合计');
+          return (
+            <CapacityRow
+              key={item.group || label}
+              label={label}
+              metric={item}
+              t={t}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function PersonalSection({ personal, t }) {
   const items = normalizePersonalRPMItems(personal?.items);
   const displayState = personalRPMDisplayState(personal?.status, items);
@@ -369,6 +422,7 @@ export default function RateLimitCapacityPanel() {
   const identityKey = `${user?.id || 'anonymous'}:${user?.group || ''}`;
   const [globalExpanded, setGlobalExpanded] = useState(false);
   const [groupsExpanded, setGroupsExpanded] = useState(false);
+  const [groupTotalsExpanded, setGroupTotalsExpanded] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState({});
   const [topData, setTopData] = useState(null);
   const [allData, setAllData] = useState(null);
@@ -459,6 +513,7 @@ export default function RateLimitCapacityPanel() {
     setAllError(false);
     setGlobalExpanded(false);
     setGroupsExpanded(false);
+    setGroupTotalsExpanded(false);
     setExpandedGroups({});
     if (hasUser) void loadCapacity('top');
   }, [identityKey, hasUser, loadCapacity]);
@@ -477,6 +532,11 @@ export default function RateLimitCapacityPanel() {
     setGroupsExpanded((value) => !value);
   };
 
+  const toggleGroupTotals = () => {
+    if (!groupTotalsExpanded) requestAll();
+    setGroupTotalsExpanded((value) => !value);
+  };
+
   const toggleGroup = (groupName) => {
     if (!expandedGroups[groupName]) requestAll();
     setExpandedGroups((value) => ({
@@ -485,10 +545,12 @@ export default function RateLimitCapacityPanel() {
     }));
   };
 
-  const anyExpanded =
-    globalExpanded ||
-    groupsExpanded ||
-    Object.values(expandedGroups).some(Boolean);
+  const anyExpanded = isAnyRateLimitCapacityExpanded({
+    globalExpanded,
+    groupsExpanded,
+    groupTotalsExpanded,
+    expandedGroups,
+  });
   const refreshCapacity = () => {
     void loadCapacity('top', { force: true });
     if (anyExpanded) void loadCapacity('all', { force: true });
@@ -501,6 +563,7 @@ export default function RateLimitCapacityPanel() {
   const site = data?.site;
   const global = site?.global;
   const groups = site?.groups;
+  const groupTotals = site?.group_totals;
   const globalItems = global?.items || [];
   const groupItems = groups?.groups || [];
   const displayedGlobalItems = globalExpanded
@@ -620,6 +683,17 @@ export default function RateLimitCapacityPanel() {
             ))}
           </div>
         </section>
+      )}
+
+      {groupTotals && (
+        <GroupTotalCapacitySection
+          section={groupTotals}
+          expanded={groupTotalsExpanded}
+          loading={allLoading}
+          onIntent={requestAll}
+          onToggle={toggleGroupTotals}
+          t={t}
+        />
       )}
 
       {data?.personal && <PersonalSection personal={data.personal} t={t} />}

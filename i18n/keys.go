@@ -293,6 +293,7 @@ const (
 	MsgRateLimitCapacityThrottled = "rate_limit_capacity.throttled"
 	MsgModelNameRateLimited       = "model_name.rate_limited"
 	MsgModelNameUserRateLimited   = "model_name.user_rate_limited"
+	MsgGroupTotalRateLimited      = "model_name.group_total_rate_limited"
 )
 
 // Setting related messages

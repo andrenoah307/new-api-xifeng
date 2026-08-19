@@ -17,8 +17,8 @@ import (
 const RateLimitCapacitySnapshotTTL = 5 * time.Second
 
 // CapacityItem is one independent limiter bucket. A group item is a
-// (model, group) pair; values for the same group across models are never
-// combined because each pair has its own admission gate.
+// (model, group) pair; a group-total item has an empty Model and aggregates
+// every model in that group. Values for model+group pairs are never combined.
 type CapacityItem struct {
 	Model       string   `json:"model"`
 	Group       string   `json:"group"`
@@ -55,6 +55,7 @@ type SiteCapacitySnapshot struct {
 	GroupRateLimitVersion uint64
 	Global                []CapacityItem
 	Groups                []CapacityItem
+	GroupTotals           []CapacityItem
 	UserLimits            []UserRPMCapacityLimit
 	InstanceOnly          bool
 }
@@ -221,7 +222,7 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 		ModelRPMVersion:       actualModelVersion,
 		GroupRateLimitVersion: actualGroupVersion,
 	}
-	if !rules.Enabled || len(rules.Models) == 0 {
+	if !rules.Enabled || (len(rules.Models) == 0 && len(rules.Groups) == 0) {
 		return snapshot, nil
 	}
 
@@ -235,7 +236,7 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 		ruleModels[modelName] = ratio_setting.FormatMatchingModelName(modelName)
 	}
 	keys := make([]string, 0)
-	// The site Redis read contains only site model and model+group buckets.
+	// The site Redis read contains site model, model+group, and group-total buckets.
 	// Per-user limits are cached as metadata and read with the authenticated ID.
 	for _, modelName := range modelNames {
 		rule := rules.Models[modelName]
@@ -245,6 +246,13 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 			snapshot.UserLimits = append(snapshot.UserLimits, UserRPMCapacityLimit{Model: ruleModel, Limit: rule.UserRPM})
 		}
 	}
+	groupTotalNames := make([]string, 0, len(rules.Groups))
+	for groupName, rule := range rules.Groups {
+		if rule.TotalRPM > 0 {
+			groupTotalNames = append(groupTotalNames, groupName)
+		}
+	}
+	sort.Strings(groupTotalNames)
 	for _, modelName := range modelNames {
 		groups := make([]string, 0, len(rules.Models[modelName].GroupRPM))
 		for groupName, limit := range rules.Models[modelName].GroupRPM {
@@ -256,6 +264,9 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 		for _, groupName := range groups {
 			keys = append(keys, model_name_limiter.GroupKey(ruleModels[modelName], groupName))
 		}
+	}
+	for _, groupName := range groupTotalNames {
+		keys = append(keys, model_name_limiter.GroupTotalKey(groupName))
 	}
 
 	var counts []int
@@ -313,6 +324,15 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 			snapshot.Groups = append(snapshot.Groups, makeCapacityItem(ruleModels[modelName], groupName, current, rule.GroupRPM[groupName], available))
 			countIndex++
 		}
+	}
+	for _, groupName := range groupTotalNames {
+		var current *int
+		if available {
+			value := counts[countIndex]
+			current = &value
+		}
+		snapshot.GroupTotals = append(snapshot.GroupTotals, makeCapacityItem("", groupName, current, rules.Groups[groupName].TotalRPM, available))
+		countIndex++
 	}
 	s.cacheMu.Lock()
 	instanceOnlyDetector := s.instanceOnly
@@ -418,6 +438,7 @@ func cloneSiteSnapshot(source SiteCapacitySnapshot) SiteCapacitySnapshot {
 	clone := source
 	clone.Global = cloneCapacityItems(source.Global)
 	clone.Groups = cloneCapacityItems(source.Groups)
+	clone.GroupTotals = cloneCapacityItems(source.GroupTotals)
 	clone.UserLimits = append([]UserRPMCapacityLimit(nil), source.UserLimits...)
 	return clone
 }
@@ -466,8 +487,9 @@ type RateLimitCapacityResponse struct {
 }
 
 type SiteCapacityResponse struct {
-	Global CapacitySection      `json:"global"`
-	Groups CapacityGroupSection `json:"groups"`
+	Global      CapacitySection      `json:"global"`
+	Groups      CapacityGroupSection `json:"groups"`
+	GroupTotals CapacitySection      `json:"group_totals"`
 }
 
 type PersonalCapacity struct {
@@ -512,6 +534,7 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 
 	global := cloneCapacityItems(snapshot.Global)
 	groups := cloneCapacityItems(snapshot.Groups)
+	groupTotals := cloneCapacityItems(snapshot.GroupTotals)
 	visibleGroups := map[string]string{}
 	if !request.IsAdmin {
 		visibleGroups = GetVisibleUserGroups(request.UserGroup, request.Country)
@@ -526,7 +549,19 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 			filteredGroups = append(filteredGroups, item)
 		}
 	}
+	filteredGroupTotals := groupTotals[:0]
+	for _, item := range groupTotals {
+		if request.IsAdmin {
+			filteredGroupTotals = append(filteredGroupTotals, item)
+			continue
+		}
+		if _, ok := visibleGroups[item.Group]; ok {
+			filteredGroupTotals = append(filteredGroupTotals, item)
+		}
+	}
+	groupTotals = filteredGroupTotals
 	sortCapacityItems(global)
+	sortCapacityItems(groupTotals)
 	grouped := make(map[string][]CapacityItem)
 	for _, item := range filteredGroups {
 		grouped[item.Group] = append(grouped[item.Group], item)
@@ -542,7 +577,7 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 		groupBucketTotal += len(items)
 	}
 	sortCapacityGroups(groupSections)
-	globalTotal, groupTotal := len(global), len(groupSections)
+	globalTotal, groupTotal, groupTotalsTotal := len(global), len(groupSections), len(groupTotals)
 	if request.Scope == "top" {
 		if len(global) > 3 {
 			global = global[:3]
@@ -555,20 +590,27 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 				groupSections[i].Items = groupSections[i].Items[:3]
 			}
 		}
+		if len(groupTotals) > 3 {
+			groupTotals = groupTotals[:3]
+		}
 	}
-	if globalTotal > 0 || groupTotal > 0 {
+	if globalTotal > 0 || groupTotal > 0 || groupTotalsTotal > 0 {
 		if global == nil {
 			global = []CapacityItem{}
 		}
 		if groupSections == nil {
 			groupSections = []CapacityGroup{}
 		}
+		if groupTotals == nil {
+			groupTotals = []CapacityItem{}
+		}
 		response.Site = &SiteCapacityResponse{
-			Global: CapacitySection{Items: global, Total: globalTotal},
-			Groups: CapacityGroupSection{Groups: groupSections, Total: groupTotal},
+			Global:      CapacitySection{Items: global, Total: globalTotal},
+			Groups:      CapacityGroupSection{Groups: groupSections, Total: groupTotal},
+			GroupTotals: CapacitySection{Items: groupTotals, Total: groupTotalsTotal},
 		}
 	}
-	response.Total = globalTotal + groupBucketTotal
+	response.Total = globalTotal + groupBucketTotal + groupTotalsTotal
 
 	if len(snapshot.UserLimits) == 0 {
 		return response

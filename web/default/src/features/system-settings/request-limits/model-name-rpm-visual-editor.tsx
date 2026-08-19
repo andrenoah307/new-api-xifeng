@@ -18,20 +18,28 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Search } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { StaticDataTable } from '@/components/data-table/static/static-data-table'
 import { StaticRowActions } from '@/components/data-table/static/static-row-actions'
+import { Dialog } from '@/components/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 
 import {
+  MODEL_NAME_RPM_MAX_GLOBAL,
+  deleteModelNameRPMGroupTotalRule,
   deleteModelNameRPMRule,
   parseModelNameRPMConfig,
+  upsertModelNameRPMGroupTotalRule,
   upsertModelNameRPMRule,
+  validateModelNameRPMGroupTotalRule,
+  type ModelNameRPMGroupTotalErrorCode,
+  type ModelNameRPMGroupTotalRule,
   type ModelNameRPMRule,
 } from './lib/model-name-rpm'
 import { ModelNameRPMDialog } from './model-name-rpm-dialog'
@@ -51,6 +59,22 @@ type ModelNameRPMVisualEditorProps = {
   onChange: (value: string) => void
 }
 
+const GROUP_TOTAL_ERROR_MESSAGES: Record<
+  ModelNameRPMGroupTotalErrorCode,
+  string
+> = {
+  'group-total-name-required': 'Group total name is required',
+  'group-total-name-too-long':
+    'Group total name must not exceed 64 characters',
+  'group-total-name-control':
+    'Group total name must not contain control characters',
+  'group-total-name-duplicate': 'This group already has a total RPM limit',
+  'group-total-rpm-range':
+    'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',
+}
+
+const GROUP_TOTAL_FORM_ID = 'model-name-rpm-group-total-form'
+
 export function ModelNameRPMVisualEditor({
   value,
   onChange,
@@ -59,15 +83,23 @@ export function ModelNameRPMVisualEditor({
   const [searchText, setSearchText] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editData, setEditData] = useState<ModelNameRPMRule | null>(null)
+  const [groupTotalDialogOpen, setGroupTotalDialogOpen] = useState(false)
+  const [editingGroupName, setEditingGroupName] = useState<string | null>(null)
+  const [groupTotalName, setGroupTotalName] = useState('')
+  const [totalRpm, setTotalRpm] = useState(30)
+  const [groupTotalError, setGroupTotalError] =
+    useState<ModelNameRPMGroupTotalErrorCode | null>(null)
 
   const { data: groupOptions = [] } = useQuery({
     queryKey: ['groups-list'],
     queryFn: getGroups,
   })
 
-  const rules = useMemo(() => {
+  const { rules, groupTotals } = useMemo(() => {
     const parsed = parseModelNameRPMConfig(value)
-    return parsed.ok ? parsed.rules : []
+    return parsed.ok
+      ? { rules: parsed.rules, groupTotals: parsed.groupTotals }
+      : { rules: [], groupTotals: [] }
   }, [value])
 
   const filteredRules = useMemo(() => {
@@ -83,9 +115,102 @@ export function ModelNameRPMVisualEditor({
     rule: ModelNameRPMRule
   ) => onChange(upsertModelNameRPMRule(value, previousModelName, rule))
 
+  const openGroupTotalDialog = (rule?: ModelNameRPMGroupTotalRule) => {
+    setEditingGroupName(rule?.groupName ?? null)
+    setGroupTotalName(rule?.groupName ?? '')
+    setTotalRpm(rule?.totalRpm ?? 30)
+    setGroupTotalError(null)
+    setGroupTotalDialogOpen(true)
+  }
+
+  const handleGroupTotalSave = (event: FormEvent) => {
+    event.preventDefault()
+    const rule = { groupName: groupTotalName, totalRpm }
+    const error = validateModelNameRPMGroupTotalRule(
+      rule,
+      groupTotals
+        .map((item) => item.groupName)
+        .filter((name) => name !== editingGroupName)
+    )
+    if (error) {
+      setGroupTotalError(error.code)
+      return
+    }
+    onChange(
+      upsertModelNameRPMGroupTotalRule(value, editingGroupName, rule)
+    )
+    setGroupTotalDialogOpen(false)
+  }
+
+  const groupTotalErrorMessage = groupTotalError
+    ? GROUP_TOTAL_ERROR_MESSAGES[groupTotalError]
+    : null
+
   return (
     <div className='space-y-4'>
-      <div className='flex items-center gap-4'>
+      <div className='space-y-3'>
+        <div className='flex flex-wrap items-start justify-between gap-3'>
+          <div className='min-w-0 space-y-1'>
+            <h3 className='text-sm font-semibold'>{t('Group total RPM')}</h3>
+            <p className='text-muted-foreground text-xs'>
+              {t(
+                'Top-level group total limits apply to every model in the group, including models not listed in the models section.'
+              )}
+            </p>
+          </div>
+          <Button type='button' size='sm' onClick={() => openGroupTotalDialog()}>
+            <Plus className='mr-2 h-4 w-4' />
+            {t('Add group total')}
+          </Button>
+        </div>
+
+        <StaticDataTable
+          data={groupTotals}
+          getRowKey={(rule) => rule.groupName}
+          emptyContent={t('No group total RPM limits configured.')}
+          columns={[
+            {
+              id: 'group-name',
+              header: t('Group name'),
+              cellClassName: 'font-medium',
+              cell: (rule) => (
+                <div className='flex flex-wrap items-center gap-2'>
+                  <span>{rule.groupName}</span>
+                  <Badge variant='secondary'>{t('All models combined')}</Badge>
+                </div>
+              ),
+            },
+            {
+              id: 'total-rpm',
+              header: t('Total RPM'),
+              className: 'text-right',
+              cellClassName: 'text-right font-mono',
+              cell: (rule) => rule.totalRpm.toLocaleString(),
+            },
+            {
+              id: 'actions',
+              header: t('Actions'),
+              className: 'text-right',
+              cellClassName: 'text-right',
+              cell: (rule) => (
+                <StaticRowActions
+                  editLabel={t('Edit')}
+                  deleteLabel={t('Delete')}
+                  menuLabel={t('Open menu')}
+                  onEdit={() => openGroupTotalDialog(rule)}
+                  onDelete={() =>
+                    onChange(
+                      deleteModelNameRPMGroupTotalRule(value, rule.groupName)
+                    )
+                  }
+                />
+              ),
+            },
+          ]}
+        />
+      </div>
+
+      <div className='border-border/70 flex items-center gap-4 border-t pt-4'>
         <div className='relative flex-1'>
           <Search className='text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4' />
           <Input
@@ -96,6 +221,7 @@ export function ModelNameRPMVisualEditor({
           />
         </div>
         <Button
+          type='button'
           onClick={() => {
             setEditData(null)
             setDialogOpen(true)
@@ -206,6 +332,79 @@ export function ModelNameRPMVisualEditor({
           .filter((name) => name !== editData?.modelName)}
         groupOptions={groupOptions}
       />
+
+      <Dialog
+        open={groupTotalDialogOpen}
+        onOpenChange={setGroupTotalDialogOpen}
+        title={t('Group total RPM')}
+        description={t(
+          'Top-level group total limits apply to every model in the group, including models not listed in the models section.'
+        )}
+        contentClassName='sm:max-w-md'
+        contentHeight='auto'
+        footer={
+          <>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => setGroupTotalDialogOpen(false)}
+            >
+              {t('Cancel')}
+            </Button>
+            <Button type='submit' form={GROUP_TOTAL_FORM_ID}>
+              {editingGroupName === null ? t('Add') : t('Update')}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id={GROUP_TOTAL_FORM_ID}
+          className='space-y-4'
+          onSubmit={handleGroupTotalSave}
+        >
+          <div className='space-y-2'>
+            <Label htmlFor='model-name-rpm-group-total-name'>
+              {t('Group name')}
+            </Label>
+            <Input
+              id='model-name-rpm-group-total-name'
+              value={groupTotalName}
+              spellCheck={false}
+              onChange={(event) => setGroupTotalName(event.target.value)}
+            />
+            {groupTotalError?.startsWith('group-total-name-') &&
+              groupTotalErrorMessage && (
+                <p className='text-destructive text-sm'>
+                  {t(groupTotalErrorMessage)}
+                </p>
+              )}
+          </div>
+          <div className='space-y-2'>
+            <Label htmlFor='model-name-rpm-group-total-rpm'>
+              {t('Total RPM')}
+            </Label>
+            <Input
+              id='model-name-rpm-group-total-rpm'
+              type='number'
+              min={1}
+              max={MODEL_NAME_RPM_MAX_GLOBAL}
+              step={1}
+              value={totalRpm || ''}
+              onChange={(event) =>
+                setTotalRpm(
+                  event.target.value === '' ? 0 : event.target.valueAsNumber
+                )
+              }
+            />
+            {groupTotalError === 'group-total-rpm-range' &&
+              groupTotalErrorMessage && (
+                <p className='text-destructive text-sm'>
+                  {t(groupTotalErrorMessage)}
+                </p>
+              )}
+          </div>
+        </form>
+      </Dialog>
     </div>
   )
 }

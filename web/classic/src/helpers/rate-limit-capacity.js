@@ -21,6 +21,20 @@ export function isRateLimitCapacityEnabled(status) {
   return status?.rate_limit_capacity_enabled === true;
 }
 
+export function isAnyRateLimitCapacityExpanded({
+  globalExpanded,
+  groupsExpanded,
+  groupTotalsExpanded,
+  expandedGroups,
+}) {
+  return Boolean(
+    globalExpanded ||
+    groupsExpanded ||
+    groupTotalsExpanded ||
+    Object.values(expandedGroups).some(Boolean),
+  );
+}
+
 export function shouldRequestRateLimitCapacity({
   force,
   loaded,

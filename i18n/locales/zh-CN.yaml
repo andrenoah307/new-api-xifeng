@@ -256,6 +256,7 @@ rate_limit.total_reached: "您已达到总请求数限制：{{.Minutes}}分钟�
 rate_limit_capacity.throttled: "请求过于频繁，请稍后重试"
 model_name.rate_limited: "模型请求过于频繁，请稍后重试"
 model_name.user_rate_limited: "你对该模型的请求过于频繁，请稍后重试"
+model_name.group_total_rate_limited: "当前分组请求频率过快，请稍后再试。"
 
 # Setting messages
 setting.invalid_type: "无效的预警类型"

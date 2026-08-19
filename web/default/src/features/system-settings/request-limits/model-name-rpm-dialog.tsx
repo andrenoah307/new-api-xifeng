@@ -35,12 +35,12 @@ import {
 import {
   MODEL_NAME_RPM_MAX_GLOBAL,
   validateModelNameRPMRule,
-  type ModelNameRPMErrorCode,
   type ModelNameRPMGroupLimit,
   type ModelNameRPMRule,
+  type ModelNameRPMRuleErrorCode,
 } from './lib/model-name-rpm'
 
-const ERROR_MESSAGES: Record<ModelNameRPMErrorCode, string> = {
+const ERROR_MESSAGES: Record<ModelNameRPMRuleErrorCode, string> = {
   'model-name-required': 'Model name is required',
   'model-name-too-long': 'Model name must not exceed 255 characters',
   'model-name-whitespace':
@@ -92,7 +92,8 @@ export function ModelNameRPMDialog({
   const [globalRpm, setGlobalRpm] = useState(60)
   const [userRpm, setUserRpm] = useState(0)
   const [groups, setGroups] = useState<EditableGroupLimit[]>([])
-  const [errorCode, setErrorCode] = useState<ModelNameRPMErrorCode | null>(null)
+  const [errorCode, setErrorCode] =
+    useState<ModelNameRPMRuleErrorCode | null>(null)
   const [errorGroupIndex, setErrorGroupIndex] = useState<number | null>(null)
   const nextGroupRowKey = useRef(0)
 
@@ -148,7 +149,7 @@ export function ModelNameRPMDialog({
   }
 
   const fieldError = (
-    code: ModelNameRPMErrorCode | ModelNameRPMErrorCode[],
+    code: ModelNameRPMRuleErrorCode | ModelNameRPMRuleErrorCode[],
     groupIndex?: number
   ) => {
     if (!errorCode) return null

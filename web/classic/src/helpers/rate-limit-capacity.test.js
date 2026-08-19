@@ -21,6 +21,7 @@ import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import {
+  isAnyRateLimitCapacityExpanded,
   isRateLimitCapacityEnabled,
   shouldRequestRateLimitCapacity,
 } from './rate-limit-capacity.js';
@@ -39,6 +40,29 @@ describe('rate-limit capacity dashboard hard gate', () => {
       assert.equal(isRateLimitCapacityEnabled(status), expected);
     });
   }
+});
+
+describe('rate-limit capacity expanded scope', () => {
+  const collapsed = {
+    globalExpanded: false,
+    groupsExpanded: false,
+    groupTotalsExpanded: false,
+    expandedGroups: {},
+  };
+
+  test('requests all data when the group-total section is expanded', () => {
+    assert.equal(
+      isAnyRateLimitCapacityExpanded({
+        ...collapsed,
+        groupTotalsExpanded: true,
+      }),
+      true,
+    );
+  });
+
+  test('stays on top data when every section is collapsed', () => {
+    assert.equal(isAnyRateLimitCapacityExpanded(collapsed), false);
+  });
 });
 
 describe('rate-limit capacity request decision', () => {

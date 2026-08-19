@@ -57,32 +57,45 @@ func enforceModelNameRPMWithResponse(c *gin.Context, modelName, policyGroup, rou
 		return true
 	}
 
-	decision := setting.MatchModelNameRPM(modelName, policyGroup)
-	if !decision.Matched {
+	if modelName == "" {
 		markModelNameRPMChecked(c)
 		return true
 	}
 
-	buckets := []model_name_limiter.Bucket{{
-		Key: model_name_limiter.ModelKey(decision.RuleModel), Limit: decision.GlobalRPM, Scope: "global",
-	}}
-	if decision.GroupRPM > 0 {
-		buckets = append(buckets, model_name_limiter.Bucket{
-			Key: model_name_limiter.GroupKey(decision.RuleModel, policyGroup), Limit: decision.GroupRPM, Scope: "group",
-		})
+	decision := setting.MatchModelNameRPM(modelName, policyGroup)
+	if !decision.Matched && decision.GroupTotalRPM <= 0 {
+		markModelNameRPMChecked(c)
+		return true
 	}
-	if decision.UserRPM > 0 {
-		userID := common.GetContextKeyInt(c, constant.ContextKeyUserId)
-		if userID <= 0 {
-			common.SysError(fmt.Sprintf(
-				"model_name_rpm: missing authenticated user id for user bucket request_id=%s rule_model=%s route=%s",
-				c.GetString(common.RequestIdKey), decision.RuleModel, route,
-			))
-		} else {
+
+	buckets := make([]model_name_limiter.Bucket, 0, 4)
+	if decision.Matched {
+		buckets = append(buckets, model_name_limiter.Bucket{
+			Key: model_name_limiter.ModelKey(decision.RuleModel), Limit: decision.GlobalRPM, Scope: "global",
+		})
+		if decision.GroupRPM > 0 {
 			buckets = append(buckets, model_name_limiter.Bucket{
-				Key: model_name_limiter.UserKey(decision.RuleModel, userID), Limit: decision.UserRPM, Scope: "user",
+				Key: model_name_limiter.GroupKey(decision.RuleModel, policyGroup), Limit: decision.GroupRPM, Scope: "group",
 			})
 		}
+		if decision.UserRPM > 0 {
+			userID := common.GetContextKeyInt(c, constant.ContextKeyUserId)
+			if userID <= 0 {
+				common.SysError(fmt.Sprintf(
+					"model_name_rpm: missing authenticated user id for user bucket request_id=%s rule_model=%s route=%s",
+					c.GetString(common.RequestIdKey), decision.RuleModel, route,
+				))
+			} else {
+				buckets = append(buckets, model_name_limiter.Bucket{
+					Key: model_name_limiter.UserKey(decision.RuleModel, userID), Limit: decision.UserRPM, Scope: "user",
+				})
+			}
+		}
+	}
+	if decision.GroupTotalRPM > 0 {
+		buckets = append(buckets, model_name_limiter.Bucket{
+			Key: model_name_limiter.GroupTotalKey(policyGroup), Limit: decision.GroupTotalRPM, Scope: "group_total",
+		})
 	}
 
 	result := modelNameRPMAcquire(c.Request.Context(), buckets)
@@ -96,13 +109,19 @@ func enforceModelNameRPMWithResponse(c *gin.Context, modelName, policyGroup, rou
 	markModelNameRPMChecked(c)
 	requestID := c.GetString(common.RequestIdKey)
 	reason := "rpm_limit_exceeded"
-	logger.LogWarn(c.Request.Context(), fmt.Sprintf(
+	logMessage := fmt.Sprintf(
 		"model_name_rpm rate limited: request_id=%s rule_model=%s policy_group=%s scope=%s limit=%d current=%d route=%s reason=%s",
 		requestID, decision.RuleModel, policyGroup, result.Scope, result.Limit, result.Current, route, reason,
-	))
+	)
+	if !decision.Matched {
+		logMessage += fmt.Sprintf(" requested_model=%s", modelName)
+	}
+	logger.LogWarn(c.Request.Context(), logMessage)
 
 	message := i18n.T(c, i18n.MsgModelNameRateLimited)
-	if result.Scope == "user" {
+	if result.Scope == "group_total" {
+		message = i18n.T(c, i18n.MsgGroupTotalRateLimited)
+	} else if result.Scope == "user" {
 		message = i18n.T(c, i18n.MsgModelNameUserRateLimited)
 	}
 	if responseMode == modelNameRPMTaskResponse {

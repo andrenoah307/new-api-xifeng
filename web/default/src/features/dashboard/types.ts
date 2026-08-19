@@ -234,6 +234,7 @@ export interface RateLimitCapacityResponse {
   site?: {
     global: RateLimitCapacitySection
     groups: RateLimitCapacityGroupSection
+    group_totals: RateLimitCapacitySection
   } | null
   personal?: RateLimitCapacityPersonal | null
   total: number

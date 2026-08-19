@@ -17,13 +17,17 @@ const (
 	modelNameRPMMaxGroup  = 64
 )
 
-// ModelNameRPMDecision is the result of looking up a model-name RPM rule.
+// ModelNameRPMDecision is the result of looking up both independent RPM rule
+// dimensions in one immutable snapshot. Matched only indicates a hit in the
+// models segment; GroupTotalRPM > 0 is an independent group-total dimension,
+// and either dimension may be configured without the other.
 type ModelNameRPMDecision struct {
-	Matched   bool
-	RuleModel string
-	GlobalRPM int // 0 means unlimited (the bucket is still counted).
-	GroupRPM  int // 0 means that the group has no sub-limit.
-	UserRPM   int // 0 means that the model has no per-user limit.
+	Matched       bool
+	RuleModel     string
+	GlobalRPM     int // 0 means unlimited (the bucket is still counted).
+	GroupRPM      int // 0 means that the group has no sub-limit.
+	UserRPM       int // 0 means that the model has no per-user limit.
+	GroupTotalRPM int // 0 means that this group has no aggregate limit.
 }
 
 type ModelNameRPMRule struct {
@@ -32,13 +36,20 @@ type ModelNameRPMRule struct {
 	GroupRPM  map[string]int `json:"group_rpm,omitempty"`
 }
 
+// GroupTotalRPMRule limits the aggregate RPM of every model in one group.
+type GroupTotalRPMRule struct {
+	TotalRPM int `json:"total_rpm"`
+}
+
 type ModelNameRPMConfig struct {
-	Enabled bool                        `json:"enabled"`
-	Models  map[string]ModelNameRPMRule `json:"models"`
+	Enabled bool                         `json:"enabled"`
+	Models  map[string]ModelNameRPMRule  `json:"models"`
+	Groups  map[string]GroupTotalRPMRule `json:"groups,omitempty"`
 }
 
 type modelNameRPMRule = ModelNameRPMRule
 type modelNameRPMConfig = ModelNameRPMConfig
+type groupTotalRPMRule = GroupTotalRPMRule
 
 var modelNameRPMSnapshot atomic.Pointer[modelNameRPMConfig]
 var modelNameRPMConfigVersion atomic.Uint64
@@ -46,6 +57,7 @@ var modelNameRPMConfigVersion atomic.Uint64
 func init() {
 	modelNameRPMSnapshot.Store(&modelNameRPMConfig{
 		Models: make(map[string]modelNameRPMRule),
+		Groups: make(map[string]GroupTotalRPMRule),
 	})
 }
 
@@ -58,13 +70,20 @@ func MatchModelNameRPM(model, group string) ModelNameRPMDecision {
 		return ModelNameRPMDecision{}
 	}
 
+	decision := ModelNameRPMDecision{}
+	if group != "" {
+		if groupRule, ok := snapshot.Groups[group]; ok {
+			decision.GroupTotalRPM = groupRule.TotalRPM
+		}
+	}
+
 	rule, matched := snapshot.Models[model]
 	ruleModel := ratio_setting.FormatMatchingModelName(model)
 	if !matched {
 		rule, matched = snapshot.Models[ruleModel]
 	}
 	if !matched {
-		return ModelNameRPMDecision{}
+		return decision
 	}
 
 	groupRPM := 0
@@ -75,13 +94,12 @@ func MatchModelNameRPM(model, group string) ModelNameRPMDecision {
 	if rule.GlobalRPM != nil {
 		globalRPM = *rule.GlobalRPM
 	}
-	return ModelNameRPMDecision{
-		Matched:   true,
-		RuleModel: ruleModel,
-		GlobalRPM: globalRPM,
-		GroupRPM:  groupRPM,
-		UserRPM:   rule.UserRPM,
-	}
+	decision.Matched = true
+	decision.RuleModel = ruleModel
+	decision.GlobalRPM = globalRPM
+	decision.GroupRPM = groupRPM
+	decision.UserRPM = rule.UserRPM
+	return decision
 }
 
 // ModelNameRPMRateLimit2JSONString returns the current configuration as the
@@ -89,7 +107,7 @@ func MatchModelNameRPM(model, group string) ModelNameRPMDecision {
 func ModelNameRPMRateLimit2JSONString() string {
 	snapshot := modelNameRPMSnapshot.Load()
 	if snapshot == nil {
-		snapshot = &modelNameRPMConfig{Models: make(map[string]modelNameRPMRule)}
+		snapshot = &modelNameRPMConfig{Models: make(map[string]modelNameRPMRule), Groups: make(map[string]GroupTotalRPMRule)}
 	}
 
 	jsonBytes, err := common.Marshal(snapshot)
@@ -116,7 +134,7 @@ func UpdateModelNameRPMRateLimitByJSONString(jsonStr string) error {
 func ListModelNameRPMRules() ModelNameRPMConfig {
 	snapshot := modelNameRPMSnapshot.Load()
 	if snapshot == nil {
-		return ModelNameRPMConfig{Models: make(map[string]ModelNameRPMRule)}
+		return ModelNameRPMConfig{Models: make(map[string]ModelNameRPMRule), Groups: make(map[string]GroupTotalRPMRule)}
 	}
 	return *cloneModelNameRPMConfig(snapshot)
 }
@@ -153,6 +171,9 @@ func parseModelNameRPMRateLimit(jsonStr string) (*modelNameRPMConfig, error) {
 	if parsed.Models == nil {
 		parsed.Models = make(map[string]modelNameRPMRule)
 	}
+	if parsed.Groups == nil {
+		parsed.Groups = make(map[string]GroupTotalRPMRule)
+	}
 	if err := validateModelNameRPMConfig(parsed); err != nil {
 		return nil, err
 	}
@@ -160,6 +181,9 @@ func parseModelNameRPMRateLimit(jsonStr string) (*modelNameRPMConfig, error) {
 }
 
 func validateModelNameRPMConfig(config *modelNameRPMConfig) error {
+	if config == nil {
+		return fmt.Errorf("model name rpm rate limit must be a JSON object")
+	}
 	modelNames := make([]string, 0, len(config.Models))
 	for modelName := range config.Models {
 		modelNames = append(modelNames, modelName)
@@ -222,6 +246,24 @@ func validateModelNameRPMConfig(config *modelNameRPMConfig) error {
 		}
 		normalizedNames[normalizedName] = modelName
 	}
+
+	groupNames := make([]string, 0, len(config.Groups))
+	for groupName := range config.Groups {
+		groupNames = append(groupNames, groupName)
+	}
+	sort.Strings(groupNames)
+	for _, groupName := range groupNames {
+		if err := validateModelNameRPMName("group", groupName, modelNameRPMMaxGroup); err != nil {
+			return err
+		}
+		totalRPM := config.Groups[groupName].TotalRPM
+		if totalRPM < 1 {
+			return fmt.Errorf("group %q total_rpm must be at least 1; remove the group entry to disable it", groupName)
+		}
+		if totalRPM > modelNameRPMMaxGlobal {
+			return fmt.Errorf("group %q total_rpm must not exceed %d; remove the group entry to disable it", groupName, modelNameRPMMaxGlobal)
+		}
+	}
 	return nil
 }
 
@@ -244,6 +286,7 @@ func cloneModelNameRPMConfig(source *modelNameRPMConfig) *modelNameRPMConfig {
 	clone := &modelNameRPMConfig{
 		Enabled: source.Enabled,
 		Models:  make(map[string]modelNameRPMRule, len(source.Models)),
+		Groups:  make(map[string]GroupTotalRPMRule, len(source.Groups)),
 	}
 	for modelName, sourceRule := range source.Models {
 		cloneRule := modelNameRPMRule{UserRPM: sourceRule.UserRPM}
@@ -258,6 +301,9 @@ func cloneModelNameRPMConfig(source *modelNameRPMConfig) *modelNameRPMConfig {
 			}
 		}
 		clone.Models[modelName] = cloneRule
+	}
+	for groupName, sourceRule := range source.Groups {
+		clone.Groups[groupName] = sourceRule
 	}
 	return clone
 }

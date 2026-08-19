@@ -26,14 +26,14 @@ const WindowSeconds = rpmWindowSeconds
 type Bucket struct {
 	Key   string
 	Limit int
-	Scope string // "global", "group", or "user"
+	Scope string // "global", "group", "user", or "group_total"
 }
 
 // Result is the outcome of an acquire attempt. Scope, Limit, and Current are
 // populated only when a request is rejected by a limit.
 type Result struct {
 	Allowed bool
-	Scope   string // "global", "group", or "user"
+	Scope   string // "global", "group", "user", or "group_total"
 	Limit   int
 	Current int
 }
@@ -109,7 +109,9 @@ func UsingMemoryBackend() bool {
 func (b *memoryBackend) IsMemory() bool { return true }
 func (b *redisBackend) IsMemory() bool  { return false }
 
-// ModelKey, GroupKey, and UserKey are shared by admission and capacity reads.
+// ModelKey, GroupKey, UserKey, and GroupTotalKey are shared by admission and
+// capacity reads. GroupTotalKey is a different dimension from GroupKey: it
+// aggregates all models in a group, while GroupKey limits one model in a group.
 func ModelKey(model string) string { return "mdrl:v1:rpm:model:" + model }
 func GroupKey(model, group string) string {
 	return "mdrl:v1:rpm:group:" + model + ":" + group
@@ -117,9 +119,10 @@ func GroupKey(model, group string) string {
 func UserKey(model string, userID int) string {
 	return "mdrl:v1:rpm:user:" + model + ":" + strconv.Itoa(userID)
 }
+func GroupTotalKey(group string) string { return "mdrl:v1:rpm:gtotal:" + group }
 
 func validAcquireBuckets(buckets []Bucket) bool {
-	if len(buckets) < 1 || len(buckets) > 3 {
+	if len(buckets) < 1 || len(buckets) > 4 {
 		return false
 	}
 	for _, bucket := range buckets {
@@ -127,7 +130,7 @@ func validAcquireBuckets(buckets []Bucket) bool {
 		if bucket.Key == "" || bucket.Limit < 0 {
 			return false
 		}
-		if bucket.Scope != "global" && bucket.Scope != "group" && bucket.Scope != "user" {
+		if bucket.Scope != "global" && bucket.Scope != "group" && bucket.Scope != "user" && bucket.Scope != "group_total" {
 			return false
 		}
 	}

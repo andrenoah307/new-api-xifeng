@@ -38,6 +38,7 @@ import type {
   RateLimitCapacityMetric,
   RateLimitCapacityPersonal,
   RateLimitCapacityResponse,
+  RateLimitCapacitySection,
 } from '@/features/dashboard/types'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
@@ -383,11 +384,61 @@ function CapacityExpandButton(props: {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- exported for deterministic server-rendered contract tests
+export function GroupTotalCapacitySection(props: {
+  section: RateLimitCapacitySection
+  expanded: boolean
+  loading: boolean
+  onIntent: () => void
+  onToggle: () => void
+}) {
+  const { t } = useTranslation()
+  const items = props.section.items ?? []
+  if (props.section.total === 0 && items.length === 0) return null
+
+  const displayedItems = props.expanded ? items : items.slice(0, 3)
+  return (
+    <section aria-label={t('Group total RPM')}>
+      <CapacitySectionHeader
+        title={t('Group total RPM')}
+        windowLabel={t('60-second window')}
+        total={props.section.total}
+        displayedCount={displayedItems.length}
+        expanded={props.expanded}
+        loading={props.loading}
+        label='groups'
+        controlsId='rate-limit-capacity-group-totals'
+        onIntent={props.onIntent}
+        onToggle={props.onToggle}
+      />
+      <div
+        id='rate-limit-capacity-group-totals'
+        className='grid gap-3 px-4 py-3 sm:px-5'
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(15rem, 1fr))' }}
+      >
+        {displayedItems.map((item) => {
+          const label = item.group
+            ? `${item.group} · ${t('All models combined')}`
+            : t('All models combined')
+          return (
+            <CapacityRow
+              key={item.group || label}
+              label={label}
+              metric={item}
+            />
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export function RateLimitCapacityPanel() {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.auth.user)
   const [globalExpanded, setGlobalExpanded] = useState(false)
   const [groupsExpanded, setGroupsExpanded] = useState(false)
+  const [groupTotalsExpanded, setGroupTotalsExpanded] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     {},
   )
@@ -399,6 +450,7 @@ export function RateLimitCapacityPanel() {
   useEffect(() => {
     setGlobalExpanded(false)
     setGroupsExpanded(false)
+    setGroupTotalsExpanded(false)
     setExpandedGroups({})
   }, [identityKey])
 
@@ -412,7 +464,11 @@ export function RateLimitCapacityPanel() {
   }, [])
 
   const anyGroupExpanded = Object.values(expandedGroups).some(Boolean)
-  const anyExpanded = globalExpanded || groupsExpanded || anyGroupExpanded
+  const anyExpanded =
+    globalExpanded ||
+    groupsExpanded ||
+    groupTotalsExpanded ||
+    anyGroupExpanded
 
   const topQuery = useQuery({
     queryKey: [...queryKeyBase, 'top'],
@@ -466,6 +522,11 @@ export function RateLimitCapacityPanel() {
     setGroupsExpanded((value) => !value)
   }, [groupsExpanded, handleExpandIntent])
 
+  const toggleGroupTotals = useCallback(() => {
+    if (!groupTotalsExpanded) handleExpandIntent()
+    setGroupTotalsExpanded((value) => !value)
+  }, [groupTotalsExpanded, handleExpandIntent])
+
   const toggleGroup = useCallback(
     (groupName: string) => {
       if (!expandedGroups[groupName]) handleExpandIntent()
@@ -484,6 +545,7 @@ export function RateLimitCapacityPanel() {
   const site = data?.site
   const global = site?.global
   const groups = site?.groups
+  const groupTotals = site?.group_totals
   const globalItems = global?.items ?? []
   const groupItems = groups?.groups ?? []
   const displayedGlobalItems = globalExpanded
@@ -596,6 +658,16 @@ export function RateLimitCapacityPanel() {
             ))}
           </div>
         </section>
+      )}
+
+      {groupTotals && (
+        <GroupTotalCapacitySection
+          section={groupTotals}
+          expanded={groupTotalsExpanded}
+          loading={allIsFetching}
+          onIntent={handleExpandIntent}
+          onToggle={toggleGroupTotals}
+        />
       )}
 
       {data?.personal && <PersonalSection personal={data.personal} />}

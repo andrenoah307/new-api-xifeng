@@ -30,6 +30,20 @@ const requiredKeys = [
   'When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule',
   'global_rpm must be an integer from 0 to 1,000,000; 0 means unlimited (usage is still counted) and then at least one user_rpm or group_rpm is required. Delete a model rule to disable it; set enabled to false to disable all rules.',
   'user_rpm is optional; omit it or set it to 0 to disable the per-user limit. Non-zero values must not exceed global_rpm unless global_rpm is 0 (unlimited).',
+  'Group total RPM',
+  'All models combined',
+  'Add group total',
+  'No group total RPM limits configured.',
+  'Group total name is required',
+  'Group total name must not exceed 64 characters',
+  'Group total name must not contain control characters',
+  'This group already has a total RPM limit',
+  'Total RPM',
+  'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',
+  'Models not listed in the models section are not subject to model-specific RPM limits.',
+  'Top-level group total limits apply to every model in the group, including models not listed in the models section.',
+  '分组总额 RPM',
+  '全组合计',
 ];
 
 for (const locale of locales) {

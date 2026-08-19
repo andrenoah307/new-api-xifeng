@@ -38,16 +38,23 @@ function isCountableInteger(value) {
   return typeof value === 'number' && Number.isSafeInteger(value);
 }
 
+function hasControlCharacter(name) {
+  for (const character of name) {
+    const code = character.codePointAt(0) ?? 0;
+    if (code <= CONTROL_CHARACTER_MAX) return true;
+    if (code >= DELETE_CHARACTER && code <= C1_CONTROL_CHARACTER_MAX) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Mirrors unicode.IsSpace plus unicode.IsControl on the Go side.
 function hasForbiddenNameCharacter(name) {
   for (const character of name) {
     if (/\s/.test(character)) return true;
-    const code = character.codePointAt(0) ?? 0;
-    if (code <= CONTROL_CHARACTER_MAX) return true;
-    if (code >= DELETE_CHARACTER && code <= C1_CONTROL_CHARACTER_MAX)
-      return true;
   }
-  return false;
+  return hasControlCharacter(name);
 }
 
 function runeLength(value) {
@@ -61,7 +68,7 @@ function runeLength(value) {
  */
 export function parseModelNameRPMConfig(value) {
   if (!value || value.trim() === '') {
-    return { ok: true, enabled: false, rules: [] };
+    return { ok: true, enabled: false, rules: [], groupTotals: [] };
   }
 
   let parsed;
@@ -74,44 +81,57 @@ export function parseModelNameRPMConfig(value) {
 
   const enabled = parsed.enabled === true;
   const models = parsed.models;
-  if (models === undefined || models === null) {
-    return { ok: true, enabled, rules: [] };
+  if (models !== undefined && models !== null && !isRecord(models)) {
+    return { ok: false };
   }
-  if (!isRecord(models)) return { ok: false };
 
   const rules = [];
-  for (const [modelName, rawRule] of Object.entries(models)) {
-    if (!isRecord(rawRule)) return { ok: false };
-    if (!isCountableInteger(rawRule.global_rpm)) return { ok: false };
+  if (isRecord(models)) {
+    for (const [modelName, rawRule] of Object.entries(models)) {
+      if (!isRecord(rawRule)) return { ok: false };
+      if (!isCountableInteger(rawRule.global_rpm)) return { ok: false };
 
-    const rawUserRpm = rawRule.user_rpm;
-    let userRpm = 0;
-    if (rawUserRpm !== undefined) {
-      if (!isCountableInteger(rawUserRpm) || rawUserRpm < 0) {
-        return { ok: false };
+      const rawUserRpm = rawRule.user_rpm;
+      let userRpm = 0;
+      if (rawUserRpm !== undefined) {
+        if (!isCountableInteger(rawUserRpm) || rawUserRpm < 0) {
+          return { ok: false };
+        }
+        userRpm = rawUserRpm;
       }
-      userRpm = rawUserRpm;
-    }
 
-    const groups = [];
-    const rawGroups = rawRule.group_rpm;
-    if (rawGroups !== undefined && rawGroups !== null) {
-      if (!isRecord(rawGroups)) return { ok: false };
-      for (const [groupName, rpm] of Object.entries(rawGroups)) {
-        if (!isCountableInteger(rpm)) return { ok: false };
-        groups.push({ groupName, rpm });
+      const groups = [];
+      const rawGroups = rawRule.group_rpm;
+      if (rawGroups !== undefined && rawGroups !== null) {
+        if (!isRecord(rawGroups)) return { ok: false };
+        for (const [groupName, rpm] of Object.entries(rawGroups)) {
+          if (!isCountableInteger(rpm)) return { ok: false };
+          groups.push({ groupName, rpm });
+        }
       }
-    }
 
-    rules.push({
-      modelName,
-      globalRpm: rawRule.global_rpm,
-      userRpm,
-      groups,
-    });
+      rules.push({
+        modelName,
+        globalRpm: rawRule.global_rpm,
+        userRpm,
+        groups,
+      });
+    }
   }
 
-  return { ok: true, enabled, rules };
+  const groupTotals = [];
+  const rawGroupTotals = parsed.groups;
+  if (rawGroupTotals !== undefined && rawGroupTotals !== null) {
+    if (!isRecord(rawGroupTotals)) return { ok: false };
+    for (const [groupName, rawRule] of Object.entries(rawGroupTotals)) {
+      if (!isRecord(rawRule)) return { ok: false };
+      const rule = { groupName, totalRpm: rawRule.total_rpm };
+      if (validateModelNameRPMGroupTotalRule(rule, [])) return { ok: false };
+      groupTotals.push(rule);
+    }
+  }
+
+  return { ok: true, enabled, rules, groupTotals };
 }
 
 function readConfigObject(value) {
@@ -125,6 +145,10 @@ function readConfigObject(value) {
 
 function readModelsObject(config) {
   return isRecord(config.models) ? { ...config.models } : {};
+}
+
+function readGroupTotalsObject(config) {
+  return isRecord(config.groups) ? { ...config.groups } : {};
 }
 
 /**
@@ -171,10 +195,60 @@ export function deleteModelNameRPMRule(value, modelName) {
   return JSON.stringify(config, null, 2);
 }
 
+export function upsertModelNameRPMGroupTotalRule(
+  value,
+  previousGroupName,
+  rule,
+) {
+  const config = readConfigObject(value);
+  const groups = readGroupTotalsObject(config);
+  const sourceKey = previousGroupName ?? rule.groupName;
+  const existing = isRecord(groups[sourceKey]) ? { ...groups[sourceKey] } : {};
+
+  if (previousGroupName !== null && previousGroupName !== rule.groupName) {
+    delete groups[previousGroupName];
+  }
+  existing.total_rpm = rule.totalRpm;
+  groups[rule.groupName] = existing;
+  config.groups = groups;
+  return JSON.stringify(config, null, 2);
+}
+
+export function deleteModelNameRPMGroupTotalRule(value, groupName) {
+  const config = readConfigObject(value);
+  const groups = readGroupTotalsObject(config);
+  delete groups[groupName];
+  config.groups = groups;
+  return JSON.stringify(config, null, 2);
+}
+
 function validateName(name, maxLength, codes) {
   if (name === '') return codes.required;
   if (runeLength(name) > maxLength) return codes.tooLong;
   if (hasForbiddenNameCharacter(name)) return codes.whitespace;
+  return null;
+}
+
+export function validateModelNameRPMGroupTotalRule(rule, otherGroupNames) {
+  if (rule.groupName === '' || rule.groupName.trim() === '') {
+    return { code: 'group-total-name-required' };
+  }
+  if (runeLength(rule.groupName) > MODEL_NAME_RPM_MAX_GROUP_NAME_LENGTH) {
+    return { code: 'group-total-name-too-long' };
+  }
+  if (hasControlCharacter(rule.groupName)) {
+    return { code: 'group-total-name-control' };
+  }
+  if (otherGroupNames.includes(rule.groupName)) {
+    return { code: 'group-total-name-duplicate' };
+  }
+  if (
+    !Number.isSafeInteger(rule.totalRpm) ||
+    rule.totalRpm < 1 ||
+    rule.totalRpm > MODEL_NAME_RPM_MAX_GLOBAL
+  ) {
+    return { code: 'group-total-rpm-range' };
+  }
   return null;
 }
 

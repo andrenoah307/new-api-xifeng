@@ -37,11 +37,21 @@ export type ModelNameRPMRule = {
   groups: ModelNameRPMGroupLimit[]
 }
 
+export type ModelNameRPMGroupTotalRule = {
+  groupName: string
+  totalRpm: number
+}
+
 export type ModelNameRPMParseResult =
-  | { ok: true; enabled: boolean; rules: ModelNameRPMRule[] }
+  | {
+      ok: true
+      enabled: boolean
+      rules: ModelNameRPMRule[]
+      groupTotals: ModelNameRPMGroupTotalRule[]
+    }
   | { ok: false }
 
-export type ModelNameRPMErrorCode =
+export type ModelNameRPMRuleErrorCode =
   | 'model-name-required'
   | 'model-name-too-long'
   | 'model-name-whitespace'
@@ -57,8 +67,21 @@ export type ModelNameRPMErrorCode =
   | 'group-rpm-range'
   | 'group-rpm-exceeds-global'
 
-export type ModelNameRPMRuleError = {
-  code: ModelNameRPMErrorCode
+export type ModelNameRPMGroupTotalErrorCode =
+  | 'group-total-name-required'
+  | 'group-total-name-too-long'
+  | 'group-total-name-control'
+  | 'group-total-name-duplicate'
+  | 'group-total-rpm-range'
+
+export type ModelNameRPMErrorCode =
+  | ModelNameRPMRuleErrorCode
+  | ModelNameRPMGroupTotalErrorCode
+
+export type ModelNameRPMRuleError<
+  TCode extends ModelNameRPMErrorCode = ModelNameRPMErrorCode,
+> = {
+  code: TCode
   groupIndex?: number
 }
 
@@ -74,15 +97,23 @@ function isCountableInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value)
 }
 
+function hasControlCharacter(name: string): boolean {
+  for (const character of name) {
+    const code = character.codePointAt(0) ?? 0
+    if (code <= CONTROL_CHARACTER_MAX) return true
+    if (code >= DELETE_CHARACTER && code <= C1_CONTROL_CHARACTER_MAX) {
+      return true
+    }
+  }
+  return false
+}
+
 // Mirrors unicode.IsSpace plus unicode.IsControl on the Go side.
 function hasForbiddenNameCharacter(name: string): boolean {
   for (const character of name) {
     if (/\s/.test(character)) return true
-    const code = character.codePointAt(0) ?? 0
-    if (code <= CONTROL_CHARACTER_MAX) return true
-    if (code >= DELETE_CHARACTER && code <= C1_CONTROL_CHARACTER_MAX) return true
   }
-  return false
+  return hasControlCharacter(name)
 }
 
 function runeLength(value: string): number {
@@ -98,7 +129,7 @@ export function parseModelNameRPMConfig(
   value: string
 ): ModelNameRPMParseResult {
   if (!value || value.trim() === '') {
-    return { ok: true, enabled: false, rules: [] }
+    return { ok: true, enabled: false, rules: [], groupTotals: [] }
   }
 
   let parsed: unknown
@@ -111,38 +142,51 @@ export function parseModelNameRPMConfig(
 
   const enabled = parsed.enabled === true
   const models = parsed.models
-  if (models === undefined || models === null) {
-    return { ok: true, enabled, rules: [] }
+  if (models !== undefined && models !== null && !isRecord(models)) {
+    return { ok: false }
   }
-  if (!isRecord(models)) return { ok: false }
 
   const rules: ModelNameRPMRule[] = []
-  for (const [modelName, rawRule] of Object.entries(models)) {
-    if (!isRecord(rawRule)) return { ok: false }
-    if (!isCountableInteger(rawRule.global_rpm)) return { ok: false }
+  if (isRecord(models)) {
+    for (const [modelName, rawRule] of Object.entries(models)) {
+      if (!isRecord(rawRule)) return { ok: false }
+      if (!isCountableInteger(rawRule.global_rpm)) return { ok: false }
 
-    let userRpm = 0
-    if (rawRule.user_rpm !== undefined) {
-      if (!isCountableInteger(rawRule.user_rpm) || rawRule.user_rpm < 0) {
-        return { ok: false }
+      let userRpm = 0
+      if (rawRule.user_rpm !== undefined) {
+        if (!isCountableInteger(rawRule.user_rpm) || rawRule.user_rpm < 0) {
+          return { ok: false }
+        }
+        userRpm = rawRule.user_rpm
       }
-      userRpm = rawRule.user_rpm
-    }
 
-    const groups: ModelNameRPMGroupLimit[] = []
-    const rawGroups = rawRule.group_rpm
-    if (rawGroups !== undefined && rawGroups !== null) {
-      if (!isRecord(rawGroups)) return { ok: false }
-      for (const [groupName, rpm] of Object.entries(rawGroups)) {
-        if (!isCountableInteger(rpm)) return { ok: false }
-        groups.push({ groupName, rpm })
+      const groups: ModelNameRPMGroupLimit[] = []
+      const rawGroups = rawRule.group_rpm
+      if (rawGroups !== undefined && rawGroups !== null) {
+        if (!isRecord(rawGroups)) return { ok: false }
+        for (const [groupName, rpm] of Object.entries(rawGroups)) {
+          if (!isCountableInteger(rpm)) return { ok: false }
+          groups.push({ groupName, rpm })
+        }
       }
-    }
 
-    rules.push({ modelName, globalRpm: rawRule.global_rpm, userRpm, groups })
+      rules.push({ modelName, globalRpm: rawRule.global_rpm, userRpm, groups })
+    }
   }
 
-  return { ok: true, enabled, rules }
+  const groupTotals: ModelNameRPMGroupTotalRule[] = []
+  const rawGroupTotals = parsed.groups
+  if (rawGroupTotals !== undefined && rawGroupTotals !== null) {
+    if (!isRecord(rawGroupTotals)) return { ok: false }
+    for (const [groupName, rawRule] of Object.entries(rawGroupTotals)) {
+      if (!isRecord(rawRule)) return { ok: false }
+      const rule = { groupName, totalRpm: rawRule.total_rpm as number }
+      if (validateModelNameRPMGroupTotalRule(rule, [])) return { ok: false }
+      groupTotals.push(rule)
+    }
+  }
+
+  return { ok: true, enabled, rules, groupTotals }
 }
 
 function readConfigObject(value: string): Record<string, unknown> {
@@ -158,6 +202,12 @@ function readModelsObject(
   config: Record<string, unknown>
 ): Record<string, unknown> {
   return isRecord(config.models) ? { ...config.models } : {}
+}
+
+function readGroupTotalsObject(
+  config: Record<string, unknown>
+): Record<string, unknown> {
+  return isRecord(config.groups) ? { ...config.groups } : {}
 }
 
 /**
@@ -211,6 +261,36 @@ export function deleteModelNameRPMRule(
   return JSON.stringify(config, null, 2)
 }
 
+export function upsertModelNameRPMGroupTotalRule(
+  value: string,
+  previousGroupName: string | null,
+  rule: ModelNameRPMGroupTotalRule
+): string {
+  const config = readConfigObject(value)
+  const groups = readGroupTotalsObject(config)
+  const sourceKey = previousGroupName ?? rule.groupName
+  const existing = isRecord(groups[sourceKey]) ? { ...groups[sourceKey] } : {}
+
+  if (previousGroupName !== null && previousGroupName !== rule.groupName) {
+    delete groups[previousGroupName]
+  }
+  existing.total_rpm = rule.totalRpm
+  groups[rule.groupName] = existing
+  config.groups = groups
+  return JSON.stringify(config, null, 2)
+}
+
+export function deleteModelNameRPMGroupTotalRule(
+  value: string,
+  groupName: string
+): string {
+  const config = readConfigObject(value)
+  const groups = readGroupTotalsObject(config)
+  delete groups[groupName]
+  config.groups = groups
+  return JSON.stringify(config, null, 2)
+}
+
 function validateName(
   name: string,
   maxLength: number,
@@ -226,6 +306,32 @@ function validateName(
   return null
 }
 
+export function validateModelNameRPMGroupTotalRule(
+  rule: ModelNameRPMGroupTotalRule,
+  otherGroupNames: string[]
+): ModelNameRPMRuleError<ModelNameRPMGroupTotalErrorCode> | null {
+  if (rule.groupName === '' || rule.groupName.trim() === '') {
+    return { code: 'group-total-name-required' }
+  }
+  if (runeLength(rule.groupName) > MODEL_NAME_RPM_MAX_GROUP_NAME_LENGTH) {
+    return { code: 'group-total-name-too-long' }
+  }
+  if (hasControlCharacter(rule.groupName)) {
+    return { code: 'group-total-name-control' }
+  }
+  if (otherGroupNames.includes(rule.groupName)) {
+    return { code: 'group-total-name-duplicate' }
+  }
+  if (
+    !Number.isSafeInteger(rule.totalRpm) ||
+    rule.totalRpm < 1 ||
+    rule.totalRpm > MODEL_NAME_RPM_MAX_GLOBAL
+  ) {
+    return { code: 'group-total-rpm-range' }
+  }
+  return null
+}
+
 /**
  * Form-level validation only: it catches the mistakes an administrator can fix
  * without a round trip. The backend stays the authority for everything else,
@@ -234,7 +340,7 @@ function validateName(
 export function validateModelNameRPMRule(
   rule: ModelNameRPMRule,
   otherModelNames: string[]
-): ModelNameRPMRuleError | null {
+): ModelNameRPMRuleError<ModelNameRPMRuleErrorCode> | null {
   const modelNameError = validateName(
     rule.modelName,
     MODEL_NAME_RPM_MAX_MODEL_NAME_LENGTH,
