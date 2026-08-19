@@ -29,6 +29,7 @@ describe('personal RPM presentation contract', () => {
   test('sorts by current usage, breaks ties by model, and preserves zero usage', () => {
     const zero = {
       model: 'zero',
+      group: '',
       current: 0,
       limit: 20,
       utilization: 0,
@@ -38,6 +39,7 @@ describe('personal RPM presentation contract', () => {
     };
     const z = {
       model: 'z',
+      group: '',
       current: 2,
       limit: 20,
       utilization: 0.1,
@@ -59,6 +61,7 @@ describe('personal RPM presentation contract', () => {
   test('keeps unavailable metrics without letting their counters affect sorting', () => {
     const available = {
       model: 'available',
+      group: '',
       current: 1,
       limit: 20,
       utilization: 0.05,
@@ -87,6 +90,49 @@ describe('personal RPM presentation contract', () => {
     );
   });
 
+  test('keeps group-level metrics and rejects malformed identities', () => {
+    const groupMetric = {
+      model: '',
+      group: 'vip',
+      current: 3,
+      limit: 20,
+      utilization: 0.15,
+      available: true,
+      unlimited: false,
+      over_limit: false,
+    };
+
+    assert.deepEqual(normalizePersonalRPMItems([groupMetric]), [groupMetric]);
+    assert.deepEqual(
+      normalizePersonalRPMItems([
+        { ...groupMetric, group: '' },
+        { ...groupMetric, group: undefined },
+        { ...groupMetric, model: null },
+        { ...groupMetric, group: null },
+      ]),
+      [],
+    );
+  });
+
+  test('breaks usage ties by model or group identity', () => {
+    const groupMetric = {
+      model: '',
+      group: 'beta',
+      current: 2,
+      limit: 20,
+      utilization: 0.1,
+      available: true,
+      unlimited: false,
+      over_limit: false,
+    };
+    const modelMetric = { ...groupMetric, model: 'alpha', group: '' };
+
+    assert.deepEqual(normalizePersonalRPMItems([groupMetric, modelMetric]), [
+      modelMetric,
+      groupMetric,
+    ]);
+  });
+
   test('distinguishes empty from unavailable', () => {
     assert.equal(personalRPMDisplayState('empty', []), 'empty');
     assert.equal(personalRPMDisplayState('ok', []), 'empty');
@@ -94,6 +140,7 @@ describe('personal RPM presentation contract', () => {
       personalRPMDisplayState('unavailable', [
         {
           model: 'hidden',
+          group: '',
           current: null,
           limit: 20,
           utilization: null,

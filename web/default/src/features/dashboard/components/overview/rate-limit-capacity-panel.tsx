@@ -23,6 +23,7 @@ import { ChevronDown, ChevronUp, Gauge } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Spinner } from '@/components/ui/spinner'
@@ -119,6 +120,7 @@ function CapacityBar(props: { metric: RateLimitCapacityMetric }) {
 function CapacityRow(props: {
   label: string
   metric: RateLimitCapacityMetric
+  badge?: string
 }) {
   const { t } = useTranslation()
   const metric = props.metric
@@ -141,8 +143,18 @@ function CapacityRow(props: {
 
   return (
     <div className='rounded-lg border border-border/60 bg-card/40 p-3'>
-      <div className='min-w-0 truncate text-sm font-medium' title={props.label}>
-        {props.label}
+      <div className='flex min-w-0 items-center gap-2'>
+        <div
+          className='min-w-0 truncate text-sm font-medium'
+          title={props.label}
+        >
+          {props.label}
+        </div>
+        {props.badge && (
+          <Badge variant='secondary' className='shrink-0'>
+            {props.badge}
+          </Badge>
+        )}
       </div>
       <div className='mt-2 flex min-w-0 items-baseline gap-2'>
         <div
@@ -287,9 +299,10 @@ function PersonalSection(props: { personal: RateLimitCapacityPersonal }) {
         >
           {items.map((item) => (
             <CapacityRow
-              key={item.model}
-              label={item.model}
+              key={item.model || `group:${item.group}`}
+              label={item.model || item.group}
               metric={item}
+              badge={item.model ? undefined : t('All models combined')}
             />
           ))}
         </div>

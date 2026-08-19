@@ -44,9 +44,12 @@ const requiredKeys = [
   'Group total name must not contain whitespace or control characters',
   'This group already has a total RPM limit',
   'Total RPM',
-  'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',
+  'Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)',
+  'Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)',
+  'Per-user RPM must not exceed the total RPM when the total limit is enabled',
+  'Total RPM and per-user RPM cannot both be 0; delete the group entry instead',
   'Models not listed in the models section are not subject to model-specific RPM limits.',
-  'Top-level group total limits apply to every model in the group, including models not listed in the models section.',
+  'Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit.',
 ]
 
 for (const locale of locales) {

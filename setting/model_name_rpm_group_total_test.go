@@ -43,24 +43,29 @@ func TestGroupTotalRPMValidationBoundaries(t *testing.T) {
 		name      string
 		value     string
 		wantError bool
-		wantHint  bool
+		errorPart string
 	}{
 		{name: "groups null is treated as empty", value: `{"enabled":true,"models":{},"groups":null}`},
 		{name: "groups must be an object", value: `{"enabled":true,"models":{},"groups":[]}`, wantError: true},
-		{name: "missing", value: `{"enabled":true,"models":{},"groups":{"vip":{}}}`, wantError: true, wantHint: true},
-		{name: "zero", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":0}}}`, wantError: true, wantHint: true},
-		{name: "negative", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":-1}}}`, wantError: true, wantHint: true},
-		{name: "one", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":1}}}`},
+		{name: "neither limit configured", value: `{"enabled":true,"models":{},"groups":{"vip":{}}}`, errorPart: `group "vip" has neither total_rpm nor user_rpm configured; remove the group entry to disable it`},
+		{name: "explicit zero limits", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":0,"user_rpm":0}}}`, errorPart: "has neither total_rpm nor user_rpm configured"},
+		{name: "negative total", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":-1}}}`, errorPart: "total_rpm must not be negative"},
+		{name: "user only", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":0,"user_rpm":20}}}`},
+		{name: "legacy total only", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":1}}}`},
+		{name: "user equals total", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":20,"user_rpm":20}}}`},
+		{name: "user exceeds total", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":20,"user_rpm":21}}}`, errorPart: "user_rpm must not exceed total_rpm"},
+		{name: "negative user", value: `{"enabled":true,"models":{},"groups":{"vip":{"user_rpm":-1}}}`, errorPart: "user_rpm must not be negative"},
 		{name: "maximum", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":1000000}}}`},
-		{name: "over maximum", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":1000001}}}`, wantError: true, wantHint: true},
+		{name: "total over maximum", value: `{"enabled":true,"models":{},"groups":{"vip":{"total_rpm":1000001}}}`, errorPart: "total_rpm must not exceed 1000000"},
+		{name: "user over maximum", value: `{"enabled":true,"models":{},"groups":{"vip":{"user_rpm":1000001}}}`, errorPart: "user_rpm must not exceed 1000000"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := CheckModelNameRPMRateLimit(tt.value)
-			if tt.wantError {
+			if tt.wantError || tt.errorPart != "" {
 				require.Error(t, err)
-				if tt.wantHint {
-					assert.Contains(t, err.Error(), "remove the group entry")
+				if tt.errorPart != "" {
+					assert.ErrorContains(t, err, tt.errorPart)
 				}
 				return
 			}
@@ -106,7 +111,7 @@ func TestGroupTotalRPMGroupNameValidation(t *testing.T) {
 
 func TestGroupTotalRPMMatcherFourQuadrantsAndNormalizedModel(t *testing.T) {
 	t1PreserveModelNameRPMSnapshot(t)
-	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gemini-2.5-pro":{"global_rpm":10}},"groups":{"vip":{"total_rpm":20}}}`))
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gemini-2.5-pro":{"global_rpm":10}},"groups":{"vip":{"total_rpm":20,"user_rpm":7},"personal":{"user_rpm":9}}}`))
 	tests := []struct {
 		name          string
 		model         string
@@ -114,12 +119,14 @@ func TestGroupTotalRPMMatcherFourQuadrantsAndNormalizedModel(t *testing.T) {
 		wantMatched   bool
 		wantRuleModel string
 		wantTotal     int
+		wantUser      int
 	}{
-		{name: "model and group", model: "gemini-2.5-pro", group: "vip", wantMatched: true, wantRuleModel: "gemini-2.5-pro", wantTotal: 20},
+		{name: "model and group", model: "gemini-2.5-pro", group: "vip", wantMatched: true, wantRuleModel: "gemini-2.5-pro", wantTotal: 20, wantUser: 7},
 		{name: "model only", model: "gemini-2.5-pro", group: "free", wantMatched: true, wantRuleModel: "gemini-2.5-pro"},
-		{name: "group only", model: "unknown", group: "vip", wantTotal: 20},
+		{name: "group only", model: "unknown", group: "vip", wantTotal: 20, wantUser: 7},
+		{name: "group user only", model: "unknown", group: "personal", wantUser: 9},
 		{name: "neither", model: "unknown", group: "free"},
-		{name: "normalized model and group", model: "gemini-2.5-pro[1m]", group: "vip", wantMatched: true, wantRuleModel: "gemini-2.5-pro", wantTotal: 20},
+		{name: "normalized model and group", model: "gemini-2.5-pro[1m]", group: "vip", wantMatched: true, wantRuleModel: "gemini-2.5-pro", wantTotal: 20, wantUser: 7},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,11 +134,13 @@ func TestGroupTotalRPMMatcherFourQuadrantsAndNormalizedModel(t *testing.T) {
 			assert.Equal(t, tt.wantMatched, got.Matched)
 			assert.Equal(t, tt.wantRuleModel, got.RuleModel)
 			assert.Equal(t, tt.wantTotal, got.GroupTotalRPM)
+			assert.Equal(t, tt.wantUser, got.GroupUserRPM)
 		})
 	}
 
-	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":false,"models":{},"groups":{"vip":{"total_rpm":20}}}`))
+	require.NoError(t, UpdateModelNameRPMRateLimitByJSONString(`{"enabled":false,"models":{},"groups":{"vip":{"total_rpm":20,"user_rpm":7}}}`))
 	disabled := MatchModelNameRPM("unknown", "vip")
 	assert.False(t, disabled.Matched)
 	assert.Zero(t, disabled.GroupTotalRPM)
+	assert.Zero(t, disabled.GroupUserRPM)
 }

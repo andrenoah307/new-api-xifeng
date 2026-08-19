@@ -22,13 +22,22 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const locales = ['en', 'fr', 'ja', 'ru', 'vi', 'zh-CN', 'zh-TW'];
+const translatedLocales = ['en', 'fr', 'ja', 'ru', 'vi'];
+const localeDocuments = Object.fromEntries(
+  locales.map((locale) => [
+    locale,
+    JSON.parse(
+      readFileSync(new URL(`./${locale}.json`, import.meta.url), 'utf8'),
+    ),
+  ]),
+);
 const sourceFiles = [
   '../../pages/Setting/RateLimit/ModelNameRPMVisualEditor.jsx',
   '../../pages/Setting/RateLimit/GroupRateLimitVisualEditor.jsx',
   '../../pages/Setting/RateLimit/SettingsRequestRateLimit.jsx',
   '../../components/dashboard/RateLimitCapacityPanel.jsx',
 ];
-const requiredKeys = [
+const englishSourceKeys = [
   'Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.',
   'Unlimited',
   '0 means unlimited; usage is still counted and displayed.',
@@ -45,20 +54,32 @@ const requiredKeys = [
   'Group total name must not contain whitespace or control characters',
   'This group already has a total RPM limit',
   'Total RPM',
-  'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',
+  'Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)',
+  'Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)',
+  'Per-user RPM must not exceed the total RPM when the total limit is enabled',
+  'Total RPM and per-user RPM cannot both be 0; delete the group entry instead',
   'Models not listed in the models section are not subject to model-specific RPM limits.',
-  'Top-level group total limits apply to every model in the group, including models not listed in the models section.',
-  '分组总额 RPM',
-  '全组合计',
+  'Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.',
 ];
+const chineseSourceKeys = ['每用户 RPM', '分组总额 RPM', '全组合计'];
 
 for (const locale of locales) {
-  test(`${locale} has non-empty RPM card settings copy`, () => {
-    const document = JSON.parse(
-      readFileSync(new URL(`./${locale}.json`, import.meta.url), 'utf8'),
-    );
+  test(`${locale} has non-empty English-source RPM copy`, () => {
+    const document = localeDocuments[locale];
 
-    for (const key of requiredKeys) {
+    for (const key of englishSourceKeys) {
+      const value = document.translation?.[key];
+      assert.equal(typeof value, 'string', `${locale} is missing ${key}`);
+      assert.notEqual(value.trim(), '');
+    }
+  });
+}
+
+for (const locale of translatedLocales) {
+  test(`${locale} has non-empty Chinese-source RPM copy`, () => {
+    const document = localeDocuments[locale];
+
+    for (const key of chineseSourceKeys) {
       const value = document.translation?.[key];
       assert.equal(typeof value, 'string', `${locale} is missing ${key}`);
       assert.notEqual(value.trim(), '');
@@ -84,11 +105,12 @@ test('whitelisted RPM sources have complete and live locale keys', () => {
   }
 
   const missingOrEmpty = [];
-  for (const locale of locales) {
-    const document = JSON.parse(
-      readFileSync(new URL(`./${locale}.json`, import.meta.url), 'utf8'),
-    );
-    for (const key of sourceKeys) {
+  for (const key of sourceKeys) {
+    const requiredLocales = chineseSourceKeys.includes(key)
+      ? translatedLocales
+      : locales;
+    for (const locale of requiredLocales) {
+      const document = localeDocuments[locale];
       const value = document.translation?.[key];
       if (typeof value !== 'string' || value.trim() === '') {
         missingOrEmpty.push(`${locale}: ${key}`);
@@ -97,6 +119,7 @@ test('whitelisted RPM sources have complete and live locale keys', () => {
   }
   assert.deepEqual(missingOrEmpty, []);
 
+  const requiredKeys = [...englishSourceKeys, ...chineseSourceKeys];
   const unreferencedRequiredKeys = requiredKeys.filter(
     (key) =>
       !sourceText.includes(`'${key}'`) && !sourceText.includes(`"${key}"`),

@@ -70,7 +70,13 @@ const GROUP_TOTAL_ERROR_MESSAGES: Record<
     'Group total name must not contain whitespace or control characters',
   'group-total-name-duplicate': 'This group already has a total RPM limit',
   'group-total-rpm-range':
-    'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',
+    'Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)',
+  'group-total-user-rpm-range':
+    'Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)',
+  'group-total-user-rpm-exceeds-total':
+    'Per-user RPM must not exceed the total RPM when the total limit is enabled',
+  'group-total-without-limit':
+    'Total RPM and per-user RPM cannot both be 0; delete the group entry instead',
 }
 
 const GROUP_TOTAL_FORM_ID = 'model-name-rpm-group-total-form'
@@ -87,6 +93,7 @@ export function ModelNameRPMVisualEditor({
   const [editingGroupName, setEditingGroupName] = useState<string | null>(null)
   const [groupTotalName, setGroupTotalName] = useState('')
   const [totalRpm, setTotalRpm] = useState(30)
+  const [groupUserRpm, setGroupUserRpm] = useState(0)
   const [groupTotalError, setGroupTotalError] =
     useState<ModelNameRPMGroupTotalErrorCode | null>(null)
 
@@ -119,13 +126,14 @@ export function ModelNameRPMVisualEditor({
     setEditingGroupName(rule?.groupName ?? null)
     setGroupTotalName(rule?.groupName ?? '')
     setTotalRpm(rule?.totalRpm ?? 30)
+    setGroupUserRpm(rule?.userRpm ?? 0)
     setGroupTotalError(null)
     setGroupTotalDialogOpen(true)
   }
 
   const handleGroupTotalSave = (event: FormEvent) => {
     event.preventDefault()
-    const rule = { groupName: groupTotalName, totalRpm }
+    const rule = { groupName: groupTotalName, totalRpm, userRpm: groupUserRpm }
     const error = validateModelNameRPMGroupTotalRule(
       rule,
       groupTotals
@@ -154,7 +162,7 @@ export function ModelNameRPMVisualEditor({
             <h3 className='text-sm font-semibold'>{t('Group total RPM')}</h3>
             <p className='text-muted-foreground text-xs'>
               {t(
-                'Top-level group total limits apply to every model in the group, including models not listed in the models section.'
+                'Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit.'
               )}
             </p>
           </div>
@@ -185,7 +193,32 @@ export function ModelNameRPMVisualEditor({
               header: t('Total RPM'),
               className: 'text-right',
               cellClassName: 'text-right font-mono',
-              cell: (rule) => rule.totalRpm.toLocaleString(),
+              cell: (rule) =>
+                rule.totalRpm === 0 ? (
+                  <span className='text-muted-foreground text-xs'>
+                    {t('None')}
+                  </span>
+                ) : (
+                  <span className='font-mono'>
+                    {rule.totalRpm.toLocaleString()}
+                  </span>
+                ),
+            },
+            {
+              id: 'user-rpm',
+              header: t('Per-user RPM'),
+              className: 'text-right',
+              cellClassName: 'text-right',
+              cell: (rule) =>
+                rule.userRpm === 0 ? (
+                  <span className='text-muted-foreground text-xs'>
+                    {t('None')}
+                  </span>
+                ) : (
+                  <span className='font-mono'>
+                    {rule.userRpm.toLocaleString()}
+                  </span>
+                ),
             },
             {
               id: 'actions',
@@ -338,7 +371,7 @@ export function ModelNameRPMVisualEditor({
         onOpenChange={setGroupTotalDialogOpen}
         title={t('Group total RPM')}
         description={t(
-          'Top-level group total limits apply to every model in the group, including models not listed in the models section.'
+          'Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit.'
         )}
         contentClassName='sm:max-w-md'
         contentHeight='auto'
@@ -386,17 +419,43 @@ export function ModelNameRPMVisualEditor({
             <Input
               id='model-name-rpm-group-total-rpm'
               type='number'
-              min={1}
+              min={0}
               max={MODEL_NAME_RPM_MAX_GLOBAL}
               step={1}
-              value={totalRpm || ''}
+              value={totalRpm}
               onChange={(event) =>
                 setTotalRpm(
                   event.target.value === '' ? 0 : event.target.valueAsNumber
                 )
               }
             />
-            {groupTotalError === 'group-total-rpm-range' &&
+            {(groupTotalError === 'group-total-rpm-range' ||
+              groupTotalError === 'group-total-without-limit') &&
+              groupTotalErrorMessage && (
+                <p className='text-destructive text-sm'>
+                  {t(groupTotalErrorMessage)}
+                </p>
+              )}
+          </div>
+          <div className='space-y-2'>
+            <Label htmlFor='model-name-rpm-group-user-rpm'>
+              {t('Per-user RPM')}
+            </Label>
+            <Input
+              id='model-name-rpm-group-user-rpm'
+              type='number'
+              min={0}
+              max={MODEL_NAME_RPM_MAX_GLOBAL}
+              step={1}
+              value={groupUserRpm}
+              onChange={(event) =>
+                setGroupUserRpm(
+                  event.target.value === '' ? 0 : event.target.valueAsNumber
+                )
+              }
+            />
+            {(groupTotalError === 'group-total-user-rpm-range' ||
+              groupTotalError === 'group-total-user-rpm-exceeds-total') &&
               groupTotalErrorMessage && (
                 <p className='text-destructive text-sm'>
                   {t(groupTotalErrorMessage)}

@@ -24,7 +24,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Banner, Button, Card, Spin, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Card, Spin, Tag, Typography } from '@douyinfe/semi-ui';
 import { ChevronDown, ChevronUp, Gauge, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../../helpers';
@@ -115,7 +115,7 @@ function CapacityBar({ metric }) {
   );
 }
 
-function CapacityRow({ label, metric, t }) {
+function CapacityRow({ label, metric, badge, t }) {
   const available = metricAvailable(metric);
   const percent = formatPercent(metric?.utilization);
   let value = t('暂时不可用');
@@ -137,10 +137,13 @@ function CapacityRow({ label, metric, t }) {
 
   return (
     <div className='rounded-lg border border-gray-200 p-3'>
-      <div className='min-w-0 truncate text-sm'>
-        <Text strong ellipsis={{ showTooltip: true }}>
-          {label}
-        </Text>
+      <div className='flex min-w-0 items-center gap-2'>
+        <div className='min-w-0 truncate text-sm'>
+          <Text strong ellipsis={{ showTooltip: true }}>
+            {label}
+          </Text>
+        </div>
+        {badge && <Tag color='blue'>{badge}</Tag>}
       </div>
       <div className='mt-2 flex min-w-0 items-baseline gap-2'>
         <div
@@ -333,9 +336,10 @@ function PersonalSection({ personal, t }) {
         >
           {items.map((item) => (
             <CapacityRow
-              key={item.model}
-              label={item.model}
+              key={item.model || `group:${item.group}`}
+              label={item.model || item.group}
               metric={item}
+              badge={item.model ? undefined : t('全组合计')}
               t={t}
             />
           ))}

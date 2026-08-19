@@ -5071,7 +5071,6 @@
     "No model RPM rules configured. Click \"Add model\" to get started.": "No model RPM rules configured. Click \"Add model\" to get started.",
     "Model name": "Model name",
     "Global RPM": "Global RPM",
-    "Per-user RPM": "Per-user RPM",
     "Group sub-limits": "Group sub-limits",
     "Group total RPM": "Group total RPM",
     "All models combined": "All models combined",
@@ -5082,9 +5081,7 @@
     "Group total name must not contain whitespace or control characters": "Group total name must not contain whitespace or control characters",
     "This group already has a total RPM limit": "This group already has a total RPM limit",
     "Total RPM": "Total RPM",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "Models not listed in the models section are not subject to model-specific RPM limits.",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "Top-level group total limits apply to every model in the group, including models not listed in the models section.",
     "分组总额 RPM": "Group total RPM",
     "全组合计": "All models combined",
     "None": "None",
@@ -5196,6 +5193,12 @@
     "RPM overview card": "RPM overview card",
     "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.",
     "过载改写": "Overload rewrite",
-    "上游过载，错误码已改写为可重试": "Upstream overloaded; error code rewritten as retryable"
+    "上游过载，错误码已改写为可重试": "Upstream overloaded; error code rewritten as retryable",
+    "每用户 RPM": "Per-user RPM",
+    "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Per-user RPM must not exceed the total RPM when the total limit is enabled",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Total RPM and per-user RPM cannot both be 0; delete the group entry instead"
   }
 }

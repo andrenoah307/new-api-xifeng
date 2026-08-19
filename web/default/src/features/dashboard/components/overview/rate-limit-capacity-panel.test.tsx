@@ -205,6 +205,7 @@ describe('personal rate-limit capacity section', () => {
         items: [
           {
             model: 'gpt-zero',
+            group: '',
             current: 0,
             limit: 20,
             utilization: 0,
@@ -234,6 +235,7 @@ describe('personal rate-limit capacity section', () => {
         items: [
           {
             model: 'gpt-unlimited',
+            group: '',
             current: 7,
             limit: 0,
             utilization: null,
@@ -261,6 +263,7 @@ describe('personal rate-limit capacity section', () => {
         items: [
           {
             model: 'gpt-unlimited',
+            group: '',
             current: null,
             limit: 0,
             utilization: null,
@@ -292,6 +295,7 @@ describe('personal rate-limit capacity section', () => {
         items: [
           {
             model: 'gpt-unavailable',
+            group: '',
             current: null,
             limit: 20,
             utilization: null,
@@ -306,6 +310,24 @@ describe('personal rate-limit capacity section', () => {
     assert.match(markup, /My model RPM/)
     assert.match(markup, /Temporarily unavailable/)
     assert.doesNotMatch(markup, /0 \/ 20/)
+  })
+
+  test('renders group-level per-user capacity with a combined-model badge', async () => {
+    const markup = await renderPanel(
+      response({
+        status: 'ok',
+        window_seconds: 60,
+        observed_at: '2026-08-18T00:00:00Z',
+        instance_only: false,
+        total: 1,
+        items: [groupTotalItem('vip-personal', { current: 4, limit: 20 })],
+      })
+    )
+
+    assert.match(markup, /vip-personal/)
+    assert.match(markup, /All models combined/)
+    assert.match(markup, /4 \/ 20/)
+    assert.doesNotMatch(markup, /title=""/)
   })
 })
 

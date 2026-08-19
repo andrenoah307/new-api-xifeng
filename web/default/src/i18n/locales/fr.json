@@ -5425,9 +5425,7 @@
     "Group total name must not exceed 64 characters": "Le nom du groupe du RPM total ne doit pas dépasser 64 caractères",
     "This group already has a total RPM limit": "Ce groupe possède déjà une limite RPM totale",
     "Total RPM": "RPM total",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Le RPM total doit être un entier compris entre 1 et 1 000 000 ; supprimez l'entrée du groupe pour le désactiver",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "Les modèles absents de la section des modèles ne sont pas soumis aux limites RPM propres aux modèles.",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "Les limites totales de groupe de premier niveau s'appliquent à tous les modèles du groupe, y compris ceux absents de la section des modèles.",
     "Edit model RPM rule": "Modifier la règle RPM du modèle",
     "Add model RPM rule": "Ajouter une règle RPM de modèle",
     "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "Chaque requête consomme le quota global et, s'ils sont configurés, les quotas du groupe correspondant et de l'utilisateur.",
@@ -5512,6 +5510,11 @@
     "Click refresh for the latest data": "Cliquez sur Actualiser pour obtenir les dernières données",
     "RPM overview": "Aperçu RPM",
     "Group total name must not contain whitespace or control characters": "Le nom du groupe du RPM total ne doit pas contenir d'espaces ni de caractères de contrôle",
-    "Upstream overload: error code rewritten for retry": "Surcharge du service en amont : code d'erreur réécrit pour permettre une nouvelle tentative"
+    "Upstream overload: error code rewritten for retry": "Surcharge du service en amont : code d'erreur réécrit pour permettre une nouvelle tentative",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Le RPM total doit être un entier compris entre 0 et 1 000 000 (0 signifie aucune limite totale)",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "Le RPM par utilisateur doit être un entier compris entre 0 et 1 000 000 (0 signifie aucune limite par utilisateur)",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Le RPM par utilisateur ne doit pas dépasser le RPM total lorsque la limite totale est activée",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Le RPM total et le RPM par utilisateur ne peuvent pas être tous deux à 0 ; supprimez plutôt l'entrée du groupe",
+    "Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit.": "Les limites de groupe de premier niveau s'appliquent à tous les modèles du groupe, y compris ceux absents de la section models : total_rpm limite l'ensemble des utilisateurs, user_rpm limite chaque utilisateur et 0 désactive la limite."
   }
 }

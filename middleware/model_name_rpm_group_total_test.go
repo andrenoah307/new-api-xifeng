@@ -45,10 +45,10 @@ func TestT3ModelNameRPMGroupTotalOnlyBuildsOneBucket(t *testing.T) {
 	assert.Equal(t, 1, *calls)
 }
 
-func TestT3ModelNameRPMAppendsGroupTotalAfterThreeModelBuckets(t *testing.T) {
+func TestT3ModelNameRPMAppendsGroupUserAfterExistingFourBuckets(t *testing.T) {
 	t3ConfigureModelNameRPMGroupsTest(t, true, map[string]t3ModelNameRPMRule{
 		"gpt-4o": {GlobalRPM: 10, UserRPM: 2, GroupRPM: map[string]int{"vip_2_cheap": 3}},
-	}, map[string]setting.GroupTotalRPMRule{"vip_2_cheap": {TotalRPM: 30}})
+	}, map[string]setting.GroupTotalRPMRule{"vip_2_cheap": {TotalRPM: 30, UserRPM: 20}})
 	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
 	common.SetContextKey(c, constant.ContextKeyUserId, 42)
 	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
@@ -57,9 +57,45 @@ func TestT3ModelNameRPMAppendsGroupTotalAfterThreeModelBuckets(t *testing.T) {
 			{Key: model_name_limiter.GroupKey("gpt-4o", "vip_2_cheap"), Limit: 3, Scope: "group"},
 			{Key: model_name_limiter.UserKey("gpt-4o", 42), Limit: 2, Scope: "user"},
 			{Key: model_name_limiter.GroupTotalKey("vip_2_cheap"), Limit: 30, Scope: "group_total"},
+			{Key: model_name_limiter.GroupUserKey("vip_2_cheap", 42), Limit: 20, Scope: "group_user"},
 		}, buckets)
 		return model_name_limiter.Result{Allowed: true}
 	})
+	require.True(t, enforceModelNameRPM(c, "gpt-4o", "vip_2_cheap", "/v1/chat/completions"))
+	assert.Equal(t, 1, *calls)
+}
+
+func TestT3ModelNameRPMGroupUserOnlyDoesNotReturnEarly(t *testing.T) {
+	t3ConfigureModelNameRPMGroupsTest(t, true, map[string]t3ModelNameRPMRule{}, map[string]setting.GroupTotalRPMRule{
+		"vip_2_cheap": {UserRPM: 20},
+	})
+	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
+	common.SetContextKey(c, constant.ContextKeyUserId, 42)
+	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{{
+			Key: model_name_limiter.GroupUserKey("vip_2_cheap", 42), Limit: 20, Scope: "group_user",
+		}}, buckets)
+		return model_name_limiter.Result{Allowed: true}
+	})
+
+	require.True(t, enforceModelNameRPM(c, "unconfigured-model", "vip_2_cheap", "/v1/chat/completions"))
+	assert.Equal(t, 1, *calls)
+}
+
+func TestT3ModelNameRPMMissingUserIDSkipsModelAndGroupUserBuckets(t *testing.T) {
+	t3ConfigureModelNameRPMGroupsTest(t, true, map[string]t3ModelNameRPMRule{
+		"gpt-4o": {GlobalRPM: 10, UserRPM: 2, GroupRPM: map[string]int{"vip_2_cheap": 3}},
+	}, map[string]setting.GroupTotalRPMRule{"vip_2_cheap": {TotalRPM: 30, UserRPM: 20}})
+	c, _ := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
+	calls := t3SetModelNameRPMAcquireSpy(t, func(_ context.Context, buckets []model_name_limiter.Bucket) model_name_limiter.Result {
+		assert.Equal(t, []model_name_limiter.Bucket{
+			{Key: model_name_limiter.ModelKey("gpt-4o"), Limit: 10, Scope: "global"},
+			{Key: model_name_limiter.GroupKey("gpt-4o", "vip_2_cheap"), Limit: 3, Scope: "group"},
+			{Key: model_name_limiter.GroupTotalKey("vip_2_cheap"), Limit: 30, Scope: "group_total"},
+		}, buckets)
+		return model_name_limiter.Result{Allowed: true}
+	})
+
 	require.True(t, enforceModelNameRPM(c, "gpt-4o", "vip_2_cheap", "/v1/chat/completions"))
 	assert.Equal(t, 1, *calls)
 }
@@ -95,4 +131,26 @@ func TestT3ModelNameRPMGroupTotalRejectionIsNeutralAndRetryable(t *testing.T) {
 	assert.Contains(t, recorder.Body.String(), string(types.ErrorCodeModelNameRateLimited))
 	assert.Contains(t, recorder.Body.String(), "Too many requests for your current group. Please try again later.")
 	assert.NotContains(t, recorder.Body.String(), group)
+}
+
+func TestT3ModelNameRPMGroupUserRejectionIsNeutralAndRetryable(t *testing.T) {
+	const group = "internal-vip-group"
+	t3ConfigureModelNameRPMGroupsTest(t, true, map[string]t3ModelNameRPMRule{}, map[string]setting.GroupTotalRPMRule{
+		group: {UserRPM: 20},
+	})
+	c, recorder := t3NewModelNameRPMTestContext(t, "/v1/chat/completions")
+	c.Set(string(constant.ContextKeyLanguage), i18n.LangEn)
+	common.SetContextKey(c, constant.ContextKeyUserId, 42)
+	t3SetModelNameRPMAcquireSpy(t, func(context.Context, []model_name_limiter.Bucket) model_name_limiter.Result {
+		return model_name_limiter.Result{Allowed: false, Scope: "group_user", Limit: 20, Current: 20}
+	})
+
+	require.False(t, enforceModelNameRPM(c, "unconfigured-model", group, "/v1/chat/completions"))
+	assert.Equal(t, http.StatusServiceUnavailable, recorder.Code)
+	assert.Equal(t, "60", recorder.Header().Get("Retry-After"))
+	assert.Contains(t, recorder.Body.String(), string(types.ErrorCodeModelNameRateLimited))
+	assert.Contains(t, recorder.Body.String(), "You are sending requests too frequently in your current group. Please try again later.")
+	for _, secret := range []string{group, "unconfigured-model", "20", "group_user"} {
+		assert.NotContains(t, recorder.Body.String(), secret)
+	}
 }

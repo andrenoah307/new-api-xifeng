@@ -125,7 +125,20 @@ export function parseModelNameRPMConfig(value) {
     if (!isRecord(rawGroupTotals)) return { ok: false };
     for (const [groupName, rawRule] of Object.entries(rawGroupTotals)) {
       if (!isRecord(rawRule)) return { ok: false };
-      const rule = { groupName, totalRpm: rawRule.total_rpm };
+
+      let totalRpm = 0;
+      if (rawRule.total_rpm !== undefined) {
+        if (!isCountableInteger(rawRule.total_rpm)) return { ok: false };
+        totalRpm = rawRule.total_rpm;
+      }
+
+      let userRpm = 0;
+      if (rawRule.user_rpm !== undefined) {
+        if (!isCountableInteger(rawRule.user_rpm)) return { ok: false };
+        userRpm = rawRule.user_rpm;
+      }
+
+      const rule = { groupName, totalRpm, userRpm };
       if (validateModelNameRPMGroupTotalRule(rule, [])) return { ok: false };
       groupTotals.push(rule);
     }
@@ -218,7 +231,16 @@ export function upsertModelNameRPMGroupTotalRule(
   if (previousGroupName !== null && previousGroupName !== rule.groupName) {
     delete groups[previousGroupName];
   }
-  existing.total_rpm = rule.totalRpm;
+  if (rule.totalRpm === 0) {
+    delete existing.total_rpm;
+  } else {
+    existing.total_rpm = rule.totalRpm;
+  }
+  if (rule.userRpm === 0) {
+    delete existing.user_rpm;
+  } else {
+    existing.user_rpm = rule.userRpm;
+  }
   Object.defineProperty(groups, rule.groupName, {
     configurable: true,
     enumerable: true,
@@ -260,10 +282,23 @@ export function validateModelNameRPMGroupTotalRule(rule, otherGroupNames) {
   }
   if (
     !Number.isSafeInteger(rule.totalRpm) ||
-    rule.totalRpm < 1 ||
+    rule.totalRpm < 0 ||
     rule.totalRpm > MODEL_NAME_RPM_MAX_GLOBAL
   ) {
     return { code: 'group-total-rpm-range' };
+  }
+  if (
+    !Number.isSafeInteger(rule.userRpm) ||
+    rule.userRpm < 0 ||
+    rule.userRpm > MODEL_NAME_RPM_MAX_GLOBAL
+  ) {
+    return { code: 'group-total-user-rpm-range' };
+  }
+  if (rule.totalRpm > 0 && rule.userRpm > rule.totalRpm) {
+    return { code: 'group-total-user-rpm-exceeds-total' };
+  }
+  if (rule.totalRpm === 0 && rule.userRpm === 0) {
+    return { code: 'group-total-without-limit' };
   }
   return null;
 }

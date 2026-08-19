@@ -2,6 +2,7 @@ package model_name_limiter
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 
@@ -9,39 +10,47 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGroupTotalKeyUsesAnIndependentNamespace(t *testing.T) {
+func TestGroupKeysUseIndependentNamespaces(t *testing.T) {
 	model := "vip"
 	group := "vip"
 	userID := 7
-	keys := []string{
-		ModelKey(model),
-		GroupKey(model, group),
-		UserKey(model, userID),
-		GroupTotalKey(group),
+	keys := map[string]string{
+		"model":       ModelKey(model),
+		"group":       GroupKey(model, group),
+		"user":        UserKey(model, userID),
+		"group_total": GroupTotalKey(group),
+		"group_user":  GroupUserKey(group, userID),
 	}
-	assert.Equal(t, []string{
-		"mdrl:v1:rpm:model:vip",
-		"mdrl:v1:rpm:group:vip:vip",
-		"mdrl:v1:rpm:user:vip:7",
-		"mdrl:v1:rpm:gtotal:vip",
-	}, keys)
-	for i := range keys {
-		for j := i + 1; j < len(keys); j++ {
-			assert.NotEqual(t, keys[i], keys[j])
-		}
+	assert.Equal(t, "mdrl:v1:rpm:guser:vip:7", keys["group_user"])
+
+	pairs := []struct {
+		name  string
+		first string
+		other string
+	}{
+		{name: "group and group total", first: keys["group"], other: keys["group_total"]},
+		{name: "group and group user", first: keys["group"], other: keys["group_user"]},
+		{name: "group total and group user", first: keys["group_total"], other: keys["group_user"]},
+	}
+	for _, tt := range pairs {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.False(t, strings.HasPrefix(tt.first, tt.other))
+			assert.False(t, strings.HasPrefix(tt.other, tt.first))
+		})
 	}
 }
 
-func TestFourBucketsAreValidAndFiveBucketsFailOpen(t *testing.T) {
+func TestFiveBucketsAreValidAndSixBucketsFailOpen(t *testing.T) {
 	four := []Bucket{
 		{Key: "global", Limit: 10, Scope: "global"},
 		{Key: "group", Limit: 10, Scope: "group"},
 		{Key: "user", Limit: 10, Scope: "user"},
 		{Key: "total", Limit: 1, Scope: "group_total"},
 	}
-	five := append(append([]Bucket(nil), four...), Bucket{Key: "fifth", Limit: 1, Scope: "global"})
-	assert.True(t, validAcquireBuckets(four))
-	assert.False(t, validAcquireBuckets(five))
+	five := append(append([]Bucket(nil), four...), Bucket{Key: "group-user", Limit: 10, Scope: "group_user"})
+	six := append(append([]Bucket(nil), five...), Bucket{Key: "sixth", Limit: 1, Scope: "global"})
+	assert.True(t, validAcquireBuckets(five))
+	assert.False(t, validAcquireBuckets(six))
 
 	previousBackend := backendImpl
 	previousInitialized := previousBackend != nil
@@ -56,12 +65,29 @@ func TestFourBucketsAreValidAndFiveBucketsFailOpen(t *testing.T) {
 		}
 	})
 
-	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), four))
-	assert.Equal(t, Result{Allowed: false, Scope: "group_total", Limit: 1, Current: 1}, Acquire(context.Background(), four))
 	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), five))
+	assert.Equal(t, Result{Allowed: false, Scope: "group_total", Limit: 1, Current: 1}, Acquire(context.Background(), five))
+	assert.Equal(t, Result{Allowed: true}, Acquire(context.Background(), six))
 	b := backendImpl.(*memoryBackend)
-	assert.Equal(t, 1, b.count("total"), "invalid five-bucket shape must not reach the backend")
-	assert.Equal(t, 0, b.count("fifth"))
+	assert.Equal(t, 1, b.count("total"), "invalid six-bucket shape must not reach the backend")
+	assert.Equal(t, 1, b.count("group-user"))
+	assert.Equal(t, 0, b.count("sixth"))
+}
+
+func TestAcquireBucketScopeValidation(t *testing.T) {
+	tests := []struct {
+		name  string
+		scope string
+		valid bool
+	}{
+		{name: "group user", scope: "group_user", valid: true},
+		{name: "unknown", scope: "unknown", valid: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.valid, validAcquireBuckets([]Bucket{{Key: "key", Limit: 1, Scope: tt.scope}}))
+		})
+	}
 }
 
 func TestBackendsRejectGroupTotalAtomicallyAndReturnScope(t *testing.T) {

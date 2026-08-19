@@ -17,10 +17,10 @@ const (
 	modelNameRPMMaxGroup  = 64
 )
 
-// ModelNameRPMDecision is the result of looking up both independent RPM rule
+// ModelNameRPMDecision is the result of looking up independent RPM rule
 // dimensions in one immutable snapshot. Matched only indicates a hit in the
-// models segment; GroupTotalRPM > 0 is an independent group-total dimension,
-// and either dimension may be configured without the other.
+// models segment; GroupTotalRPM and GroupUserRPM are independent group
+// dimensions, and any dimension may be configured without the others.
 type ModelNameRPMDecision struct {
 	Matched       bool
 	RuleModel     string
@@ -28,6 +28,7 @@ type ModelNameRPMDecision struct {
 	GroupRPM      int // 0 means that the group has no sub-limit.
 	UserRPM       int // 0 means that the model has no per-user limit.
 	GroupTotalRPM int // 0 means that this group has no aggregate limit.
+	GroupUserRPM  int // 0 means that this group has no per-user limit.
 }
 
 type ModelNameRPMRule struct {
@@ -36,9 +37,10 @@ type ModelNameRPMRule struct {
 	GroupRPM  map[string]int `json:"group_rpm,omitempty"`
 }
 
-// GroupTotalRPMRule limits the aggregate RPM of every model in one group.
+// GroupTotalRPMRule holds cross-model limits for one group.
 type GroupTotalRPMRule struct {
 	TotalRPM int `json:"total_rpm"`
+	UserRPM  int `json:"user_rpm,omitempty"`
 }
 
 type ModelNameRPMConfig struct {
@@ -74,6 +76,7 @@ func MatchModelNameRPM(model, group string) ModelNameRPMDecision {
 	if group != "" {
 		if groupRule, ok := snapshot.Groups[group]; ok {
 			decision.GroupTotalRPM = groupRule.TotalRPM
+			decision.GroupUserRPM = groupRule.UserRPM
 		}
 	}
 
@@ -256,12 +259,24 @@ func validateModelNameRPMConfig(config *modelNameRPMConfig) error {
 		if err := validateModelNameRPMName("group", groupName, modelNameRPMMaxGroup); err != nil {
 			return err
 		}
-		totalRPM := config.Groups[groupName].TotalRPM
-		if totalRPM < 1 {
-			return fmt.Errorf("group %q total_rpm must be at least 1; remove the group entry to disable it", groupName)
+		groupRule := config.Groups[groupName]
+		if groupRule.TotalRPM < 0 {
+			return fmt.Errorf("group %q total_rpm must not be negative (0 means disabled)", groupName)
 		}
-		if totalRPM > modelNameRPMMaxGlobal {
+		if groupRule.TotalRPM > modelNameRPMMaxGlobal {
 			return fmt.Errorf("group %q total_rpm must not exceed %d; remove the group entry to disable it", groupName, modelNameRPMMaxGlobal)
+		}
+		if groupRule.UserRPM < 0 {
+			return fmt.Errorf("group %q user_rpm must not be negative (0 means disabled)", groupName)
+		}
+		if groupRule.UserRPM > modelNameRPMMaxGlobal {
+			return fmt.Errorf("group %q user_rpm must not exceed %d", groupName, modelNameRPMMaxGlobal)
+		}
+		if groupRule.TotalRPM > 0 && groupRule.UserRPM > groupRule.TotalRPM {
+			return fmt.Errorf("group %q user_rpm must not exceed total_rpm", groupName)
+		}
+		if groupRule.TotalRPM == 0 && groupRule.UserRPM == 0 {
+			return fmt.Errorf("group %q has neither total_rpm nor user_rpm configured; remove the group entry to disable it", groupName)
 		}
 	}
 	return nil
@@ -303,6 +318,7 @@ func cloneModelNameRPMConfig(source *modelNameRPMConfig) *modelNameRPMConfig {
 		clone.Models[modelName] = cloneRule
 	}
 	for groupName, sourceRule := range source.Groups {
+		// This value copy is safe while GroupTotalRPMRule has no map or slice fields; deep-copy any such fields added later.
 		clone.Groups[groupName] = sourceRule
 	}
 	return clone

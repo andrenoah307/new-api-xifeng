@@ -4836,7 +4836,6 @@
     "No model RPM rules configured. Click \"Add model\" to get started.": "尚未設定模型 RPM 規則，點擊「新增模型」開始設定。",
     "Model name": "模型名稱",
     "Global RPM": "全域 RPM",
-    "Per-user RPM": "每位使用者 RPM",
     "Group sub-limits": "分組子限制",
     "Group total RPM": "分組總額 RPM",
     "All models combined": "全組合計",
@@ -4847,9 +4846,7 @@
     "Group total name must not contain whitespace or control characters": "分組總額名稱不能包含空白字元或控制字元",
     "This group already has a total RPM limit": "此分組已設定總額 RPM 限制",
     "Total RPM": "總額 RPM",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "總額 RPM 必須是 1 到 1,000,000 之間的整數；如需停用，請刪除此分組項目",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "未列入 models 區段的模型不受模型專屬 RPM 限制。",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "頂層分組總額限制適用於該分組內的所有模型，包括未列入 models 區段的模型。",
     "分组总额 RPM": "分組總額 RPM",
     "全组合计": "全組合計",
     "None": "無",
@@ -4959,6 +4956,11 @@
     "点击刷新获取最新数据": "點擊重新整理以取得最新資料",
     "RPM 概览": "RPM 概覽",
     "RPM overview card": "RPM 概覽卡片",
-    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "預設關閉。開啟後，使用者端資料看板才會顯示並查詢 RPM 概覽卡片。"
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "預設關閉。開啟後，使用者端資料看板才會顯示並查詢 RPM 概覽卡片。",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "總額 RPM 必須是 0 到 1,000,000 之間的整數（0 表示無總額限制）",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "每使用者 RPM 必須是 0 到 1,000,000 之間的整數（0 表示無每使用者限制）",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "啟用總額限制時，每使用者 RPM 不能超過總額 RPM",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "總額 RPM 和每使用者 RPM 不能同時為 0；請刪除該分組項目",
+    "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "頂層分組限制涵蓋該分組的所有模型（包括 models 中未列出的模型）：total_rpm 限制全體使用者合計，user_rpm 限制單一使用者，0 表示不限制。"
   }
 }

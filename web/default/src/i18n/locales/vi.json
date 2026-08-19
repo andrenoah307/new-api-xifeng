@@ -5425,9 +5425,7 @@
     "Group total name must not exceed 64 characters": "Tên nhóm cho tổng giới hạn không được vượt quá 64 ký tự",
     "This group already has a total RPM limit": "Nhóm này đã có giới hạn tổng RPM",
     "Total RPM": "Tổng RPM",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Tổng RPM phải là số nguyên từ 1 đến 1.000.000; hãy xóa mục nhóm để tắt giới hạn",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "Các mô hình không có trong phần mô hình không chịu giới hạn RPM riêng theo mô hình.",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "Giới hạn tổng nhóm cấp cao nhất áp dụng cho mọi mô hình trong nhóm, kể cả các mô hình không có trong phần mô hình.",
     "Edit model RPM rule": "Sửa quy tắc RPM của mô hình",
     "Add model RPM rule": "Thêm quy tắc RPM cho mô hình",
     "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "Mỗi yêu cầu tiêu thụ hạn mức toàn cục và, nếu được cấu hình, cả hạn mức của nhóm tương ứng và người dùng.",
@@ -5512,6 +5510,11 @@
     "Click refresh for the latest data": "Nhấn Làm mới để xem dữ liệu mới nhất",
     "RPM overview": "Tổng quan RPM",
     "Group total name must not contain whitespace or control characters": "Tên nhóm cho tổng giới hạn không được chứa khoảng trắng hoặc ký tự điều khiển",
-    "Upstream overload: error code rewritten for retry": "Dịch vụ thượng nguồn quá tải: đã viết lại mã lỗi để cho phép thử lại"
+    "Upstream overload: error code rewritten for retry": "Dịch vụ thượng nguồn quá tải: đã viết lại mã lỗi để cho phép thử lại",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Tổng RPM phải là số nguyên từ 0 đến 1.000.000 (0 nghĩa là không giới hạn tổng)",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "RPM mỗi người dùng phải là số nguyên từ 0 đến 1.000.000 (0 nghĩa là không giới hạn mỗi người dùng)",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Khi bật giới hạn tổng, RPM mỗi người dùng không được vượt quá tổng RPM",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Tổng RPM và RPM mỗi người dùng không thể đồng thời bằng 0; hãy xóa mục nhóm thay thế",
+    "Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit.": "Giới hạn nhóm cấp cao nhất áp dụng cho mọi mô hình trong nhóm, kể cả mô hình không có trong phần models: total_rpm giới hạn tổng của mọi người dùng, user_rpm giới hạn từng người dùng và 0 sẽ tắt giới hạn đó."
   }
 }

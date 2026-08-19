@@ -132,14 +132,14 @@ describe('parseModelNameRPMConfig', () => {
     })
   })
 
-  test('reads a groups-only document and accepts boundary totals', () => {
+  test('reads total-only and per-user-only group limits with zero defaults', () => {
     assert.deepEqual(
       parseModelNameRPMConfig(
         JSON.stringify({
           enabled: true,
           groups: {
-            'vip:cheap': { total_rpm: 1 },
-            enterprise: { total_rpm: MODEL_NAME_RPM_MAX_GLOBAL },
+            'vip:cheap': { total_rpm: 600 },
+            staff: { user_rpm: 20 },
           },
         })
       ),
@@ -148,8 +148,8 @@ describe('parseModelNameRPMConfig', () => {
         enabled: true,
         rules: [],
         groupTotals: [
-          { groupName: 'vip:cheap', totalRpm: 1 },
-          { groupName: 'enterprise', totalRpm: MODEL_NAME_RPM_MAX_GLOBAL },
+          { groupName: 'vip:cheap', totalRpm: 600, userRpm: 0 },
+          { groupName: 'staff', totalRpm: 0, userRpm: 20 },
         ],
       }
     )
@@ -169,11 +169,17 @@ describe('parseModelNameRPMConfig', () => {
   const malformedGroupDocuments: [string, unknown][] = [
     ['a non-object groups value', []],
     ['a non-object group rule', { vip: 30 }],
-    ['a missing total_rpm', { vip: {} }],
-    ['a zero total_rpm', { vip: { total_rpm: 0 } }],
+    ['both limits missing', { vip: {} }],
+    ['both limits disabled', { vip: { total_rpm: 0, user_rpm: 0 } }],
     ['a negative total_rpm', { vip: { total_rpm: -1 } }],
     ['a fractional total_rpm', { vip: { total_rpm: 1.5 } }],
     ['a string total_rpm', { vip: { total_rpm: '30' } }],
+    ['a fractional user_rpm', { vip: { user_rpm: 1.5 } }],
+    ['a string user_rpm', { vip: { user_rpm: '20' } }],
+    [
+      'a per-user limit over the total',
+      { vip: { total_rpm: 10, user_rpm: 11 } },
+    ],
     [
       'an over-limit total_rpm',
       { vip: { total_rpm: MODEL_NAME_RPM_MAX_GLOBAL + 1 } },
@@ -446,6 +452,7 @@ describe('group total RPM document updates', () => {
   ): ModelNameRPMGroupTotalRule => ({
     groupName: 'vip',
     totalRpm: 30,
+    userRpm: 0,
     ...overrides,
   })
 
@@ -458,26 +465,28 @@ describe('group total RPM document updates', () => {
     const added = upsertModelNameRPMGroupTotalRule(
       initial,
       null,
-      groupTotal()
+      groupTotal({ userRpm: 10 })
     )
-    assert.deepEqual(JSON.parse(added).groups, { vip: { total_rpm: 30 } })
+    assert.deepEqual(JSON.parse(added).groups, {
+      vip: { total_rpm: 30, user_rpm: 10 },
+    })
 
     const updated = upsertModelNameRPMGroupTotalRule(
       added,
       'vip',
-      groupTotal({ totalRpm: 40 })
+      groupTotal({ totalRpm: 0, userRpm: 20 })
     )
-    assert.deepEqual(JSON.parse(updated).groups, { vip: { total_rpm: 40 } })
+    assert.deepEqual(JSON.parse(updated).groups, { vip: { user_rpm: 20 } })
 
     const renamed = upsertModelNameRPMGroupTotalRule(
       updated,
       'vip',
-      groupTotal({ groupName: 'vip:new', totalRpm: 50 })
+      groupTotal({ groupName: 'vip:new', totalRpm: 50, userRpm: 25 })
     )
     assert.deepEqual(JSON.parse(renamed), {
       enabled: true,
       models: { m: { global_rpm: 10 } },
-      groups: { 'vip:new': { total_rpm: 50 } },
+      groups: { 'vip:new': { total_rpm: 50, user_rpm: 25 } },
       future_top_level: 'keep',
     })
 
@@ -492,16 +501,15 @@ describe('group total RPM document updates', () => {
     )
   })
 
-  test('preserves unknown fields on an edited group total', () => {
+  test('deletes zero-valued fields while preserving unknown fields', () => {
     const next = JSON.parse(
       upsertModelNameRPMGroupTotalRule(
-        '{"groups":{"vip":{"total_rpm":30,"future_field":true}}}',
+        '{"groups":{"vip":{"total_rpm":30,"user_rpm":10,"future_field":true}}}',
         'vip',
-        groupTotal({ totalRpm: 40 })
+        groupTotal({ totalRpm: 0, userRpm: 0 })
       )
     )
     assert.deepEqual(next.groups.vip, {
-      total_rpm: 40,
       future_field: true,
     })
   })
@@ -519,7 +527,7 @@ describe('group total RPM document updates', () => {
       ok: true,
       enabled: false,
       rules: [],
-      groupTotals: [{ groupName: '__proto__', totalRpm: 31 }],
+      groupTotals: [{ groupName: '__proto__', totalRpm: 31, userRpm: 0 }],
     })
 
     const renamed = upsertModelNameRPMGroupTotalRule(
@@ -547,13 +555,19 @@ describe('validateModelNameRPMGroupTotalRule', () => {
   ): ModelNameRPMGroupTotalRule => ({
     groupName: 'vip:cheap',
     totalRpm: 30,
+    userRpm: 0,
     ...overrides,
   })
 
-  test('accepts colons, Unicode names, and total RPM boundaries', () => {
+  test('accepts names and total/per-user RPM boundaries', () => {
     for (const input of [
       groupTotal({ totalRpm: 1 }),
-      groupTotal({ groupName: 'vip:cheap', totalRpm: MODEL_NAME_RPM_MAX_GLOBAL }),
+      groupTotal({ totalRpm: 0, userRpm: 1 }),
+      groupTotal({
+        groupName: 'vip:cheap',
+        totalRpm: MODEL_NAME_RPM_MAX_GLOBAL,
+        userRpm: MODEL_NAME_RPM_MAX_GLOBAL,
+      }),
       groupTotal({ groupName: '会员组' }),
     ]) {
       assert.equal(validateModelNameRPMGroupTotalRule(input, []), null)
@@ -585,7 +599,7 @@ describe('validateModelNameRPMGroupTotalRule', () => {
     ],
     ['group-total-name-whitespace', groupTotal({ groupName: 'vip\n' }), []],
     ['group-total-name-duplicate', groupTotal(), ['vip:cheap']],
-    ['group-total-rpm-range', groupTotal({ totalRpm: 0 }), []],
+    ['group-total-without-limit', groupTotal({ totalRpm: 0, userRpm: 0 }), []],
     ['group-total-rpm-range', groupTotal({ totalRpm: -1 }), []],
     ['group-total-rpm-range', groupTotal({ totalRpm: 1.5 }), []],
     [
@@ -593,14 +607,25 @@ describe('validateModelNameRPMGroupTotalRule', () => {
       groupTotal({ totalRpm: MODEL_NAME_RPM_MAX_GLOBAL + 1 }),
       [],
     ],
+    ['group-total-user-rpm-range', groupTotal({ userRpm: -1 }), []],
+    ['group-total-user-rpm-range', groupTotal({ userRpm: 1.5 }), []],
+    [
+      'group-total-user-rpm-range',
+      groupTotal({ totalRpm: 0, userRpm: MODEL_NAME_RPM_MAX_GLOBAL + 1 }),
+      [],
+    ],
+    [
+      'group-total-user-rpm-exceeds-total',
+      groupTotal({ totalRpm: 30, userRpm: 31 }),
+      [],
+    ],
   ]
 
   for (const [code, input, otherNames] of errorCases) {
     test(`reports ${code}`, () => {
-      assert.deepEqual(
-        validateModelNameRPMGroupTotalRule(input, otherNames),
-        { code }
-      )
+      assert.deepEqual(validateModelNameRPMGroupTotalRule(input, otherNames), {
+        code,
+      })
     })
   }
 })

@@ -71,7 +71,13 @@ const ERROR_MESSAGES = {
     'Group total name must not contain whitespace or control characters',
   'group-total-name-duplicate': 'This group already has a total RPM limit',
   'group-total-rpm-range':
-    'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',
+    'Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)',
+  'group-total-user-rpm-range':
+    'Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)',
+  'group-total-user-rpm-exceeds-total':
+    'Per-user RPM must not exceed the total RPM when the total limit is enabled',
+  'group-total-without-limit':
+    'Total RPM and per-user RPM cannot both be 0; delete the group entry instead',
 };
 
 const MODEL_NAME_ERROR_CODES = [
@@ -105,6 +111,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
   const [editingGroupName, setEditingGroupName] = useState(null);
   const [groupTotalName, setGroupTotalName] = useState('');
   const [totalRpm, setTotalRpm] = useState(30);
+  const [groupUserRpm, setGroupUserRpm] = useState(0);
   const [groupTotalError, setGroupTotalError] = useState(null);
   const [groupOptions, setGroupOptions] = useState([]);
   const groupsLoadedRef = useRef(false);
@@ -180,12 +187,17 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
     setEditingGroupName(rule ? rule.groupName : null);
     setGroupTotalName(rule ? rule.groupName : '');
     setTotalRpm(rule ? rule.totalRpm : 30);
+    setGroupUserRpm(rule ? rule.userRpm : 0);
     setGroupTotalError(null);
     setGroupTotalModalVisible(true);
   }
 
   function handleGroupTotalSave() {
-    const rule = { groupName: groupTotalName, totalRpm };
+    const rule = {
+      groupName: groupTotalName,
+      totalRpm,
+      userRpm: groupUserRpm,
+    };
     const validationError = validateModelNameRPMGroupTotalRule(
       rule,
       groupTotals
@@ -244,7 +256,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
         globalRpmValue === 0 ? t('Unlimited') : globalRpmValue.toLocaleString(),
     },
     {
-      title: t('Per-user RPM'),
+      title: t('每用户 RPM'),
       dataIndex: 'userRpm',
       render: (userRpmValue) =>
         userRpmValue === 0 ? t('None') : userRpmValue.toLocaleString(),
@@ -305,7 +317,14 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
     {
       title: t('Total RPM'),
       dataIndex: 'totalRpm',
-      render: (value) => value.toLocaleString(),
+      render: (totalRpmValue) =>
+        totalRpmValue === 0 ? t('None') : totalRpmValue.toLocaleString(),
+    },
+    {
+      title: t('每用户 RPM'),
+      dataIndex: 'userRpm',
+      render: (userRpmValue) =>
+        userRpmValue === 0 ? t('None') : userRpmValue.toLocaleString(),
     },
     {
       title: t('操作'),
@@ -347,7 +366,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
             <div>
               <Text type='tertiary' size='small'>
                 {t(
-                  'Top-level group total limits apply to every model in the group, including models not listed in the models section.',
+                  'Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.',
                 )}
               </Text>
             </div>
@@ -412,7 +431,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
       >
         <Text type='tertiary' size='small'>
           {t(
-            'Top-level group total limits apply to every model in the group, including models not listed in the models section.',
+            'Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.',
           )}
         </Text>
 
@@ -437,13 +456,36 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
           <Text strong>{t('Total RPM')}</Text>
           <InputNumber
             value={totalRpm}
-            min={1}
+            min={0}
             max={MODEL_NAME_RPM_MAX_GLOBAL}
             step={1}
-            onChange={(next) => setTotalRpm(Number(next))}
+            onChange={(next) => setTotalRpm(Number(next) || 0)}
             style={{ marginTop: 4, width: '100%' }}
           />
-          <div>{groupTotalFieldError(['group-total-rpm-range'])}</div>
+          <div>
+            {groupTotalFieldError([
+              'group-total-rpm-range',
+              'group-total-without-limit',
+            ])}
+          </div>
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <Text strong>{t('每用户 RPM')}</Text>
+          <InputNumber
+            value={groupUserRpm}
+            min={0}
+            max={MODEL_NAME_RPM_MAX_GLOBAL}
+            step={1}
+            onChange={(next) => setGroupUserRpm(Number(next) || 0)}
+            style={{ marginTop: 4, width: '100%' }}
+          />
+          <div>
+            {groupTotalFieldError([
+              'group-total-user-rpm-range',
+              'group-total-user-rpm-exceeds-total',
+            ])}
+          </div>
         </div>
       </Modal>
 
@@ -515,7 +557,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
         </div>
 
         <div style={{ marginTop: 16 }}>
-          <Text strong>{t('Per-user RPM')}</Text>
+          <Text strong>{t('每用户 RPM')}</Text>
           <InputNumber
             value={userRpm}
             min={0}

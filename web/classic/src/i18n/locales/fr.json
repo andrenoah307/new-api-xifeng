@@ -4844,7 +4844,6 @@
     "No model RPM rules configured. Click \"Add model\" to get started.": "Aucune règle RPM de modèle configurée. Cliquez sur « Ajouter un modèle » pour commencer.",
     "Model name": "Nom du modèle",
     "Global RPM": "RPM global",
-    "Per-user RPM": "RPM par utilisateur",
     "Group sub-limits": "Sous-limites par groupe",
     "Group total RPM": "RPM total du groupe",
     "All models combined": "Tous modèles confondus",
@@ -4855,9 +4854,7 @@
     "Group total name must not contain whitespace or control characters": "Le nom du groupe du RPM total ne doit pas contenir d'espaces ni de caractères de contrôle",
     "This group already has a total RPM limit": "Ce groupe possède déjà une limite RPM totale",
     "Total RPM": "RPM total",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Le RPM total doit être un entier compris entre 1 et 1 000 000 ; supprimez l'entrée du groupe pour le désactiver",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "Les modèles absents de la section des modèles ne sont pas soumis aux limites RPM propres aux modèles.",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "Les limites totales de groupe de premier niveau s'appliquent à tous les modèles du groupe, y compris ceux absents de la section des modèles.",
     "分组总额 RPM": "RPM total du groupe",
     "全组合计": "Tous modèles confondus",
     "None": "Aucune",
@@ -4969,6 +4966,12 @@
     "RPM overview card": "Carte d'aperçu RPM",
     "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Désactivée par défaut. Une fois activée, le tableau de bord utilisateur affiche et interroge la carte d'aperçu RPM.",
     "过载改写": "Réécriture en cas de surcharge",
-    "上游过载，错误码已改写为可重试": "Service en amont surchargé ; code d'erreur réécrit pour permettre une nouvelle tentative"
+    "上游过载，错误码已改写为可重试": "Service en amont surchargé ; code d'erreur réécrit pour permettre une nouvelle tentative",
+    "每用户 RPM": "RPM par utilisateur",
+    "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "Les limites de groupe de premier niveau s'appliquent à tous les modèles du groupe, y compris ceux absents de la section models : total_rpm limite l'ensemble des utilisateurs, user_rpm limite chaque utilisateur et 0 désactive la limite.",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Le RPM total doit être un entier compris entre 0 et 1 000 000 (0 signifie aucune limite totale)",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "Le RPM par utilisateur doit être un entier compris entre 0 et 1 000 000 (0 signifie aucune limite par utilisateur)",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Le RPM par utilisateur ne doit pas dépasser le RPM total lorsque la limite totale est activée",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Le RPM total et le RPM par utilisateur ne peuvent pas être tous deux à 0 ; supprimez plutôt l'entrée du groupe"
   }
 }

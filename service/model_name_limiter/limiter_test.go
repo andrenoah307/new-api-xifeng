@@ -325,7 +325,8 @@ func TestAcquireRejectsInvalidShapeOpen(t *testing.T) {
 		{Key: "b", Limit: 1, Scope: "group"},
 		{Key: "c", Limit: 1, Scope: "user"},
 		{Key: "d", Limit: 1, Scope: "group_total"},
-		{Key: "e", Limit: 1, Scope: "global"},
+		{Key: "e", Limit: 1, Scope: "group_user"},
+		{Key: "f", Limit: 1, Scope: "global"},
 	}))
 }
 

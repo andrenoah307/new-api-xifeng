@@ -5425,9 +5425,7 @@
     "Group total name must not exceed 64 characters": "Group total name must not exceed 64 characters",
     "This group already has a total RPM limit": "This group already has a total RPM limit",
     "Total RPM": "Total RPM",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "Models not listed in the models section are not subject to model-specific RPM limits.",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "Top-level group total limits apply to every model in the group, including models not listed in the models section.",
     "Edit model RPM rule": "Edit model RPM rule",
     "Add model RPM rule": "Add model RPM rule",
     "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "Requests consume the global bucket and, when configured, the matching group and per-user buckets.",
@@ -5512,6 +5510,11 @@
     "Click refresh for the latest data": "Click refresh for the latest data",
     "RPM overview": "RPM overview",
     "Group total name must not contain whitespace or control characters": "Group total name must not contain whitespace or control characters",
-    "Upstream overload: error code rewritten for retry": "Upstream overload: error code rewritten for retry"
+    "Upstream overload: error code rewritten for retry": "Upstream overload: error code rewritten for retry",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Per-user RPM must not exceed the total RPM when the total limit is enabled",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Total RPM and per-user RPM cannot both be 0; delete the group entry instead",
+    "Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit.": "Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit."
   }
 }

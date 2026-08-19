@@ -581,7 +581,7 @@ export default function RequestRateLimit(props) {
                     </li>
                     <li>
                       {t(
-                        'Top-level group total limits apply to every model in the group, including models not listed in the models section.',
+                        'Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.',
                       )}
                     </li>
                     <li>

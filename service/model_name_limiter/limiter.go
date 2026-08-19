@@ -26,14 +26,14 @@ const WindowSeconds = rpmWindowSeconds
 type Bucket struct {
 	Key   string
 	Limit int
-	Scope string // "global", "group", "user", or "group_total"
+	Scope string // "global", "group", "user", "group_total", or "group_user"
 }
 
 // Result is the outcome of an acquire attempt. Scope, Limit, and Current are
 // populated only when a request is rejected by a limit.
 type Result struct {
 	Allowed bool
-	Scope   string // "global", "group", "user", or "group_total"
+	Scope   string // "global", "group", "user", "group_total", or "group_user"
 	Limit   int
 	Current int
 }
@@ -109,9 +109,9 @@ func UsingMemoryBackend() bool {
 func (b *memoryBackend) IsMemory() bool { return true }
 func (b *redisBackend) IsMemory() bool  { return false }
 
-// ModelKey, GroupKey, UserKey, and GroupTotalKey are shared by admission and
-// capacity reads. GroupTotalKey is a different dimension from GroupKey: it
-// aggregates all models in a group, while GroupKey limits one model in a group.
+// ModelKey, GroupKey, UserKey, GroupTotalKey, and GroupUserKey are shared by
+// admission and capacity reads. GroupTotalKey and GroupUserKey aggregate all
+// models in a group, while GroupKey limits one model in a group.
 func ModelKey(model string) string { return "mdrl:v1:rpm:model:" + model }
 func GroupKey(model, group string) string {
 	return "mdrl:v1:rpm:group:" + model + ":" + group
@@ -120,9 +120,12 @@ func UserKey(model string, userID int) string {
 	return "mdrl:v1:rpm:user:" + model + ":" + strconv.Itoa(userID)
 }
 func GroupTotalKey(group string) string { return "mdrl:v1:rpm:gtotal:" + group }
+func GroupUserKey(group string, userID int) string {
+	return "mdrl:v1:rpm:guser:" + group + ":" + strconv.Itoa(userID)
+}
 
 func validAcquireBuckets(buckets []Bucket) bool {
-	if len(buckets) < 1 || len(buckets) > 4 {
+	if len(buckets) < 1 || len(buckets) > 5 {
 		return false
 	}
 	for _, bucket := range buckets {
@@ -130,7 +133,7 @@ func validAcquireBuckets(buckets []Bucket) bool {
 		if bucket.Key == "" || bucket.Limit < 0 {
 			return false
 		}
-		if bucket.Scope != "global" && bucket.Scope != "group" && bucket.Scope != "user" && bucket.Scope != "group_total" {
+		if bucket.Scope != "global" && bucket.Scope != "group" && bucket.Scope != "user" && bucket.Scope != "group_total" && bucket.Scope != "group_user" {
 			return false
 		}
 	}

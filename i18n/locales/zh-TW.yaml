@@ -255,6 +255,7 @@ rate_limit_capacity.throttled: "請求過於頻繁，請稍後重試"
 model_name.rate_limited: "模型請求過於頻繁，請稍後重試"
 model_name.user_rate_limited: "你對該模型的請求過於頻繁，請稍後重試"
 model_name.group_total_rate_limited: "目前分組請求頻率過快，請稍後再試"
+model_name.group_user_rate_limited: "你在目前分組的請求過於頻繁，請稍後重試"
 
 # Setting messages
 setting.invalid_type: "無效的預警類型"

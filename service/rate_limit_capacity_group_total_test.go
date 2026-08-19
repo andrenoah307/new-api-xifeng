@@ -58,6 +58,60 @@ func TestRateLimitCapacityGroupTotalsMarkInspectorFailureUnavailable(t *testing.
 	assert.False(t, snapshot.GroupTotals[0].Available)
 }
 
+func TestRateLimitCapacityPersonalAlignsModelAndSortedGroupUserBuckets(t *testing.T) {
+	previous := setting.ModelNameRPMRateLimit2JSONString()
+	t.Cleanup(func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previous)) })
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt":{"global_rpm":10,"user_rpm":4}},"groups":{"zeta":{"user_rpm":7},"alpha":{"total_rpm":3,"user_rpm":2}}}`))
+	stub := &capacityInspectorStub{responses: []capacityInspectResponse{
+		{counts: []int{11, 12}},
+		{counts: []int{1, 2, 3}},
+	}}
+	svc := NewRateLimitCapacityService(stub)
+	snapshot, err := svc.SiteSnapshot(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []UserRPMCapacityLimit{
+		{Model: "gpt", Limit: 4},
+		{Group: "alpha", Limit: 2},
+		{Group: "zeta", Limit: 7},
+	}, snapshot.UserLimits)
+
+	response := svc.Get(context.Background(), CapacityRequest{UserID: 9, Scope: "all"})
+	require.NotNil(t, response.Personal)
+	assert.Equal(t, [][]string{
+		{model_name_limiter.ModelKey("gpt"), model_name_limiter.GroupTotalKey("alpha")},
+		{
+			model_name_limiter.UserKey("gpt", 9),
+			model_name_limiter.GroupUserKey("alpha", 9),
+			model_name_limiter.GroupUserKey("zeta", 9),
+		},
+	}, stub.Keys())
+	require.Len(t, response.Personal.Items, 3)
+
+	type itemIdentity struct {
+		model string
+		group string
+	}
+	want := map[itemIdentity]struct {
+		current int
+		limit   int
+	}{
+		{model: "gpt"}:   {current: 1, limit: 4},
+		{group: "alpha"}: {current: 2, limit: 2},
+		{group: "zeta"}:  {current: 3, limit: 7},
+	}
+	for _, item := range response.Personal.Items {
+		identity := itemIdentity{model: item.Model, group: item.Group}
+		expected, ok := want[identity]
+		require.True(t, ok, "unexpected personal item: %+v", item)
+		require.NotNil(t, item.Current)
+		assert.Equal(t, expected.current, *item.Current)
+		assert.Equal(t, expected.limit, item.Limit)
+		if item.Group != "" {
+			assert.Empty(t, item.Model)
+		}
+	}
+}
+
 func TestRateLimitCapacityGroupTotalsSortByGroupAndRespectVisibilityAndScope(t *testing.T) {
 	previousRatios := ratio_setting.GroupRatio2JSONString()
 	previousUsable := setting.UserUsableGroups2JSONString()

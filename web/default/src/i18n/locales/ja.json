@@ -5425,9 +5425,7 @@
     "Group total name must not exceed 64 characters": "グループ合計のグループ名は 64 文字以内で入力してください",
     "This group already has a total RPM limit": "このグループには既に合計 RPM 制限があります",
     "Total RPM": "合計 RPM",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "合計 RPM は 1 から 1,000,000 までの整数にしてください。無効にするにはグループ項目を削除してください",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "モデルセクションにないモデルには、モデル固有の RPM 制限は適用されません。",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "トップレベルのグループ合計制限は、モデルセクションにないモデルを含む、グループ内のすべてのモデルに適用されます。",
     "Edit model RPM rule": "モデル RPM ルールを編集",
     "Add model RPM rule": "モデル RPM ルールを追加",
     "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "各リクエストはグローバル枠を消費し、設定されている場合は対応するグループ枠とユーザー別枠も消費します。",
@@ -5512,6 +5510,11 @@
     "Click refresh for the latest data": "更新をクリックして最新データを取得してください",
     "RPM overview": "RPM 概要",
     "Group total name must not contain whitespace or control characters": "グループ合計のグループ名に空白文字や制御文字を含めることはできません",
-    "Upstream overload: error code rewritten for retry": "アップストリーム過負荷：再試行できるようエラーコードを書き換えました"
+    "Upstream overload: error code rewritten for retry": "アップストリーム過負荷：再試行できるようエラーコードを書き換えました",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "合計 RPM は 0 から 1,000,000 までの整数で指定してください（0 は合計制限なし）",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "ユーザーごとの RPM は 0 から 1,000,000 までの整数で指定してください（0 はユーザーごとの制限なし）",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "合計制限が有効な場合、ユーザーごとの RPM は合計 RPM 以下にしてください",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "合計 RPM とユーザーごとの RPM を両方 0 にはできません。代わりにグループ項目を削除してください",
+    "Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit.": "トップレベルのグループ制限は、models セクションにないモデルを含むグループ内の全モデルに適用されます。total_rpm は全ユーザーの合計を、user_rpm は各ユーザーを制限し、0 でその制限を無効にします。"
   }
 }

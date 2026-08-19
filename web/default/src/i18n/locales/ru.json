@@ -5425,9 +5425,7 @@
     "Group total name must not exceed 64 characters": "Имя группы для общего лимита не должно превышать 64 символа",
     "This group already has a total RPM limit": "Для этой группы уже задан общий лимит RPM",
     "Total RPM": "Общий RPM",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Общий RPM должен быть целым числом от 1 до 1 000 000; чтобы отключить лимит, удалите запись группы",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "На модели, не указанные в разделе моделей, не распространяются ограничения RPM для конкретных моделей.",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "Общие лимиты групп верхнего уровня применяются ко всем моделям группы, включая модели, не указанные в разделе моделей.",
     "Edit model RPM rule": "Изменить правило RPM модели",
     "Add model RPM rule": "Добавить правило RPM модели",
     "Requests consume the global bucket and, when configured, the matching group and per-user buckets.": "Каждый запрос расходует глобальный лимит, а если настроено — также лимит соответствующей группы и пользователя.",
@@ -5512,6 +5510,11 @@
     "Click refresh for the latest data": "Нажмите «Обновить», чтобы получить последние данные",
     "RPM overview": "Обзор RPM",
     "Group total name must not contain whitespace or control characters": "Имя группы для общего лимита не должно содержать пробельные и управляющие символы",
-    "Upstream overload: error code rewritten for retry": "Перегрузка вышестоящего сервиса: код ошибки изменён для повторной попытки"
+    "Upstream overload: error code rewritten for retry": "Перегрузка вышестоящего сервиса: код ошибки изменён для повторной попытки",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Общий RPM должен быть целым числом от 0 до 1 000 000 (0 означает отсутствие общего лимита)",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "RPM на пользователя должен быть целым числом от 0 до 1 000 000 (0 означает отсутствие лимита на пользователя)",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "При включенном общем лимите RPM на пользователя не должен превышать общий RPM",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Общий RPM и RPM на пользователя не могут одновременно быть равны 0; вместо этого удалите запись группы",
+    "Top-level group limits apply across every model in the group, including models not listed in the models section: total_rpm caps all users combined, user_rpm caps each user, and 0 disables that limit.": "Лимиты группы верхнего уровня применяются ко всем моделям группы, включая отсутствующие в разделе models: total_rpm ограничивает всех пользователей суммарно, user_rpm — каждого пользователя, а 0 отключает соответствующий лимит."
   }
 }

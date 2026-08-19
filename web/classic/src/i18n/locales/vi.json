@@ -5355,7 +5355,6 @@
     "No model RPM rules configured. Click \"Add model\" to get started.": "Chưa cấu hình quy tắc RPM cho mô hình. Nhấn “Thêm mô hình” để bắt đầu.",
     "Model name": "Tên mô hình",
     "Global RPM": "RPM toàn cục",
-    "Per-user RPM": "RPM mỗi người dùng",
     "Group sub-limits": "Giới hạn con theo nhóm",
     "Group total RPM": "Tổng RPM của nhóm",
     "All models combined": "Tổng hợp tất cả mô hình",
@@ -5366,9 +5365,7 @@
     "Group total name must not contain whitespace or control characters": "Tên nhóm cho tổng giới hạn không được chứa khoảng trắng hoặc ký tự điều khiển",
     "This group already has a total RPM limit": "Nhóm này đã có giới hạn tổng RPM",
     "Total RPM": "Tổng RPM",
-    "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Tổng RPM phải là số nguyên từ 1 đến 1.000.000; hãy xóa mục nhóm để tắt giới hạn",
     "Models not listed in the models section are not subject to model-specific RPM limits.": "Các mô hình không có trong phần mô hình không chịu giới hạn RPM riêng theo mô hình.",
-    "Top-level group total limits apply to every model in the group, including models not listed in the models section.": "Giới hạn tổng nhóm cấp cao nhất áp dụng cho mọi mô hình trong nhóm, kể cả các mô hình không có trong phần mô hình.",
     "分组总额 RPM": "Tổng RPM của nhóm",
     "全组合计": "Tổng hợp tất cả mô hình",
     "None": "Không có",
@@ -5479,6 +5476,12 @@
     "RPM overview card": "Thẻ tổng quan RPM",
     "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Mặc định tắt. Khi bật, bảng điều khiển người dùng sẽ hiển thị và truy vấn dữ liệu cho thẻ tổng quan RPM.",
     "过载改写": "Viết lại khi quá tải",
-    "上游过载，错误码已改写为可重试": "Dịch vụ thượng nguồn quá tải; mã lỗi đã được viết lại để có thể thử lại"
+    "上游过载，错误码已改写为可重试": "Dịch vụ thượng nguồn quá tải; mã lỗi đã được viết lại để có thể thử lại",
+    "每用户 RPM": "RPM mỗi người dùng",
+    "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "Giới hạn nhóm cấp cao nhất áp dụng cho mọi mô hình trong nhóm, kể cả mô hình không có trong phần models: total_rpm giới hạn tổng của mọi người dùng, user_rpm giới hạn từng người dùng và 0 sẽ tắt giới hạn đó.",
+    "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Tổng RPM phải là số nguyên từ 0 đến 1.000.000 (0 nghĩa là không giới hạn tổng)",
+    "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "RPM mỗi người dùng phải là số nguyên từ 0 đến 1.000.000 (0 nghĩa là không giới hạn mỗi người dùng)",
+    "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Khi bật giới hạn tổng, RPM mỗi người dùng không được vượt quá tổng RPM",
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Tổng RPM và RPM mỗi người dùng không thể đồng thời bằng 0; hãy xóa mục nhóm thay thế"
   }
 }

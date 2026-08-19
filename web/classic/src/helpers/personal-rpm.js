@@ -25,7 +25,8 @@ export function normalizePersonalRPMItems(value) {
         item &&
         typeof item === 'object' &&
         typeof item.model === 'string' &&
-        item.model.length > 0 &&
+        typeof item.group === 'string' &&
+        (item.model.length > 0 || item.group.length > 0) &&
         (item.current === null ||
           (typeof item.current === 'number' &&
             Number.isFinite(item.current) &&
@@ -52,7 +53,9 @@ export function normalizePersonalRPMItems(value) {
       }
       if (aCurrent !== null && bCurrent === null) return -1;
       if (aCurrent === null && bCurrent !== null) return 1;
-      return a.model < b.model ? -1 : a.model > b.model ? 1 : 0;
+      const aIdentity = a.model || a.group;
+      const bIdentity = b.model || b.group;
+      return aIdentity < bIdentity ? -1 : aIdentity > bIdentity ? 1 : 0;
     });
 }
 

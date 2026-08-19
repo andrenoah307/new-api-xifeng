@@ -62,6 +62,7 @@ type SiteCapacitySnapshot struct {
 
 type UserRPMCapacityLimit struct {
 	Model string
+	Group string
 	Limit int
 }
 
@@ -237,7 +238,7 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 	}
 	keys := make([]string, 0)
 	// The site Redis read contains site model, model+group, and group-total buckets.
-	// Per-user limits are cached as metadata and read with the authenticated ID.
+	// Model and group per-user limits are cached as metadata and read with the authenticated ID.
 	for _, modelName := range modelNames {
 		rule := rules.Models[modelName]
 		ruleModel := ruleModels[modelName]
@@ -247,12 +248,20 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 		}
 	}
 	groupTotalNames := make([]string, 0, len(rules.Groups))
+	groupUserNames := make([]string, 0, len(rules.Groups))
 	for groupName, rule := range rules.Groups {
 		if rule.TotalRPM > 0 {
 			groupTotalNames = append(groupTotalNames, groupName)
 		}
+		if rule.UserRPM > 0 {
+			groupUserNames = append(groupUserNames, groupName)
+		}
 	}
 	sort.Strings(groupTotalNames)
+	sort.Strings(groupUserNames)
+	for _, groupName := range groupUserNames {
+		snapshot.UserLimits = append(snapshot.UserLimits, UserRPMCapacityLimit{Group: groupName, Limit: rules.Groups[groupName].UserRPM})
+	}
 	for _, modelName := range modelNames {
 		groups := make([]string, 0, len(rules.Models[modelName].GroupRPM))
 		for groupName, limit := range rules.Models[modelName].GroupRPM {
@@ -633,7 +642,11 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 	} else {
 		keys := make([]string, len(snapshot.UserLimits))
 		for i, limit := range snapshot.UserLimits {
-			keys[i] = model_name_limiter.UserKey(limit.Model, request.UserID)
+			if limit.Model != "" {
+				keys[i] = model_name_limiter.UserKey(limit.Model, request.UserID)
+			} else {
+				keys[i] = model_name_limiter.GroupUserKey(limit.Group, request.UserID)
+			}
 		}
 		personalCounts, personalErr = s.inspector.Inspect(ctx, keys)
 		if personalErr == nil && len(personalCounts) != len(keys) {
@@ -661,7 +674,7 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 			value := personalCounts[i]
 			current = &value
 		}
-		personal.Items = append(personal.Items, makeCapacityItem(limit.Model, "", current, limit.Limit, personalAvailable))
+		personal.Items = append(personal.Items, makeCapacityItem(limit.Model, limit.Group, current, limit.Limit, personalAvailable))
 	}
 	sortCapacityItems(personal.Items)
 	response.Personal = personal

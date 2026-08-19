@@ -2,7 +2,7 @@ import type { RateLimitCapacityItem } from '@/features/dashboard/types'
 
 export const PERSONAL_RPM_STALE_TIME = 15_000
 
-export type PersonalRPMItem = RateLimitCapacityItem
+export type PersonalRPMItem = RateLimitCapacityItem & { group: string }
 
 export type PersonalRPMDisplayState = 'available' | 'empty' | 'unavailable'
 
@@ -12,7 +12,11 @@ export function normalizePersonalRPMItems(value: unknown): PersonalRPMItem[] {
     .filter((item): item is PersonalRPMItem => {
       if (!item || typeof item !== 'object') return false
       const metric = item as Partial<PersonalRPMItem>
-      if (typeof metric.model !== 'string' || metric.model.length === 0) {
+      if (
+        typeof metric.model !== 'string' ||
+        typeof metric.group !== 'string' ||
+        (metric.model.length === 0 && metric.group.length === 0)
+      ) {
         return false
       }
       if (
@@ -54,8 +58,10 @@ export function normalizePersonalRPMItems(value: unknown): PersonalRPMItem[] {
       }
       if (aCurrent !== null && bCurrent === null) return -1
       if (aCurrent === null && bCurrent !== null) return 1
-      if (a.model < b.model) return -1
-      if (a.model > b.model) return 1
+      const aIdentity = a.model || a.group
+      const bIdentity = b.model || b.group
+      if (aIdentity < bIdentity) return -1
+      if (aIdentity > bIdentity) return 1
       return 0
     })
 }

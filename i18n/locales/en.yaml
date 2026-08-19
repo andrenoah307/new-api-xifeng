@@ -256,6 +256,7 @@ rate_limit_capacity.throttled: "Too many requests. Please try again later."
 model_name.rate_limited: "Too many requests for this model. Please try again later."
 model_name.user_rate_limited: "You are sending requests to this model too frequently. Please try again later."
 model_name.group_total_rate_limited: "Too many requests for your current group. Please try again later."
+model_name.group_user_rate_limited: "You are sending requests too frequently in your current group. Please try again later."
 
 # Setting messages
 setting.invalid_type: "Invalid warning type"
