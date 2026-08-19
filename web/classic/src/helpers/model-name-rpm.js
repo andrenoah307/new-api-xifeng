@@ -177,12 +177,22 @@ export function upsertModelNameRPMRule(value, previousModelName, rule) {
   } else {
     const groupRpm = {};
     for (const group of rule.groups) {
-      groupRpm[group.groupName] = group.rpm;
+      Object.defineProperty(groupRpm, group.groupName, {
+        configurable: true,
+        enumerable: true,
+        value: group.rpm,
+        writable: true,
+      });
     }
     existing.group_rpm = groupRpm;
   }
 
-  models[rule.modelName] = existing;
+  Object.defineProperty(models, rule.modelName, {
+    configurable: true,
+    enumerable: true,
+    value: existing,
+    writable: true,
+  });
   config.models = models;
   return JSON.stringify(config, null, 2);
 }
@@ -209,7 +219,12 @@ export function upsertModelNameRPMGroupTotalRule(
     delete groups[previousGroupName];
   }
   existing.total_rpm = rule.totalRpm;
-  groups[rule.groupName] = existing;
+  Object.defineProperty(groups, rule.groupName, {
+    configurable: true,
+    enumerable: true,
+    value: existing,
+    writable: true,
+  });
   config.groups = groups;
   return JSON.stringify(config, null, 2);
 }
@@ -230,15 +245,16 @@ function validateName(name, maxLength, codes) {
 }
 
 export function validateModelNameRPMGroupTotalRule(rule, otherGroupNames) {
-  if (rule.groupName === '' || rule.groupName.trim() === '') {
-    return { code: 'group-total-name-required' };
-  }
-  if (runeLength(rule.groupName) > MODEL_NAME_RPM_MAX_GROUP_NAME_LENGTH) {
-    return { code: 'group-total-name-too-long' };
-  }
-  if (hasControlCharacter(rule.groupName)) {
-    return { code: 'group-total-name-control' };
-  }
+  const groupNameError = validateName(
+    rule.groupName,
+    MODEL_NAME_RPM_MAX_GROUP_NAME_LENGTH,
+    {
+      required: 'group-total-name-required',
+      tooLong: 'group-total-name-too-long',
+      whitespace: 'group-total-name-whitespace',
+    },
+  );
+  if (groupNameError) return { code: groupNameError };
   if (otherGroupNames.includes(rule.groupName)) {
     return { code: 'group-total-name-duplicate' };
   }

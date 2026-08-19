@@ -159,7 +159,7 @@
     "Actual Model": "Mô hình thực tế",
     "Actual Model:": "Mô hình thực tế:",
     "Adapt `-thinking` suffix requests to Anthropic native thinking behavior while keeping billing predictable.": "Điều chỉnh các yêu cầu có hậu tố `-thinking` sang hành vi suy luận gốc của Anthropic trong khi vẫn giữ tính phí dễ dự đoán.",
-    "Add": "Add",
+    "Add": "Thêm",
     "Add \"{{value}}\"": "Thêm \"{{value}}\"",
     "Add {{title}}": "Thêm {{title}}",
     "Add a group identifier to the auto assignment list.": "Thêm một mã định danh nhóm vào danh sách phân công tự động.",
@@ -2798,7 +2798,7 @@
     "Model Name *": "Tên mẫu *",
     "Model name is required": "Tên mô hình là bắt buộc",
     "Model name RPM configuration": "Cấu hình giới hạn RPM theo tên mô hình",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": {\n      \"global_rpm\": 120,\n      \"group_rpm\": {\n        \"free\": 30,\n        \"vip\": 100\n      }\n    },\n    \"claude-sonnet-4-5\": {\n      \"global_rpm\": 60\n    }\n  },\n  \"groups\": {\n    \"vip\": {\n      \"total_rpm\": 300\n    }\n  }\n}",
     "Model name RPM rate limiting": "Giới hạn RPM theo tên mô hình",
     "Model names copied to clipboard": "Tên mô hình đã được sao chép vào bộ nhớ tạm",
     "Model not found": "Không tìm thấy mô hình",
@@ -5423,7 +5423,6 @@
     "No group total RPM limits configured.": "Chưa cấu hình giới hạn tổng RPM cho nhóm.",
     "Group total name is required": "Tên nhóm cho tổng giới hạn là bắt buộc",
     "Group total name must not exceed 64 characters": "Tên nhóm cho tổng giới hạn không được vượt quá 64 ký tự",
-    "Group total name must not contain control characters": "Tên nhóm cho tổng giới hạn không được chứa ký tự điều khiển",
     "This group already has a total RPM limit": "Nhóm này đã có giới hạn tổng RPM",
     "Total RPM": "Tổng RPM",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Tổng RPM phải là số nguyên từ 1 đến 1.000.000; hãy xóa mục nhóm để tắt giới hạn",
@@ -5511,6 +5510,8 @@
     "Last 60 seconds": "60 giây gần nhất",
     "No request data yet": "Chưa có dữ liệu yêu cầu",
     "Click refresh for the latest data": "Nhấn Làm mới để xem dữ liệu mới nhất",
-    "RPM overview": "Tổng quan RPM"
+    "RPM overview": "Tổng quan RPM",
+    "Group total name must not contain whitespace or control characters": "Tên nhóm cho tổng giới hạn không được chứa khoảng trắng hoặc ký tự điều khiển",
+    "Upstream overload: error code rewritten for retry": "Dịch vụ thượng nguồn quá tải: đã viết lại mã lỗi để cho phép thử lại"
   }
 }

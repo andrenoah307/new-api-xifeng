@@ -2798,7 +2798,7 @@
     "Model Name *": "模型名稱 *",
     "Model name is required": "模型名稱為必填項",
     "Model name RPM configuration": "按模型名稱 RPM 限流設定",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": {\n      \"global_rpm\": 120,\n      \"group_rpm\": {\n        \"free\": 30,\n        \"vip\": 100\n      }\n    },\n    \"claude-sonnet-4-5\": {\n      \"global_rpm\": 60\n    }\n  },\n  \"groups\": {\n    \"vip\": {\n      \"total_rpm\": 300\n    }\n  }\n}",
     "Model name RPM rate limiting": "按模型名稱 RPM 限流",
     "Model names copied to clipboard": "模型名稱已複製到剪貼簿",
     "Model not found": "模型未找到",
@@ -5423,7 +5423,6 @@
     "No group total RPM limits configured.": "尚未設定分組總額 RPM 限制。",
     "Group total name is required": "分組總額名稱不可空白",
     "Group total name must not exceed 64 characters": "分組總額名稱不能超過 64 個字元",
-    "Group total name must not contain control characters": "分組總額名稱不可包含控制字元",
     "This group already has a total RPM limit": "此分組已設定總額 RPM 限制",
     "Total RPM": "總額 RPM",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "總額 RPM 必須是 1 到 1,000,000 之間的整數；如需停用，請刪除此分組項目",
@@ -5511,6 +5510,8 @@
     "Last 60 seconds": "最近 60 秒",
     "No request data yet": "暫無請求資料統計",
     "Click refresh for the latest data": "點擊重新整理以取得最新資料",
-    "RPM overview": "RPM 概覽"
+    "RPM overview": "RPM 概覽",
+    "Group total name must not contain whitespace or control characters": "分組總額名稱不能包含空白字元或控制字元",
+    "Upstream overload: error code rewritten for retry": "上游過載：錯誤碼已改寫以便重試"
   }
 }

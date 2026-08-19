@@ -2798,7 +2798,7 @@
     "Model Name *": "Имя модели *",
     "Model name is required": "Название модели обязательно",
     "Model name RPM configuration": "Настройка ограничения RPM по модели",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": {\n      \"global_rpm\": 120,\n      \"group_rpm\": {\n        \"free\": 30,\n        \"vip\": 100\n      }\n    },\n    \"claude-sonnet-4-5\": {\n      \"global_rpm\": 60\n    }\n  },\n  \"groups\": {\n    \"vip\": {\n      \"total_rpm\": 300\n    }\n  }\n}",
     "Model name RPM rate limiting": "Ограничение RPM по имени модели",
     "Model names copied to clipboard": "Названия моделей скопированы в буфер обмена",
     "Model not found": "Модель не найдена",
@@ -5423,7 +5423,6 @@
     "No group total RPM limits configured.": "Общие лимиты RPM для групп не настроены.",
     "Group total name is required": "Укажите имя группы для общего лимита",
     "Group total name must not exceed 64 characters": "Имя группы для общего лимита не должно превышать 64 символа",
-    "Group total name must not contain control characters": "Имя группы для общего лимита не должно содержать управляющие символы",
     "This group already has a total RPM limit": "Для этой группы уже задан общий лимит RPM",
     "Total RPM": "Общий RPM",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Общий RPM должен быть целым числом от 1 до 1 000 000; чтобы отключить лимит, удалите запись группы",
@@ -5511,6 +5510,8 @@
     "Last 60 seconds": "Последние 60 секунд",
     "No request data yet": "Данных о запросах пока нет",
     "Click refresh for the latest data": "Нажмите «Обновить», чтобы получить последние данные",
-    "RPM overview": "Обзор RPM"
+    "RPM overview": "Обзор RPM",
+    "Group total name must not contain whitespace or control characters": "Имя группы для общего лимита не должно содержать пробельные и управляющие символы",
+    "Upstream overload: error code rewritten for retry": "Перегрузка вышестоящего сервиса: код ошибки изменён для повторной попытки"
   }
 }

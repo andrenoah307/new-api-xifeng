@@ -67,8 +67,8 @@ const ERROR_MESSAGES = {
   'group-rpm-exceeds-global': 'Group RPM must not exceed the global RPM',
   'group-total-name-required': 'Group total name is required',
   'group-total-name-too-long': 'Group total name must not exceed 64 characters',
-  'group-total-name-control':
-    'Group total name must not contain control characters',
+  'group-total-name-whitespace':
+    'Group total name must not contain whitespace or control characters',
   'group-total-name-duplicate': 'This group already has a total RPM limit',
   'group-total-rpm-range':
     'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',
@@ -427,7 +427,7 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
             {groupTotalFieldError([
               'group-total-name-required',
               'group-total-name-too-long',
-              'group-total-name-control',
+              'group-total-name-whitespace',
               'group-total-name-duplicate',
             ])}
           </div>

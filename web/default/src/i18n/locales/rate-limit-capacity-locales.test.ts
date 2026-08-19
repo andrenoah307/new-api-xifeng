@@ -21,6 +21,13 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 const locales = ['en', 'fr', 'ja', 'ru', 'vi', 'zh', 'zh-TW']
+const sourceFiles = [
+  '../../features/system-settings/request-limits/model-name-rpm-visual-editor.tsx',
+  '../../features/system-settings/request-limits/rate-limit-visual-editor.tsx',
+  '../../features/system-settings/request-limits/rate-limit-section.tsx',
+  '../../features/system-settings/request-limits/model-name-rpm-dialog.tsx',
+  '../../features/dashboard/components/overview/rate-limit-capacity-panel.tsx',
+]
 const requiredKeys = [
   'Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.',
   'Unlimited',
@@ -34,7 +41,7 @@ const requiredKeys = [
   'No group total RPM limits configured.',
   'Group total name is required',
   'Group total name must not exceed 64 characters',
-  'Group total name must not contain control characters',
+  'Group total name must not contain whitespace or control characters',
   'This group already has a total RPM limit',
   'Total RPM',
   'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',
@@ -55,3 +62,41 @@ for (const locale of locales) {
     }
   })
 }
+
+test('whitelisted RPM sources have complete and live locale keys', () => {
+  const sourceText = sourceFiles
+    .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'))
+    .join('\n')
+  const sourceKeys = new Set<string>()
+  const literalTranslationCall =
+    /\bt\(\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")/g
+
+  for (const match of sourceText.matchAll(literalTranslationCall)) {
+    const key = (match[1] ?? match[2])
+      .replaceAll('\\n', '\n')
+      .replaceAll("\\'", "'")
+      .replaceAll('\\"', '"')
+      .replaceAll('\\\\', '\\')
+    sourceKeys.add(key)
+  }
+
+  const missingOrEmpty: string[] = []
+  for (const locale of locales) {
+    const document = JSON.parse(
+      readFileSync(new URL(`./${locale}.json`, import.meta.url), 'utf8')
+    ) as { translation?: Record<string, unknown> }
+    for (const key of sourceKeys) {
+      const value = document.translation?.[key]
+      if (typeof value !== 'string' || value.trim() === '') {
+        missingOrEmpty.push(`${locale}: ${key}`)
+      }
+    }
+  }
+  assert.deepEqual(missingOrEmpty, [])
+
+  const unreferencedRequiredKeys = requiredKeys.filter(
+    (key) =>
+      !sourceText.includes(`'${key}'`) && !sourceText.includes(`"${key}"`)
+  )
+  assert.deepEqual(unreferencedRequiredKeys, [])
+})

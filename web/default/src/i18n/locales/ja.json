@@ -2798,7 +2798,7 @@
     "Model Name *": "モデル名 *",
     "Model name is required": "モデル名は必須です",
     "Model name RPM configuration": "モデル名ごとの RPM 制限設定",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": {\n      \"global_rpm\": 120,\n      \"group_rpm\": {\n        \"free\": 30,\n        \"vip\": 100\n      }\n    },\n    \"claude-sonnet-4-5\": {\n      \"global_rpm\": 60\n    }\n  },\n  \"groups\": {\n    \"vip\": {\n      \"total_rpm\": 300\n    }\n  }\n}",
     "Model name RPM rate limiting": "モデル名ごとの RPM 制限",
     "Model names copied to clipboard": "モデル名がクリップボードにコピーされました",
     "Model not found": "モデルが見つかりません",
@@ -5423,7 +5423,6 @@
     "No group total RPM limits configured.": "グループ合計 RPM 制限は設定されていません。",
     "Group total name is required": "グループ合計のグループ名は必須です",
     "Group total name must not exceed 64 characters": "グループ合計のグループ名は 64 文字以内で入力してください",
-    "Group total name must not contain control characters": "グループ合計のグループ名に制御文字は使用できません",
     "This group already has a total RPM limit": "このグループには既に合計 RPM 制限があります",
     "Total RPM": "合計 RPM",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "合計 RPM は 1 から 1,000,000 までの整数にしてください。無効にするにはグループ項目を削除してください",
@@ -5511,6 +5510,8 @@
     "Last 60 seconds": "過去 60 秒",
     "No request data yet": "リクエストデータはまだありません",
     "Click refresh for the latest data": "更新をクリックして最新データを取得してください",
-    "RPM overview": "RPM 概要"
+    "RPM overview": "RPM 概要",
+    "Group total name must not contain whitespace or control characters": "グループ合計のグループ名に空白文字や制御文字を含めることはできません",
+    "Upstream overload: error code rewritten for retry": "アップストリーム過負荷：再試行できるようエラーコードを書き換えました"
   }
 }

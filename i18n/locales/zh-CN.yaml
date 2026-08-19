@@ -251,12 +251,12 @@ twofa.record_id_empty: "2FA记录ID不能为空"
 twofa.code_invalid: "验证码或备用码不正确"
 
 # Rate limit messages
-rate_limit.reached: "您已达到请求数限制：{{.Minutes}}分钟内最多请求{{.Max}}次"
-rate_limit.total_reached: "您已达到总请求数限制：{{.Minutes}}分钟内最多请求{{.Max}}次，包括失败次数"
+rate_limit.reached: "成功请求过于频繁，请稍后重试"
+rate_limit.total_reached: "总请求过于频繁（包括失败请求），请稍后重试"
 rate_limit_capacity.throttled: "请求过于频繁，请稍后重试"
 model_name.rate_limited: "模型请求过于频繁，请稍后重试"
 model_name.user_rate_limited: "你对该模型的请求过于频繁，请稍后重试"
-model_name.group_total_rate_limited: "当前分组请求频率过快，请稍后再试。"
+model_name.group_total_rate_limited: "当前分组请求频率过快，请稍后再试"
 
 # Setting messages
 setting.invalid_type: "无效的预警类型"

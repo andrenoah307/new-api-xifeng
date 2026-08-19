@@ -66,8 +66,8 @@ const GROUP_TOTAL_ERROR_MESSAGES: Record<
   'group-total-name-required': 'Group total name is required',
   'group-total-name-too-long':
     'Group total name must not exceed 64 characters',
-  'group-total-name-control':
-    'Group total name must not contain control characters',
+  'group-total-name-whitespace':
+    'Group total name must not contain whitespace or control characters',
   'group-total-name-duplicate': 'This group already has a total RPM limit',
   'group-total-rpm-range':
     'Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it',

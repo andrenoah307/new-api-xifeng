@@ -2988,7 +2988,7 @@
     "添加兑换码": "Ajouter un code d'échange",
     "添加公告": "Ajouter un avis",
     "添加分类": "Ajouter une catégorie",
-    "添加分组": "Add Group",
+    "添加分组": "Ajouter un groupe",
     "添加分组规则": "Add Group Rules",
     "添加后提交": "Soumettre après ajout",
     "添加启动参数": "Add Startup Args",
@@ -4833,7 +4833,7 @@
     "Model name RPM rate limiting": "Limitation RPM par nom de modèle",
     "Enable model name RPM rate limiting": "Activer la limitation RPM par nom de modèle",
     "Model name RPM configuration": "Configuration de la limitation RPM par modèle",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"user_rpm\": 20, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"user_rpm\": 20, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  },\n  \"groups\": {\n    \"vip\": { \"total_rpm\": 300 }\n  }\n}",
     "Save model name RPM rate limit": "Enregistrer la limite RPM par nom de modèle",
     "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Les limites par groupe sont des sous-limites plus strictes de la limite globale ; les deux s’appliquent à chaque requête (une requête utilise à la fois le bucket global et celui du groupe).",
     "global_rpm must be an integer from 0 to 1,000,000; 0 means unlimited (usage is still counted) and then at least one user_rpm or group_rpm is required. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm doit être un entier compris entre 0 et 1 000 000 ; 0 signifie illimité (l'utilisation reste comptabilisée) et au moins un user_rpm ou group_rpm est alors requis. Pour désactiver un modèle, supprimez sa règle ; pour tout désactiver, définissez enabled sur false.",
@@ -4852,7 +4852,7 @@
     "No group total RPM limits configured.": "Aucune limite RPM totale de groupe configurée.",
     "Group total name is required": "Le nom du groupe est requis pour le RPM total",
     "Group total name must not exceed 64 characters": "Le nom du groupe du RPM total ne doit pas dépasser 64 caractères",
-    "Group total name must not contain control characters": "Le nom du groupe du RPM total ne doit pas contenir de caractères de contrôle",
+    "Group total name must not contain whitespace or control characters": "Le nom du groupe du RPM total ne doit pas contenir d'espaces ni de caractères de contrôle",
     "This group already has a total RPM limit": "Ce groupe possède déjà une limite RPM totale",
     "Total RPM": "RPM total",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Le RPM total doit être un entier compris entre 1 et 1 000 000 ; supprimez l'entrée du groupe pour le désactiver",
@@ -4885,6 +4885,7 @@
     "User RPM must be 0 or a positive integer": "Le RPM utilisateur doit être égal à 0 ou être un entier positif",
     "User RPM must not exceed the global RPM": "Le RPM utilisateur ne doit pas dépasser le RPM global",
     "Group name must not exceed 64 characters": "Le nom du groupe ne doit pas dépasser 64 caractères",
+    "Group name": "Nom du groupe",
     "Group name must not contain whitespace or control characters": "Le nom du groupe ne doit pas contenir d'espaces ni de caractères de contrôle",
     "This group already has a limit for this model": "Ce groupe possède déjà une limite pour ce modèle",
     "Group RPM must be an integer greater than 0": "Le RPM du groupe doit être un entier supérieur à 0",
@@ -4966,6 +4967,8 @@
     "点击刷新获取最新数据": "Cliquez sur Actualiser pour obtenir les dernières données",
     "RPM 概览": "Aperçu RPM",
     "RPM overview card": "Carte d'aperçu RPM",
-    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Désactivée par défaut. Une fois activée, le tableau de bord utilisateur affiche et interroge la carte d'aperçu RPM."
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Désactivée par défaut. Une fois activée, le tableau de bord utilisateur affiche et interroge la carte d'aperçu RPM.",
+    "过载改写": "Réécriture en cas de surcharge",
+    "上游过载，错误码已改写为可重试": "Service en amont surchargé ; code d'erreur réécrit pour permettre une nouvelle tentative"
   }
 }

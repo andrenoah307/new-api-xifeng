@@ -5060,7 +5060,7 @@
     "Model name RPM rate limiting": "Model name RPM rate limiting",
     "Enable model name RPM rate limiting": "Enable model name RPM rate limiting",
     "Model name RPM configuration": "Model name RPM configuration",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"user_rpm\": 20, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"user_rpm\": 20, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  },\n  \"groups\": {\n    \"vip\": { \"total_rpm\": 300 }\n  }\n}",
     "Save model name RPM rate limit": "Save model name RPM rate limit",
     "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).",
     "global_rpm must be an integer from 0 to 1,000,000; 0 means unlimited (usage is still counted) and then at least one user_rpm or group_rpm is required. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm must be an integer from 0 to 1,000,000; 0 means unlimited (usage is still counted) and then at least one user_rpm or group_rpm is required. Delete a model rule to disable it; set enabled to false to disable all rules.",
@@ -5079,7 +5079,7 @@
     "No group total RPM limits configured.": "No group total RPM limits configured.",
     "Group total name is required": "Group total name is required",
     "Group total name must not exceed 64 characters": "Group total name must not exceed 64 characters",
-    "Group total name must not contain control characters": "Group total name must not contain control characters",
+    "Group total name must not contain whitespace or control characters": "Group total name must not contain whitespace or control characters",
     "This group already has a total RPM limit": "This group already has a total RPM limit",
     "Total RPM": "Total RPM",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it",
@@ -5112,6 +5112,7 @@
     "User RPM must be 0 or a positive integer": "User RPM must be 0 or a positive integer",
     "User RPM must not exceed the global RPM": "User RPM must not exceed the global RPM",
     "Group name must not exceed 64 characters": "Group name must not exceed 64 characters",
+    "Group name": "Group name",
     "Group name must not contain whitespace or control characters": "Group name must not contain whitespace or control characters",
     "This group already has a limit for this model": "This group already has a limit for this model",
     "Group RPM must be an integer greater than 0": "Group RPM must be an integer greater than 0",
@@ -5193,6 +5194,8 @@
     "点击刷新获取最新数据": "Click refresh to get the latest data",
     "RPM 概览": "RPM overview",
     "RPM overview card": "RPM overview card",
-    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card."
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.",
+    "过载改写": "Overload rewrite",
+    "上游过载，错误码已改写为可重试": "Upstream overloaded; error code rewritten as retryable"
   }
 }

@@ -333,6 +333,90 @@ describe('upsertModelNameRPMRule', () => {
       models: { 'gpt-4o': { global_rpm: 100 } },
     });
   });
+
+  test('round-trips __proto__ model rules through add, rename, and delete', () => {
+    const added = upsertModelNameRPMRule(
+      '{"models":{}}',
+      null,
+      rule({ modelName: '__proto__', globalRpm: 23 }),
+    );
+    const addedDocument = JSON.parse(added);
+    assert.deepEqual(Object.keys(addedDocument.models), ['__proto__']);
+    assert.deepEqual(addedDocument.models['__proto__'], { global_rpm: 23 });
+    assert.deepEqual(parseModelNameRPMConfig(added), {
+      ok: true,
+      enabled: false,
+      rules: [
+        {
+          modelName: '__proto__',
+          globalRpm: 23,
+          userRpm: 0,
+          groups: [],
+        },
+      ],
+      groupTotals: [],
+    });
+
+    const renamed = upsertModelNameRPMRule(
+      '{"models":{"old":{"global_rpm":5,"future_field":true}}}',
+      'old',
+      rule({ modelName: '__proto__', globalRpm: 29 }),
+    );
+    const renamedDocument = JSON.parse(renamed);
+    assert.deepEqual(Object.keys(renamedDocument.models), ['__proto__']);
+    assert.deepEqual(renamedDocument.models['__proto__'], {
+      global_rpm: 29,
+      future_field: true,
+    });
+
+    const deletedDocument = JSON.parse(
+      deleteModelNameRPMRule(renamed, '__proto__'),
+    );
+    assert.deepEqual(deletedDocument.models, {});
+  });
+
+  test('round-trips __proto__ group sub-limits through add, rename, and delete', () => {
+    const added = upsertModelNameRPMRule(
+      '{"models":{}}',
+      null,
+      rule({ groups: [{ groupName: '__proto__', rpm: 17 }] }),
+    );
+    const addedGroupRpm = JSON.parse(added).models['gpt-4o'].group_rpm;
+    assert.deepEqual(Object.keys(addedGroupRpm), ['__proto__']);
+    assert.equal(addedGroupRpm['__proto__'], 17);
+    assert.deepEqual(parseModelNameRPMConfig(added), {
+      ok: true,
+      enabled: false,
+      rules: [
+        {
+          modelName: 'gpt-4o',
+          globalRpm: 100,
+          userRpm: 0,
+          groups: [{ groupName: '__proto__', rpm: 17 }],
+        },
+      ],
+      groupTotals: [],
+    });
+
+    const renamed = upsertModelNameRPMRule(
+      '{"models":{"gpt-4o":{"global_rpm":100,"group_rpm":{"old":7}}}}',
+      'gpt-4o',
+      rule({ groups: [{ groupName: '__proto__', rpm: 19 }] }),
+    );
+    const renamedGroupRpm = JSON.parse(renamed).models['gpt-4o'].group_rpm;
+    assert.deepEqual(Object.keys(renamedGroupRpm), ['__proto__']);
+    assert.equal(renamedGroupRpm['__proto__'], 19);
+
+    const deleted = upsertModelNameRPMRule(
+      renamed,
+      'gpt-4o',
+      rule({ groups: [] }),
+    );
+    assert.equal(
+      Object.hasOwn(JSON.parse(deleted).models['gpt-4o'], 'group_rpm'),
+      false,
+    );
+  });
 });
 
 describe('deleteModelNameRPMRule', () => {
@@ -412,6 +496,40 @@ describe('group total RPM document updates', () => {
       future_field: true,
     });
   });
+
+  test('round-trips __proto__ group totals through add, rename, and delete', () => {
+    const added = upsertModelNameRPMGroupTotalRule(
+      '{"groups":{}}',
+      null,
+      groupTotal({ groupName: '__proto__', totalRpm: 31 }),
+    );
+    const addedDocument = JSON.parse(added);
+    assert.deepEqual(Object.keys(addedDocument.groups), ['__proto__']);
+    assert.deepEqual(addedDocument.groups['__proto__'], { total_rpm: 31 });
+    assert.deepEqual(parseModelNameRPMConfig(added), {
+      ok: true,
+      enabled: false,
+      rules: [],
+      groupTotals: [{ groupName: '__proto__', totalRpm: 31 }],
+    });
+
+    const renamed = upsertModelNameRPMGroupTotalRule(
+      '{"groups":{"old":{"total_rpm":11,"future_field":true}}}',
+      'old',
+      groupTotal({ groupName: '__proto__', totalRpm: 37 }),
+    );
+    const renamedDocument = JSON.parse(renamed);
+    assert.deepEqual(Object.keys(renamedDocument.groups), ['__proto__']);
+    assert.deepEqual(renamedDocument.groups['__proto__'], {
+      total_rpm: 37,
+      future_field: true,
+    });
+
+    const deletedDocument = JSON.parse(
+      deleteModelNameRPMGroupTotalRule(renamed, '__proto__'),
+    );
+    assert.deepEqual(deletedDocument.groups, {});
+  });
 });
 
 describe('validateModelNameRPMGroupTotalRule', () => {
@@ -421,11 +539,11 @@ describe('validateModelNameRPMGroupTotalRule', () => {
     ...overrides,
   });
 
-  test('accepts colons, spaces, Unicode names, and total RPM boundaries', () => {
+  test('accepts colons, Unicode names, and total RPM boundaries', () => {
     for (const input of [
       groupTotal({ totalRpm: 1 }),
       groupTotal({
-        groupName: 'vip cheap',
+        groupName: 'vip:cheap',
         totalRpm: MODEL_NAME_RPM_MAX_GLOBAL,
       }),
       groupTotal({ groupName: '会员组' }),
@@ -434,15 +552,30 @@ describe('validateModelNameRPMGroupTotalRule', () => {
     }
   });
 
+  test('rejects whitespace anywhere in a group total name', () => {
+    for (const groupName of [
+      'vip cheap',
+      ' vip',
+      'vip ',
+      'vip\tcheap',
+      'vip\u00a0cheap',
+      'vip\u3000cheap',
+    ]) {
+      assert.deepEqual(
+        validateModelNameRPMGroupTotalRule(groupTotal({ groupName }), []),
+        { code: 'group-total-name-whitespace' },
+      );
+    }
+  });
+
   const errorCases = [
     ['group-total-name-required', groupTotal({ groupName: '' }), []],
-    ['group-total-name-required', groupTotal({ groupName: '　' }), []],
     [
       'group-total-name-too-long',
       groupTotal({ groupName: '😀'.repeat(65) }),
       [],
     ],
-    ['group-total-name-control', groupTotal({ groupName: 'vip\n' }), []],
+    ['group-total-name-whitespace', groupTotal({ groupName: 'vip\n' }), []],
     ['group-total-name-duplicate', groupTotal(), ['vip:cheap']],
     ['group-total-rpm-range', groupTotal({ totalRpm: 0 }), []],
     ['group-total-rpm-range', groupTotal({ totalRpm: -1 }), []],

@@ -2798,7 +2798,7 @@
     "Model Name *": "Model Name *",
     "Model name is required": "Model name is required",
     "Model name RPM configuration": "Model name RPM configuration",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": {\n      \"global_rpm\": 120,\n      \"group_rpm\": {\n        \"free\": 30,\n        \"vip\": 100\n      }\n    },\n    \"claude-sonnet-4-5\": {\n      \"global_rpm\": 60\n    }\n  },\n  \"groups\": {\n    \"vip\": {\n      \"total_rpm\": 300\n    }\n  }\n}",
     "Model name RPM rate limiting": "Model name RPM rate limiting",
     "Model names copied to clipboard": "Model names copied to clipboard",
     "Model not found": "Model not found",
@@ -5423,7 +5423,6 @@
     "No group total RPM limits configured.": "No group total RPM limits configured.",
     "Group total name is required": "Group total name is required",
     "Group total name must not exceed 64 characters": "Group total name must not exceed 64 characters",
-    "Group total name must not contain control characters": "Group total name must not contain control characters",
     "This group already has a total RPM limit": "This group already has a total RPM limit",
     "Total RPM": "Total RPM",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it",
@@ -5511,6 +5510,8 @@
     "Last 60 seconds": "Last 60 seconds",
     "No request data yet": "No request data yet",
     "Click refresh for the latest data": "Click refresh for the latest data",
-    "RPM overview": "RPM overview"
+    "RPM overview": "RPM overview",
+    "Group total name must not contain whitespace or control characters": "Group total name must not contain whitespace or control characters",
+    "Upstream overload: error code rewritten for retry": "Upstream overload: error code rewritten for retry"
   }
 }

@@ -70,7 +70,7 @@ export type ModelNameRPMRuleErrorCode =
 export type ModelNameRPMGroupTotalErrorCode =
   | 'group-total-name-required'
   | 'group-total-name-too-long'
-  | 'group-total-name-control'
+  | 'group-total-name-whitespace'
   | 'group-total-name-duplicate'
   | 'group-total-rpm-range'
 
@@ -240,12 +240,22 @@ export function upsertModelNameRPMRule(
   } else {
     const groupRpm: Record<string, number> = {}
     for (const group of rule.groups) {
-      groupRpm[group.groupName] = group.rpm
+      Object.defineProperty(groupRpm, group.groupName, {
+        configurable: true,
+        enumerable: true,
+        value: group.rpm,
+        writable: true,
+      })
     }
     existing.group_rpm = groupRpm
   }
 
-  models[rule.modelName] = existing
+  Object.defineProperty(models, rule.modelName, {
+    configurable: true,
+    enumerable: true,
+    value: existing,
+    writable: true,
+  })
   config.models = models
   return JSON.stringify(config, null, 2)
 }
@@ -275,7 +285,12 @@ export function upsertModelNameRPMGroupTotalRule(
     delete groups[previousGroupName]
   }
   existing.total_rpm = rule.totalRpm
-  groups[rule.groupName] = existing
+  Object.defineProperty(groups, rule.groupName, {
+    configurable: true,
+    enumerable: true,
+    value: existing,
+    writable: true,
+  })
   config.groups = groups
   return JSON.stringify(config, null, 2)
 }
@@ -291,15 +306,15 @@ export function deleteModelNameRPMGroupTotalRule(
   return JSON.stringify(config, null, 2)
 }
 
-function validateName(
+function validateName<TCode extends ModelNameRPMErrorCode>(
   name: string,
   maxLength: number,
   codes: {
-    required: ModelNameRPMErrorCode
-    tooLong: ModelNameRPMErrorCode
-    whitespace: ModelNameRPMErrorCode
+    required: TCode
+    tooLong: TCode
+    whitespace: TCode
   }
-): ModelNameRPMErrorCode | null {
+): TCode | null {
   if (name === '') return codes.required
   if (runeLength(name) > maxLength) return codes.tooLong
   if (hasForbiddenNameCharacter(name)) return codes.whitespace
@@ -310,15 +325,16 @@ export function validateModelNameRPMGroupTotalRule(
   rule: ModelNameRPMGroupTotalRule,
   otherGroupNames: string[]
 ): ModelNameRPMRuleError<ModelNameRPMGroupTotalErrorCode> | null {
-  if (rule.groupName === '' || rule.groupName.trim() === '') {
-    return { code: 'group-total-name-required' }
-  }
-  if (runeLength(rule.groupName) > MODEL_NAME_RPM_MAX_GROUP_NAME_LENGTH) {
-    return { code: 'group-total-name-too-long' }
-  }
-  if (hasControlCharacter(rule.groupName)) {
-    return { code: 'group-total-name-control' }
-  }
+  const groupNameError = validateName(
+    rule.groupName,
+    MODEL_NAME_RPM_MAX_GROUP_NAME_LENGTH,
+    {
+      required: 'group-total-name-required',
+      tooLong: 'group-total-name-too-long',
+      whitespace: 'group-total-name-whitespace',
+    }
+  )
+  if (groupNameError) return { code: groupNameError }
   if (otherGroupNames.includes(rule.groupName)) {
     return { code: 'group-total-name-duplicate' }
   }

@@ -10,6 +10,8 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/common/limiter"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/i18n"
+	"github.com/QuantumNous/new-api/logger"
 	realtimemetrics "github.com/QuantumNous/new-api/pkg/realtime_metrics"
 	"github.com/QuantumNous/new-api/setting"
 
@@ -86,13 +88,14 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 		successKey := fmt.Sprintf("rateLimit:%s:%s", ModelRequestRateLimitSuccessCountMark, userId)
 		allowed, err := checkRedisRateLimit(ctx, rdb, successKey, successMaxCount, duration)
 		if err != nil {
-			fmt.Println("检查成功请求数限制失败:", err.Error())
+			logger.LogError(c, fmt.Sprintf("检查成功请求数限制失败: %s", err.Error()))
 			abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
 			return
 		}
 		if !allowed {
 			recordRelayRejection(c, realtimemetrics.RejectionUserRPM)
-			abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到请求数限制：%d分钟内最多请求%d次", setting.ModelRequestRateLimitDurationMinutes, successMaxCount))
+			c.Header("Retry-After", strconv.Itoa(setting.ModelRequestRateLimitDurationMinutes*60))
+			abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgRateLimitReached))
 			return
 		}
 
@@ -110,14 +113,15 @@ func redisRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) g
 			)
 
 			if err != nil {
-				fmt.Println("检查总请求数限制失败:", err.Error())
+				logger.LogError(c, fmt.Sprintf("检查总请求数限制失败: %s", err.Error()))
 				abortWithOpenAiMessage(c, http.StatusInternalServerError, "rate_limit_check_failed")
 				return
 			}
 
 			if !allowed {
 				recordRelayRejection(c, realtimemetrics.RejectionUserRPM)
-				abortWithOpenAiMessage(c, http.StatusTooManyRequests, fmt.Sprintf("您已达到总请求数限制：%d分钟内最多请求%d次，包括失败次数，请检查您的请求是否正确", setting.ModelRequestRateLimitDurationMinutes, totalMaxCount))
+				c.Header("Retry-After", strconv.Itoa(setting.ModelRequestRateLimitDurationMinutes*60))
+				abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgRateLimitTotalReached))
 				return
 			}
 		}
@@ -144,8 +148,8 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		// 1. 检查总请求数限制（当totalMaxCount为0时跳过）
 		if totalMaxCount > 0 && !inMemoryRateLimiter.Request(totalKey, totalMaxCount, duration) {
 			recordRelayRejection(c, realtimemetrics.RejectionUserRPM)
-			c.Status(http.StatusTooManyRequests)
-			c.Abort()
+			c.Header("Retry-After", strconv.Itoa(setting.ModelRequestRateLimitDurationMinutes*60))
+			abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgRateLimitTotalReached))
 			return
 		}
 
@@ -154,8 +158,8 @@ func memoryRateLimitHandler(duration int64, totalMaxCount, successMaxCount int) 
 		checkKey := successKey + "_check"
 		if !inMemoryRateLimiter.Request(checkKey, successMaxCount, duration) {
 			recordRelayRejection(c, realtimemetrics.RejectionUserRPM)
-			c.Status(http.StatusTooManyRequests)
-			c.Abort()
+			c.Header("Retry-After", strconv.Itoa(setting.ModelRequestRateLimitDurationMinutes*60))
+			abortWithOpenAiMessage(c, http.StatusServiceUnavailable, i18n.T(c, i18n.MsgRateLimitReached))
 			return
 		}
 

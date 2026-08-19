@@ -2798,7 +2798,7 @@
     "Model Name *": "Nom du modèle *",
     "Model name is required": "Le nom du modèle est requis",
     "Model name RPM configuration": "Configuration de la limitation RPM par modèle",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": {\n      \"global_rpm\": 120,\n      \"group_rpm\": {\n        \"free\": 30,\n        \"vip\": 100\n      }\n    },\n    \"claude-sonnet-4-5\": {\n      \"global_rpm\": 60\n    }\n  },\n  \"groups\": {\n    \"vip\": {\n      \"total_rpm\": 300\n    }\n  }\n}",
     "Model name RPM rate limiting": "Limitation RPM par nom de modèle",
     "Model names copied to clipboard": "Noms des modèles copiés dans le presse-papiers",
     "Model not found": "Modèle introuvable",
@@ -5423,7 +5423,6 @@
     "No group total RPM limits configured.": "Aucune limite RPM totale de groupe configurée.",
     "Group total name is required": "Le nom du groupe est requis pour le RPM total",
     "Group total name must not exceed 64 characters": "Le nom du groupe du RPM total ne doit pas dépasser 64 caractères",
-    "Group total name must not contain control characters": "Le nom du groupe du RPM total ne doit pas contenir de caractères de contrôle",
     "This group already has a total RPM limit": "Ce groupe possède déjà une limite RPM totale",
     "Total RPM": "RPM total",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Le RPM total doit être un entier compris entre 1 et 1 000 000 ; supprimez l'entrée du groupe pour le désactiver",
@@ -5511,6 +5510,8 @@
     "Last 60 seconds": "60 dernières secondes",
     "No request data yet": "Aucune donnée de requête",
     "Click refresh for the latest data": "Cliquez sur Actualiser pour obtenir les dernières données",
-    "RPM overview": "Aperçu RPM"
+    "RPM overview": "Aperçu RPM",
+    "Group total name must not contain whitespace or control characters": "Le nom du groupe du RPM total ne doit pas contenir d'espaces ni de caractères de contrôle",
+    "Upstream overload: error code rewritten for retry": "Surcharge du service en amont : code d'erreur réécrit pour permettre une nouvelle tentative"
   }
 }

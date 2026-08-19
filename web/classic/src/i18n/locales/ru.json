@@ -3007,7 +3007,7 @@
     "添加兑换码": "Добавить код купона",
     "添加公告": "Добавить объявление",
     "添加分类": "Добавить категорию",
-    "添加分组": "Add Group",
+    "添加分组": "Добавить группу",
     "添加分组规则": "Add Group Rules",
     "添加后提交": "Отправить после добавления",
     "添加启动参数": "Add Startup Args",
@@ -4854,7 +4854,7 @@
     "Model name RPM rate limiting": "Ограничение RPM по имени модели",
     "Enable model name RPM rate limiting": "Включить ограничение RPM по имени модели",
     "Model name RPM configuration": "Настройка ограничения RPM по модели",
-    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"user_rpm\": 20, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  }\n}",
+    "Model name RPM configuration example": "{\n  \"enabled\": true,\n  \"models\": {\n    \"gpt-4o\": { \"global_rpm\": 120, \"user_rpm\": 20, \"group_rpm\": { \"free\": 30, \"vip\": 100 } },\n    \"claude-sonnet-4-5\": { \"global_rpm\": 60 }\n  },\n  \"groups\": {\n    \"vip\": { \"total_rpm\": 300 }\n  }\n}",
     "Save model name RPM rate limit": "Сохранить ограничение RPM по имени модели",
     "Group limits are stricter sub-limits of the global limit; both apply to each request (one request uses both the global and group buckets).": "Групповые лимиты являются более строгими подлимитами глобального лимита; действуют оба (один запрос одновременно использует глобальное и групповое ведро).",
     "global_rpm must be an integer from 0 to 1,000,000; 0 means unlimited (usage is still counted) and then at least one user_rpm or group_rpm is required. Delete a model rule to disable it; set enabled to false to disable all rules.": "global_rpm должен быть целым числом от 0 до 1 000 000; 0 означает «без ограничений» (использование по-прежнему учитывается), и тогда требуется хотя бы один user_rpm или group_rpm. Чтобы отключить модель, удалите её правило, а чтобы отключить всё, установите enabled в false.",
@@ -4873,7 +4873,7 @@
     "No group total RPM limits configured.": "Общие лимиты RPM для групп не настроены.",
     "Group total name is required": "Укажите имя группы для общего лимита",
     "Group total name must not exceed 64 characters": "Имя группы для общего лимита не должно превышать 64 символа",
-    "Group total name must not contain control characters": "Имя группы для общего лимита не должно содержать управляющие символы",
+    "Group total name must not contain whitespace or control characters": "Имя группы для общего лимита не должно содержать пробельные и управляющие символы",
     "This group already has a total RPM limit": "Для этой группы уже задан общий лимит RPM",
     "Total RPM": "Общий RPM",
     "Total RPM must be an integer between 1 and 1,000,000; delete the group entry to disable it": "Общий RPM должен быть целым числом от 1 до 1 000 000; чтобы отключить лимит, удалите запись группы",
@@ -4906,6 +4906,7 @@
     "User RPM must be 0 or a positive integer": "RPM пользователя должен быть равен 0 или быть положительным целым числом",
     "User RPM must not exceed the global RPM": "RPM пользователя не должен превышать глобальный RPM",
     "Group name must not exceed 64 characters": "Название группы не должно превышать 64 символа",
+    "Group name": "Имя группы",
     "Group name must not contain whitespace or control characters": "Название группы не должно содержать пробельные и управляющие символы",
     "This group already has a limit for this model": "Для этой группы уже задан лимит для этой модели",
     "Group RPM must be an integer greater than 0": "RPM группы должен быть целым числом больше 0",
@@ -4987,6 +4988,8 @@
     "点击刷新获取最新数据": "Нажмите «Обновить», чтобы получить последние данные",
     "RPM 概览": "Обзор RPM",
     "RPM overview card": "Карточка обзора RPM",
-    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "По умолчанию отключено. После включения панель пользователя отображает карточку обзора RPM и запрашивает данные для неё."
+    "Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.": "По умолчанию отключено. После включения панель пользователя отображает карточку обзора RPM и запрашивает данные для неё.",
+    "过载改写": "Перезапись при перегрузке",
+    "上游过载，错误码已改写为可重试": "Вышестоящий сервис перегружен; код ошибки изменён на допускающий повторную попытку"
   }
 }
