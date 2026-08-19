@@ -60,6 +60,11 @@ type ResponsesUsageInfo struct {
 	BuiltInTools map[string]*BuildInToolInfo
 }
 
+type StreamOverloadRewriteMarker struct {
+	OriginalCode string
+	Count        int
+}
+
 type ChannelMeta struct {
 	ChannelType          int
 	ChannelId            int
@@ -180,6 +185,8 @@ type RelayInfo struct {
 	// int32 bound (or NaN fallback) while computing this request's charge.
 	// It is surfaced onto the consume/task log's admin_info for auditing.
 	QuotaClamp *common.QuotaClamp
+
+	StreamOverloadRewrite *StreamOverloadRewriteMarker
 
 	// TieredBillingSnapshot is a frozen snapshot of tiered billing rules
 	// captured at pre-consume time. Non-nil only when billing mode is "tiered_expr".

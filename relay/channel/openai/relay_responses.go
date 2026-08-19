@@ -89,6 +89,19 @@ func OaiResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 			sr.Error(err)
 			return
 		}
+		if streamResponse.Type == "error" || streamResponse.Type == "response.failed" {
+			patched, originalCode, changed := service.RewriteStreamOverloadErrorCode(data)
+			if changed {
+				data = patched
+				if info != nil {
+					if info.StreamOverloadRewrite == nil {
+						info.StreamOverloadRewrite = &relaycommon.StreamOverloadRewriteMarker{OriginalCode: originalCode}
+					}
+					info.StreamOverloadRewrite.Count++
+				}
+				logger.LogWarn(c, fmt.Sprintf("upstream stream overload error code rewritten: original_code=%s", originalCode))
+			}
+		}
 		sendResponsesStreamData(c, streamResponse, data)
 		switch streamResponse.Type {
 		case "response.completed":

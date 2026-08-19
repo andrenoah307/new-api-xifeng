@@ -49,6 +49,24 @@ func attachQuotaSaturation(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, o
 		clamp.Op, clamp.Kind, clamp.Original, clamp.Clamped, relayInfo.UserId, relayInfo.OriginModelName))
 }
 
+func attachStreamOverloadRewrite(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
+	if relayInfo == nil || relayInfo.StreamOverloadRewrite == nil || other == nil {
+		return
+	}
+
+	marker := relayInfo.StreamOverloadRewrite
+	other["stream_overload_rewrite"] = true
+	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	if !ok || adminInfo == nil {
+		adminInfo = map[string]interface{}{}
+		other["admin_info"] = adminInfo
+	}
+	adminInfo["stream_overload_rewrite"] = map[string]interface{}{
+		"original_code": marker.OriginalCode,
+		"count":         marker.Count,
+	}
+}
+
 // attachUsageSemanticMismatch 记录「上游 usage 口径自相矛盾已被归一化」的标记。
 // 与 quota_saturation 同样嵌在 other.admin_info 下：非管理员视图会被
 // model.formatUserLogs 整块剥离，因此天然 admin-only。

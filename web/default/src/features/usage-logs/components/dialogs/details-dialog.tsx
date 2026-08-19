@@ -1210,6 +1210,26 @@ export function DetailsDialog(props: DetailsDialogProps) {
           </div>
         )}
 
+        {/* Upstream overload error-code rewrite notice */}
+        {isConsume && other?.stream_overload_rewrite && (
+          <div className='flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400'>
+            <AlertTriangle className='size-3.5 shrink-0' />
+            <span className='min-w-0'>
+              {t('Upstream overload: error code rewritten for retry')}
+              {props.isAdmin &&
+                other?.admin_info?.stream_overload_rewrite && (
+                  <span className='ml-1 text-[11px]'>
+                    （
+                    {
+                      other.admin_info.stream_overload_rewrite.original_code
+                    }{' '}
+                    × {other.admin_info.stream_overload_rewrite.count}）
+                  </span>
+                )}
+            </span>
+          </div>
+        )}
+
         {/* Tiered pricing breakdown (when billing_mode is tiered_expr) */}
         {isTieredBilling && other?.expr_b64 && (
           <DetailSection label={t('Dynamic Pricing')}>

@@ -145,6 +145,11 @@ export interface LogOtherData {
       cache_creation_tokens: number
       normalized_prompt_tokens: number
     }
+    // Upstream overload rewrite details. Admin-only (nested under admin_info).
+    stream_overload_rewrite?: {
+      original_code?: string
+      count?: number
+    }
   }
   // Language-independent operation descriptor (audit/login logs).
   // Frontend renders localized content from action + params via i18n templates.
@@ -200,6 +205,9 @@ export interface LogOtherData {
   // long_context_tier: backend sets true when the ratio-path long-context
   // (>272K) tiered billing fired (gpt-5.4/5.6). Drives a friendly billing notice.
   long_context_tier?: boolean
+  // stream_overload_rewrite: backend sets true when an upstream overload code
+  // was rewritten to server_error so clients can retry with exponential backoff.
+  stream_overload_rewrite?: boolean
   reasoning_effort?: string
   image?: boolean
   image_ratio?: number

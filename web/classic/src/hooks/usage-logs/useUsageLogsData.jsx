@@ -513,6 +513,23 @@ export const useLogsData = () => {
             ),
           });
         }
+        if (other?.stream_overload_rewrite) {
+          expandDataLocal.push({
+            key: t('计费提示'),
+            value: (
+              <Tag color='amber' size='small'>
+                {t('上游过载，错误码已改写为可重试')}
+              </Tag>
+            ),
+          });
+        }
+        if (isAdminUser && other?.admin_info?.stream_overload_rewrite) {
+          const rewrite = other.admin_info.stream_overload_rewrite;
+          expandDataLocal.push({
+            key: t('过载改写'),
+            value: `${rewrite.original_code} × ${rewrite.count}`,
+          });
+        }
         if (isAdminUser && other?.admin_info?.usage_semantic_mismatch) {
           const mismatch = other.admin_info.usage_semantic_mismatch;
           expandDataLocal.push({
