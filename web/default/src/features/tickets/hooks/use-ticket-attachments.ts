@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import {
@@ -24,6 +24,12 @@ export function useTicketAttachments() {
   const [attachments, setAttachments] = useState<UploadedFile[]>([])
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  // 用 ref 读取最新附件，保持依赖稳定并避免 effect 自触发循环。
+  const attachmentsRef = useRef<UploadedFile[]>([])
+
+  useEffect(() => {
+    attachmentsRef.current = attachments
+  }, [attachments])
 
   const validate = useCallback(
     (file: File): boolean => {
@@ -79,19 +85,19 @@ export function useTicketAttachments() {
   )
 
   const reset = useCallback(() => {
-    setAttachments([])
+    setAttachments((prev) => (prev.length === 0 ? prev : []))
   }, [])
 
   const discardAll = useCallback(async () => {
-    for (const a of attachments) {
+    for (const a of attachmentsRef.current) {
       try {
         await deleteAttachment(a.id)
       } catch {
         // ignore cleanup errors
       }
     }
-    setAttachments([])
-  }, [attachments])
+    setAttachments((prev) => (prev.length === 0 ? prev : []))
+  }, [])
 
   const handleFiles = useCallback(
     (files: FileList | File[]) => {
