@@ -47,7 +47,10 @@ function MonitoringPage() {
     return (
       <AuthenticatedLayout>
         <Main className='p-0'>
-          <MonitoringDashboard />
+          {/* AuthenticatedLayout 是固定高裁剪外壳，登录页面必须自带滚动容器；未登录分支由 PublicLayout 走文档流滚动。 */}
+          <div className='min-h-0 flex-1 overflow-y-auto'>
+            <MonitoringDashboard />
+          </div>
         </Main>
       </AuthenticatedLayout>
     )

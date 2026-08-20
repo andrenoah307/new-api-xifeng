@@ -133,7 +133,7 @@ export default function GroupDetailPanel({
           </SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-5 overflow-y-auto p-4 sm:p-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
           {/* Hero metrics */}
           <div className="grid grid-cols-3 gap-3">
             <StatCard
