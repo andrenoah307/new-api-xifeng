@@ -40,7 +40,7 @@ const sourceFiles = [
 const englishSourceKeys = [
   'Disabled by default. When enabled, the user dashboard displays and queries the RPM overview card.',
   'Unlimited',
-  '0 means unlimited; usage is still counted and displayed.',
+  '0 means unlimited; usage is still counted but is not shown in the RPM overview.',
   'Global RPM must be an integer between 0 and 1,000,000 (0 means unlimited)',
   'When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule',
   'global_rpm must be an integer from 0 to 1,000,000; 0 means unlimited (usage is still counted) and then at least one user_rpm or group_rpm is required. Delete a model rule to disable it; set enabled to false to disable all rules.',
@@ -62,6 +62,9 @@ const englishSourceKeys = [
   'Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.',
 ];
 const chineseSourceKeys = ['每用户 RPM', '分组总额 RPM', '全组合计'];
+const retiredSourceKeys = [
+  '0 means unlimited; usage is still counted and displayed.',
+];
 
 for (const locale of locales) {
   test(`${locale} has non-empty English-source RPM copy`, () => {
@@ -86,6 +89,19 @@ for (const locale of translatedLocales) {
     }
   });
 }
+
+test('runtime locales do not retain retired RPM copy', () => {
+  for (const locale of locales) {
+    const document = localeDocuments[locale];
+    for (const key of retiredSourceKeys) {
+      assert.equal(
+        document.translation?.[key],
+        undefined,
+        `${locale} still contains ${key}`,
+      );
+    }
+  }
+});
 
 test('whitelisted RPM sources have complete and live locale keys', () => {
   const sourceText = sourceFiles

@@ -133,9 +133,10 @@ func TestRateLimitCapacitySortingAndUnlimitedSemantics(t *testing.T) {
 		{Model: "d", Current: intPtr(5), Limit: 5},
 		{Model: "same", Group: "z", Current: intPtr(1), Limit: 10},
 		{Model: "same", Group: "a", Current: intPtr(1), Limit: 10},
+		{Model: "unavailable", Current: nil, Limit: 10, Available: false},
 	}
 	sortCapacityItems(items)
-	require.Len(t, items, 7)
+	require.Len(t, items, 8)
 	assert.Equal(t, "c", items[0].Model)
 	assert.Equal(t, "d", items[1].Model)
 	assert.Equal(t, "a", items[2].Model)
@@ -147,6 +148,10 @@ func TestRateLimitCapacitySortingAndUnlimitedSemantics(t *testing.T) {
 	assert.Equal(t, "z", items[6].Model)
 	assert.True(t, items[6].Unlimited)
 	assert.Nil(t, items[6].Utilization)
+	assert.Equal(t, "unavailable", items[7].Model)
+	assert.Nil(t, items[7].Current)
+	assert.False(t, items[7].Available)
+	assert.False(t, items[7].Unlimited)
 	assert.Greater(t, *items[0].Utilization, 1.0)
 }
 
@@ -294,11 +299,18 @@ func TestRateLimitCapacityInspectorErrorDoesNotBecomeZero(t *testing.T) {
 	require.Len(t, snapshot.Global, 1)
 	assert.Nil(t, snapshot.Global[0].Current)
 	assert.False(t, snapshot.Global[0].Available)
+	assert.False(t, snapshot.Global[0].Unlimited)
+	assert.Equal(t, 10, snapshot.Global[0].Limit)
 	require.Len(t, snapshot.Groups, 1)
 	assert.Nil(t, snapshot.Groups[0].Current)
 	assert.False(t, snapshot.Groups[0].Available)
 	response := svc.Get(context.Background(), CapacityRequest{IsAdmin: true, Scope: "all"})
 	require.NotNil(t, response.Site)
+	require.Len(t, response.Site.Global.Items, 1)
+	assert.Nil(t, response.Site.Global.Items[0].Current)
+	assert.False(t, response.Site.Global.Items[0].Available)
+	assert.False(t, response.Site.Global.Items[0].Unlimited)
+	assert.True(t, response.Degraded)
 	require.Len(t, response.Site.Groups.Groups, 1)
 	require.Len(t, response.Site.Groups.Groups[0].Items, 1)
 	assert.Nil(t, response.Site.Groups.Groups[0].Items[0].Current)
@@ -379,7 +391,7 @@ func TestRateLimitCapacityOmitsAllSectionsWhenA2IsDisabledOrEmpty(t *testing.T) 
 		config string
 	}{
 		{name: "disabled", config: `{"enabled":false,"models":{"gpt-4o":{"global_rpm":10,"user_rpm":2}}}`},
-		{name: "zero models", config: `{"enabled":true,"models":{}}`},
+		{name: "models and groups empty", config: `{"enabled":true,"models":{},"groups":{}}`},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(test.config))
@@ -391,6 +403,77 @@ func TestRateLimitCapacityOmitsAllSectionsWhenA2IsDisabledOrEmpty(t *testing.T) 
 			assert.Equal(t, 0, stub.Calls())
 		})
 	}
+}
+
+func TestRateLimitCapacityGlobalFiltersUnlimitedAndAlignsInspectCounts(t *testing.T) {
+	previous := setting.ModelNameRPMRateLimit2JSONString()
+	t.Cleanup(func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previous)) })
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"a":{"global_rpm":0,"user_rpm":2,"group_rpm":{"visible":3}},"b":{"global_rpm":5},"c":{"global_rpm":0,"user_rpm":4,"group_rpm":{"hidden":4}},"d":{"global_rpm":7}},"groups":{"visible":{"total_rpm":6}}}`))
+
+	stub := &capacityInspectorStub{responses: []capacityInspectResponse{
+		{counts: []int{11, 22, 33, 44, 55}},
+		{counts: []int{66, 77}},
+	}}
+	svc := NewRateLimitCapacityService(stub)
+	snapshot, err := svc.SiteSnapshot(context.Background())
+	require.NoError(t, err)
+
+	expectedSiteKeys := []string{
+		model_name_limiter.ModelKey("b"),
+		model_name_limiter.ModelKey("d"),
+		model_name_limiter.GroupKey("a", "visible"),
+		model_name_limiter.GroupKey("c", "hidden"),
+		model_name_limiter.GroupTotalKey("visible"),
+	}
+	assert.Equal(t, [][]string{expectedSiteKeys}, stub.Keys())
+	require.Len(t, snapshot.Global, 2)
+	assert.Equal(t, "b", snapshot.Global[0].Model)
+	require.NotNil(t, snapshot.Global[0].Current)
+	assert.Equal(t, 11, *snapshot.Global[0].Current)
+	assert.Equal(t, 5, snapshot.Global[0].Limit)
+	assert.False(t, snapshot.Global[0].Unlimited)
+	assert.Equal(t, "d", snapshot.Global[1].Model)
+	require.NotNil(t, snapshot.Global[1].Current)
+	assert.Equal(t, 22, *snapshot.Global[1].Current)
+	assert.Equal(t, 7, snapshot.Global[1].Limit)
+	assert.False(t, snapshot.Global[1].Unlimited)
+	require.Len(t, snapshot.Groups, 2)
+	assert.Equal(t, "a", snapshot.Groups[0].Model)
+	require.NotNil(t, snapshot.Groups[0].Current)
+	assert.Equal(t, 33, *snapshot.Groups[0].Current)
+	assert.Equal(t, "c", snapshot.Groups[1].Model)
+	require.NotNil(t, snapshot.Groups[1].Current)
+	assert.Equal(t, 44, *snapshot.Groups[1].Current)
+	require.Len(t, snapshot.GroupTotals, 1)
+	require.NotNil(t, snapshot.GroupTotals[0].Current)
+	assert.Equal(t, 55, *snapshot.GroupTotals[0].Current)
+	assert.Equal(t, []UserRPMCapacityLimit{
+		{Model: "a", Limit: 2},
+		{Model: "c", Limit: 4},
+	}, snapshot.UserLimits)
+
+	response := svc.Get(context.Background(), CapacityRequest{UserID: 9, IsAdmin: true, Scope: "all"})
+	require.NotNil(t, response.Site)
+	assert.Equal(t, 2, response.Site.Global.Total)
+	require.Len(t, response.Site.Global.Items, 2)
+	for _, item := range response.Site.Global.Items {
+		assert.Greater(t, item.Limit, 0)
+		assert.False(t, item.Unlimited)
+	}
+	assert.Equal(t, 5, response.Total)
+	require.NotNil(t, response.Personal)
+	assert.Equal(t, 2, response.Personal.Total)
+	require.Len(t, response.Personal.Items, 2)
+	personalCurrent := make(map[string]int, len(response.Personal.Items))
+	for _, item := range response.Personal.Items {
+		require.NotNil(t, item.Current)
+		personalCurrent[item.Model] = *item.Current
+	}
+	assert.Equal(t, map[string]int{"a": 66, "c": 77}, personalCurrent)
+	assert.Equal(t, [][]string{
+		expectedSiteKeys,
+		{model_name_limiter.UserKey("a", 9), model_name_limiter.UserKey("c", 9)},
+	}, stub.Keys())
 }
 
 func TestRateLimitCapacityGlobalOnlyRuleDoesNotCreatePersonalSection(t *testing.T) {
@@ -406,25 +489,25 @@ func TestRateLimitCapacityGlobalOnlyRuleDoesNotCreatePersonalSection(t *testing.
 	assert.Equal(t, [][]string{{model_name_limiter.ModelKey("gpt-4o")}}, stub.Keys())
 }
 
-// global_rpm=0 is unlimited but still counted, so the card must expose the real
-// current value alongside Unlimited instead of dropping it.
-func TestRateLimitCapacityUnlimitedGlobalKeepsRealCurrent(t *testing.T) {
+func TestRateLimitCapacityUnlimitedGlobalIsHiddenButSubLimitsRemain(t *testing.T) {
 	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
 	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
-	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":0,"user_rpm":4}}}`))
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":0,"user_rpm":4,"group_rpm":{"default":3}}}}`))
 
 	stub := &capacityInspectorStub{responses: []capacityInspectResponse{{counts: []int{7}}, {counts: []int{3}}}}
-	response := NewRateLimitCapacityService(stub).Get(context.Background(), CapacityRequest{UserID: 9})
+	response := NewRateLimitCapacityService(stub).Get(context.Background(), CapacityRequest{UserID: 9, IsAdmin: true, Scope: "all"})
 	require.NotNil(t, response.Site)
-	require.Len(t, response.Site.Global.Items, 1)
-	global := response.Site.Global.Items[0]
-	assert.True(t, global.Unlimited)
-	assert.Equal(t, 0, global.Limit)
-	require.NotNil(t, global.Current)
-	assert.Equal(t, 7, *global.Current)
-	assert.Nil(t, global.Utilization)
-	assert.False(t, global.OverLimit)
-	assert.True(t, global.Available)
+	assert.Zero(t, response.Site.Global.Total)
+	assert.Empty(t, response.Site.Global.Items)
+	require.Len(t, response.Site.Groups.Groups, 1)
+	require.Len(t, response.Site.Groups.Groups[0].Items, 1)
+	groupItem := response.Site.Groups.Groups[0].Items[0]
+	assert.Equal(t, "gpt-4o", groupItem.Model)
+	require.NotNil(t, groupItem.Current)
+	assert.Equal(t, 7, *groupItem.Current)
+	assert.Equal(t, 3, groupItem.Limit)
+	assert.False(t, groupItem.Unlimited)
+	assert.Equal(t, 1, response.Total)
 
 	require.NotNil(t, response.Personal)
 	require.Len(t, response.Personal.Items, 1)
@@ -433,6 +516,48 @@ func TestRateLimitCapacityUnlimitedGlobalKeepsRealCurrent(t *testing.T) {
 	assert.Equal(t, 4, personal.Limit)
 	require.NotNil(t, personal.Current)
 	assert.Equal(t, 3, *personal.Current)
+	assert.Equal(t, [][]string{
+		{model_name_limiter.GroupKey("gpt-4o", "default")},
+		{model_name_limiter.UserKey("gpt-4o", 9)},
+	}, stub.Keys())
+}
+
+func TestRateLimitCapacityZeroSiteKeysSkipInspectorWithoutFalseDegradation(t *testing.T) {
+	previousRPM := setting.ModelNameRPMRateLimit2JSONString()
+	defer func() { require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(previousRPM)) }()
+	require.NoError(t, setting.UpdateModelNameRPMRateLimitByJSONString(`{"enabled":true,"models":{"gpt-4o":{"global_rpm":0,"user_rpm":4}}}`))
+
+	nilInspectorService := NewRateLimitCapacityService(&capacityInspectorStub{})
+	nilInspectorService.inspector = nil
+	instanceChecks := 0
+	nilInspectorService.SetInstanceOnlyDetector(func() bool {
+		instanceChecks++
+		return false
+	})
+	snapshot, err := nilInspectorService.SiteSnapshot(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 1, instanceChecks)
+	assert.Empty(t, snapshot.Global)
+	assert.Equal(t, []UserRPMCapacityLimit{{Model: "gpt-4o", Limit: 4}}, snapshot.UserLimits)
+
+	stub := &capacityInspectorStub{counts: []int{3}}
+	svc := NewRateLimitCapacityService(stub)
+	instanceChecks = 0
+	svc.SetInstanceOnlyDetector(func() bool {
+		instanceChecks++
+		return false
+	})
+	response := svc.Get(context.Background(), CapacityRequest{UserID: 9, Scope: "all"})
+	assert.Equal(t, 1, instanceChecks)
+	assert.False(t, response.Degraded)
+	assert.Empty(t, response.Warning)
+	assert.Nil(t, response.Site)
+	require.NotNil(t, response.Personal)
+	require.Len(t, response.Personal.Items, 1)
+	require.NotNil(t, response.Personal.Items[0].Current)
+	assert.Equal(t, 3, *response.Personal.Items[0].Current)
+	assert.Equal(t, 1, stub.Calls())
+	assert.Equal(t, [][]string{{model_name_limiter.UserKey("gpt-4o", 9)}}, stub.Keys())
 }
 
 func TestRateLimitCapacityUsesNormalizedRuleModelForAdmissionKeys(t *testing.T) {
@@ -499,6 +624,121 @@ func TestRateLimitCapacityPersonalUsesAdmissionBucketsWithoutTopTruncation(t *te
 	second := svc.Get(context.Background(), CapacityRequest{UserID: 9, Scope: "all"})
 	require.NotNil(t, second.Personal)
 	assert.Equal(t, 3, stub.Calls(), "cached site data must leave exactly one personal Inspect per request")
+}
+
+func TestRateLimitCapacityPersonalVisibilityFiltersBeforeInspect(t *testing.T) {
+	previousRatios := ratio_setting.GroupRatio2JSONString()
+	previousUsable := setting.UserUsableGroups2JSONString()
+	t.Cleanup(func() {
+		require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(previousRatios))
+		require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(previousUsable))
+	})
+	require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(`{"visible-a":1,"visible-b":1,"hidden":1}`))
+	require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(`{"visible-a":"Visible A","visible-b":"Visible B"}`))
+
+	type expectedItem struct {
+		model   string
+		group   string
+		current int
+		limit   int
+	}
+	limits := []UserRPMCapacityLimit{
+		{Group: "visible-a", Limit: 2},
+		{Group: "hidden", Limit: 3},
+		{Model: "model-a", Limit: 4},
+		{Group: "visible-b", Limit: 5},
+	}
+	tests := []struct {
+		name      string
+		request   CapacityRequest
+		limits    []UserRPMCapacityLimit
+		counts    []int
+		wantKeys  []string
+		wantItems []expectedItem
+	}{
+		{
+			name:    "non-admin sees usable groups and every model limit",
+			request: CapacityRequest{UserID: 9, Scope: "all"},
+			limits:  limits,
+			counts:  []int{11, 33, 44},
+			wantKeys: []string{
+				model_name_limiter.GroupUserKey("visible-a", 9),
+				model_name_limiter.UserKey("model-a", 9),
+				model_name_limiter.GroupUserKey("visible-b", 9),
+			},
+			wantItems: []expectedItem{
+				{group: "visible-a", current: 11, limit: 2},
+				{model: "model-a", current: 33, limit: 4},
+				{group: "visible-b", current: 44, limit: 5},
+			},
+		},
+		{
+			name:    "admin sees every group limit",
+			request: CapacityRequest{UserID: 9, IsAdmin: true, Scope: "all"},
+			limits:  limits,
+			counts:  []int{11, 22, 33, 44},
+			wantKeys: []string{
+				model_name_limiter.GroupUserKey("visible-a", 9),
+				model_name_limiter.GroupUserKey("hidden", 9),
+				model_name_limiter.UserKey("model-a", 9),
+				model_name_limiter.GroupUserKey("visible-b", 9),
+			},
+			wantItems: []expectedItem{
+				{group: "visible-a", current: 11, limit: 2},
+				{group: "hidden", current: 22, limit: 3},
+				{model: "model-a", current: 33, limit: 4},
+				{group: "visible-b", current: 44, limit: 5},
+			},
+		},
+		{
+			name:    "all personal limits filtered",
+			request: CapacityRequest{UserID: 9, Scope: "all"},
+			limits:  []UserRPMCapacityLimit{{Group: "hidden", Limit: 3}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixedNow := time.Unix(200, 0).UTC()
+			stub := &capacityInspectorStub{counts: test.counts}
+			svc := NewRateLimitCapacityService(stub)
+			svc.SetClock(func() time.Time { return fixedNow })
+			svc.cacheMu.Lock()
+			svc.cache = &cachedSiteCapacity{snapshot: SiteCapacitySnapshot{
+				ObservedAt:            fixedNow,
+				ModelRPMVersion:       setting.ModelNameRPMConfigVersion(),
+				GroupRateLimitVersion: setting.ModelRequestRateLimitConfigVersion(),
+				UserLimits:            append([]UserRPMCapacityLimit(nil), test.limits...),
+			}}
+			svc.cacheMu.Unlock()
+
+			response := svc.Get(context.Background(), test.request)
+			if len(test.wantItems) == 0 {
+				assert.Nil(t, response.Personal)
+				assert.Equal(t, 0, stub.Calls())
+				assert.Empty(t, stub.Keys())
+				return
+			}
+
+			require.NotNil(t, response.Personal)
+			assert.Equal(t, len(test.wantItems), response.Personal.Total)
+			require.Len(t, response.Personal.Items, len(test.wantItems))
+			assert.Equal(t, 1, stub.Calls())
+			assert.Equal(t, [][]string{test.wantKeys}, stub.Keys())
+			wantByIdentity := make(map[[2]string]expectedItem, len(test.wantItems))
+			for _, item := range test.wantItems {
+				wantByIdentity[[2]string{item.model, item.group}] = item
+			}
+			for _, item := range response.Personal.Items {
+				expected, ok := wantByIdentity[[2]string{item.Model, item.Group}]
+				require.True(t, ok, "unexpected personal item: %+v", item)
+				require.NotNil(t, item.Current)
+				assert.Equal(t, expected.current, *item.Current)
+				assert.Equal(t, expected.limit, item.Limit)
+				assert.False(t, item.Unlimited)
+			}
+		})
+	}
 }
 
 func TestRateLimitCapacityPersonalInspectFailureIsUnavailableAndRedacted(t *testing.T) {

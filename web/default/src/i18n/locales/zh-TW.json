@@ -5440,7 +5440,7 @@
     "Model name must not contain whitespace or control characters": "模型名稱不能包含空白字元或控制字元",
     "This model already has a rule": "該模型已存在規則",
     "Global RPM must be an integer between 0 and 1,000,000 (0 means unlimited)": "全域 RPM 必須是 0 到 1,000,000 之間的整數（0 表示不限制）",
-    "0 means unlimited; usage is still counted and displayed.": "0 表示不限制；用量仍會統計並展示。",
+    "0 means unlimited; usage is still counted but is not shown in the RPM overview.": "0 表示不限制；用量仍會統計，但不會顯示在 RPM 概覽中。",
     "When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule": "全域 RPM 為 0（不限制）時，至少需要設定一個使用者層級或分組層級限制；否則請刪除該模型規則",
     "Per-user RPM must be a positive integer when set": "每位使用者 RPM 設定後必須為正整數",
     "Per-user RPM must not exceed the global RPM": "每位使用者 RPM 不能超過全域 RPM",

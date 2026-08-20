@@ -75,7 +75,7 @@ func TestRateLimitCapacityPersonalAlignsModelAndSortedGroupUserBuckets(t *testin
 		{Group: "zeta", Limit: 7},
 	}, snapshot.UserLimits)
 
-	response := svc.Get(context.Background(), CapacityRequest{UserID: 9, Scope: "all"})
+	response := svc.Get(context.Background(), CapacityRequest{UserID: 9, IsAdmin: true, Scope: "all"})
 	require.NotNil(t, response.Personal)
 	assert.Equal(t, [][]string{
 		{model_name_limiter.ModelKey("gpt"), model_name_limiter.GroupTotalKey("alpha")},

@@ -550,7 +550,9 @@ export default function ModelNameRPMVisualEditor({ value, onChange }) {
           </div>
           <div>
             <Text type='tertiary' size='small'>
-              {t('0 means unlimited; usage is still counted and displayed.')}
+              {t(
+                '0 means unlimited; usage is still counted but is not shown in the RPM overview.',
+              )}
             </Text>
           </div>
           {fieldError(['global-rpm-range', 'unlimited-without-sublimit'])}

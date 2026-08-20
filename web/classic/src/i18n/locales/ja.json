@@ -4843,7 +4843,7 @@
     "Model name must not contain whitespace or control characters": "モデル名に空白文字や制御文字を含めることはできません",
     "This model already has a rule": "このモデルには既にルールがあります",
     "Global RPM must be an integer between 0 and 1,000,000 (0 means unlimited)": "グローバル RPM は 0〜1,000,000 の整数で指定してください（0 は無制限）",
-    "0 means unlimited; usage is still counted and displayed.": "0 は無制限を意味します。使用量は引き続き集計・表示されます。",
+    "0 means unlimited; usage is still counted but is not shown in the RPM overview.": "0 は無制限を意味します。使用量は引き続き集計されますが、RPM 概要には表示されません。",
     "When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule": "グローバル RPM が 0（無制限）の場合は、ユーザー単位またはグループ単位の制限を少なくとも 1 つ設定してください。設定しない場合はこのモデルのルールを削除してください",
     "Unlimited": "無制限",
     "User RPM must be 0 or a positive integer": "ユーザー RPM は 0 または正の整数で指定してください",

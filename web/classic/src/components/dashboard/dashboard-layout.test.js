@@ -32,9 +32,13 @@ describe('Classic dashboard conditional layout', () => {
 
     assert.match(
       source,
-      /<\/div>\s*<\/div>\s*\{dashboardData\.hasRateLimitCapacityPanel && \(\s*<div className='mb-4'>\s*<RateLimitCapacityPanel \/>\s*<\/div>\s*\)\}\s*\{\/\* 系统公告和常见问答卡片 \*\/\}\s*\{dashboardData\.hasInfoPanels && \(/,
+      /<\/div>\s*<\/div>\s*\{dashboardData\.hasRateLimitCapacityPanel && <RateLimitCapacityPanel \/>\}\s*\{\/\* 系统公告和常见问答卡片 \*\/\}\s*\{dashboardData\.hasInfoPanels && \(/,
     );
     assert.equal(source.match(/<RateLimitCapacityPanel \/>/g)?.length, 1);
+    assert.doesNotMatch(
+      source,
+      /<div className='mb-4'>\s*<RateLimitCapacityPanel \/>/,
+    );
   });
 
   test('keeps the RPM card enabled when all four content panels are off', () => {

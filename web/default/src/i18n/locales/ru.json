@@ -5440,7 +5440,7 @@
     "Model name must not contain whitespace or control characters": "Название модели не должно содержать пробельные и управляющие символы",
     "This model already has a rule": "Для этой модели уже есть правило",
     "Global RPM must be an integer between 0 and 1,000,000 (0 means unlimited)": "Глобальный RPM должен быть целым числом от 0 до 1 000 000 (0 — без ограничений)",
-    "0 means unlimited; usage is still counted and displayed.": "0 означает «без ограничений»; использование по-прежнему учитывается и отображается.",
+    "0 means unlimited; usage is still counted but is not shown in the RPM overview.": "0 означает «без ограничений»; использование по-прежнему учитывается, но не отображается в обзоре RPM.",
     "When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule": "Если глобальный RPM равен 0 (без ограничений), задайте хотя бы одно ограничение на пользователя или на группу; иначе удалите это правило модели",
     "Per-user RPM must be a positive integer when set": "RPM на пользователя должен быть положительным целым числом, если он задан",
     "Per-user RPM must not exceed the global RPM": "RPM на пользователя не должен превышать глобальный RPM",

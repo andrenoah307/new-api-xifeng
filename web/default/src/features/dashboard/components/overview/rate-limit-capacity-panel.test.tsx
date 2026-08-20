@@ -86,7 +86,7 @@ function response(
     backend_scope: 'redis',
     site: null,
     personal,
-    total: personal?.total ?? 0,
+    total: 0,
   }
 }
 
@@ -123,7 +123,7 @@ function groupTotalsResponse(
 }
 
 async function renderPanelResult(
-  data: RateLimitCapacityResponse,
+  data?: RateLimitCapacityResponse,
   existingQueryClient?: QueryClient
 ): Promise<{ markup: string; queryClient: QueryClient }> {
   useAuthStore.getState().auth.setUser(null)
@@ -137,7 +137,7 @@ async function renderPanelResult(
         },
       },
     })
-  if (!existingQueryClient) {
+  if (!existingQueryClient && data) {
     queryClient.setQueryData(topQueryKey, data)
   }
   const i18n = createInstance()
@@ -193,7 +193,7 @@ async function capacityQueryOptions() {
   return { top: topQuery.options, all: allQuery.options }
 }
 
-describe('personal rate-limit capacity section', () => {
+describe('rate-limit capacity panel', () => {
   test('renders zero usage as current over limit with utilization', async () => {
     const markup = await renderPanel(
       response({
@@ -224,35 +224,38 @@ describe('personal rate-limit capacity section', () => {
     assert.doesNotMatch(markup, /No request data yet/)
   })
 
-  test('keeps showing the counted usage when the limit is unlimited', async () => {
-    const markup = await renderPanel(
-      response({
-        status: 'ok',
-        window_seconds: 60,
-        observed_at: '2026-08-18T00:00:00Z',
-        instance_only: false,
-        total: 1,
+  test('renders only valid items from the filtered Global section', async () => {
+    const data = response()
+    data.site = {
+      global: {
         items: [
           {
-            model: 'gpt-unlimited',
+            model: 'gpt-limited',
             group: '',
             current: 7,
-            limit: 0,
-            utilization: null,
+            limit: 20,
+            utilization: 0.35,
             available: true,
-            unlimited: true,
+            unlimited: false,
             over_limit: false,
           },
         ],
-      })
-    )
+        total: 1,
+      },
+      groups: { groups: [], total: 0 },
+      group_totals: { items: [], total: 0 },
+    }
+    data.total = 1
 
-    assert.match(markup, /gpt-unlimited/)
-    assert.match(markup, /7 \/ Unlimited/)
-    assert.doesNotMatch(markup, /7 \/ 0/)
+    const markup = await renderPanel(data)
+
+    assert.match(markup, /Site model RPM/)
+    assert.match(markup, /gpt-limited/)
+    assert.match(markup, /7 \/ 20/)
+    assert.doesNotMatch(markup, /Unlimited/)
   })
 
-  test('renders a bare unlimited label when the counter is unreadable', async () => {
+  test('keeps the unavailable fallback when a counter is unreadable', async () => {
     const markup = await renderPanel(
       response({
         status: 'ok',
@@ -262,26 +265,84 @@ describe('personal rate-limit capacity section', () => {
         total: 1,
         items: [
           {
-            model: 'gpt-unlimited',
+            model: 'gpt-unavailable',
             group: '',
             current: null,
-            limit: 0,
+            limit: 20,
             utilization: null,
-            available: true,
-            unlimited: true,
+            available: false,
+            unlimited: false,
             over_limit: false,
           },
         ],
       })
     )
 
-    assert.match(markup, /Unlimited/)
-    assert.doesNotMatch(markup, /\d+ \/ Unlimited/)
+    assert.match(markup, /gpt-unavailable/)
+    assert.match(markup, /Temporarily unavailable/)
+    assert.doesNotMatch(markup, /0 \/ 20/)
   })
 
-  test('omits the entire section when personal data is absent', async () => {
+  test('does not render the card when site and personal data are absent', async () => {
     const markup = await renderPanel(response())
-    assert.doesNotMatch(markup, /My model RPM/)
+    assert.equal(markup, '')
+  })
+
+  test('renders the card when only personal data is present', async () => {
+    const markup = await renderPanel(
+      response({
+        status: 'ok',
+        window_seconds: 60,
+        observed_at: '2026-08-18T00:00:00Z',
+        instance_only: false,
+        total: 1,
+        items: [
+          {
+            model: 'gpt-personal-only',
+            group: '',
+            current: 3,
+            limit: 10,
+            utilization: 0.3,
+            available: true,
+            unlimited: false,
+            over_limit: false,
+          },
+        ],
+      })
+    )
+
+    assert.match(markup, /RPM overview/)
+    assert.match(markup, /My model RPM/)
+    assert.match(markup, /gpt-personal-only/)
+  })
+
+  test('keeps the loading skeleton before a response arrives', async () => {
+    const { markup } = await renderPanelResult(
+      undefined,
+      new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    )
+
+    assert.match(markup, /RPM overview/)
+    assert.match(markup, /data-slot="skeleton"/)
+  })
+
+  test('keeps the unavailable message when the request fails', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+    await assert.rejects(
+      queryClient.fetchQuery({
+        queryKey: topQueryKey,
+        queryFn: async () => {
+          throw new Error('capacity request failed')
+        },
+      })
+    )
+
+    const { markup } = await renderPanelResult(undefined, queryClient)
+
+    assert.match(markup, /RPM overview/)
+    assert.match(markup, /Temporarily unavailable/)
   })
 
   test('renders the unavailable placeholder instead of metric values', async () => {
@@ -496,7 +557,7 @@ describe('rate-limit capacity refresh behavior', () => {
   })
 
   test('shows a disabled loading refresh button while a request is in flight', async () => {
-    const data = response()
+    const data = groupTotalsResponse([groupTotalItem('vip-refresh')])
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
@@ -531,7 +592,9 @@ describe('rate-limit capacity refresh behavior', () => {
   })
 
   test('replaces the automatic-refresh copy with manual-refresh guidance', async () => {
-    const markup = await renderPanel(response())
+    const markup = await renderPanel(
+      groupTotalsResponse([groupTotalItem('vip-refresh')])
+    )
     assert.doesNotMatch(markup, /Data refreshes every 15 seconds/)
     assert.match(markup, /Click refresh for the latest data/)
     assert.match(markup, /aria-label="Refresh"/)

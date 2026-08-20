@@ -237,11 +237,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {dashboardData.hasRateLimitCapacityPanel && (
-        <div className='mb-4'>
-          <RateLimitCapacityPanel />
-        </div>
-      )}
+      {dashboardData.hasRateLimitCapacityPanel && <RateLimitCapacityPanel />}
 
       {/* 系统公告和常见问答卡片 */}
       {dashboardData.hasInfoPanels && (

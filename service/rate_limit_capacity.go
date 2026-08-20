@@ -236,13 +236,22 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 	for _, modelName := range modelNames {
 		ruleModels[modelName] = ratio_setting.FormatMatchingModelName(modelName)
 	}
+	globalModelNames := make([]string, 0, len(modelNames))
+	for _, modelName := range modelNames {
+		rule := rules.Models[modelName]
+		if rule.GlobalRPM != nil && *rule.GlobalRPM > 0 {
+			globalModelNames = append(globalModelNames, modelName)
+		}
+	}
 	keys := make([]string, 0)
 	// The site Redis read contains site model, model+group, and group-total buckets.
 	// Model and group per-user limits are cached as metadata and read with the authenticated ID.
+	for _, modelName := range globalModelNames {
+		keys = append(keys, model_name_limiter.ModelKey(ruleModels[modelName]))
+	}
 	for _, modelName := range modelNames {
 		rule := rules.Models[modelName]
 		ruleModel := ruleModels[modelName]
-		keys = append(keys, model_name_limiter.ModelKey(ruleModel))
 		if rule.UserRPM > 0 {
 			snapshot.UserLimits = append(snapshot.UserLimits, UserRPMCapacityLimit{Model: ruleModel, Limit: rule.UserRPM})
 		}
@@ -280,7 +289,9 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 
 	var counts []int
 	var err error
-	if s.inspector == nil {
+	if len(keys) == 0 {
+		counts = nil
+	} else if s.inspector == nil {
 		err = fmt.Errorf("capacity inspector is nil")
 	} else {
 		counts, err = s.inspector.Inspect(ctx, keys)
@@ -301,18 +312,14 @@ func (s *RateLimitCapacityService) refreshSite(ctx context.Context, now time.Tim
 	}
 	available := err == nil
 	countIndex := 0
-	for _, modelName := range modelNames {
+	for _, modelName := range globalModelNames {
 		rule := rules.Models[modelName]
 		var current *int
 		if available {
 			value := counts[countIndex]
 			current = &value
 		}
-		globalLimit := 0
-		if rule.GlobalRPM != nil {
-			globalLimit = *rule.GlobalRPM
-		}
-		snapshot.Global = append(snapshot.Global, makeCapacityItem(ruleModels[modelName], "", current, globalLimit, available))
+		snapshot.Global = append(snapshot.Global, makeCapacityItem(ruleModels[modelName], "", current, *rule.GlobalRPM, available))
 		countIndex++
 	}
 	for _, modelName := range modelNames {
@@ -548,6 +555,16 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 	if !request.IsAdmin {
 		visibleGroups = GetVisibleUserGroups(request.UserGroup, request.Country)
 	}
+	personalLimits := make([]UserRPMCapacityLimit, 0, len(snapshot.UserLimits))
+	for _, limit := range snapshot.UserLimits {
+		if limit.Group == "" || request.IsAdmin {
+			personalLimits = append(personalLimits, limit)
+			continue
+		}
+		if _, ok := visibleGroups[limit.Group]; ok {
+			personalLimits = append(personalLimits, limit)
+		}
+	}
 	filteredGroups := groups[:0]
 	for _, item := range groups {
 		if request.IsAdmin {
@@ -621,7 +638,7 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 	}
 	response.Total = globalTotal + groupBucketTotal + groupTotalsTotal
 
-	if len(snapshot.UserLimits) == 0 {
+	if len(personalLimits) == 0 {
 		return response
 	}
 
@@ -630,8 +647,8 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 		WindowSeconds: model_name_limiter.WindowSeconds,
 		ObservedAt:    s.now().UTC(),
 		InstanceOnly:  snapshot.InstanceOnly,
-		Total:         len(snapshot.UserLimits),
-		Items:         make([]CapacityItem, 0, len(snapshot.UserLimits)),
+		Total:         len(personalLimits),
+		Items:         make([]CapacityItem, 0, len(personalLimits)),
 	}
 	var personalCounts []int
 	var personalErr error
@@ -640,8 +657,8 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 	} else if s.inspector == nil {
 		personalErr = fmt.Errorf("capacity inspector is nil")
 	} else {
-		keys := make([]string, len(snapshot.UserLimits))
-		for i, limit := range snapshot.UserLimits {
+		keys := make([]string, len(personalLimits))
+		for i, limit := range personalLimits {
 			if limit.Model != "" {
 				keys[i] = model_name_limiter.UserKey(limit.Model, request.UserID)
 			} else {
@@ -668,7 +685,7 @@ func (s *RateLimitCapacityService) Get(ctx context.Context, request CapacityRequ
 		common.SysError(fmt.Sprintf("rate_limit_capacity: personal snapshot unavailable: %v", personalErr))
 		response.Warning = joinWarnings(response.Warning, "personal backend is unavailable")
 	}
-	for i, limit := range snapshot.UserLimits {
+	for i, limit := range personalLimits {
 		var current *int
 		if personalAvailable {
 			value := personalCounts[i]

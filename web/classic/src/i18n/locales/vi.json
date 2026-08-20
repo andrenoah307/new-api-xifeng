@@ -5387,7 +5387,7 @@
     "Model name must not contain whitespace or control characters": "Tên mô hình không được chứa khoảng trắng hoặc ký tự điều khiển",
     "This model already has a rule": "Mô hình này đã có quy tắc",
     "Global RPM must be an integer between 0 and 1,000,000 (0 means unlimited)": "RPM toàn cục phải là số nguyên từ 0 đến 1.000.000 (0 nghĩa là không giới hạn)",
-    "0 means unlimited; usage is still counted and displayed.": "0 nghĩa là không giới hạn; mức sử dụng vẫn được đếm và hiển thị.",
+    "0 means unlimited; usage is still counted but is not shown in the RPM overview.": "0 nghĩa là không giới hạn; mức sử dụng vẫn được đếm nhưng không hiển thị trong phần tổng quan RPM.",
     "When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule": "Khi RPM toàn cục bằng 0 (không giới hạn), hãy cấu hình ít nhất một giới hạn theo người dùng hoặc theo nhóm; nếu không, hãy xóa quy tắc mô hình này",
     "Unlimited": "Không giới hạn",
     "User RPM must be 0 or a positive integer": "RPM người dùng phải là 0 hoặc số nguyên dương",

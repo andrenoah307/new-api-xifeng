@@ -69,15 +69,14 @@ function metricAvailable(metric) {
   return Boolean(
     metric &&
     metric.available &&
-    (metric.unlimited ||
-      (typeof metric.current === 'number' && Number.isFinite(metric.current))),
+    typeof metric.current === 'number' &&
+    Number.isFinite(metric.current),
   );
 }
 
 function CapacityBar({ metric }) {
   if (
     !metric ||
-    metric.unlimited ||
     !metricAvailable(metric) ||
     metric.utilization === null ||
     metric.utilization === undefined
@@ -119,13 +118,7 @@ function CapacityRow({ label, metric, badge, t }) {
   const available = metricAvailable(metric);
   const percent = formatPercent(metric?.utilization);
   let value = t('暂时不可用');
-  if (available && metric?.unlimited) {
-    // 不限制的桶仍然计数，能读到真实用量时继续展示。
-    value =
-      typeof metric.current === 'number' && Number.isFinite(metric.current)
-        ? `${formatCount(metric.current)} / ${t('无限制')}`
-        : t('无限制');
-  } else if (available) {
+  if (available) {
     value = `${formatCount(metric.current)} / ${formatCount(metric.limit)}`;
   }
 
@@ -574,9 +567,11 @@ export default function RateLimitCapacityPanel() {
     ? globalItems
     : globalItems.slice(0, 3);
   const displayedGroups = groupsExpanded ? groupItems : groupItems.slice(0, 3);
+  if (data && !data.site && !data.personal) return null;
+
   return (
     <Card
-      className='shadow-sm !rounded-2xl'
+      className='mb-4 shadow-sm !rounded-2xl'
       title={
         <div className='flex items-center gap-2'>
           <Gauge size={16} />

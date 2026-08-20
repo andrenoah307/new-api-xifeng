@@ -81,18 +81,14 @@ function formatObservedAt(value: string | undefined): string {
 function isMetricAvailable(metric: RateLimitCapacityMetric): boolean {
   return (
     metric.available &&
-    (metric.unlimited ||
-      (typeof metric.current === 'number' && Number.isFinite(metric.current)))
+    typeof metric.current === 'number' &&
+    Number.isFinite(metric.current)
   )
 }
 
 function CapacityBar(props: { metric: RateLimitCapacityMetric }) {
   const { metric } = props
-  if (
-    metric.unlimited ||
-    !isMetricAvailable(metric) ||
-    metric.utilization == null
-  ) {
+  if (!isMetricAvailable(metric) || metric.utilization == null) {
     return null
   }
 
@@ -127,17 +123,7 @@ function CapacityRow(props: {
   const available = isMetricAvailable(metric)
   const percent = formatPercent(metric.utilization)
   let value = t('Temporarily unavailable')
-  if (
-    available &&
-    metric.unlimited &&
-    typeof metric.current === 'number' &&
-    Number.isFinite(metric.current)
-  ) {
-    // An unlimited bucket is still counted, so keep showing the real usage.
-    value = `${formatCount(metric.current)} / ${t('Unlimited')}`
-  } else if (available && metric.unlimited) {
-    value = t('Unlimited')
-  } else if (available && metric.current !== null) {
+  if (available && metric.current !== null) {
     value = `${formatCount(metric.current)} / ${formatCount(metric.limit)}`
   }
 
@@ -567,6 +553,8 @@ export function RateLimitCapacityPanel() {
   const displayedGroups = groupsExpanded ? groupItems : groupItems.slice(0, 3)
   const topLoading = topQuery.isPending && !topData
   const refreshing = topQuery.isFetching || allIsFetching
+
+  if (data && !data.site && !data.personal) return null
 
   return (
     <PanelWrapper

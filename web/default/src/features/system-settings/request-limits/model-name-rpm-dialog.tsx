@@ -234,7 +234,9 @@ export function ModelNameRPMDialog({
             {t('Hard ceiling shared by every group, in requests per minute.')}
           </p>
           <p className='text-muted-foreground text-xs'>
-            {t('0 means unlimited; usage is still counted and displayed.')}
+            {t(
+              '0 means unlimited; usage is still counted but is not shown in the RPM overview.'
+            )}
           </p>
           {fieldError(['global-rpm-range', 'unlimited-without-sublimit'])}
         </div>
