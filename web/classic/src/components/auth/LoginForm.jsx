@@ -17,7 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
@@ -44,6 +51,11 @@ import {
   getReadStatus as getLegalReadStatus,
   markRead as markLegalRead,
 } from '../../helpers/legalConsentStorage';
+import {
+  createLegalConsentFeedbackState,
+  getLegalConsentRowPresentation,
+  reduceLegalConsentFeedbackState,
+} from './legal-consent-shake.js';
 import Turnstile from 'react-turnstile';
 import {
   Button,
@@ -117,6 +129,11 @@ const LoginForm = () => {
     'privacy-policy': false,
     'terms-of-service': false,
   });
+  const [legalFeedbackState, dispatchLegalFeedback] = useReducer(
+    reduceLegalConsentFeedbackState,
+    undefined,
+    createLegalConsentFeedbackState,
+  );
   const [legalModalDoc, setLegalModalDoc] = useState(null);
   const consentRequired = hasUserAgreement || hasPrivacyPolicy;
   const allAgreedToTerms = !consentRequired
@@ -206,8 +223,13 @@ const LoginForm = () => {
     };
   }, [consentRequired]);
 
-  const showLegalConsentError = () =>
+  const showLegalConsentError = () => {
     showInfo(t('请先阅读并同意用户协议、隐私政策和服务条款'));
+    dispatchLegalFeedback({
+      type: 'validation-requested',
+      agreed: legalAgreed,
+    });
+  };
 
   const handleLegalCheckboxToggle = (docKey, nextValue) => {
     if (nextValue) {
@@ -222,8 +244,10 @@ const LoginForm = () => {
       setLegalModalDoc(null);
       return;
     }
-    markLegalRead(legalModalDoc, legalDocHash);
-    setLegalAgreed((prev) => ({ ...prev, [legalModalDoc]: true }));
+    const confirmedDoc = legalModalDoc;
+    markLegalRead(confirmedDoc, legalDocHash);
+    setLegalAgreed((prev) => ({ ...prev, [confirmedDoc]: true }));
+    dispatchLegalFeedback({ type: 'document-agreed', key: confirmedDoc });
     setLegalModalDoc(null);
   };
 
@@ -236,30 +260,51 @@ const LoginForm = () => {
     ];
     return (
       <div className='mt-6 space-y-2'>
-        {items.map((item) => (
-          <Checkbox
-            key={item.key}
-            checked={legalAgreed[item.key]}
-            disabled={!legalDocHash}
-            onChange={(e) =>
-              handleLegalCheckboxToggle(item.key, e.target.checked)
-            }
-          >
-            <Text size='small' className='text-gray-600'>
-              {t('我已阅读并同意')}
-              <a
-                href='#'
-                onClick={(e) => {
-                  e.preventDefault();
-                  setLegalModalDoc(item.key);
-                }}
-                className='text-blue-600 hover:text-blue-800 mx-1'
+        {items.map((item) => {
+          const presentation = getLegalConsentRowPresentation(
+            legalFeedbackState.invalidKeys.has(item.key),
+            legalFeedbackState.shakingKeys.has(item.key),
+          );
+          return (
+            <div
+              key={item.key}
+              className={presentation.rowClassName}
+              data-consent-invalid={presentation.invalidDataValue}
+              data-consent-shake={presentation.shakeDataValue}
+              onAnimationEnd={(event) =>
+                dispatchLegalFeedback({
+                  type: 'animation-ended',
+                  key: item.key,
+                  target: event.target,
+                  currentTarget: event.currentTarget,
+                })
+              }
+            >
+              <Checkbox
+                checked={legalAgreed[item.key]}
+                disabled={!legalDocHash}
+                aria-invalid={presentation.checkboxAriaInvalid}
+                onChange={(e) =>
+                  handleLegalCheckboxToggle(item.key, e.target.checked)
+                }
               >
-                《{item.label}》
-              </a>
-            </Text>
-          </Checkbox>
-        ))}
+                <Text size='small' className='text-gray-600'>
+                  {t('我已阅读并同意')}
+                  <a
+                    href='#'
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setLegalModalDoc(item.key);
+                    }}
+                    className='text-blue-600 hover:text-blue-800 mx-1'
+                  >
+                    《{item.label}》
+                  </a>
+                </Text>
+              </Checkbox>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -862,9 +907,6 @@ const LoginForm = () => {
                     htmlType='submit'
                     onClick={handleSubmit}
                     loading={loginLoading}
-                    disabled={
-                      !allAgreedToTerms
-                    }
                   >
                     {t('继续')}
                   </Button>

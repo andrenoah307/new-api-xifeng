@@ -1045,6 +1045,47 @@ html.dark .with-pastel-balls::before {
   }
 }
 
+@keyframes legal-consent-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-3px);
+  }
+  40%,
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+.legal-consent-invalid .semi-typography {
+  color: var(--semi-color-danger) !important;
+}
+
+.legal-consent-invalid .semi-typography a {
+  color: var(--semi-color-danger) !important;
+}
+
+.legal-consent-invalid .semi-typography a:hover {
+  color: var(--semi-color-danger-hover) !important;
+}
+
+.legal-consent-invalid .semi-checkbox-inner-display {
+  box-shadow: inset 0 0 0 1px var(--semi-color-danger) !important;
+}
+
+.legal-consent-shake {
+  animation: legal-consent-shake 0.4s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legal-consent-shake {
+    animation: none !important;
+  }
+}
+
 .ec-dbcd0a3c01b55203 {
   forced-color-adjust: auto;
 }

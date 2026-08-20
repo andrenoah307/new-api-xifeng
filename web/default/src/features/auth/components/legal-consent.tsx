@@ -16,13 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -30,21 +29,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getUserAgreement, LegalDocumentInline } from '@/features/legal'
-import type { LegalDocumentResponse } from '@/features/legal'
 import {
   getReadStatus,
   markRead,
   type LegalDocKey,
 } from '@/features/auth/lib/legal-consent-storage'
+import {
+  getUserAgreement,
+  LegalDocumentInline,
+  type LegalDocumentResponse,
+} from '@/features/legal'
+import { cn } from '@/lib/utils'
+
 import type { SystemStatus } from '../types'
+import { LegalConsentRow } from './legal-consent-row'
+import {
+  createLegalConsentFeedbackState,
+  reduceLegalConsentFeedbackState,
+} from './legal-consent-shake'
 
 interface LegalConsentProps {
   status: SystemStatus | null
   onAllAgreedChange?: (allAgreed: boolean) => void
   className?: string
+  shakeSignal?: number
 }
 
 type DocConfig = {
@@ -62,6 +71,7 @@ export function LegalConsent({
   status,
   onAllAgreedChange,
   className,
+  shakeSignal = 0,
 }: LegalConsentProps) {
   const { t } = useTranslation()
   const hasUserAgreement = Boolean(status?.user_agreement_enabled)
@@ -84,6 +94,13 @@ export function LegalConsent({
     'terms-of-service': false,
   })
   const [openDoc, setOpenDoc] = useState<LegalDocKey | null>(null)
+  const [feedbackState, dispatchFeedback] = useReducer(
+    reduceLegalConsentFeedbackState,
+    undefined,
+    createLegalConsentFeedbackState
+  )
+  const agreedRef = useRef(agreed)
+  agreedRef.current = agreed
 
   useEffect(() => {
     if (!consentRequired) {
@@ -111,6 +128,14 @@ export function LegalConsent({
     onAllAgreedChange?.(allAgreed)
   }, [allAgreed, onAllAgreedChange])
 
+  useEffect(() => {
+    if (shakeSignal <= 0) return
+    dispatchFeedback({
+      type: 'validation-requested',
+      agreed: agreedRef.current,
+    })
+  }, [shakeSignal])
+
   if (!consentRequired) return null
 
   const activeDoc = openDoc
@@ -122,8 +147,10 @@ export function LegalConsent({
       setOpenDoc(null)
       return
     }
-    markRead(openDoc, hash)
-    setAgreed((prev) => ({ ...prev, [openDoc]: true }))
+    const confirmedDoc = openDoc
+    markRead(confirmedDoc, hash)
+    setAgreed((prev) => ({ ...prev, [confirmedDoc]: true }))
+    dispatchFeedback({ type: 'document-agreed', key: confirmedDoc })
     setOpenDoc(null)
   }
 
@@ -145,41 +172,32 @@ export function LegalConsent({
       {!documentQuery.isLoading &&
         DOC_CONFIGS.map((doc) => {
           const isAgreed = agreed[doc.key]
-          const checkboxId = `legal-consent-${doc.key}`
           return (
-            <div key={doc.key} className='flex items-start gap-2'>
-              <Checkbox
-                id={checkboxId}
-                checked={isAgreed}
-                disabled={!hash}
-                onCheckedChange={(value) => {
-                  if (value === true) {
-                    setOpenDoc(doc.key)
-                  } else {
-                    setAgreed((prev) => ({ ...prev, [doc.key]: false }))
-                  }
-                }}
-                className='mt-0.5'
-              />
-              <Label
-                htmlFor={checkboxId}
-                className='text-muted-foreground items-start gap-1 text-left text-xs leading-5 font-normal'
-              >
-                <span>
-                  {t('I have read and agree to the')}{' '}
-                  <button
-                    type='button'
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setOpenDoc(doc.key)
-                    }}
-                    className='text-primary hover:underline'
-                  >
-                    {t(doc.titleKey)}
-                  </button>
-                </span>
-              </Label>
-            </div>
+            <LegalConsentRow
+              key={doc.key}
+              docKey={doc.key}
+              titleKey={doc.titleKey}
+              isAgreed={isAgreed}
+              isDisabled={!hash}
+              isInvalid={feedbackState.invalidKeys.has(doc.key)}
+              isShaking={feedbackState.shakingKeys.has(doc.key)}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  setOpenDoc(doc.key)
+                } else {
+                  setAgreed((prev) => ({ ...prev, [doc.key]: false }))
+                }
+              }}
+              onOpen={() => setOpenDoc(doc.key)}
+              onAnimationEnd={(event) =>
+                dispatchFeedback({
+                  type: 'animation-ended',
+                  key: doc.key,
+                  target: event.target,
+                  currentTarget: event.currentTarget,
+                })
+              }
+            />
           )
         })}
 
@@ -195,7 +213,7 @@ export function LegalConsent({
           </DialogHeader>
           <div className='flex-1 overflow-y-auto px-6 py-4'>
             {documentQuery.isFetching ? (
-              <div className='flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground'>
+              <div className='text-muted-foreground flex items-center justify-center gap-2 py-12 text-sm'>
                 <Loader2 className='h-4 w-4 animate-spin' />
                 {t('Loading...')}
               </div>

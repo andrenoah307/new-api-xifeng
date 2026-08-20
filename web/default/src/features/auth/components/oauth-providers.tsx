@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils'
 
 import { useOAuthLogin } from '../hooks/use-oauth-login'
 import type { SystemStatus } from '../types'
+import { runOAuthProviderAction } from './oauth-provider-action'
 
 type OAuthProvidersProps = {
   status: SystemStatus | null
@@ -37,6 +38,7 @@ type OAuthProvidersProps = {
   className?: string
   onWeChatLogin?: () => void
   isWeChatLoading?: boolean
+  onBeforeAction?: () => boolean
 }
 
 type ProviderButton = {
@@ -53,6 +55,7 @@ export function OAuthProviders({
   className,
   onWeChatLogin,
   isWeChatLoading = false,
+  onBeforeAction,
 }: OAuthProvidersProps) {
   const { t } = useTranslation()
   const {
@@ -172,7 +175,7 @@ export function OAuthProviders({
               variant='outline'
               type='button'
               disabled={disabled || isLoading || extraDisabled}
-              onClick={onClick}
+              onClick={() => runOAuthProviderAction(onBeforeAction, onClick)}
               className='h-11 w-full justify-center gap-2 rounded-lg'
             >
               {icon}
