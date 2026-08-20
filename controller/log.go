@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -14,6 +15,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+func parseCachedLogTotal(value string) int64 {
+	cachedTotal, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || cachedTotal < 0 || cachedTotal > math.MaxInt32 {
+		return 0
+	}
+	return cachedTotal
+}
 
 func GetAllLogs(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
@@ -30,10 +39,7 @@ func GetAllLogs(c *gin.Context) {
 	if startTimestamp == 0 && requestId == "" {
 		startTimestamp = time.Now().AddDate(0, 0, -30).Unix()
 	}
-	cachedTotal, _ := strconv.ParseInt(c.Query("total_count"), 10, 64)
-	if cachedTotal < 0 || cachedTotal > 1000000 {
-		cachedTotal = 0
-	}
+	cachedTotal := parseCachedLogTotal(c.Query("total_count"))
 	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId, cachedTotal)
 	if err != nil {
 		common.ApiError(c, err)
@@ -59,10 +65,7 @@ func GetUserLogs(c *gin.Context) {
 	if startTimestamp == 0 && requestId == "" {
 		startTimestamp = time.Now().AddDate(0, 0, -30).Unix()
 	}
-	cachedTotal, _ := strconv.ParseInt(c.Query("total_count"), 10, 64)
-	if cachedTotal < 0 || cachedTotal > 1000000 {
-		cachedTotal = 0
-	}
+	cachedTotal := parseCachedLogTotal(c.Query("total_count"))
 	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, requestId, upstreamRequestId, cachedTotal)
 	if err != nil {
 		common.ApiError(c, err)

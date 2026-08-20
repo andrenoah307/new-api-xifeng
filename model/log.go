@@ -59,9 +59,9 @@ func sanitizeClickHouseLikePattern(input string) (string, error) {
 }
 
 type Log struct {
-	Id                int    `json:"id" gorm:"index:idx_created_at_id,priority:2;index:idx_user_id_id,priority:2"`
-	UserId            int    `json:"user_id" gorm:"index;index:idx_user_id_id,priority:1;index:idx_logs_user_id_created_at,priority:1"`
-	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_id,priority:1;index:idx_created_at_type;index:idx_logs_type_created_at,priority:2;index:idx_logs_user_id_created_at,priority:2;index:idx_logs_group_created_at,priority:2"`
+	Id                int    `json:"id" gorm:"index:idx_user_id_id,priority:2;index:idx_logs_channel_id_created_at,priority:3"`
+	UserId            int    `json:"user_id" gorm:"index:idx_user_id_id,priority:1;index:idx_logs_user_id_created_at,priority:1"`
+	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_type;index:idx_logs_type_created_at,priority:2;index:idx_logs_user_id_created_at,priority:2;index:idx_logs_group_created_at,priority:2;index:idx_logs_channel_id_created_at,priority:2"`
 	Type              int    `json:"type" gorm:"index:idx_created_at_type;index:idx_logs_type_created_at,priority:1"`
 	Content           string `json:"content"`
 	Username          string `json:"username" gorm:"index;index:index_username_model_name,priority:2;default:''"`
@@ -72,11 +72,11 @@ type Log struct {
 	CompletionTokens  int    `json:"completion_tokens" gorm:"default:0"`
 	UseTime           int    `json:"use_time" gorm:"default:0"`
 	IsStream          bool   `json:"is_stream"`
-	ChannelId         int    `json:"channel" gorm:"index"`
+	ChannelId         int    `json:"channel" gorm:"index;index:idx_logs_channel_id_created_at,priority:1"`
 	ChannelName       string `json:"channel_name" gorm:"->"`
 	TokenId           int    `json:"token_id" gorm:"default:0;index"`
-	Group             string `json:"group" gorm:"index;index:idx_logs_group_created_at,priority:1"`
-	Ip                string `json:"ip" gorm:"index;default:''"`
+	Group             string `json:"group" gorm:"index:idx_logs_group_created_at,priority:1"`
+	Ip                string `json:"ip" gorm:"default:''"`
 	RequestId         string `json:"request_id,omitempty" gorm:"type:varchar(64);index:idx_logs_request_id;default:''"`
 	UpstreamRequestId string `json:"upstream_request_id,omitempty" gorm:"type:varchar(128);index:idx_logs_upstream_request_id;default:''"`
 	Other             string `json:"other"`
@@ -632,8 +632,8 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	order := "logs.id desc"
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
 		order = clickHouseLogOrder("logs.")
-	} else if group != "" {
-		// group 过滤命中 idx_logs_group_created_at，按 created_at 排序可复用索引顺序避免 filesort。
+	} else if group != "" || channel != 0 {
+		// channel 与 group 过滤分别命中对应的 created_at 复合索引，复用索引顺序避免 filesort。
 		order = "logs.created_at desc, logs.id desc"
 	}
 	err = tx.Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
