@@ -605,7 +605,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	cacheWriteTokens := cacheWriteTokensTotal(summary)
 	if cacheWriteTokens > 0 {
 		// cache_write_tokens: normalized cache creation total for UI display.
-		// If split 5m/1h values are present, this is their sum; otherwise it falls back
+		// With split 5m/1h values, this is max(cache_creation_tokens, their sum); otherwise it falls back
 		// to cache_creation_tokens.
 		other["cache_write_tokens"] = cacheWriteTokens
 	}

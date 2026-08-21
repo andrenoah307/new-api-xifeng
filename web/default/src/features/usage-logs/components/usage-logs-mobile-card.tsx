@@ -40,6 +40,7 @@ import { cn } from '@/lib/utils'
 
 import { LOG_TYPE_ENUM } from '../constants'
 import type { UsageLog } from '../data/schema'
+import { summarizeCacheTokens } from '../lib/cache-tokens'
 import { parseLogOther } from '../lib/format'
 import {
   getLogTypeConfig,
@@ -47,6 +48,7 @@ import {
   isTimingLogType,
 } from '../lib/utils'
 import type { LogCategory } from '../types'
+import { CacheTokensInline } from './cache-tokens-cell'
 import { StreamTpsCell, TimingMetricsCell } from './timing-metrics-cell'
 import { useUsageLogsContext } from './usage-logs-provider'
 
@@ -187,15 +189,14 @@ function MobileLogTimeStatus({
   )
 }
 
-/** Mobile-only Tokens block: always show cache ↓/↑ when present (no label). */
-function MobileTokensField({ log }: { log: UsageLog }) {
-  const { t } = useTranslation()
-
+/** Mobile-only Tokens block with the shared cache token summary. */
+export function MobileTokensField({ log }: { log: UsageLog }) {
   if (!isDisplayableLogType(log.type)) return null
 
   const promptTokens = log.prompt_tokens || 0
   const completionTokens = log.completion_tokens || 0
-  if (promptTokens === 0 && completionTokens === 0) {
+  const cacheSummary = summarizeCacheTokens(parseLogOther(log.other))
+  if (promptTokens === 0 && completionTokens === 0 && !cacheSummary.hasAny) {
     return (
       <div className='bg-muted/20 min-w-0 rounded-md px-2 py-1.5'>
         <span className='text-muted-foreground text-xs'>-</span>
@@ -203,33 +204,14 @@ function MobileTokensField({ log }: { log: UsageLog }) {
     )
   }
 
-  const other = parseLogOther(log.other)
-  const cacheReadTokens = other?.cache_tokens || 0
-  const cacheWrite5m = other?.cache_creation_tokens_5m || 0
-  const cacheWrite1h = other?.cache_creation_tokens_1h || 0
-  const hasSplitCache = cacheWrite5m > 0 || cacheWrite1h > 0
-  const cacheWriteTokens = hasSplitCache
-    ? cacheWrite5m + cacheWrite1h
-    : other?.cache_creation_tokens || 0
-  const showCache = cacheReadTokens > 0 || cacheWriteTokens > 0
-
   return (
     <div className='bg-muted/20 min-w-0 rounded-md px-2 py-1.5'>
       <div className='flex flex-col gap-0.5'>
         <span className='font-mono text-xs font-medium tabular-nums'>
           {promptTokens.toLocaleString()} / {completionTokens.toLocaleString()}
         </span>
-        {showCache ? (
-          <div className='text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-none'>
-            {cacheReadTokens > 0 && (
-              <span>
-                {t('Cache')}↓ {cacheReadTokens.toLocaleString()}
-              </span>
-            )}
-            {cacheWriteTokens > 0 && (
-              <span>↑ {cacheWriteTokens.toLocaleString()}</span>
-            )}
-          </div>
+        {cacheSummary.hasAny ? (
+          <CacheTokensInline summary={cacheSummary} />
         ) : (
           <span className='text-muted-foreground/50 text-[11px] leading-none'>
             —

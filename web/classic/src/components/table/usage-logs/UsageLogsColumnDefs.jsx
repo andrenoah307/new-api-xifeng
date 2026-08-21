@@ -42,6 +42,7 @@ import {
   getUsageLogOperationText,
   isUsageLogOperationAction,
 } from './usage-log-operation';
+import { getPromptCacheSummary } from './cache-tokens';
 
 const colors = [
   'amber',
@@ -347,32 +348,6 @@ function toTokenNumber(value) {
 
 function formatTokenCount(value) {
   return toTokenNumber(value).toLocaleString();
-}
-
-function getPromptCacheSummary(other) {
-  if (!other || typeof other !== 'object') {
-    return null;
-  }
-
-  const cacheReadTokens = toTokenNumber(other.cache_tokens);
-  const cacheCreationTokens = toTokenNumber(other.cache_creation_tokens);
-  const cacheCreationTokens5m = toTokenNumber(other.cache_creation_tokens_5m);
-  const cacheCreationTokens1h = toTokenNumber(other.cache_creation_tokens_1h);
-
-  const hasSplitCacheCreation =
-    cacheCreationTokens5m > 0 || cacheCreationTokens1h > 0;
-  const cacheWriteTokens = hasSplitCacheCreation
-    ? cacheCreationTokens5m + cacheCreationTokens1h
-    : cacheCreationTokens;
-
-  if (cacheReadTokens <= 0 && cacheWriteTokens <= 0) {
-    return null;
-  }
-
-  return {
-    cacheReadTokens,
-    cacheWriteTokens,
-  };
 }
 
 function normalizeDetailText(detail) {

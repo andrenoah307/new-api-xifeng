@@ -51,6 +51,7 @@ import {
   reconstructBillingProcess,
   type BillingTermKind,
 } from '../../lib/billing-process'
+import { summarizeCacheTokens } from '../../lib/cache-tokens'
 import {
   parseLogOther,
   getParamOverrideActionLabel,
@@ -87,9 +88,9 @@ const BILLING_TERM_LABEL_KEYS: Record<BillingTermKind, string> = {
   output: 'Output',
   input_length: 'Input Tokens',
   cache_read: 'Cache Read',
-  cache_creation: 'Cache Creation',
-  cache_creation_5m: 'Cache Creation (5m)',
-  cache_creation_1h: 'Cache Creation (1h)',
+  cache_creation: 'Cache Write',
+  cache_creation_5m: 'Cache Write (5m)',
+  cache_creation_1h: 'Cache Write (1h)',
   image_input: 'Image input',
   // No standalone "Image output" locale key exists; reuse the translated generic label.
   image_output: 'Output',
@@ -305,7 +306,7 @@ function BillingBreakdown(props: {
       other.cache_creation_ratio !== 1
     ) {
       rows.push({
-        label: t('Cache Creation'),
+        label: t('Cache Write'),
         value: `${fmtPrice(baseInputUSD * other.cache_creation_ratio)}/M`,
       })
     }
@@ -314,7 +315,7 @@ function BillingBreakdown(props: {
       other.cache_creation_ratio_5m !== 0
     ) {
       rows.push({
-        label: t('Cache Creation (5m)'),
+        label: t('Cache Write (5m)'),
         value: `${fmtPrice(baseInputUSD * other.cache_creation_ratio_5m)}/M`,
       })
     }
@@ -323,7 +324,7 @@ function BillingBreakdown(props: {
       other.cache_creation_ratio_1h !== 0
     ) {
       rows.push({
-        label: t('Cache Creation (1h)'),
+        label: t('Cache Write (1h)'),
         value: `${fmtPrice(baseInputUSD * other.cache_creation_ratio_1h)}/M`,
       })
     }
@@ -475,17 +476,18 @@ function BillingProcessBreakdown(props: {
   )
 }
 
-function TokenBreakdown(props: { log: UsageLog; other: LogOtherData }) {
+export function TokenBreakdown(props: { log: UsageLog; other: LogOtherData }) {
   const { t } = useTranslation()
   const { log, other } = props
 
   const promptTokens = log.prompt_tokens || 0
   const completionTokens = log.completion_tokens || 0
-  const cacheRead = other.cache_tokens || 0
-  const cacheWrite = other.cache_creation_tokens || 0
-  const cacheWrite5m = other.cache_creation_tokens_5m || 0
-  const cacheWrite1h = other.cache_creation_tokens_1h || 0
-  const hasTokens = promptTokens > 0 || completionTokens > 0
+  const cacheSummary = summarizeCacheTokens(other)
+  const hasTokens =
+    promptTokens > 0 ||
+    completionTokens > 0 ||
+    cacheSummary.hasAny ||
+    Boolean(other.image && other.image_output)
 
   if (!hasTokens) return null
 
@@ -497,31 +499,31 @@ function TokenBreakdown(props: { log: UsageLog; other: LogOtherData }) {
     value: completionTokens.toLocaleString(),
   })
 
-  if (cacheRead > 0) {
+  if (cacheSummary.read > 0) {
     rows.push({
       label: t('Cache Read'),
-      value: cacheRead.toLocaleString(),
+      value: cacheSummary.read.toLocaleString(),
     })
   }
 
-  if (cacheWrite > 0 && cacheWrite5m === 0 && cacheWrite1h === 0) {
+  if (cacheSummary.writeGeneric > 0) {
     rows.push({
       label: t('Cache Write'),
-      value: cacheWrite.toLocaleString(),
+      value: cacheSummary.writeGeneric.toLocaleString(),
     })
   }
 
-  if (cacheWrite5m > 0) {
+  if (cacheSummary.write5m > 0) {
     rows.push({
       label: t('Cache Write (5m)'),
-      value: cacheWrite5m.toLocaleString(),
+      value: cacheSummary.write5m.toLocaleString(),
     })
   }
 
-  if (cacheWrite1h > 0) {
+  if (cacheSummary.write1h > 0) {
     rows.push({
       label: t('Cache Write (1h)'),
-      value: cacheWrite1h.toLocaleString(),
+      value: cacheSummary.write1h.toLocaleString(),
     })
   }
 
