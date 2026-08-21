@@ -1087,6 +1087,7 @@ func GetTicketUserProfile(c *gin.Context) {
 	}
 
 	recentLogs, _, logErr := model.GetUserLogs(
+		c.Request.Context(),
 		user.Id, model.LogTypeConsume, 0, 0, "", "",
 		0, ticketUserRecentLogLimit, "", "", "", 1,
 	)

@@ -297,6 +297,11 @@ const (
 	MsgGroupUserRateLimited       = "model_name.group_user_rate_limited"
 )
 
+// Log query related messages
+const (
+	MsgLogQueryTimeout = "log.query_timeout"
+)
+
 // Setting related messages
 const (
 	MsgSettingInvalidType      = "setting.invalid_type"

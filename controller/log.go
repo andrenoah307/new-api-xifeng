@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +24,32 @@ func parseCachedLogTotal(value string) int64 {
 		return 0
 	}
 	return cachedTotal
+}
+
+func configuredLogQueryTimeout() time.Duration {
+	return time.Duration(common.GetEnvOrDefault("LOG_QUERY_TIMEOUT", 30)) * time.Second
+}
+
+func newLogQueryContext(parent context.Context) (context.Context, context.CancelFunc) {
+	timeout := configuredLogQueryTimeout()
+	if timeout <= 0 {
+		return context.WithCancel(parent)
+	}
+	return context.WithTimeout(parent, timeout)
+}
+
+func handleLogQueryError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"success": false,
+			"message": common.TranslateMessage(c, i18n.MsgLogQueryTimeout),
+		})
+	case errors.Is(err, context.Canceled):
+		return
+	default:
+		common.ApiError(c, err)
+	}
 }
 
 func GetAllLogs(c *gin.Context) {
@@ -40,9 +68,11 @@ func GetAllLogs(c *gin.Context) {
 		startTimestamp = time.Now().AddDate(0, 0, -30).Unix()
 	}
 	cachedTotal := parseCachedLogTotal(c.Query("total_count"))
-	logs, total, err := model.GetAllLogs(logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId, cachedTotal)
+	ctx, cancel := newLogQueryContext(c.Request.Context())
+	defer cancel()
+	logs, total, err := model.GetAllLogs(ctx, logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId, cachedTotal)
 	if err != nil {
-		common.ApiError(c, err)
+		handleLogQueryError(c, err)
 		return
 	}
 	pageInfo.SetTotal(int(total))
@@ -66,9 +96,11 @@ func GetUserLogs(c *gin.Context) {
 		startTimestamp = time.Now().AddDate(0, 0, -30).Unix()
 	}
 	cachedTotal := parseCachedLogTotal(c.Query("total_count"))
-	logs, total, err := model.GetUserLogs(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, requestId, upstreamRequestId, cachedTotal)
+	ctx, cancel := newLogQueryContext(c.Request.Context())
+	defer cancel()
+	logs, total, err := model.GetUserLogs(ctx, userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, requestId, upstreamRequestId, cachedTotal)
 	if err != nil {
-		common.ApiError(c, err)
+		handleLogQueryError(c, err)
 		return
 	}
 	pageInfo.SetTotal(int(total))
@@ -131,9 +163,11 @@ func GetLogsStat(c *gin.Context) {
 	group := c.Query("group")
 	requestId := c.Query("request_id")
 	upstreamRequestId := c.Query("upstream_request_id")
-	stat, err := model.SumUsedQuota(0, logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, upstreamRequestId)
+	ctx, cancel := newLogQueryContext(c.Request.Context())
+	defer cancel()
+	stat, err := model.SumUsedQuota(ctx, 0, logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, upstreamRequestId)
 	if err != nil {
-		common.ApiError(c, err)
+		handleLogQueryError(c, err)
 		return
 	}
 	//tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, "")
@@ -163,9 +197,11 @@ func GetLogsSelfStat(c *gin.Context) {
 	group := c.Query("group")
 	requestId := c.Query("request_id")
 	upstreamRequestId := c.Query("upstream_request_id")
-	quotaNum, err := model.SumUsedQuota(userId, logType, startTimestamp, endTimestamp, modelName, "", tokenName, channel, group, requestId, upstreamRequestId)
+	ctx, cancel := newLogQueryContext(c.Request.Context())
+	defer cancel()
+	quotaNum, err := model.SumUsedQuota(ctx, userId, logType, startTimestamp, endTimestamp, modelName, "", tokenName, channel, group, requestId, upstreamRequestId)
 	if err != nil {
-		common.ApiError(c, err)
+		handleLogQueryError(c, err)
 		return
 	}
 	//tokenNum := model.SumUsedToken(logType, startTimestamp, endTimestamp, modelName, username, tokenName)

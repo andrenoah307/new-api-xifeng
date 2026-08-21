@@ -257,6 +257,9 @@ model_name.user_rate_limited: "你對該模型的請求過於頻繁，請稍後�
 model_name.group_total_rate_limited: "目前分組請求頻率過快，請稍後再試"
 model_name.group_user_rate_limited: "你在目前分組的請求過於頻繁，請稍後重試"
 
+# Log query messages
+log.query_timeout: "查詢逾時，請增加篩選條件或縮小時間範圍後重試"
+
 # Setting messages
 setting.invalid_type: "無效的預警類型"
 setting.webhook_empty: "Webhook位址不能為空"

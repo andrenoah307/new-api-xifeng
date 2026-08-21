@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -100,7 +101,7 @@ func TestUserLogOrderUsesUserTimeIndex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			common.SetLogDatabaseType(tt.databaseType)
-			logs, _, err := GetUserLogs(24, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", int64(len(rows)))
+			logs, _, err := GetUserLogs(context.Background(), 24, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", int64(len(rows)))
 			require.NoError(t, err)
 			requestIds := make([]string, len(logs))
 			for i := range logs {
@@ -195,6 +196,7 @@ func TestGetAllLogsOrderingMatrixUsesAppliedFilters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, _, err := GetAllLogs(
+				context.Background(),
 				tt.logType,
 				0,
 				0,
@@ -224,7 +226,7 @@ func TestGetAllLogsUsesCachedTotal(t *testing.T) {
 	t.Cleanup(func() { _ = DB.Exec("DELETE FROM logs").Error })
 	require.NoError(t, DB.Create(&Log{Id: 22001, CreatedAt: 100, Type: LogTypeConsume}).Error)
 
-	logs, total, err := GetAllLogs(LogTypeUnknown, 0, 0, "", "", "", 0, 10, 0, "", "", "", 77)
+	logs, total, err := GetAllLogs(context.Background(), LogTypeUnknown, 0, 0, "", "", "", 0, 10, 0, "", "", "", 77)
 	require.NoError(t, err)
 	assert.Equal(t, int64(77), total)
 	require.Len(t, logs, 1)
@@ -237,9 +239,9 @@ func TestGetAllLogsReportsCountAndFindErrors(t *testing.T) {
 	LOG_DB = brokenDB
 	t.Cleanup(func() { LOG_DB = oldLogDB })
 
-	_, _, err = GetAllLogs(LogTypeUnknown, 0, 0, "", "", "", 0, 10, 0, "", "", "", 0)
+	_, _, err = GetAllLogs(context.Background(), LogTypeUnknown, 0, 0, "", "", "", 0, 10, 0, "", "", "", 0)
 	require.Error(t, err)
-	_, _, err = GetAllLogs(LogTypeUnknown, 0, 0, "", "", "", 0, 10, 0, "", "", "", 1)
+	_, _, err = GetAllLogs(context.Background(), LogTypeUnknown, 0, 0, "", "", "", 0, 10, 0, "", "", "", 1)
 	require.Error(t, err)
 }
 
@@ -248,7 +250,7 @@ func TestGetUserLogsCachedTotalAndCountCap(t *testing.T) {
 	t.Cleanup(func() { _ = DB.Exec("DELETE FROM logs").Error })
 	require.NoError(t, DB.Create(&Log{UserId: 23, CreatedAt: 100, Type: LogTypeConsume}).Error)
 
-	logs, total, err := GetUserLogs(23, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", 42)
+	logs, total, err := GetUserLogs(context.Background(), 23, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", 42)
 	require.NoError(t, err)
 	assert.Equal(t, int64(42), total)
 	require.Len(t, logs, 1)
@@ -256,7 +258,7 @@ func TestGetUserLogsCachedTotalAndCountCap(t *testing.T) {
 	oldLimit := common.LogSearchCountLimit
 	common.LogSearchCountLimit = 0
 	t.Cleanup(func() { common.LogSearchCountLimit = oldLimit })
-	_, total, err = GetUserLogs(23, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", 0)
+	_, total, err = GetUserLogs(context.Background(), 23, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", 0)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), total)
 }
@@ -268,8 +270,8 @@ func TestGetUserLogsReportsCountAndFindErrors(t *testing.T) {
 	LOG_DB = brokenDB
 	t.Cleanup(func() { LOG_DB = oldLogDB })
 
-	_, _, err = GetUserLogs(23, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", 0)
+	_, _, err = GetUserLogs(context.Background(), 23, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", 0)
 	require.Error(t, err)
-	_, _, err = GetUserLogs(23, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", 1)
+	_, _, err = GetUserLogs(context.Background(), 23, LogTypeUnknown, 0, 0, "", "", 0, 10, "", "", "", 1)
 	require.Error(t, err)
 }

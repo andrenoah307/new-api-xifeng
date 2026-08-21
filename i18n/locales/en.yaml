@@ -258,6 +258,9 @@ model_name.user_rate_limited: "You are sending requests to this model too freque
 model_name.group_total_rate_limited: "Too many requests for your current group. Please try again later."
 model_name.group_user_rate_limited: "You are sending requests too frequently in your current group. Please try again later."
 
+# Log query messages
+log.query_timeout: "Query timed out. Add more filters or narrow the time range, then try again."
+
 # Setting messages
 setting.invalid_type: "Invalid warning type"
 setting.webhook_empty: "Webhook URL cannot be empty"

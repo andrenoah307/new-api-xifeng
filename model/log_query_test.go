@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -59,6 +60,7 @@ func TestManageLogsAreVisibleBySubjectUsernameAndSelfQuery(t *testing.T) {
 	require.NoError(t, DB.Create(&logs).Error)
 
 	allLogs, allTotal, err := GetAllLogs(
+		context.Background(),
 		LogTypeManage, 0, 0, "", target.Username, "", 0, 10, 0, "", "", "", 0,
 	)
 	require.NoError(t, err)
@@ -68,6 +70,7 @@ func TestManageLogsAreVisibleBySubjectUsernameAndSelfQuery(t *testing.T) {
 	assert.Equal(t, target.Username, allLogs[0].Username)
 
 	userLogs, userTotal, err := GetUserLogs(
+		context.Background(),
 		target.Id, LogTypeManage, 0, 0, "", "", 0, 10, "", "", "", 0,
 	)
 	require.NoError(t, err)
@@ -104,6 +107,7 @@ func TestGetAllLogsOrderingMatchesFilterIndexes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, total, err := GetAllLogs(
+				context.Background(),
 				LogTypeUnknown, 0, 0, "", "", "", 0, 10, tt.channel, tt.group, "", "", 0,
 			)
 			require.NoError(t, err)

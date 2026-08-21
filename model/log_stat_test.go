@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -41,6 +42,7 @@ func TestSumUsedQuotaFiltersRequestIdentifiers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			stat, err := SumUsedQuota(
+				context.Background(),
 				tt.userID,
 				LogTypeConsume,
 				now-10,
@@ -74,6 +76,7 @@ func TestSumUsedQuotaAppliesAllFiltersTogether(t *testing.T) {
 	require.NoError(t, DB.Create(&rows).Error)
 
 	stat, err := SumUsedQuota(
+		context.Background(),
 		0,
 		LogTypeConsume,
 		now-10,
@@ -97,7 +100,7 @@ func TestSumUsedQuotaReturnsErrorWhenLogDatabaseCannotBeQueried(t *testing.T) {
 	LOG_DB = brokenDB
 	t.Cleanup(func() { LOG_DB = oldLogDB })
 
-	_, err = SumUsedQuota(0, LogTypeConsume, 0, 0, "", "", "", 0, "", "", "")
+	_, err = SumUsedQuota(context.Background(), 0, LogTypeConsume, 0, 0, "", "", "", 0, "", "", "")
 	require.Error(t, err)
 	assert.Equal(t, "查询统计数据失败", err.Error())
 }
@@ -113,6 +116,7 @@ func TestSumUsedQuotaRejectsInvalidLikeFilters(t *testing.T) {
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			_, err := SumUsedQuota(
+				context.Background(),
 				0,
 				LogTypeConsume,
 				0,
@@ -138,7 +142,7 @@ func TestSumUsedQuotaReportsRpmQueryErrors(t *testing.T) {
 	LOG_DB = partialDB
 	t.Cleanup(func() { LOG_DB = oldLogDB })
 
-	_, err = SumUsedQuota(0, LogTypeConsume, 0, 0, "", "", "", 0, "", "", "")
+	_, err = SumUsedQuota(context.Background(), 0, LogTypeConsume, 0, 0, "", "", "", 0, "", "", "")
 	require.Error(t, err)
 	assert.Equal(t, "查询统计数据失败", err.Error())
 }

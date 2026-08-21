@@ -19,6 +19,8 @@ For commercial licensing, please contact support@quantumnous.com
 /**
  * Utility functions for usage logs feature
  */
+import axios from 'axios'
+
 import {
   getAllLogs,
   getUserLogs,
@@ -39,6 +41,8 @@ import type {
   GetMidjourneyLogsParams,
   GetTaskLogsParams,
 } from '../types'
+
+export { buildQueryParams } from './query-params'
 
 // ============================================================================
 // Type Checkers & Utilities
@@ -97,24 +101,6 @@ function timestampToSeconds(ms: number): number {
   return Math.floor(ms / 1000)
 }
 
-/**
- * Build query parameters from filters
- */
-export function buildQueryParams(
-  params: Record<string, unknown>
-): URLSearchParams {
-  const queryParams = new URLSearchParams()
-
-  Object.entries(params).forEach(([key, value]) => {
-    // Keep 0 as a valid value, only filter out undefined, null, and empty string
-    if (value !== undefined && value !== null && value !== '') {
-      queryParams.append(key, String(value))
-    }
-  })
-
-  return queryParams
-}
-
 const LOG_STATS_PAGINATION_KEYS = new Set(['page', 'pageSize'])
 
 export function getLogStatsSearchParams(
@@ -136,6 +122,24 @@ export function buildLogStatsQueryKey(
     isAdmin,
     getLogStatsSearchParams(searchParams),
   ] as const
+}
+
+export function shouldRetryUsageLogQuery(
+  failureCount: number,
+  error: unknown
+): boolean {
+  if (failureCount !== 0 || !axios.isAxiosError(error) || error.response) {
+    return false
+  }
+
+  switch (error.code) {
+    case 'ECONNABORTED':
+    case 'ETIMEDOUT':
+    case 'ERR_CANCELED':
+      return false
+    default:
+      return true
+  }
 }
 
 /**
@@ -184,7 +188,13 @@ export function buildBaseParams(config: {
   end_timestamp?: number
   total_count?: number
 } {
-  const { page, pageSize, searchParams, useMilliseconds = false, totalCount } = config
+  const {
+    page,
+    pageSize,
+    searchParams,
+    useMilliseconds = false,
+    totalCount,
+  } = config
 
   return {
     p: page,
@@ -212,7 +222,14 @@ export function buildApiParams(config: {
   isAdmin: boolean
   totalCount?: number
 }): GetLogsParams {
-  const { page, pageSize, searchParams, columnFilters = [], isAdmin, totalCount } = config
+  const {
+    page,
+    pageSize,
+    searchParams,
+    columnFilters = [],
+    isAdmin,
+    totalCount,
+  } = config
 
   // Helper to process type parameter (single value from array)
   const processType = (value: unknown): number | undefined => {
@@ -297,8 +314,15 @@ export function buildApiParams(config: {
 export async function fetchLogsByCategory(
   config: FetchLogsConfig
 ): Promise<GetLogsResponse> {
-  const { logCategory, isAdmin, page, pageSize, searchParams, columnFilters, totalCount } =
-    config
+  const {
+    logCategory,
+    isAdmin,
+    page,
+    pageSize,
+    searchParams,
+    columnFilters,
+    totalCount,
+  } = config
 
   if (logCategory === 'common') {
     const params = buildApiParams({

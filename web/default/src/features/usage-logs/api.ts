@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { api } from '@/lib/api'
 
-import { buildQueryParams } from './lib/utils'
+import { buildQueryParams } from './lib/query-params'
 import type {
   ExportTask,
   GetLogsParams,
@@ -36,6 +36,8 @@ import type {
 // Generic API Helpers
 // ============================================================================
 
+const USAGE_LOG_QUERY_TIMEOUT_MS = 35_000
+
 function buildApiPath(endpoint: string, isAdmin: boolean): string {
   return isAdmin ? endpoint : `${endpoint}/self`
 }
@@ -52,7 +54,9 @@ async function fetchLogs<T>(
     ...params,
   })
   const path = buildApiPath(endpoint, isAdmin)
-  const res = await api.get(`${path}?${queryParams}`)
+  const res = await api.get(`${path}?${queryParams}`, {
+    timeout: USAGE_LOG_QUERY_TIMEOUT_MS,
+  })
   return res.data
 }
 
@@ -65,7 +69,9 @@ async function fetchLogStats<T>(
     params as unknown as Record<string, unknown>
   )
   const path = buildApiPath(endpoint, isAdmin)
-  const res = await api.get(`${path}/stat?${queryParams}`)
+  const res = await api.get(`${path}/stat?${queryParams}`, {
+    timeout: USAGE_LOG_QUERY_TIMEOUT_MS,
+  })
   return res.data
 }
 

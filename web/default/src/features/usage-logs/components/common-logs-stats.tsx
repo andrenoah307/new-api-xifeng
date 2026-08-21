@@ -30,6 +30,7 @@ import {
   buildApiParams,
   buildLogStatsQueryKey,
   getLogStatsSearchParams,
+  shouldRetryUsageLogQuery,
 } from '../lib/utils'
 import { useLogsViewScope, useUsageLogsContext } from './usage-logs-provider'
 
@@ -77,7 +78,7 @@ export function CommonLogsStats() {
         ? result.data || DEFAULT_LOG_STATS
         : DEFAULT_LOG_STATS
     },
-    retry: false,
+    retry: shouldRetryUsageLogQuery,
     placeholderData: (previousData) => previousData,
   })
 

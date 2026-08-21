@@ -654,14 +654,17 @@ func resolveChannelNames(logs []*Log) {
 	}
 }
 
-func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
+func GetAllLogs(ctx context.Context, logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, startIdx int, num int, channel int, group string, requestId string, upstreamRequestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
 	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, upstreamRequestId)
 
 	if cachedTotal > 0 {
 		total = cachedTotal
 	} else {
-		err = tx.Session(&gorm.Session{}).Model(&Log{}).Count(&total).Error
+		err = tx.Session(&gorm.Session{}).WithContext(ctx).Model(&Log{}).Count(&total).Error
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, 0, ctxErr
+			}
 			return nil, 0, err
 		}
 	}
@@ -674,8 +677,11 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 		requestId:         requestId,
 		upstreamRequestId: upstreamRequestId,
 	}, common.UsingLogDatabase(common.DatabaseTypeClickHouse))
-	err = tx.Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
+	err = tx.WithContext(ctx).Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, 0, ctxErr
+		}
 		return nil, 0, err
 	}
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
@@ -686,15 +692,18 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	return logs, total, err
 }
 
-func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, upstreamRequestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
+func GetUserLogs(ctx context.Context, userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, upstreamRequestId string, cachedTotal int64) (logs []*Log, total int64, err error) {
 	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, upstreamRequestId)
 
 	if cachedTotal > 0 {
 		total = cachedTotal
 	} else {
-		subQ := tx.Session(&gorm.Session{}).Model(&Log{}).Select("1").Limit(common.LogSearchCountLimit + 1)
-		err = LOG_DB.Table("(?) AS t", subQ).Count(&total).Error
+		subQ := tx.Session(&gorm.Session{}).WithContext(ctx).Model(&Log{}).Select("1").Limit(common.LogSearchCountLimit + 1)
+		err = LOG_DB.WithContext(ctx).Table("(?) AS t", subQ).Count(&total).Error
 		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return nil, 0, ctxErr
+			}
 			common.SysError("failed to count user logs: " + err.Error())
 			return nil, 0, errors.New("查询日志失败")
 		}
@@ -707,8 +716,11 @@ func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
 		order = clickHouseLogOrder("logs.")
 	}
-	err = tx.Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
+	err = tx.WithContext(ctx).Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, 0, ctxErr
+		}
 		common.SysError("failed to search user logs: " + err.Error())
 		return nil, 0, errors.New("查询日志失败")
 	}
@@ -821,7 +833,7 @@ type Stat struct {
 	Tpm   int `json:"tpm"`
 }
 
-func SumUsedQuota(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, requestId string, upstreamRequestId string) (stat Stat, err error) {
+func SumUsedQuota(ctx context.Context, userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, requestId string, upstreamRequestId string) (stat Stat, err error) {
 	tx := LOG_DB.Table("logs").Select("COALESCE(sum(quota), 0) quota")
 
 	// 为rpm和tpm创建单独的查询
@@ -879,11 +891,17 @@ func SumUsedQuota(userId int, logType int, startTimestamp int64, endTimestamp in
 	rpmTpmQuery = rpmTpmQuery.Where("created_at >= ?", time.Now().Add(-60*time.Second).Unix())
 
 	// 执行查询
-	if err := tx.Scan(&stat).Error; err != nil {
+	if err := tx.WithContext(ctx).Scan(&stat).Error; err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return stat, ctxErr
+		}
 		common.SysError("failed to query log stat: " + err.Error())
 		return stat, errors.New("查询统计数据失败")
 	}
-	if err := rpmTpmQuery.Scan(&stat).Error; err != nil {
+	if err := rpmTpmQuery.WithContext(ctx).Scan(&stat).Error; err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return stat, ctxErr
+		}
 		common.SysError("failed to query rpm/tpm stat: " + err.Error())
 		return stat, errors.New("查询统计数据失败")
 	}

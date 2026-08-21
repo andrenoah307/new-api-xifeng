@@ -45,6 +45,15 @@ import { ITEMS_PER_PAGE } from '../../constants';
 import { useTableCompactMode } from '../common/useTableCompactMode';
 import ParamOverrideEntry from '../../components/table/usage-logs/components/ParamOverrideEntry';
 
+const showUsageLogsRequestError = (error) => {
+  const message = error?.response?.data?.message;
+  if (message) {
+    Toast.error(message);
+    return;
+  }
+  showError(error);
+};
+
 export const useLogsData = () => {
   const { t } = useTranslation();
 
@@ -278,12 +287,16 @@ export const useLogsData = () => {
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
     let url = `/api/log/self/stat?type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&request_id=${request_id}`;
     url = encodeURI(url);
-    let res = await API.get(url);
-    const { success, message, data } = res.data;
-    if (success) {
-      setStat(data);
-    } else {
-      showError(message);
+    try {
+      let res = await API.get(url, { skipErrorHandler: true });
+      const { success, message, data } = res.data;
+      if (success) {
+        setStat(data);
+      } else {
+        showError(message);
+      }
+    } catch (error) {
+      showUsageLogsRequestError(error);
     }
   };
 
@@ -304,12 +317,16 @@ export const useLogsData = () => {
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
     let url = `/api/log/stat?type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&request_id=${request_id}`;
     url = encodeURI(url);
-    let res = await API.get(url);
-    const { success, message, data } = res.data;
-    if (success) {
-      setStat(data);
-    } else {
-      showError(message);
+    try {
+      let res = await API.get(url, { skipErrorHandler: true });
+      const { success, message, data } = res.data;
+      if (success) {
+        setStat(data);
+      } else {
+        showError(message);
+      }
+    } catch (error) {
+      showUsageLogsRequestError(error);
     }
   };
 
@@ -808,19 +825,24 @@ export const useLogsData = () => {
       url += `&total_count=${logCount}`;
     }
     url = encodeURI(url);
-    const res = await API.get(url);
-    const { success, message, data } = res.data;
-    if (success) {
-      const newPageData = data.items;
-      setActivePage(data.page);
-      setPageSize(data.page_size);
-      setLogCount(data.total);
+    try {
+      const res = await API.get(url, { skipErrorHandler: true });
+      const { success, message, data } = res.data;
+      if (success) {
+        const newPageData = data.items;
+        setActivePage(data.page);
+        setPageSize(data.page_size);
+        setLogCount(data.total);
 
-      setLogsFormat(newPageData);
-    } else {
-      showError(message);
+        setLogsFormat(newPageData);
+      } else {
+        showError(message);
+      }
+    } catch (error) {
+      showUsageLogsRequestError(error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   // Page handlers

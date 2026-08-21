@@ -259,6 +259,9 @@ model_name.user_rate_limited: "你对该模型的请求过于频繁，请稍后�
 model_name.group_total_rate_limited: "当前分组请求频率过快，请稍后再试"
 model_name.group_user_rate_limited: "你在当前分组的请求过于频繁，请稍后重试"
 
+# Log query messages
+log.query_timeout: "查询超时，请增加筛选条件或缩小时间范围后重试"
+
 # Setting messages
 setting.invalid_type: "无效的预警类型"
 setting.webhook_empty: "Webhook地址不能为空"
