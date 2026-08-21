@@ -16,9 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export { CTA } from './sections/cta'
-export { Features } from './sections/features'
-export { Hero } from './sections/hero'
-export { HowItWorks } from './sections/how-it-works'
-export { Stats } from './sections/stats'
-export { HomeNoticeDialog } from './home-notice-dialog'
+import { create } from 'zustand'
+
+interface CnDisclaimerBlockingState {
+  blocking: boolean
+  setBlocking: (blocking: boolean) => void
+}
+
+export const useCnDisclaimerBlockingStore =
+  create<CnDisclaimerBlockingState>()((set) => ({
+    // Wait for the root gate to publish its state before lower-priority dialogs open.
+    blocking: true,
+    setBlocking: (blocking) => set({ blocking }),
+  }))

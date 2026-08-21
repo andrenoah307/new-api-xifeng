@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { getCnDisclaimer } from './api'
+import { useCnDisclaimerBlockingStore } from './lib/blocking-store'
 import {
   isStillSilent,
   markAcknowledged,
@@ -23,7 +24,7 @@ const ROUTE_EXEMPTIONS = ['/setup']
 
 export function CnDisclaimerGate() {
   const { t } = useTranslation()
-  const { status } = useStatus()
+  const { status, loading: statusLoading } = useStatus()
   const { pathname } = useLocation()
   const required = Boolean(status?.cn_disclaimer_required)
   const exempted = ROUTE_EXEMPTIONS.some((p) => pathname.startsWith(p))
@@ -41,6 +42,9 @@ export function CnDisclaimerGate() {
 
   const [acknowledged, setAcknowledged] = useState(false)
   const [agreed, setAgreed] = useState(false)
+  const setBlocking = useCnDisclaimerBlockingStore(
+    (state) => state.setBlocking
+  )
 
   useEffect(() => {
     if (!hash) {
@@ -50,10 +54,27 @@ export function CnDisclaimerGate() {
     setAcknowledged(isStillSilent(hash, silenceMinutes))
   }, [hash, silenceMinutes])
 
-  if (!required || exempted) return null
-  if (documentQuery.isLoading || !data) return null
-  if (!data.enabled || !data.content || !hash) return null
-  if (acknowledged) return null
+  const shouldRender = Boolean(
+    required &&
+      !exempted &&
+      !documentQuery.isLoading &&
+      data &&
+      data.enabled &&
+      data.content &&
+      hash &&
+      !acknowledged
+  )
+  const blocking =
+    statusLoading ||
+    (required && !exempted && documentQuery.isLoading) ||
+    shouldRender
+
+  useEffect(() => {
+    setBlocking(blocking)
+    return () => setBlocking(false)
+  }, [blocking, setBlocking])
+
+  if (!shouldRender || !data) return null
 
   const handleConfirm = () => {
     markAcknowledged(hash)

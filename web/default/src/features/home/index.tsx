@@ -26,7 +26,14 @@ import { useTheme } from '@/context/theme-provider'
 import { isLikelyHtml } from '@/lib/content-format'
 import { useAuthStore } from '@/stores/auth-store'
 
-import { CTA, Features, Hero, HowItWorks, Stats } from './components'
+import {
+  CTA,
+  Features,
+  Hero,
+  HomeNoticeDialog,
+  HowItWorks,
+  Stats,
+} from './components'
 import { useHomePageContent } from './hooks'
 
 export function Home() {
@@ -72,6 +79,7 @@ export function Home() {
     if (isUrl) {
       return (
         <PublicLayout showMainContainer={false}>
+          <HomeNoticeDialog />
           {/*
             allow-top-navigation-by-user-activation: the custom home page URL is
             admin-configured (trusted); this lets its target="_top" nav/menu links
@@ -97,6 +105,7 @@ export function Home() {
     if (contentIsHtml) {
       return (
         <PublicLayout showMainContainer={false}>
+          <HomeNoticeDialog />
           <RichContent
             mode='html'
             htmlVariant='isolated'
@@ -109,6 +118,7 @@ export function Home() {
 
     return (
       <PublicLayout>
+        <HomeNoticeDialog />
         <div className='mx-auto max-w-6xl px-4 py-8'>
           <RichContent
             mode='markdown'
@@ -122,6 +132,7 @@ export function Home() {
 
   return (
     <PublicLayout showMainContainer={false}>
+      <HomeNoticeDialog />
       <Hero isAuthenticated={isAuthenticated} />
       <Stats />
       <Features />

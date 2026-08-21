@@ -16,9 +16,26 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export { CTA } from './sections/cta'
-export { Features } from './sections/features'
-export { Hero } from './sections/hero'
-export { HowItWorks } from './sections/how-it-works'
-export { Stats } from './sections/stats'
-export { HomeNoticeDialog } from './home-notice-dialog'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { test } from 'node:test'
+
+const translations = {
+  en: 'Close for today',
+  fr: "Fermer pour aujourd'hui",
+  ja: '今日は閉じる',
+  ru: 'Закрыть на сегодня',
+  vi: 'Đóng cho hôm nay',
+  zh: '今日关闭',
+  'zh-TW': '今日關閉',
+} as const
+
+for (const [locale, expected] of Object.entries(translations)) {
+  test(`${locale} translates Close for today`, () => {
+    const document = JSON.parse(
+      readFileSync(new URL(`./${locale}.json`, import.meta.url), 'utf8')
+    ) as { translation?: Record<string, unknown> }
+
+    assert.equal(document.translation?.['Close for today'], expected)
+  })
+}

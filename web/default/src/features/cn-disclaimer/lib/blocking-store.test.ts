@@ -16,9 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export { CTA } from './sections/cta'
-export { Features } from './sections/features'
-export { Hero } from './sections/hero'
-export { HowItWorks } from './sections/how-it-works'
-export { Stats } from './sections/stats'
-export { HomeNoticeDialog } from './home-notice-dialog'
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+
+import { useCnDisclaimerBlockingStore } from './blocking-store'
+
+test('blocks auto-open until the root disclaimer gate publishes its state', () => {
+  assert.equal(useCnDisclaimerBlockingStore.getState().blocking, true)
+})

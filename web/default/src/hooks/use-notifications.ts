@@ -17,8 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
+import type { AnnouncementItem } from '@/components/notification-content'
 import { useStatus } from '@/hooks/use-status'
 import { getNotice } from '@/lib/api'
 import { useNotificationStore } from '@/stores/notification-store'
@@ -40,7 +41,7 @@ function hashString(input: string): string {
  * Generate a unique key for an announcement
  * Prefer backend id, fall back to a content hash so edits register
  */
-function getAnnouncementKey(item: Record<string, unknown>): string {
+function getAnnouncementKey(item: AnnouncementItem): string {
   if (!item) return ''
 
   if (item.id !== undefined && item.id !== null) {
@@ -48,12 +49,12 @@ function getAnnouncementKey(item: Record<string, unknown>): string {
   }
 
   const fingerprint = JSON.stringify({
-    publishDate: (item?.publishDate as string) || '',
-    content: ((item?.content as string) || '').trim(),
-    extra: ((item?.extra as string) || '').trim(),
-    type: (item?.type as string) || '',
-    title: ((item?.title as string) || '').trim(),
-    link: ((item?.link as string) || '').trim(),
+    publishDate: item.publishDate || '',
+    content: (item.content || '').trim(),
+    extra: (item.extra || '').trim(),
+    type: item.type || '',
+    title: (item.title || '').trim(),
+    link: (item.link || '').trim(),
   })
   return `hash:${hashString(fingerprint)}`
 }
@@ -68,24 +69,7 @@ export function useNotifications() {
     'notice'
   )
 
-  // Fetch Notice from API
-  const {
-    data: noticeResponse,
-    isLoading: noticeLoading,
-    refetch: refetchNotice,
-  } = useQuery({
-    queryKey: ['notice'],
-    queryFn: getNotice,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  })
-
-  // Fetch Announcements from status
-  const { status, loading: statusLoading } = useStatus()
-  const announcementsEnabled = status?.announcements_enabled ?? false
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const announcements: Record<string, unknown>[] = announcementsEnabled
-    ? ((status?.announcements || []) as Record<string, unknown>[]).slice(0, 20)
-    : []
+  const noticeData = useNoticeData()
 
   // Notification store
   const {
@@ -95,33 +79,31 @@ export function useNotifications() {
     isAnnouncementRead,
   } = useNotificationStore()
 
-  // Extract notice content
-  const noticeContent = noticeResponse?.success
-    ? (noticeResponse.data || '').trim()
-    : ''
-
   // Calculate unread counts
   const unreadCounts = useMemo(() => {
     const noticeUnread =
-      noticeContent && noticeContent !== lastReadNotice ? 1 : 0
+      noticeData.notice && noticeData.notice !== lastReadNotice ? 1 : 0
 
-    const announcementsUnread = announcements.filter(
-      (item: Record<string, unknown>) => {
-        const key = getAnnouncementKey(item)
-        return !isAnnouncementRead(key)
-      }
-    ).length
+    const announcementsUnread = noticeData.announcements.filter((item) => {
+      const key = getAnnouncementKey(item)
+      return !isAnnouncementRead(key)
+    }).length
 
     return {
       notice: noticeUnread,
       announcements: announcementsUnread,
       total: noticeUnread + announcementsUnread,
     }
-  }, [noticeContent, lastReadNotice, announcements, isAnnouncementRead])
+  }, [
+    noticeData.notice,
+    lastReadNotice,
+    noticeData.announcements,
+    isAnnouncementRead,
+  ])
 
   const markAnnouncementsAsRead = () => {
-    if (announcements.length > 0) {
-      const allKeys = announcements.map((item: Record<string, unknown>) =>
+    if (noticeData.announcements.length > 0) {
+      const allKeys = noticeData.announcements.map((item) =>
         getAnnouncementKey(item)
       )
       markAnnouncementsRead(allKeys)
@@ -133,8 +115,8 @@ export function useNotifications() {
     const nextTab = tab || activeTab
 
     // Mark currently visible content as read when opening the notification center
-    if (noticeContent) {
-      markNoticeRead(noticeContent)
+    if (noticeData.notice) {
+      markNoticeRead(noticeData.notice)
     }
     if (nextTab === 'announcements') {
       markAnnouncementsAsRead()
@@ -164,9 +146,9 @@ export function useNotifications() {
 
   return {
     // Data
-    notice: noticeContent,
-    announcements,
-    loading: noticeLoading || statusLoading,
+    notice: noticeData.notice,
+    announcements: noticeData.announcements,
+    loading: noticeData.noticeLoading || noticeData.announcementsLoading,
 
     // Unread counts
     unreadCount: unreadCounts.total,
@@ -182,6 +164,35 @@ export function useNotifications() {
     // Actions
     openPopover: handleOpenPopover,
     closePopover: () => setPopoverOpen(false),
-    refetchNotice,
+    refetchNotice: noticeData.refetchNotice,
+  }
+}
+
+export function useNoticeData() {
+  const noticeQuery = useQuery({
+    queryKey: ['notice'],
+    queryFn: getNotice,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+
+  const { status, loading: statusLoading } = useStatus()
+  const announcementsEnabled = status?.announcements_enabled ?? false
+  const statusAnnouncements = status?.announcements
+  const announcements = useMemo<AnnouncementItem[]>(() => {
+    return announcementsEnabled
+      ? ((statusAnnouncements || []) as AnnouncementItem[]).slice(0, 20)
+      : []
+  }, [announcementsEnabled, statusAnnouncements])
+
+  const noticeContent = noticeQuery.data?.success
+    ? (noticeQuery.data.data || '').trim()
+    : ''
+
+  return {
+    notice: noticeContent,
+    announcements,
+    noticeLoading: noticeQuery.isLoading,
+    announcementsLoading: statusLoading,
+    refetchNotice: noticeQuery.refetch,
   }
 }

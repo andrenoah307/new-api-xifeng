@@ -16,9 +16,35 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export { CTA } from './sections/cta'
-export { Features } from './sections/features'
-export { Hero } from './sections/hero'
-export { HowItWorks } from './sections/how-it-works'
-export { Stats } from './sections/stats'
-export { HomeNoticeDialog } from './home-notice-dialog'
+interface ShouldAutoOpenNoticeOptions {
+  notice: string
+  noticeClosed: boolean
+  blockedByModal: boolean
+}
+
+interface CloseNoticeForTodayOptions {
+  setClosedUntilDate: (date: string) => void
+  close: () => void
+  getCurrentDate?: () => Date
+}
+
+export function shouldAutoOpenNotice(
+  options: ShouldAutoOpenNoticeOptions
+): boolean {
+  return (
+    options.notice.trim() !== '' &&
+    !options.noticeClosed &&
+    !options.blockedByModal
+  )
+}
+
+export function closeNoticeForToday(
+  options: CloseNoticeForTodayOptions
+): void {
+  try {
+    const currentDate = options.getCurrentDate?.() ?? new Date()
+    options.setClosedUntilDate(currentDate.toDateString())
+  } finally {
+    options.close()
+  }
+}
