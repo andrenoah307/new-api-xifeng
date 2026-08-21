@@ -36,6 +36,39 @@ func TestConfiguredLogQueryTimeout(t *testing.T) {
 	}
 }
 
+func TestGetStatusIncludesConfiguredLogQueryTimeoutSeconds(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  int
+	}{
+		{name: "positive timeout", value: "60", want: 60},
+		{name: "zero disables deadline", value: "0", want: 0},
+		{name: "negative disables deadline", value: "-1", want: -1},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("LOG_QUERY_TIMEOUT", test.value)
+			gin.SetMode(gin.TestMode)
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/api/status", nil)
+
+			GetStatus(ctx)
+
+			require.Equal(t, http.StatusOK, recorder.Code)
+			var payload struct {
+				Data struct {
+					LogQueryTimeout int `json:"log_query_timeout"`
+				} `json:"data"`
+			}
+			require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &payload))
+			assert.Equal(t, test.want, payload.Data.LogQueryTimeout)
+		})
+	}
+}
+
 func TestNewLogQueryContextDeadlineBehavior(t *testing.T) {
 	t.Run("positive timeout adds deadline", func(t *testing.T) {
 		t.Setenv("LOG_QUERY_TIMEOUT", "")

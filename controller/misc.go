@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -92,6 +93,7 @@ func GetStatus(c *gin.Context) {
 		"enable_task":                   common.TaskEnabled,
 		"enable_data_export":            common.DataExportEnabled,
 		"enable_log_export_offline":     common.LogExportOfflineEnabled,
+		"log_query_timeout":             int(configuredLogQueryTimeout() / time.Second),
 		"data_export_default_time":      common.DataExportDefaultTime,
 		"data_export_interval":          common.DataExportInterval,
 		"default_collapse_sidebar":      common.DefaultCollapseSidebar,

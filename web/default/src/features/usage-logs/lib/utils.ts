@@ -22,25 +22,11 @@ For commercial licensing, please contact support@quantumnous.com
 import axios from 'axios'
 
 import {
-  getAllLogs,
-  getUserLogs,
-  getAllMidjourneyLogs,
-  getUserMidjourneyLogs,
-  getAllTaskLogs,
-  getUserTaskLogs,
-} from '../api'
-import {
   LOG_TYPES,
   DISPLAYABLE_LOG_TYPES,
   TIMING_LOG_TYPES,
 } from '../constants'
-import type {
-  GetLogsParams,
-  GetLogsResponse,
-  FetchLogsConfig,
-  GetMidjourneyLogsParams,
-  GetTaskLogsParams,
-} from '../types'
+import type { GetLogsParams } from '../types'
 
 export { buildQueryParams } from './query-params'
 
@@ -122,6 +108,36 @@ export function buildLogStatsQueryKey(
     isAdmin,
     getLogStatsSearchParams(searchParams),
   ] as const
+}
+
+const DEFAULT_USAGE_LOG_QUERY_TIMEOUT_MS = 35_000
+const USAGE_LOG_QUERY_TIMEOUT_BUFFER_MS = 5_000
+const MAX_USAGE_LOG_QUERY_TIMEOUT_SECONDS = 600
+const MILLISECONDS_PER_SECOND = 1_000
+
+export function resolveUsageLogQueryTimeoutMs(raw: unknown): number {
+  let timeoutSeconds: number
+  if (typeof raw === 'number') {
+    timeoutSeconds = raw
+  } else if (typeof raw === 'string' && raw.trim() !== '') {
+    timeoutSeconds = Number(raw)
+  } else {
+    return DEFAULT_USAGE_LOG_QUERY_TIMEOUT_MS
+  }
+
+  if (!Number.isFinite(timeoutSeconds)) {
+    return DEFAULT_USAGE_LOG_QUERY_TIMEOUT_MS
+  }
+  if (timeoutSeconds <= 0) {
+    return 0
+  }
+
+  // The browser must give up after the backend so users receive its readable 503.
+  return (
+    Math.min(timeoutSeconds, MAX_USAGE_LOG_QUERY_TIMEOUT_SECONDS) *
+      MILLISECONDS_PER_SECOND +
+    USAGE_LOG_QUERY_TIMEOUT_BUFFER_MS
+  )
 }
 
 export function shouldRetryUsageLogQuery(
@@ -302,69 +318,6 @@ export function buildApiParams(config: {
   }
 
   return params
-}
-
-// ============================================================================
-// Data Fetching
-// ============================================================================
-
-/**
- * Fetch logs based on category type
- */
-export async function fetchLogsByCategory(
-  config: FetchLogsConfig
-): Promise<GetLogsResponse> {
-  const {
-    logCategory,
-    isAdmin,
-    page,
-    pageSize,
-    searchParams,
-    columnFilters,
-    totalCount,
-  } = config
-
-  if (logCategory === 'common') {
-    const params = buildApiParams({
-      page,
-      pageSize,
-      searchParams,
-      columnFilters,
-      isAdmin,
-      totalCount,
-    })
-    return isAdmin ? await getAllLogs(params) : await getUserLogs(params)
-  }
-
-  // For drawing and task logs
-  const baseParams = buildBaseParams({
-    page,
-    pageSize,
-    searchParams,
-    useMilliseconds: logCategory === 'drawing',
-    totalCount,
-  })
-
-  const paramsWithFilter = {
-    ...baseParams,
-    ...(logCategory === 'drawing'
-      ? { mj_id: searchParams.filter as string | undefined }
-      : {}),
-    ...(logCategory === 'task'
-      ? { task_id: searchParams.filter as string | undefined }
-      : {}),
-  }
-
-  if (logCategory === 'drawing') {
-    return isAdmin
-      ? await getAllMidjourneyLogs(paramsWithFilter as GetMidjourneyLogsParams)
-      : await getUserMidjourneyLogs(paramsWithFilter as GetMidjourneyLogsParams)
-  }
-
-  // task logs
-  return isAdmin
-    ? await getAllTaskLogs(paramsWithFilter as GetTaskLogsParams)
-    : await getUserTaskLogs(paramsWithFilter as GetTaskLogsParams)
 }
 
 const PROXY_ID_PATTERNS = [

@@ -44,8 +44,8 @@ export {
   buildQueryParams,
   buildBaseParams,
   buildApiParams,
-  fetchLogsByCategory,
 } from './utils'
+export { fetchLogsByCategory } from './fetch-logs'
 
 // Status mapper utilities
 export { createStatusMapper } from './status'

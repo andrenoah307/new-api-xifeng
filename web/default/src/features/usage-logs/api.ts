@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 
 import { buildQueryParams } from './lib/query-params'
+import { resolveUsageLogQueryTimeoutMs } from './lib/utils'
 import type {
   ExportTask,
   GetLogsParams,
@@ -36,7 +37,29 @@ import type {
 // Generic API Helpers
 // ============================================================================
 
-const USAGE_LOG_QUERY_TIMEOUT_MS = 35_000
+function readCachedLogQueryTimeout(): unknown {
+  try {
+    if (typeof window === 'undefined') return undefined
+    const raw = window.localStorage.getItem('status')
+    const status = raw ? (JSON.parse(raw) as Record<string, unknown>) : null
+    if (!status) return undefined
+    if (status.log_query_timeout !== undefined) {
+      return status.log_query_timeout
+    }
+
+    const nestedStatus = status.data
+    if (typeof nestedStatus === 'object' && nestedStatus !== null) {
+      return (nestedStatus as Record<string, unknown>).log_query_timeout
+    }
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
+function usageLogQueryTimeoutMs(): number {
+  return resolveUsageLogQueryTimeoutMs(readCachedLogQueryTimeout())
+}
 
 function buildApiPath(endpoint: string, isAdmin: boolean): string {
   return isAdmin ? endpoint : `${endpoint}/self`
@@ -55,7 +78,7 @@ async function fetchLogs<T>(
   })
   const path = buildApiPath(endpoint, isAdmin)
   const res = await api.get(`${path}?${queryParams}`, {
-    timeout: USAGE_LOG_QUERY_TIMEOUT_MS,
+    timeout: usageLogQueryTimeoutMs(),
   })
   return res.data
 }
@@ -70,7 +93,7 @@ async function fetchLogStats<T>(
   )
   const path = buildApiPath(endpoint, isAdmin)
   const res = await api.get(`${path}/stat?${queryParams}`, {
-    timeout: USAGE_LOG_QUERY_TIMEOUT_MS,
+    timeout: usageLogQueryTimeoutMs(),
   })
   return res.data
 }

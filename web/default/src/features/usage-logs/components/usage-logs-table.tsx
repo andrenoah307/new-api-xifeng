@@ -38,8 +38,9 @@ import {
   LOG_TYPE_ENUM,
 } from '../constants'
 import { useColumnsByCategory } from '../lib/columns'
+import { fetchLogsByCategory } from '../lib/fetch-logs'
 import { parseLogOther } from '../lib/format'
-import { fetchLogsByCategory, shouldRetryUsageLogQuery } from '../lib/utils'
+import { shouldRetryUsageLogQuery } from '../lib/utils'
 import type { LogCategory } from '../types'
 import { CommonLogsFilterBar } from './common-logs-filter-bar'
 import { TaskLogsFilterBar } from './task-logs-filter-bar'

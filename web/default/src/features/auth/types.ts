@@ -136,6 +136,7 @@ export interface SystemStatus {
     password_register_enabled?: boolean
     custom_oauth_providers?: CustomOAuthProviderInfo[]
     rate_limit_capacity_enabled?: boolean
+    log_query_timeout?: number
     [key: string]: unknown
   }
   // Allow direct access to common properties
