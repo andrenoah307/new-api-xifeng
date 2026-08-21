@@ -22,7 +22,7 @@ func applyExplicitLogTextFilter(tx *gorm.DB, column string, value string) (*gorm
 	if value == "" {
 		return tx, nil
 	}
-	if strings.Contains(value, "%") {
+	if !logTextFilterProvidesEqualityPrefix(value) {
 		condition, pattern, err := buildLogLikeCondition(column, value)
 		if err != nil {
 			return nil, err
@@ -30,6 +30,14 @@ func applyExplicitLogTextFilter(tx *gorm.DB, column string, value string) (*gorm
 		return tx.Where(condition, pattern), nil
 	}
 	return tx.Where(column+" = ?", value), nil
+}
+
+// logTextFilterProvidesEqualityPrefix reports whether a text filter is sent as
+// an equality predicate. The same predicate is used by applyExplicitLogTextFilter
+// and the list ordering decision, so an ORDER BY switch cannot assume an
+// equality prefix while the WHERE clause actually uses LIKE.
+func logTextFilterProvidesEqualityPrefix(value string) bool {
+	return value != "" && !strings.Contains(value, "%")
 }
 
 func buildLogLikeCondition(column string, value string) (string, string, error) {
@@ -59,20 +67,20 @@ func sanitizeClickHouseLikePattern(input string) (string, error) {
 }
 
 type Log struct {
-	Id                int    `json:"id" gorm:"index:idx_user_id_id,priority:2;index:idx_logs_channel_id_created_at,priority:3"`
+	Id                int    `json:"id" gorm:"index:idx_user_id_id,priority:2;index:idx_logs_channel_id_created_at,priority:3;index:idx_logs_model_name_created_at,priority:3;index:idx_logs_username_created_at,priority:3;index:idx_logs_token_name_created_at,priority:3;index:idx_logs_type_created_at_quota,priority:3"`
 	UserId            int    `json:"user_id" gorm:"index:idx_user_id_id,priority:1;index:idx_logs_user_id_created_at,priority:1"`
-	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_type;index:idx_logs_type_created_at,priority:2;index:idx_logs_user_id_created_at,priority:2;index:idx_logs_group_created_at,priority:2;index:idx_logs_channel_id_created_at,priority:2"`
-	Type              int    `json:"type" gorm:"index:idx_created_at_type;index:idx_logs_type_created_at,priority:1"`
+	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_type;index:idx_logs_user_id_created_at,priority:2;index:idx_logs_group_created_at,priority:2;index:idx_logs_channel_id_created_at,priority:2;index:idx_logs_model_name_created_at,priority:2;index:idx_logs_username_created_at,priority:2;index:idx_logs_token_name_created_at,priority:2;index:idx_logs_type_created_at_quota,priority:2"`
+	Type              int    `json:"type" gorm:"index:idx_created_at_type;index:idx_logs_model_name_created_at,priority:4;index:idx_logs_username_created_at,priority:4;index:idx_logs_token_name_created_at,priority:4;index:idx_logs_type_created_at_quota,priority:1"`
 	Content           string `json:"content"`
-	Username          string `json:"username" gorm:"index;index:index_username_model_name,priority:2;default:''"`
-	TokenName         string `json:"token_name" gorm:"index;default:''"`
-	ModelName         string `json:"model_name" gorm:"index;index:index_username_model_name,priority:1;default:''"`
-	Quota             int    `json:"quota" gorm:"default:0"`
+	Username          string `json:"username" gorm:"index:index_username_model_name,priority:2;index:idx_logs_username_created_at,priority:1;default:''"`
+	TokenName         string `json:"token_name" gorm:"index:idx_logs_token_name_created_at,priority:1;default:''"`
+	ModelName         string `json:"model_name" gorm:"index:index_username_model_name,priority:1;index:idx_logs_model_name_created_at,priority:1;default:''"`
+	Quota             int    `json:"quota" gorm:"default:0;index:idx_logs_type_created_at_quota,priority:4"`
 	PromptTokens      int    `json:"prompt_tokens" gorm:"default:0"`
 	CompletionTokens  int    `json:"completion_tokens" gorm:"default:0"`
 	UseTime           int    `json:"use_time" gorm:"default:0"`
 	IsStream          bool   `json:"is_stream"`
-	ChannelId         int    `json:"channel" gorm:"index;index:idx_logs_channel_id_created_at,priority:1"`
+	ChannelId         int    `json:"channel" gorm:"index:idx_logs_channel_id_created_at,priority:1"`
 	ChannelName       string `json:"channel_name" gorm:"->"`
 	TokenId           int    `json:"token_id" gorm:"default:0;index"`
 	Group             string `json:"group" gorm:"index:idx_logs_group_created_at,priority:1"`
@@ -107,6 +115,34 @@ func createLog(log *Log) error {
 
 func clickHouseLogOrder(prefix string) string {
 	return prefix + "created_at desc, " + prefix + "request_id desc"
+}
+
+type logOrderFilters struct {
+	modelName         string
+	username          string
+	tokenName         string
+	channel           int
+	group             string
+	requestId         string
+	upstreamRequestId string
+}
+
+func getAllLogsOrder(filters logOrderFilters, usingClickHouse bool) string {
+	if usingClickHouse {
+		return clickHouseLogOrder("logs.")
+	}
+	if filters.requestId != "" || filters.upstreamRequestId != "" {
+		return "logs.id desc"
+	}
+	if filters.group != "" ||
+		filters.channel != 0 ||
+		filters.tokenName != "" ||
+		logTextFilterProvidesEqualityPrefix(filters.modelName) ||
+		logTextFilterProvidesEqualityPrefix(filters.username) {
+		return "logs.created_at desc, logs.id desc"
+	}
+	// 无筛选、仅 type 或仅 LIKE 时必须维持主键序：它们不提供 created_at 复合索引的等值前缀，改为 created_at desc 会退化为全量 filesort。
+	return "logs.id desc"
 }
 
 // clickHouseExportOrder 返回 ClickHouse 导出用的升序排序子句。
@@ -629,13 +665,15 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 			return nil, 0, err
 		}
 	}
-	order := "logs.id desc"
-	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
-		order = clickHouseLogOrder("logs.")
-	} else if group != "" || channel != 0 {
-		// channel 与 group 过滤分别命中对应的 created_at 复合索引，复用索引顺序避免 filesort。
-		order = "logs.created_at desc, logs.id desc"
-	}
+	order := getAllLogsOrder(logOrderFilters{
+		modelName:         modelName,
+		username:          username,
+		tokenName:         tokenName,
+		channel:           channel,
+		group:             group,
+		requestId:         requestId,
+		upstreamRequestId: upstreamRequestId,
+	}, common.UsingLogDatabase(common.DatabaseTypeClickHouse))
 	err = tx.Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
 		return nil, 0, err
@@ -783,7 +821,7 @@ type Stat struct {
 	Tpm   int `json:"tpm"`
 }
 
-func SumUsedQuota(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {
+func SumUsedQuota(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string, requestId string, upstreamRequestId string) (stat Stat, err error) {
 	tx := LOG_DB.Table("logs").Select("COALESCE(sum(quota), 0) quota")
 
 	// 为rpm和tpm创建单独的查询
@@ -824,6 +862,14 @@ func SumUsedQuota(userId int, logType int, startTimestamp int64, endTimestamp in
 	if group != "" {
 		tx = tx.Where(logGroupCol+" = ?", group)
 		rpmTpmQuery = rpmTpmQuery.Where(logGroupCol+" = ?", group)
+	}
+	if requestId != "" {
+		tx = tx.Where("request_id = ?", requestId)
+		rpmTpmQuery = rpmTpmQuery.Where("request_id = ?", requestId)
+	}
+	if upstreamRequestId != "" {
+		tx = tx.Where("upstream_request_id = ?", upstreamRequestId)
+		rpmTpmQuery = rpmTpmQuery.Where("upstream_request_id = ?", upstreamRequestId)
 	}
 
 	tx = tx.Where("type = ?", LogTypeConsume)

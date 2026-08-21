@@ -115,6 +115,29 @@ export function buildQueryParams(
   return queryParams
 }
 
+const LOG_STATS_PAGINATION_KEYS = new Set(['page', 'pageSize'])
+
+export function getLogStatsSearchParams(
+  searchParams: Record<string, unknown>
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(searchParams).filter(
+      ([key]) => !LOG_STATS_PAGINATION_KEYS.has(key)
+    )
+  )
+}
+
+export function buildLogStatsQueryKey(
+  isAdmin: boolean,
+  searchParams: Record<string, unknown>
+) {
+  return [
+    'usage-logs-stats',
+    isAdmin,
+    getLogStatsSearchParams(searchParams),
+  ] as const
+}
+
 /**
  * Build time range parameters with default values
  * Shared logic for all log types
