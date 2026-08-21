@@ -152,6 +152,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
 
       return result.data || DEFAULT_LOGS_DATA
     },
+    retry: false,
     placeholderData: (previousData, previousQuery) => {
       if (previousQuery?.queryKey[1] === logCategory) {
         return previousData
