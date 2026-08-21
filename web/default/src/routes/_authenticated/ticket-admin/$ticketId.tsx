@@ -2,17 +2,19 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { ROLE } from '@/lib/roles'
 import TicketAdminDetailPage from '@/features/tickets/components/ticket-admin-detail'
+import { ticketAdminSearchSchema } from '@/features/tickets/lib/ticket-admin-search'
 
 export const Route = createFileRoute('/_authenticated/ticket-admin/$ticketId')({
-  beforeLoad: ({ params }) => {
+  beforeLoad: ({ params, search }) => {
     const { auth } = useAuthStore.getState()
     if (!auth.user || auth.user.role < ROLE.TICKET_STAFF) {
       throw redirect({ to: '/403' })
     }
     if (!Number.isInteger(Number(params.ticketId))) {
-      throw redirect({ to: '/ticket-admin' })
+      throw redirect({ to: '/ticket-admin', search })
     }
   },
+  validateSearch: ticketAdminSearchSchema,
   component: TicketAdminDetailRoute,
 })
 

@@ -1,17 +1,8 @@
-import z from 'zod'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/auth-store'
 import { ROLE } from '@/lib/roles'
 import TicketAdminListPage from '@/features/tickets/components/ticket-admin-list'
-
-const ticketAdminSearchSchema = z.object({
-  page: z.number().optional().catch(1),
-  pageSize: z.number().optional().catch(10),
-  keyword: z.string().optional().catch(''),
-  scope: z.enum(['all', 'mine', 'unassigned']).optional().catch(undefined),
-  status: z.string().optional().catch(''),
-  type: z.string().optional().catch(''),
-})
+import { ticketAdminSearchSchema } from '@/features/tickets/lib/ticket-admin-search'
 
 export const Route = createFileRoute('/_authenticated/ticket-admin/')({
   beforeLoad: () => {

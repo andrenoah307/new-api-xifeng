@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from '@tanstack/react-router'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
@@ -45,6 +45,8 @@ import { InvoiceDetail } from './invoice-detail'
 import { RefundDetail } from './refund-detail'
 import { TicketUserProfileButton } from './ticket-user-profile'
 
+const route = getRouteApi('/_authenticated/ticket-admin/$ticketId')
+
 export default function TicketAdminDetailPage({
   ticketId,
 }: {
@@ -52,6 +54,7 @@ export default function TicketAdminDetailPage({
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const search = route.useSearch()
   const queryClient = useQueryClient()
   const account = useAuthStore((s) => s.auth.user)
   const accountId = account?.id ?? 0
@@ -113,6 +116,9 @@ export default function TicketAdminDetailPage({
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
       })
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.adminLists(),
+      })
     },
   })
 
@@ -128,6 +134,9 @@ export default function TicketAdminDetailPage({
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
       })
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.adminLists(),
+      })
     },
   })
 
@@ -137,6 +146,9 @@ export default function TicketAdminDetailPage({
       toast.success(t('Ticket claimed'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.adminLists(),
       })
     },
   })
@@ -162,6 +174,9 @@ export default function TicketAdminDetailPage({
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
       })
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.adminLists(),
+      })
     },
   })
 
@@ -171,6 +186,9 @@ export default function TicketAdminDetailPage({
       toast.success(t('Operation successful'))
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminInvoice(ticketId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.adminLists(),
       })
     },
   })
@@ -254,7 +272,7 @@ export default function TicketAdminDetailPage({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate({ to: '/ticket-admin' })}
+            onClick={() => navigate({ to: '/ticket-admin', search })}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>

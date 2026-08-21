@@ -1,8 +1,7 @@
 import { useMemo, useEffect, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from '@tanstack/react-router'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
 import {
   flexRender,
   getCoreRowModel,
@@ -185,9 +184,10 @@ export default function TicketAdminListPage() {
       navigate({
         to: '/ticket-admin/$ticketId',
         params: { ticketId: String(ticketId) },
+        search,
       })
     },
-    [navigate]
+    [navigate, search]
   )
 
   return (
