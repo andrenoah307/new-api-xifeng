@@ -62,8 +62,8 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="flex items-center gap-1">
-        <span className="font-medium">{value || '-'}</span>
+      <dd className="flex items-start gap-1">
+        <span className="font-medium whitespace-pre-wrap break-words">{value || '-'}</span>
         {value && <CopyButton value={value} size="icon" className="h-6 w-6" iconClassName="h-3 w-3" />}
       </dd>
     </div>

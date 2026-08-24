@@ -35,6 +35,10 @@ import {
 } from '../constants'
 import { ticketQueryKeys } from '../lib/ticket-actions'
 import {
+  extractRemarkFromSummary,
+  isGeneratedTicketSummary,
+} from '../lib/ticket-summary'
+import {
   TicketStatusBadge,
   TicketPriorityBadge,
   TicketTypeBadge,
@@ -83,14 +87,16 @@ export default function TicketAdminDetailPage({
   const conversationMessages = useMemo(() => {
     if (messages.length === 0) return messages
     const first = messages[0]
-    if (isRefund && first?.content?.startsWith('退款申请信息')) {
-      return messages.slice(1)
-    }
-    if (isInvoice && first?.content?.startsWith('发票申请信息')) {
+    if (isGeneratedTicketSummary(first?.content, ticket?.type ?? '')) {
       return messages.slice(1)
     }
     return messages
-  }, [messages, isRefund, isInvoice])
+  }, [messages, ticket?.type])
+
+  const summaryRemark = useMemo(
+    () => extractRemarkFromSummary(messages[0]?.content),
+    [messages]
+  )
 
   const { data: invoiceData } = useQuery({
     queryKey: ticketQueryKeys.adminInvoice(ticketId),
@@ -373,6 +379,7 @@ export default function TicketAdminDetailPage({
             <InvoiceDetail
               invoice={invoiceData.invoice}
               orders={invoiceData.orders ?? []}
+              fallbackRemark={summaryRemark}
               onStatusChange={(s) => invoiceStatusMutation.mutate(s)}
               loading={invoiceStatusMutation.isPending}
             />

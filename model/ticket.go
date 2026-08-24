@@ -23,36 +23,37 @@ const (
 )
 
 var (
-	ErrTicketNotFound              = errors.New("ticket not found")
-	ErrTicketForbidden             = errors.New("ticket forbidden")
-	ErrTicketClosed                = errors.New("ticket closed")
-	ErrTicketSubjectEmpty          = errors.New("ticket subject empty")
-	ErrTicketContentEmpty          = errors.New("ticket content empty")
-	ErrTicketInvalidStatus         = errors.New("ticket invalid status")
-	ErrTicketInvalidType           = errors.New("ticket invalid type")
-	ErrTicketAssigneeInvalid       = errors.New("ticket assignee invalid")
-	ErrTicketInvoiceNotFound       = errors.New("ticket invoice not found")
-	ErrTicketInvoiceStatusInvalid  = errors.New("ticket invoice status invalid")
-	ErrTicketInvoiceOrderEmpty     = errors.New("ticket invoice order empty")
-	ErrTicketInvoiceOrderInvalid   = errors.New("ticket invoice order invalid")
-	ErrTicketInvoiceOrderDuplicate = errors.New("ticket invoice order duplicate")
-	ErrTicketInvoiceCompanyEmpty   = errors.New("ticket invoice company empty")
-	ErrTicketInvoiceTaxNumberEmpty   = errors.New("ticket invoice tax number empty")
+	ErrTicketNotFound               = errors.New("ticket not found")
+	ErrTicketForbidden              = errors.New("ticket forbidden")
+	ErrTicketClosed                 = errors.New("ticket closed")
+	ErrTicketSubjectEmpty           = errors.New("ticket subject empty")
+	ErrTicketContentEmpty           = errors.New("ticket content empty")
+	ErrTicketInvalidStatus          = errors.New("ticket invalid status")
+	ErrTicketInvalidType            = errors.New("ticket invalid type")
+	ErrTicketAssigneeInvalid        = errors.New("ticket assignee invalid")
+	ErrTicketInvoiceNotFound        = errors.New("ticket invoice not found")
+	ErrTicketInvoiceStatusInvalid   = errors.New("ticket invoice status invalid")
+	ErrTicketInvoiceOrderEmpty      = errors.New("ticket invoice order empty")
+	ErrTicketInvoiceOrderInvalid    = errors.New("ticket invoice order invalid")
+	ErrTicketInvoiceOrderDuplicate  = errors.New("ticket invoice order duplicate")
+	ErrTicketInvoiceCompanyEmpty    = errors.New("ticket invoice company empty")
+	ErrTicketInvoiceTaxNumberEmpty  = errors.New("ticket invoice tax number empty")
 	ErrTicketInvoiceTaxNumberFormat = errors.New("ticket invoice tax number format invalid")
 	ErrTicketInvoiceEmailEmpty      = errors.New("ticket invoice email empty")
+	ErrTicketInvoiceRemarkTooLong   = errors.New("ticket invoice remark too long")
 	ErrTicketInvoiceAmountBelowMin  = errors.New("ticket invoice amount below minimum")
 	ErrTicketMessageDuplicate       = errors.New("duplicate message")
 )
 
 type Ticket struct {
-	Id          int    `json:"id"`
-	UserId      int    `json:"user_id" gorm:"index;not null"`
-	Username    string `json:"username" gorm:"type:varchar(64)"`
-	Subject     string `json:"subject" gorm:"type:varchar(255);not null"`
-	Type        string `json:"type" gorm:"type:varchar(32);index;default:'general'"`
-	Status      int    `json:"status" gorm:"type:int;index;default:1"`
-	Priority    int    `json:"priority" gorm:"type:int;default:2"`
-	AdminId     int    `json:"admin_id" gorm:"type:int;default:0"`
+	Id       int    `json:"id"`
+	UserId   int    `json:"user_id" gorm:"index;not null"`
+	Username string `json:"username" gorm:"type:varchar(64)"`
+	Subject  string `json:"subject" gorm:"type:varchar(255);not null"`
+	Type     string `json:"type" gorm:"type:varchar(32);index;default:'general'"`
+	Status   int    `json:"status" gorm:"type:int;index;default:1"`
+	Priority int    `json:"priority" gorm:"type:int;default:2"`
+	AdminId  int    `json:"admin_id" gorm:"type:int;default:0"`
 	// AssigneeId 当前分配到的客服/管理员用户 ID。0 表示尚未分配（待认领）。
 	// 与 AdminId 分开：AdminId 会被"最后一次回复的管理员"覆盖，而 AssigneeId 是明确的负责人。
 	AssigneeId  int            `json:"assignee_id" gorm:"type:int;index;default:0"`

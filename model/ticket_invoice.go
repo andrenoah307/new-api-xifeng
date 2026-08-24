@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -15,9 +16,10 @@ import (
 var taxNumberRegex = regexp.MustCompile(`^[A-Z0-9]{18}$`)
 
 const (
-	InvoiceStatusPending  = 1
-	InvoiceStatusIssued   = 2
-	InvoiceStatusRejected = 3
+	InvoiceStatusPending   = 1
+	InvoiceStatusIssued    = 2
+	InvoiceStatusRejected  = 3
+	MaxInvoiceRemarkLength = 100
 )
 
 type TicketInvoice struct {
@@ -30,6 +32,7 @@ type TicketInvoice struct {
 	BankAccount    string  `json:"bank_account" gorm:"type:varchar(128)"`
 	CompanyAddress string  `json:"company_address" gorm:"type:varchar(512)"`
 	CompanyPhone   string  `json:"company_phone" gorm:"type:varchar(32)"`
+	Remark         string  `json:"remark" gorm:"type:varchar(255)"`
 	Email          string  `json:"email" gorm:"type:varchar(128);not null"`
 	TopUpOrderIds  string  `json:"topup_order_ids" gorm:"type:text;not null"`
 	TotalMoney     float64 `json:"total_money"`
@@ -255,6 +258,9 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 	if strings.TrimSpace(params.Email) == "" {
 		return nil, nil, nil, nil, ErrTicketInvoiceEmailEmpty
 	}
+	if utf8.RuneCountInString(strings.TrimSpace(params.Content)) > MaxInvoiceRemarkLength {
+		return nil, nil, nil, nil, ErrTicketInvoiceRemarkTooLong
+	}
 
 	orderIds, err := normalizeTopUpOrderIDs(params.TopUpOrderIds)
 	if err != nil {
@@ -324,6 +330,7 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			BankAccount:    strings.TrimSpace(params.BankAccount),
 			CompanyAddress: strings.TrimSpace(params.CompanyAddress),
 			CompanyPhone:   strings.TrimSpace(params.CompanyPhone),
+			Remark:         strings.TrimSpace(params.Content),
 			Email:          strings.TrimSpace(params.Email),
 			TotalMoney:     totalMoney,
 			InvoiceStatus:  InvoiceStatusPending,

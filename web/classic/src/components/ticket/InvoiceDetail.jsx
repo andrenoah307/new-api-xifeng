@@ -15,6 +15,7 @@ const InvoiceDetail = ({
   onStatusChange,
   loading = false,
   readonly = false,
+  fallbackRemark = '',
   t,
 }) => {
   const descriptionRows = useMemo(() => {
@@ -29,6 +30,14 @@ const InvoiceDetail = ({
       { key: t('银行账号'), value: invoice.bank_account || '-' },
       { key: t('注册地址'), value: invoice.company_address || '-' },
       { key: t('联系电话'), value: invoice.company_phone || '-' },
+      {
+        key: t('备注'),
+        value: (
+          <Text style={{ whiteSpace: 'pre-wrap' }}>
+            {invoice.remark?.trim() || fallbackRemark.trim() || '-'}
+          </Text>
+        ),
+      },
       {
         key: t('发票状态'),
         value: (
@@ -49,7 +58,7 @@ const InvoiceDetail = ({
         value: invoice.issued_time ? timestamp2string(invoice.issued_time) : '-',
       },
     ];
-  }, [invoice, t]);
+  }, [fallbackRemark, invoice, t]);
 
   const orderColumns = useMemo(
     () => [
@@ -147,4 +156,3 @@ const InvoiceDetail = ({
 };
 
 export default InvoiceDetail;
-

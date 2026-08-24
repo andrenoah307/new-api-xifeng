@@ -32,6 +32,7 @@ import {
   getTicketStatusOptions,
   getTicketTypeOptions,
   getTicketTypeText,
+  extractRemarkFromSummary,
 } from '../../components/ticket/ticketUtils';
 import ExportInvoiceDialog from '../../components/ticket/ExportInvoiceDialog';
 
@@ -367,6 +368,7 @@ const AdminTicketDetail = () => {
         <InvoiceDetail
           invoice={invoice}
           orders={orders}
+          fallbackRemark={extractRemarkFromSummary(messages[0]?.content)}
           loading={saving}
           onStatusChange={handleInvoiceStatusChange}
           t={t}
@@ -647,4 +649,3 @@ const TicketAdmin = () => {
 };
 
 export default TicketAdmin;
-

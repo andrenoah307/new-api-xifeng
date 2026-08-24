@@ -49,6 +49,7 @@ export interface TicketInvoice {
   bank_account: string
   company_address: string
   company_phone: string
+  remark?: string
   invoice_status: number
   total_money: number
   issued_time: number

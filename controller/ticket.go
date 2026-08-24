@@ -200,6 +200,8 @@ func handleTicketError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceTaxNumberFormat)
 	case errors.Is(err, model.ErrTicketInvoiceEmailEmpty):
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceEmailEmpty)
+	case errors.Is(err, model.ErrTicketInvoiceRemarkTooLong):
+		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceRemarkTooLong, map[string]any{"Max": model.MaxInvoiceRemarkLength})
 	case errors.Is(err, model.ErrTicketInvoiceAmountBelowMin):
 		common.ApiErrorI18n(c, i18n.MsgTicketInvoiceAmountBelowMin, map[string]any{"Amount": operation_setting.MinInvoiceAmount})
 	case errors.Is(err, model.ErrTicketRefundNotFound):

@@ -20,6 +20,7 @@ interface InvoiceDetailProps {
   readonly?: boolean
   loading?: boolean
   onStatusChange?: (status: number) => void
+  fallbackRemark?: string
 }
 
 export function InvoiceDetail({
@@ -28,9 +29,11 @@ export function InvoiceDetail({
   readonly,
   loading,
   onStatusChange,
+  fallbackRemark,
 }: InvoiceDetailProps) {
   const { t } = useTranslation()
   const statusCfg = INVOICE_STATUS_CONFIG[invoice.invoice_status]
+  const remark = invoice.remark?.trim() || fallbackRemark?.trim() || ''
 
   return (
     <Card>
@@ -73,6 +76,10 @@ export function InvoiceDetail({
           <div>
             <dt className="text-muted-foreground">{t('Company Phone')}</dt>
             <dd>{invoice.company_phone || '-'}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="text-muted-foreground">{t('Remark')}</dt>
+            <dd className="whitespace-pre-wrap break-words">{remark || '-'}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">{t('Applied Amount')}</dt>

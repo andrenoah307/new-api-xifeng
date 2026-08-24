@@ -14,6 +14,7 @@ import {
   getTicketPriorityColor,
   getTicketPriorityText,
   getTicketTypeText,
+  extractRemarkFromSummary,
 } from '../../components/ticket/ticketUtils';
 
 const { Title, Text } = Typography;
@@ -177,6 +178,7 @@ const TicketDetail = () => {
         <InvoiceDetail
           invoice={invoice}
           orders={invoiceOrders}
+          fallbackRemark={extractRemarkFromSummary(messages[0]?.content)}
           readonly
           t={t}
         />
@@ -210,4 +212,3 @@ const TicketDetail = () => {
 };
 
 export default TicketDetail;
-

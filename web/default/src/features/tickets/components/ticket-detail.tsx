@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -11,7 +11,6 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SectionPageLayout } from '@/components/layout'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { useState } from 'react'
 import {
   getUserTicketDetail,
   sendUserMessage,
@@ -19,6 +18,10 @@ import {
 } from '../api'
 import { canClose, canReply } from '../constants'
 import { ticketQueryKeys } from '../lib/ticket-actions'
+import {
+  extractRemarkFromSummary,
+  isGeneratedTicketSummary,
+} from '../lib/ticket-summary'
 import {
   TicketStatusBadge,
   TicketPriorityBadge,
@@ -46,7 +49,7 @@ export default function TicketDetailPage({
   })
 
   const ticket = data?.ticket
-  const messages = data?.messages ?? []
+  const messages = useMemo(() => data?.messages ?? [], [data?.messages])
   const invoice = data?.invoice
   const invoiceOrders = data?.invoice_orders ?? []
   const refund = data?.refund
@@ -54,14 +57,16 @@ export default function TicketDetailPage({
   const conversationMessages = useMemo(() => {
     if (messages.length === 0) return messages
     const first = messages[0]
-    if (refund && first?.content?.startsWith('退款申请信息')) {
-      return messages.slice(1)
-    }
-    if (invoice && first?.content?.startsWith('发票申请信息')) {
+    if (isGeneratedTicketSummary(first?.content, ticket?.type ?? '')) {
       return messages.slice(1)
     }
     return messages
-  }, [messages, refund, invoice])
+  }, [messages, ticket?.type])
+
+  const summaryRemark = useMemo(
+    () => extractRemarkFromSummary(messages[0]?.content),
+    [messages]
+  )
 
   const replyMutation = useMutation({
     mutationFn: ({
@@ -174,6 +179,7 @@ export default function TicketDetailPage({
             <InvoiceDetail
               invoice={invoice}
               orders={invoiceOrders}
+              fallbackRemark={summaryRemark}
               readonly
             />
           )}
