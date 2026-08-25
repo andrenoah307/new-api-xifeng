@@ -345,3 +345,5 @@ custom_oauth.provider_id_field_invalid: "无法从提供商响应中提取用户
 
 region.model_blocked:
   other: "模型 '{{.Model}}' 在您所在地区不可用"
+
+user.aff_code_generate_failed: "生成推广码失败，请重试"

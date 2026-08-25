@@ -227,6 +227,30 @@ func GetUUID() string {
 
 const keyChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+const (
+	affCodeChars  = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+	affCodeLength = 8
+
+	// AffCodeGenerationMaxAttempts bounds retries for user inserts and code updates.
+	AffCodeGenerationMaxAttempts = 5
+)
+
+// GenerateAffCode returns an eight-character code from the approved alphabet.
+func GenerateAffCode() (string, error) {
+	b := make([]byte, affCodeLength)
+	maxI := big.NewInt(int64(len(affCodeChars)))
+
+	for i := range b {
+		n, err := crand.Int(crand.Reader, maxI)
+		if err != nil {
+			return "", err
+		}
+		b[i] = affCodeChars[n.Int64()]
+	}
+
+	return string(b), nil
+}
+
 func GenerateRandomCharsKey(length int) (string, error) {
 	b := make([]byte, length)
 	maxI := big.NewInt(int64(len(keyChars)))

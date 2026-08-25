@@ -17,6 +17,9 @@ var (
 	ErrUserNotEnabled       = errors.New("user not enabled")
 )
 
+// ErrAffCodeGenerationExhausted indicates that every bounded candidate collided.
+var ErrAffCodeGenerationExhausted = errors.New("affiliate code generation exhausted")
+
 // Token auth errors
 var (
 	ErrTokenNotProvided = errors.New("token not provided")

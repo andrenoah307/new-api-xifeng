@@ -515,7 +515,7 @@ const RegisterForm = () => {
           showError(message);
         }
       } catch (error) {
-        showError('注册失败，请重试');
+        showError(error?.response?.data?.message || '注册失败，请重试');
       } finally {
         setRegisterLoading(false);
       }

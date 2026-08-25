@@ -228,6 +228,16 @@ func ApiErrorI18n(c *gin.Context, key string, args ...map[string]any) {
 	})
 }
 
+// ApiErrorI18nWithStatus returns a translated error and exposes its i18n key as the code.
+func ApiErrorI18nWithStatus(c *gin.Context, status int, key string, args ...map[string]any) {
+	msg := TranslateMessage(c, key, args...)
+	c.JSON(status, gin.H{
+		"success": false,
+		"message": msg,
+		"code":    key,
+	})
+}
+
 // ApiSuccessI18n returns a translated success message based on the user's language preference
 func ApiSuccessI18n(c *gin.Context, key string, data any, args ...map[string]any) {
 	msg := TranslateMessage(c, key, args...)

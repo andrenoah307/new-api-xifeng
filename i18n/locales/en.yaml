@@ -344,3 +344,5 @@ custom_oauth.provider_id_field_invalid: "Could not extract user ID from provider
 
 region.model_blocked:
   other: "Model '{{.Model}}' is not available in your region"
+
+user.aff_code_generate_failed: "Failed to generate affiliate code. Please try again."
