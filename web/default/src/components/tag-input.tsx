@@ -24,13 +24,17 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-interface TagInputProps {
+export interface TagInputProps {
   value: string[]
   onChange: (tags: string[]) => void
   placeholder?: string
   className?: string
   disabled?: boolean
+  separators?: string[]
+  normalize?: (raw: string) => string | null
 }
+
+const DEFAULT_SEPARATORS = [',']
 
 export function TagInput({
   value = [],
@@ -38,18 +42,39 @@ export function TagInput({
   placeholder,
   className,
   disabled = false,
+  separators = DEFAULT_SEPARATORS,
+  normalize,
 }: TagInputProps) {
   const { t } = useTranslation()
   const placeholderText = placeholder ?? t('Add tags...')
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const isComposingRef = useRef(false)
+  const activeSeparators = separators ?? DEFAULT_SEPARATORS
 
-  const addTag = (tag: string) => {
-    const trimmed = tag.trim()
-    if (trimmed && !value.includes(trimmed)) {
-      onChange([...value, trimmed])
-      setInputValue('')
+  const addTags = (rawInput: string) => {
+    const rawTags = activeSeparators.reduce<string[]>(
+      (parts, separator) => {
+        if (!separator) return parts
+        return parts.flatMap((part) => part.split(separator))
+      },
+      [rawInput]
+    )
+    const nextValue = [...value]
+
+    for (const rawTag of rawTags) {
+      if (!rawTag.trim()) continue
+      const normalized = normalize ? normalize(rawTag) : rawTag.trim()
+      const tag = normalized?.trim() ?? ''
+      if (tag && !nextValue.includes(tag)) {
+        nextValue.push(tag)
+      }
     }
+
+    if (nextValue.length !== value.length) {
+      onChange(nextValue)
+    }
+    setInputValue('')
   }
 
   const removeTag = (tagToRemove: string) => {
@@ -57,17 +82,30 @@ export function TagInput({
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' || e.key === ',') {
+    const nativeEvent = e.nativeEvent
+    const isComposing =
+      isComposingRef.current ||
+      nativeEvent?.isComposing ||
+      nativeEvent?.keyCode === 229 ||
+      e.keyCode === 229
+
+    if (isComposing) return
+
+    if (e.key === 'Enter') {
       e.preventDefault()
-      addTag(inputValue)
+      addTags(inputValue)
+    } else if (activeSeparators.includes(e.key)) {
+      e.preventDefault()
+      addTags(inputValue)
     } else if (e.key === 'Backspace' && !inputValue && value.length > 0) {
-      removeTag(value[value.length - 1])
+      const lastTag = value.at(-1)
+      if (lastTag !== undefined) removeTag(lastTag)
     }
   }
 
   const handleBlur = () => {
     if (inputValue.trim()) {
-      addTag(inputValue)
+      addTags(inputValue)
     }
   }
 
@@ -105,6 +143,12 @@ export function TagInput({
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
+        onCompositionStart={() => {
+          isComposingRef.current = true
+        }}
+        onCompositionEnd={() => {
+          isComposingRef.current = false
+        }}
         onBlur={handleBlur}
         placeholder={value.length === 0 ? placeholderText : ''}
         disabled={disabled}

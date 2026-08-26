@@ -334,7 +334,6 @@
     "• 视频服务商的跨域限制": "• 影片服務商的跨域限制",
     "• 防盗链保护机制": "• 防盜鏈保護機制",
     "• 需要特定的请求头或认证": "• 需要特定的請求頭或認證",
-    "⚠ 未设置任何条件，此规则将匹配所有上游错误": "",
     "「用户可选」决定用户创建令牌时能否自主选择该分组。未勾选的分组只能由管理员在后台分配给用户，不会出现在用户的令牌创建页面中。": "「使用者可選」決定使用者建立令牌時能否自主選擇該分組。未勾選的分組只能由管理員在後台分配給使用者，不會出現在使用者的令牌建立頁面中。",
     "一个月": "一個月",
     "一天": "一天",
@@ -2342,7 +2341,6 @@
     "无值": "",
     "无冲突项": "無衝突項",
     "无加密": "無加密",
-    "无匹配条件（将匹配所有错误）": "",
     "无效": "",
     "无效的部署信息": "無效的部署資訊",
     "无效的重置链接，请重新发起密码重置请求": "無效的重置連結，請重新發起密碼重置請求",
@@ -4961,6 +4959,7 @@
     "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "每使用者 RPM 必須是 0 到 1,000,000 之間的整數（0 表示無每使用者限制）",
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "啟用總額限制時，每使用者 RPM 不能超過總額 RPM",
     "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "總額 RPM 和每使用者 RPM 不能同時為 0；請刪除該分組項目",
-    "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "頂層分組限制涵蓋該分組的所有模型（包括 models 中未列出的模型）：total_rpm 限制全體使用者合計，user_rpm 限制單一使用者，0 表示不限制。"
+    "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "頂層分組限制涵蓋該分組的所有模型（包括 models 中未列出的模型）：total_rpm 限制全體使用者合計，user_rpm 限制單一使用者，0 表示不限制。",
+    "No conditions set — this rule will not match any errors": "未設定任何條件，此規則不會匹配任何錯誤"
   }
 }

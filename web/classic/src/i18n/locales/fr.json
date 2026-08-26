@@ -343,7 +343,6 @@
     "whsec_xxx 的 Webhook 签名密钥，敏感信息不显示": "Clé de signature Webhook whsec_xxx, les informations sensibles ne sont pas affichées",
     "{{days}} 天": "",
     "{{label}} {{price}} / 1M tokens": "",
-    "⚠ 未设置任何条件，此规则将匹配所有上游错误": "",
     "一个月": "Un mois",
     "一天": "Un jour",
     "一小时": "Une heure",
@@ -2368,7 +2367,6 @@
     "无值": "",
     "无冲突项": "Aucun élément en conflit",
     "无加密": "Aucun chiffrement",
-    "无匹配条件（将匹配所有错误）": "",
     "无效": "",
     "无效的部署信息": "Invalid deployment information",
     "无效的重置链接，请重新发起密码重置请求": "Lien de réinitialisation non valide, veuillez lancer une nouvelle demande de réinitialisation de mot de passe",
@@ -4972,6 +4970,7 @@
     "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Le RPM total doit être un entier compris entre 0 et 1 000 000 (0 signifie aucune limite totale)",
     "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "Le RPM par utilisateur doit être un entier compris entre 0 et 1 000 000 (0 signifie aucune limite par utilisateur)",
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Le RPM par utilisateur ne doit pas dépasser le RPM total lorsque la limite totale est activée",
-    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Le RPM total et le RPM par utilisateur ne peuvent pas être tous deux à 0 ; supprimez plutôt l'entrée du groupe"
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Le RPM total et le RPM par utilisateur ne peuvent pas être tous deux à 0 ; supprimez plutôt l'entrée du groupe",
+    "No conditions set — this rule will not match any errors": "Aucune condition définie — cette règle ne correspondra à aucune erreur"
   }
 }

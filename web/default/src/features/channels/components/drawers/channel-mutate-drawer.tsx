@@ -146,7 +146,10 @@ import {
   FIELD_PLACEHOLDERS,
   MODEL_FETCHABLE_TYPES,
 } from '../../constants'
-import { useChannelMutateForm } from '../../hooks/use-channel-mutate-form'
+import {
+  hasSensitiveFormChanges,
+  useChannelMutateForm,
+} from '../../hooks/use-channel-mutate-form'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
   CHANNEL_TYPE_ADVANCED_CUSTOM,
@@ -167,6 +170,7 @@ import {
   validateModelMappingJson,
   hasAdvancedSettingsErrors,
 } from '../../lib'
+import { handleChannelFormKeyDown } from '../../lib/channel-form-keyboard'
 import {
   collectInvalidStatusCodeEntries,
   collectNewDisallowedStatusCodeRedirects,
@@ -277,40 +281,6 @@ const CUSTOM_SETTINGS_CHILD_SECTION_IDS: string[] = Object.values(
 )
 const ADVANCED_CUSTOM_ROUTE_TYPE_PREVIEW_LIMIT = 3
 const UPSTREAM_DETECTED_MODEL_PREVIEW_LIMIT = 8
-const SENSITIVE_FORM_FIELDS = [
-  'type',
-  'base_url',
-  'key',
-  'openai_organization',
-  'other',
-  'key_mode',
-  'param_override',
-  'header_override',
-  'settings',
-  'setting',
-  'advanced_custom',
-  'is_enterprise_account',
-  'vertex_key_type',
-  'aws_key_type',
-  'azure_responses_version',
-  'force_format',
-  'thinking_to_content',
-  'proxy',
-  'pass_through_body_enabled',
-  'system_prompt',
-  'system_prompt_override',
-  'allow_service_tier',
-  'disable_store',
-  'allow_safety_identifier',
-  'allow_include_obfuscation',
-  'allow_inference_geo',
-  'allow_speed',
-  'claude_beta_query',
-  'disable_task_polling_sleep',
-  'upstream_model_update_check_enabled',
-  'upstream_model_update_auto_sync_enabled',
-  'upstream_model_update_ignored_models',
-] satisfies (keyof ChannelFormValues)[]
 
 function readAdvancedSettingsPreference(): boolean {
   if (typeof window === 'undefined') return false
@@ -1676,9 +1646,7 @@ export function ChannelMutateDrawer({
         const dirtyFields = form.formState.dirtyFields as Partial<
           Record<keyof ChannelFormValues, unknown>
         >
-        const hasSensitiveChanges = SENSITIVE_FORM_FIELDS.some((field) =>
-          Boolean(dirtyFields[field])
-        )
+        const hasSensitiveChanges = hasSensitiveFormChanges(dirtyFields)
         if (hasSensitiveChanges) {
           toast.error(
             t('You do not have permission to edit sensitive channel settings.')
@@ -2019,6 +1987,7 @@ export function ChannelMutateDrawer({
             <form
               id='channel-form'
               ref={channelFormRef}
+              onKeyDown={handleChannelFormKeyDown}
               onSubmit={form.handleSubmit(onSubmit, onInvalid)}
               className={sideDrawerFormClassName('gap-5')}
             >

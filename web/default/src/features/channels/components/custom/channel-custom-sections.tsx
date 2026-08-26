@@ -49,20 +49,9 @@ export function ChannelCustomSections({
 }: Props) {
   const { t } = useTranslation()
 
+  // Enter submission is guarded by the parent channel form's bubbling handler.
   return (
-    <section
-      className={sideDrawerSectionClassName()}
-      // 这些编辑器里的单行输入（错误码、关键词等）按回车不应提交整个
-      // 渠道表单（提交会触发后端校验并弹"无效的参数"）。
-      onKeyDown={(e) => {
-        if (
-          e.key === 'Enter' &&
-          (e.target as HTMLElement).tagName === 'INPUT'
-        ) {
-          e.preventDefault()
-        }
-      }}
-    >
+    <section className={sideDrawerSectionClassName()}>
       <SideDrawerSectionHeader
         title={t('Custom Extensions')}
         description={t(

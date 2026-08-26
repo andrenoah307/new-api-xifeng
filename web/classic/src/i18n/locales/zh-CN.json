@@ -336,7 +336,6 @@
     "• 视频服务商的跨域限制": "• 视频服务商的跨域限制",
     "• 防盗链保护机制": "• 防盗链保护机制",
     "• 需要特定的请求头或认证": "• 需要特定的请求头或认证",
-    "⚠ 未设置任何条件，此规则将匹配所有上游错误": "⚠ 未设置任何条件，此规则将匹配所有上游错误",
     "一个月": "一个月",
     "一天": "一天",
     "一小时": "一小时",
@@ -2375,7 +2374,6 @@
     "无值": "无值",
     "无冲突项": "无冲突项",
     "无加密": "无加密",
-    "无匹配条件（将匹配所有错误）": "无匹配条件（将匹配所有错误）",
     "无效": "无效",
     "无效的部署信息": "无效的部署信息",
     "无效的重置链接，请重新发起密码重置请求": "无效的重置链接，请重新发起密码重置请求",
@@ -5124,6 +5122,7 @@
     "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "每用户 RPM 必须是 0 到 1,000,000 之间的整数（0 表示无每用户限制）",
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "启用总额限制时，每用户 RPM 不能超过总额 RPM",
     "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "总额 RPM 和每用户 RPM 不能同时为 0；请删除该分组条目",
-    "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "顶层分组限制覆盖该分组的所有模型（包括 models 中未列出的模型）：total_rpm 限制全体用户合计，user_rpm 限制单个用户，0 表示不限制。"
+    "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "顶层分组限制覆盖该分组的所有模型（包括 models 中未列出的模型）：total_rpm 限制全体用户合计，user_rpm 限制单个用户，0 表示不限制。",
+    "No conditions set — this rule will not match any errors": "未设置任何条件，此规则不会匹配任何错误"
   }
 }

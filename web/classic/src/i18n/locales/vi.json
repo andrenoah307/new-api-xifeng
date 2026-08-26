@@ -337,7 +337,6 @@
     "• 视频服务商的跨域限制": "• Cross-origin limitations from the video provider",
     "• 防盗链保护机制": "• Hotlink protection mechanisms",
     "• 需要特定的请求头或认证": "• Specific headers or authentication are required",
-    "⚠ 未设置任何条件，此规则将匹配所有上游错误": "",
     "「用户可选」决定用户创建令牌时能否自主选择该分组。未勾选的分组只能由管理员在后台分配给用户，不会出现在用户的令牌创建页面中。": "\"User Selectable\" controls whether users can choose this group when creating tokens. Unchecked groups can only be assigned by admin and won't appear in the token creation page.",
     "一个月": "Một tháng",
     "一天": "Một ngày",
@@ -2338,7 +2337,6 @@
     "无值": "",
     "无冲突项": "Không có mục xung đột",
     "无加密": "Không mã hóa",
-    "无匹配条件（将匹配所有错误）": "",
     "无效": "",
     "无效的部署信息": "Invalid deployment information",
     "无效的重置链接，请重新发起密码重置请求": "Liên kết đặt lại không hợp lệ, vui lòng bắt đầu yêu cầu đặt lại mật khẩu mới",
@@ -5482,6 +5480,7 @@
     "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Tổng RPM phải là số nguyên từ 0 đến 1.000.000 (0 nghĩa là không giới hạn tổng)",
     "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "RPM mỗi người dùng phải là số nguyên từ 0 đến 1.000.000 (0 nghĩa là không giới hạn mỗi người dùng)",
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Khi bật giới hạn tổng, RPM mỗi người dùng không được vượt quá tổng RPM",
-    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Tổng RPM và RPM mỗi người dùng không thể đồng thời bằng 0; hãy xóa mục nhóm thay thế"
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Tổng RPM và RPM mỗi người dùng không thể đồng thời bằng 0; hãy xóa mục nhóm thay thế",
+    "No conditions set — this rule will not match any errors": "Chưa đặt điều kiện — quy tắc này sẽ không khớp với lỗi nào"
   }
 }

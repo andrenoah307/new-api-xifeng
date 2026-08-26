@@ -133,12 +133,13 @@ const RuleSummary = ({ rule, t }) => {
       {conditions.length > 0 ? (
         <Text type='secondary' size='small'>{conditions.join(' · ')}</Text>
       ) : (
-        <Text type='tertiary' size='small'>{t('无匹配条件（将匹配所有错误）')}</Text>
+        <Text type='tertiary' size='small'>
+          {t('No conditions set — this rule will not match any errors')}
+        </Text>
       )}
     </div>
   );
 };
-
 
 // 从错误日志中提取可用信息
 const parseErrorLog = (log) => {
@@ -180,7 +181,7 @@ const RecentErrorsModal = ({ visible, onClose, channelId, onApply, t }) => {
     setLoading(true);
     try {
       const res = await API.get(
-        `/api/log/?type=5&channel=${channelId}&p=1&page_size=50`,
+        `/api/log/?type=5&channel=${channelId}&p=1&page_size=50&total_count=50`,
       );
       if (res.data?.success) {
         const items = res.data.data?.items || [];
@@ -481,7 +482,8 @@ const RuleItem = ({ rule, index, onUpdate, onRemove, t, actionOptions, channelId
               </Row>
               {!hasCondition && (
                 <div className='text-xs px-2 py-1 rounded' style={{ backgroundColor: 'var(--semi-color-warning-light-default)', color: 'var(--semi-color-warning)' }}>
-                  {t('⚠ 未设置任何条件，此规则将匹配所有上游错误')}
+                  <span aria-hidden='true'>⚠</span>{' '}
+                  {t('No conditions set — this rule will not match any errors')}
                 </div>
               )}
             </div>

@@ -353,7 +353,6 @@
     "• 视频服务商的跨域限制": "• Cross-origin limitations from the video provider",
     "• 防盗链保护机制": "• Hotlink protection mechanisms",
     "• 需要特定的请求头或认证": "• Specific headers or authentication are required",
-    "⚠ 未设置任何条件，此规则将匹配所有上游错误": "",
     "「用户可选」决定用户创建令牌时能否自主选择该分组。未勾选的分组只能由管理员在后台分配给用户，不会出现在用户的令牌创建页面中。": "\"User Selectable\" controls whether users can choose this group when creating tokens. Unchecked groups can only be assigned by admin and won't appear in the token creation page.",
     "一个月": "A month",
     "一天": "One day",
@@ -2427,7 +2426,6 @@
     "无值": "",
     "无冲突项": "No conflict items",
     "无加密": "No encryption",
-    "无匹配条件（将匹配所有错误）": "",
     "无效": "",
     "无效的部署信息": "Invalid deployment information",
     "无效的重置链接，请重新发起密码重置请求": "Invalid reset link, please initiate a new password reset request",
@@ -5199,6 +5197,7 @@
     "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)",
     "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)",
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Per-user RPM must not exceed the total RPM when the total limit is enabled",
-    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Total RPM and per-user RPM cannot both be 0; delete the group entry instead"
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Total RPM and per-user RPM cannot both be 0; delete the group entry instead",
+    "No conditions set — this rule will not match any errors": "No conditions set — this rule will not match any errors"
   }
 }

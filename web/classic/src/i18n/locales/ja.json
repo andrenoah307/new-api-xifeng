@@ -336,7 +336,6 @@
     "• 视频服务商的跨域限制": "• Cross-origin limitations from the video provider",
     "• 防盗链保护机制": "• Hotlink protection mechanisms",
     "• 需要特定的请求头或认证": "• Specific headers or authentication are required",
-    "⚠ 未设置任何条件，此规则将匹配所有上游错误": "",
     "「用户可选」决定用户创建令牌时能否自主选择该分组。未勾选的分组只能由管理员在后台分配给用户，不会出现在用户的令牌创建页面中。": "「ユーザー選択可」はトークン作成時にユーザーがこのグループを選択できるかを制御します。未チェックのグループは管理者のみが割り当て可能で、トークン作成画面には表示されません。",
     "一个月": "1ヶ月",
     "一天": "1日",
@@ -2337,7 +2336,6 @@
     "无值": "",
     "无冲突项": "競合項目なし",
     "无加密": "暗号化なし",
-    "无匹配条件（将匹配所有错误）": "",
     "无效": "",
     "无效的部署信息": "Invalid deployment information",
     "无效的重置链接，请重新发起密码重置请求": "無効なパスワードリセットリンクです。再度パスワードのリセットをリクエストしてください",
@@ -4939,6 +4937,7 @@
     "Total RPM must be an integer between 0 and 1,000,000 (0 means no total limit)": "合計 RPM は 0 から 1,000,000 までの整数で指定してください（0 は合計制限なし）",
     "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "ユーザーごとの RPM は 0 から 1,000,000 までの整数で指定してください（0 はユーザーごとの制限なし）",
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "合計制限が有効な場合、ユーザーごとの RPM は合計 RPM 以下にしてください",
-    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "合計 RPM とユーザーごとの RPM を両方 0 にはできません。代わりにグループ項目を削除してください"
+    "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "合計 RPM とユーザーごとの RPM を両方 0 にはできません。代わりにグループ項目を削除してください",
+    "No conditions set — this rule will not match any errors": "条件が設定されていないため、このルールはどのエラーにも一致しません"
   }
 }
