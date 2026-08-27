@@ -5506,6 +5506,15 @@
     "Switch channel and retry": "Переключить канал и повторить",
     "e.g. rate limit": "например rate limit",
     "e.g. rate_limit_exceeded": "например rate_limit_exceeded",
-    "Different condition types are AND; values within a type are OR.": "Разные типы условий объединяются через И, а значения одного типа — через ИЛИ."
+    "Different condition types are AND; values within a type are OR.": "Разные типы условий объединяются через И, а значения одного типа — через ИЛИ.",
+    "Zero-charge guard": "Защита от нулевого списания",
+    "Zero-charge guard applied": "Защита от нулевого списания сработала",
+    "Upstream usage was cleared because the response was empty or usage was missing": "Данные использования upstream обнулены, потому что ответ пуст или данные использования отсутствуют",
+    "Empty output": "Пустой вывод",
+    "Usage missing": "Данные использования отсутствуют",
+    "Prompt tokens": "Токены запроса",
+    "Completion tokens": "Токены ответа",
+    "Cache read tokens": "Токены чтения кэша",
+    "Pre-consumed quota": "Предварительно списанная квота"
   }
 }

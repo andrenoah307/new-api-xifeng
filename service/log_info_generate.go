@@ -49,6 +49,34 @@ func attachQuotaSaturation(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, o
 		clamp.Op, clamp.Kind, clamp.Original, clamp.Clamped, relayInfo.UserId, relayInfo.OriginModelName))
 }
 
+// attachZeroChargeGuard records the bounded raw-token snapshot under
+// other.admin_info. The log formatter removes admin_info for non-admin views,
+// so the anomaly remains administrator-only without a second redaction path.
+func attachZeroChargeGuard(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
+	if relayInfo == nil || !relayInfo.ZeroChargeGuardTriggered || relayInfo.ZeroChargeGuardSnapshot == nil || other == nil {
+		return
+	}
+	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	if !ok || adminInfo == nil {
+		adminInfo = map[string]interface{}{}
+		other["admin_info"] = adminInfo
+	}
+	marker := relayInfo.ZeroChargeGuardSnapshot.AuditMap()
+	adminInfo["zero_charge_guard"] = marker
+	if ctx != nil {
+		logger.LogWarn(ctx, fmt.Sprintf("zero-charge guard applied: reason=%s user=%d channel=%d model=%s prompt_tokens=%d completion_tokens=%d cache_read_tokens=%d cache_creation_tokens=%d",
+			relayInfo.ZeroChargeGuardSnapshot.Reason,
+			relayInfo.UserId,
+			relayInfo.ChannelId,
+			relayInfo.OriginModelName,
+			relayInfo.ZeroChargeGuardSnapshot.PromptTokens,
+			relayInfo.ZeroChargeGuardSnapshot.CompletionTokens,
+			relayInfo.ZeroChargeGuardSnapshot.CacheReadTokens,
+			relayInfo.ZeroChargeGuardSnapshot.CacheCreationTokens,
+		))
+	}
+}
+
 func attachStreamOverloadRewrite(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {
 	if relayInfo == nil || relayInfo.StreamOverloadRewrite == nil || other == nil {
 		return

@@ -937,6 +937,54 @@ export function DetailsDialog(props: DetailsDialogProps) {
           </DetailSection>
         )}
 
+        {/* Empty/untrusted usage zero-charge marker (admin only) */}
+        {props.isAdmin && other?.admin_info?.zero_charge_guard && (
+          <DetailSection
+            icon={<AlertTriangle className='size-3.5' aria-hidden='true' />}
+            label={t('Zero-charge guard')}
+            variant='danger'
+          >
+            <p className='mb-1 text-xs wrap-break-word'>
+              {t('Upstream usage was cleared because the response was empty or usage was missing')}
+            </p>
+            <DetailRow
+              label={t('Reason')}
+              value={t(
+                other.admin_info.zero_charge_guard.reason === 'empty_output'
+                  ? 'Empty output'
+                  : 'Usage missing'
+              )}
+            />
+            <DetailRow
+              label={t('Prompt tokens')}
+              value={String(other.admin_info.zero_charge_guard.prompt_tokens)}
+              mono
+            />
+            <DetailRow
+              label={t('Completion tokens')}
+              value={String(other.admin_info.zero_charge_guard.completion_tokens)}
+              mono
+            />
+            <DetailRow
+              label={t('Cache read tokens')}
+              value={String(other.admin_info.zero_charge_guard.cache_read_tokens)}
+              mono
+            />
+            <DetailRow
+              label={t('Cache creation tokens')}
+              value={String(other.admin_info.zero_charge_guard.cache_creation_tokens)}
+              mono
+            />
+            {other.admin_info.zero_charge_guard.pre_consumed_quota != null && (
+              <DetailRow
+                label={t('Pre-consumed quota')}
+                value={String(other.admin_info.zero_charge_guard.pre_consumed_quota)}
+                mono
+              />
+            )}
+          </DetailSection>
+        )}
+
         {/* Reject reason (admin only) */}
         {props.isAdmin && other?.reject_reason && (
           <DetailSection

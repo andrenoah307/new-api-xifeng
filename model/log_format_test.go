@@ -21,6 +21,11 @@ func TestFormatUserLogsStripsQuotaSaturation(t *testing.T) {
 				"kind":    "overflow",
 				"clamped": common.MaxQuota,
 			},
+			"zero_charge_guard": map[string]interface{}{
+				"reason":            "empty_output",
+				"prompt_tokens":     1601,
+				"completion_tokens": 553250,
+			},
 		},
 	})
 	logs := []*Log{{Other: other}}

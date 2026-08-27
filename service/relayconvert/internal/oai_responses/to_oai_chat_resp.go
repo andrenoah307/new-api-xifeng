@@ -224,6 +224,11 @@ func ExtractReasoningTextFromResponses(resp *dto.OpenAIResponsesResponse) string
 				sb.WriteString(c.Text)
 			}
 		}
+		for _, c := range out.Summary {
+			if c.Text != "" {
+				sb.WriteString(c.Text)
+			}
+		}
 	}
 	return sb.String()
 }

@@ -343,6 +343,7 @@
     "whsec_xxx 的 Webhook 签名密钥，敏感信息不显示": "Clé de signature Webhook whsec_xxx, les informations sensibles ne sont pas affichées",
     "{{days}} 天": "",
     "{{label}} {{price}} / 1M tokens": "",
+    "No conditions set — this rule will not match any errors": "Aucune condition définie — cette règle ne correspondra à aucune erreur",
     "一个月": "Un mois",
     "一天": "Un jour",
     "一小时": "Une heure",
@@ -4971,6 +4972,15 @@
     "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "Le RPM par utilisateur doit être un entier compris entre 0 et 1 000 000 (0 signifie aucune limite par utilisateur)",
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Le RPM par utilisateur ne doit pas dépasser le RPM total lorsque la limite totale est activée",
     "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Le RPM total et le RPM par utilisateur ne peuvent pas être tous deux à 0 ; supprimez plutôt l'entrée du groupe",
-    "No conditions set — this rule will not match any errors": "Aucune condition définie — cette règle ne correspondra à aucune erreur"
+    "零计费保护": "Protection contre la facturation nulle",
+    "上游用量已清零": "Utilisation amont mise à zéro",
+    "空输出": "Sortie vide",
+    "上游缺少用量": "Utilisation amont manquante",
+    "原始提示 Tokens": "Tokens de prompt d'origine",
+    "原始补全 Tokens": "Tokens de complétion d'origine",
+    "原始缓存读取 Tokens": "Tokens de lecture du cache d'origine",
+    "原始缓存创建 Tokens": "Tokens de création du cache d'origine",
+    "预扣额度": "Quota pré-consommé",
+    "零计费保护已触发": "Protection de facturation nulle déclenchée"
   }
 }

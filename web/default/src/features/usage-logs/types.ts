@@ -150,6 +150,15 @@ export interface LogOtherData {
       original_code?: string
       count?: number
     }
+    // Empty/untrusted upstream usage was zeroed before settlement. Admin-only.
+    zero_charge_guard?: {
+      reason: 'empty_output' | 'usage_missing' | string
+      prompt_tokens: number
+      completion_tokens: number
+      cache_read_tokens: number
+      cache_creation_tokens: number
+      pre_consumed_quota?: number
+    }
   }
   // Language-independent operation descriptor (audit/login logs).
   // Frontend renders localized content from action + params via i18n templates.

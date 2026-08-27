@@ -929,6 +929,18 @@ export const getLogsColumns = ({
           t,
         );
 
+        if (isAdminUser && getLogOther(record.other)?.admin_info?.zero_charge_guard) {
+          const guardSegment = {
+            text: t('零计费保护已触发'),
+            tone: 'primary',
+          };
+          if (detailSummary) {
+            detailSummary.segments = [guardSegment, ...detailSummary.segments];
+          } else {
+            return renderCompactDetailSummary([guardSegment]);
+          }
+        }
+
         if (!detailSummary) {
           return (
             <Typography.Paragraph

@@ -5506,6 +5506,15 @@
     "Switch channel and retry": "Changer de canal et réessayer",
     "e.g. rate limit": "ex. rate limit",
     "e.g. rate_limit_exceeded": "ex. rate_limit_exceeded",
-    "Different condition types are AND; values within a type are OR.": "Les types de conditions sont combinés par ET ; les valeurs d’un même type par OU."
+    "Different condition types are AND; values within a type are OR.": "Les types de conditions sont combinés par ET ; les valeurs d’un même type par OU.",
+    "Zero-charge guard": "Protection contre la facturation nulle",
+    "Zero-charge guard applied": "Protection de facturation nulle déclenchée",
+    "Upstream usage was cleared because the response was empty or usage was missing": "L’utilisation amont a été remise à zéro car la réponse était vide ou les données d’utilisation manquaient",
+    "Empty output": "Sortie vide",
+    "Usage missing": "Données d’utilisation manquantes",
+    "Prompt tokens": "Jetons de prompt",
+    "Completion tokens": "Jetons de complétion",
+    "Cache read tokens": "Jetons de lecture du cache",
+    "Pre-consumed quota": "Quota pré-consommé"
   }
 }

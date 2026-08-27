@@ -93,6 +93,7 @@ func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 	if claudeError := claudeResponse.GetClaudeError(); claudeError != nil && claudeError.Type != "" {
 		return types.WithClaudeError(*claudeError, http.StatusInternalServerError)
 	}
+	relaycommon.MarkClaudeResponseOutput(info, &claudeResponse)
 	if claudeResponse.StopReason != "" {
 		maybeMarkClaudeRefusal(c, claudeResponse.StopReason)
 	}
@@ -131,9 +132,16 @@ func HandleStreamResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 }
 
 func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo) {
-	upstreamUsageMissing := !claudeInfo.Done && claudeInfo.Usage.PromptTokens == 0 &&
+	if claudeInfo == nil {
+		return
+	}
+	if claudeInfo.Usage == nil {
+		claudeInfo.Usage = &dto.Usage{}
+	}
+	usagePresent := relaycommon.UsageHasAnyTokenData(claudeInfo.Usage)
+	upstreamUsageMissing := !usagePresent || (!claudeInfo.Done && claudeInfo.Usage.PromptTokens == 0 &&
 		claudeInfo.Usage.PromptTokensDetails.CachedTokens == 0 &&
-		claudeInfo.Usage.PromptTokensDetails.CachedCreationTokens == 0
+		claudeInfo.Usage.PromptTokensDetails.CachedCreationTokens == 0)
 	if (claudeInfo.Usage.CompletionTokens == 0 || !claudeInfo.Done) && !upstreamUsageMissing {
 		if common.DebugEnabled {
 			common.SysLog("claude response usage is not complete, maybe upstream error")
@@ -153,23 +161,23 @@ func HandleStreamFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, clau
 		}
 		claudeInfo.Usage.TotalTokens = claudeInfo.Usage.PromptTokens + claudeInfo.Usage.CompletionTokens
 	}
-	// 空输出兜底：上游 usage 显示 output=0 且整段流没有任何响应文本/思考内容，
-	// 视为上游 usage 不全（坑点 #94 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
-	// 坑点 #129：断流且上游 usage 完全缺失时零计费，禁止用 runes×3/2 估算计费，对齐 OpenAI handler。
-	if (claudeInfo.Usage.CompletionTokens == 0 && claudeInfo.ResponseTextRuneCount == 0) || upstreamUsageMissing {
-		claudeInfo.Usage.PromptTokens = 0
-		claudeInfo.Usage.CompletionTokens = 0
-		claudeInfo.Usage.TotalTokens = 0
-		claudeInfo.Usage.PromptTokensDetails = dto.InputTokenDetails{}
-		claudeInfo.Usage.ClaudeCacheCreation5mTokens = 0
-		claudeInfo.Usage.ClaudeCacheCreation1hTokens = 0
-		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
-	}
 	if claudeInfo.Usage != nil {
 		claudeInfo.Usage.UsageSemantic = "anthropic"
 	}
 	if claudeInfo.Usage != nil && claudeInfo.Usage.BillingUsage == nil {
 		claudeInfo.Usage.BillingUsage = dto.NewClaudeMessagesBillingUsage(buildMessageDeltaPatchUsage(nil, claudeInfo))
+	}
+	// Apply the common closeout only after BillingUsage has been composed.  Otherwise
+	// the nested Claude usage can revive the tokens during settlement.
+	hasOutput := claudeInfo.ResponseTextRuneCount > 0 || (info != nil && info.HasDeliverableOutput)
+	if upstreamUsageMissing || (claudeInfo.Usage.CompletionTokens == 0 &&
+		!relaycommon.UsageHasOutputTokens(claudeInfo.Usage) && !hasOutput) {
+		reason := relaycommon.ZeroChargeReasonEmptyOutput
+		if upstreamUsageMissing || !relaycommon.UsageHasAnyTokenData(claudeInfo.Usage) {
+			reason = relaycommon.ZeroChargeReasonUsageMissing
+		}
+		relaycommon.CloseoutZeroCharge(info, claudeInfo.Usage, reason)
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 	}
 
 	if info.RelayFormat == types.RelayFormatClaude {
@@ -212,22 +220,7 @@ func ClaudeStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.
 // claudeResponseHasContent 检查非流式 Claude 响应中是否含任何可计费产出（文本、思考、工具调用、媒体）。
 // 用于零计费兜底：当上游 OutputTokens=0 且整段 content 无任何内容时，视为上游 usage 不全。
 func claudeResponseHasContent(resp *dto.ClaudeResponse) bool {
-	if resp == nil {
-		return false
-	}
-	for i := range resp.Content {
-		block := &resp.Content[i]
-		if block.Type == "tool_use" || block.Type == "server_tool_use" {
-			return true
-		}
-		if block.GetText() != "" {
-			return true
-		}
-		if block.GetStringContent() != "" {
-			return true
-		}
-	}
-	return false
+	return relaycommon.HasClaudeResponseOutput(resp)
 }
 
 func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claudeInfo *ClaudeResponseInfo, httpResp *http.Response, data []byte) *types.NewAPIError {
@@ -239,11 +232,25 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 	if claudeError := claudeResponse.GetClaudeError(); claudeError != nil && claudeError.Type != "" {
 		return types.WithClaudeError(*claudeError, http.StatusInternalServerError)
 	}
+	relaycommon.MarkClaudeResponseOutput(info, &claudeResponse)
 	maybeMarkClaudeRefusal(c, claudeResponse.StopReason)
 	if claudeInfo.Usage == nil {
 		claudeInfo.Usage = &dto.Usage{}
 	}
+	usagePresent := false
 	if claudeResponse.Usage != nil {
+		usagePresent = relaycommon.UsageHasAnyTokenData(&dto.Usage{
+			PromptTokens:     claudeResponse.Usage.InputTokens,
+			CompletionTokens: claudeResponse.Usage.OutputTokens,
+			TotalTokens:      claudeResponse.Usage.InputTokens + claudeResponse.Usage.OutputTokens,
+			PromptTokensDetails: dto.InputTokenDetails{
+				CachedTokens:         claudeResponse.Usage.CacheReadInputTokens,
+				CachedCreationTokens: claudeResponse.Usage.CacheCreationInputTokens,
+			},
+			ClaudeCacheCreation5mTokens: claudeResponse.Usage.GetCacheCreation5mTokens(),
+			ClaudeCacheCreation1hTokens: claudeResponse.Usage.GetCacheCreation1hTokens(),
+			BillingUsage:                claudeResponse.Usage.BillingUsage,
+		})
 		claudeInfo.Usage.PromptTokens = claudeResponse.Usage.InputTokens
 		claudeInfo.Usage.CompletionTokens = claudeResponse.Usage.OutputTokens
 		claudeInfo.Usage.TotalTokens = claudeResponse.Usage.InputTokens + claudeResponse.Usage.OutputTokens
@@ -257,14 +264,13 @@ func HandleClaudeResponseData(c *gin.Context, info *relaycommon.RelayInfo, claud
 		claudeInfo.Usage.ClaudeCacheCreation5mTokens = claudeResponse.Usage.GetCacheCreation5mTokens()
 		claudeInfo.Usage.ClaudeCacheCreation1hTokens = claudeResponse.Usage.GetCacheCreation1hTokens()
 	}
-	// 非流式空输出兜底：上游 OutputTokens=0 且响应 content 无文本/工具调用，
-	// 视为上游 usage 不全（坑点 #94 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
-	if claudeInfo.Usage.CompletionTokens == 0 && !claudeResponseHasContent(&claudeResponse) {
-		claudeInfo.Usage.PromptTokens = 0
-		claudeInfo.Usage.TotalTokens = 0
-		claudeInfo.Usage.PromptTokensDetails = dto.InputTokenDetails{}
-		claudeInfo.Usage.ClaudeCacheCreation5mTokens = 0
-		claudeInfo.Usage.ClaudeCacheCreation1hTokens = 0
+	if !usagePresent || (claudeInfo.Usage.CompletionTokens == 0 && !relaycommon.UsageHasOutputTokens(claudeInfo.Usage) &&
+		!claudeResponseHasContent(&claudeResponse) && (info == nil || !info.HasDeliverableOutput)) {
+		reason := relaycommon.ZeroChargeReasonEmptyOutput
+		if !usagePresent {
+			reason = relaycommon.ZeroChargeReasonUsageMissing
+		}
+		relaycommon.CloseoutZeroCharge(info, claudeInfo.Usage, reason)
 		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 	}
 	var responseData []byte

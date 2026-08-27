@@ -561,6 +561,39 @@ export const useLogsData = () => {
             ),
           });
         }
+        if (isAdminUser && other?.admin_info?.zero_charge_guard) {
+          const guard = other.admin_info.zero_charge_guard;
+          expandDataLocal.push({
+            key: t('零计费保护'),
+            value: (
+              <span style={{ color: 'var(--semi-color-danger)' }}>
+                {t('上游用量已清零')}（{t(guard.reason === 'empty_output' ? '空输出' : '上游缺少用量')}）
+              </span>
+            ),
+          });
+          expandDataLocal.push({
+            key: t('原始提示 Tokens'),
+            value: guard.prompt_tokens,
+          });
+          expandDataLocal.push({
+            key: t('原始补全 Tokens'),
+            value: guard.completion_tokens,
+          });
+          expandDataLocal.push({
+            key: t('原始缓存读取 Tokens'),
+            value: guard.cache_read_tokens,
+          });
+          expandDataLocal.push({
+            key: t('原始缓存创建 Tokens'),
+            value: guard.cache_creation_tokens,
+          });
+          if (guard.pre_consumed_quota !== undefined && guard.pre_consumed_quota !== null) {
+            expandDataLocal.push({
+              key: t('预扣额度'),
+              value: guard.pre_consumed_quota,
+            });
+          }
+        }
         if (other?.billing_mode === 'tiered_expr' && other?.expr_b64) {
           expandDataLocal.push({
             key: t('计费过程'),

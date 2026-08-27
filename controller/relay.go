@@ -267,6 +267,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
 		relayInfo.RetryIndex = retryParam.GetRetry()
+		// RelayInfo is reused across attempts; discard a failed attempt's
+		// zero-charge/output markers before the next upstream response starts.
+		relayInfo.ResetAttemptUsageState()
+		// LocalCountTokens is still used for the legacy minimum-quota/log-path
+		// semantics, so clear the prior attempt's value as well. It must not
+		// become a cross-attempt billing veto.
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, false)
 		if rateLimitToken != nil {
 			rateLimitToken.Release()
 			rateLimitToken = nil

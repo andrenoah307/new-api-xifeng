@@ -121,6 +121,9 @@ function buildDetailSegments(
   if (isAdmin && other?.admin_info?.usage_semantic_mismatch) {
     prefixes.push({ text: t('Usage semantics normalized'), danger: true })
   }
+  if (isAdmin && other?.admin_info?.zero_charge_guard) {
+    prefixes.push({ text: t('Zero-charge guard applied'), danger: true })
+  }
   return [...prefixes, ...segments]
 }
 

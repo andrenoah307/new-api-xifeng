@@ -34,6 +34,13 @@ func OaiChatToResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	if oaiError := chatResp.GetOpenAIError(); oaiError != nil && oaiError.Type != "" {
 		return nil, types.WithOpenAIError(*oaiError, resp.StatusCode)
 	}
+	relaycommon.MarkOpenAIResponseOutput(info, &chatResp)
+	var rawUsage struct {
+		Usage *dto.Usage `json:"usage"`
+	}
+	if err := common.Unmarshal(body, &rawUsage); err != nil {
+		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
+	}
 
 	if responseID := helper.GetResponseID(c); responseID != "" {
 		chatResp.Id = responseID
@@ -47,11 +54,12 @@ func OaiChatToResponsesHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 		return nil, types.NewOpenAIError(fmt.Errorf("expected OpenAI responses response, got %T", convertResult.Value), types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
 	usage := convertResult.Usage
-	if usage == nil || usage.TotalTokens == 0 {
-		text := service.ExtractOutputTextFromResponses(responsesResp)
-		usage = service.ResponseText2Usage(c, text, info.UpstreamModelName, info.GetEstimatePromptTokens())
-		responsesResp.Usage = relayconvert.UsageFromChatUsage(usage)
+	usagePresent := rawUsage.Usage != nil && relaycommon.UsageHasAnyTokenData(rawUsage.Usage)
+	if !responsesZeroChargeGuardEnabled(info) && (usage == nil || usage.TotalTokens == 0) {
+		usage = service.ResponseText2Usage(c, service.ExtractOutputTextFromResponses(responsesResp), info.UpstreamModelName, info.GetEstimatePromptTokens())
 	}
+	usage = finalizeResponsesUsage(info, usage, info.HasDeliverableOutput || relaycommon.HasOpenAIResponseOutput(&chatResp, nil), usagePresent)
+	responsesResp.Usage = relayconvert.UsageFromChatUsage(usage)
 
 	responseBody, err := common.Marshal(responsesResp)
 	if err != nil {
@@ -77,6 +85,8 @@ func OaiChatToResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
 	streamErr := (*types.NewAPIError)(nil)
+	var usageReported bool
+	var reportedUsage *dto.Usage
 
 	sendEvent := func(event relayconvert.ChatToResponsesStreamEvent) bool {
 		data, err := common.Marshal(event.Payload)
@@ -109,6 +119,17 @@ func OaiChatToResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 			sr.Error(err)
 			return
 		}
+		relaycommon.MarkChatCompletionsOutput(info, &chunk)
+		if chunk.Usage != nil && relaycommon.UsageHasAnyTokenData(chunk.Usage) {
+			usageReported = true
+			reportedUsage = chunk.Usage
+		}
+		// Usage is emitted by the final Responses event after settlement. Keep
+		// it out of intermediate converted events so a later zero-charge
+		// closeout cannot leave a stale input-only usage on the wire.
+		if responsesZeroChargeGuardEnabled(info) {
+			chunk.Usage = nil
+		}
 
 		results, err := relayconvert.ConvertStreamResponseChunk(c, info, state, &chunk)
 		if err != nil {
@@ -135,10 +156,14 @@ func OaiChatToResponsesStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 	}
 
 	usage := state.Usage()
-	if usage == nil || usage.TotalTokens == 0 {
-		usage = service.ResponseText2Usage(c, state.UsageText(), info.UpstreamModelName, info.GetEstimatePromptTokens())
-		state.SetUsage(usage)
+	if reportedUsage != nil {
+		usage = relayconvert.UsageFromChatUsage(reportedUsage)
 	}
+	if !responsesZeroChargeGuardEnabled(info) && (usage == nil || usage.TotalTokens == 0) {
+		usage = service.ResponseText2Usage(c, state.UsageText(), info.UpstreamModelName, info.GetEstimatePromptTokens())
+	}
+	usage = finalizeResponsesUsage(info, usage, info.HasDeliverableOutput, usageReported)
+	state.SetUsage(usage)
 
 	finalResults, err := relayconvert.FinalizeStreamResponse(c, info, state)
 	if err != nil {

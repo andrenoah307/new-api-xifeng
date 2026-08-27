@@ -5506,6 +5506,15 @@
     "Switch channel and retry": "Switch channel and retry",
     "e.g. rate limit": "e.g. rate limit",
     "e.g. rate_limit_exceeded": "e.g. rate_limit_exceeded",
-    "Different condition types are AND; values within a type are OR.": "Different condition types are AND; values within a type are OR."
+    "Different condition types are AND; values within a type are OR.": "Different condition types are AND; values within a type are OR.",
+    "Zero-charge guard": "Zero-charge guard",
+    "Zero-charge guard applied": "Zero-charge guard applied",
+    "Upstream usage was cleared because the response was empty or usage was missing": "Upstream usage was cleared because the response was empty or usage was missing",
+    "Empty output": "Empty output",
+    "Usage missing": "Usage missing",
+    "Prompt tokens": "Prompt tokens",
+    "Completion tokens": "Completion tokens",
+    "Cache read tokens": "Cache read tokens",
+    "Pre-consumed quota": "Pre-consumed quota"
   }
 }

@@ -361,16 +361,20 @@ type IncompleteDetails struct {
 }
 
 type ResponsesOutput struct {
-	Type      string                   `json:"type"`
-	ID        string                   `json:"id"`
-	Status    string                   `json:"status"`
-	Role      string                   `json:"role"`
-	Content   []ResponsesOutputContent `json:"content"`
-	Quality   string                   `json:"quality"`
-	Size      string                   `json:"size"`
-	CallId    string                   `json:"call_id,omitempty"`
-	Name      string                   `json:"name,omitempty"`
-	Arguments json.RawMessage          `json:"arguments,omitempty"`
+	Type    string                   `json:"type"`
+	ID      string                   `json:"id"`
+	Status  string                   `json:"status"`
+	Role    string                   `json:"role"`
+	Content []ResponsesOutputContent `json:"content"`
+	// Reasoning items in the Responses API carry their user-visible summary in
+	// `summary`, while message items use `content`. Keep both shapes so output
+	// detection and format conversion do not discard reasoning-only responses.
+	Summary   []ResponsesReasoningSummaryPart `json:"summary,omitempty"`
+	Quality   string                          `json:"quality"`
+	Size      string                          `json:"size"`
+	CallId    string                          `json:"call_id,omitempty"`
+	Name      string                          `json:"name,omitempty"`
+	Arguments json.RawMessage                 `json:"arguments,omitempty"`
 }
 
 // ArgumentsString returns function call arguments in the string form expected by Chat Completions.
@@ -416,7 +420,11 @@ type ResponsesStreamResponse struct {
 	Type     string                   `json:"type"`
 	Response *OpenAIResponsesResponse `json:"response,omitempty"`
 	Delta    string                   `json:"delta,omitempty"`
-	Item     *ResponsesOutput         `json:"item,omitempty"`
+	// Terminal text/tool events use dedicated fields instead of delta.
+	Text      string           `json:"text,omitempty"`
+	Arguments string           `json:"arguments,omitempty"`
+	Input     string           `json:"input,omitempty"`
+	Item      *ResponsesOutput `json:"item,omitempty"`
 	// - response.function_call_arguments.delta
 	// - response.function_call_arguments.done
 	OutputIndex  *int                           `json:"output_index,omitempty"`

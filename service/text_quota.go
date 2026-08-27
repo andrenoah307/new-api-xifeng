@@ -208,6 +208,12 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		UsageSemantic:        usageSemanticFromUsage(relayInfo, usage),
 	}
 	summary.IsClaudeUsageSemantic = summary.UsageSemantic == "anthropic"
+	// A zero-charge closeout is an explicit settlement decision. Return a
+	// zero-token summary before tool/media surcharge calculation or tiered
+	// fallback can reintroduce a charge.
+	if relayInfo != nil && relayInfo.ZeroChargeGuardTriggered {
+		return summary
+	}
 
 	if usage == nil {
 		usage = &dto.Usage{}
@@ -354,6 +360,20 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 	return summary
 }
 
+// usageForTextSettlement is the single usage selection point for text billing.
+// A zero-charge guard intentionally bypasses effectiveBillingUsage so a stale
+// nested BillingUsage cannot revive tokens after the handler cleared them.
+func usageForTextSettlement(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) *dto.Usage {
+	if relayInfo != nil && relayInfo.ZeroChargeGuardTriggered {
+		return &dto.Usage{}
+	}
+	return effectiveBillingUsage(usage)
+}
+
+func shouldApplyTieredSettlement(relayInfo *relaycommon.RelayInfo, originUsage *dto.Usage) bool {
+	return originUsage != nil && (relayInfo == nil || !relayInfo.ZeroChargeGuardTriggered)
+}
+
 func usageSemanticFromUsage(relayInfo *relaycommon.RelayInfo, usage *dto.Usage) string {
 	if usage != nil && usage.UsageSemantic != "" {
 		return usage.UsageSemantic
@@ -462,7 +482,8 @@ func normalizeInclusivePromptForNetSemantics(relayInfo *relaycommon.RelayInfo, u
 
 func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent []string) {
 	originUsage := usage
-	billingUsage := effectiveBillingUsage(usage)
+	zeroChargeGuarded := relayInfo != nil && relayInfo.ZeroChargeGuardTriggered
+	billingUsage := usageForTextSettlement(relayInfo, usage)
 	usageSemanticProbe := buildUsageSemanticProbe(relayInfo, billingUsage)
 	// 必须在 affinity 观测、summary 与 BuildTieredTokenParams 之前收口，
 	// 这样写入日志的 prompt_tokens、quota、tiered_expr 的 p/Len 全部同源为净口径
@@ -471,7 +492,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	if usage == nil {
 		extraContent = append(extraContent, "上游无计费信息")
 	}
-	if originUsage != nil {
+	if originUsage != nil && !zeroChargeGuarded {
 		ObserveChannelAffinityUsageCacheByRelayFormat(ctx, billingUsage, relayInfo.GetFinalRequestRelayFormat())
 	}
 
@@ -480,7 +501,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 
 	var tieredResult *billingexpr.TieredResult
 	tieredBillingApplied := false
-	if originUsage != nil {
+	if shouldApplyTieredSettlement(relayInfo, originUsage) {
 		var tieredUsedVars map[string]bool
 		if snap := relayInfo.TieredBillingSnapshot; snap != nil {
 			tieredUsedVars = billingexpr.UsedVars(snap.ExprString)
@@ -621,6 +642,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	}
 
 	attachQuotaSaturation(ctx, relayInfo, other)
+	attachZeroChargeGuard(ctx, relayInfo, other)
 	attachStreamOverloadRewrite(ctx, relayInfo, other)
 	attachUsageSemanticMismatch(ctx, relayInfo, other, usageSemanticMismatch)
 	attachUsageSemanticProbe(other, usageSemanticProbe)

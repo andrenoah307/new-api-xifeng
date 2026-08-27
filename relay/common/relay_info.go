@@ -133,7 +133,16 @@ type RelayInfo struct {
 	RelayFormat            types.RelayFormat
 	SendResponseCount      int
 	ReceivedResponseCount  int
-	FinalPreConsumedQuota  int // 最终预消耗的配额
+	// HasDeliverableOutput and OutputRuneCount are attempt-scoped signals used
+	// by the zero-charge guard. They deliberately do not reuse the response
+	// counters, which also include control/usage events and survive retries.
+	HasDeliverableOutput  bool
+	OutputRuneCount       int
+	FinalPreConsumedQuota int // 最终预消耗的配额
+	// ZeroChargeGuardTriggered is independent from ContextKeyLocalCountTokens:
+	// the latter also describes legitimate local-estimate billing paths.
+	ZeroChargeGuardTriggered bool
+	ZeroChargeGuardSnapshot  *ZeroChargeGuardSnapshot
 	// ForcePreConsume 为 true 时禁用 BillingSession 的信任额度旁路，
 	// 强制预扣全额。用于异步任务（视频/音乐生成等），因为请求返回后任务仍在运行，
 	// 必须在提交前锁定全额。

@@ -76,16 +76,39 @@ func geminiResponseUsageText(response *dto.GeminiChatResponse) string {
 	return text.String()
 }
 
+func finalizeGeminiUsage(c *gin.Context, info *relaycommon.RelayInfo, response *dto.GeminiChatResponse, usage *dto.Usage, metadataPresent bool) *dto.Usage {
+	if usage == nil {
+		usage = &dto.Usage{}
+	}
+	hasOutput := relaycommon.HasGeminiResponseOutput(response) || (info != nil && info.HasDeliverableOutput)
+	if usage.CompletionTokens == 0 && !relaycommon.UsageHasOutputTokens(usage) && !hasOutput {
+		reason := relaycommon.ZeroChargeReasonEmptyOutput
+		if !metadataPresent {
+			reason = relaycommon.ZeroChargeReasonUsageMissing
+		}
+		relaycommon.CloseoutZeroCharge(info, usage, reason)
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
+	}
+	return usage
+}
+
 func buildUsageFromGeminiResponse(c *gin.Context, info *relaycommon.RelayInfo, response *dto.GeminiChatResponse) dto.Usage {
+	relaycommon.MarkGeminiResponseOutput(info, response)
 	metadata := response.GetUsageMetadata()
 	if dto.HasGeminiUsageMetadataTokens(metadata) {
 		usage := buildUsageFromGeminiMetadata(metadata, info.GetEstimatePromptTokens())
 		patchGeminiZeroCompletionUsage(c, info, &usage, geminiResponseUsageText(response), geminiResponseInlineImageCount(response))
-		return usage
+		return *finalizeGeminiUsage(c, info, response, &usage, true)
+	}
+	if !relaycommon.HasGeminiResponseOutput(response) && (info == nil || !info.HasDeliverableOutput) {
+		usage := &dto.Usage{}
+		relaycommon.CloseoutZeroCharge(info, usage, relaycommon.ZeroChargeReasonUsageMissing)
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
+		return *usage
 	}
 	usage := service.ResponseText2Usage(c, geminiResponseUsageText(response), info.UpstreamModelName, info.GetEstimatePromptTokens())
 	attachEstimatedGeminiBillingUsage(usage)
-	return *usage
+	return *finalizeGeminiUsage(c, info, response, usage, false)
 }
 
 func geminiResponseInlineImageCount(response *dto.GeminiChatResponse) int {
@@ -144,6 +167,7 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 			sr.Stop(fmt.Errorf("unmarshal: %w", err))
 			return
 		}
+		relaycommon.MarkGeminiResponseOutput(info, &geminiResponse)
 
 		if len(geminiResponse.Candidates) == 0 && geminiResponse.PromptFeedback != nil && geminiResponse.PromptFeedback.BlockReason != nil {
 			common.SetContextKey(c, constant.ContextKeyAdminRejectReason, fmt.Sprintf("gemini_block_reason=%s", *geminiResponse.PromptFeedback.BlockReason))
@@ -174,22 +198,22 @@ func geminiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http
 	})
 
 	if !hasBillableUsageMetadata {
-		if info.ReceivedResponseCount > 0 {
+		if info.HasDeliverableOutput || responseText.Len() > 0 || imageCount > 0 {
 			usage = service.ResponseText2Usage(c, responseText.String(), info.UpstreamModelName, info.GetEstimatePromptTokens())
+			if imageCount != 0 && usage.CompletionTokens == 0 {
+				usage.CompletionTokens = imageCount * 1400
+				usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
+				common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
+			}
+			attachEstimatedGeminiBillingUsage(usage)
 		} else {
-			// 空响应兜底：上游 usage 显示 output=0 且整段流无任何响应文本，
-			// 视为上游 usage 不全（坑点 #94 / #122 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
 			usage = &dto.Usage{}
+			relaycommon.CloseoutZeroCharge(info, usage, relaycommon.ZeroChargeReasonUsageMissing)
 			common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 		}
-		if imageCount != 0 && usage.CompletionTokens == 0 {
-			usage.CompletionTokens = imageCount * 1400
-			usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
-			common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
-		}
-		attachEstimatedGeminiBillingUsage(usage)
 	} else {
 		patchGeminiZeroCompletionUsage(c, info, usage, responseText.String(), imageCount)
+		usage = finalizeGeminiUsage(c, info, nil, usage, true)
 	}
 
 	return usage, nil
@@ -300,16 +324,7 @@ func GeminiChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *
 }
 
 func openaiResponseHasContent(response *dto.OpenAITextResponse) bool {
-	if response == nil {
-		return false
-	}
-	for index := range response.Choices {
-		message := &response.Choices[index].Message
-		if len(message.ToolCalls) > 0 || message.GetReasoningContent() != "" || message.StringContent() != "" {
-			return true
-		}
-	}
-	return false
+	return relaycommon.HasOpenAIResponseOutput(response, nil)
 }
 
 func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
@@ -362,13 +377,6 @@ func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 	fullTextResponse := responseGeminiChat2OpenAI(c, &geminiResponse)
 	fullTextResponse.Model = info.UpstreamModelName
 	usage := buildUsageFromGeminiResponse(c, info, &geminiResponse)
-
-	// 空输出兜底：上游 OutputTokens=0 且转换后 OpenAI Choices 无任何文本/工具调用，
-	// 视为上游 usage 不全（坑点 #94 / #122 哲学），整份 usage 归零避免按 prompt × ratio 误扣费。
-	if usage.CompletionTokens == 0 && !openaiResponseHasContent(fullTextResponse) {
-		usage = dto.Usage{}
-		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
-	}
 
 	fullTextResponse.Usage = usage
 

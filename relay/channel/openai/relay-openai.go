@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/relay/channel/openrouter"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/relayconvert"
@@ -135,7 +136,7 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 			}
 
 			lastStreamData = data
-			if err := processTokenData(info.RelayMode, data); err != nil {
+			if err := processTokenData(info, data); err != nil {
 				logger.LogError(c, "error processing stream token data: "+err.Error())
 				sr.Error(err)
 			}
@@ -148,7 +149,7 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 			Usage *dto.Usage `json:"usage"`
 		}
 		err := common.Unmarshal([]byte(secondLastStreamData), &streamResp)
-		if err == nil && streamResp.Usage != nil && service.ValidUsage(streamResp.Usage) {
+		if err == nil && streamResp.Usage != nil && relaycommon.UsageHasAnyTokenData(streamResp.Usage) {
 			usage = streamResp.Usage
 			containStreamUsage = true
 
@@ -167,22 +168,46 @@ func OaiStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Re
 		logger.LogError(c, fmt.Sprintf("error handling last response: %s, lastStreamData: [%s]", err.Error(), lastStreamData))
 	}
 
-	if info.RelayFormat == types.RelayFormatOpenAI {
-		if shouldSendLastResp {
-			_ = sendStreamData(c, info, lastStreamData, info.ChannelSetting.ForceFormat, info.ChannelSetting.ThinkingToContent)
-		}
-	}
-
+	applyUsagePostProcessing(info, usage, common.StringToByteSlice(lastStreamData))
 	if !containStreamUsage {
-		usage = &dto.Usage{}
+		usage = relaycommon.CloseoutZeroCharge(info, usage, relaycommon.ZeroChargeReasonUsageMissing)
+		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
+	} else if usage.CompletionTokens == 0 && !relaycommon.UsageHasOutputTokens(usage) && !info.HasDeliverableOutput {
+		usage = relaycommon.CloseoutZeroCharge(info, usage, relaycommon.ZeroChargeReasonEmptyOutput)
 		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 	}
-
-	applyUsagePostProcessing(info, usage, common.StringToByteSlice(lastStreamData))
+	if info.ZeroChargeGuardTriggered && info.RelayFormat == types.RelayFormatOpenAI {
+		// The scanner keeps the last SSE frame pending. Patch its usage in place
+		// when possible so a prompt-only final usage frame is not exposed after
+		// the closeout has invalidated it. A frame without usage is handled by
+		// HandleFinalResponse, which emits the zero usage frame below.
+		if patched, ok := patchFinalStreamUsage(lastStreamData, usage); ok {
+			lastStreamData = patched
+		}
+	}
+	if info.RelayFormat == types.RelayFormatOpenAI && shouldSendLastResp {
+		_ = sendStreamData(c, info, lastStreamData, info.ChannelSetting.ForceFormat, info.ChannelSetting.ThinkingToContent)
+	}
 
 	HandleFinalResponse(c, info, lastStreamData, responseId, createAt, model, systemFingerprint, usage, containStreamUsage)
 
 	return usage, nil
+}
+
+func patchFinalStreamUsage(data string, usage *dto.Usage) (string, bool) {
+	if data == "" || usage == nil {
+		return data, false
+	}
+	var response dto.ChatCompletionsStreamResponse
+	if err := common.UnmarshalJsonStr(data, &response); err != nil || response.Usage == nil {
+		return data, false
+	}
+	response.Usage = usage
+	patched, err := common.Marshal(&response)
+	if err != nil {
+		return data, false
+	}
+	return string(patched), true
 }
 
 func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
@@ -232,13 +257,24 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 	}
 
 	usageModified := false
-	if simpleResponse.Usage.PromptTokens == 0 && simpleResponse.Usage.CompletionTokens == 0 {
-		simpleResponse.Usage = dto.Usage{}
+	hasOutput := relaycommon.HasOpenAIResponseOutput(&simpleResponse, &simpleResponse.Usage)
+	if info.RelayMode == relayconstant.RelayModeCompletions {
+		var completionsResponse dto.CompletionsStreamResponse
+		if err := common.Unmarshal(responseBody, &completionsResponse); err == nil {
+			hasOutput = relaycommon.HasCompletionsStreamOutput(&completionsResponse)
+		}
+	}
+	applyUsagePostProcessing(info, &simpleResponse.Usage, responseBody)
+	usagePresent := relaycommon.UsageHasAnyTokenData(&simpleResponse.Usage)
+	if !usagePresent || (simpleResponse.Usage.CompletionTokens == 0 && !relaycommon.UsageHasOutputTokens(&simpleResponse.Usage) && !hasOutput) {
+		reason := relaycommon.ZeroChargeReasonEmptyOutput
+		if !usagePresent {
+			reason = relaycommon.ZeroChargeReasonUsageMissing
+		}
+		relaycommon.CloseoutZeroCharge(info, &simpleResponse.Usage, reason)
 		common.SetContextKey(c, constant.ContextKeyLocalCountTokens, true)
 		usageModified = true
 	}
-
-	applyUsagePostProcessing(info, &simpleResponse.Usage, responseBody)
 
 	switch info.RelayFormat {
 	case types.RelayFormatOpenAI:

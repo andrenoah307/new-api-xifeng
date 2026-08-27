@@ -337,6 +337,7 @@
     "• 视频服务商的跨域限制": "• Cross-origin limitations from the video provider",
     "• 防盗链保护机制": "• Hotlink protection mechanisms",
     "• 需要特定的请求头或认证": "• Specific headers or authentication are required",
+    "No conditions set — this rule will not match any errors": "Chưa đặt điều kiện — quy tắc này sẽ không khớp với lỗi nào",
     "「用户可选」决定用户创建令牌时能否自主选择该分组。未勾选的分组只能由管理员在后台分配给用户，不会出现在用户的令牌创建页面中。": "\"User Selectable\" controls whether users can choose this group when creating tokens. Unchecked groups can only be assigned by admin and won't appear in the token creation page.",
     "一个月": "Một tháng",
     "一天": "Một ngày",
@@ -5481,6 +5482,15 @@
     "Per-user RPM must be an integer between 0 and 1,000,000 (0 means no per-user limit)": "RPM mỗi người dùng phải là số nguyên từ 0 đến 1.000.000 (0 nghĩa là không giới hạn mỗi người dùng)",
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "Khi bật giới hạn tổng, RPM mỗi người dùng không được vượt quá tổng RPM",
     "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "Tổng RPM và RPM mỗi người dùng không thể đồng thời bằng 0; hãy xóa mục nhóm thay thế",
-    "No conditions set — this rule will not match any errors": "Chưa đặt điều kiện — quy tắc này sẽ không khớp với lỗi nào"
+    "零计费保护": "Bảo vệ không tính phí",
+    "上游用量已清零": "Đã đặt mức sử dụng từ upstream về 0",
+    "空输出": "Đầu ra trống",
+    "上游缺少用量": "Thiếu mức sử dụng từ upstream",
+    "原始提示 Tokens": "Token prompt ban đầu",
+    "原始补全 Tokens": "Token completion ban đầu",
+    "原始缓存读取 Tokens": "Token đọc bộ nhớ đệm ban đầu",
+    "原始缓存创建 Tokens": "Token tạo bộ nhớ đệm ban đầu",
+    "预扣额度": "Hạn ngạch đã khấu trừ trước",
+    "零计费保护已触发": "Đã kích hoạt bảo vệ không tính phí"
   }
 }

@@ -6,13 +6,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
-	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -100,6 +100,37 @@ func TestOaiStreamHandlerExtractsAudioUsageFromSecondLastChunk(t *testing.T) {
 	assert.Equal(t, 4, usage.PromptTokens)
 	assert.Equal(t, 6, usage.CompletionTokens)
 	assert.Equal(t, 10, usage.TotalTokens)
+}
+
+func TestOaiStreamHandlerUsesTerminalUsageOnly(t *testing.T) {
+	oldMode := gin.Mode()
+	gin.SetMode(gin.TestMode)
+	t.Cleanup(func() { gin.SetMode(oldMode) })
+	oldTimeout := constant.StreamingTimeout
+	constant.StreamingTimeout = 30
+	t.Cleanup(func() { constant.StreamingTimeout = oldTimeout })
+
+	body := strings.Join([]string{
+		`data: {"id":"chat-early","choices":[{"delta":{"content":"hello"}}],"usage":{"prompt_tokens":10,"completion_tokens":0,"total_tokens":10}}`,
+		`data: {"id":"chat-terminal","choices":[]}`,
+		`data: [DONE]`,
+		"",
+	}, "\n")
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	info := &relaycommon.RelayInfo{
+		RelayFormat: types.RelayFormatOpenAI,
+		RelayMode:   relayconstant.RelayModeChatCompletions,
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gpt-test"},
+	}
+	resp := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}
+
+	usage, err := OaiStreamHandler(c, info, resp)
+	require.Nil(t, err)
+	require.NotNil(t, usage)
+	assert.Equal(t, dto.Usage{}, *usage)
+	assert.True(t, info.ZeroChargeGuardTriggered)
 }
 
 func TestOaiStreamHandlerForwardsOpenAIStreamAndUsage(t *testing.T) {
@@ -277,19 +308,40 @@ func TestProcessTokenDataValidatesSupportedRelayModes(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:      "unknown mode skips token accounting",
+			name:      "unknown mode uses chat fallback",
+			relayMode: relayconstant.RelayModeUnknown,
+			data:      `{"choices":[{"delta":{"content":"ok"}}]}`,
+		},
+		{
+			name:      "unknown mode validates chat fallback",
 			relayMode: relayconstant.RelayModeUnknown,
 			data:      `not-json`,
+			wantErr:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := processTokenData(tt.relayMode, tt.data)
+			err := processTokenData(&relaycommon.RelayInfo{
+				RelayFormat: types.RelayFormatOpenAI,
+				RelayMode:   tt.relayMode,
+			}, tt.data)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
 			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestProcessTokenDataSkipsAlreadyDecodedFormats(t *testing.T) {
+	for _, format := range []types.RelayFormat{types.RelayFormatClaude, types.RelayFormatGemini} {
+		t.Run(string(format), func(t *testing.T) {
+			err := processTokenData(&relaycommon.RelayInfo{
+				RelayFormat: format,
+				RelayMode:   relayconstant.RelayModeChatCompletions,
+			}, `not-json`)
 			require.NoError(t, err)
 		})
 	}
@@ -331,8 +383,17 @@ func TestOaiResponsesStreamRuneCounterMatchesWholeText(t *testing.T) {
 			usage, err := OaiResponsesStreamHandler(c, info, resp)
 			require.Nil(t, err)
 			require.NotNil(t, usage)
-			want := service.CountTextToken(strings.Join(tt.chunks, ""), info.UpstreamModelName)
-			assert.Equal(t, want, usage.CompletionTokens)
+			if len(tt.chunks) == 0 {
+				assert.Equal(t, 0, usage.CompletionTokens)
+				return
+			}
+			// Responses streams without an upstream usage object are now
+			// explicitly zero-charged. The bounded rune tracker still records
+			// output for the output-presence contract without estimating a bill.
+			assert.Zero(t, usage.CompletionTokens)
+			assert.True(t, info.HasDeliverableOutput)
+			assert.Equal(t, utf8.RuneCountInString(strings.Join(tt.chunks, "")), info.OutputRuneCount)
+			assert.True(t, info.ZeroChargeGuardTriggered)
 		})
 	}
 }

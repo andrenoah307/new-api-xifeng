@@ -1,6 +1,9 @@
 package claude
 
 import (
+	"bytes"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 	"unicode/utf8"
@@ -184,4 +187,81 @@ func TestClaudeResponseHasContentRejectsEmpty(t *testing.T) {
 	require.False(t, claudeResponseHasContent(&dto.ClaudeResponse{}))
 	emptyText := ""
 	require.False(t, claudeResponseHasContent(&dto.ClaudeResponse{Content: []dto.ClaudeMediaMessage{{Type: "text", Text: &emptyText}}}))
+}
+
+func TestClaudeNonStreamZeroGuardClearsResidualBillingUsage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	info := &relaycommon.RelayInfo{
+		RelayFormat: types.RelayFormatClaude,
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-test"},
+	}
+	claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+	response := &dto.ClaudeResponse{
+		Type: "message",
+		Usage: &dto.ClaudeUsage{
+			InputTokens:  1601,
+			OutputTokens: 0,
+			BillingUsage: &dto.BillingUsage{
+				Source:      dto.BillingUsageSourceClaudeMessages,
+				Semantic:    dto.BillingUsageSemanticAnthropic,
+				ClaudeUsage: &dto.ClaudeUsage{InputTokens: 1601, OutputTokens: 553250},
+			},
+		},
+	}
+	body, err := common.Marshal(response)
+	require.NoError(t, err)
+	httpResp := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body))}
+
+	require.Nil(t, HandleClaudeResponseData(c, info, claudeInfo, httpResp, body))
+	assert.True(t, info.ZeroChargeGuardTriggered)
+	assert.Equal(t, dto.Usage{}, *claudeInfo.Usage)
+	assert.Nil(t, claudeInfo.Usage.BillingUsage)
+	require.NotNil(t, info.ZeroChargeGuardSnapshot)
+	assert.Equal(t, 553250, info.ZeroChargeGuardSnapshot.CompletionTokens)
+}
+
+func TestClaudeNonStreamToolOnlyOutputPreservesPromptUsage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	info := &relaycommon.RelayInfo{
+		RelayFormat: types.RelayFormatClaude,
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-test"},
+	}
+	claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+	response := &dto.ClaudeResponse{
+		Type:    "message",
+		Content: []dto.ClaudeMediaMessage{{Type: "tool_use"}},
+		Usage:   &dto.ClaudeUsage{InputTokens: 1601, OutputTokens: 0},
+	}
+	body, err := common.Marshal(response)
+	require.NoError(t, err)
+	httpResp := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body))}
+
+	require.Nil(t, HandleClaudeResponseData(c, info, claudeInfo, httpResp, body))
+	assert.False(t, info.ZeroChargeGuardTriggered)
+	assert.Equal(t, 1601, claudeInfo.Usage.PromptTokens)
+}
+
+func TestClaudeMissingUsageWithTextStillZeroCharges(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	info := &relaycommon.RelayInfo{
+		RelayFormat: types.RelayFormatClaude,
+		ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "claude-test"},
+	}
+	claudeInfo := &ClaudeResponseInfo{Usage: &dto.Usage{}}
+	text := "visible output"
+	response := &dto.ClaudeResponse{
+		Type:    "message",
+		Content: []dto.ClaudeMediaMessage{{Type: "text", Text: &text}},
+	}
+	body, err := common.Marshal(response)
+	require.NoError(t, err)
+	httpResp := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body))}
+
+	require.Nil(t, HandleClaudeResponseData(c, info, claudeInfo, httpResp, body))
+	assert.True(t, info.ZeroChargeGuardTriggered)
+	assert.Equal(t, dto.Usage{}, *claudeInfo.Usage)
+	assert.Equal(t, relaycommon.ZeroChargeReasonUsageMissing, info.ZeroChargeGuardSnapshot.Reason)
 }

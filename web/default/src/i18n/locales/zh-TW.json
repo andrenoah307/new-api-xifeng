@@ -5506,6 +5506,15 @@
     "Switch channel and retry": "切換頻道重試",
     "e.g. rate limit": "例如 rate limit",
     "e.g. rate_limit_exceeded": "例如 rate_limit_exceeded",
-    "Different condition types are AND; values within a type are OR.": "不同條件類型之間為 AND；同一類型內的值為 OR。"
+    "Different condition types are AND; values within a type are OR.": "不同條件類型之間為 AND；同一類型內的值為 OR。",
+    "Zero-charge guard": "零計費保護",
+    "Zero-charge guard applied": "零計費保護已觸發",
+    "Upstream usage was cleared because the response was empty or usage was missing": "因回應為空或缺少用量，上游用量已清零",
+    "Empty output": "空白輸出",
+    "Usage missing": "缺少用量",
+    "Prompt tokens": "提示 tokens",
+    "Completion tokens": "補全 tokens",
+    "Cache read tokens": "快取讀取 tokens",
+    "Pre-consumed quota": "預扣額度"
   }
 }

@@ -5506,6 +5506,15 @@
     "Switch channel and retry": "次のチャネルに切り替えて再試行",
     "e.g. rate limit": "例: rate limit",
     "e.g. rate_limit_exceeded": "例: rate_limit_exceeded",
-    "Different condition types are AND; values within a type are OR.": "異なる条件種別は AND、同じ種別の値は OR で判定します。"
+    "Different condition types are AND; values within a type are OR.": "異なる条件種別は AND、同じ種別の値は OR で判定します。",
+    "Zero-charge guard": "ゼロ課金ガード",
+    "Zero-charge guard applied": "ゼロ課金ガードが作動しました",
+    "Upstream usage was cleared because the response was empty or usage was missing": "応答が空、または使用量がないため、上流の使用量をゼロにしました",
+    "Empty output": "空の出力",
+    "Usage missing": "使用量がありません",
+    "Prompt tokens": "プロンプトトークン",
+    "Completion tokens": "補完トークン",
+    "Cache read tokens": "キャッシュ読み取りトークン",
+    "Pre-consumed quota": "事前消費クォータ"
   }
 }
