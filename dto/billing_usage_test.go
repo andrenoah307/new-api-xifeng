@@ -49,6 +49,30 @@ func TestNewOpenAIChatBillingUsageRequiresTokenContent(t *testing.T) {
 	assert.Equal(t, 1, billingUsage.OpenAIUsage.PromptTokens)
 }
 
+func TestHasOpenAIUsageTokensIsValueAwareForInputDetails(t *testing.T) {
+	tests := []struct {
+		name  string
+		usage *Usage
+		want  bool
+	}{
+		{name: "nil", usage: nil, want: false},
+		{name: "empty object", usage: &Usage{InputTokensDetails: &InputTokenDetails{}}, want: false},
+		{name: "cache only", usage: &Usage{InputTokensDetails: &InputTokenDetails{CachedTokens: 1}}, want: true},
+		{name: "scalar only", usage: &Usage{PromptTokens: 1}, want: true},
+		{name: "detail only", usage: &Usage{InputTokensDetails: &InputTokenDetails{TextTokens: 1}}, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, HasOpenAIUsageTokens(tt.usage))
+		})
+	}
+
+	require.Nil(t, NewOpenAIResponsesBillingUsage(&Usage{
+		InputTokensDetails: &InputTokenDetails{},
+	}))
+}
+
 func TestNewEstimatedGeminiChatBillingUsage(t *testing.T) {
 	billingUsage := NewEstimatedGeminiChatBillingUsage(&Usage{
 		PromptTokens:     11,

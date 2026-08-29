@@ -284,6 +284,53 @@ test('reconstructs supported OpenAI and Claude ratio token semantics', () => {
   assert.equal(claude.quota, 170)
 })
 
+test('reconstructs Responses cache reads and creation with backend rounding', () => {
+  const result = reconstruct(
+    { prompt_tokens: 100, completion_tokens: 7, quota: 74 },
+    ratioOther({
+      model_ratio: 1,
+      completion_ratio: 1,
+      group_ratio: 1,
+      cache_tokens: 40,
+      cache_ratio: 0.1,
+      cache_creation_tokens: 10,
+      cache_creation_ratio: 1.25,
+    })
+  )
+
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.deepStrictEqual(
+    result.terms.map((term) => [term.kind, term.tokens, term.subtotalUsd]),
+    [
+      ['input', 50, 0.0001],
+      ['cache_read', 40, 0.000008],
+      ['cache_creation', 10, 0.000025],
+      ['output', 7, 0.000014],
+    ]
+  )
+  assert.equal(result.quotaBeforeRound, 73.5)
+  assert.equal(result.quota, 74)
+})
+
+test('clamps the ordinary-input remainder when cache exceeds prompt tokens', () => {
+  const result = reconstruct(
+    { prompt_tokens: 10, completion_tokens: 0, quota: 8 },
+    ratioOther({
+      cache_tokens: 20,
+      cache_ratio: 0.1,
+      cache_creation_tokens: 5,
+      cache_creation_ratio: 1.25,
+    })
+  )
+
+  assert.equal(result.ok, true)
+  if (!result.ok) return
+  assert.equal(result.tokens.p, 0)
+  assert.equal(result.terms.find((term) => term.kind === 'input')?.tokens, 0)
+  assert.equal(result.quota, 8)
+})
+
 test('reconstructs Claude split cache creation buckets', () => {
   const result = reconstruct(
     { prompt_tokens: 100, completion_tokens: 10, quota: 186 },

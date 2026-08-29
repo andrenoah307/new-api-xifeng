@@ -48,6 +48,62 @@ func TestResponsesResponseToChatCompletionsPreservesTextAndToolCalls(t *testing.
 	assert.Equal(t, 7, usage.TotalTokens)
 }
 
+func TestUsageFromResponsesUsageMapsDetailsAndClonesNestedSnapshot(t *testing.T) {
+	src := &dto.Usage{
+		InputTokens:  100,
+		OutputTokens: 7,
+		TotalTokens:  107,
+		InputTokensDetails: &dto.InputTokenDetails{
+			CachedTokens:         40,
+			CachedCreationTokens: 10,
+			CacheWriteTokens:     11,
+			TextTokens:           30,
+			AudioTokens:          4,
+			ImageTokens:          5,
+		},
+	}
+
+	got := UsageFromResponsesUsage(src)
+
+	require.NotNil(t, got)
+	assert.Equal(t, 40, got.PromptTokensDetails.CachedTokens)
+	assert.Equal(t, 10, got.PromptTokensDetails.CachedCreationTokens)
+	assert.Equal(t, 11, got.PromptTokensDetails.CacheWriteTokens)
+	assert.Equal(t, 30, got.PromptTokensDetails.TextTokens)
+	assert.Equal(t, 4, got.PromptTokensDetails.AudioTokens)
+	assert.Equal(t, 5, got.PromptTokensDetails.ImageTokens)
+	require.NotNil(t, got.BillingUsage)
+	require.NotNil(t, got.BillingUsage.OpenAIUsage)
+	require.NotNil(t, got.BillingUsage.OpenAIUsage.InputTokensDetails)
+	assert.Equal(t, dto.BillingUsageSourceOAIResponses, got.BillingUsage.Source)
+	assert.Equal(t, 40, got.BillingUsage.OpenAIUsage.InputTokensDetails.CachedTokens)
+
+	got.BillingUsage.OpenAIUsage.InputTokensDetails.CachedTokens = 99
+	assert.Equal(t, 40, got.PromptTokensDetails.CachedTokens)
+	got.PromptTokensDetails.CachedTokens = 88
+	assert.Equal(t, 99, got.BillingUsage.OpenAIUsage.InputTokensDetails.CachedTokens)
+	assert.Equal(t, 40, src.InputTokensDetails.CachedTokens)
+}
+
+func TestUsageFromResponsesUsageMapsAllDetailsWithoutChangingSourceShape(t *testing.T) {
+	details := &dto.InputTokenDetails{
+		CachedTokens:         1,
+		CachedCreationTokens: 2,
+		CacheWriteTokens:     3,
+		TextTokens:           4,
+		AudioTokens:          5,
+		ImageTokens:          6,
+	}
+	got := UsageFromResponsesUsage(&dto.Usage{InputTokens: 10, InputTokensDetails: details})
+
+	require.NotNil(t, got.BillingUsage)
+	require.NotNil(t, got.BillingUsage.OpenAIUsage)
+	assert.NotNil(t, got.BillingUsage.OpenAIUsage.InputTokensDetails)
+	assert.Nil(t, got.InputTokensDetails)
+	assert.NotSame(t, details, got.BillingUsage.OpenAIUsage.InputTokensDetails)
+	assert.Equal(t, details, got.BillingUsage.OpenAIUsage.InputTokensDetails)
+}
+
 func TestResponsesResponseToChatCompletionsPreservesReasoningSummary(t *testing.T) {
 	resp := &dto.OpenAIResponsesResponse{
 		ID:     "resp_1",

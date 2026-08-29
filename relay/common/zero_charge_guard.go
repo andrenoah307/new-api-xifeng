@@ -74,11 +74,17 @@ func snapshotUsage(usage *dto.Usage) ZeroChargeGuardSnapshot {
 	if usage == nil {
 		return ZeroChargeGuardSnapshot{}
 	}
+	inputCacheReadTokens := 0
+	inputCacheCreationTokens := 0
+	if usage.InputTokensDetails != nil {
+		inputCacheReadTokens = usage.InputTokensDetails.CachedTokens
+		inputCacheCreationTokens = usage.InputTokensDetails.CacheCreationTokensTotal()
+	}
 	snapshot := ZeroChargeGuardSnapshot{
 		PromptTokens:        boundedNonNegative(maxInt(usage.PromptTokens, usage.InputTokens)),
 		CompletionTokens:    boundedNonNegative(maxInt(usage.CompletionTokens, usage.OutputTokens)),
-		CacheReadTokens:     boundedNonNegative(maxInt(usage.PromptTokensDetails.CachedTokens, usage.PromptCacheHitTokens)),
-		CacheCreationTokens: boundedNonNegative(maxInt(usage.PromptTokensDetails.CacheCreationTokensTotal(), saturatingAdd(usage.ClaudeCacheCreation5mTokens, usage.ClaudeCacheCreation1hTokens))),
+		CacheReadTokens:     boundedNonNegative(maxInt(usage.PromptTokensDetails.CachedTokens, usage.PromptCacheHitTokens, inputCacheReadTokens)),
+		CacheCreationTokens: boundedNonNegative(maxInt(usage.PromptTokensDetails.CacheCreationTokensTotal(), inputCacheCreationTokens, saturatingAdd(usage.ClaudeCacheCreation5mTokens, usage.ClaudeCacheCreation1hTokens))),
 	}
 
 	if usage.BillingUsage == nil {

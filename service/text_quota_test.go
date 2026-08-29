@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -276,6 +277,68 @@ func TestCalculateTextQuotaSummaryUsesOpenAIBillingUsageBeforeTopLevelUsage(t *t
 	require.Equal(t, 9, summary.CompletionTokens)
 	require.Equal(t, 89, summary.TotalTokens)
 	require.Equal(t, 98, summary.Quota)
+}
+
+func TestResponsesBillingUsageMatchesTopLevelCacheAccounting(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	priceData := types.PriceData{
+		ModelRatio:         1,
+		CompletionRatio:    1,
+		CacheRatio:         0.1,
+		CacheCreationRatio: 1.25,
+		GroupRatioInfo:     types.GroupRatioInfo{GroupRatio: 1},
+	}
+	newRelayInfo := func() *relaycommon.RelayInfo {
+		return &relaycommon.RelayInfo{
+			RelayFormat:     types.RelayFormatOpenAI,
+			OriginModelName: "gpt-4o",
+			PriceData:       priceData,
+			StartTime:       time.Now(),
+		}
+	}
+
+	details := &dto.InputTokenDetails{
+		CachedTokens:         40,
+		CachedCreationTokens: 10,
+		TextTokens:           30,
+		ImageTokens:          0,
+	}
+	nestedResponses := &dto.Usage{
+		InputTokens:        100,
+		OutputTokens:       7,
+		TotalTokens:        107,
+		InputTokensDetails: details,
+	}
+	nested := &dto.Usage{BillingUsage: &dto.BillingUsage{
+		Source:      dto.BillingUsageSourceOAIResponses,
+		Semantic:    dto.BillingUsageSemanticOpenAI,
+		OpenAIUsage: nestedResponses,
+	}}
+	topLevel := &dto.Usage{
+		PromptTokens:     100,
+		CompletionTokens: 7,
+		TotalTokens:      107,
+		PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens:         40,
+			CachedCreationTokens: 10,
+			TextTokens:           30,
+			ImageTokens:          0,
+		},
+	}
+
+	effective := effectiveBillingUsage(nested)
+	require.NotNil(t, effective)
+	effectiveSummary := calculateTextQuotaSummary(ctx, newRelayInfo(), effective)
+	topLevelSummary := calculateTextQuotaSummary(ctx, newRelayInfo(), topLevel)
+
+	assert.Equal(t, 40, effectiveSummary.CacheTokens)
+	assert.Equal(t, 10, effectiveSummary.CacheCreationTokens)
+	assert.Equal(t, 50, effectiveSummary.PromptTokens-effectiveSummary.CacheTokens-effectiveSummary.CacheCreationTokens)
+	assert.Equal(t, effectiveSummary.CacheTokens, topLevelSummary.CacheTokens)
+	assert.Equal(t, effectiveSummary.CacheCreationTokens, topLevelSummary.CacheCreationTokens)
+	assert.Equal(t, effectiveSummary.Quota, topLevelSummary.Quota)
+	assert.Equal(t, 74, effectiveSummary.Quota)
 }
 
 func TestUsageBillingPathForLog(t *testing.T) {

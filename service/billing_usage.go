@@ -119,6 +119,7 @@ func usageFromOpenAIBillingUsage(billingUsage *dto.BillingUsage) *dto.Usage {
 	}
 	usage.UsageSemantic = dto.BillingUsageSemanticOpenAI
 	usage.UsageSource = billingUsage.Source
+	usage.NormalizePromptTokenDetails(billingUsage.Source)
 	usage.BillingUsage = dto.CloneBillingUsage(billingUsage)
 	return &usage
 }

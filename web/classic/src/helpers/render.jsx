@@ -1653,6 +1653,12 @@ export function renderModelPrice(opts) {
     user_group_ratio,
     cache_tokens: cacheTokens = 0,
     cache_ratio: cacheRatio = 1.0,
+    cache_creation_tokens: cacheCreationTokens = 0,
+    cache_creation_ratio: cacheCreationRatio = 1.0,
+    cache_creation_tokens_5m: cacheCreationTokens5m = 0,
+    cache_creation_ratio_5m: cacheCreationRatio5m = 1.0,
+    cache_creation_tokens_1h: cacheCreationTokens1h = 0,
+    cache_creation_ratio_1h: cacheCreationRatio1h = 1.0,
     image = false,
     image_ratio: imageRatio = 1.0,
     image_output: imageOutputTokens = 0,
@@ -1677,6 +1683,22 @@ export function renderModelPrice(opts) {
   const completionRatio = _completionRatio ?? 0;
 
   const { symbol, rate } = getCurrencyConfig();
+  const hasSplitCacheCreation =
+      cacheCreationTokens5m > 0 || cacheCreationTokens1h > 0;
+  const cacheCreationTokensTotal = hasSplitCacheCreation
+      ? Math.max(
+          cacheCreationTokens,
+          cacheCreationTokens5m + cacheCreationTokens1h,
+      )
+      : Math.max(cacheCreationTokens, 0);
+  const genericCacheCreationTokens = hasSplitCacheCreation
+      ? Math.max(
+          cacheCreationTokensTotal -
+          cacheCreationTokens5m -
+          cacheCreationTokens1h,
+          0,
+      )
+      : cacheCreationTokensTotal;
 
   if (!shouldUseRatioBillingProcess(modelPrice)) {
     if (modelPrice !== -1) {
@@ -1704,9 +1726,24 @@ export function renderModelPrice(opts) {
     const inputRatioPrice = modelRatio * 2.0;
     const completionRatioPrice = modelRatio * 2.0 * completionRatio;
     const cacheRatioPrice = modelRatio * 2.0 * cacheRatio;
+    const cacheCreationRatioPrice = modelRatio * 2.0 * cacheCreationRatio;
+    const cacheCreationRatioPrice5m =
+        modelRatio * 2.0 * cacheCreationRatio5m;
+    const cacheCreationRatioPrice1h =
+        modelRatio * 2.0 * cacheCreationRatio1h;
     const imageRatioPrice = modelRatio * 2.0 * imageRatio;
+    const baseInputTokens = Math.max(
+        inputTokens - cacheTokens - cacheCreationTokensTotal,
+        0,
+    );
+    const weightedCacheCreationTokens =
+        genericCacheCreationTokens * cacheCreationRatio +
+        cacheCreationTokens5m * cacheCreationRatio5m +
+        cacheCreationTokens1h * cacheCreationRatio1h;
     let effectiveInputTokens =
-        inputTokens - cacheTokens + cacheTokens * cacheRatio;
+        baseInputTokens +
+        cacheTokens * cacheRatio +
+        weightedCacheCreationTokens;
     if (image && imageOutputTokens > 0) {
       effectiveInputTokens =
           inputTokens - imageOutputTokens + imageOutputTokens * imageRatio;
@@ -1738,7 +1775,7 @@ export function renderModelPrice(opts) {
       inputDesc = buildBillingText(
           '(输入 {{nonCacheInput}} tokens / 1M tokens * {{symbol}}{{price}} + 缓存 {{cacheInput}} tokens / 1M tokens * {{symbol}}{{cachePrice}}',
           {
-            nonCacheInput: inputTokens - cacheTokens,
+            nonCacheInput: baseInputTokens,
             cacheInput: cacheTokens,
             symbol,
             price: formatBillingDisplayPrice(inputRatioPrice, rate),
@@ -1749,7 +1786,7 @@ export function renderModelPrice(opts) {
       inputDesc = buildBillingText(
           '(输入 {{nonAudioInput}} tokens / 1M tokens * {{symbol}}{{price}} + 音频输入 {{audioInput}} tokens / 1M tokens * {{symbol}}{{audioPrice}}',
           {
-            nonAudioInput: inputTokens - audioInputTokens,
+            nonAudioInput: baseInputTokens - audioInputTokens,
             audioInput: audioInputTokens,
             symbol,
             price: formatBillingDisplayPrice(inputRatioPrice, rate),
@@ -1760,12 +1797,56 @@ export function renderModelPrice(opts) {
       inputDesc = buildBillingPriceText(
           '(输入 {{input}} tokens / 1M tokens * {{symbol}}{{price}}',
           {
-            input: inputTokens,
+            input: baseInputTokens,
             symbol,
             usdAmount: inputRatioPrice,
             rate,
           },
       );
+    }
+
+    const cacheCreationDescriptions = [];
+    if (genericCacheCreationTokens > 0) {
+      cacheCreationDescriptions.push(
+          buildBillingPriceText(
+              '缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}',
+              {
+                symbol,
+                usdAmount: cacheCreationRatioPrice,
+                rate,
+                tokens: genericCacheCreationTokens,
+              },
+          ),
+      );
+    }
+    if (hasSplitCacheCreation && cacheCreationTokens5m > 0) {
+      cacheCreationDescriptions.push(
+          buildBillingPriceText(
+              '5m缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}',
+              {
+                symbol,
+                usdAmount: cacheCreationRatioPrice5m,
+                rate,
+                tokens: cacheCreationTokens5m,
+              },
+          ),
+      );
+    }
+    if (hasSplitCacheCreation && cacheCreationTokens1h > 0) {
+      cacheCreationDescriptions.push(
+          buildBillingPriceText(
+              '1h缓存创建 {{tokens}} tokens / 1M tokens * {{symbol}}{{price}}',
+              {
+                symbol,
+                usdAmount: cacheCreationRatioPrice1h,
+                rate,
+                tokens: cacheCreationTokens1h,
+              },
+          ),
+      );
+    }
+    if (cacheCreationDescriptions.length > 0) {
+      inputDesc += ' + ' + cacheCreationDescriptions.join(' + ');
     }
 
     const outputDesc = buildBillingText(
@@ -1849,6 +1930,36 @@ export function renderModelPrice(opts) {
               },
           )
           : null,
+      genericCacheCreationTokens > 0
+          ? buildBillingPriceText(
+              '缓存创建价格：{{symbol}}{{price}} / 1M tokens',
+              {
+                symbol,
+                usdAmount: cacheCreationRatioPrice,
+                rate,
+              },
+          )
+          : null,
+      hasSplitCacheCreation && cacheCreationTokens5m > 0
+          ? buildBillingPriceText(
+              '5m缓存创建价格：{{symbol}}{{price}} / 1M tokens',
+              {
+                symbol,
+                usdAmount: cacheCreationRatioPrice5m,
+                rate,
+              },
+          )
+          : null,
+      hasSplitCacheCreation && cacheCreationTokens1h > 0
+          ? buildBillingPriceText(
+              '1h缓存创建价格：{{symbol}}{{price}} / 1M tokens',
+              {
+                symbol,
+                usdAmount: cacheCreationRatioPrice1h,
+                rate,
+              },
+          )
+          : null,
       image && imageOutputTokens > 0
           ? buildBillingPriceText(
               '图片输入价格：{{symbol}}{{total}} / 1M tokens',
@@ -1914,6 +2025,9 @@ export function renderModelPrice(opts) {
   const modelRatioValue = formatRatioValue(modelRatio);
   const completionRatioValue = formatRatioValue(completionRatio);
   const cacheRatioValue = formatRatioValue(cacheRatio);
+  const cacheCreationRatioValue = formatRatioValue(cacheCreationRatio);
+  const cacheCreationRatio5mValue = formatRatioValue(cacheCreationRatio5m);
+  const cacheCreationRatio1hValue = formatRatioValue(cacheCreationRatio1h);
   const imageRatioValue = formatRatioValue(imageRatio);
   const inputRatioPrice = modelRatio * 2.0;
   const completionRatioPrice = modelRatio * 2.0 * completionRatioValue;
@@ -1923,12 +2037,13 @@ export function renderModelPrice(opts) {
           : null;
 
   const textInputTokens = Math.max(
-      inputTokens - cacheTokens - audioInputTokens,
+      inputTokens - cacheTokens - cacheCreationTokensTotal - audioInputTokens,
       0,
   );
   const imageInputTokens =
       image && imageOutputTokens > 0 ? imageOutputTokens : 0;
   const cacheInputTokens = cacheTokens;
+  const cacheCreationInputTokens = genericCacheCreationTokens;
 
   const textInputAmount =
       (textInputTokens / 1000000) * inputRatioPrice * groupRatio;
@@ -1936,6 +2051,21 @@ export function renderModelPrice(opts) {
       (cacheInputTokens / 1000000) *
       inputRatioPrice *
       cacheRatioValue *
+      groupRatio;
+  const cacheCreationInputAmount =
+      (cacheCreationInputTokens / 1000000) *
+      inputRatioPrice *
+      cacheCreationRatioValue *
+      groupRatio;
+  const cacheCreationInputAmount5m =
+      (cacheCreationTokens5m / 1000000) *
+      inputRatioPrice *
+      cacheCreationRatio5mValue *
+      groupRatio;
+  const cacheCreationInputAmount1h =
+      (cacheCreationTokens1h / 1000000) *
+      inputRatioPrice *
+      cacheCreationRatio1hValue *
       groupRatio;
   const imageInputAmount =
       (imageInputTokens / 1000000) *
@@ -1955,12 +2085,43 @@ export function renderModelPrice(opts) {
   const totalAmount =
       textInputAmount +
       cacheInputAmount +
+      cacheCreationInputAmount +
+      cacheCreationInputAmount5m +
+      cacheCreationInputAmount1h +
       imageInputAmount +
       audioInputAmount +
       completionAmount +
       webSearchAmount +
       fileSearchAmount +
       imageGenerationAmount;
+
+  let cacheCreationRatioDescription = null;
+  if (hasSplitCacheCreation) {
+    if (cacheCreationTokens5m > 0 && cacheCreationTokens1h > 0) {
+      cacheCreationRatioDescription = buildBillingText(
+          '缓存创建倍率 5m {{cacheCreationRatio5m}} / 1h {{cacheCreationRatio1h}}',
+          {
+            cacheCreationRatio5m: cacheCreationRatio5mValue,
+            cacheCreationRatio1h: cacheCreationRatio1hValue,
+          },
+      );
+    } else if (cacheCreationTokens5m > 0) {
+      cacheCreationRatioDescription = buildBillingText(
+          '缓存创建倍率 5m {{cacheCreationRatio5m}}',
+          { cacheCreationRatio5m: cacheCreationRatio5mValue },
+      );
+    } else if (cacheCreationTokens1h > 0) {
+      cacheCreationRatioDescription = buildBillingText(
+          '缓存创建倍率 1h {{cacheCreationRatio1h}}',
+          { cacheCreationRatio1h: cacheCreationRatio1hValue },
+      );
+    }
+  } else if (cacheCreationInputTokens > 0) {
+    cacheCreationRatioDescription = buildBillingText(
+        '缓存创建倍率 {{cacheCreationRatio}}',
+        { cacheCreationRatio: cacheCreationRatioValue },
+    );
+  }
 
   return renderBillingArticle([
     [
@@ -1975,6 +2136,7 @@ export function renderModelPrice(opts) {
             cacheRatio: cacheRatioValue,
           })
           : null,
+      cacheCreationRatioDescription,
       imageInputTokens > 0
           ? buildBillingText('图片倍率 {{imageRatio}}', {
             imageRatio: imageRatioValue,
@@ -2014,6 +2176,45 @@ export function renderModelPrice(opts) {
               ratioType: ratioLabel,
               ratio: groupRatio,
               amount: renderDisplayAmountFromUsd(cacheInputAmount),
+            },
+        )
+        : null,
+    cacheCreationInputTokens > 0
+        ? buildBillingText(
+            '缓存创建：{{tokens}} / 1M * 模型倍率 {{modelRatio}} * 缓存创建倍率 {{cacheCreationRatio}} * {{ratioType}} {{ratio}} = {{amount}}',
+            {
+              tokens: cacheCreationInputTokens,
+              modelRatio: modelRatioValue,
+              cacheCreationRatio: cacheCreationRatioValue,
+              ratioType: ratioLabel,
+              ratio: groupRatio,
+              amount: renderDisplayAmountFromUsd(cacheCreationInputAmount),
+            },
+        )
+        : null,
+    hasSplitCacheCreation && cacheCreationTokens5m > 0
+        ? buildBillingText(
+            '5m缓存创建：{{tokens}} / 1M * 模型倍率 {{modelRatio}} * 5m缓存创建倍率 {{cacheCreationRatio5m}} * {{ratioType}} {{ratio}} = {{amount}}',
+            {
+              tokens: cacheCreationTokens5m,
+              modelRatio: modelRatioValue,
+              cacheCreationRatio5m: cacheCreationRatio5mValue,
+              ratioType: ratioLabel,
+              ratio: groupRatio,
+              amount: renderDisplayAmountFromUsd(cacheCreationInputAmount5m),
+            },
+        )
+        : null,
+    hasSplitCacheCreation && cacheCreationTokens1h > 0
+        ? buildBillingText(
+            '1h缓存创建：{{tokens}} / 1M * 模型倍率 {{modelRatio}} * 1h缓存创建倍率 {{cacheCreationRatio1h}} * {{ratioType}} {{ratio}} = {{amount}}',
+            {
+              tokens: cacheCreationTokens1h,
+              modelRatio: modelRatioValue,
+              cacheCreationRatio1h: cacheCreationRatio1hValue,
+              ratioType: ratioLabel,
+              ratio: groupRatio,
+              amount: renderDisplayAmountFromUsd(cacheCreationInputAmount1h),
             },
         )
         : null,

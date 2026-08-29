@@ -28,7 +28,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { UsageLog } from '../data/schema'
 import type { LogOtherData } from '../types'
 import { useCommonLogsColumns } from './columns/common-logs-columns'
-import { TokenBreakdown } from './dialogs/details-dialog'
+import { BillingBreakdown, TokenBreakdown } from './dialogs/details-dialog'
 import { MobileTokensField } from './usage-logs-mobile-card'
 
 const i18n = createInstance()
@@ -205,5 +205,30 @@ describe('cache token rendering', () => {
     assert.equal(textContent(render(<DesktopTokensCell log={log} />)), '-')
     assert.equal(textContent(render(<MobileTokensField log={log} />)), '-')
     assert.equal(render(<TokenBreakdown log={log} other={other} />), '')
+  })
+
+  test('shows OpenAI cache read and creation unit prices in billing details', () => {
+    const other: LogOtherData = {
+      model_price: -1,
+      model_ratio: 1,
+      completion_ratio: 1,
+      group_ratio: 1,
+      cache_tokens: 40,
+      cache_ratio: 0.1,
+      cache_creation_tokens: 10,
+      cache_creation_ratio: 1.25,
+    }
+    const markup = render(
+      <BillingBreakdown
+        log={createLog(other, 100, 7)}
+        other={other}
+        isAdmin={false}
+      />
+    )
+    const content = textContent(markup)
+
+    assert.match(content, /Cache Read\$0\.2\/M/)
+    assert.match(content, /Cache Write\$2\.5\/M/)
+    assert.doesNotMatch(content, /Cache Read.*undefined/)
   })
 })

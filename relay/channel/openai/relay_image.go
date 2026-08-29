@@ -77,14 +77,7 @@ func normalizeOpenAIUsage(usage *dto.Usage) {
 	if usage.OutputTokens != 0 {
 		usage.CompletionTokens = usage.OutputTokens
 	}
-	if usage.InputTokensDetails != nil {
-		usage.PromptTokensDetails.CachedTokens = usage.InputTokensDetails.CachedTokens
-		usage.PromptTokensDetails.CachedCreationTokens = usage.InputTokensDetails.CachedCreationTokens
-		usage.PromptTokensDetails.CacheWriteTokens = usage.InputTokensDetails.CacheWriteTokens
-		usage.PromptTokensDetails.ImageTokens = usage.InputTokensDetails.ImageTokens
-		usage.PromptTokensDetails.TextTokens = usage.InputTokensDetails.TextTokens
-		usage.PromptTokensDetails.AudioTokens = usage.InputTokensDetails.AudioTokens
-	}
+	usage.MergeInputTokenDetails(dto.BillingUsageSourceOAIResponses, usage.InputTokensDetails)
 	if usage.TotalTokens == 0 {
 		usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
 	}

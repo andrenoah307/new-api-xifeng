@@ -83,6 +83,34 @@ func TestCloseoutZeroChargeBoundsSnapshotCounters(t *testing.T) {
 	assert.Equal(t, apicommon.MaxQuota, info.ZeroChargeGuardSnapshot.CacheCreationTokens)
 }
 
+func TestCloseoutZeroChargeSnapshotsNestedResponsesCacheDetails(t *testing.T) {
+	nested := &dto.Usage{
+		InputTokens: 100,
+		InputTokensDetails: &dto.InputTokenDetails{
+			CachedTokens:         17,
+			CachedCreationTokens: 23,
+			CacheWriteTokens:     29,
+		},
+	}
+	usage := &dto.Usage{BillingUsage: &dto.BillingUsage{
+		Source:      dto.BillingUsageSourceOAIResponses,
+		Semantic:    dto.BillingUsageSemanticOpenAI,
+		OpenAIUsage: nested,
+	}}
+	info := &RelayInfo{}
+	nestedBefore := *nested
+	nestedDetailsBefore := *nested.InputTokensDetails
+
+	CloseoutZeroCharge(info, usage, ZeroChargeReasonUsageMissing)
+
+	require.NotNil(t, info.ZeroChargeGuardSnapshot)
+	assert.Equal(t, 17, info.ZeroChargeGuardSnapshot.CacheReadTokens)
+	assert.Equal(t, 29, info.ZeroChargeGuardSnapshot.CacheCreationTokens)
+	assert.Equal(t, dto.Usage{}, *usage)
+	assert.Equal(t, nestedBefore, *nested)
+	assert.Equal(t, nestedDetailsBefore, *nested.InputTokensDetails)
+}
+
 func TestCloseoutZeroChargeAllocatesUsageAndUsesFiniteReason(t *testing.T) {
 	info := &RelayInfo{}
 	got := CloseoutZeroCharge(info, nil, ZeroChargeReasonUsageMissing)

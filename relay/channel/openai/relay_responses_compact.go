@@ -35,10 +35,7 @@ func OaiResponsesCompactionHandler(c *gin.Context, resp *http.Response) (*dto.Us
 		usage.PromptTokens = compactResp.Usage.InputTokens
 		usage.CompletionTokens = compactResp.Usage.OutputTokens
 		usage.TotalTokens = compactResp.Usage.TotalTokens
-		if compactResp.Usage.InputTokensDetails != nil {
-			usage.PromptTokensDetails.CachedTokens = compactResp.Usage.InputTokensDetails.CachedTokens
-			usage.PromptTokensDetails.CacheWriteTokens = compactResp.Usage.InputTokensDetails.CacheWriteTokens
-		}
+		usage.MergeInputTokenDetails(dto.BillingUsageSourceOAIResponses, compactResp.Usage.InputTokensDetails)
 	}
 
 	return &usage, nil

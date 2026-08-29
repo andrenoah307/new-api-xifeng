@@ -10,9 +10,11 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,6 +108,40 @@ func TestOpenaiImageStreamHandlerForwardsSSEAndUsage(t *testing.T) {
 	require.Contains(t, recorder.Body.String(), `data: [DONE]`)
 	require.Equal(t, "text/event-stream", recorder.Header().Get("Content-Type"))
 	require.Equal(t, 3.0, info.PriceData.OtherRatios()["n"], "streams without completed events keep the requested count")
+}
+
+func TestNormalizeOpenAIUsageMapsResponsesDetailsFieldForField(t *testing.T) {
+	usage := &dto.Usage{
+		InputTokens:  100,
+		OutputTokens: 7,
+		PromptTokensDetails: dto.InputTokenDetails{
+			CachedTokens:         90,
+			CachedCreationTokens: 91,
+			CacheWriteTokens:     92,
+			TextTokens:           93,
+			AudioTokens:          94,
+			ImageTokens:          95,
+		},
+		InputTokensDetails: &dto.InputTokenDetails{
+			CachedTokens:         1,
+			CachedCreationTokens: 2,
+			CacheWriteTokens:     3,
+			TextTokens:           4,
+			AudioTokens:          5,
+			ImageTokens:          6,
+		},
+	}
+
+	normalizeOpenAIUsage(usage)
+
+	assert.Equal(t, dto.InputTokenDetails{
+		CachedTokens:         1,
+		CachedCreationTokens: 2,
+		CacheWriteTokens:     3,
+		TextTokens:           4,
+		AudioTokens:          5,
+		ImageTokens:          6,
+	}, usage.PromptTokensDetails)
 }
 
 func TestOpenaiImageStreamHandlerUsesCompletedEventCount(t *testing.T) {
