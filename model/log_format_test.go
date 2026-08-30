@@ -116,3 +116,55 @@ func TestFormatUserLogsProtectsOnlyAdminOperatorIP(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatUserLogsRemovesChannelAndRiskControlSentinelsRecursively(t *testing.T) {
+	logs := []*Log{{
+		ChannelName: "stored-channel-name",
+		ChannelId:   812,
+		Other: common.MapToJsonStr(map[string]interface{}{
+			"channel_name": "channel-name-sentinel",
+			"channel_type": 987654321,
+			"risk_control": map[string]interface{}{
+				"token_decision": map[string]interface{}{
+					"group": "risk-group-sentinel",
+				},
+			},
+			"model_price": 0.004,
+		}),
+	}}
+
+	formatUserLogs(logs, 0)
+
+	parsed, err := common.StrToMap(logs[0].Other)
+	require.NoError(t, err)
+	var containsSentinel func(any) bool
+	containsSentinel = func(value any) bool {
+		switch current := value.(type) {
+		case map[string]interface{}:
+			for key, nested := range current {
+				if key == "channel_name" || key == "channel_type" || key == "risk_control" {
+					return true
+				}
+				if containsSentinel(nested) {
+					return true
+				}
+			}
+		case []interface{}:
+			for _, nested := range current {
+				if containsSentinel(nested) {
+					return true
+				}
+			}
+		case string:
+			return current == "channel-name-sentinel" || current == "risk-group-sentinel"
+		case float64:
+			return current == 987654321
+		}
+		return false
+	}
+
+	assert.False(t, containsSentinel(parsed))
+	assert.Equal(t, float64(0.004), parsed["model_price"])
+	assert.Empty(t, logs[0].ChannelName)
+	assert.Equal(t, 812, logs[0].ChannelId)
+}

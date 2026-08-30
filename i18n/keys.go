@@ -223,19 +223,18 @@ const (
 
 // Channel related messages
 const (
-	MsgChannelNotExists          = "channel.not_exists"
-	MsgChannelIdFormatError      = "channel.id_format_error"
-	MsgChannelNoAvailableKey     = "channel.no_available_key"
-	MsgChannelGetListFailed      = "channel.get_list_failed"
-	MsgChannelGetTagsFailed      = "channel.get_tags_failed"
-	MsgChannelGetKeyFailed       = "channel.get_key_failed"
-	MsgChannelGetOllamaFailed    = "channel.get_ollama_failed"
-	MsgChannelQueryFailed        = "channel.query_failed"
-	MsgChannelNoValidUpstream    = "channel.no_valid_upstream"
-	MsgChannelUpstreamSaturated  = "channel.upstream_saturated"
-	MsgChannelGetAvailableFailed = "channel.get_available_failed"
-	MsgChannelRateLimited        = "channel.rate_limited"
-	MsgChannelNoAvailable        = "channel.no_available"
+	MsgChannelNotExists         = "channel.not_exists"
+	MsgChannelIdFormatError     = "channel.id_format_error"
+	MsgChannelNoAvailableKey    = "channel.no_available_key"
+	MsgChannelGetListFailed     = "channel.get_list_failed"
+	MsgChannelGetTagsFailed     = "channel.get_tags_failed"
+	MsgChannelGetKeyFailed      = "channel.get_key_failed"
+	MsgChannelGetOllamaFailed   = "channel.get_ollama_failed"
+	MsgChannelQueryFailed       = "channel.query_failed"
+	MsgChannelNoValidUpstream   = "channel.no_valid_upstream"
+	MsgChannelUpstreamSaturated = "channel.upstream_saturated"
+	MsgChannelRateLimited       = "channel.rate_limited"
+	MsgChannelNoAvailable       = "channel.no_available"
 )
 
 // Model related messages
@@ -383,8 +382,7 @@ const (
 	MsgDistributorModelNameRequired       = "distributor.model_name_required"
 	MsgDistributorInvalidPlayground       = "distributor.invalid_playground_request"
 	MsgDistributorGroupAccessDenied       = "distributor.group_access_denied"
-	MsgDistributorGetChannelFailed        = "distributor.get_channel_failed"
-	MsgDistributorNoAvailableChannel      = "distributor.no_available_channel"
+	MsgDistributorGroupRegionBlocked      = "distributor.group_region_blocked"
 	MsgDistributorInvalidMidjourney       = "distributor.invalid_midjourney_request"
 	MsgDistributorInvalidParseModel       = "distributor.invalid_request_parse_model"
 )

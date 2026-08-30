@@ -64,3 +64,19 @@ func TestRedactionMessageKeysDoNotExposeTemplateData(t *testing.T) {
 		}
 	}
 }
+
+func TestRetiredTemplateMessageKeysAreAbsentFromAllLocales(t *testing.T) {
+	require.NoError(t, Init())
+	retiredKeys := []string{
+		"channel.get_available_failed",
+		"distributor.get_channel_failed",
+		"distributor.no_available_channel",
+	}
+	for _, locale := range []string{"zh-CN", "zh-TW", "en"} {
+		contents, err := localeFS.ReadFile("locales/" + locale + ".yaml")
+		require.NoError(t, err)
+		for _, key := range retiredKeys {
+			assert.NotContains(t, string(contents), key+":")
+		}
+	}
+}

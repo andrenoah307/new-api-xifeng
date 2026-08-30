@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/QuantumNous/new-api/setting/config"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -77,4 +80,51 @@ func TestDistributorRedactsAutoGroupSelectionFailure(t *testing.T) {
 	assert.NotContains(t, recorder.Body.String(), "auto(")
 	assert.NotContains(t, recorder.Body.String(), "internal-model-secret")
 	assert.NotContains(t, recorder.Body.String(), "no such table")
+}
+
+func TestDistributorRedactsDefaultRegionBlockMessage(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	originalRegion := operation_setting.GetRegionRestrictionSetting()
+	t.Cleanup(func() {
+		blockedModels, _ := common.Marshal(originalRegion.BlockedModels)
+		blockedGroups, _ := common.Marshal(originalRegion.BlockedGroups)
+		require.NoError(t, config.UpdateConfigFromMap(config.GlobalConfig.Get("region_restriction"), map[string]string{
+			"enabled":        strconv.FormatBool(originalRegion.Enabled),
+			"filter_console": strconv.FormatBool(originalRegion.FilterConsole),
+			"block_relay":    strconv.FormatBool(originalRegion.BlockRelay),
+			"blocked_models": string(blockedModels),
+			"blocked_groups": string(blockedGroups),
+			"block_message":  originalRegion.BlockMessage,
+		}))
+		operation_setting.RebuildRegionRestrictionIndex()
+	})
+
+	require.NoError(t, config.UpdateConfigFromMap(config.GlobalConfig.Get("region_restriction"), map[string]string{
+		"enabled":        "true",
+		"block_relay":    "true",
+		"blocked_models": "{}",
+		"blocked_groups": `{"US":["blocked-group-sentinel"]}`,
+		"block_message":  "",
+	}))
+	operation_setting.RebuildRegionRestrictionIndex()
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"safe-model"}`))
+	c.Request.Header.Set("Content-Type", gin.MIMEJSON)
+	c.Request.Header.Set("Cf-Ipcountry", "US")
+	common.SetContextKey(c, constant.ContextKeyUsingGroup, "blocked-group-sentinel")
+	common.SetContextKey(c, constant.ContextKeyUserGroup, "blocked-group-sentinel")
+	common.SetContextKey(c, constant.ContextKeyTokenGroup, "blocked-group-sentinel")
+
+	Distribute()(c)
+
+	assert.Equal(t, http.StatusForbidden, recorder.Code)
+	assert.NotContains(t, recorder.Body.String(), "blocked-group-sentinel")
+	assert.NotContains(t, recorder.Body.String(), "{{")
+	var response map[string]interface{}
+	require.NoError(t, common.Unmarshal(recorder.Body.Bytes(), &response))
+	errorBody, ok := response["error"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, common.MessageWithRequestId(common.TranslateMessage(c, i18n.MsgDistributorGroupRegionBlocked), ""), errorBody["message"])
 }

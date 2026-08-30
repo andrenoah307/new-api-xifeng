@@ -476,7 +476,8 @@ func TokenAuth() func(c *gin.Context) {
 		if tokenGroup != "" {
 			// check common.UserUsableGroups[userGroup]
 			if _, ok := service.GetUserUsableGroups(userGroup)[tokenGroup]; !ok {
-				abortWithOpenAiMessage(c, http.StatusForbidden, fmt.Sprintf("无权访问 %s 分组", tokenGroup))
+				logger.LogWarn(c, fmt.Sprintf("token group access denied: user_id=%d token_id=%d user_group=%s token_group=%s", token.UserId, token.Id, userGroup, tokenGroup))
+				abortWithOpenAiMessage(c, http.StatusForbidden, common.TranslateMessage(c, i18n.MsgDistributorGroupAccessDenied), types.ErrorCodeAccessDenied)
 				return
 			}
 			// check group in common.GroupRatio

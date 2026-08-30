@@ -561,7 +561,6 @@ func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 		TaskID:     task.TaskID,
 		Platform:   string(task.Platform),
 		UserId:     task.UserId,
-		Group:      task.Group,
 		ChannelId:  task.ChannelId,
 		Quota:      task.Quota,
 		Action:     task.Action,
@@ -576,4 +575,10 @@ func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 		Username:   task.Username,
 		Data:       task.Data,
 	}
+}
+
+func TaskModel2AdminDto(task *model.Task) *dto.TaskDto {
+	adminDto := TaskModel2Dto(task)
+	adminDto.Group = task.Group
+	return adminDto
 }

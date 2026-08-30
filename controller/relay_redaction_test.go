@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
@@ -250,6 +251,87 @@ func TestGenericRelayRateLimitRedactsAcrossFormatsAndPolicies(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestProcessChannelErrorStoresChannelDetailsUnderAdminInfo(t *testing.T) {
+	originalDB := model.DB
+	originalLogDB := model.LOG_DB
+	originalMainType := common.MainDatabaseType()
+	originalLogType := common.LogDatabaseType()
+	originalRedisEnabled := common.RedisEnabled
+	originalErrorLogEnabled := constant.ErrorLogEnabled
+	t.Cleanup(func() {
+		model.DB = originalDB
+		model.LOG_DB = originalLogDB
+		common.SetDatabaseTypes(originalMainType, originalLogType)
+		common.RedisEnabled = originalRedisEnabled
+		constant.ErrorLogEnabled = originalErrorLogEnabled
+	})
+	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
+	common.RedisEnabled = false
+	constant.ErrorLogEnabled = true
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "relay-error-redaction.db")), &gorm.Config{})
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if sqlDB, dbErr := db.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	model.DB = db
+	model.LOG_DB = db
+	require.NoError(t, db.AutoMigrate(&model.Log{}))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	c.Set("id", 11)
+	c.Set("token_id", 12)
+	c.Set("token_name", "token")
+	c.Set("original_model", "model")
+	c.Set("group", "group")
+	c.Set("channel_id", 713)
+	c.Set("channel_name", "channel-name-sentinel")
+	c.Set("channel_type", 987654321)
+	processChannelError(c, types.ChannelError{ChannelId: 713}, types.NewErrorWithStatusCode(errors.New("upstream"), types.ErrorCodeBadResponse, http.StatusBadGateway))
+
+	var stored model.Log
+	require.NoError(t, db.Order("id desc").First(&stored).Error)
+	other, err := common.StrToMap(stored.Other)
+	require.NoError(t, err)
+	assert.NotContains(t, other, "channel_name")
+	assert.NotContains(t, other, "channel_type")
+	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "channel-name-sentinel", adminInfo["channel_name"])
+	assert.Equal(t, float64(987654321), adminInfo["channel_type"])
+
+	recorder = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	c.Set("id", 11)
+	c.Set("token_id", 12)
+	c.Set("token_name", "token")
+	c.Set("original_model", "model")
+	c.Set("group", "group")
+	c.Set("channel_id", 714)
+	c.Set("channel_name", "second-channel")
+	c.Set("channel_type", 987654322)
+	common.SetContextKey(c, constant.ContextKeyChannelIsMultiKey, true)
+	common.SetContextKey(c, constant.ContextKeyChannelMultiKeyIndex, 2)
+	common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Unix(1, 0))
+	common.SetContextKey(c, constant.ContextKeyIsStream, true)
+	common.SetContextKey(c, constant.ContextKeyChannelSetting, dto.ChannelSettings{StripRequestId: true})
+	c.Set("risk_audit", &types.RiskAudit{TokenDecision: &types.RiskDecision{Group: "risk-group"}})
+	processChannelError(c, types.ChannelError{ChannelId: 714}, types.NewErrorWithStatusCode(errors.New("second upstream"), types.ErrorCodeBadResponse, http.StatusBadGateway))
+	var secondStored model.Log
+	require.NoError(t, db.Order("id desc").First(&secondStored).Error)
+	secondOther, err := common.StrToMap(secondStored.Other)
+	require.NoError(t, err)
+	secondAdminInfo, ok := secondOther["admin_info"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, true, secondAdminInfo["is_multi_key"])
+	assert.Equal(t, float64(2), secondAdminInfo["multi_key_index"])
+	assert.Contains(t, secondOther, "risk_control")
 }
 
 func newGenericRelayRateLimitRequest(t *testing.T, format types.RelayFormat, body string, channelID int, channelName, onLimit string) *httptest.ResponseRecorder {

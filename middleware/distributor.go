@@ -94,8 +94,9 @@ func Distribute() func(c *gin.Context) {
 					if tokenGroup != "" && tokenGroup != "auto" && operation_setting.IsGroupBlockedForCountry(cc, tokenGroup) {
 						blockMsg := rs.BlockMessage
 						if blockMsg == "" {
-							blockMsg = "Group '" + tokenGroup + "' is not available in your region"
+							blockMsg = common.TranslateMessage(c, i18n.MsgDistributorGroupRegionBlocked)
 						}
+						logger.LogWarn(c, fmt.Sprintf("region restriction blocked group: token_group=%s country=%s", tokenGroup, cc))
 						abortWithOpenAiMessage(c, http.StatusForbidden, blockMsg)
 						return
 					}
