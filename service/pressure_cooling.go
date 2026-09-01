@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -148,7 +149,20 @@ func pressureCoolingStateTTL(cfg resolvedPressureCoolingConfig) int {
 	if ttl < cfg.ObservationWindowSeconds*3 {
 		ttl = cfg.ObservationWindowSeconds * 3
 	}
+	if ttl < cfg.GracePeriodSeconds*3 {
+		ttl = cfg.GracePeriodSeconds * 3
+	}
 	return ttl
+}
+
+// This mutex closes the check/action window within a process; cross-node residuals come from stale channel caches.
+var pressureCoolingExecutionMu sync.Mutex
+
+type pressureCoolingNotification struct {
+	key            string
+	subject        string
+	content        string
+	refreshOverlay bool
 }
 
 func RecordPressureCoolingAttempt(channelId int, err *types.NewAPIError) {
@@ -254,10 +268,7 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 		return
 	}
 	now := time.Now().Unix()
-	stateTTL := cfg.MaxCooldownSeconds * 3
-	if stateTTL < cfg.ObservationWindowSeconds*3 {
-		stateTTL = cfg.ObservationWindowSeconds * 3
-	}
+	stateTTL := pressureCoolingStateTTL(cfg)
 
 	switch state.State {
 	case "cool":
@@ -322,6 +333,20 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 }
 
 func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg resolvedPressureCoolingConfig, now int64, stateTTL int, reason *pressureCoolingReason) {
+	notification := executePressureCoolingDecision(ch, state, cfg, now, stateTTL, reason)
+	if notification == nil {
+		return
+	}
+	if notification.refreshOverlay {
+		refreshPressureCoolingOverlay()
+	}
+	NotifyRootUser(notification.key, notification.subject, notification.content)
+}
+
+func executePressureCoolingDecision(ch *model.Channel, state *PressureCoolingState, cfg resolvedPressureCoolingConfig, now int64, stateTTL int, reason *pressureCoolingReason) *pressureCoolingNotification {
+	pressureCoolingExecutionMu.Lock()
+	defer pressureCoolingExecutionMu.Unlock()
+
 	if cfg.Scope == "groups" {
 		targetGroups := pressureCoolingTargetGroups(ch, cfg.CooldownGroups)
 		if len(targetGroups) == 0 {
@@ -329,14 +354,14 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 			state.Violations = 0
 			state.WindowStart = now
 			savePressureCoolingState(ch.Id, state, stateTTL)
-			return
+			return nil
 		}
 		if !canCoolChannelGroups(ch, targetGroups, cfg.MinActiveChannelsPerGroup) {
 			common.SysLog(fmt.Sprintf("pressure cooling: skip channel #%d (%s) — would leave target group/model below minimum active", ch.Id, ch.Name))
 			state.Violations = 0
 			state.WindowStart = now
 			savePressureCoolingState(ch.Id, state, stateTTL)
-			return
+			return nil
 		}
 
 		effectiveCooldown := float64(cfg.CooldownSeconds)
@@ -356,23 +381,33 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 		state.Consecutive++
 		state.Violations = 0
 		savePressureCoolingState(ch.Id, state, stateTTL)
-		refreshPressureCoolingOverlay()
 
 		subject := fmt.Sprintf("渠道「%s」(#%d) 因高延迟已自动冷却分组", ch.Name, ch.Id)
 		content := fmt.Sprintf("渠道「%s」(#%d) 已从分组 %s 摘除，其余分组不受影响。%s\n冷却将于 %s 后自动恢复（第 %d 次连续冷却）",
 			ch.Name, ch.Id, strings.Join(targetGroups, ", "), reasonText, formatCooldownDuration(cooldownSec), state.Consecutive)
-		NotifyRootUser(fmt.Sprintf("pressure_cooling_%d", ch.Id), subject, content)
-		return
+		return &pressureCoolingNotification{
+			key:            fmt.Sprintf("pressure_cooling_%d", ch.Id),
+			subject:        subject,
+			content:        content,
+			refreshOverlay: true,
+		}
 	}
 
 	state.Scope = "channel"
 	state.CooledGroups = nil
+	if ch.Status != common.ChannelStatusEnabled {
+		common.SysLog(fmt.Sprintf("压力冷却：渠道当前状态非启用，压力冷却放弃冷却（渠道 #%d，%s）", ch.Id, ch.Name))
+		state.Violations = 0
+		state.WindowStart = now
+		savePressureCoolingState(ch.Id, state, stateTTL)
+		return nil
+	}
 	if !canCoolChannel(ch.Id, cfg.MinActiveChannelsPerGroup) {
 		common.SysLog(fmt.Sprintf("pressure cooling: skip channel #%d (%s) — would leave (group, model) below minimum active", ch.Id, ch.Name))
 		state.Violations = 0
 		state.WindowStart = now
 		savePressureCoolingState(ch.Id, state, stateTTL)
-		return
+		return nil
 	}
 
 	effectiveCooldown := float64(cfg.CooldownSeconds)
@@ -396,7 +431,11 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 	subject := fmt.Sprintf("渠道「%s」(#%d) 因高延迟已自动冷却", ch.Name, ch.Id)
 	content := fmt.Sprintf("渠道「%s」(#%d) %s\n冷却将于 %s 后自动恢复（第 %d 次连续冷却）",
 		ch.Name, ch.Id, reasonText, formatCooldownDuration(cooldownSec), state.Consecutive)
-	NotifyRootUser(fmt.Sprintf("pressure_cooling_%d", ch.Id), subject, content)
+	return &pressureCoolingNotification{
+		key:     fmt.Sprintf("pressure_cooling_%d", ch.Id),
+		subject: subject,
+		content: content,
+	}
 }
 
 func pressureCoolingTargetGroups(ch *model.Channel, configured []string) []string {
@@ -511,10 +550,7 @@ func pressureCoolingRecoveryOnce(now int64) {
 				continue
 			}
 			cfg := resolvePressureCoolingConfig(ch.GetSetting().PressureCooling)
-			stateTTL := cfg.MaxCooldownSeconds * 3
-			if stateTTL < cfg.ObservationWindowSeconds*3 {
-				stateTTL = cfg.ObservationWindowSeconds * 3
-			}
+			stateTTL := pressureCoolingStateTTL(cfg)
 			if !cfg.Enabled {
 				deletePressureCoolingState(channelId)
 				overlayDirty = true
@@ -559,12 +595,13 @@ func pressureCoolingRecoveryOnce(now int64) {
 			continue
 		}
 		cfg := resolvePressureCoolingConfig(ch.GetSetting().PressureCooling)
-		stateTTL := cfg.MaxCooldownSeconds * 3
-		if stateTTL < cfg.ObservationWindowSeconds*3 {
-			stateTTL = cfg.ObservationWindowSeconds * 3
-		}
+		stateTTL := pressureCoolingStateTTL(cfg)
 		if !cfg.Enabled {
-			model.UpdateChannelStatus(channelId, "", common.ChannelStatusEnabled, "压力冷却已禁用，自动恢复")
+			if ch.Status == common.ChannelStatusAutoDisabled {
+				model.UpdateChannelStatus(channelId, "", common.ChannelStatusEnabled, "压力冷却已禁用，自动恢复")
+			} else {
+				common.SysLog(fmt.Sprintf("压力冷却：渠道当前状态非自动禁用，压力冷却放弃恢复（渠道 #%d，%s）", channelId, ch.Name))
+			}
 			deletePressureCoolingState(channelId)
 			continue
 		}
@@ -583,13 +620,19 @@ func pressureCoolingRecoveryOnce(now int64) {
 			state.State = "susp"
 			savePressureCoolingState(channelId, state, stateTTL)
 			reason := fmt.Sprintf("压力冷却挂起：连续 %d 次冷却达上限，需手动恢复", state.Consecutive)
-			model.UpdateChannelStatus(channelId, "", common.ChannelStatusAutoDisabled, reason)
+			if ch.Status != common.ChannelStatusManuallyDisabled {
+				model.UpdateChannelStatus(channelId, "", common.ChannelStatusAutoDisabled, reason)
+			}
 			NotifyRootUser(fmt.Sprintf("pressure_cooling_susp_%d", channelId),
 				fmt.Sprintf("渠道「%s」(#%d) 压力冷却已挂起", ch.Name, channelId),
 				fmt.Sprintf("渠道「%s」(#%d) 连续 %d 次冷却达上限，需管理员手动恢复", ch.Name, channelId, state.Consecutive))
 			continue
 		}
-		model.UpdateChannelStatus(channelId, "", common.ChannelStatusEnabled, "压力冷却恢复")
+		if ch.Status == common.ChannelStatusAutoDisabled {
+			model.UpdateChannelStatus(channelId, "", common.ChannelStatusEnabled, "压力冷却恢复")
+		} else {
+			common.SysLog(fmt.Sprintf("压力冷却：渠道当前状态非自动禁用，压力冷却放弃恢复（渠道 #%d，%s）", channelId, ch.Name))
+		}
 		state.State = "obs"
 		state.GraceUntil = now + int64(cfg.GracePeriodSeconds)
 		state.Violations = 0

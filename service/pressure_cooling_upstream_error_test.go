@@ -311,4 +311,5 @@ func TestRecordPressureCoolingAttemptFastGates(t *testing.T) {
 func TestPressureCoolingStateTTLUsesObservationWindowLowerBound(t *testing.T) {
 	assert.Equal(t, 30, pressureCoolingStateTTL(resolvedPressureCoolingConfig{MaxCooldownSeconds: 1, ObservationWindowSeconds: 10}))
 	assert.Equal(t, 60, pressureCoolingStateTTL(resolvedPressureCoolingConfig{MaxCooldownSeconds: 20, ObservationWindowSeconds: 10}))
+	assert.Equal(t, 90, pressureCoolingStateTTL(resolvedPressureCoolingConfig{MaxCooldownSeconds: 1, ObservationWindowSeconds: 10, GracePeriodSeconds: 30}))
 }

@@ -37,6 +37,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+func shouldRecordChannelError(err *types.NewAPIError) bool {
+	return err != nil && !err.IsSkipRetry()
+}
+
+func shouldRecordTaskChannelError(err *dto.TaskError) bool {
+	return err != nil && !err.LocalError
+}
+
 func relayHandler(c *gin.Context, info *relaycommon.RelayInfo) *types.NewAPIError {
 	var err *types.NewAPIError
 	switch info.RelayMode {
@@ -348,7 +356,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			newAPIError = relayAttempt(c, relayInfo, relayHandler)
 		}
 		releaseChannelGauge()
-		if newAPIError != nil {
+		if shouldRecordChannelError(newAPIError) {
 			realtimemetrics.RecordChannelError(channel.Id)
 		}
 		service.RecordPressureCoolingAttempt(channel.Id, newAPIError)
@@ -932,7 +940,7 @@ func relayTaskSubmitWithRetry(
 		releaseChannelGauge := realtimemetrics.ChannelAttempt(channel.Id)
 		result, taskErr = dependencies.submit(c, relayInfo)
 		releaseChannelGauge()
-		if taskErr != nil {
+		if shouldRecordTaskChannelError(taskErr) {
 			realtimemetrics.RecordChannelError(channel.Id)
 		}
 		if rateLimitToken != nil {

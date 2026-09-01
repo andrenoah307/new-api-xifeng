@@ -5513,6 +5513,12 @@
     "压力冷却上游报错比例必须在 0 到 100 之间": "Tỷ lệ lỗi upstream của làm mát áp suất phải nằm trong khoảng từ 0 đến 100",
     "压力冷却上游报错最小样本数必须在 1 到 10000 之间": "Số mẫu lỗi upstream tối thiểu của làm mát áp suất phải nằm trong khoảng từ 1 đến 10000",
     "压力冷却条件组合仅支持任一或全部": "Kết hợp điều kiện làm mát áp suất chỉ hỗ trợ bất kỳ hoặc tất cả",
-    "压力冷却上游报错开关配置无效": "Cấu hình công tắc lỗi upstream của làm mát áp suất không hợp lệ"
+    "压力冷却上游报错开关配置无效": "Cấu hình công tắc lỗi upstream của làm mát áp suất không hợp lệ",
+    "压力冷却": "Làm mát áp suất",
+    "FRT 阈值 (ms)，留空默认 8000": "Ngưỡng FRT (ms), để trống để dùng mặc định 8000",
+    "触发百分比 (%)，留空默认 50": "Tỷ lệ kích hoạt (%), để trống để dùng mặc định 50",
+    "观察窗口 (秒)，留空默认 60": "Cửa sổ quan sát (giây), để trống để dùng mặc định 60",
+    "冷却时长 (秒)，留空默认 300": "Thời gian làm mát (giây), để trống để dùng mặc định 300",
+    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置": "Tự động vô hiệu hóa kênh khi độ trễ token đầu tiên liên tục quá cao và khôi phục sau thời gian làm mát; khi chưa bật sẽ dùng cấu hình mặc định"
   }
 }

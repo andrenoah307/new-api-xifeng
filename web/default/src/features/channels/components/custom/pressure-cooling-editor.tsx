@@ -234,10 +234,11 @@ export function PressureCoolingEditor({ form }: Props) {
                 // 后端 trigger_percent 是整数（*int），小数会让整个渠道设置反序列化失败
                 onChange={(e) => {
                   const value = e.target.valueAsNumber
+                  const roundedValue = Math.round(value)
                   update(
                     'trigger_percent',
-                    Number.isFinite(value)
-                      ? Math.min(100, Math.max(0, Math.round(value)))
+                    Number.isFinite(value) && roundedValue > 0
+                      ? Math.min(100, Math.max(1, roundedValue))
                       : null
                   )
                 }}

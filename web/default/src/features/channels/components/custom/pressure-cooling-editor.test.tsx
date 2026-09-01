@@ -19,7 +19,7 @@ import { after, describe, test } from 'node:test'
 
 import { Window } from 'happy-dom'
 import { createInstance } from 'i18next'
-import { createElement } from 'react'
+import { act, createElement, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { I18nextProvider } from 'react-i18next'
 
@@ -76,6 +76,9 @@ const previousActEnvironment = {
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true
 
+const reactDomClientModule = 'react-dom/client?pressure-cooling-editor-test'
+const { createRoot } = await import(reactDomClientModule)
+
 after(() => {
   for (const [key, previous] of previousGlobals) {
     if (previous.present) {
@@ -106,6 +109,72 @@ await i18n.init({
   resources: { en: { translation: {} } },
   interpolation: { escapeValue: false },
 })
+
+type DomElement = InstanceType<typeof dom.Element>
+type DomInputElement = InstanceType<typeof dom.HTMLInputElement>
+
+interface EditorHarnessState {
+  raw: string
+}
+
+interface EditorHarnessProps {
+  initial: string
+  state: EditorHarnessState
+}
+
+function EditorHarness(props: EditorHarnessProps) {
+  const [raw, setRaw] = useState(props.initial)
+  props.state.raw = raw
+
+  const form = {
+    watch: (name: string) => (name === 'group' ? ['pro'] : raw),
+    setValue: (_name: string, value: unknown) => {
+      const next = String(value ?? '')
+      props.state.raw = next
+      setRaw(next)
+    },
+  }
+
+  return createElement(PressureCoolingEditor, { form: form as never })
+}
+
+async function renderPressureCoolingEditor(initial: string) {
+  const container = dom.document.createElement('div')
+  dom.document.body.append(container)
+  const root = createRoot(container)
+  const state: EditorHarnessState = { raw: initial }
+
+  await act(async () => {
+    root.render(
+      createElement(
+        I18nextProvider,
+        { i18n },
+        createElement(EditorHarness, { initial, state })
+      )
+    )
+  })
+
+  return {
+    container: container as DomElement,
+    getRaw: () => state.raw,
+    async cleanup() {
+      await act(async () => root.unmount())
+      container.remove()
+    },
+  }
+}
+
+async function setInputValue(input: DomInputElement, value: string) {
+  await act(async () => {
+    const setter = Object.getOwnPropertyDescriptor(
+      dom.HTMLInputElement.prototype,
+      'value'
+    )?.set
+    assert.ok(setter, 'happy-dom should expose the input value setter')
+    setter.call(input, value)
+    input.dispatchEvent(new dom.Event('input', { bubbles: true }))
+  })
+}
 
 describe('pressure cooling scope configuration', () => {
   test('normalizes legacy configuration without scope as channel and avoids scope noise', () => {
@@ -437,5 +506,37 @@ describe('pressure cooling scope configuration', () => {
     assert.ok(
       triggerConditions.querySelector('#pressure-cooling-trigger-percent')
     )
+  })
+
+  test('normalizes trigger percent edits to Classic semantics', async () => {
+    const rendered = await renderPressureCoolingEditor(
+      JSON.stringify({ enabled: true, trigger_percent: 50 })
+    )
+
+    try {
+      const input = rendered.container.querySelector(
+        '#pressure-cooling-trigger-percent'
+      ) as DomInputElement | null
+      assert.ok(input)
+
+      const cases: Array<[string, number | null]> = [
+        ['0', null],
+        ['0.4', null],
+        ['150', 100],
+        ['55.6', 56],
+        ['', null],
+      ]
+
+      for (const [rawValue, expected] of cases) {
+        await setInputValue(input, rawValue)
+        assert.equal(
+          JSON.parse(rendered.getRaw()).trigger_percent,
+          expected,
+          `trigger percent for input ${rawValue}`
+        )
+      }
+    } finally {
+      await rendered.cleanup()
+    }
   })
 })

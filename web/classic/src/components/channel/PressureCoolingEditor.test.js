@@ -69,6 +69,12 @@ const modalSource = readFileSync(
 );
 const localeNames = ['en', 'fr', 'ja', 'ru', 'vi', 'zh', 'zh-CN', 'zh-TW'];
 const newTranslationKeys = [
+  '压力冷却',
+  'FRT 阈值 (ms)，留空默认 8000',
+  '触发百分比 (%)，留空默认 50',
+  '观察窗口 (秒)，留空默认 60',
+  '冷却时长 (秒)，留空默认 300',
+  '当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置',
   '首字延迟 FRT',
   '始终启用',
   '冷却设置',

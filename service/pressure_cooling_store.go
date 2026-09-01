@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -24,6 +25,8 @@ type PressureCoolingState struct {
 }
 
 var pressureCoolingMemStore sync.Map
+
+var errPressureCoolingStateCorrupt = errors.New("pressure cooling state corrupt")
 
 func pressureCoolingRedisKey(channelId int) string {
 	return fmt.Sprintf("pc:state:%d", channelId)
@@ -73,12 +76,28 @@ func loadPressureCoolingStateRedis(channelId int) (*PressureCoolingState, error)
 		return &PressureCoolingState{State: "obs", Scope: "channel"}, nil
 	}
 	s := pressureCoolingStateFromFields(vals)
-	s.Violations, _ = strconv.ParseInt(vals["vc"], 10, 64)
-	s.TotalRequests, _ = strconv.ParseInt(vals["tr"], 10, 64)
-	s.WindowStart, _ = strconv.ParseInt(vals["ws"], 10, 64)
-	s.CooldownUntil, _ = strconv.ParseInt(vals["cu"], 10, 64)
-	s.Consecutive, _ = strconv.ParseInt(vals["cc"], 10, 64)
-	s.GraceUntil, _ = strconv.ParseInt(vals["gu"], 10, 64)
+	fields := []struct {
+		name   string
+		target *int64
+	}{
+		{name: "vc", target: &s.Violations},
+		{name: "tr", target: &s.TotalRequests},
+		{name: "ws", target: &s.WindowStart},
+		{name: "cu", target: &s.CooldownUntil},
+		{name: "cc", target: &s.Consecutive},
+		{name: "gu", target: &s.GraceUntil},
+	}
+	for _, field := range fields {
+		value, ok := vals[field.name]
+		if !ok {
+			continue
+		}
+		parsed, parseErr := strconv.ParseInt(value, 10, 64)
+		if parseErr != nil {
+			return nil, fmt.Errorf("pressure cooling state channel %d field %s: %w (%v)", channelId, field.name, errPressureCoolingStateCorrupt, parseErr)
+		}
+		*field.target = parsed
+	}
 	return s, nil
 }
 
@@ -182,6 +201,10 @@ func listCoolingChannelStatesResult() (map[int]*PressureCoolingState, error) {
 				st, err := loadPressureCoolingStateRedis(chId)
 				if err != nil || st == nil {
 					if err != nil {
+						if errors.Is(err, errPressureCoolingStateCorrupt) {
+							common.SysError(fmt.Sprintf("pressure cooling state corrupt for channel %d: %v", chId, err))
+							continue
+						}
 						return nil, err
 					}
 					return nil, fmt.Errorf("pressure cooling state is nil for channel %d", chId)
