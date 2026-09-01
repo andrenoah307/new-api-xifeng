@@ -39,3 +39,38 @@ func TestValidateChannelPressureCoolingGroupsMustBelongToChannel(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateChannelPressureCoolingUpstreamErrorFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		percent    int
+		minSamples int
+		mode       string
+		wantErr    bool
+	}{
+		{name: "valid lower bounds", percent: 0, minSamples: 1, mode: "any"},
+		{name: "valid upper bounds", percent: 100, minSamples: 10000, mode: "ALL"},
+		{name: "percent below zero", percent: -1, minSamples: 1, mode: "any", wantErr: true},
+		{name: "percent above one hundred", percent: 101, minSamples: 1, mode: "any", wantErr: true},
+		{name: "minimum samples below one", percent: 50, minSamples: 0, mode: "any", wantErr: true},
+		{name: "minimum samples above limit", percent: 50, minSamples: 10001, mode: "any", wantErr: true},
+		{name: "invalid condition mode", percent: 50, minSamples: 10, mode: "sometimes", wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			channel := &model.Channel{Group: "pro", Key: "key"}
+			channel.SetSetting(dto.ChannelSettings{PressureCooling: &dto.PressureCoolingOverride{
+				UpstreamErrorTriggerPercent: &test.percent,
+				UpstreamErrorMinSamples:     &test.minSamples,
+				ConditionMode:               test.mode,
+			}})
+			err := validateChannel(channel, false)
+			if test.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "压力冷却")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

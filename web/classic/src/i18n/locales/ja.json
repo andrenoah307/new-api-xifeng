@@ -4955,6 +4955,13 @@
     "Cooling Scope": "冷却範囲",
     "Select groups to cool": "冷却するグループを選択",
     "No channel groups available": "このチャネルに利用可能なグループはありません",
-    "At least one cooldown group is required when using specific groups": "指定したグループを使う場合は、少なくとも1つの冷却グループが必要です"
+    "At least one cooldown group is required when using specific groups": "指定したグループを使う場合は、少なくとも1つの冷却グループが必要です",
+    "Trigger Conditions": "トリガー条件",
+    "Upstream Errors": "上流エラー",
+    "Minimum Samples": "最小サンプル数",
+    "Error Rate": "エラー率",
+    "Condition Combination": "条件の組み合わせ",
+    "Match Any (OR)": "いずれか一致（OR）",
+    "Match All (AND)": "すべて一致（AND）"
   }
 }

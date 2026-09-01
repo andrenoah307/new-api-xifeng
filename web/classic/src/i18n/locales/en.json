@@ -5215,6 +5215,13 @@
     "Cooling Scope": "Cooling Scope",
     "Select groups to cool": "Select groups to cool",
     "No channel groups available": "No channel groups available",
-    "At least one cooldown group is required when using specific groups": "At least one cooldown group is required when using specific groups"
+    "At least one cooldown group is required when using specific groups": "At least one cooldown group is required when using specific groups",
+    "Trigger Conditions": "Trigger Conditions",
+    "Upstream Errors": "Upstream Errors",
+    "Minimum Samples": "Minimum Samples",
+    "Error Rate": "Error Rate",
+    "Condition Combination": "Condition Combination",
+    "Match Any (OR)": "Match Any (OR)",
+    "Match All (AND)": "Match All (AND)"
   }
 }

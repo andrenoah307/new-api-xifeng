@@ -114,6 +114,8 @@ describe('pressure cooling scope configuration', () => {
 
     assert.equal(normalized.scope, 'channel')
     assert.equal(normalized.cooldown_groups.length, 0)
+    assert.equal(normalized.upstream_error_enabled, false)
+    assert.equal(normalized.condition_mode, 'any')
     assert.deepEqual(JSON.parse(serializePressureCooling(normalized)), {
       enabled: true,
       frt_threshold_ms: 8000,
@@ -189,6 +191,45 @@ describe('pressure cooling scope configuration', () => {
     })
   })
 
+  test('round-trips an enabled upstream error condition and omits defaults', () => {
+    const value = normalizePressureCooling({
+      enabled: true,
+      upstream_error_enabled: true,
+      upstream_error_trigger_percent: 75,
+      upstream_error_min_samples: 25,
+      condition_mode: 'all',
+    })
+
+    assert.ok(value)
+    const serialized = JSON.parse(serializePressureCooling(value))
+    assert.deepEqual(serialized, {
+      enabled: true,
+      frt_threshold_ms: null,
+      trigger_percent: null,
+      cooldown_seconds: null,
+      observation_window_seconds: null,
+      upstream_error_enabled: true,
+      upstream_error_trigger_percent: 75,
+      upstream_error_min_samples: 25,
+      condition_mode: 'all',
+    })
+    assert.deepEqual(parsePressureCooling(JSON.stringify(serialized)), value)
+
+    const withDefaults = normalizePressureCooling({
+      enabled: true,
+      upstream_error_enabled: true,
+      upstream_error_trigger_percent: 50,
+      upstream_error_min_samples: 10,
+      condition_mode: 'any',
+    })
+    assert.ok(withDefaults)
+    const defaultPayload = JSON.parse(serializePressureCooling(withDefaults))
+    assert.equal(defaultPayload.upstream_error_enabled, true)
+    assert.equal(Object.hasOwn(defaultPayload, 'upstream_error_trigger_percent'), false)
+    assert.equal(Object.hasOwn(defaultPayload, 'upstream_error_min_samples'), false)
+    assert.equal(Object.hasOwn(defaultPayload, 'condition_mode'), false)
+  })
+
   test('cleans cooldown groups removed from the channel group field before serialization', () => {
     const value = normalizePressureCooling({
       enabled: true,
@@ -234,5 +275,67 @@ describe('pressure cooling scope configuration', () => {
     if (!result.success) {
       assert.equal(result.error.issues[0]?.path[0], 'pressure_cooling')
     }
+  })
+
+  test('rejects invalid upstream error condition values in the form schema', () => {
+    const base = {
+      name: 'channel',
+      type: 1,
+      key: '',
+      models: 'model',
+      group: ['pro'],
+      status: 1,
+    }
+    const invalidValues = [
+      { upstream_error_trigger_percent: -1 },
+      { upstream_error_trigger_percent: 101 },
+      { upstream_error_min_samples: 0 },
+      { upstream_error_min_samples: 10001 },
+      { upstream_error_min_samples: 1.5 },
+      { condition_mode: 'sometimes' },
+    ]
+
+    for (const value of invalidValues) {
+      const result = channelFormSchema.safeParse({
+        ...base,
+        pressure_cooling: JSON.stringify(value),
+      })
+      assert.equal(result.success, false)
+    }
+  })
+
+  test('renders the trigger conditions and hides upstream fields when disabled', () => {
+    const form = {
+      watch: (name: string) =>
+        name === 'group' ? ['pro'] : JSON.stringify({ enabled: true }),
+      setValue: () => undefined,
+    }
+    const disabledMarkup = renderToStaticMarkup(
+      createElement(
+        I18nextProvider,
+        { i18n },
+        createElement(PressureCoolingEditor, { form: form as never })
+      )
+    )
+    assert.match(disabledMarkup, />Trigger Conditions</)
+    assert.match(disabledMarkup, />Upstream Errors</)
+    assert.equal(disabledMarkup.includes('Minimum Samples'), false)
+
+    const enabledForm = {
+      watch: (name: string) =>
+        name === 'group'
+          ? ['pro']
+          : JSON.stringify({ enabled: true, upstream_error_enabled: true }),
+      setValue: () => undefined,
+    }
+    const enabledMarkup = renderToStaticMarkup(
+      createElement(
+        I18nextProvider,
+        { i18n },
+        createElement(PressureCoolingEditor, { form: enabledForm as never })
+      )
+    )
+    assert.match(enabledMarkup, />Error Rate</)
+    assert.match(enabledMarkup, />Minimum Samples</)
   })
 })

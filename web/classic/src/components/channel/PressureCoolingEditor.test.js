@@ -23,6 +23,7 @@ import { describe, test } from 'node:test';
 
 import {
   getPressureCoolingGroupOptions,
+  getPressureCoolingValidationError,
   isPressureCoolingSaveAllowed,
   normalizePressureCooling,
   parsePressureCooling,
@@ -129,6 +130,10 @@ describe('Classic pressure cooling group scope', () => {
       modalSource,
       /isPressureCoolingSaveAllowed\(normalizedPCForSave\)/,
     );
+    assert.match(
+      modalSource,
+      /getPressureCoolingValidationError\(\s*inputs\.pressure_cooling\s*,/,
+    );
   });
 
   test('hides group selection outside the group scope', () => {
@@ -137,5 +142,127 @@ describe('Classic pressure cooling group scope', () => {
       editorSource,
       /optionList=\{getPressureCoolingGroupOptions\(groups\)\}/,
     );
+  });
+});
+
+describe('Classic pressure cooling upstream-error condition', () => {
+  test('normalizes the new fields to their legacy-safe defaults', () => {
+    const normalized = normalizePressureCooling({
+      enabled: true,
+      frt_threshold_ms: 8000,
+    });
+
+    assert.deepEqual(normalized, {
+      enabled: true,
+      frt_threshold_ms: 8000,
+      trigger_percent: null,
+      cooldown_seconds: null,
+      observation_window_seconds: null,
+      upstream_error_enabled: false,
+      upstream_error_trigger_percent: null,
+      upstream_error_min_samples: null,
+      condition_mode: 'any',
+      scope: 'channel',
+      cooldown_groups: [],
+    });
+  });
+
+  test('does not add default upstream-error fields to a legacy payload', () => {
+    const serialized = JSON.parse(
+      serializePressureCooling(
+        normalizePressureCooling({ enabled: true, frt_threshold_ms: 8000 }),
+      ),
+    );
+
+    assert.deepEqual(serialized, {
+      enabled: true,
+      frt_threshold_ms: 8000,
+      trigger_percent: null,
+      cooldown_seconds: null,
+      observation_window_seconds: null,
+    });
+    assert.equal('upstream_error_enabled' in serialized, false);
+    assert.equal('condition_mode' in serialized, false);
+  });
+
+  test('round trips an enabled upstream-error condition', () => {
+    const value = normalizePressureCooling({
+      enabled: true,
+      upstream_error_enabled: true,
+      upstream_error_trigger_percent: 25,
+      upstream_error_min_samples: 20,
+      condition_mode: 'all',
+    });
+
+    assert.deepEqual(JSON.parse(serializePressureCooling(value)), {
+      enabled: true,
+      frt_threshold_ms: null,
+      trigger_percent: null,
+      cooldown_seconds: null,
+      observation_window_seconds: null,
+      upstream_error_enabled: true,
+      upstream_error_trigger_percent: 25,
+      upstream_error_min_samples: 20,
+      condition_mode: 'all',
+    });
+    assert.deepEqual(
+      parsePressureCooling(serializePressureCooling(value)),
+      value,
+    );
+  });
+
+  test('omits upstream-error values equal to global defaults', () => {
+    const serialized = JSON.parse(
+      serializePressureCooling(
+        normalizePressureCooling({
+          enabled: true,
+          upstream_error_enabled: true,
+          upstream_error_trigger_percent: 50,
+          upstream_error_min_samples: 10,
+          condition_mode: 'any',
+        }),
+      ),
+    );
+
+    assert.equal(serialized.upstream_error_enabled, true);
+    assert.equal('upstream_error_trigger_percent' in serialized, false);
+    assert.equal('upstream_error_min_samples' in serialized, false);
+    assert.equal('condition_mode' in serialized, false);
+  });
+
+  test('rejects invalid upstream-error values before saving', () => {
+    const invalidValues = [
+      { upstream_error_trigger_percent: -1 },
+      { upstream_error_trigger_percent: 101 },
+      { upstream_error_min_samples: 0 },
+      { upstream_error_min_samples: 10001 },
+      { upstream_error_min_samples: 2.5 },
+      { condition_mode: 'sometimes' },
+      { upstream_error_enabled: 'true' },
+    ];
+
+    for (const value of invalidValues) {
+      assert.notEqual(getPressureCoolingValidationError(value), null, value);
+      assert.equal(isPressureCoolingSaveAllowed(value), false, value);
+    }
+    assert.equal(
+      getPressureCoolingValidationError({
+        upstream_error_trigger_percent: 0,
+        upstream_error_min_samples: 1,
+        condition_mode: 'any',
+        upstream_error_enabled: false,
+      }),
+      null,
+    );
+  });
+
+  test('wires trigger conditions and collapsible upstream inputs', () => {
+    assert.match(editorSource, /t\('Trigger Conditions'\)/);
+    assert.match(editorSource, /t\('Condition Combination'\)/);
+    assert.match(editorSource, /t\('Match Any \(OR\)'\)/);
+    assert.match(editorSource, /t\('Match All \(AND\)'\)/);
+    assert.match(editorSource, /t\('Upstream Errors'\)/);
+    assert.match(editorSource, /v\.upstream_error_enabled && \(/);
+    assert.match(editorSource, /t\('Minimum Samples'\)/);
   });
 });

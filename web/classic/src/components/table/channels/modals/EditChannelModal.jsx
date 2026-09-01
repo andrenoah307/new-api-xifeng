@@ -75,6 +75,7 @@ import ChannelRateLimitEditor, {
 } from '../../../channel/ChannelRateLimitEditor';
 import PressureCoolingEditor, {
   cleanPressureCoolingGroups,
+  getPressureCoolingValidationError,
   isPressureCoolingSaveAllowed,
   normalizePressureCooling,
   serializePressureCooling,
@@ -1718,6 +1719,14 @@ const EditChannelModal = (props) => {
     const formValues = formApiRef.current ? formApiRef.current.getValues() : {};
     let localInputs = { ...formValues };
     localInputs.param_override = inputs.param_override;
+
+    const pressureCoolingValidationError = getPressureCoolingValidationError(
+      inputs.pressure_cooling,
+    );
+    if (pressureCoolingValidationError) {
+      showInfo(t('请求参数无效'));
+      return;
+    }
 
     let normalizedPCForSave = normalizePressureCooling(inputs.pressure_cooling);
     if (normalizedPCForSave) {

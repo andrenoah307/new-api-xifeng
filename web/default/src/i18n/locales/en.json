@@ -5523,6 +5523,14 @@
     "Entire Channel": "Entire Channel",
     "No channel groups available": "No channel groups available",
     "Select groups to cool": "Select groups to cool",
-    "Specific Groups": "Specific Groups"
+    "Specific Groups": "Specific Groups",
+    "Condition Combination": "Condition Combination",
+    "Minimum Samples": "Minimum Samples",
+    "Trigger Conditions": "Trigger Conditions",
+    "Upstream Errors": "Upstream Errors",
+    "Upstream error enabled must be a boolean": "Upstream error enabled must be a boolean",
+    "Upstream error trigger percent must be a number between 0 and 100": "Upstream error trigger percent must be a number between 0 and 100",
+    "Upstream error minimum samples must be an integer between 1 and 10,000": "Upstream error minimum samples must be an integer between 1 and 10,000",
+    "Pressure cooling condition mode must be either any or all": "Pressure cooling condition mode must be either any or all"
   }
 }

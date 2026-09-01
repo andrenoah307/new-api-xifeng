@@ -5523,6 +5523,14 @@
     "Entire Channel": "整渠道",
     "No channel groups available": "当前渠道没有可用分组",
     "Select groups to cool": "选择要冷却的分组",
-    "Specific Groups": "指定分组"
+    "Specific Groups": "指定分组",
+    "Condition Combination": "条件组合",
+    "Minimum Samples": "最小样本数",
+    "Trigger Conditions": "触发条件",
+    "Upstream Errors": "上游报错",
+    "Upstream error enabled must be a boolean": "上游报错启用状态必须是布尔值",
+    "Upstream error trigger percent must be a number between 0 and 100": "上游报错触发百分比必须是 0 到 100 之间的数字",
+    "Upstream error minimum samples must be an integer between 1 and 10,000": "上游报错最小样本数必须是 1 到 10,000 之间的整数",
+    "Pressure cooling condition mode must be either any or all": "压力冷却条件组合必须为 any 或 all"
   }
 }

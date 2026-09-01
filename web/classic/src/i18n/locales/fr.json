@@ -4988,6 +4988,13 @@
     "Cooling Scope": "Portée du refroidissement",
     "Select groups to cool": "Sélectionnez les groupes à refroidir",
     "No channel groups available": "Aucun groupe disponible pour ce canal",
-    "At least one cooldown group is required when using specific groups": "Au moins un groupe est requis avec des groupes spécifiques"
+    "At least one cooldown group is required when using specific groups": "Au moins un groupe est requis avec des groupes spécifiques",
+    "Trigger Conditions": "Conditions de déclenchement",
+    "Upstream Errors": "Erreurs en amont",
+    "Minimum Samples": "Nombre minimal d’échantillons",
+    "Error Rate": "Taux d'erreur",
+    "Condition Combination": "Combinaison de conditions",
+    "Match Any (OR)": "N'importe laquelle (OR)",
+    "Match All (AND)": "Toutes doivent correspondre (AND)"
   }
 }

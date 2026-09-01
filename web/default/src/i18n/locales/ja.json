@@ -5523,6 +5523,14 @@
     "Entire Channel": "チャネル全体",
     "No channel groups available": "このチャネルに利用可能なグループはありません",
     "Select groups to cool": "冷却するグループを選択",
-    "Specific Groups": "指定したグループ"
+    "Specific Groups": "指定したグループ",
+    "Condition Combination": "条件の組み合わせ",
+    "Minimum Samples": "最小サンプル数",
+    "Trigger Conditions": "トリガー条件",
+    "Upstream Errors": "上流エラー",
+    "Upstream error enabled must be a boolean": "上流エラーの有効化フラグはブール値で指定してください",
+    "Upstream error trigger percent must be a number between 0 and 100": "上流エラーのトリガー率は 0～100 の数値で指定してください",
+    "Upstream error minimum samples must be an integer between 1 and 10,000": "上流エラーの最小サンプル数は 1～10,000 の整数で指定してください",
+    "Pressure cooling condition mode must be either any or all": "圧力冷却の条件の組み合わせは any または all で指定してください"
   }
 }

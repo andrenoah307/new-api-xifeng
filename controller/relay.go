@@ -351,6 +351,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		if newAPIError != nil {
 			realtimemetrics.RecordChannelError(channel.Id)
 		}
+		service.RecordPressureCoolingAttempt(channel.Id, newAPIError)
 
 		if newAPIError == nil {
 			relayInfo.LastError = nil

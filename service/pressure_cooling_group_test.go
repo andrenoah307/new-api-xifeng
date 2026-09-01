@@ -629,6 +629,8 @@ func TestPressureCoolingStateScopeFieldsRoundTripAndLegacyDefault(t *testing.T) 
 	legacy := pressureCoolingStateFromFields(map[string]string{"st": "cool"})
 	assert.Equal(t, "channel", legacy.Scope)
 	assert.Empty(t, legacy.CooledGroups)
+	emptyState := pressureCoolingStateFromFields(map[string]string{})
+	assert.Equal(t, "obs", emptyState.State)
 }
 
 func TestPressureCoolingStateRedisRoundTrip(t *testing.T) {
@@ -660,5 +662,44 @@ func TestPressureCoolingStateRedisRoundTrip(t *testing.T) {
 	assert.Equal(t, []string{"pro", "cheap"}, listed[9971].CooledGroups)
 
 	server.FastForward(time.Minute)
+	loaded, err := loadPressureCoolingStateRedis(9971)
+	require.NoError(t, err)
+	assert.Equal(t, "obs", loaded.State)
 	assert.Empty(t, listCoolingChannelStates())
+	deletePressureCoolingState(9971)
+}
+
+func TestPressureCoolingStateRedisReadErrorIsPropagated(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	oldRedis, oldClient := common.RedisEnabled, common.RDB
+	common.RedisEnabled, common.RDB = true, client
+	t.Cleanup(func() {
+		common.RedisEnabled, common.RDB = oldRedis, oldClient
+	})
+	server.Close()
+
+	state, err := loadPressureCoolingStateResult(9972)
+	require.Error(t, err)
+	assert.Nil(t, state)
+}
+
+func TestPressureCoolingStateRedisNilClientIsSafe(t *testing.T) {
+	oldRedis, oldClient := common.RedisEnabled, common.RDB
+	common.RedisEnabled, common.RDB = true, nil
+	t.Cleanup(func() {
+		common.RedisEnabled, common.RDB = oldRedis, oldClient
+	})
+
+	state, err := loadPressureCoolingStateResult(9973)
+	require.Error(t, err)
+	assert.Nil(t, state)
+	assert.Equal(t, "obs", loadPressureCoolingState(9973).State)
+	listed, err := listCoolingChannelStatesResult()
+	require.Error(t, err)
+	assert.Nil(t, listed)
+	assert.NotPanics(t, func() {
+		savePressureCoolingState(9973, &PressureCoolingState{State: "obs"}, 60)
+		deletePressureCoolingState(9973)
+	})
 }

@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 */
 
 export type PressureCoolingScope = 'channel' | 'groups'
+export type PressureCoolingConditionMode = 'any' | 'all'
 
 export interface PressureCooling {
   enabled: boolean | null
@@ -25,6 +26,10 @@ export interface PressureCooling {
   trigger_percent: number | null
   cooldown_seconds: number | null
   observation_window_seconds: number | null
+  upstream_error_enabled: boolean
+  upstream_error_trigger_percent: number | null
+  upstream_error_min_samples: number | null
+  condition_mode: PressureCoolingConditionMode
 }
 
 const EMPTY_PRESSURE_COOLING: PressureCooling = {
@@ -35,6 +40,10 @@ const EMPTY_PRESSURE_COOLING: PressureCooling = {
   trigger_percent: null,
   cooldown_seconds: null,
   observation_window_seconds: null,
+  upstream_error_enabled: false,
+  upstream_error_trigger_percent: null,
+  upstream_error_min_samples: null,
+  condition_mode: 'any',
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -66,7 +75,11 @@ export function normalizePressureCooling(
     value.frt_threshold_ms != null ||
     value.trigger_percent != null ||
     value.cooldown_seconds != null ||
-    value.observation_window_seconds != null
+    value.observation_window_seconds != null ||
+    value.upstream_error_enabled != null ||
+    value.upstream_error_trigger_percent != null ||
+    value.upstream_error_min_samples != null ||
+    value.condition_mode != null
   if (!hasOverride) return null
 
   return {
@@ -80,6 +93,17 @@ export function normalizePressureCooling(
     observation_window_seconds: readNullableNumber(
       value.observation_window_seconds
     ),
+    upstream_error_enabled:
+      typeof value.upstream_error_enabled === 'boolean'
+        ? value.upstream_error_enabled
+        : false,
+    upstream_error_trigger_percent: readNullableNumber(
+      value.upstream_error_trigger_percent
+    ),
+    upstream_error_min_samples: readNullableNumber(
+      value.upstream_error_min_samples
+    ),
+    condition_mode: value.condition_mode === 'all' ? 'all' : 'any',
   }
 }
 
@@ -143,7 +167,13 @@ export function serializePressureCooling(
     obj.trigger_percent !== null ||
     obj.cooldown_seconds !== null ||
     obj.observation_window_seconds !== null ||
-    obj.scope === 'groups'
+    obj.scope === 'groups' ||
+    obj.upstream_error_enabled ||
+    (obj.upstream_error_trigger_percent != null &&
+      obj.upstream_error_trigger_percent !== 50) ||
+    (obj.upstream_error_min_samples != null &&
+      obj.upstream_error_min_samples !== 10) ||
+    obj.condition_mode === 'all'
   if (!hasValue) return ''
 
   const serialized: Record<string, unknown> = {
@@ -156,6 +186,25 @@ export function serializePressureCooling(
   if (obj.scope === 'groups') {
     serialized.scope = 'groups'
     serialized.cooldown_groups = cooldownGroups
+  }
+  if (obj.upstream_error_enabled) {
+    serialized.upstream_error_enabled = true
+  }
+  if (
+    obj.upstream_error_trigger_percent != null &&
+    obj.upstream_error_trigger_percent !== 50
+  ) {
+    serialized.upstream_error_trigger_percent =
+      obj.upstream_error_trigger_percent
+  }
+  if (
+    obj.upstream_error_min_samples != null &&
+    obj.upstream_error_min_samples !== 10
+  ) {
+    serialized.upstream_error_min_samples = obj.upstream_error_min_samples
+  }
+  if (obj.condition_mode === 'all') {
+    serialized.condition_mode = 'all'
   }
   return JSON.stringify(serialized)
 }

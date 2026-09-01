@@ -2875,6 +2875,13 @@
     "Cooling Scope": "冷却范围",
     "Select groups to cool": "选择要冷却的分组",
     "No channel groups available": "当前渠道没有可用分组",
-    "At least one cooldown group is required when using specific groups": "选择指定分组时至少需要一个冷却分组"
+    "At least one cooldown group is required when using specific groups": "选择指定分组时至少需要一个冷却分组",
+    "Trigger Conditions": "触发条件",
+    "Upstream Errors": "上游报错",
+    "Minimum Samples": "最小样本数",
+    "Error Rate": "错误率",
+    "Condition Combination": "条件组合",
+    "Match Any (OR)": "满足任一条件（OR）",
+    "Match All (AND)": "必须全部满足（AND）"
   }
 }

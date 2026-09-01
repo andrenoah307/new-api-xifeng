@@ -564,6 +564,16 @@ func validatePressureCoolingOverride(channel *model.Channel) error {
 	if override == nil {
 		return nil
 	}
+	if override.UpstreamErrorTriggerPercent != nil && (*override.UpstreamErrorTriggerPercent < 0 || *override.UpstreamErrorTriggerPercent > 100) {
+		return fmt.Errorf("压力冷却上游报错比例必须在 0 到 100 之间")
+	}
+	if override.UpstreamErrorMinSamples != nil && (*override.UpstreamErrorMinSamples < 1 || *override.UpstreamErrorMinSamples > 10000) {
+		return fmt.Errorf("压力冷却上游报错最小样本数必须在 1 到 10000 之间")
+	}
+	conditionMode := strings.ToLower(override.ConditionMode)
+	if conditionMode != "" && conditionMode != "any" && conditionMode != "all" {
+		return fmt.Errorf("压力冷却 condition_mode 仅支持 any 或 all")
+	}
 	switch override.Scope {
 	case "", "channel":
 		return nil

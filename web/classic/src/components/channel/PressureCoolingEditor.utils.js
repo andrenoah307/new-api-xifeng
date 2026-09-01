@@ -25,6 +25,20 @@ const PRESSURE_COOLING_FIELDS = [
   'observation_window_seconds',
 ];
 
+const PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS = Object.freeze({
+  enabled: false,
+  trigger_percent: 50,
+  min_samples: 10,
+  condition_mode: 'any',
+});
+
+const PRESSURE_COOLING_UPSTREAM_ERROR_FIELDS = [
+  'upstream_error_enabled',
+  'upstream_error_trigger_percent',
+  'upstream_error_min_samples',
+  'condition_mode',
+];
+
 const normalizeGroups = (groups) =>
   Array.from(
     new Set(
@@ -46,6 +60,9 @@ export const normalizePressureCooling = (value) => {
 
   const hasOverride =
     PRESSURE_COOLING_FIELDS.some((field) => value[field] != null) ||
+    PRESSURE_COOLING_UPSTREAM_ERROR_FIELDS.some(
+      (field) => value[field] != null,
+    ) ||
     value.scope != null ||
     value.cooldown_groups != null;
   if (!hasOverride) return null;
@@ -75,13 +92,75 @@ export const normalizePressureCooling = (value) => {
       Number.isFinite(value.observation_window_seconds)
         ? value.observation_window_seconds
         : null,
+    upstream_error_enabled:
+      typeof value.upstream_error_enabled === 'boolean'
+        ? value.upstream_error_enabled
+        : PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
+    upstream_error_trigger_percent:
+      typeof value.upstream_error_trigger_percent === 'number' &&
+      Number.isFinite(value.upstream_error_trigger_percent)
+        ? value.upstream_error_trigger_percent
+        : null,
+    upstream_error_min_samples:
+      typeof value.upstream_error_min_samples === 'number' &&
+      Number.isFinite(value.upstream_error_min_samples)
+        ? value.upstream_error_min_samples
+        : null,
+    condition_mode:
+      value.condition_mode === 'all'
+        ? 'all'
+        : PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
     scope,
     cooldown_groups: scope === 'groups' ? cooldownGroups : [],
   };
 };
 
+export const getPressureCoolingValidationError = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const percent = value.upstream_error_trigger_percent;
+  if (
+    percent != null &&
+    (typeof percent !== 'number' ||
+      !Number.isFinite(percent) ||
+      percent < 0 ||
+      percent > 100)
+  ) {
+    return 'upstream_error_trigger_percent';
+  }
+
+  const minSamples = value.upstream_error_min_samples;
+  if (
+    minSamples != null &&
+    (typeof minSamples !== 'number' ||
+      !Number.isInteger(minSamples) ||
+      minSamples < 1 ||
+      minSamples > 10000)
+  ) {
+    return 'upstream_error_min_samples';
+  }
+
+  const conditionMode = value.condition_mode;
+  if (conditionMode != null && !['any', 'all'].includes(conditionMode)) {
+    return 'condition_mode';
+  }
+
+  if (
+    value.upstream_error_enabled != null &&
+    typeof value.upstream_error_enabled !== 'boolean'
+  ) {
+    return 'upstream_error_enabled';
+  }
+
+  return null;
+};
+
 export const isPressureCoolingSaveAllowed = (value) => {
-  return value.scope !== 'groups' || value.cooldown_groups.length > 0;
+  if (getPressureCoolingValidationError(value)) return false;
+  return (
+    value.scope !== 'groups' ||
+    (Array.isArray(value.cooldown_groups) && value.cooldown_groups.length > 0)
+  );
 };
 
 export const isPressureCoolingSaveable = isPressureCoolingSaveAllowed;
@@ -101,8 +180,15 @@ export const serializePressureCooling = (value, availableGroups) => {
 
   const hasValue =
     PRESSURE_COOLING_FIELDS.some((field) => normalized[field] != null) ||
-    normalized.scope === 'groups';
-  if (!hasValue) return '';
+    normalized.scope === 'groups' ||
+    normalized.upstream_error_enabled ||
+    (normalized.upstream_error_trigger_percent != null &&
+      normalized.upstream_error_trigger_percent !==
+        PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.trigger_percent) ||
+    (normalized.upstream_error_min_samples != null &&
+      normalized.upstream_error_min_samples !==
+        PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.min_samples) ||
+    normalized.condition_mode === 'all';
 
   const payload = Object.fromEntries(
     PRESSURE_COOLING_FIELDS.map((field) => [field, normalized[field]]),
@@ -114,6 +200,35 @@ export const serializePressureCooling = (value, availableGroups) => {
       availableGroups,
     );
   }
+
+  // Keep legacy payloads byte-for-byte compatible. Global defaults are
+  // inherited when the upstream-error fields are omitted.
+  if (normalized.upstream_error_enabled) {
+    payload.upstream_error_enabled = true;
+  }
+  if (
+    normalized.upstream_error_trigger_percent != null &&
+    normalized.upstream_error_trigger_percent !==
+      PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.trigger_percent
+  ) {
+    payload.upstream_error_trigger_percent =
+      normalized.upstream_error_trigger_percent;
+  }
+  if (
+    normalized.upstream_error_min_samples != null &&
+    normalized.upstream_error_min_samples !==
+      PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.min_samples
+  ) {
+    payload.upstream_error_min_samples = normalized.upstream_error_min_samples;
+  }
+  if (
+    normalized.condition_mode !==
+    PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode
+  ) {
+    payload.condition_mode = normalized.condition_mode;
+  }
+
+  if (!hasValue && !normalized.upstream_error_enabled) return '';
   return JSON.stringify(payload);
 };
 
@@ -127,6 +242,10 @@ export const parsePressureCooling = (value) => {
       trigger_percent: null,
       cooldown_seconds: null,
       observation_window_seconds: null,
+      upstream_error_enabled: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
+      upstream_error_trigger_percent: null,
+      upstream_error_min_samples: null,
+      condition_mode: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
     };
   }
   try {
@@ -139,6 +258,11 @@ export const parsePressureCooling = (value) => {
         trigger_percent: null,
         cooldown_seconds: null,
         observation_window_seconds: null,
+        upstream_error_enabled:
+          PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
+        upstream_error_trigger_percent: null,
+        upstream_error_min_samples: null,
+        condition_mode: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
       }
     );
   } catch {
@@ -150,6 +274,10 @@ export const parsePressureCooling = (value) => {
       trigger_percent: null,
       cooldown_seconds: null,
       observation_window_seconds: null,
+      upstream_error_enabled: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
+      upstream_error_trigger_percent: null,
+      upstream_error_min_samples: null,
+      condition_mode: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
     };
   }
 };

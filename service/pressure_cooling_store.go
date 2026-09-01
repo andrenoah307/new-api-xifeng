@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/go-redis/redis/v8"
 )
 
 type PressureCoolingState struct {
@@ -30,10 +32,18 @@ func pressureCoolingRedisKey(channelId int) string {
 }
 
 func loadPressureCoolingState(channelId int) *PressureCoolingState {
+	state, err := loadPressureCoolingStateResult(channelId)
+	if err != nil || state == nil {
+		return &PressureCoolingState{State: "obs", Scope: "channel"}
+	}
+	return state
+}
+
+func loadPressureCoolingStateResult(channelId int) (*PressureCoolingState, error) {
 	if common.RedisEnabled {
 		return loadPressureCoolingStateRedis(channelId)
 	}
-	return loadPressureCoolingStateMemory(channelId)
+	return loadPressureCoolingStateMemory(channelId), nil
 }
 
 func savePressureCoolingState(channelId int, state *PressureCoolingState, ttlSeconds int) {
@@ -45,18 +55,27 @@ func savePressureCoolingState(channelId int, state *PressureCoolingState, ttlSec
 }
 
 func deletePressureCoolingState(channelId int) {
-	if common.RedisEnabled {
+	if common.RedisEnabled && common.RDB != nil {
 		common.RDB.Del(context.Background(), pressureCoolingRedisKey(channelId))
 	}
 	pressureCoolingMemStore.Delete(channelId)
 }
 
-func loadPressureCoolingStateRedis(channelId int) *PressureCoolingState {
+func loadPressureCoolingStateRedis(channelId int) (*PressureCoolingState, error) {
+	if common.RDB == nil {
+		return nil, fmt.Errorf("pressure cooling redis client is nil")
+	}
 	ctx := context.Background()
 	key := pressureCoolingRedisKey(channelId)
 	vals, err := common.RDB.HGetAll(ctx, key).Result()
-	if err != nil || len(vals) == 0 {
-		return &PressureCoolingState{State: "obs", Scope: "channel"}
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return &PressureCoolingState{State: "obs", Scope: "channel"}, nil
+		}
+		return nil, err
+	}
+	if len(vals) == 0 {
+		return &PressureCoolingState{State: "obs", Scope: "channel"}, nil
 	}
 	s := pressureCoolingStateFromFields(vals)
 	s.Violations, _ = strconv.ParseInt(vals["vc"], 10, 64)
@@ -65,10 +84,13 @@ func loadPressureCoolingStateRedis(channelId int) *PressureCoolingState {
 	s.CooldownUntil, _ = strconv.ParseInt(vals["cu"], 10, 64)
 	s.Consecutive, _ = strconv.ParseInt(vals["cc"], 10, 64)
 	s.GraceUntil, _ = strconv.ParseInt(vals["gu"], 10, 64)
-	return s
+	return s, nil
 }
 
 func savePressureCoolingStateRedis(channelId int, state *PressureCoolingState, ttlSeconds int) {
+	if common.RDB == nil {
+		return
+	}
 	ctx := context.Background()
 	key := pressureCoolingRedisKey(channelId)
 	encoded := pressureCoolingStateFields(state)
@@ -140,21 +162,35 @@ func pressureCoolingStateFromFields(vals map[string]string) *PressureCoolingStat
 }
 
 func listCoolingChannelStates() map[int]*PressureCoolingState {
+	result, _ := listCoolingChannelStatesResult()
+	return result
+}
+
+func listCoolingChannelStatesResult() (map[int]*PressureCoolingState, error) {
 	result := make(map[int]*PressureCoolingState)
 	if common.RedisEnabled {
+		if common.RDB == nil {
+			return nil, fmt.Errorf("pressure cooling redis client is nil")
+		}
 		ctx := context.Background()
 		var cursor uint64
 		for {
 			keys, next, err := common.RDB.Scan(ctx, cursor, "pc:state:*", 200).Result()
 			if err != nil {
-				break
+				return nil, err
 			}
 			for _, key := range keys {
 				var chId int
 				if _, err := fmt.Sscanf(key, "pc:state:%d", &chId); err != nil || chId <= 0 {
 					continue
 				}
-				st := loadPressureCoolingStateRedis(chId)
+				st, err := loadPressureCoolingStateRedis(chId)
+				if err != nil || st == nil {
+					if err != nil {
+						return nil, err
+					}
+					return nil, fmt.Errorf("pressure cooling state is nil for channel %d", chId)
+				}
 				if st.State == "cool" || st.State == "susp" {
 					result[chId] = st
 				}
@@ -180,5 +216,5 @@ func listCoolingChannelStates() map[int]*PressureCoolingState {
 		}
 		return true
 	})
-	return result
+	return result, nil
 }

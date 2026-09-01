@@ -23,6 +23,8 @@ import {
   Card,
   Col,
   InputNumber,
+  Radio,
+  RadioGroup,
   Row,
   Select,
   Switch,
@@ -31,6 +33,7 @@ import {
 import { IconBolt } from '@douyinfe/semi-icons';
 import {
   cleanPressureCoolingGroups,
+  getPressureCoolingValidationError,
   getPressureCoolingGroupOptions,
   isPressureCoolingSaveAllowed,
   normalizePressureCooling,
@@ -39,6 +42,7 @@ import {
 
 export {
   cleanPressureCoolingGroups,
+  getPressureCoolingValidationError,
   getPressureCoolingGroupOptions,
   isPressureCoolingSaveAllowed,
   isPressureCoolingSaveable,
@@ -55,6 +59,10 @@ const DEFAULT_VALUE = Object.freeze({
   trigger_percent: null,
   cooldown_seconds: null,
   observation_window_seconds: null,
+  upstream_error_enabled: false,
+  upstream_error_trigger_percent: null,
+  upstream_error_min_samples: null,
+  condition_mode: 'any',
   scope: 'channel',
   cooldown_groups: [],
 });
@@ -88,6 +96,10 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
     v.trigger_percent != null ||
     v.cooldown_seconds != null ||
     v.observation_window_seconds != null ||
+    v.upstream_error_enabled ||
+    v.upstream_error_trigger_percent != null ||
+    v.upstream_error_min_samples != null ||
+    v.condition_mode !== 'any' ||
     (value &&
       typeof value === 'object' &&
       (value.scope != null || value.cooldown_groups != null));
@@ -190,6 +202,89 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
               </Col>
             )}
           </Row>
+
+          <div style={{ marginBottom: 16 }}>
+            <Text strong size='small' className='block mb-2'>
+              {t('Trigger Conditions')}
+            </Text>
+            <Row gutter={16} type='flex'>
+              <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                <FieldLabel>{t('Condition Combination')}</FieldLabel>
+                <RadioGroup
+                  value={v.condition_mode}
+                  onChange={(event) =>
+                    update({
+                      condition_mode:
+                        event.target.value === 'all' ? 'all' : 'any',
+                    })
+                  }
+                  direction='horizontal'
+                  aria-label={t('Condition Combination')}
+                >
+                  <Radio value='any'>{t('Match Any (OR)')}</Radio>
+                  <Radio value='all'>{t('Match All (AND)')}</Radio>
+                </RadioGroup>
+              </Col>
+              <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                <div className='flex items-center justify-between'>
+                  <FieldLabel>{t('Upstream Errors')}</FieldLabel>
+                  <Switch
+                    checked={v.upstream_error_enabled}
+                    aria-label={t('Upstream Errors')}
+                    onChange={(checked) =>
+                      update({ upstream_error_enabled: checked })
+                    }
+                  />
+                </div>
+              </Col>
+            </Row>
+          </div>
+
+          {v.upstream_error_enabled && (
+            <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
+              <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                <FieldLabel>{t('Error Rate')}</FieldLabel>
+                <InputNumber
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={v.upstream_error_trigger_percent}
+                  placeholder='50'
+                  suffix='%'
+                  onChange={(n) =>
+                    update({
+                      upstream_error_trigger_percent:
+                        typeof n === 'number' && Number.isFinite(n)
+                          ? Math.min(100, Math.max(0, n))
+                          : null,
+                    })
+                  }
+                  style={{ width: '100%' }}
+                  innerButtons
+                />
+              </Col>
+              <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                <FieldLabel>{t('Minimum Samples')}</FieldLabel>
+                <InputNumber
+                  min={1}
+                  max={10000}
+                  step={1}
+                  value={v.upstream_error_min_samples}
+                  placeholder='10'
+                  onChange={(n) =>
+                    update({
+                      upstream_error_min_samples:
+                        typeof n === 'number' && Number.isFinite(n)
+                          ? Math.min(10000, Math.max(1, Math.round(n)))
+                          : null,
+                    })
+                  }
+                  style={{ width: '100%' }}
+                  innerButtons
+                />
+              </Col>
+            </Row>
+          )}
 
           <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>

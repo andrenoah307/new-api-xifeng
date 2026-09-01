@@ -249,27 +249,82 @@ export const channelFormSchema = z
     if (data.pressure_cooling?.trim()) {
       try {
         const pressureCooling = JSON.parse(data.pressure_cooling)
-        if (
-          isJsonObjectValue(pressureCooling) &&
-          pressureCooling.scope === 'groups'
-        ) {
-          const cooldownGroups = pressureCooling.cooldown_groups
-          if (!Array.isArray(cooldownGroups) || cooldownGroups.length === 0) {
-            addRequiredIssue(
-              ctx,
-              'pressure_cooling',
-              'At least one cooldown group is required when using specific groups'
-            )
-          } else if (
-            cooldownGroups.some(
-              (group) =>
-                typeof group !== 'string' || !data.group.includes(group)
-            )
+        if (isJsonObjectValue(pressureCooling)) {
+          if (pressureCooling.scope === 'groups') {
+            const cooldownGroups = pressureCooling.cooldown_groups
+            if (!Array.isArray(cooldownGroups) || cooldownGroups.length === 0) {
+              addRequiredIssue(
+                ctx,
+                'pressure_cooling',
+                'At least one cooldown group is required when using specific groups'
+              )
+            } else if (
+              cooldownGroups.some(
+                (group) =>
+                  typeof group !== 'string' || !data.group.includes(group)
+              )
+            ) {
+              addRequiredIssue(
+                ctx,
+                'pressure_cooling',
+                'Cooldown groups must match the channel groups'
+              )
+            }
+          }
+
+          const upstreamErrorEnabled = pressureCooling.upstream_error_enabled
+          if (
+            upstreamErrorEnabled != null &&
+            typeof upstreamErrorEnabled !== 'boolean'
           ) {
             addRequiredIssue(
               ctx,
               'pressure_cooling',
-              'Cooldown groups must match the channel groups'
+              'Upstream error enabled must be a boolean'
+            )
+          }
+
+          const upstreamErrorTriggerPercent =
+            pressureCooling.upstream_error_trigger_percent
+          if (
+            upstreamErrorTriggerPercent != null &&
+            (typeof upstreamErrorTriggerPercent !== 'number' ||
+              !Number.isFinite(upstreamErrorTriggerPercent) ||
+              upstreamErrorTriggerPercent < 0 ||
+              upstreamErrorTriggerPercent > 100)
+          ) {
+            addRequiredIssue(
+              ctx,
+              'pressure_cooling',
+              'Upstream error trigger percent must be a number between 0 and 100'
+            )
+          }
+
+          const upstreamErrorMinSamples = pressureCooling.upstream_error_min_samples
+          if (
+            upstreamErrorMinSamples != null &&
+            (typeof upstreamErrorMinSamples !== 'number' ||
+              !Number.isInteger(upstreamErrorMinSamples) ||
+              upstreamErrorMinSamples < 1 ||
+              upstreamErrorMinSamples > 10000)
+          ) {
+            addRequiredIssue(
+              ctx,
+              'pressure_cooling',
+              'Upstream error minimum samples must be an integer between 1 and 10,000'
+            )
+          }
+
+          const conditionMode = pressureCooling.condition_mode
+          if (
+            conditionMode != null &&
+            conditionMode !== 'any' &&
+            conditionMode !== 'all'
+          ) {
+            addRequiredIssue(
+              ctx,
+              'pressure_cooling',
+              'Pressure cooling condition mode must be either any or all'
             )
           }
         }

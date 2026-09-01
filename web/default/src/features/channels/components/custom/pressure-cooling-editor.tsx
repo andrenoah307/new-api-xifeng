@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { MultiSelect } from '@/components/multi-select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -85,19 +86,23 @@ export function PressureCoolingEditor({ form }: Props) {
           {t('Pressure Cooling')}
         </h4>
         <Switch
+          id='pressure-cooling-enabled'
+          aria-label={t('Pressure Cooling')}
           checked={data.enabled ?? false}
           onCheckedChange={(v) => update('enabled', v)}
         />
       </div>
       <div className='space-y-1'>
-        <Label className='text-xs'>{t('Cooling Scope')}</Label>
+        <Label htmlFor='pressure-cooling-scope' className='text-xs'>
+          {t('Cooling Scope')}
+        </Label>
         <Select
           value={data.scope}
           onValueChange={(value: string | null) =>
             update('scope', value === 'groups' ? 'groups' : 'channel')
           }
         >
-          <SelectTrigger className='h-8 w-full'>
+          <SelectTrigger id='pressure-cooling-scope' className='h-8 w-full'>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -130,8 +135,11 @@ export function PressureCoolingEditor({ form }: Props) {
       )}
       <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
         <div className='space-y-1'>
-          <Label className='text-xs'>{t('FRT Threshold (ms)')}</Label>
+          <Label htmlFor='pressure-cooling-frt-threshold' className='text-xs'>
+            {t('FRT Threshold (ms)')}
+          </Label>
           <Input
+            id='pressure-cooling-frt-threshold'
             type='number'
             value={data.frt_threshold_ms ?? ''}
             onChange={(e) =>
@@ -144,8 +152,11 @@ export function PressureCoolingEditor({ form }: Props) {
           />
         </div>
         <div className='space-y-1'>
-          <Label className='text-xs'>{t('Trigger Percent')}</Label>
+          <Label htmlFor='pressure-cooling-trigger-percent' className='text-xs'>
+            {t('Trigger Percent')}
+          </Label>
           <Input
+            id='pressure-cooling-trigger-percent'
             type='number'
             step='1'
             min='0'
@@ -165,8 +176,11 @@ export function PressureCoolingEditor({ form }: Props) {
           />
         </div>
         <div className='space-y-1'>
-          <Label className='text-xs'>{t('Cooldown Seconds')}</Label>
+          <Label htmlFor='pressure-cooling-cooldown-seconds' className='text-xs'>
+            {t('Cooldown Seconds')}
+          </Label>
           <Input
+            id='pressure-cooling-cooldown-seconds'
             type='number'
             value={data.cooldown_seconds ?? ''}
             onChange={(e) =>
@@ -179,8 +193,14 @@ export function PressureCoolingEditor({ form }: Props) {
           />
         </div>
         <div className='space-y-1'>
-          <Label className='text-xs'>{t('Observation Window')}</Label>
+          <Label
+            htmlFor='pressure-cooling-observation-window'
+            className='text-xs'
+          >
+            {t('Observation Window')}
+          </Label>
           <Input
+            id='pressure-cooling-observation-window'
             type='number'
             value={data.observation_window_seconds ?? ''}
             onChange={(e) =>
@@ -193,6 +213,122 @@ export function PressureCoolingEditor({ form }: Props) {
           />
         </div>
       </div>
+      <section
+        className='space-y-3 border-t pt-3'
+        aria-labelledby='pressure-cooling-trigger-conditions'
+      >
+        <h5
+          id='pressure-cooling-trigger-conditions'
+          className='text-muted-foreground text-xs font-medium tracking-wide uppercase'
+        >
+          {t('Trigger Conditions')}
+        </h5>
+        <div className='space-y-1'>
+          <Label className='text-xs'>{t('Condition Combination')}</Label>
+          <RadioGroup
+            value={data.condition_mode}
+            onValueChange={(value: string | null) =>
+              update('condition_mode', value === 'all' ? 'all' : 'any')
+            }
+            className='flex flex-wrap gap-4'
+            aria-label={t('Condition Combination')}
+          >
+            <div className='flex items-center gap-2'>
+              <RadioGroupItem
+                value='any'
+                id='pressure-cooling-condition-any'
+              />
+              <Label
+                htmlFor='pressure-cooling-condition-any'
+                className='cursor-pointer text-xs font-normal'
+              >
+                {t('Match Any (OR)')}
+              </Label>
+            </div>
+            <div className='flex items-center gap-2'>
+              <RadioGroupItem
+                value='all'
+                id='pressure-cooling-condition-all'
+              />
+              <Label
+                htmlFor='pressure-cooling-condition-all'
+                className='cursor-pointer text-xs font-normal'
+              >
+                {t('Match All (AND)')}
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+        <div className='flex items-center justify-between'>
+          <Label htmlFor='pressure-cooling-upstream-errors' className='text-xs'>
+            {t('Upstream Errors')}
+          </Label>
+          <Switch
+            id='pressure-cooling-upstream-errors'
+            checked={data.upstream_error_enabled}
+            aria-label={t('Upstream Errors')}
+            onCheckedChange={(value) =>
+              update('upstream_error_enabled', value)
+            }
+          />
+        </div>
+        {data.upstream_error_enabled && (
+          <div className='grid grid-cols-2 gap-3'>
+            <div className='space-y-1'>
+              <Label
+                htmlFor='pressure-cooling-upstream-error-percent'
+                className='text-xs'
+              >
+                {t('Error Rate')}
+              </Label>
+              <Input
+                id='pressure-cooling-upstream-error-percent'
+                type='number'
+                step='1'
+                min='0'
+                max='100'
+                placeholder='50'
+                value={data.upstream_error_trigger_percent ?? ''}
+                onChange={(event) => {
+                  const value = event.target.valueAsNumber
+                  update(
+                    'upstream_error_trigger_percent',
+                    Number.isFinite(value)
+                      ? Math.min(100, Math.max(0, value))
+                      : null
+                  )
+                }}
+              />
+            </div>
+            <div className='space-y-1'>
+              <Label
+                htmlFor='pressure-cooling-upstream-error-min-samples'
+                className='text-xs'
+              >
+                {t('Minimum Samples')}
+              </Label>
+              <Input
+                id='pressure-cooling-upstream-error-min-samples'
+                type='number'
+                step='1'
+                min='1'
+                max='10000'
+                placeholder='10'
+                value={data.upstream_error_min_samples ?? ''}
+                onChange={(event) => {
+                  const value = event.target.valueAsNumber
+                  update(
+                    'upstream_error_min_samples',
+                    Number.isFinite(value)
+                      ? Math.min(10000, Math.max(1, Math.round(value)))
+                      : null
+                  )
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

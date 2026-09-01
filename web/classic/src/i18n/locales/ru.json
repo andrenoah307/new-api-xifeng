@@ -5009,6 +5009,13 @@
     "Cooling Scope": "Область охлаждения",
     "Select groups to cool": "Выберите группы для охлаждения",
     "No channel groups available": "Для этого канала нет доступных групп",
-    "At least one cooldown group is required when using specific groups": "При выборе указанных групп нужна хотя бы одна группа охлаждения"
+    "At least one cooldown group is required when using specific groups": "При выборе указанных групп нужна хотя бы одна группа охлаждения",
+    "Trigger Conditions": "Условия срабатывания",
+    "Upstream Errors": "Ошибки upstream",
+    "Minimum Samples": "Минимальное число образцов",
+    "Error Rate": "Доля ошибок",
+    "Condition Combination": "Объединение условий",
+    "Match Any (OR)": "Любое совпадение (OR)",
+    "Match All (AND)": "Все должны совпасть (AND)"
   }
 }

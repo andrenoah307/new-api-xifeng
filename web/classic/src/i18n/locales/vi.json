@@ -5498,6 +5498,13 @@
     "Cooling Scope": "Phạm vi làm mát",
     "Select groups to cool": "Chọn các nhóm cần làm mát",
     "No channel groups available": "Kênh này không có nhóm khả dụng",
-    "At least one cooldown group is required when using specific groups": "Khi chọn nhóm cụ thể, cần ít nhất một nhóm làm mát"
+    "At least one cooldown group is required when using specific groups": "Khi chọn nhóm cụ thể, cần ít nhất một nhóm làm mát",
+    "Trigger Conditions": "Điều kiện kích hoạt",
+    "Upstream Errors": "Lỗi upstream",
+    "Minimum Samples": "Số mẫu tối thiểu",
+    "Error Rate": "Tỷ lệ lỗi",
+    "Condition Combination": "Kết hợp điều kiện",
+    "Match Any (OR)": "Bất kỳ khớp (OR)",
+    "Match All (AND)": "Tất cả phải khớp (AND)"
   }
 }
