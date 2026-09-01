@@ -246,6 +246,38 @@ export const channelFormSchema = z
       }
     }
 
+    if (data.pressure_cooling?.trim()) {
+      try {
+        const pressureCooling = JSON.parse(data.pressure_cooling)
+        if (
+          isJsonObjectValue(pressureCooling) &&
+          pressureCooling.scope === 'groups'
+        ) {
+          const cooldownGroups = pressureCooling.cooldown_groups
+          if (!Array.isArray(cooldownGroups) || cooldownGroups.length === 0) {
+            addRequiredIssue(
+              ctx,
+              'pressure_cooling',
+              'At least one cooldown group is required when using specific groups'
+            )
+          } else if (
+            cooldownGroups.some(
+              (group) =>
+                typeof group !== 'string' || !data.group.includes(group)
+            )
+          ) {
+            addRequiredIssue(
+              ctx,
+              'pressure_cooling',
+              'Cooldown groups must match the channel groups'
+            )
+          }
+        }
+      } catch {
+        // The custom setting is parsed again when building the request payload.
+      }
+    }
+
     if ([3, 18, 21, 39, 41, 49].includes(data.type) && !data.other?.trim()) {
       addRequiredIssue(
         ctx,
@@ -394,10 +426,24 @@ export function transformChannelToFormDefaults(
         system_prompt_override: parsed.system_prompt_override || false,
       }
       // --- Custom extensions (fork) ---
-      if (parsed.pressure_cooling) customExtensions.pressure_cooling = JSON.stringify(parsed.pressure_cooling)
-      if (parsed.rate_limit) customExtensions.channel_rate_limit = JSON.stringify(parsed.rate_limit)
-      if (parsed.error_filter_rules) customExtensions.error_filter_rules = JSON.stringify(parsed.error_filter_rules)
-      if (parsed.risk_control_headers) customExtensions.risk_control_headers = JSON.stringify(parsed.risk_control_headers)
+      if (parsed.pressure_cooling) {
+        customExtensions.pressure_cooling = JSON.stringify(
+          parsed.pressure_cooling
+        )
+      }
+      if (parsed.rate_limit) {
+        customExtensions.channel_rate_limit = JSON.stringify(parsed.rate_limit)
+      }
+      if (parsed.error_filter_rules) {
+        customExtensions.error_filter_rules = JSON.stringify(
+          parsed.error_filter_rules
+        )
+      }
+      if (parsed.risk_control_headers) {
+        customExtensions.risk_control_headers = JSON.stringify(
+          parsed.risk_control_headers
+        )
+      }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to parse channel setting:', error)
@@ -519,10 +565,36 @@ function buildSettingJSON(formData: ChannelFormValues): string {
     system_prompt_override: formData.system_prompt_override || false,
   }
   // --- Custom extensions (fork) ---
-  try { if (formData.pressure_cooling) settingObj.pressure_cooling = JSON.parse(formData.pressure_cooling) } catch { /* skip */ }
-  try { if (formData.channel_rate_limit) settingObj.rate_limit = JSON.parse(formData.channel_rate_limit) } catch { /* skip */ }
-  try { if (formData.error_filter_rules) settingObj.error_filter_rules = JSON.parse(formData.error_filter_rules) } catch { /* skip */ }
-  try { if (formData.risk_control_headers) settingObj.risk_control_headers = JSON.parse(formData.risk_control_headers) } catch { /* skip */ }
+  try {
+    if (formData.pressure_cooling) {
+      settingObj.pressure_cooling = JSON.parse(formData.pressure_cooling)
+    }
+  } catch {
+    /* skip */
+  }
+  try {
+    if (formData.channel_rate_limit) {
+      settingObj.rate_limit = JSON.parse(formData.channel_rate_limit)
+    }
+  } catch {
+    /* skip */
+  }
+  try {
+    if (formData.error_filter_rules) {
+      settingObj.error_filter_rules = JSON.parse(formData.error_filter_rules)
+    }
+  } catch {
+    /* skip */
+  }
+  try {
+    if (formData.risk_control_headers) {
+      settingObj.risk_control_headers = JSON.parse(
+        formData.risk_control_headers
+      )
+    }
+  } catch {
+    /* skip */
+  }
   return JSON.stringify(settingObj)
 }
 

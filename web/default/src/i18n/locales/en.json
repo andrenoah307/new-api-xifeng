@@ -5515,6 +5515,14 @@
     "Prompt tokens": "Prompt tokens",
     "Completion tokens": "Completion tokens",
     "Cache read tokens": "Cache read tokens",
-    "Pre-consumed quota": "Pre-consumed quota"
+    "Pre-consumed quota": "Pre-consumed quota",
+    "At least one cooldown group is required when using specific groups": "At least one cooldown group is required when using specific groups",
+    "Cooldown Groups": "Cooldown Groups",
+    "Cooldown groups must match the channel groups": "Cooldown groups must match the channel groups",
+    "Cooling Scope": "Cooling Scope",
+    "Entire Channel": "Entire Channel",
+    "No channel groups available": "No channel groups available",
+    "Select groups to cool": "Select groups to cool",
+    "Specific Groups": "Specific Groups"
   }
 }

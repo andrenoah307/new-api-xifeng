@@ -5515,6 +5515,14 @@
     "Prompt tokens": "Jetons de prompt",
     "Completion tokens": "Jetons de complétion",
     "Cache read tokens": "Jetons de lecture du cache",
-    "Pre-consumed quota": "Quota pré-consommé"
+    "Pre-consumed quota": "Quota pré-consommé",
+    "At least one cooldown group is required when using specific groups": "Au moins un groupe est requis avec des groupes spécifiques",
+    "Cooldown Groups": "Groupes à refroidir",
+    "Cooldown groups must match the channel groups": "Les groupes à refroidir doivent appartenir aux groupes du canal",
+    "Cooling Scope": "Portée du refroidissement",
+    "Entire Channel": "Canal entier",
+    "No channel groups available": "Aucun groupe disponible pour ce canal",
+    "Select groups to cool": "Sélectionnez les groupes à refroidir",
+    "Specific Groups": "Groupes spécifiques"
   }
 }

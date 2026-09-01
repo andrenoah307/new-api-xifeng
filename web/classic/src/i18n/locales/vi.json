@@ -5491,6 +5491,13 @@
     "原始缓存读取 Tokens": "Token đọc bộ nhớ đệm ban đầu",
     "原始缓存创建 Tokens": "Token tạo bộ nhớ đệm ban đầu",
     "预扣额度": "Hạn ngạch đã khấu trừ trước",
-    "零计费保护已触发": "Đã kích hoạt bảo vệ không tính phí"
+    "零计费保护已触发": "Đã kích hoạt bảo vệ không tính phí",
+    "Entire Channel": "Toàn bộ kênh",
+    "Specific Groups": "Nhóm cụ thể",
+    "Cooldown Groups": "Nhóm làm mát",
+    "Cooling Scope": "Phạm vi làm mát",
+    "Select groups to cool": "Chọn các nhóm cần làm mát",
+    "No channel groups available": "Kênh này không có nhóm khả dụng",
+    "At least one cooldown group is required when using specific groups": "Khi chọn nhóm cụ thể, cần ít nhất một nhóm làm mát"
   }
 }

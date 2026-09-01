@@ -125,7 +125,11 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 // after this function returns without holding channelSyncLock.
 func GetSatisfiedChannelCandidates(group string, model string, retry int, requestPath string) ([]*Channel, error) {
 	if !common.MemoryCacheEnabled {
-		return getChannelCandidates(group, model, retry, requestPath)
+		candidates, err := getChannelCandidates(group, model, retry, requestPath)
+		if err != nil {
+			return nil, err
+		}
+		return filterCooledChannels(candidates, group), nil
 	}
 
 	channelSyncLock.RLock()
@@ -133,11 +137,13 @@ func GetSatisfiedChannelCandidates(group string, model string, retry int, reques
 
 	// First, try to find channels with the exact model name.
 	channels := filterChannelsByRequestPathAndModel(group2model2channels[group][model], requestPath, model)
+	channels = filterCooledChannelIDs(channels, group)
 
 	// If no channels found, try to find channels with the normalized model name.
 	if len(channels) == 0 {
 		normalizedModel := ratio_setting.FormatMatchingModelName(model)
 		channels = filterChannelsByRequestPathAndModel(group2model2channels[group][normalizedModel], requestPath, model)
+		channels = filterCooledChannelIDs(channels, group)
 	}
 
 	if len(channels) == 0 {
@@ -295,14 +301,22 @@ func CacheGetChannelInfo(id int) (*ChannelInfo, error) {
 
 func CountEnabledChannelsForGroupModel(group string, modelName string) int {
 	if !common.MemoryCacheEnabled {
-		return 0
+		query := DB.Model(&Ability{}).Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, modelName, true)
+		if cooledChannelIDs := cooledChannelIDsForGroup(group); len(cooledChannelIDs) > 0 {
+			query = query.Where("channel_id NOT IN ?", cooledChannelIDs)
+		}
+		var count int64
+		if err := query.Count(&count).Error; err != nil {
+			return 0
+		}
+		return int(count)
 	}
 	channelSyncLock.RLock()
 	defer channelSyncLock.RUnlock()
 	channels := group2model2channels[group][modelName]
 	count := 0
 	for _, chId := range channels {
-		if ch, ok := channelsIDM[chId]; ok && ch.Status == common.ChannelStatusEnabled {
+		if ch, ok := channelsIDM[chId]; ok && ch.Status == common.ChannelStatusEnabled && !IsChannelGroupCooled(chId, group) {
 			count++
 		}
 	}
@@ -328,6 +342,28 @@ func CacheUpdateChannelStatus(id int, status int) {
 						group2model2channels[group][model] = append(channels[:i], channels[i+1:]...)
 						break
 					}
+				}
+			}
+		}
+	} else if channel, ok := channelsIDM[id]; ok {
+		if group2model2channels == nil {
+			group2model2channels = make(map[string]map[string][]int)
+		}
+		for _, group := range strings.Split(channel.Group, ",") {
+			if group2model2channels[group] == nil {
+				group2model2channels[group] = make(map[string][]int)
+			}
+			for _, model := range strings.Split(channel.Models, ",") {
+				channels := group2model2channels[group][model]
+				alreadyPresent := false
+				for _, channelID := range channels {
+					if channelID == id {
+						alreadyPresent = true
+						break
+					}
+				}
+				if !alreadyPresent {
+					group2model2channels[group][model] = append(channels, id)
 				}
 			}
 		}

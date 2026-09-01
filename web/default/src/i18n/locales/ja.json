@@ -5515,6 +5515,14 @@
     "Prompt tokens": "プロンプトトークン",
     "Completion tokens": "補完トークン",
     "Cache read tokens": "キャッシュ読み取りトークン",
-    "Pre-consumed quota": "事前消費クォータ"
+    "Pre-consumed quota": "事前消費クォータ",
+    "At least one cooldown group is required when using specific groups": "指定したグループを使う場合は、少なくとも1つの冷却グループが必要です",
+    "Cooldown Groups": "冷却するグループ",
+    "Cooldown groups must match the channel groups": "冷却グループはチャネルのグループに含まれている必要があります",
+    "Cooling Scope": "冷却範囲",
+    "Entire Channel": "チャネル全体",
+    "No channel groups available": "このチャネルに利用可能なグループはありません",
+    "Select groups to cool": "冷却するグループを選択",
+    "Specific Groups": "指定したグループ"
   }
 }

@@ -5515,6 +5515,14 @@
     "Prompt tokens": "Token prompt",
     "Completion tokens": "Token completion",
     "Cache read tokens": "Token đọc bộ nhớ đệm",
-    "Pre-consumed quota": "Hạn ngạch đã khấu trừ trước"
+    "Pre-consumed quota": "Hạn ngạch đã khấu trừ trước",
+    "At least one cooldown group is required when using specific groups": "Khi chọn nhóm cụ thể, cần ít nhất một nhóm làm mát",
+    "Cooldown Groups": "Nhóm làm mát",
+    "Cooldown groups must match the channel groups": "Nhóm làm mát phải thuộc các nhóm của kênh",
+    "Cooling Scope": "Phạm vi làm mát",
+    "Entire Channel": "Toàn bộ kênh",
+    "No channel groups available": "Kênh này không có nhóm khả dụng",
+    "Select groups to cool": "Chọn các nhóm cần làm mát",
+    "Specific Groups": "Nhóm cụ thể"
   }
 }

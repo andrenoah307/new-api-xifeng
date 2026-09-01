@@ -4960,6 +4960,13 @@
     "Per-user RPM must not exceed the total RPM when the total limit is enabled": "啟用總額限制時，每使用者 RPM 不能超過總額 RPM",
     "Total RPM and per-user RPM cannot both be 0; delete the group entry instead": "總額 RPM 和每使用者 RPM 不能同時為 0；請刪除該分組項目",
     "Top-level group limits apply to every model in the group (including models not listed in the models section): total_rpm caps all users combined, user_rpm caps a single user, and 0 means no limit.": "頂層分組限制涵蓋該分組的所有模型（包括 models 中未列出的模型）：total_rpm 限制全體使用者合計，user_rpm 限制單一使用者，0 表示不限制。",
-    "No conditions set — this rule will not match any errors": "未設定任何條件，此規則不會匹配任何錯誤"
+    "No conditions set — this rule will not match any errors": "未設定任何條件，此規則不會匹配任何錯誤",
+    "Entire Channel": "整個渠道",
+    "Specific Groups": "指定分組",
+    "Cooldown Groups": "冷卻分組",
+    "Cooling Scope": "冷卻範圍",
+    "Select groups to cool": "選擇要冷卻的分組",
+    "No channel groups available": "目前渠道沒有可用分組",
+    "At least one cooldown group is required when using specific groups": "選擇指定分組時至少需要一個冷卻分組"
   }
 }

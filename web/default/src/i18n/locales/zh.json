@@ -5515,6 +5515,14 @@
     "Prompt tokens": "提示 tokens",
     "Completion tokens": "补全 tokens",
     "Cache read tokens": "缓存读取 tokens",
-    "Pre-consumed quota": "预扣额度"
+    "Pre-consumed quota": "预扣额度",
+    "At least one cooldown group is required when using specific groups": "选择指定分组时至少需要一个冷却分组",
+    "Cooldown Groups": "冷却分组",
+    "Cooldown groups must match the channel groups": "冷却分组必须属于当前渠道分组",
+    "Cooling Scope": "冷却范围",
+    "Entire Channel": "整渠道",
+    "No channel groups available": "当前渠道没有可用分组",
+    "Select groups to cool": "选择要冷却的分组",
+    "Specific Groups": "指定分组"
   }
 }

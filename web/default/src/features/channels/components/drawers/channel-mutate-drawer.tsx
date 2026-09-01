@@ -1876,6 +1876,18 @@ export function ChannelMutateDrawer({
       if (hasAdvancedSettingsErrors(errors)) {
         handleAdvancedSettingsOpenChange(true)
       }
+      if (errors.pressure_cooling) {
+        const pressureCoolingMessage = errors.pressure_cooling.message
+        toast.error(
+          t(
+            pressureCoolingMessage ===
+              'Cooldown groups must match the channel groups'
+              ? pressureCoolingMessage
+              : 'At least one cooldown group is required when using specific groups'
+          )
+        )
+        return
+      }
       toast.error(t('Please fix the highlighted fields before saving'))
     },
     [handleAdvancedSettingsOpenChange, t]

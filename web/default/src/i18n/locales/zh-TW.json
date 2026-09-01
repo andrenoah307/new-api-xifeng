@@ -5515,6 +5515,14 @@
     "Prompt tokens": "提示 tokens",
     "Completion tokens": "補全 tokens",
     "Cache read tokens": "快取讀取 tokens",
-    "Pre-consumed quota": "預扣額度"
+    "Pre-consumed quota": "預扣額度",
+    "At least one cooldown group is required when using specific groups": "選擇指定群組時至少需要一個冷卻群組",
+    "Cooldown Groups": "冷卻群組",
+    "Cooldown groups must match the channel groups": "冷卻群組必須屬於目前渠道群組",
+    "Cooling Scope": "冷卻範圍",
+    "Entire Channel": "整個渠道",
+    "No channel groups available": "目前渠道沒有可用群組",
+    "Select groups to cool": "選擇要冷卻的群組",
+    "Specific Groups": "指定群組"
   }
 }

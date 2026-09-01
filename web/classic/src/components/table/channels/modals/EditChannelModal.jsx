@@ -74,7 +74,10 @@ import ChannelRateLimitEditor, {
   normalizeChannelRateLimit,
 } from '../../../channel/ChannelRateLimitEditor';
 import PressureCoolingEditor, {
+  cleanPressureCoolingGroups,
+  isPressureCoolingSaveAllowed,
   normalizePressureCooling,
+  serializePressureCooling,
 } from '../../../channel/PressureCoolingEditor';
 import { useSecureVerification } from '../../../../hooks/common/useSecureVerification';
 import { parseChannelConnectionString } from '../../../../helpers/token';
@@ -704,6 +707,34 @@ const EditChannelModal = (props) => {
       value = Array.from(new Set(value.map((m) => (m || '').trim())));
     }
 
+    let normalizedPressureCooling;
+    if (name === 'groups' && Array.isArray(value)) {
+      normalizedPressureCooling = normalizePressureCooling(
+        inputs.pressure_cooling,
+      );
+      if (normalizedPressureCooling) {
+        normalizedPressureCooling = {
+          ...normalizedPressureCooling,
+          cooldown_groups: cleanPressureCoolingGroups(
+            normalizedPressureCooling.cooldown_groups,
+            value,
+          ),
+        };
+      }
+      if (normalizedPressureCooling) {
+        if (formApiRef.current) {
+          formApiRef.current.setValue(
+            'pressure_cooling',
+            normalizedPressureCooling,
+          );
+        }
+        setChannelSettings((prev) => ({
+          ...prev,
+          pressure_cooling: normalizedPressureCooling,
+        }));
+      }
+    }
+
     if (name === 'base_url' && value.endsWith('/v1')) {
       Modal.confirm({
         title: '警告',
@@ -715,7 +746,13 @@ const EditChannelModal = (props) => {
       });
       return;
     }
-    setInputs((inputs) => ({ ...inputs, [name]: value }));
+    setInputs((inputs) => ({
+      ...inputs,
+      [name]: value,
+      ...(normalizedPressureCooling
+        ? { pressure_cooling: normalizedPressureCooling }
+        : {}),
+    }));
     if (name === 'type') {
       let localModels = [];
       switch (value) {
@@ -972,6 +1009,15 @@ const EditChannelModal = (props) => {
           data.pressure_cooling = normalizePressureCooling(
             parsedSettings.pressure_cooling,
           );
+          if (data.pressure_cooling) {
+            data.pressure_cooling = {
+              ...data.pressure_cooling,
+              cooldown_groups: cleanPressureCoolingGroups(
+                data.pressure_cooling.cooldown_groups,
+                data.groups,
+              ),
+            };
+          }
         } catch (error) {
           console.error('解析渠道设置失败:', error);
           data.force_format = false;
@@ -1113,7 +1159,7 @@ const EditChannelModal = (props) => {
           data.risk_control_headers,
         ),
         rate_limit: normalizeChannelRateLimit(data.rate_limit),
-        pressure_cooling: normalizePressureCooling(data.pressure_cooling),
+        pressure_cooling: data.pressure_cooling,
       });
       initialModelsRef.current = (data.models || [])
         .map((model) => (model || '').trim())
@@ -1673,6 +1719,26 @@ const EditChannelModal = (props) => {
     let localInputs = { ...formValues };
     localInputs.param_override = inputs.param_override;
 
+    let normalizedPCForSave = normalizePressureCooling(inputs.pressure_cooling);
+    if (normalizedPCForSave) {
+      normalizedPCForSave = {
+        ...normalizedPCForSave,
+        cooldown_groups: cleanPressureCoolingGroups(
+          normalizedPCForSave.cooldown_groups,
+          inputs.groups,
+        ),
+      };
+    }
+    if (
+      normalizedPCForSave &&
+      !isPressureCoolingSaveAllowed(normalizedPCForSave)
+    ) {
+      showInfo(
+        t('At least one cooldown group is required when using specific groups'),
+      );
+      return;
+    }
+
     if (localInputs.type === 57) {
       if (batch) {
         showInfo(t('Codex 渠道不支持批量创建'));
@@ -1904,9 +1970,12 @@ const EditChannelModal = (props) => {
     ) {
       channelExtraSettings.rate_limit = normalizedRateLimit;
     }
-    const normalizedPC = normalizePressureCooling(inputs.pressure_cooling);
-    if (normalizedPC) {
-      channelExtraSettings.pressure_cooling = normalizedPC;
+    const serializedPC = serializePressureCooling(
+      normalizedPCForSave,
+      inputs.groups,
+    );
+    if (serializedPC) {
+      channelExtraSettings.pressure_cooling = JSON.parse(serializedPC);
     }
     localInputs.setting = JSON.stringify(channelExtraSettings);
 
@@ -4149,11 +4218,9 @@ const EditChannelModal = (props) => {
                     {/* Pressure Cooling */}
                     <PressureCoolingEditor
                       value={inputs.pressure_cooling}
+                      groups={inputs.groups}
                       onChange={(value) =>
-                        handleChannelSettingsChange(
-                          'pressure_cooling',
-                          value,
-                        )
+                        handleChannelSettingsChange('pressure_cooling', value)
                       }
                     />
 

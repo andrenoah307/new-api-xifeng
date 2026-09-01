@@ -4948,6 +4948,13 @@
     "原始缓存读取 Tokens": "元のキャッシュ読み取りトークン",
     "原始缓存创建 Tokens": "元のキャッシュ作成トークン",
     "预扣额度": "事前消費クォータ",
-    "零计费保护已触发": "ゼロ課金ガードが作動しました"
+    "零计费保护已触发": "ゼロ課金ガードが作動しました",
+    "Entire Channel": "チャネル全体",
+    "Specific Groups": "指定グループ",
+    "Cooldown Groups": "冷却グループ",
+    "Cooling Scope": "冷却範囲",
+    "Select groups to cool": "冷却するグループを選択",
+    "No channel groups available": "このチャネルに利用可能なグループはありません",
+    "At least one cooldown group is required when using specific groups": "指定したグループを使う場合は、少なくとも1つの冷却グループが必要です"
   }
 }

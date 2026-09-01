@@ -470,6 +470,9 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 	if err := channel.ValidateSettings(); err != nil {
 		return fmt.Errorf("渠道额外设置[channel setting] 格式错误：%s", err.Error())
 	}
+	if err := validatePressureCoolingOverride(channel); err != nil {
+		return err
+	}
 
 	// 渠道限流配置校验
 	if rl := channel.GetSetting().RateLimit; rl != nil {
@@ -551,6 +554,48 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 	}
 
 	return nil
+}
+
+func validatePressureCoolingOverride(channel *model.Channel) error {
+	if channel == nil {
+		return nil
+	}
+	override := channel.GetSetting().PressureCooling
+	if override == nil {
+		return nil
+	}
+	switch override.Scope {
+	case "", "channel":
+		return nil
+	case "groups":
+		if len(override.CooldownGroups) == 0 {
+			return fmt.Errorf("压力冷却分组范围不能为空")
+		}
+		groups := channel.GetGroups()
+		// UpdateChannel accepts partial channel payloads. When group is omitted,
+		// validate against the persisted groups because GORM will retain them.
+		if len(groups) == 0 && channel.Id > 0 {
+			if existing, err := model.GetChannelById(channel.Id, true); err == nil && existing != nil {
+				groups = existing.GetGroups()
+			}
+		}
+		channelGroups := make(map[string]struct{}, len(groups))
+		for _, group := range groups {
+			group = strings.TrimSpace(group)
+			if group != "" {
+				channelGroups[group] = struct{}{}
+			}
+		}
+		for _, group := range override.CooldownGroups {
+			normalized := strings.TrimSpace(group)
+			if _, ok := channelGroups[normalized]; !ok {
+				return fmt.Errorf("压力冷却分组 %q 不属于该渠道的分组", group)
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("压力冷却 scope 仅支持 channel 或 groups")
+	}
 }
 
 func RefreshCodexChannelCredential(c *gin.Context) {

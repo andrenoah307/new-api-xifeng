@@ -2868,6 +2868,13 @@
     "暂无请求数据统计": "暂无请求数据统计",
     "点击刷新获取最新数据": "点击刷新获取最新数据",
     "RPM 概览": "RPM 概览",
-    "No conditions set — this rule will not match any errors": "未设置任何条件，此规则不会匹配任何错误"
+    "No conditions set — this rule will not match any errors": "未设置任何条件，此规则不会匹配任何错误",
+    "Entire Channel": "整渠道",
+    "Specific Groups": "指定分组",
+    "Cooldown Groups": "冷却分组",
+    "Cooling Scope": "冷却范围",
+    "Select groups to cool": "选择要冷却的分组",
+    "No channel groups available": "当前渠道没有可用分组",
+    "At least one cooldown group is required when using specific groups": "选择指定分组时至少需要一个冷却分组"
   }
 }

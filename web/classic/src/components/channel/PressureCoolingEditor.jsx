@@ -24,10 +24,28 @@ import {
   Col,
   InputNumber,
   Row,
+  Select,
   Switch,
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconBolt } from '@douyinfe/semi-icons';
+import {
+  cleanPressureCoolingGroups,
+  getPressureCoolingGroupOptions,
+  isPressureCoolingSaveAllowed,
+  normalizePressureCooling,
+  serializePressureCooling,
+} from './PressureCoolingEditor.utils';
+
+export {
+  cleanPressureCoolingGroups,
+  getPressureCoolingGroupOptions,
+  isPressureCoolingSaveAllowed,
+  isPressureCoolingSaveable,
+  normalizePressureCooling,
+  parsePressureCooling,
+  serializePressureCooling,
+} from './PressureCoolingEditor.utils';
 
 const { Text } = Typography;
 
@@ -37,25 +55,9 @@ const DEFAULT_VALUE = Object.freeze({
   trigger_percent: null,
   cooldown_seconds: null,
   observation_window_seconds: null,
+  scope: 'channel',
+  cooldown_groups: [],
 });
-
-export const normalizePressureCooling = (value) => {
-  if (!value || typeof value !== 'object') return null;
-  const hasOverride =
-    value.enabled != null ||
-    value.frt_threshold_ms != null ||
-    value.trigger_percent != null ||
-    value.cooldown_seconds != null ||
-    value.observation_window_seconds != null;
-  if (!hasOverride) return null;
-  return {
-    enabled: value.enabled ?? null,
-    frt_threshold_ms: value.frt_threshold_ms ?? null,
-    trigger_percent: value.trigger_percent ?? null,
-    cooldown_seconds: value.cooldown_seconds ?? null,
-    observation_window_seconds: value.observation_window_seconds ?? null,
-  };
-};
 
 const FieldLabel = ({ children }) => (
   <div style={{ marginBottom: 6 }}>
@@ -65,25 +67,46 @@ const FieldLabel = ({ children }) => (
   </div>
 );
 
-const PressureCoolingEditor = ({ value, onChange }) => {
+const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
   const { t } = useTranslation();
 
   const v = useMemo(() => {
-    const src = value && typeof value === 'object' ? value : {};
-    return { ...DEFAULT_VALUE, ...src };
-  }, [value]);
+    const normalized = normalizePressureCooling(value);
+    if (!normalized) return DEFAULT_VALUE;
+    return {
+      ...normalized,
+      cooldown_groups: cleanPressureCoolingGroups(
+        normalized.cooldown_groups,
+        groups,
+      ),
+    };
+  }, [groups, value]);
 
   const hasOverride =
     v.enabled != null ||
     v.frt_threshold_ms != null ||
     v.trigger_percent != null ||
     v.cooldown_seconds != null ||
-    v.observation_window_seconds != null;
+    v.observation_window_seconds != null ||
+    (value &&
+      typeof value === 'object' &&
+      (value.scope != null || value.cooldown_groups != null));
 
   const update = (patch) => {
     if (typeof onChange !== 'function') return;
     const next = { ...v, ...patch };
-    onChange(normalizePressureCooling(next));
+    const normalized = normalizePressureCooling(next);
+    onChange(
+      normalized
+        ? {
+            ...normalized,
+            cooldown_groups: cleanPressureCoolingGroups(
+              normalized.cooldown_groups,
+              groups,
+            ),
+          }
+        : null,
+    );
   };
 
   const handleToggleOverride = (checked) => {
@@ -107,9 +130,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
             <IconBolt size={14} />
           </Avatar>
           <div>
-            <Text className='text-lg font-medium'>
-              {t('压力冷却')}
-            </Text>
+            <Text className='text-lg font-medium'>{t('压力冷却')}</Text>
             <div
               className='text-xs'
               style={{ color: 'var(--semi-color-text-2)' }}
@@ -120,19 +141,59 @@ const PressureCoolingEditor = ({ value, onChange }) => {
             </div>
           </div>
         </div>
-        <Switch
-          checked={hasOverride}
-          onChange={handleToggleOverride}
-        />
+        <Switch checked={hasOverride} onChange={handleToggleOverride} />
       </div>
 
       {hasOverride && (
         <>
           <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>
-                {t('FRT 阈值 (ms)，留空默认 8000')}
-              </FieldLabel>
+              <FieldLabel>{t('Cooling Scope')}</FieldLabel>
+              <Select
+                value={v.scope}
+                optionList={[
+                  { value: 'channel', label: t('Entire Channel') },
+                  { value: 'groups', label: t('Specific Groups') },
+                ]}
+                onChange={(scope) =>
+                  update({
+                    scope,
+                    cooldown_groups:
+                      scope === 'groups' ? v.cooldown_groups : [],
+                  })
+                }
+                style={{ width: '100%' }}
+              />
+            </Col>
+            {v.scope === 'groups' && (
+              <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                <FieldLabel>{t('Cooldown Groups')}</FieldLabel>
+                <Select
+                  multiple
+                  value={v.cooldown_groups}
+                  optionList={getPressureCoolingGroupOptions(groups)}
+                  placeholder={t('Select groups to cool')}
+                  emptyContent={t('No channel groups available')}
+                  onChange={(cooldownGroups) =>
+                    update({ cooldown_groups: cooldownGroups })
+                  }
+                  getPopupContainer={() => document.body}
+                  style={{ width: '100%' }}
+                />
+                {!isPressureCoolingSaveAllowed(v) && (
+                  <Text type='danger' size='small'>
+                    {t(
+                      'At least one cooldown group is required when using specific groups',
+                    )}
+                  </Text>
+                )}
+              </Col>
+            )}
+          </Row>
+
+          <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
+            <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+              <FieldLabel>{t('FRT 阈值 (ms)，留空默认 8000')}</FieldLabel>
               <InputNumber
                 min={1000}
                 max={60000}
@@ -141,8 +202,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
                 placeholder='8000'
                 onChange={(n) =>
                   update({
-                    frt_threshold_ms:
-                      typeof n === 'number' && n > 0 ? n : null,
+                    frt_threshold_ms: typeof n === 'number' && n > 0 ? n : null,
                   })
                 }
                 style={{ width: '100%' }}
@@ -150,9 +210,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
               />
             </Col>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>
-                {t('触发百分比 (%)，留空默认 50')}
-              </FieldLabel>
+              <FieldLabel>{t('触发百分比 (%)，留空默认 50')}</FieldLabel>
               <InputNumber
                 min={1}
                 max={100}
@@ -161,8 +219,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
                 suffix='%'
                 onChange={(n) =>
                   update({
-                    trigger_percent:
-                      typeof n === 'number' && n > 0 ? n : null,
+                    trigger_percent: typeof n === 'number' && n > 0 ? n : null,
                   })
                 }
                 style={{ width: '100%' }}
@@ -173,9 +230,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
 
           <Row gutter={16} type='flex'>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>
-                {t('冷却时长 (秒)，留空默认 300')}
-              </FieldLabel>
+              <FieldLabel>{t('冷却时长 (秒)，留空默认 300')}</FieldLabel>
               <InputNumber
                 min={10}
                 max={86400}
@@ -184,8 +239,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
                 placeholder='300'
                 onChange={(n) =>
                   update({
-                    cooldown_seconds:
-                      typeof n === 'number' && n > 0 ? n : null,
+                    cooldown_seconds: typeof n === 'number' && n > 0 ? n : null,
                   })
                 }
                 style={{ width: '100%' }}
@@ -193,9 +247,7 @@ const PressureCoolingEditor = ({ value, onChange }) => {
               />
             </Col>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>
-                {t('观察窗口 (秒)，留空默认 60')}
-              </FieldLabel>
+              <FieldLabel>{t('观察窗口 (秒)，留空默认 60')}</FieldLabel>
               <InputNumber
                 min={10}
                 max={3600}

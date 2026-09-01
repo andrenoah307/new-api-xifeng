@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 
 type PressureCoolingState struct {
 	State         string // "obs" | "cool" | "susp"
+	Scope         string // "channel" | "groups"
+	CooledGroups  []string
 	Violations    int64
 	TotalRequests int64
 	WindowStart   int64
@@ -53,13 +56,9 @@ func loadPressureCoolingStateRedis(channelId int) *PressureCoolingState {
 	key := pressureCoolingRedisKey(channelId)
 	vals, err := common.RDB.HGetAll(ctx, key).Result()
 	if err != nil || len(vals) == 0 {
-		return &PressureCoolingState{State: "obs"}
+		return &PressureCoolingState{State: "obs", Scope: "channel"}
 	}
-	s := &PressureCoolingState{}
-	s.State = vals["st"]
-	if s.State == "" {
-		s.State = "obs"
-	}
+	s := pressureCoolingStateFromFields(vals)
 	s.Violations, _ = strconv.ParseInt(vals["vc"], 10, 64)
 	s.TotalRequests, _ = strconv.ParseInt(vals["tr"], 10, 64)
 	s.WindowStart, _ = strconv.ParseInt(vals["ws"], 10, 64)
@@ -72,14 +71,10 @@ func loadPressureCoolingStateRedis(channelId int) *PressureCoolingState {
 func savePressureCoolingStateRedis(channelId int, state *PressureCoolingState, ttlSeconds int) {
 	ctx := context.Background()
 	key := pressureCoolingRedisKey(channelId)
-	fields := map[string]interface{}{
-		"st": state.State,
-		"vc": strconv.FormatInt(state.Violations, 10),
-		"tr": strconv.FormatInt(state.TotalRequests, 10),
-		"ws": strconv.FormatInt(state.WindowStart, 10),
-		"cu": strconv.FormatInt(state.CooldownUntil, 10),
-		"cc": strconv.FormatInt(state.Consecutive, 10),
-		"gu": strconv.FormatInt(state.GraceUntil, 10),
+	encoded := pressureCoolingStateFields(state)
+	fields := make(map[string]interface{}, len(encoded))
+	for field, value := range encoded {
+		fields[field] = value
 	}
 	common.RDB.HSet(ctx, key, fields)
 	if ttlSeconds > 0 {
@@ -90,16 +85,58 @@ func savePressureCoolingStateRedis(channelId int, state *PressureCoolingState, t
 func loadPressureCoolingStateMemory(channelId int) *PressureCoolingState {
 	v, ok := pressureCoolingMemStore.Load(channelId)
 	if !ok {
-		return &PressureCoolingState{State: "obs"}
+		return &PressureCoolingState{State: "obs", Scope: "channel"}
 	}
 	s := v.(*PressureCoolingState)
 	cp := *s
+	if cp.Scope == "" {
+		cp.Scope = "channel"
+	}
+	cp.CooledGroups = append([]string(nil), s.CooledGroups...)
 	return &cp
 }
 
 func savePressureCoolingStateMemory(channelId int, state *PressureCoolingState) {
 	cp := *state
+	cp.CooledGroups = append([]string(nil), state.CooledGroups...)
 	pressureCoolingMemStore.Store(channelId, &cp)
+}
+
+func pressureCoolingStateFields(state *PressureCoolingState) map[string]string {
+	scope := ""
+	if state.Scope == "groups" {
+		scope = "g"
+	}
+	return map[string]string{
+		"st": state.State,
+		"vc": strconv.FormatInt(state.Violations, 10),
+		"tr": strconv.FormatInt(state.TotalRequests, 10),
+		"ws": strconv.FormatInt(state.WindowStart, 10),
+		"cu": strconv.FormatInt(state.CooldownUntil, 10),
+		"cc": strconv.FormatInt(state.Consecutive, 10),
+		"gu": strconv.FormatInt(state.GraceUntil, 10),
+		"sc": scope,
+		"cg": strings.Join(state.CooledGroups, ","),
+	}
+}
+
+func pressureCoolingStateFromFields(vals map[string]string) *PressureCoolingState {
+	state := &PressureCoolingState{State: vals["st"], Scope: "channel"}
+	if state.State == "" {
+		state.State = "obs"
+	}
+	if vals["sc"] == "g" {
+		state.Scope = "groups"
+	}
+	if groups := strings.Split(vals["cg"], ","); len(groups) > 0 && vals["cg"] != "" {
+		state.CooledGroups = make([]string, 0, len(groups))
+		for _, group := range groups {
+			if group = strings.TrimSpace(group); group != "" {
+				state.CooledGroups = append(state.CooledGroups, group)
+			}
+		}
+	}
+	return state
 }
 
 func listCoolingChannelStates() map[int]*PressureCoolingState {
@@ -134,6 +171,10 @@ func listCoolingChannelStates() map[int]*PressureCoolingState {
 		if st.State == "cool" || st.State == "susp" {
 			if _, exists := result[chId]; !exists {
 				cp := *st
+				if cp.Scope == "" {
+					cp.Scope = "channel"
+				}
+				cp.CooledGroups = append([]string(nil), st.CooledGroups...)
 				result[chId] = &cp
 			}
 		}

@@ -105,3 +105,117 @@ func TestGetSatisfiedChannelCandidatesSnapshot(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSatisfiedChannelCandidatesFiltersCooledGroupInMemoryAndDB(t *testing.T) {
+	for _, memoryCacheEnabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("memory_cache_%t", memoryCacheEnabled), func(t *testing.T) {
+			truncateTables(t)
+			originalMemoryCacheEnabled := common.MemoryCacheEnabled
+			originalGroups := group2model2channels
+			originalChannels := channelsIDM
+			common.MemoryCacheEnabled = memoryCacheEnabled
+			cooling := map[int]map[string]struct{}{9201: {"pro": {}}}
+			SetChannelGroupCooling(cooling)
+			t.Cleanup(func() {
+				common.MemoryCacheEnabled = originalMemoryCacheEnabled
+				group2model2channels = originalGroups
+				channelsIDM = originalChannels
+				SetChannelGroupCooling(nil)
+			})
+
+			priority := int64(10)
+			weight := uint(1)
+			channels := []*Channel{
+				{Id: 9201, Name: "cooled", Key: "cooled-key", Status: common.ChannelStatusEnabled, Group: "pro", Models: "cooling-model", Priority: &priority, Weight: &weight},
+				{Id: 9202, Name: "available", Key: "available-key", Status: common.ChannelStatusEnabled, Group: "pro", Models: "cooling-model", Priority: &priority, Weight: &weight},
+			}
+			for _, channel := range channels {
+				require.NoError(t, DB.Create(channel).Error)
+				require.NoError(t, DB.Create(&Ability{Group: "pro", Model: "cooling-model", ChannelId: channel.Id, Enabled: true, Priority: &priority, Weight: weight}).Error)
+			}
+			if memoryCacheEnabled {
+				group2model2channels = map[string]map[string][]int{"pro": {"cooling-model": {9201, 9202}}}
+				channelsIDM = map[int]*Channel{9201: channels[0], 9202: channels[1]}
+			}
+
+			candidates, err := GetSatisfiedChannelCandidates("pro", "cooling-model", 0, "")
+			require.NoError(t, err)
+			require.Len(t, candidates, 1)
+			assert.Equal(t, 9202, candidates[0].Id)
+		})
+	}
+}
+
+func TestCountEnabledChannelsForGroupModelExcludesCooledChannels(t *testing.T) {
+	for _, memoryCacheEnabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("memory_cache_%t", memoryCacheEnabled), func(t *testing.T) {
+			truncateTables(t)
+			originalMemoryCacheEnabled := common.MemoryCacheEnabled
+			originalGroups := group2model2channels
+			originalChannels := channelsIDM
+			common.MemoryCacheEnabled = memoryCacheEnabled
+			SetChannelGroupCooling(map[int]map[string]struct{}{9301: {"pro": {}}})
+			t.Cleanup(func() {
+				common.MemoryCacheEnabled = originalMemoryCacheEnabled
+				group2model2channels = originalGroups
+				channelsIDM = originalChannels
+				SetChannelGroupCooling(nil)
+			})
+
+			priority := int64(10)
+			weight := uint(1)
+			cooled := &Channel{Id: 9301, Name: "cooled-count", Key: "cooled-count-key", Status: common.ChannelStatusEnabled, Group: "pro", Models: "count-model", Priority: &priority, Weight: &weight}
+			available := &Channel{Id: 9302, Name: "available-count", Key: "available-count-key", Status: common.ChannelStatusEnabled, Group: "pro", Models: "count-model", Priority: &priority, Weight: &weight}
+			if memoryCacheEnabled {
+				group2model2channels = map[string]map[string][]int{"pro": {"count-model": {cooled.Id, available.Id}}}
+				channelsIDM = map[int]*Channel{cooled.Id: cooled, available.Id: available}
+			} else {
+				require.NoError(t, DB.Create(&Ability{Group: "pro", Model: "count-model", ChannelId: cooled.Id, Enabled: true, Priority: &priority, Weight: weight}).Error)
+				require.NoError(t, DB.Create(&Ability{Group: "pro", Model: "count-model", ChannelId: available.Id, Enabled: true, Priority: &priority, Weight: weight}).Error)
+			}
+
+			assert.Equal(t, 1, CountEnabledChannelsForGroupModel("pro", "count-model"))
+		})
+	}
+}
+
+func TestCacheUpdateChannelStatusEnabledRefillsAllBucketsIdempotently(t *testing.T) {
+	originalMemoryCacheEnabled := common.MemoryCacheEnabled
+	originalGroups := group2model2channels
+	originalChannels := channelsIDM
+	common.MemoryCacheEnabled = true
+	t.Cleanup(func() {
+		common.MemoryCacheEnabled = originalMemoryCacheEnabled
+		group2model2channels = originalGroups
+		channelsIDM = originalChannels
+	})
+
+	priority := int64(10)
+	weight := uint(1)
+	channel := &Channel{
+		Id:       9401,
+		Name:     "refill",
+		Key:      "refill-key",
+		Status:   common.ChannelStatusManuallyDisabled,
+		Group:    "pro,cheap",
+		Models:   "model-a,model-b",
+		Priority: &priority,
+		Weight:   &weight,
+	}
+	channelsIDM = map[int]*Channel{channel.Id: channel}
+	group2model2channels = map[string]map[string][]int{
+		"pro":   nil,
+		"cheap": {"model-a": {}, "model-b": {}},
+	}
+
+	CacheUpdateChannelStatus(channel.Id, common.ChannelStatusEnabled)
+	CacheUpdateChannelStatus(channel.Id, common.ChannelStatusEnabled)
+
+	for _, group := range []string{"pro", "cheap"} {
+		for _, modelName := range []string{"model-a", "model-b"} {
+			ids := group2model2channels[group][modelName]
+			require.Len(t, ids, 1)
+			assert.Equal(t, channel.Id, ids[0])
+		}
+	}
+}

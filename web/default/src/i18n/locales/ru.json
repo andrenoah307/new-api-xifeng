@@ -5515,6 +5515,14 @@
     "Prompt tokens": "Токены запроса",
     "Completion tokens": "Токены ответа",
     "Cache read tokens": "Токены чтения кэша",
-    "Pre-consumed quota": "Предварительно списанная квота"
+    "Pre-consumed quota": "Предварительно списанная квота",
+    "At least one cooldown group is required when using specific groups": "При выборе указанных групп нужна хотя бы одна группа охлаждения",
+    "Cooldown Groups": "Группы охлаждения",
+    "Cooldown groups must match the channel groups": "Группы охлаждения должны входить в группы канала",
+    "Cooling Scope": "Область охлаждения",
+    "Entire Channel": "Весь канал",
+    "No channel groups available": "Для этого канала нет доступных групп",
+    "Select groups to cool": "Выберите группы для охлаждения",
+    "Specific Groups": "Указанные группы"
   }
 }

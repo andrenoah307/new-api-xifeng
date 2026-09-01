@@ -5208,6 +5208,13 @@
     "原始缓存读取 Tokens": "Original cache-read tokens",
     "原始缓存创建 Tokens": "Original cache-creation tokens",
     "预扣额度": "Pre-consumed quota",
-    "零计费保护已触发": "Zero-charge guard applied"
+    "零计费保护已触发": "Zero-charge guard applied",
+    "Entire Channel": "Entire Channel",
+    "Specific Groups": "Specific Groups",
+    "Cooldown Groups": "Cooldown Groups",
+    "Cooling Scope": "Cooling Scope",
+    "Select groups to cool": "Select groups to cool",
+    "No channel groups available": "No channel groups available",
+    "At least one cooldown group is required when using specific groups": "At least one cooldown group is required when using specific groups"
   }
 }

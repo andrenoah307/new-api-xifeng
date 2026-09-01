@@ -46,11 +46,13 @@ type RiskControlHeaderRule struct {
 }
 
 type PressureCoolingOverride struct {
-	Enabled                  *bool `json:"enabled,omitempty"`
-	FRTThresholdMs           *int  `json:"frt_threshold_ms,omitempty"`
-	TriggerPercent           *int  `json:"trigger_percent,omitempty"`
-	CooldownSeconds          *int  `json:"cooldown_seconds,omitempty"`
-	ObservationWindowSeconds *int  `json:"observation_window_seconds,omitempty"`
+	Enabled                  *bool    `json:"enabled,omitempty"`
+	FRTThresholdMs           *int     `json:"frt_threshold_ms,omitempty"`
+	TriggerPercent           *int     `json:"trigger_percent,omitempty"`
+	CooldownSeconds          *int     `json:"cooldown_seconds,omitempty"`
+	ObservationWindowSeconds *int     `json:"observation_window_seconds,omitempty"`
+	Scope                    string   `json:"scope,omitempty"`           // "" | "channel" | "groups"
+	CooldownGroups           []string `json:"cooldown_groups,omitempty"`
 }
 
 type ChannelSettings struct {

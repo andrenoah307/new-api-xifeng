@@ -4981,6 +4981,13 @@
     "原始缓存读取 Tokens": "Tokens de lecture du cache d'origine",
     "原始缓存创建 Tokens": "Tokens de création du cache d'origine",
     "预扣额度": "Quota pré-consommé",
-    "零计费保护已触发": "Protection de facturation nulle déclenchée"
+    "零计费保护已触发": "Protection de facturation nulle déclenchée",
+    "Entire Channel": "Canal entier",
+    "Specific Groups": "Groupes spécifiques",
+    "Cooldown Groups": "Groupes en refroidissement",
+    "Cooling Scope": "Portée du refroidissement",
+    "Select groups to cool": "Sélectionnez les groupes à refroidir",
+    "No channel groups available": "Aucun groupe disponible pour ce canal",
+    "At least one cooldown group is required when using specific groups": "Au moins un groupe est requis avec des groupes spécifiques"
   }
 }
