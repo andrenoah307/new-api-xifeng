@@ -1724,7 +1724,17 @@ const EditChannelModal = (props) => {
       inputs.pressure_cooling,
     );
     if (pressureCoolingValidationError) {
-      showInfo(t('请求参数无效'));
+      const pressureCoolingValidationMessage =
+        {
+          trigger_percent: '压力冷却触发百分比必须在 1 到 100 之间',
+          upstream_error_trigger_percent:
+            '压力冷却上游报错比例必须在 0 到 100 之间',
+          upstream_error_min_samples:
+            '压力冷却上游报错最小样本数必须在 1 到 10000 之间',
+          condition_mode: '压力冷却条件组合仅支持任一或全部',
+          upstream_error_enabled: '压力冷却上游报错开关配置无效',
+        }[pressureCoolingValidationError] || '请求参数无效';
+      showInfo(t(pressureCoolingValidationMessage));
       return;
     }
 
@@ -4450,7 +4460,11 @@ const EditChannelModal = (props) => {
         width={700}
         style={{ maxWidth: '90vw' }}
         centered
-        bodyStyle={{ overflowY: 'auto' }}
+        bodyStyle={{
+          maxHeight: 'calc(80vh - 120px)',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+        }}
       >
         <ChannelKeyDisplay
           keyData={keyDisplayState.keyData}

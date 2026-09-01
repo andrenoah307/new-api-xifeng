@@ -304,6 +304,54 @@ describe('pressure cooling scope configuration', () => {
     }
   })
 
+  test('rejects invalid pressure cooling JSON before payload construction', () => {
+    const result = channelFormSchema.safeParse({
+      name: 'channel',
+      type: 1,
+      key: '',
+      models: 'model',
+      group: ['pro'],
+      status: 1,
+      pressure_cooling: '{invalid',
+    })
+
+    assert.equal(result.success, false)
+    if (!result.success) {
+      assert.equal(result.error.issues[0]?.path[0], 'pressure_cooling')
+      assert.equal(
+        result.error.issues[0]?.message,
+        'Pressure cooling configuration is not valid JSON'
+      )
+    }
+  })
+
+  test('validates FRT trigger percent boundaries while allowing null', () => {
+    const base = {
+      name: 'channel',
+      type: 1,
+      key: '',
+      models: 'model',
+      group: ['pro'],
+      status: 1,
+    }
+
+    for (const triggerPercent of [0, 101]) {
+      const result = channelFormSchema.safeParse({
+        ...base,
+        pressure_cooling: JSON.stringify({ trigger_percent: triggerPercent }),
+      })
+      assert.equal(result.success, false)
+    }
+
+    for (const triggerPercent of [null, 1, 100]) {
+      const result = channelFormSchema.safeParse({
+        ...base,
+        pressure_cooling: JSON.stringify({ trigger_percent: triggerPercent }),
+      })
+      assert.equal(result.success, true)
+    }
+  })
+
   test('renders the trigger conditions and hides upstream fields when disabled', () => {
     const form = {
       watch: (name: string) =>
@@ -335,7 +383,59 @@ describe('pressure cooling scope configuration', () => {
         createElement(PressureCoolingEditor, { form: enabledForm as never })
       )
     )
-    assert.match(enabledMarkup, />Error Rate</)
+    assert.match(enabledMarkup, />Error Rate \(%\)</)
     assert.match(enabledMarkup, />Minimum Samples</)
+  })
+
+  test('shows condition combination only when upstream errors are enabled', () => {
+    const renderEditor = (upstreamErrorEnabled: boolean) => {
+      const form = {
+        watch: (name: string) =>
+          name === 'group'
+            ? ['pro']
+            : JSON.stringify({
+                enabled: true,
+                upstream_error_enabled: upstreamErrorEnabled,
+              }),
+        setValue: () => undefined,
+      }
+      return renderToStaticMarkup(
+        createElement(
+          I18nextProvider,
+          { i18n },
+          createElement(PressureCoolingEditor, { form: form as never })
+        )
+      )
+    }
+
+    assert.equal(renderEditor(false).includes('Condition Combination'), false)
+    assert.equal(renderEditor(true).includes('Condition Combination'), true)
+  })
+
+  test('renders FRT inputs inside the trigger conditions section', () => {
+    const form = {
+      watch: (name: string) =>
+        name === 'group' ? ['pro'] : JSON.stringify({ enabled: true }),
+      setValue: () => undefined,
+    }
+    const markup = renderToStaticMarkup(
+      createElement(
+        I18nextProvider,
+        { i18n },
+        createElement(PressureCoolingEditor, { form: form as never })
+      )
+    )
+    const container = dom.document.createElement('div')
+    container.innerHTML = markup
+    const triggerConditions = container.querySelector(
+      'section[aria-labelledby="pressure-cooling-trigger-conditions"]'
+    )
+    assert.ok(triggerConditions)
+    assert.ok(
+      triggerConditions.querySelector('#pressure-cooling-frt-threshold')
+    )
+    assert.ok(
+      triggerConditions.querySelector('#pressure-cooling-trigger-percent')
+    )
   })
 })

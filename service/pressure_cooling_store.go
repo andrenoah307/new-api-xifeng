@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/go-redis/redis/v8"
 )
 
 type PressureCoolingState struct {
@@ -69,9 +67,6 @@ func loadPressureCoolingStateRedis(channelId int) (*PressureCoolingState, error)
 	key := pressureCoolingRedisKey(channelId)
 	vals, err := common.RDB.HGetAll(ctx, key).Result()
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return &PressureCoolingState{State: "obs", Scope: "channel"}, nil
-		}
 		return nil, err
 	}
 	if len(vals) == 0 {

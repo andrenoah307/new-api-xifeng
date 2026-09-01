@@ -189,6 +189,53 @@ func TestRecordPressureCoolingAttemptDoesNotMigrateIneligibleState(t *testing.T)
 	assert.Equal(t, "obs", loadPressureCoolingState(channel.Id).State, "stale FRT evidence cannot satisfy ALL")
 }
 
+func TestRecordPressureCoolingAttemptAllRequiresFreshFRTWindow(t *testing.T) {
+	tests := []struct {
+		name        string
+		windowStart func(now int64, observationWindow int) int64
+		wantState   string
+		wantStatus  int
+	}{
+		{
+			name:        "stale FRT evidence does not cool channel",
+			windowStart: func(now int64, observationWindow int) int64 { return now - int64(observationWindow) - 1 },
+			wantState:   "obs",
+			wantStatus:  common.ChannelStatusEnabled,
+		},
+		{
+			name:        "fresh FRT evidence cools channel",
+			windowStart: func(now int64, _ int) int64 { return now },
+			wantState:   "cool",
+			wantStatus:  common.ChannelStatusAutoDisabled,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			channel, cfg, now := preparePressureCoolingErrorTest(t)
+			cfg.ConditionMode = "all"
+			state := &PressureCoolingState{
+				State: "obs", Scope: "channel", WindowStart: test.windowStart(now, cfg.ObservationWindowSeconds),
+				TotalRequests: 3, Violations: 3,
+			}
+			savePressureCoolingState(channel.Id, state, 600)
+			for i := 0; i < cfg.UpstreamErrorMinSamples-1; i++ {
+				incrPressureCoolingErrorWindowAt(channel.Id, cfg.ObservationWindowSeconds, true, now)
+			}
+
+			recordPressureCoolingAttemptAt(channel, cfg, true, now)
+
+			storedState := loadPressureCoolingState(channel.Id)
+			assert.Equal(t, test.wantState, storedState.State)
+			if test.wantState == "obs" {
+				assert.Equal(t, state, storedState)
+			}
+			storedChannel, err := model.GetChannelById(channel.Id, true)
+			require.NoError(t, err)
+			assert.Equal(t, test.wantStatus, storedChannel.Status)
+		})
+	}
+}
+
 func TestPressureCoolingReasonPreservesFRTOnlyTextAndAddsErrorText(t *testing.T) {
 	state := &PressureCoolingState{Violations: 3, TotalRequests: 4}
 	cfg := resolvedPressureCoolingConfig{FRTThresholdMs: 8000}

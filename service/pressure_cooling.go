@@ -321,11 +321,7 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 	}
 }
 
-func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg resolvedPressureCoolingConfig, now int64, stateTTL int, reasons ...*pressureCoolingReason) {
-	var reasonInfo *pressureCoolingReason
-	if len(reasons) > 0 {
-		reasonInfo = reasons[0]
-	}
+func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg resolvedPressureCoolingConfig, now int64, stateTTL int, reason *pressureCoolingReason) {
 	if cfg.Scope == "groups" {
 		targetGroups := pressureCoolingTargetGroups(ch, cfg.CooldownGroups)
 		if len(targetGroups) == 0 {
@@ -351,8 +347,8 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 			effectiveCooldown = float64(cfg.MaxCooldownSeconds)
 		}
 		cooldownSec := int64(math.Ceil(effectiveCooldown))
-		reason := formatPressureCoolingReason(state, cfg, cooldownSec, reasonInfo)
-		reason += fmt.Sprintf("，摘除分组 %s", strings.Join(targetGroups, ", "))
+		reasonText := formatPressureCoolingReason(state, cfg, cooldownSec, reason)
+		reasonText += fmt.Sprintf("，摘除分组 %s", strings.Join(targetGroups, ", "))
 		state.Scope = "groups"
 		state.CooledGroups = targetGroups
 		state.State = "cool"
@@ -364,7 +360,7 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 
 		subject := fmt.Sprintf("渠道「%s」(#%d) 因高延迟已自动冷却分组", ch.Name, ch.Id)
 		content := fmt.Sprintf("渠道「%s」(#%d) 已从分组 %s 摘除，其余分组不受影响。%s\n冷却将于 %s 后自动恢复（第 %d 次连续冷却）",
-			ch.Name, ch.Id, strings.Join(targetGroups, ", "), reason, formatCooldownDuration(cooldownSec), state.Consecutive)
+			ch.Name, ch.Id, strings.Join(targetGroups, ", "), reasonText, formatCooldownDuration(cooldownSec), state.Consecutive)
 		NotifyRootUser(fmt.Sprintf("pressure_cooling_%d", ch.Id), subject, content)
 		return
 	}
@@ -388,8 +384,8 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 	}
 	cooldownSec := int64(math.Ceil(effectiveCooldown))
 
-	reason := formatPressureCoolingReason(state, cfg, cooldownSec, reasonInfo)
-	model.UpdateChannelStatus(ch.Id, "", common.ChannelStatusAutoDisabled, reason)
+	reasonText := formatPressureCoolingReason(state, cfg, cooldownSec, reason)
+	model.UpdateChannelStatus(ch.Id, "", common.ChannelStatusAutoDisabled, reasonText)
 
 	state.State = "cool"
 	state.CooldownUntil = now + cooldownSec
@@ -399,7 +395,7 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 
 	subject := fmt.Sprintf("渠道「%s」(#%d) 因高延迟已自动冷却", ch.Name, ch.Id)
 	content := fmt.Sprintf("渠道「%s」(#%d) %s\n冷却将于 %s 后自动恢复（第 %d 次连续冷却）",
-		ch.Name, ch.Id, reason, formatCooldownDuration(cooldownSec), state.Consecutive)
+		ch.Name, ch.Id, reasonText, formatCooldownDuration(cooldownSec), state.Consecutive)
 	NotifyRootUser(fmt.Sprintf("pressure_cooling_%d", ch.Id), subject, content)
 }
 

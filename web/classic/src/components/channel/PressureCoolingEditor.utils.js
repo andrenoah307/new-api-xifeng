@@ -118,6 +118,17 @@ export const normalizePressureCooling = (value) => {
 export const getPressureCoolingValidationError = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
+  const triggerPercent = value.trigger_percent;
+  if (
+    triggerPercent != null &&
+    (typeof triggerPercent !== 'number' ||
+      !Number.isInteger(triggerPercent) ||
+      triggerPercent < 1 ||
+      triggerPercent > 100)
+  ) {
+    return 'trigger_percent';
+  }
+
   const percent = value.upstream_error_trigger_percent;
   if (
     percent != null &&
@@ -228,7 +239,7 @@ export const serializePressureCooling = (value, availableGroups) => {
     payload.condition_mode = normalized.condition_mode;
   }
 
-  if (!hasValue && !normalized.upstream_error_enabled) return '';
+  if (!hasValue) return '';
   return JSON.stringify(payload);
 };
 

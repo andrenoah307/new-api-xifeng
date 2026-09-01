@@ -300,6 +300,21 @@ export const channelFormSchema = z
             )
           }
 
+          const triggerPercent = pressureCooling.trigger_percent
+          if (
+            triggerPercent != null &&
+            (typeof triggerPercent !== 'number' ||
+              !Number.isFinite(triggerPercent) ||
+              triggerPercent < 1 ||
+              triggerPercent > 100)
+          ) {
+            addRequiredIssue(
+              ctx,
+              'pressure_cooling',
+              'Trigger percent must be a number between 1 and 100'
+            )
+          }
+
           const upstreamErrorMinSamples = pressureCooling.upstream_error_min_samples
           if (
             upstreamErrorMinSamples != null &&
@@ -329,7 +344,11 @@ export const channelFormSchema = z
           }
         }
       } catch {
-        // The custom setting is parsed again when building the request payload.
+        addRequiredIssue(
+          ctx,
+          'pressure_cooling',
+          'Pressure cooling configuration is not valid JSON'
+        )
       }
     }
 

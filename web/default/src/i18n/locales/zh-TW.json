@@ -5531,6 +5531,14 @@
     "Upstream error enabled must be a boolean": "上游錯誤啟用狀態必須是布林值",
     "Upstream error trigger percent must be a number between 0 and 100": "上游錯誤觸發百分比必須是 0 到 100 之間的數字",
     "Upstream error minimum samples must be an integer between 1 and 10,000": "上游錯誤最小樣本數必須是 1 到 10,000 之間的整數",
-    "Pressure cooling condition mode must be either any or all": "壓力冷卻條件組合必須為 any 或 all"
+    "Cooldown Settings": "冷卻設定",
+    "First Token Latency (FRT)": "首個 Token 延遲（FRT）",
+    "Match all conditions to cool down": "符合所有條件才冷卻",
+    "Match any condition to cool down": "符合任一條件即可冷卻",
+    "Both conditions share the same observation window": "兩個條件共用同一觀測視窗",
+    "Always enabled": "始終啟用",
+    "Pressure cooling condition mode must be either any or all": "壓力冷卻條件組合必須為 any 或 all",
+    "Pressure cooling configuration is not valid JSON": "壓力冷卻設定不是有效的 JSON",
+    "Trigger percent must be a number between 1 and 100": "觸發百分比必須是 1 到 100 之間的數字"
   }
 }

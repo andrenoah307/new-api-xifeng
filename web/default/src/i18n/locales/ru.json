@@ -5531,6 +5531,14 @@
     "Upstream error enabled must be a boolean": "Параметр включения ошибок upstream должен иметь логический тип",
     "Upstream error trigger percent must be a number between 0 and 100": "Процент срабатывания по ошибкам upstream должен быть числом от 0 до 100",
     "Upstream error minimum samples must be an integer between 1 and 10,000": "Минимальное число образцов для ошибок upstream должно быть целым числом от 1 до 10 000",
-    "Pressure cooling condition mode must be either any or all": "Режим объединения условий контроля давления должен быть «any» или «all»"
+    "Cooldown Settings": "Настройки охлаждения",
+    "First Token Latency (FRT)": "Задержка до первого токена (FRT)",
+    "Match all conditions to cool down": "Охлаждать при выполнении всех условий",
+    "Match any condition to cool down": "Охлаждать при выполнении любого условия",
+    "Both conditions share the same observation window": "Оба условия используют одно и то же окно наблюдения",
+    "Always enabled": "Всегда включено",
+    "Pressure cooling condition mode must be either any or all": "Режим объединения условий контроля давления должен быть «any» или «all»",
+    "Pressure cooling configuration is not valid JSON": "Конфигурация охлаждения при нагрузке не является допустимым JSON",
+    "Trigger percent must be a number between 1 and 100": "Процент срабатывания должен быть числом от 1 до 100"
   }
 }

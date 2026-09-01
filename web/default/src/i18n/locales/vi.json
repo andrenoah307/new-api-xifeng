@@ -5531,6 +5531,14 @@
     "Upstream error enabled must be a boolean": "Trạng thái bật lỗi upstream phải là giá trị boolean",
     "Upstream error trigger percent must be a number between 0 and 100": "Tỷ lệ kích hoạt lỗi upstream phải là một số từ 0 đến 100",
     "Upstream error minimum samples must be an integer between 1 and 10,000": "Số mẫu tối thiểu cho lỗi upstream phải là số nguyên từ 1 đến 10.000",
-    "Pressure cooling condition mode must be either any or all": "Chế độ kết hợp điều kiện làm mát áp suất phải là any hoặc all"
+    "Cooldown Settings": "Cài đặt làm mát",
+    "First Token Latency (FRT)": "Độ trễ token đầu tiên (FRT)",
+    "Match all conditions to cool down": "Làm mát khi thỏa mãn tất cả điều kiện",
+    "Match any condition to cool down": "Làm mát khi thỏa mãn bất kỳ điều kiện nào",
+    "Both conditions share the same observation window": "Hai điều kiện dùng chung một khoảng thời gian quan sát",
+    "Always enabled": "Luôn bật",
+    "Pressure cooling condition mode must be either any or all": "Chế độ kết hợp điều kiện làm mát áp suất phải là any hoặc all",
+    "Pressure cooling configuration is not valid JSON": "Cấu hình làm mát áp suất không phải là JSON hợp lệ",
+    "Trigger percent must be a number between 1 and 100": "Tỷ lệ kích hoạt phải là một số từ 1 đến 100"
   }
 }

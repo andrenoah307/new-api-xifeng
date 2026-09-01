@@ -74,3 +74,37 @@ func TestValidateChannelPressureCoolingUpstreamErrorFields(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateChannelPressureCoolingTriggerPercent(t *testing.T) {
+	tests := []struct {
+		name       string
+		percent    int
+		setPercent bool
+		wantErr    bool
+	}{
+		{name: "nil inherits global setting"},
+		{name: "one is valid", percent: 1, setPercent: true},
+		{name: "one hundred is valid", percent: 100, setPercent: true},
+		{name: "zero is invalid", percent: 0, setPercent: true, wantErr: true},
+		{name: "negative is invalid", percent: -1, setPercent: true, wantErr: true},
+		{name: "above one hundred is invalid", percent: 101, setPercent: true, wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			channel := &model.Channel{Group: "pro", Key: "key"}
+			override := &dto.PressureCoolingOverride{}
+			if test.setPercent {
+				override.TriggerPercent = &test.percent
+			}
+			channel.SetSetting(dto.ChannelSettings{PressureCooling: override})
+
+			err := validateChannel(channel, false)
+			if test.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "压力冷却触发百分比")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

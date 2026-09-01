@@ -564,6 +564,9 @@ func validatePressureCoolingOverride(channel *model.Channel) error {
 	if override == nil {
 		return nil
 	}
+	if override.TriggerPercent != nil && (*override.TriggerPercent < 1 || *override.TriggerPercent > 100) {
+		return fmt.Errorf("压力冷却触发百分比必须在 1 到 100 之间")
+	}
 	if override.UpstreamErrorTriggerPercent != nil && (*override.UpstreamErrorTriggerPercent < 0 || *override.UpstreamErrorTriggerPercent > 100) {
 		return fmt.Errorf("压力冷却上游报错比例必须在 0 到 100 之间")
 	}

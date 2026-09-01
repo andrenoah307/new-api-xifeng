@@ -160,12 +160,12 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
         <>
           <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
             <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>{t('Cooling Scope')}</FieldLabel>
+              <FieldLabel>{t('冷却范围')}</FieldLabel>
               <Select
                 value={v.scope}
                 optionList={[
-                  { value: 'channel', label: t('Entire Channel') },
-                  { value: 'groups', label: t('Specific Groups') },
+                  { value: 'channel', label: t('整个渠道') },
+                  { value: 'groups', label: t('指定分组') },
                 ]}
                 onChange={(scope) =>
                   update({
@@ -179,13 +179,13 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
             </Col>
             {v.scope === 'groups' && (
               <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-                <FieldLabel>{t('Cooldown Groups')}</FieldLabel>
+                <FieldLabel>{t('冷却分组')}</FieldLabel>
                 <Select
                   multiple
                   value={v.cooldown_groups}
                   optionList={getPressureCoolingGroupOptions(groups)}
-                  placeholder={t('Select groups to cool')}
-                  emptyContent={t('No channel groups available')}
+                  placeholder={t('选择要冷却的分组')}
+                  emptyContent={t('该渠道暂无可选分组')}
                   onChange={(cooldownGroups) =>
                     update({ cooldown_groups: cooldownGroups })
                   }
@@ -205,161 +205,203 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
 
           <div style={{ marginBottom: 16 }}>
             <Text strong size='small' className='block mb-2'>
-              {t('Trigger Conditions')}
+              {t('触发条件')}
+            </Text>
+            <Text
+              size='small'
+              style={{
+                display: 'block',
+                color: 'var(--semi-color-text-2)',
+                marginBottom: 12,
+              }}
+            >
+              {t('两个条件共用同一个观察窗口')}
+            </Text>
+
+            {v.upstream_error_enabled === true && (
+              <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
+                <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                  <FieldLabel>{t('条件组合')}</FieldLabel>
+                  <RadioGroup
+                    value={v.condition_mode}
+                    onChange={(event) =>
+                      update({
+                        condition_mode:
+                          event.target.value === 'all' ? 'all' : 'any',
+                      })
+                    }
+                    direction='vertical'
+                    aria-label={t('条件组合')}
+                  >
+                    <Radio value='any'>{t('任一条件满足即冷却')}</Radio>
+                    <Radio value='all'>{t('两个条件同时满足才冷却')}</Radio>
+                  </RadioGroup>
+                </Col>
+              </Row>
+            )}
+
+            <div style={{ marginBottom: 16 }}>
+              <div
+                className='flex items-center justify-between'
+                style={{ marginBottom: 6 }}
+              >
+                <Text strong size='small'>
+                  ① {t('首字延迟 FRT')}
+                </Text>
+                <Text
+                  size='small'
+                  style={{ color: 'var(--semi-color-text-2)' }}
+                >
+                  {t('始终启用')}
+                </Text>
+              </div>
+              <Row gutter={16} type='flex'>
+                <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                  <FieldLabel>{t('FRT 阈值 (ms)，留空默认 8000')}</FieldLabel>
+                  <InputNumber
+                    min={1000}
+                    max={60000}
+                    step={1000}
+                    value={v.frt_threshold_ms}
+                    placeholder='8000'
+                    onChange={(n) =>
+                      update({
+                        frt_threshold_ms:
+                          typeof n === 'number' && n > 0 ? n : null,
+                      })
+                    }
+                    style={{ width: '100%' }}
+                    innerButtons
+                  />
+                </Col>
+                <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                  <FieldLabel>{t('触发百分比 (%)，留空默认 50')}</FieldLabel>
+                  <InputNumber
+                    min={1}
+                    max={100}
+                    value={v.trigger_percent}
+                    placeholder='50'
+                    suffix='%'
+                    onChange={(n) =>
+                      update({
+                        trigger_percent:
+                          typeof n === 'number' && n > 0 ? n : null,
+                      })
+                    }
+                    style={{ width: '100%' }}
+                    innerButtons
+                  />
+                </Col>
+              </Row>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div
+                className='flex items-center justify-between'
+                style={{ marginBottom: 6 }}
+              >
+                <Text strong size='small'>
+                  ② {t('上游报错')}
+                </Text>
+                <Switch
+                  checked={v.upstream_error_enabled}
+                  aria-label={t('上游报错')}
+                  onChange={(checked) =>
+                    update({ upstream_error_enabled: checked })
+                  }
+                />
+              </div>
+              {v.upstream_error_enabled === true && (
+                <Row gutter={16} type='flex'>
+                  <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                    <FieldLabel>{t('错误率')}</FieldLabel>
+                    <InputNumber
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={v.upstream_error_trigger_percent}
+                      placeholder='50'
+                      suffix='%'
+                      onChange={(n) =>
+                        update({
+                          upstream_error_trigger_percent:
+                            typeof n === 'number' && Number.isFinite(n)
+                              ? Math.min(100, Math.max(0, n))
+                              : null,
+                        })
+                      }
+                      style={{ width: '100%' }}
+                      innerButtons
+                    />
+                  </Col>
+                  <Col xs={24} md={12} style={{ marginBottom: 8 }}>
+                    <FieldLabel>{t('最小样本数')}</FieldLabel>
+                    <InputNumber
+                      min={1}
+                      max={10000}
+                      step={1}
+                      value={v.upstream_error_min_samples}
+                      placeholder='10'
+                      onChange={(n) =>
+                        update({
+                          upstream_error_min_samples:
+                            typeof n === 'number' && Number.isFinite(n)
+                              ? Math.min(10000, Math.max(1, Math.round(n)))
+                              : null,
+                        })
+                      }
+                      style={{ width: '100%' }}
+                      innerButtons
+                    />
+                  </Col>
+                </Row>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <Text strong size='small' className='block mb-2'>
+              {t('冷却设置')}
             </Text>
             <Row gutter={16} type='flex'>
               <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-                <FieldLabel>{t('Condition Combination')}</FieldLabel>
-                <RadioGroup
-                  value={v.condition_mode}
-                  onChange={(event) =>
+                <FieldLabel>{t('观察窗口 (秒)，留空默认 60')}</FieldLabel>
+                <InputNumber
+                  min={10}
+                  max={3600}
+                  step={10}
+                  value={v.observation_window_seconds}
+                  placeholder='60'
+                  onChange={(n) =>
                     update({
-                      condition_mode:
-                        event.target.value === 'all' ? 'all' : 'any',
+                      observation_window_seconds:
+                        typeof n === 'number' && n > 0 ? n : null,
                     })
                   }
-                  direction='horizontal'
-                  aria-label={t('Condition Combination')}
-                >
-                  <Radio value='any'>{t('Match Any (OR)')}</Radio>
-                  <Radio value='all'>{t('Match All (AND)')}</Radio>
-                </RadioGroup>
+                  style={{ width: '100%' }}
+                  innerButtons
+                />
               </Col>
               <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-                <div className='flex items-center justify-between'>
-                  <FieldLabel>{t('Upstream Errors')}</FieldLabel>
-                  <Switch
-                    checked={v.upstream_error_enabled}
-                    aria-label={t('Upstream Errors')}
-                    onChange={(checked) =>
-                      update({ upstream_error_enabled: checked })
-                    }
-                  />
-                </div>
+                <FieldLabel>{t('冷却时长 (秒)，留空默认 300')}</FieldLabel>
+                <InputNumber
+                  min={10}
+                  max={86400}
+                  step={30}
+                  value={v.cooldown_seconds}
+                  placeholder='300'
+                  onChange={(n) =>
+                    update({
+                      cooldown_seconds:
+                        typeof n === 'number' && n > 0 ? n : null,
+                    })
+                  }
+                  style={{ width: '100%' }}
+                  innerButtons
+                />
               </Col>
             </Row>
           </div>
-
-          {v.upstream_error_enabled && (
-            <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
-              <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-                <FieldLabel>{t('Error Rate')}</FieldLabel>
-                <InputNumber
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={v.upstream_error_trigger_percent}
-                  placeholder='50'
-                  suffix='%'
-                  onChange={(n) =>
-                    update({
-                      upstream_error_trigger_percent:
-                        typeof n === 'number' && Number.isFinite(n)
-                          ? Math.min(100, Math.max(0, n))
-                          : null,
-                    })
-                  }
-                  style={{ width: '100%' }}
-                  innerButtons
-                />
-              </Col>
-              <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-                <FieldLabel>{t('Minimum Samples')}</FieldLabel>
-                <InputNumber
-                  min={1}
-                  max={10000}
-                  step={1}
-                  value={v.upstream_error_min_samples}
-                  placeholder='10'
-                  onChange={(n) =>
-                    update({
-                      upstream_error_min_samples:
-                        typeof n === 'number' && Number.isFinite(n)
-                          ? Math.min(10000, Math.max(1, Math.round(n)))
-                          : null,
-                    })
-                  }
-                  style={{ width: '100%' }}
-                  innerButtons
-                />
-              </Col>
-            </Row>
-          )}
-
-          <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
-            <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>{t('FRT 阈值 (ms)，留空默认 8000')}</FieldLabel>
-              <InputNumber
-                min={1000}
-                max={60000}
-                step={1000}
-                value={v.frt_threshold_ms}
-                placeholder='8000'
-                onChange={(n) =>
-                  update({
-                    frt_threshold_ms: typeof n === 'number' && n > 0 ? n : null,
-                  })
-                }
-                style={{ width: '100%' }}
-                innerButtons
-              />
-            </Col>
-            <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>{t('触发百分比 (%)，留空默认 50')}</FieldLabel>
-              <InputNumber
-                min={1}
-                max={100}
-                value={v.trigger_percent}
-                placeholder='50'
-                suffix='%'
-                onChange={(n) =>
-                  update({
-                    trigger_percent: typeof n === 'number' && n > 0 ? n : null,
-                  })
-                }
-                style={{ width: '100%' }}
-                innerButtons
-              />
-            </Col>
-          </Row>
-
-          <Row gutter={16} type='flex'>
-            <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>{t('冷却时长 (秒)，留空默认 300')}</FieldLabel>
-              <InputNumber
-                min={10}
-                max={86400}
-                step={30}
-                value={v.cooldown_seconds}
-                placeholder='300'
-                onChange={(n) =>
-                  update({
-                    cooldown_seconds: typeof n === 'number' && n > 0 ? n : null,
-                  })
-                }
-                style={{ width: '100%' }}
-                innerButtons
-              />
-            </Col>
-            <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-              <FieldLabel>{t('观察窗口 (秒)，留空默认 60')}</FieldLabel>
-              <InputNumber
-                min={10}
-                max={3600}
-                step={10}
-                value={v.observation_window_seconds}
-                placeholder='60'
-                onChange={(n) =>
-                  update({
-                    observation_window_seconds:
-                      typeof n === 'number' && n > 0 ? n : null,
-                  })
-                }
-                style={{ width: '100%' }}
-                innerButtons
-              />
-            </Col>
-          </Row>
         </>
       )}
     </Card>

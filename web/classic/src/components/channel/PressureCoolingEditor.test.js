@@ -21,6 +21,35 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, test } from 'node:test';
 
+import { mock } from 'bun:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+
+const MockComponent = ({ children }) => createElement('div', null, children);
+const MockText = ({ children }) => createElement('span', null, children);
+
+mock.module('@douyinfe/semi-ui', () => ({
+  Avatar: MockComponent,
+  Card: MockComponent,
+  Col: MockComponent,
+  InputNumber: MockComponent,
+  Radio: MockComponent,
+  RadioGroup: MockComponent,
+  Row: MockComponent,
+  Select: MockComponent,
+  Switch: MockComponent,
+  Typography: { Text: MockText },
+}));
+mock.module('@douyinfe/semi-icons', () => ({
+  IconBolt: MockComponent,
+}));
+mock.module('react-i18next', () => ({
+  useTranslation: () => ({ t: (key) => key }),
+}));
+
+const { default: PressureCoolingEditor } =
+  await import('./PressureCoolingEditor.jsx');
+
 import {
   getPressureCoolingGroupOptions,
   getPressureCoolingValidationError,
@@ -38,6 +67,23 @@ const modalSource = readFileSync(
   new URL('../table/channels/modals/EditChannelModal.jsx', import.meta.url),
   'utf8',
 );
+const localeNames = ['en', 'fr', 'ja', 'ru', 'vi', 'zh', 'zh-CN', 'zh-TW'];
+const newTranslationKeys = [
+  '首字延迟 FRT',
+  '始终启用',
+  '冷却设置',
+  '任一条件满足即冷却',
+  '两个条件同时满足才冷却',
+  '两个条件共用同一个观察窗口',
+];
+
+const renderEditor = (upstreamErrorEnabled) =>
+  renderToStaticMarkup(
+    createElement(PressureCoolingEditor, {
+      value: { enabled: true, upstream_error_enabled: upstreamErrorEnabled },
+      onChange: () => {},
+    }),
+  );
 
 describe('Classic pressure cooling group scope', () => {
   test('treats legacy configuration without scope as channel-wide', () => {
@@ -232,6 +278,9 @@ describe('Classic pressure cooling upstream-error condition', () => {
 
   test('rejects invalid upstream-error values before saving', () => {
     const invalidValues = [
+      { trigger_percent: 0 },
+      { trigger_percent: 101 },
+      { trigger_percent: 2.5 },
       { upstream_error_trigger_percent: -1 },
       { upstream_error_trigger_percent: 101 },
       { upstream_error_min_samples: 0 },
@@ -247,6 +296,7 @@ describe('Classic pressure cooling upstream-error condition', () => {
     }
     assert.equal(
       getPressureCoolingValidationError({
+        trigger_percent: 1,
         upstream_error_trigger_percent: 0,
         upstream_error_min_samples: 1,
         condition_mode: 'any',
@@ -256,13 +306,50 @@ describe('Classic pressure cooling upstream-error condition', () => {
     );
   });
 
+  test('serializes an enabled upstream-error condition with otherwise empty fields', () => {
+    const serialized = serializePressureCooling({
+      upstream_error_enabled: true,
+    });
+
+    assert.notEqual(serialized, '');
+    assert.deepEqual(JSON.parse(serialized), {
+      enabled: null,
+      frt_threshold_ms: null,
+      trigger_percent: null,
+      cooldown_seconds: null,
+      observation_window_seconds: null,
+      upstream_error_enabled: true,
+    });
+  });
+
   test('wires trigger conditions and collapsible upstream inputs', () => {
-    assert.match(editorSource, /t\('Trigger Conditions'\)/);
-    assert.match(editorSource, /t\('Condition Combination'\)/);
-    assert.match(editorSource, /t\('Match Any \(OR\)'\)/);
-    assert.match(editorSource, /t\('Match All \(AND\)'\)/);
-    assert.match(editorSource, /t\('Upstream Errors'\)/);
-    assert.match(editorSource, /v\.upstream_error_enabled && \(/);
-    assert.match(editorSource, /t\('Minimum Samples'\)/);
+    assert.match(editorSource, /t\('触发条件'\)/);
+    assert.match(editorSource, /t\('条件组合'\)/);
+    assert.match(editorSource, /t\('任一条件满足即冷却'\)/);
+    assert.match(editorSource, /t\('两个条件同时满足才冷却'\)/);
+    assert.match(editorSource, /t\('上游报错'\)/);
+    assert.match(editorSource, /v\.upstream_error_enabled === true && \(/);
+    assert.match(editorSource, /t\('最小样本数'\)/);
+  });
+
+  test('does not render condition combination when upstream errors are disabled', () => {
+    assert.doesNotMatch(renderEditor(false), /条件组合/);
+    assert.match(renderEditor(true), /条件组合/);
+  });
+
+  test('provides the new pressure-cooling translations in every locale', () => {
+    for (const locale of localeNames) {
+      const translations = JSON.parse(
+        readFileSync(
+          new URL(`../../i18n/locales/${locale}.json`, import.meta.url),
+          'utf8',
+        ),
+      ).translation;
+
+      for (const key of newTranslationKeys) {
+        assert.equal(typeof translations[key], 'string', `${locale}: ${key}`);
+        assert.notEqual(translations[key].trim(), '', `${locale}: ${key}`);
+      }
+    }
   });
 });

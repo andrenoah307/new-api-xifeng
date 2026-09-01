@@ -87,7 +87,7 @@ func TestExecutePressureCoolingDefaultScopeKeepsChannelBehavior(t *testing.T) {
 
 	state := &PressureCoolingState{State: "obs", Violations: 3, TotalRequests: 3, Consecutive: 1}
 	cfg := resolvePressureCoolingConfig(nil)
-	executePressureCooling(channel, state, cfg, time.Now().Unix(), 300)
+	executePressureCooling(channel, state, cfg, time.Now().Unix(), 300, nil)
 
 	stored, err := model.GetChannelById(channel.Id, true)
 	require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestExecutePressureCoolingGroupsOnlyCoolsSelectedGroups(t *testing.T) {
 	cfg := resolvePressureCoolingConfig(&dto.PressureCoolingOverride{Scope: "groups", CooldownGroups: []string{"pro"}})
 	state := &PressureCoolingState{State: "obs", Violations: 3, TotalRequests: 3, Consecutive: 1}
 
-	executePressureCooling(channel, state, cfg, time.Now().Unix(), 300)
+	executePressureCooling(channel, state, cfg, time.Now().Unix(), 300, nil)
 
 	stored, err := model.GetChannelById(channel.Id, true)
 	require.NoError(t, err)
@@ -147,7 +147,7 @@ func TestExecutePressureCoolingGroupsMinimumActiveOnlyTargetsSelectedGroups(t *t
 			cfg := resolvePressureCoolingConfig(&dto.PressureCoolingOverride{Scope: "groups", CooldownGroups: []string{"pro"}})
 			state := &PressureCoolingState{State: "obs", Violations: 3, TotalRequests: 3}
 
-			executePressureCooling(channel, state, cfg, time.Now().Unix(), 300)
+			executePressureCooling(channel, state, cfg, time.Now().Unix(), 300, nil)
 
 			assert.Equal(t, test.wantCooled, model.IsChannelGroupCooled(channel.Id, "pro"))
 			stored, err := model.GetChannelById(channel.Id, true)
@@ -280,7 +280,7 @@ func TestExecutePressureCoolingGroupsWithNoMatchingConfiguredGroupSkips(t *testi
 	state := &PressureCoolingState{State: "obs", Violations: 3, TotalRequests: 3}
 	cfg := resolvePressureCoolingConfig(&dto.PressureCoolingOverride{Scope: "groups", CooldownGroups: []string{"missing"}})
 
-	executePressureCooling(channel, state, cfg, time.Now().Unix(), 900)
+	executePressureCooling(channel, state, cfg, time.Now().Unix(), 900, nil)
 
 	assert.Equal(t, "obs", loadPressureCoolingState(channel.Id).State)
 	assert.False(t, model.IsChannelGroupCooled(channel.Id, "pro"))
@@ -451,7 +451,7 @@ func TestExecutePressureCoolingChannelMinimumActiveGuard(t *testing.T) {
 	model.InitChannelCache()
 	state := &PressureCoolingState{State: "obs", Violations: 3, TotalRequests: 3, Consecutive: 1}
 
-	executePressureCooling(channel, state, resolvePressureCoolingConfig(nil), time.Now().Unix(), 900)
+	executePressureCooling(channel, state, resolvePressureCoolingConfig(nil), time.Now().Unix(), 900, nil)
 
 	assert.Equal(t, "obs", loadPressureCoolingState(channel.Id).State)
 	assert.Equal(t, common.ChannelStatusEnabled, channel.Status)

@@ -133,86 +133,6 @@ export function PressureCoolingEditor({ form }: Props) {
           )}
         </div>
       )}
-      <div className='grid grid-cols-2 gap-3 sm:grid-cols-4'>
-        <div className='space-y-1'>
-          <Label htmlFor='pressure-cooling-frt-threshold' className='text-xs'>
-            {t('FRT Threshold (ms)')}
-          </Label>
-          <Input
-            id='pressure-cooling-frt-threshold'
-            type='number'
-            value={data.frt_threshold_ms ?? ''}
-            onChange={(e) =>
-              update(
-                'frt_threshold_ms',
-                e.target.value ? Number(e.target.value) : null
-              )
-            }
-            className='h-8'
-          />
-        </div>
-        <div className='space-y-1'>
-          <Label htmlFor='pressure-cooling-trigger-percent' className='text-xs'>
-            {t('Trigger Percent')}
-          </Label>
-          <Input
-            id='pressure-cooling-trigger-percent'
-            type='number'
-            step='1'
-            min='0'
-            max='100'
-            value={data.trigger_percent ?? ''}
-            // 后端 trigger_percent 是整数（*int），小数会让整个渠道设置反序列化失败
-            onChange={(e) => {
-              const value = e.target.valueAsNumber
-              update(
-                'trigger_percent',
-                Number.isFinite(value)
-                  ? Math.min(100, Math.max(0, Math.round(value)))
-                  : null
-              )
-            }}
-            className='h-8'
-          />
-        </div>
-        <div className='space-y-1'>
-          <Label htmlFor='pressure-cooling-cooldown-seconds' className='text-xs'>
-            {t('Cooldown Seconds')}
-          </Label>
-          <Input
-            id='pressure-cooling-cooldown-seconds'
-            type='number'
-            value={data.cooldown_seconds ?? ''}
-            onChange={(e) =>
-              update(
-                'cooldown_seconds',
-                e.target.value ? Number(e.target.value) : null
-              )
-            }
-            className='h-8'
-          />
-        </div>
-        <div className='space-y-1'>
-          <Label
-            htmlFor='pressure-cooling-observation-window'
-            className='text-xs'
-          >
-            {t('Observation Window')}
-          </Label>
-          <Input
-            id='pressure-cooling-observation-window'
-            type='number'
-            value={data.observation_window_seconds ?? ''}
-            onChange={(e) =>
-              update(
-                'observation_window_seconds',
-                e.target.value ? Number(e.target.value) : null
-              )
-            }
-            className='h-8'
-          />
-        </div>
-      </div>
       <section
         className='space-y-3 border-t pt-3'
         aria-labelledby='pressure-cooling-trigger-conditions'
@@ -223,54 +143,131 @@ export function PressureCoolingEditor({ form }: Props) {
         >
           {t('Trigger Conditions')}
         </h5>
-        <div className='space-y-1'>
-          <Label className='text-xs'>{t('Condition Combination')}</Label>
-          <RadioGroup
-            value={data.condition_mode}
-            onValueChange={(value: string | null) =>
-              update('condition_mode', value === 'all' ? 'all' : 'any')
-            }
-            className='flex flex-wrap gap-4'
-            aria-label={t('Condition Combination')}
-          >
-            <div className='flex items-center gap-2'>
-              <RadioGroupItem
-                value='any'
-                id='pressure-cooling-condition-any'
-              />
+        <p className='text-muted-foreground text-xs'>
+          {t('Both conditions share the same observation window')}
+        </p>
+        {data.upstream_error_enabled === true && (
+          <div className='space-y-1'>
+            <Label className='text-xs'>{t('Condition Combination')}</Label>
+            <RadioGroup
+              value={data.condition_mode}
+              onValueChange={(value: string | null) =>
+                update('condition_mode', value === 'all' ? 'all' : 'any')
+              }
+              className='flex flex-wrap gap-4'
+              aria-label={t('Condition Combination')}
+            >
+              <div className='flex items-center gap-2'>
+                <RadioGroupItem
+                  value='any'
+                  id='pressure-cooling-condition-any'
+                />
+                <Label
+                  htmlFor='pressure-cooling-condition-any'
+                  className='cursor-pointer text-xs font-normal'
+                >
+                  {t('Match any condition to cool down')}
+                </Label>
+              </div>
+              <div className='flex items-center gap-2'>
+                <RadioGroupItem
+                  value='all'
+                  id='pressure-cooling-condition-all'
+                />
+                <Label
+                  htmlFor='pressure-cooling-condition-all'
+                  className='cursor-pointer text-xs font-normal'
+                >
+                  {t('Match all conditions to cool down')}
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+        )}
+        <div className='space-y-2'>
+          <div className='flex items-center gap-2'>
+            <span className='text-xs' aria-hidden='true'>
+              ①
+            </span>
+            <span className='text-xs font-medium'>
+              {t('First Token Latency (FRT)')}
+            </span>
+            <span className='text-muted-foreground text-xs'>
+              {t('Always enabled')}
+            </span>
+          </div>
+          <div className='grid grid-cols-2 gap-3'>
+            <div className='space-y-1'>
               <Label
-                htmlFor='pressure-cooling-condition-any'
-                className='cursor-pointer text-xs font-normal'
+                htmlFor='pressure-cooling-frt-threshold'
+                className='text-xs'
               >
-                {t('Match Any (OR)')}
+                {t('FRT Threshold (ms)')}
               </Label>
-            </div>
-            <div className='flex items-center gap-2'>
-              <RadioGroupItem
-                value='all'
-                id='pressure-cooling-condition-all'
+              <Input
+                id='pressure-cooling-frt-threshold'
+                type='number'
+                value={data.frt_threshold_ms ?? ''}
+                onChange={(e) =>
+                  update(
+                    'frt_threshold_ms',
+                    e.target.value ? Number(e.target.value) : null
+                  )
+                }
+                className='h-8'
               />
-              <Label
-                htmlFor='pressure-cooling-condition-all'
-                className='cursor-pointer text-xs font-normal'
-              >
-                {t('Match All (AND)')}
-              </Label>
             </div>
-          </RadioGroup>
+            <div className='space-y-1'>
+              <Label
+                htmlFor='pressure-cooling-trigger-percent'
+                className='text-xs'
+              >
+                {t('Trigger Percent')} (%)
+              </Label>
+              <Input
+                id='pressure-cooling-trigger-percent'
+                type='number'
+                step='1'
+                min='1'
+                max='100'
+                value={data.trigger_percent ?? ''}
+                // 后端 trigger_percent 是整数（*int），小数会让整个渠道设置反序列化失败
+                onChange={(e) => {
+                  const value = e.target.valueAsNumber
+                  update(
+                    'trigger_percent',
+                    Number.isFinite(value)
+                      ? Math.min(100, Math.max(0, Math.round(value)))
+                      : null
+                  )
+                }}
+                className='h-8'
+              />
+            </div>
+          </div>
         </div>
-        <div className='flex items-center justify-between'>
-          <Label htmlFor='pressure-cooling-upstream-errors' className='text-xs'>
-            {t('Upstream Errors')}
-          </Label>
-          <Switch
-            id='pressure-cooling-upstream-errors'
-            checked={data.upstream_error_enabled}
-            aria-label={t('Upstream Errors')}
-            onCheckedChange={(value) =>
-              update('upstream_error_enabled', value)
-            }
-          />
+        <div className='space-y-2'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-2'>
+              <span className='text-xs' aria-hidden='true'>
+                ②
+              </span>
+              <Label
+                htmlFor='pressure-cooling-upstream-errors'
+                className='text-xs'
+              >
+                {t('Upstream Errors')}
+              </Label>
+            </div>
+            <Switch
+              id='pressure-cooling-upstream-errors'
+              checked={data.upstream_error_enabled}
+              aria-label={t('Upstream Errors')}
+              onCheckedChange={(value) =>
+                update('upstream_error_enabled', value)
+              }
+            />
+          </div>
         </div>
         {data.upstream_error_enabled && (
           <div className='grid grid-cols-2 gap-3'>
@@ -279,7 +276,7 @@ export function PressureCoolingEditor({ form }: Props) {
                 htmlFor='pressure-cooling-upstream-error-percent'
                 className='text-xs'
               >
-                {t('Error Rate')}
+                {t('Error Rate')} (%)
               </Label>
               <Input
                 id='pressure-cooling-upstream-error-percent'
@@ -328,6 +325,59 @@ export function PressureCoolingEditor({ form }: Props) {
             </div>
           </div>
         )}
+      </section>
+      <section
+        className='space-y-3 border-t pt-3'
+        aria-labelledby='pressure-cooling-cooldown-settings'
+      >
+        <h5
+          id='pressure-cooling-cooldown-settings'
+          className='text-muted-foreground text-xs font-medium tracking-wide uppercase'
+        >
+          {t('Cooldown Settings')}
+        </h5>
+        <div className='grid grid-cols-2 gap-3'>
+          <div className='space-y-1'>
+            <Label
+              htmlFor='pressure-cooling-observation-window'
+              className='text-xs'
+            >
+              {t('Observation Window')} ({t('seconds')})
+            </Label>
+            <Input
+              id='pressure-cooling-observation-window'
+              type='number'
+              value={data.observation_window_seconds ?? ''}
+              onChange={(e) =>
+                update(
+                  'observation_window_seconds',
+                  e.target.value ? Number(e.target.value) : null
+                )
+              }
+              className='h-8'
+            />
+          </div>
+          <div className='space-y-1'>
+            <Label
+              htmlFor='pressure-cooling-cooldown-seconds'
+              className='text-xs'
+            >
+              {t('Cooldown Seconds')}
+            </Label>
+            <Input
+              id='pressure-cooling-cooldown-seconds'
+              type='number'
+              value={data.cooldown_seconds ?? ''}
+              onChange={(e) =>
+                update(
+                  'cooldown_seconds',
+                  e.target.value ? Number(e.target.value) : null
+                )
+              }
+              className='h-8'
+            />
+          </div>
+        </div>
       </section>
     </div>
   )

@@ -32,6 +32,14 @@ export interface PressureCooling {
   condition_mode: PressureCoolingConditionMode
 }
 
+// Must match defaults in setting/operation_setting/pressure_cooling_setting.go.
+const PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS = {
+  enabled: false,
+  trigger_percent: 50,
+  min_samples: 10,
+  condition_mode: 'any',
+} as const
+
 const EMPTY_PRESSURE_COOLING: PressureCooling = {
   enabled: null,
   scope: 'channel',
@@ -40,10 +48,10 @@ const EMPTY_PRESSURE_COOLING: PressureCooling = {
   trigger_percent: null,
   cooldown_seconds: null,
   observation_window_seconds: null,
-  upstream_error_enabled: false,
+  upstream_error_enabled: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
   upstream_error_trigger_percent: null,
   upstream_error_min_samples: null,
-  condition_mode: 'any',
+  condition_mode: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -96,14 +104,17 @@ export function normalizePressureCooling(
     upstream_error_enabled:
       typeof value.upstream_error_enabled === 'boolean'
         ? value.upstream_error_enabled
-        : false,
+        : PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
     upstream_error_trigger_percent: readNullableNumber(
       value.upstream_error_trigger_percent
     ),
     upstream_error_min_samples: readNullableNumber(
       value.upstream_error_min_samples
     ),
-    condition_mode: value.condition_mode === 'all' ? 'all' : 'any',
+    condition_mode:
+      value.condition_mode === 'all'
+        ? 'all'
+        : PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
   }
 }
 
@@ -170,9 +181,11 @@ export function serializePressureCooling(
     obj.scope === 'groups' ||
     obj.upstream_error_enabled ||
     (obj.upstream_error_trigger_percent != null &&
-      obj.upstream_error_trigger_percent !== 50) ||
+      obj.upstream_error_trigger_percent !==
+        PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.trigger_percent) ||
     (obj.upstream_error_min_samples != null &&
-      obj.upstream_error_min_samples !== 10) ||
+      obj.upstream_error_min_samples !==
+        PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.min_samples) ||
     obj.condition_mode === 'all'
   if (!hasValue) return ''
 
@@ -192,14 +205,16 @@ export function serializePressureCooling(
   }
   if (
     obj.upstream_error_trigger_percent != null &&
-    obj.upstream_error_trigger_percent !== 50
+    obj.upstream_error_trigger_percent !==
+      PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.trigger_percent
   ) {
     serialized.upstream_error_trigger_percent =
       obj.upstream_error_trigger_percent
   }
   if (
     obj.upstream_error_min_samples != null &&
-    obj.upstream_error_min_samples !== 10
+    obj.upstream_error_min_samples !==
+      PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.min_samples
   ) {
     serialized.upstream_error_min_samples = obj.upstream_error_min_samples
   }
