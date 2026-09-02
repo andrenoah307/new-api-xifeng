@@ -272,23 +272,12 @@ export const channelFormSchema = z
             }
           }
 
-          const upstreamErrorEnabled = pressureCooling.upstream_error_enabled
-          if (
-            upstreamErrorEnabled != null &&
-            typeof upstreamErrorEnabled !== 'boolean'
-          ) {
-            addRequiredIssue(
-              ctx,
-              'pressure_cooling',
-              'Upstream error enabled must be a boolean'
-            )
-          }
-
           const upstreamErrorTriggerPercent =
             pressureCooling.upstream_error_trigger_percent
           if (
             upstreamErrorTriggerPercent != null &&
             (typeof upstreamErrorTriggerPercent !== 'number' ||
+              !Number.isInteger(upstreamErrorTriggerPercent) ||
               !Number.isFinite(upstreamErrorTriggerPercent) ||
               upstreamErrorTriggerPercent < 0 ||
               upstreamErrorTriggerPercent > 100)
@@ -315,18 +304,34 @@ export const channelFormSchema = z
             )
           }
 
-          const upstreamErrorMinSamples = pressureCooling.upstream_error_min_samples
+          const upstreamErrorMinSamples =
+            pressureCooling.upstream_error_min_samples
           if (
             upstreamErrorMinSamples != null &&
             (typeof upstreamErrorMinSamples !== 'number' ||
               !Number.isInteger(upstreamErrorMinSamples) ||
-              upstreamErrorMinSamples < 1 ||
-              upstreamErrorMinSamples > 10000)
+              upstreamErrorMinSamples < 0)
           ) {
             addRequiredIssue(
               ctx,
               'pressure_cooling',
-              'Upstream error minimum samples must be an integer between 1 and 10,000'
+              'Upstream error minimum samples must be a non-negative integer'
+            )
+          }
+
+          const upstreamErrorTriggerCount =
+            pressureCooling.upstream_error_trigger_count
+          if (
+            upstreamErrorTriggerCount != null &&
+            (typeof upstreamErrorTriggerCount !== 'number' ||
+              !Number.isInteger(upstreamErrorTriggerCount) ||
+              !Number.isFinite(upstreamErrorTriggerCount) ||
+              upstreamErrorTriggerCount < 0)
+          ) {
+            addRequiredIssue(
+              ctx,
+              'pressure_cooling',
+              'Upstream error trigger count must be a non-negative integer'
             )
           }
 

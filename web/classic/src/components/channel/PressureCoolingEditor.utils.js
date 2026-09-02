@@ -26,16 +26,16 @@ const PRESSURE_COOLING_FIELDS = [
 ];
 
 const PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS = Object.freeze({
-  enabled: false,
-  trigger_percent: 50,
+  trigger_percent: 0,
   min_samples: 10,
+  trigger_count: 0,
   condition_mode: 'any',
 });
 
 const PRESSURE_COOLING_UPSTREAM_ERROR_FIELDS = [
-  'upstream_error_enabled',
   'upstream_error_trigger_percent',
   'upstream_error_min_samples',
+  'upstream_error_trigger_count',
   'condition_mode',
 ];
 
@@ -92,10 +92,6 @@ export const normalizePressureCooling = (value) => {
       Number.isFinite(value.observation_window_seconds)
         ? value.observation_window_seconds
         : null,
-    upstream_error_enabled:
-      typeof value.upstream_error_enabled === 'boolean'
-        ? value.upstream_error_enabled
-        : PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
     upstream_error_trigger_percent:
       typeof value.upstream_error_trigger_percent === 'number' &&
       Number.isFinite(value.upstream_error_trigger_percent)
@@ -105,6 +101,11 @@ export const normalizePressureCooling = (value) => {
       typeof value.upstream_error_min_samples === 'number' &&
       Number.isFinite(value.upstream_error_min_samples)
         ? value.upstream_error_min_samples
+        : null,
+    upstream_error_trigger_count:
+      typeof value.upstream_error_trigger_count === 'number' &&
+      Number.isFinite(value.upstream_error_trigger_count)
+        ? value.upstream_error_trigger_count
         : null,
     condition_mode:
       value.condition_mode === 'all'
@@ -134,6 +135,7 @@ export const getPressureCoolingValidationError = (value) => {
     percent != null &&
     (typeof percent !== 'number' ||
       !Number.isFinite(percent) ||
+      !Number.isInteger(percent) ||
       percent < 0 ||
       percent > 100)
   ) {
@@ -145,22 +147,24 @@ export const getPressureCoolingValidationError = (value) => {
     minSamples != null &&
     (typeof minSamples !== 'number' ||
       !Number.isInteger(minSamples) ||
-      minSamples < 1 ||
-      minSamples > 10000)
+      minSamples < 0)
   ) {
     return 'upstream_error_min_samples';
+  }
+
+  const triggerCount = value.upstream_error_trigger_count;
+  if (
+    triggerCount != null &&
+    (typeof triggerCount !== 'number' ||
+      !Number.isInteger(triggerCount) ||
+      triggerCount < 0)
+  ) {
+    return 'upstream_error_trigger_count';
   }
 
   const conditionMode = value.condition_mode;
   if (conditionMode != null && !['any', 'all'].includes(conditionMode)) {
     return 'condition_mode';
-  }
-
-  if (
-    value.upstream_error_enabled != null &&
-    typeof value.upstream_error_enabled !== 'boolean'
-  ) {
-    return 'upstream_error_enabled';
   }
 
   return null;
@@ -192,13 +196,9 @@ export const serializePressureCooling = (value, availableGroups) => {
   const hasValue =
     PRESSURE_COOLING_FIELDS.some((field) => normalized[field] != null) ||
     normalized.scope === 'groups' ||
-    normalized.upstream_error_enabled ||
-    (normalized.upstream_error_trigger_percent != null &&
-      normalized.upstream_error_trigger_percent !==
-        PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.trigger_percent) ||
-    (normalized.upstream_error_min_samples != null &&
-      normalized.upstream_error_min_samples !==
-        PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.min_samples) ||
+    normalized.upstream_error_trigger_percent != null ||
+    normalized.upstream_error_min_samples != null ||
+    normalized.upstream_error_trigger_count != null ||
     normalized.condition_mode === 'all';
 
   const payload = Object.fromEntries(
@@ -212,25 +212,16 @@ export const serializePressureCooling = (value, availableGroups) => {
     );
   }
 
-  // Keep legacy payloads byte-for-byte compatible. Global defaults are
-  // inherited when the upstream-error fields are omitted.
-  if (normalized.upstream_error_enabled) {
-    payload.upstream_error_enabled = true;
-  }
-  if (
-    normalized.upstream_error_trigger_percent != null &&
-    normalized.upstream_error_trigger_percent !==
-      PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.trigger_percent
-  ) {
+  if (normalized.upstream_error_trigger_percent != null) {
     payload.upstream_error_trigger_percent =
       normalized.upstream_error_trigger_percent;
   }
-  if (
-    normalized.upstream_error_min_samples != null &&
-    normalized.upstream_error_min_samples !==
-      PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.min_samples
-  ) {
+  if (normalized.upstream_error_min_samples != null) {
     payload.upstream_error_min_samples = normalized.upstream_error_min_samples;
+  }
+  if (normalized.upstream_error_trigger_count != null) {
+    payload.upstream_error_trigger_count =
+      normalized.upstream_error_trigger_count;
   }
   if (
     normalized.condition_mode !==
@@ -253,9 +244,9 @@ export const parsePressureCooling = (value) => {
       trigger_percent: null,
       cooldown_seconds: null,
       observation_window_seconds: null,
-      upstream_error_enabled: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
       upstream_error_trigger_percent: null,
       upstream_error_min_samples: null,
+      upstream_error_trigger_count: null,
       condition_mode: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
     };
   }
@@ -269,10 +260,9 @@ export const parsePressureCooling = (value) => {
         trigger_percent: null,
         cooldown_seconds: null,
         observation_window_seconds: null,
-        upstream_error_enabled:
-          PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
         upstream_error_trigger_percent: null,
         upstream_error_min_samples: null,
+        upstream_error_trigger_count: null,
         condition_mode: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
       }
     );
@@ -285,9 +275,9 @@ export const parsePressureCooling = (value) => {
       trigger_percent: null,
       cooldown_seconds: null,
       observation_window_seconds: null,
-      upstream_error_enabled: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
       upstream_error_trigger_percent: null,
       upstream_error_min_samples: null,
+      upstream_error_trigger_count: null,
       condition_mode: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
     };
   }

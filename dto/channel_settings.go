@@ -51,9 +51,9 @@ type PressureCoolingOverride struct {
 	TriggerPercent              *int     `json:"trigger_percent,omitempty"`
 	CooldownSeconds             *int     `json:"cooldown_seconds,omitempty"`
 	ObservationWindowSeconds    *int     `json:"observation_window_seconds,omitempty"`
-	UpstreamErrorEnabled        *bool    `json:"upstream_error_enabled,omitempty"`
 	UpstreamErrorTriggerPercent *int     `json:"upstream_error_trigger_percent,omitempty"`
 	UpstreamErrorMinSamples     *int     `json:"upstream_error_min_samples,omitempty"`
+	UpstreamErrorTriggerCount   *int     `json:"upstream_error_trigger_count,omitempty"`
 	ConditionMode               string   `json:"condition_mode,omitempty"` // "" | "any" | "all"
 	Scope                       string   `json:"scope,omitempty"`          // "" | "channel" | "groups"
 	CooldownGroups              []string `json:"cooldown_groups,omitempty"`

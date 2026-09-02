@@ -75,6 +75,10 @@ func loadPressureCoolingStateRedis(channelId int) (*PressureCoolingState, error)
 	if len(vals) == 0 {
 		return &PressureCoolingState{State: "obs", Scope: "channel"}, nil
 	}
+	return parsePressureCoolingStateFields(channelId, vals)
+}
+
+func parsePressureCoolingStateFields(channelId int, vals map[string]string) (*PressureCoolingState, error) {
 	s := pressureCoolingStateFromFields(vals)
 	fields := []struct {
 		name   string

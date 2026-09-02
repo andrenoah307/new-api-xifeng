@@ -5506,6 +5506,12 @@
     "首字延迟 FRT": "Độ trễ token đầu tiên (FRT)",
     "始终启用": "Luôn bật",
     "冷却设置": "Cài đặt làm mát",
+    "压力冷却": "Làm mát áp suất",
+    "FRT 阈值 (ms)，留空默认 8000": "Ngưỡng FRT (ms), để trống để dùng mặc định 8000",
+    "触发百分比 (%)，留空默认 50": "Tỷ lệ kích hoạt (%), để trống để dùng mặc định 50",
+    "观察窗口 (秒)，留空默认 60": "Cửa sổ quan sát (giây), để trống để dùng mặc định 60",
+    "冷却时长 (秒)，留空默认 300": "Thời gian làm mát (giây), để trống để dùng mặc định 300",
+    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置": "Tự động vô hiệu hóa kênh khi độ trễ token đầu tiên liên tục quá cao và khôi phục sau thời gian làm mát; khi chưa bật sẽ dùng cấu hình mặc định",
     "任一条件满足即冷却": "Làm mát khi thỏa mãn bất kỳ điều kiện nào",
     "两个条件同时满足才冷却": "Chỉ làm mát khi cả hai điều kiện đều được thỏa mãn",
     "两个条件共用同一个观察窗口": "Cả hai điều kiện dùng chung một cửa sổ quan sát",
@@ -5514,11 +5520,13 @@
     "压力冷却上游报错最小样本数必须在 1 到 10000 之间": "Số mẫu lỗi upstream tối thiểu của làm mát áp suất phải nằm trong khoảng từ 1 đến 10000",
     "压力冷却条件组合仅支持任一或全部": "Kết hợp điều kiện làm mát áp suất chỉ hỗ trợ bất kỳ hoặc tất cả",
     "压力冷却上游报错开关配置无效": "Cấu hình công tắc lỗi upstream của làm mát áp suất không hợp lệ",
-    "压力冷却": "Làm mát áp suất",
-    "FRT 阈值 (ms)，留空默认 8000": "Ngưỡng FRT (ms), để trống để dùng mặc định 8000",
-    "触发百分比 (%)，留空默认 50": "Tỷ lệ kích hoạt (%), để trống để dùng mặc định 50",
-    "观察窗口 (秒)，留空默认 60": "Cửa sổ quan sát (giây), để trống để dùng mặc định 60",
-    "冷却时长 (秒)，留空默认 300": "Thời gian làm mát (giây), để trống để dùng mặc định 300",
-    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置": "Tự động vô hiệu hóa kênh khi độ trễ token đầu tiên liên tục quá cao và khôi phục sau thời gian làm mát; khi chưa bật sẽ dùng cấu hình mặc định"
+    "条件满足其一即触发": "Kích hoạt khi một trong hai điều kiện được đáp ứng",
+    "填 0 表示不启用该条件": "Nhập 0 để tắt điều kiện này",
+    "最小样本数是比例条件的最小尝试数（分母）": "Số mẫu tối thiểu là số lần thử tối thiểu (mẫu số) của điều kiện tỷ lệ",
+    "错误数阈值需结合观察窗口理解，高流量渠道慎用": "Cần xem ngưỡng số lỗi cùng cửa sổ quan sát; thận trọng với kênh có lưu lượng cao",
+    "错误数阈值": "Ngưỡng số lỗi",
+    "冷却剩余 {{seconds}} 秒": "Còn {{seconds}} giây làm mát",
+    "压力冷却上游报错最小样本数必须大于等于 0": "Số mẫu lỗi upstream tối thiểu của làm mát áp suất phải từ 0 trở lên",
+    "压力冷却上游报错绝对错误数必须大于等于 0": "Số lỗi upstream của làm mát áp suất phải từ 0 trở lên"
   }
 }

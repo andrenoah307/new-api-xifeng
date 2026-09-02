@@ -98,6 +98,15 @@ func GetChannelOps(c *gin.Context) {
 	})
 }
 
+func GetPressureCoolingRuntime(c *gin.Context) {
+	channels, err := model.GetAllChannels(0, 0, true, false)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, service.BatchPressureCoolingRuntime(channels))
+}
+
 func GetAllChannels(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	channelData := make([]*model.Channel, 0)
@@ -570,8 +579,11 @@ func validatePressureCoolingOverride(channel *model.Channel) error {
 	if override.UpstreamErrorTriggerPercent != nil && (*override.UpstreamErrorTriggerPercent < 0 || *override.UpstreamErrorTriggerPercent > 100) {
 		return fmt.Errorf("压力冷却上游报错比例必须在 0 到 100 之间")
 	}
-	if override.UpstreamErrorMinSamples != nil && (*override.UpstreamErrorMinSamples < 1 || *override.UpstreamErrorMinSamples > 10000) {
-		return fmt.Errorf("压力冷却上游报错最小样本数必须在 1 到 10000 之间")
+	if override.UpstreamErrorMinSamples != nil && *override.UpstreamErrorMinSamples < 0 {
+		return fmt.Errorf("压力冷却上游报错最小样本数必须大于等于 0")
+	}
+	if override.UpstreamErrorTriggerCount != nil && *override.UpstreamErrorTriggerCount < 0 {
+		return fmt.Errorf("压力冷却上游报错绝对错误数必须大于等于 0")
 	}
 	conditionMode := strings.ToLower(override.ConditionMode)
 	if conditionMode != "" && conditionMode != "any" && conditionMode != "all" {

@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,35 +48,35 @@ func TestResolvePressureCoolingUpstreamErrorConfig(t *testing.T) {
 	setting := config.GlobalConfig.Get("pressure_cooling").(*operation_setting.PressureCoolingSetting)
 	original := *setting
 	setting.Enabled = true
-	setting.UpstreamErrorEnabled = true
 	setting.UpstreamErrorTriggerPercent = 41
 	setting.UpstreamErrorMinSamples = 12
+	setting.UpstreamErrorTriggerCount = 7
 	setting.ConditionMode = "ALL"
 	t.Cleanup(func() { *setting = original })
 
 	cfg := resolvePressureCoolingConfig(nil)
-	assert.True(t, cfg.UpstreamErrorEnabled)
 	assert.Equal(t, 41, cfg.UpstreamErrorTriggerPercent)
 	assert.Equal(t, 12, cfg.UpstreamErrorMinSamples)
+	assert.Equal(t, 7, cfg.UpstreamErrorTriggerCount)
 	assert.Equal(t, "all", cfg.ConditionMode)
 
-	enabled := false
 	percent := 75
 	minSamples := 20
+	count := 9
 	cfg = resolvePressureCoolingConfig(&dto.PressureCoolingOverride{
-		UpstreamErrorEnabled:        &enabled,
 		UpstreamErrorTriggerPercent: &percent,
 		UpstreamErrorMinSamples:     &minSamples,
+		UpstreamErrorTriggerCount:   &count,
 		ConditionMode:               "ALL",
 	})
-	assert.False(t, cfg.UpstreamErrorEnabled)
 	assert.Equal(t, 75, cfg.UpstreamErrorTriggerPercent)
 	assert.Equal(t, 20, cfg.UpstreamErrorMinSamples)
+	assert.Equal(t, 9, cfg.UpstreamErrorTriggerCount)
 	assert.Equal(t, "all", cfg.ConditionMode)
 }
 
 func TestPressureCoolingConditionModesAndGates(t *testing.T) {
-	base := resolvedPressureCoolingConfig{UpstreamErrorEnabled: true, TriggerPercent: 50, UpstreamErrorMinSamples: 3, ConditionMode: "any"}
+	base := resolvedPressureCoolingConfig{UpstreamErrorTriggerPercent: 50, UpstreamErrorMinSamples: 3, ConditionMode: "any"}
 	assert.True(t, pressureCoolingConditionsMet(base, false, true))
 	assert.True(t, pressureCoolingConditionsMet(base, true, false))
 	assert.False(t, pressureCoolingConditionsMet(base, false, false))
@@ -85,20 +86,82 @@ func TestPressureCoolingConditionModesAndGates(t *testing.T) {
 	assert.False(t, pressureCoolingConditionsMet(base, true, false))
 	assert.True(t, pressureCoolingConditionsMet(base, true, true))
 
-	base.UpstreamErrorEnabled = false
+	base.UpstreamErrorTriggerPercent = 0
 	assert.True(t, pressureCoolingConditionsMet(base, true, false), "disabled error condition preserves the FRT-only path")
 	assert.False(t, pressureCoolingConditionsMet(base, false, true))
 }
 
 func TestPressureCoolingErrorGateRequiresSamplesAndThreshold(t *testing.T) {
-	cfg := resolvedPressureCoolingConfig{UpstreamErrorEnabled: true, UpstreamErrorMinSamples: 10, UpstreamErrorTriggerPercent: 50}
+	cfg := resolvedPressureCoolingConfig{UpstreamErrorMinSamples: 10, UpstreamErrorTriggerPercent: 50}
 	assert.False(t, pressureCoolingErrorConditionMet(cfg, 9, 9))
-	assert.False(t, pressureCoolingErrorConditionMet(cfg, 10, 9))
-	assert.True(t, pressureCoolingErrorConditionMet(cfg, 10, 10))
+	assert.True(t, pressureCoolingErrorConditionMet(cfg, 10, 9), "minimum samples gates attempts, the ratio denominator")
+	assert.False(t, pressureCoolingErrorConditionMet(cfg, 10, 4))
+}
+
+func TestPressureCoolingErrorConditionTriggersByConfiguredRules(t *testing.T) {
+	tests := []struct {
+		name     string
+		cfg      resolvedPressureCoolingConfig
+		attempts int64
+		errors   int64
+		want     bool
+	}{
+		{name: "percent disabled with no errors", cfg: resolvedPressureCoolingConfig{UpstreamErrorTriggerPercent: 0, UpstreamErrorMinSamples: 1}, attempts: 10, errors: 0},
+		{name: "percent disabled with errors", cfg: resolvedPressureCoolingConfig{UpstreamErrorTriggerPercent: 0, UpstreamErrorMinSamples: 1}, attempts: 10, errors: 10},
+		{name: "count only", cfg: resolvedPressureCoolingConfig{UpstreamErrorTriggerCount: 5}, attempts: 10, errors: 5, want: true},
+		{name: "count below and percent met", cfg: resolvedPressureCoolingConfig{UpstreamErrorTriggerCount: 10, UpstreamErrorTriggerPercent: 50, UpstreamErrorMinSamples: 10}, attempts: 10, errors: 5, want: true},
+		{name: "count met and percent below", cfg: resolvedPressureCoolingConfig{UpstreamErrorTriggerCount: 5, UpstreamErrorTriggerPercent: 90, UpstreamErrorMinSamples: 10}, attempts: 10, errors: 5, want: true},
+		{name: "zero errors never triggers", cfg: resolvedPressureCoolingConfig{UpstreamErrorTriggerCount: 1, UpstreamErrorTriggerPercent: 1, UpstreamErrorMinSamples: 0}, attempts: 1, errors: 0},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, pressureCoolingErrorConditionMet(test.cfg, test.attempts, test.errors))
+		})
+	}
+}
+
+func TestPressureCoolingStoredConfigurationShapesRemainInactive(t *testing.T) {
+	tests := []struct {
+		name   string
+		global operation_setting.PressureCoolingSetting
+		stored string
+		want   bool
+	}{
+		{
+			name:   "channel 304 enabled without upstream thresholds",
+			global: operation_setting.PressureCoolingSetting{Enabled: false, UpstreamErrorTriggerPercent: 0, UpstreamErrorMinSamples: 10},
+			stored: `{"pressure_cooling":{"enabled":true,"upstream_error_enabled":true}}`,
+			want:   false,
+		},
+		{
+			name:   "channel 327 disabled despite thresholds",
+			global: operation_setting.PressureCoolingSetting{Enabled: true, UpstreamErrorTriggerPercent: 0, UpstreamErrorMinSamples: 10},
+			stored: `{"pressure_cooling":{"enabled":false,"upstream_error_trigger_percent":80,"upstream_error_min_samples":50}}`,
+			want:   false,
+		},
+		{
+			name:   "global disabled",
+			global: operation_setting.PressureCoolingSetting{Enabled: false, UpstreamErrorTriggerPercent: 0, UpstreamErrorMinSamples: 10},
+			stored: `{"pressure_cooling":{}}`,
+			want:   false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setting := config.GlobalConfig.Get("pressure_cooling").(*operation_setting.PressureCoolingSetting)
+			original := *setting
+			*setting = test.global
+			t.Cleanup(func() { *setting = original })
+			var channelSettings dto.ChannelSettings
+			require.NoError(t, common.Unmarshal([]byte(test.stored), &channelSettings))
+			cfg := resolvePressureCoolingConfig(channelSettings.PressureCooling)
+			assert.Equal(t, test.want, cfg.Enabled && pressureCoolingErrorConditionConfigured(cfg))
+		})
+	}
 }
 
 func TestPressureCoolingErrorStateGates(t *testing.T) {
-	cfg := resolvedPressureCoolingConfig{Enabled: true, UpstreamErrorEnabled: true, ConditionMode: "any", ObservationWindowSeconds: 60, TriggerPercent: 50}
+	cfg := resolvedPressureCoolingConfig{Enabled: true, UpstreamErrorTriggerPercent: 50, ConditionMode: "any", ObservationWindowSeconds: 60, TriggerPercent: 50}
 	now := time.Now().Unix()
 	assert.False(t, pressureCoolingErrorStateEligible(&PressureCoolingState{State: "cool"}, cfg, now))
 	assert.False(t, pressureCoolingErrorStateEligible(&PressureCoolingState{State: "susp"}, cfg, now))
@@ -119,9 +182,9 @@ func preparePressureCoolingErrorTest(t *testing.T) (*model.Channel, resolvedPres
 		setting.Enabled = true
 		setting.FRTThresholdMs = 100
 		setting.TriggerPercent = 50
-		setting.UpstreamErrorEnabled = true
 		setting.UpstreamErrorTriggerPercent = 50
 		setting.UpstreamErrorMinSamples = 3
+		setting.UpstreamErrorTriggerCount = 0
 		setting.ObservationWindowSeconds = 60
 		setting.MinActiveChannelsPerGroup = 0
 		setting.CooldownSeconds = 30
@@ -139,7 +202,7 @@ func TestRecordPressureCoolingAttemptRequiresMinimumSamplesThenTriggers(t *testi
 	savePressureCoolingState(channel.Id, &PressureCoolingState{State: "obs", WindowStart: now}, 600)
 
 	recordPressureCoolingAttemptAt(channel, cfg, true, now)
-	recordPressureCoolingAttemptAt(channel, cfg, true, now)
+	recordPressureCoolingAttemptAt(channel, cfg, false, now)
 	assert.Equal(t, "obs", loadPressureCoolingState(channel.Id).State)
 	recordPressureCoolingAttemptAt(channel, cfg, true, now)
 	assert.Equal(t, "cool", loadPressureCoolingState(channel.Id).State)
@@ -287,7 +350,7 @@ func TestRecordPressureCoolingAttemptFastGates(t *testing.T) {
 	preparePressureCoolingGroupTest(t)
 	configurePressureCooling(t, func(setting *operation_setting.PressureCoolingSetting) {
 		setting.Enabled = false
-		setting.UpstreamErrorEnabled = true
+		setting.UpstreamErrorTriggerPercent = 50
 	})
 	oldMemoryCache := common.MemoryCacheEnabled
 	common.MemoryCacheEnabled = false
@@ -300,12 +363,39 @@ func TestRecordPressureCoolingAttemptFastGates(t *testing.T) {
 	RecordPressureCoolingAttempt(8090, nil)
 	channel := pressureCoolingTestChannel(t, 8091, "fast-gates", "pro", "fast-gates-model", dto.ChannelSettings{})
 	model.InitChannelCache()
-	setting.UpstreamErrorEnabled = false
+	setting.UpstreamErrorTriggerPercent = 0
 	RecordPressureCoolingAttempt(channel.Id, nil)
-	setting.UpstreamErrorEnabled = true
+	setting.UpstreamErrorTriggerPercent = 50
 	skipErr := types.NewErrorWithStatusCode(errors.New("local"), types.ErrorCodeBadResponse, http.StatusInternalServerError, types.ErrOptionWithSkipRetry())
 	RecordPressureCoolingAttempt(channel.Id, skipErr)
 	common.MemoryCacheEnabled = oldMemoryCache
+}
+
+func TestRecordPressureCoolingAttemptSkipsCountingWhenBothErrorRulesAreDisabled(t *testing.T) {
+	preparePressureCoolingGroupTest(t)
+	oldRedis := common.RedisEnabled
+	common.RedisEnabled = false
+	t.Cleanup(func() { common.RedisEnabled = oldRedis })
+	configurePressureCooling(t, func(setting *operation_setting.PressureCoolingSetting) {
+		setting.Enabled = true
+		setting.UpstreamErrorTriggerPercent = 0
+		setting.UpstreamErrorTriggerCount = 0
+		setting.ObservationWindowSeconds = 60
+	})
+	channel := pressureCoolingTestChannel(t, 8092, "error-rules-disabled", "pro", "error-rules-disabled-model", dto.ChannelSettings{})
+	model.InitChannelCache()
+	upstreamErr := types.NewErrorWithStatusCode(errors.New("upstream"), types.ErrorCodeBadResponse, http.StatusBadGateway)
+	RecordPressureCoolingAttempt(channel.Id, upstreamErr)
+	done := make(chan struct{})
+	gopool.Go(func() { close(done) })
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		require.FailNow(t, "timed out waiting for pressure cooling task queue")
+	}
+	attempts, errors := loadPressureCoolingErrorWindowAt(channel.Id, 60, time.Now().Unix())
+	assert.Equal(t, int64(0), attempts)
+	assert.Equal(t, int64(0), errors)
 }
 
 func TestPressureCoolingStateTTLUsesObservationWindowLowerBound(t *testing.T) {

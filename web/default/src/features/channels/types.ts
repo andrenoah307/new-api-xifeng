@@ -184,6 +184,25 @@ export interface GetChannelRateLimitStatsResponse {
   data?: Record<string, ChannelRateLimitStat> | null
 }
 
+export interface PressureCoolingRuntime {
+  configured: boolean
+  enabled: boolean
+  attempts: number
+  errors: number
+  trigger_percent: number
+  min_samples: number
+  trigger_count: number
+  window_seconds: number
+  state: string
+  cooldown_until: number
+}
+
+export interface GetPressureCoolingRuntimeResponse {
+  success: boolean
+  message?: string
+  data?: Record<string, PressureCoolingRuntime>
+}
+
 export interface ChannelOpsResponse {
   success: boolean
   message?: string

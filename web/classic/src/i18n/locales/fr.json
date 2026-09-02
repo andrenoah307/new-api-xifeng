@@ -4996,6 +4996,12 @@
     "首字延迟 FRT": "Latence du premier token (FRT)",
     "始终启用": "Toujours activé",
     "冷却设置": "Paramètres de refroidissement",
+    "压力冷却": "Refroidissement sous pression",
+    "FRT 阈值 (ms)，留空默认 8000": "Seuil FRT (ms), laisser vide pour la valeur par défaut 8000",
+    "触发百分比 (%)，留空默认 50": "Pourcentage de déclenchement (%), laisser vide pour la valeur par défaut 50",
+    "观察窗口 (秒)，留空默认 60": "Fenêtre d'observation (secondes), laisser vide pour la valeur par défaut 60",
+    "冷却时长 (秒)，留空默认 300": "Durée du refroidissement (secondes), laisser vide pour la valeur par défaut 300",
+    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置": "Désactive automatiquement le canal lorsque sa latence du premier token reste trop élevée, puis le réactive après le refroidissement ; si l'option n'est pas activée, la configuration par défaut est utilisée",
     "任一条件满足即冷却": "Refroidir dès qu'une condition est remplie",
     "两个条件同时满足才冷却": "Refroidir uniquement lorsque les deux conditions sont remplies",
     "两个条件共用同一个观察窗口": "Les deux conditions partagent la même fenêtre d'observation",
@@ -5004,11 +5010,13 @@
     "压力冷却上游报错最小样本数必须在 1 到 10000 之间": "Le nombre minimal d'échantillons d'erreurs en amont du refroidissement sous pression doit être compris entre 1 et 10000",
     "压力冷却条件组合仅支持任一或全部": "La combinaison de conditions du refroidissement sous pression prend uniquement en charge n'importe laquelle ou toutes",
     "压力冷却上游报错开关配置无效": "La configuration du commutateur d'erreurs en amont du refroidissement sous pression est invalide",
-    "压力冷却": "Refroidissement sous pression",
-    "FRT 阈值 (ms)，留空默认 8000": "Seuil FRT (ms), laisser vide pour la valeur par défaut 8000",
-    "触发百分比 (%)，留空默认 50": "Pourcentage de déclenchement (%), laisser vide pour la valeur par défaut 50",
-    "观察窗口 (秒)，留空默认 60": "Fenêtre d'observation (secondes), laisser vide pour la valeur par défaut 60",
-    "冷却时长 (秒)，留空默认 300": "Durée du refroidissement (secondes), laisser vide pour la valeur par défaut 300",
-    "当渠道首字延迟持续过高时，自动禁用渠道并在冷却后恢复；未开启则使用默认配置": "Désactive automatiquement le canal lorsque sa latence du premier token reste trop élevée, puis le réactive après le refroidissement ; si l'option n'est pas activée, la configuration par défaut est utilisée"
+    "条件满足其一即触发": "Déclencher lorsqu'une des conditions est remplie",
+    "填 0 表示不启用该条件": "Saisissez 0 pour désactiver cette condition",
+    "最小样本数是比例条件的最小尝试数（分母）": "Le nombre minimal d'échantillons est le nombre minimal de tentatives (dénominateur) de la condition de taux",
+    "错误数阈值需结合观察窗口理解，高流量渠道慎用": "Interprétez le seuil d'erreurs avec la fenêtre d'observation ; prudence sur les canaux à fort trafic",
+    "错误数阈值": "Seuil d'erreurs",
+    "冷却剩余 {{seconds}} 秒": "{{seconds}} secondes de refroidissement restantes",
+    "压力冷却上游报错最小样本数必须大于等于 0": "Le nombre minimal d'échantillons d'erreurs en amont doit être d'au moins 0",
+    "压力冷却上游报错绝对错误数必须大于等于 0": "Le nombre d'erreurs en amont doit être d'au moins 0"
   }
 }

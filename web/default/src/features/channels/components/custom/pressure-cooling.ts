@@ -26,19 +26,11 @@ export interface PressureCooling {
   trigger_percent: number | null
   cooldown_seconds: number | null
   observation_window_seconds: number | null
-  upstream_error_enabled: boolean
   upstream_error_trigger_percent: number | null
   upstream_error_min_samples: number | null
+  upstream_error_trigger_count: number | null
   condition_mode: PressureCoolingConditionMode
 }
-
-// Must match defaults in setting/operation_setting/pressure_cooling_setting.go.
-const PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS = {
-  enabled: false,
-  trigger_percent: 50,
-  min_samples: 10,
-  condition_mode: 'any',
-} as const
 
 const EMPTY_PRESSURE_COOLING: PressureCooling = {
   enabled: null,
@@ -48,10 +40,10 @@ const EMPTY_PRESSURE_COOLING: PressureCooling = {
   trigger_percent: null,
   cooldown_seconds: null,
   observation_window_seconds: null,
-  upstream_error_enabled: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
   upstream_error_trigger_percent: null,
   upstream_error_min_samples: null,
-  condition_mode: PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
+  upstream_error_trigger_count: null,
+  condition_mode: 'any',
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -84,9 +76,9 @@ export function normalizePressureCooling(
     value.trigger_percent != null ||
     value.cooldown_seconds != null ||
     value.observation_window_seconds != null ||
-    value.upstream_error_enabled != null ||
     value.upstream_error_trigger_percent != null ||
     value.upstream_error_min_samples != null ||
+    value.upstream_error_trigger_count != null ||
     value.condition_mode != null
   if (!hasOverride) return null
 
@@ -101,20 +93,16 @@ export function normalizePressureCooling(
     observation_window_seconds: readNullableNumber(
       value.observation_window_seconds
     ),
-    upstream_error_enabled:
-      typeof value.upstream_error_enabled === 'boolean'
-        ? value.upstream_error_enabled
-        : PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.enabled,
     upstream_error_trigger_percent: readNullableNumber(
       value.upstream_error_trigger_percent
     ),
     upstream_error_min_samples: readNullableNumber(
       value.upstream_error_min_samples
     ),
-    condition_mode:
-      value.condition_mode === 'all'
-        ? 'all'
-        : PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.condition_mode,
+    upstream_error_trigger_count: readNullableNumber(
+      value.upstream_error_trigger_count
+    ),
+    condition_mode: value.condition_mode === 'all' ? 'all' : 'any',
   }
 }
 
@@ -179,13 +167,9 @@ export function serializePressureCooling(
     obj.cooldown_seconds !== null ||
     obj.observation_window_seconds !== null ||
     obj.scope === 'groups' ||
-    obj.upstream_error_enabled ||
-    (obj.upstream_error_trigger_percent != null &&
-      obj.upstream_error_trigger_percent !==
-        PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.trigger_percent) ||
-    (obj.upstream_error_min_samples != null &&
-      obj.upstream_error_min_samples !==
-        PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.min_samples) ||
+    obj.upstream_error_trigger_percent !== null ||
+    obj.upstream_error_min_samples !== null ||
+    obj.upstream_error_trigger_count !== null ||
     obj.condition_mode === 'all'
   if (!hasValue) return ''
 
@@ -200,23 +184,15 @@ export function serializePressureCooling(
     serialized.scope = 'groups'
     serialized.cooldown_groups = cooldownGroups
   }
-  if (obj.upstream_error_enabled) {
-    serialized.upstream_error_enabled = true
-  }
-  if (
-    obj.upstream_error_trigger_percent != null &&
-    obj.upstream_error_trigger_percent !==
-      PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.trigger_percent
-  ) {
+  if (obj.upstream_error_trigger_percent !== null) {
     serialized.upstream_error_trigger_percent =
       obj.upstream_error_trigger_percent
   }
-  if (
-    obj.upstream_error_min_samples != null &&
-    obj.upstream_error_min_samples !==
-      PRESSURE_COOLING_UPSTREAM_ERROR_DEFAULTS.min_samples
-  ) {
+  if (obj.upstream_error_min_samples !== null) {
     serialized.upstream_error_min_samples = obj.upstream_error_min_samples
+  }
+  if (obj.upstream_error_trigger_count !== null) {
+    serialized.upstream_error_trigger_count = obj.upstream_error_trigger_count
   }
   if (obj.condition_mode === 'all') {
     serialized.condition_mode = 'all'

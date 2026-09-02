@@ -64,6 +64,7 @@ const ChannelsTable = (channelsData) => {
     openUpstreamUpdateModal,
     detectChannelUpstreamUpdates,
     rateLimitStats,
+    pressureCoolingRuntime,
   } = channelsData;
 
   // Get all columns
@@ -92,6 +93,7 @@ const ChannelsTable = (channelsData) => {
       openUpstreamUpdateModal,
       detectChannelUpstreamUpdates,
       rateLimitStats,
+      pressureCoolingRuntime,
     });
   }, [
     t,
@@ -117,6 +119,7 @@ const ChannelsTable = (channelsData) => {
     openUpstreamUpdateModal,
     detectChannelUpstreamUpdates,
     rateLimitStats,
+    pressureCoolingRuntime,
   ]);
 
   // Filter columns based on visibility settings

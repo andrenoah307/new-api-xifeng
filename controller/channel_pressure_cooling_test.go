@@ -10,6 +10,9 @@ import (
 )
 
 func TestValidateChannelPressureCoolingGroupsMustBelongToChannel(t *testing.T) {
+	assert.NoError(t, validatePressureCoolingOverride(nil))
+	assert.NoError(t, validatePressureCoolingOverride(&model.Channel{Group: "pro", Key: "key"}))
+
 	tests := []struct {
 		name    string
 		scope   string
@@ -45,15 +48,17 @@ func TestValidateChannelPressureCoolingUpstreamErrorFields(t *testing.T) {
 		name       string
 		percent    int
 		minSamples int
+		count      int
 		mode       string
 		wantErr    bool
 	}{
-		{name: "valid lower bounds", percent: 0, minSamples: 1, mode: "any"},
-		{name: "valid upper bounds", percent: 100, minSamples: 10000, mode: "ALL"},
+		{name: "valid lower bounds", percent: 0, minSamples: 0, mode: "any"},
+		{name: "valid upper bounds", percent: 100, minSamples: 10001, mode: "ALL"},
 		{name: "percent below zero", percent: -1, minSamples: 1, mode: "any", wantErr: true},
 		{name: "percent above one hundred", percent: 101, minSamples: 1, mode: "any", wantErr: true},
-		{name: "minimum samples below one", percent: 50, minSamples: 0, mode: "any", wantErr: true},
-		{name: "minimum samples above limit", percent: 50, minSamples: 10001, mode: "any", wantErr: true},
+		{name: "minimum samples zero is valid", percent: 50, minSamples: 0, mode: "any"},
+		{name: "trigger count zero is valid", percent: 50, minSamples: 10, count: 0, mode: "any"},
+		{name: "trigger count negative", percent: 50, minSamples: 10, count: -1, mode: "any", wantErr: true},
 		{name: "invalid condition mode", percent: 50, minSamples: 10, mode: "sometimes", wantErr: true},
 	}
 	for _, test := range tests {
@@ -62,6 +67,7 @@ func TestValidateChannelPressureCoolingUpstreamErrorFields(t *testing.T) {
 			channel.SetSetting(dto.ChannelSettings{PressureCooling: &dto.PressureCoolingOverride{
 				UpstreamErrorTriggerPercent: &test.percent,
 				UpstreamErrorMinSamples:     &test.minSamples,
+				UpstreamErrorTriggerCount:   &test.count,
 				ConditionMode:               test.mode,
 			}})
 			err := validateChannel(channel, false)

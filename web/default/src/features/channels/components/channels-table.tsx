@@ -25,7 +25,7 @@ import type {
   Row,
 } from '@tanstack/react-table'
 import { Eye, EyeOff } from 'lucide-react'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -49,6 +49,7 @@ import { getLobeIcon } from '@/lib/lobe-icon'
 import {
   getChannels,
   getChannelRateLimitStats,
+  getPressureCoolingRuntime,
   searchChannels,
   getGroups,
 } from '../api'
@@ -64,7 +65,12 @@ import {
   getChannelTypeIcon,
   getChannelTypeLabel,
 } from '../lib'
-import type { Channel, ChannelRateLimitStat, ChannelSortBy } from '../types'
+import type {
+  Channel,
+  ChannelRateLimitStat,
+  ChannelSortBy,
+  PressureCoolingRuntime,
+} from '../types'
 import { ChannelCard } from './channel-card'
 import { useChannelsColumns } from './channels-columns'
 import { useChannels } from './channels-provider'
@@ -242,7 +248,7 @@ export function ChannelsTable() {
 
   // Fetch channels data
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, dataUpdatedAt, isLoading, isFetching } = useQuery({
     queryKey: channelsQueryKeys.list({
       keyword: globalFilter,
       model: modelFilter,
@@ -312,6 +318,37 @@ export function ChannelsTable() {
     placeholderData: (previousData) => previousData,
   })
 
+  const [pressureCoolingRuntime, setPressureCoolingRuntime] = useState<
+    Record<string, PressureCoolingRuntime>
+  >({})
+  const pressureCoolingRuntimeRequestAt = useRef(0)
+
+  useEffect(() => {
+    if (
+      isFetching ||
+      !dataUpdatedAt ||
+      pressureCoolingRuntimeRequestAt.current === dataUpdatedAt
+    ) {
+      return
+    }
+
+    pressureCoolingRuntimeRequestAt.current = dataUpdatedAt
+
+    let cancelled = false
+    void getPressureCoolingRuntime()
+      .then((response) => {
+        if (cancelled) return
+        setPressureCoolingRuntime(response.success ? (response.data ?? {}) : {})
+      })
+      .catch(() => {
+        if (!cancelled) setPressureCoolingRuntime({})
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [dataUpdatedAt, isFetching])
+
   // Apply tag aggregation if tag mode is enabled
   const channels = useMemo(() => {
     const rawChannels = data?.data?.items || []
@@ -330,6 +367,7 @@ export function ChannelsTable() {
   const columns = useChannelsColumns({
     enableSelection: batchMode,
     rateLimitStats,
+    pressureCoolingRuntime,
   })
 
   // React Table instance

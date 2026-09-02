@@ -5539,6 +5539,14 @@
     "Always enabled": "Always enabled",
     "Pressure cooling condition mode must be either any or all": "Pressure cooling condition mode must be either any or all",
     "Pressure cooling configuration is not valid JSON": "Pressure cooling configuration is not valid JSON",
-    "Trigger percent must be a number between 1 and 100": "Trigger percent must be a number between 1 and 100"
+    "Trigger percent must be a number between 1 and 100": "Trigger percent must be a number between 1 and 100",
+    "Either upstream error condition can trigger cooling. Enter 0 to disable that condition. Interpret the error count threshold with the observation window; use caution for high-traffic channels, where even a low error rate can quickly reach the absolute count.": "Either upstream error condition can trigger cooling. Enter 0 to disable that condition. Interpret the error count threshold with the observation window; use caution for high-traffic channels, where even a low error rate can quickly reach the absolute count.",
+    "Minimum Attempts (rate denominator)": "Minimum Attempts (rate denominator)",
+    "Minimum attempts for the error rate condition (denominator), not the minimum error count.": "Minimum attempts for the error rate condition (denominator), not the minimum error count.",
+    "Error Count Threshold": "Error Count Threshold",
+    "Error Count": "Error Count",
+    "Cooling: {{seconds}}s": "Cooling: {{seconds}}s",
+    "Upstream error minimum samples must be a non-negative integer": "Upstream error minimum samples must be a non-negative integer",
+    "Upstream error trigger count must be a non-negative integer": "Upstream error trigger count must be a non-negative integer"
   }
 }

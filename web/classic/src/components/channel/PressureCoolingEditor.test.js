@@ -81,12 +81,18 @@ const newTranslationKeys = [
   '任一条件满足即冷却',
   '两个条件同时满足才冷却',
   '两个条件共用同一个观察窗口',
+  '条件满足其一即触发',
+  '填 0 表示不启用该条件',
+  '最小样本数是比例条件的最小尝试数（分母）',
+  '错误数阈值需结合观察窗口理解，高流量渠道慎用',
+  '错误数阈值',
+  '冷却剩余 {{seconds}} 秒',
 ];
 
-const renderEditor = (upstreamErrorEnabled) =>
+const renderEditor = (value) =>
   renderToStaticMarkup(
     createElement(PressureCoolingEditor, {
-      value: { enabled: true, upstream_error_enabled: upstreamErrorEnabled },
+      value: { enabled: true, ...value },
       onChange: () => {},
     }),
   );
@@ -210,9 +216,9 @@ describe('Classic pressure cooling upstream-error condition', () => {
       trigger_percent: null,
       cooldown_seconds: null,
       observation_window_seconds: null,
-      upstream_error_enabled: false,
       upstream_error_trigger_percent: null,
       upstream_error_min_samples: null,
+      upstream_error_trigger_count: null,
       condition_mode: 'any',
       scope: 'channel',
       cooldown_groups: [],
@@ -237,12 +243,34 @@ describe('Classic pressure cooling upstream-error condition', () => {
     assert.equal('condition_mode' in serialized, false);
   });
 
-  test('round trips an enabled upstream-error condition', () => {
+  test('ignores the removed upstream-error switch while preserving other fields', () => {
+    const normalized = parsePressureCooling(
+      JSON.stringify({
+        enabled: true,
+        upstream_error_enabled: true,
+        upstream_error_trigger_percent: 50,
+        upstream_error_min_samples: 10,
+      }),
+    );
+
+    assert.equal('upstream_error_enabled' in normalized, false);
+    assert.equal(normalized.upstream_error_trigger_percent, 50);
+    assert.equal(normalized.upstream_error_min_samples, 10);
+    assert.equal(
+      getPressureCoolingValidationError({
+        enabled: true,
+        upstream_error_enabled: 'legacy value',
+      }),
+      null,
+    );
+  });
+
+  test('round trips upstream-error thresholds including the trigger count', () => {
     const value = normalizePressureCooling({
       enabled: true,
-      upstream_error_enabled: true,
       upstream_error_trigger_percent: 25,
       upstream_error_min_samples: 20,
+      upstream_error_trigger_count: 7,
       condition_mode: 'all',
     });
 
@@ -252,9 +280,9 @@ describe('Classic pressure cooling upstream-error condition', () => {
       trigger_percent: null,
       cooldown_seconds: null,
       observation_window_seconds: null,
-      upstream_error_enabled: true,
       upstream_error_trigger_percent: 25,
       upstream_error_min_samples: 20,
+      upstream_error_trigger_count: 7,
       condition_mode: 'all',
     });
     assert.deepEqual(
@@ -263,23 +291,38 @@ describe('Classic pressure cooling upstream-error condition', () => {
     );
   });
 
-  test('omits upstream-error values equal to global defaults', () => {
+  test('serializes values equal to the global defaults explicitly', () => {
     const serialized = JSON.parse(
       serializePressureCooling(
         normalizePressureCooling({
           enabled: true,
-          upstream_error_enabled: true,
           upstream_error_trigger_percent: 50,
           upstream_error_min_samples: 10,
+          upstream_error_trigger_count: 0,
           condition_mode: 'any',
         }),
       ),
     );
 
-    assert.equal(serialized.upstream_error_enabled, true);
+    assert.equal(serialized.upstream_error_trigger_percent, 50);
+    assert.equal(serialized.upstream_error_min_samples, 10);
+    assert.equal(serialized.upstream_error_trigger_count, 0);
+    assert.equal('condition_mode' in serialized, false);
+  });
+
+  test('omits all nullable upstream-error fields when they are null', () => {
+    const serialized = JSON.parse(
+      serializePressureCooling({
+        enabled: true,
+        upstream_error_trigger_percent: null,
+        upstream_error_min_samples: null,
+        upstream_error_trigger_count: null,
+      }),
+    );
+
     assert.equal('upstream_error_trigger_percent' in serialized, false);
     assert.equal('upstream_error_min_samples' in serialized, false);
-    assert.equal('condition_mode' in serialized, false);
+    assert.equal('upstream_error_trigger_count' in serialized, false);
   });
 
   test('rejects invalid upstream-error values before saving', () => {
@@ -289,11 +332,11 @@ describe('Classic pressure cooling upstream-error condition', () => {
       { trigger_percent: 2.5 },
       { upstream_error_trigger_percent: -1 },
       { upstream_error_trigger_percent: 101 },
-      { upstream_error_min_samples: 0 },
-      { upstream_error_min_samples: 10001 },
+      { upstream_error_min_samples: -1 },
       { upstream_error_min_samples: 2.5 },
+      { upstream_error_trigger_count: -1 },
+      { upstream_error_trigger_count: 2.5 },
       { condition_mode: 'sometimes' },
-      { upstream_error_enabled: 'true' },
     ];
 
     for (const value of invalidValues) {
@@ -304,17 +347,26 @@ describe('Classic pressure cooling upstream-error condition', () => {
       getPressureCoolingValidationError({
         trigger_percent: 1,
         upstream_error_trigger_percent: 0,
-        upstream_error_min_samples: 1,
+        upstream_error_min_samples: 0,
+        upstream_error_trigger_count: 0,
         condition_mode: 'any',
-        upstream_error_enabled: false,
       }),
       null,
     );
   });
 
-  test('serializes an enabled upstream-error condition with otherwise empty fields', () => {
+  test('rejects fractional upstream-error trigger percent', () => {
+    assert.equal(
+      getPressureCoolingValidationError({
+        upstream_error_trigger_percent: 50.5,
+      }),
+      'upstream_error_trigger_percent',
+    );
+  });
+
+  test('serializes an upstream-error count condition with otherwise empty fields', () => {
     const serialized = serializePressureCooling({
-      upstream_error_enabled: true,
+      upstream_error_trigger_count: 3,
     });
 
     assert.notEqual(serialized, '');
@@ -324,23 +376,31 @@ describe('Classic pressure cooling upstream-error condition', () => {
       trigger_percent: null,
       cooldown_seconds: null,
       observation_window_seconds: null,
-      upstream_error_enabled: true,
+      upstream_error_trigger_count: 3,
     });
   });
 
-  test('wires trigger conditions and collapsible upstream inputs', () => {
+  test('wires trigger conditions and all upstream inputs', () => {
     assert.match(editorSource, /t\('触发条件'\)/);
     assert.match(editorSource, /t\('条件组合'\)/);
     assert.match(editorSource, /t\('任一条件满足即冷却'\)/);
     assert.match(editorSource, /t\('两个条件同时满足才冷却'\)/);
     assert.match(editorSource, /t\('上游报错'\)/);
-    assert.match(editorSource, /v\.upstream_error_enabled === true && \(/);
-    assert.match(editorSource, /t\('最小样本数'\)/);
+    assert.match(
+      editorSource,
+      /v\.upstream_error_trigger_percent > 0 \|\|\s*v\.upstream_error_trigger_count > 0/,
+    );
+    assert.match(editorSource, /t\('错误数阈值'\)/);
+    assert.doesNotMatch(editorSource, /checked=\{v\.upstream_error_enabled\}/);
   });
 
-  test('does not render condition combination when upstream errors are disabled', () => {
-    assert.doesNotMatch(renderEditor(false), /条件组合/);
-    assert.match(renderEditor(true), /条件组合/);
+  test('does not render condition combination until an upstream threshold is enabled', () => {
+    assert.doesNotMatch(renderEditor({}), /条件组合/);
+    assert.match(
+      renderEditor({ upstream_error_trigger_percent: 1 }),
+      /条件组合/,
+    );
+    assert.match(renderEditor({ upstream_error_trigger_count: 1 }), /条件组合/);
   });
 
   test('provides the new pressure-cooling translations in every locale', () => {

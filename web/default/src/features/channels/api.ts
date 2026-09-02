@@ -32,6 +32,7 @@ import type {
   FetchModelsResponse,
   GetChannelResponse,
   GetChannelRateLimitStatsResponse,
+  GetPressureCoolingRuntimeResponse,
   GetChannelsParams,
   GetChannelsResponse,
   MultiKeyManageParams,
@@ -112,6 +113,17 @@ export async function getChannel(id: number): Promise<GetChannelResponse> {
 export async function getChannelRateLimitStats(): Promise<GetChannelRateLimitStatsResponse> {
   const res = await api.get(
     '/api/channel/rate-limit-stats',
+    channelActionConfig()
+  )
+  return res.data
+}
+
+/**
+ * Get live pressure-cooling error windows and cooldown state for all channels.
+ */
+export async function getPressureCoolingRuntime(): Promise<GetPressureCoolingRuntimeResponse> {
+  const res = await api.get(
+    '/api/channel/pressure_cooling/runtime',
     channelActionConfig()
   )
   return res.data

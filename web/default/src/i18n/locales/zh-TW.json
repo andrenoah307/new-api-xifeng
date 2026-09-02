@@ -5539,6 +5539,14 @@
     "Always enabled": "始終啟用",
     "Pressure cooling condition mode must be either any or all": "壓力冷卻條件組合必須為 any 或 all",
     "Pressure cooling configuration is not valid JSON": "壓力冷卻設定不是有效的 JSON",
-    "Trigger percent must be a number between 1 and 100": "觸發百分比必須是 1 到 100 之間的數字"
+    "Trigger percent must be a number between 1 and 100": "觸發百分比必須是 1 到 100 之間的數字",
+    "Either upstream error condition can trigger cooling. Enter 0 to disable that condition. Interpret the error count threshold with the observation window; use caution for high-traffic channels, where even a low error rate can quickly reach the absolute count.": "以下任一上游錯誤條件滿足即可觸發冷卻。填 0 表示不啟用該條件。錯誤數閾值需結合觀測視窗理解；高流量渠道請謹慎使用，即使錯誤率很低也可能很快達到絕對錯誤數。",
+    "Minimum Attempts (rate denominator)": "比例條件的最小嘗試數（分母）",
+    "Minimum attempts for the error rate condition (denominator), not the minimum error count.": "比例條件的最小嘗試數（分母），不是最小錯誤數。",
+    "Error Count Threshold": "錯誤數閾值",
+    "Error Count": "錯誤數",
+    "Cooling: {{seconds}}s": "冷卻剩餘 {{seconds}} 秒",
+    "Upstream error minimum samples must be a non-negative integer": "上游錯誤比例條件的最小嘗試數必須是非負整數",
+    "Upstream error trigger count must be a non-negative integer": "上游錯誤數閾值必須是非負整數"
   }
 }

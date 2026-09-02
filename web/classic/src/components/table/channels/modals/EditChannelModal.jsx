@@ -1730,9 +1730,10 @@ const EditChannelModal = (props) => {
           upstream_error_trigger_percent:
             '压力冷却上游报错比例必须在 0 到 100 之间',
           upstream_error_min_samples:
-            '压力冷却上游报错最小样本数必须在 1 到 10000 之间',
+            '压力冷却上游报错最小样本数必须大于等于 0',
+          upstream_error_trigger_count:
+            '压力冷却上游报错绝对错误数必须大于等于 0',
           condition_mode: '压力冷却条件组合仅支持任一或全部',
-          upstream_error_enabled: '压力冷却上游报错开关配置无效',
         }[pressureCoolingValidationError] || '请求参数无效';
       showInfo(t(pressureCoolingValidationMessage));
       return;

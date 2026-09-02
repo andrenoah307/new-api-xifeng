@@ -22,9 +22,9 @@ type resolvedPressureCoolingConfig struct {
 	ObservationWindowSeconds    int
 	FRTThresholdMs              int
 	TriggerPercent              int
-	UpstreamErrorEnabled        bool
 	UpstreamErrorTriggerPercent int
 	UpstreamErrorMinSamples     int
+	UpstreamErrorTriggerCount   int
 	ConditionMode               string
 	CooldownSeconds             int
 	MaxConsecutiveCooldowns     int
@@ -49,9 +49,9 @@ func resolvePressureCoolingConfig(override *dto.PressureCoolingOverride) resolve
 		ObservationWindowSeconds:    g.ObservationWindowSeconds,
 		FRTThresholdMs:              g.FRTThresholdMs,
 		TriggerPercent:              g.TriggerPercent,
-		UpstreamErrorEnabled:        g.UpstreamErrorEnabled,
 		UpstreamErrorTriggerPercent: g.UpstreamErrorTriggerPercent,
 		UpstreamErrorMinSamples:     g.UpstreamErrorMinSamples,
+		UpstreamErrorTriggerCount:   g.UpstreamErrorTriggerCount,
 		ConditionMode:               normalizePressureCoolingConditionMode(g.ConditionMode),
 		CooldownSeconds:             g.CooldownSeconds,
 		MaxConsecutiveCooldowns:     g.MaxConsecutiveCooldowns,
@@ -72,14 +72,14 @@ func resolvePressureCoolingConfig(override *dto.PressureCoolingOverride) resolve
 	if override.TriggerPercent != nil {
 		r.TriggerPercent = *override.TriggerPercent
 	}
-	if override.UpstreamErrorEnabled != nil {
-		r.UpstreamErrorEnabled = *override.UpstreamErrorEnabled
-	}
 	if override.UpstreamErrorTriggerPercent != nil {
 		r.UpstreamErrorTriggerPercent = *override.UpstreamErrorTriggerPercent
 	}
 	if override.UpstreamErrorMinSamples != nil {
 		r.UpstreamErrorMinSamples = *override.UpstreamErrorMinSamples
+	}
+	if override.UpstreamErrorTriggerCount != nil {
+		r.UpstreamErrorTriggerCount = *override.UpstreamErrorTriggerCount
 	}
 	if override.ConditionMode != "" {
 		r.ConditionMode = normalizePressureCoolingConditionMode(override.ConditionMode)
@@ -116,14 +116,24 @@ func classifyPressureCoolingAttempt(err *types.NewAPIError) (shouldCount, isUpst
 }
 
 func pressureCoolingErrorConditionMet(cfg resolvedPressureCoolingConfig, attempts, errors int64) bool {
-	if !cfg.UpstreamErrorEnabled || attempts <= 0 || errors < int64(cfg.UpstreamErrorMinSamples) {
+	if attempts <= 0 || errors <= 0 {
 		return false
 	}
-	return float64(errors)*100/float64(attempts) >= float64(cfg.UpstreamErrorTriggerPercent)
+	if cfg.UpstreamErrorTriggerCount > 0 && errors >= int64(cfg.UpstreamErrorTriggerCount) {
+		return true
+	}
+	if cfg.UpstreamErrorTriggerPercent > 0 && attempts >= int64(cfg.UpstreamErrorMinSamples) {
+		return errors*100/attempts >= int64(cfg.UpstreamErrorTriggerPercent)
+	}
+	return false
+}
+
+func pressureCoolingErrorConditionConfigured(cfg resolvedPressureCoolingConfig) bool {
+	return cfg.UpstreamErrorTriggerPercent > 0 || cfg.UpstreamErrorTriggerCount > 0
 }
 
 func pressureCoolingConditionsMet(cfg resolvedPressureCoolingConfig, frtMet, errorMet bool) bool {
-	if !cfg.UpstreamErrorEnabled {
+	if !pressureCoolingErrorConditionConfigured(cfg) {
 		return frtMet
 	}
 	if normalizePressureCoolingConditionMode(cfg.ConditionMode) == "all" {
@@ -136,7 +146,7 @@ func pressureCoolingErrorStateEligible(state *PressureCoolingState, cfg resolved
 	if state == nil || state.State != "obs" || now < state.GraceUntil {
 		return false
 	}
-	if cfg.UpstreamErrorEnabled && normalizePressureCoolingConditionMode(cfg.ConditionMode) == "all" {
+	if pressureCoolingErrorConditionConfigured(cfg) && normalizePressureCoolingConditionMode(cfg.ConditionMode) == "all" {
 		if state.WindowStart == 0 || now-state.WindowStart > int64(cfg.ObservationWindowSeconds) {
 			return false
 		}
@@ -194,7 +204,7 @@ func RecordPressureCoolingAttempt(channelId int, err *types.NewAPIError) {
 		override = ch.GetSetting().PressureCooling
 	}
 	cfg := resolvePressureCoolingConfig(override)
-	if !cfg.Enabled || !cfg.UpstreamErrorEnabled {
+	if !cfg.Enabled || (cfg.UpstreamErrorTriggerPercent <= 0 && cfg.UpstreamErrorTriggerCount <= 0) {
 		return
 	}
 	gopool.Go(func() {
@@ -311,7 +321,7 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 	frtMet := state.TotalRequests >= 3 && violationPct >= int64(cfg.TriggerPercent)
 	errorMet := false
 	var reason *pressureCoolingReason
-	if cfg.UpstreamErrorEnabled {
+	if pressureCoolingErrorConditionConfigured(cfg) {
 		mode := normalizePressureCoolingConditionMode(cfg.ConditionMode)
 		if mode == "all" && !frtMet {
 			savePressureCoolingState(channelId, state, stateTTL)

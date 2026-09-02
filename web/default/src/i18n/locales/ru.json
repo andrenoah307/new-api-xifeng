@@ -5539,6 +5539,14 @@
     "Always enabled": "Всегда включено",
     "Pressure cooling condition mode must be either any or all": "Режим объединения условий контроля давления должен быть «any» или «all»",
     "Pressure cooling configuration is not valid JSON": "Конфигурация охлаждения при нагрузке не является допустимым JSON",
-    "Trigger percent must be a number between 1 and 100": "Процент срабатывания должен быть числом от 1 до 100"
+    "Trigger percent must be a number between 1 and 100": "Процент срабатывания должен быть числом от 1 до 100",
+    "Either upstream error condition can trigger cooling. Enter 0 to disable that condition. Interpret the error count threshold with the observation window; use caution for high-traffic channels, where even a low error rate can quickly reach the absolute count.": "Охлаждение может запустить любое из условий ошибок upstream. Введите 0, чтобы отключить условие. Порог числа ошибок следует рассматривать вместе с окном наблюдения; на высоконагруженных каналах будьте осторожны: даже низкая доля ошибок может быстро достичь абсолютного порога.",
+    "Minimum Attempts (rate denominator)": "Минимум попыток (знаменатель доли)",
+    "Minimum attempts for the error rate condition (denominator), not the minimum error count.": "Минимум попыток для условия доли ошибок (знаменатель), а не минимальное число ошибок.",
+    "Error Count Threshold": "Порог числа ошибок",
+    "Error Count": "Число ошибок",
+    "Cooling: {{seconds}}s": "Охлаждение: осталось {{seconds}} с",
+    "Upstream error minimum samples must be a non-negative integer": "Минимум попыток для доли ошибок upstream должен быть неотрицательным целым числом",
+    "Upstream error trigger count must be a non-negative integer": "Порог ошибок upstream должен быть неотрицательным целым числом"
   }
 }

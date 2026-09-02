@@ -47,6 +47,7 @@ export const useChannelsData = () => {
   // Rate limit stats (polled every 5s)
   const [rateLimitStats, setRateLimitStats] = useState({});
   const rateLimitTimerRef = useRef(null);
+  const [pressureCoolingRuntime, setPressureCoolingRuntime] = useState({});
 
   const fetchRateLimitStats = useCallback(async () => {
     try {
@@ -56,6 +57,18 @@ export const useChannelsData = () => {
       }
     } catch {
       // ignore
+    }
+  }, []);
+
+  const fetchPressureCoolingRuntime = useCallback(async () => {
+    setPressureCoolingRuntime({});
+    try {
+      const res = await API.get('/api/channel/pressure_cooling/runtime');
+      if (res?.data?.success) {
+        setPressureCoolingRuntime(res.data.data || {});
+      }
+    } catch {
+      // Runtime status is supplementary to the channel list.
     }
   }, []);
 
@@ -389,6 +402,7 @@ export const useChannelsData = () => {
       }
       setChannelFormat(items, enableTagMode);
       setChannelCount(total);
+      fetchPressureCoolingRuntime();
     } else {
       showError(message);
     }
@@ -435,6 +449,7 @@ export const useChannelsData = () => {
         setChannelFormat(items, enableTagMode);
         setChannelCount(total);
         setActivePage(page);
+        fetchPressureCoolingRuntime();
       } else {
         showError(message);
       }
@@ -1163,6 +1178,7 @@ export const useChannelsData = () => {
     loading,
     searching,
     rateLimitStats,
+    pressureCoolingRuntime,
     activePage,
     pageSize,
     channelCount,

@@ -23,6 +23,7 @@ import {
   Dropdown,
   InputNumber,
   Modal,
+  Progress,
   Space,
   SplitButtonGroup,
   Tag,
@@ -304,6 +305,102 @@ const getUpstreamUpdateMeta = (record) => {
   };
 };
 
+const toNonNegativeFiniteNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+};
+
+const renderPressureCoolingRuntime = (runtime, t) => {
+  if (!runtime || runtime.configured !== true) return null;
+
+  const attempts = toNonNegativeFiniteNumber(runtime.attempts);
+  const errors = toNonNegativeFiniteNumber(runtime.errors);
+  const triggerPercent = toNonNegativeFiniteNumber(runtime.trigger_percent);
+  const triggerCount = toNonNegativeFiniteNumber(runtime.trigger_count);
+  const disabled = runtime.enabled === false;
+  const stroke = disabled
+    ? 'var(--semi-color-disabled-text)'
+    : 'var(--semi-color-primary)';
+  const metrics = [];
+
+  if (triggerPercent > 0) {
+    const errorRate = attempts > 0 ? (errors * 100) / attempts : 0;
+    const percent =
+      triggerPercent > 0
+        ? Math.min(100, Math.max(0, (errorRate / triggerPercent) * 100))
+        : 0;
+    const errorRateText = attempts > 0 ? `${errorRate.toFixed(1)}%` : '0%';
+    metrics.push(
+      <div
+        key='error-rate'
+        style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+      >
+        <Typography.Text size='small'>{t('错误率')}</Typography.Text>
+        <Progress
+          percent={percent}
+          showInfo
+          format={() =>
+            `${errorRateText} / ${triggerPercent}% (${errors}/${attempts})`
+          }
+          stroke={stroke}
+          size='small'
+          style={{ flex: 1, minWidth: 180 }}
+        />
+      </div>,
+    );
+  }
+
+  if (triggerCount > 0) {
+    const percent = Math.min(100, Math.max(0, (errors * 100) / triggerCount));
+    metrics.push(
+      <div
+        key='error-count'
+        style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+      >
+        <Typography.Text size='small'>{t('错误数')}</Typography.Text>
+        <Progress
+          percent={percent}
+          showInfo
+          format={() => `${errors} / ${triggerCount}`}
+          stroke={stroke}
+          size='small'
+          style={{ flex: 1, minWidth: 180 }}
+        />
+      </div>,
+    );
+  }
+
+  const cooldownUntil = Number(runtime.cooldown_until);
+  const cooldownRemaining =
+    runtime.state === 'cool' && Number.isFinite(cooldownUntil)
+      ? Math.ceil(cooldownUntil - Date.now() / 1000)
+      : 0;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        marginTop: 4,
+        maxWidth: 360,
+      }}
+    >
+      {metrics}
+      {disabled && (
+        <Typography.Text type='tertiary' size='small'>
+          {t('未启用')}
+        </Typography.Text>
+      )}
+      {cooldownRemaining > 0 && (
+        <Typography.Text type='warning' size='small'>
+          {t('冷却剩余 {{seconds}} 秒', { seconds: cooldownRemaining })}
+        </Typography.Text>
+      )}
+    </div>
+  );
+};
+
 export const getChannelsColumns = ({
   t,
   COLUMN_KEYS,
@@ -328,6 +425,7 @@ export const getChannelsColumns = ({
   openUpstreamUpdateModal,
   detectChannelUpstreamUpdates,
   rateLimitStats = {},
+  pressureCoolingRuntime = {},
 }) => {
   return [
     {
@@ -525,6 +623,12 @@ export const getChannelsColumns = ({
               })
               .map((item, index) => renderGroup(item))}
           </Space>
+          {record.children === undefined &&
+            renderPressureCoolingRuntime(
+              pressureCoolingRuntime[record.id] ||
+                pressureCoolingRuntime[String(record.id)],
+              t,
+            )}
         </div>
       ),
     },

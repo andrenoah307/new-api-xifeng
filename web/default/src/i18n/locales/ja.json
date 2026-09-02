@@ -5539,6 +5539,14 @@
     "Always enabled": "常に有効",
     "Pressure cooling condition mode must be either any or all": "圧力冷却の条件の組み合わせは any または all で指定してください",
     "Pressure cooling configuration is not valid JSON": "圧力冷却の設定は有効な JSON ではありません",
-    "Trigger percent must be a number between 1 and 100": "トリガー率は 1～100 の数値で指定してください"
+    "Trigger percent must be a number between 1 and 100": "トリガー率は 1～100 の数値で指定してください",
+    "Either upstream error condition can trigger cooling. Enter 0 to disable that condition. Interpret the error count threshold with the observation window; use caution for high-traffic channels, where even a low error rate can quickly reach the absolute count.": "上流エラー条件のいずれかを満たすと冷却を開始します。0 を入力するとその条件を無効にします。エラー数のしきい値は観測ウィンドウと合わせて解釈してください。高トラフィックのチャネルでは、低いエラー率でも絶対数にすぐ達することがあるため注意が必要です。",
+    "Minimum Attempts (rate denominator)": "最小試行数（割合条件の分母）",
+    "Minimum attempts for the error rate condition (denominator), not the minimum error count.": "エラー率条件の最小試行数（分母）であり、最小エラー数ではありません。",
+    "Error Count Threshold": "エラー数のしきい値",
+    "Error Count": "エラー数",
+    "Cooling: {{seconds}}s": "冷却残り {{seconds}} 秒",
+    "Upstream error minimum samples must be a non-negative integer": "上流エラー率条件の最小試行数は 0 以上の整数で指定してください",
+    "Upstream error trigger count must be a non-negative integer": "上流エラー数のしきい値は 0 以上の整数で指定してください"
   }
 }

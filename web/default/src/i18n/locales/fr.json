@@ -5539,6 +5539,14 @@
     "Always enabled": "Toujours activé",
     "Pressure cooling condition mode must be either any or all": "La combinaison de conditions du refroidissement sous pression doit être « any » ou « all »",
     "Pressure cooling configuration is not valid JSON": "La configuration du refroidissement sous pression n'est pas un JSON valide",
-    "Trigger percent must be a number between 1 and 100": "Le pourcentage de déclenchement doit être un nombre compris entre 1 et 100"
+    "Trigger percent must be a number between 1 and 100": "Le pourcentage de déclenchement doit être un nombre compris entre 1 et 100",
+    "Either upstream error condition can trigger cooling. Enter 0 to disable that condition. Interpret the error count threshold with the observation window; use caution for high-traffic channels, where even a low error rate can quickly reach the absolute count.": "L'une ou l'autre condition d'erreur en amont peut déclencher le refroidissement. Saisissez 0 pour désactiver une condition. Interprétez le seuil d'erreurs avec la fenêtre d'observation ; soyez prudent sur les canaux à fort trafic, où même un faible taux d'erreur peut rapidement atteindre le nombre absolu.",
+    "Minimum Attempts (rate denominator)": "Tentatives minimales (dénominateur du taux)",
+    "Minimum attempts for the error rate condition (denominator), not the minimum error count.": "Tentatives minimales pour la condition de taux d'erreur (dénominateur), et non le nombre minimal d'erreurs.",
+    "Error Count Threshold": "Seuil du nombre d'erreurs",
+    "Error Count": "Nombre d'erreurs",
+    "Cooling: {{seconds}}s": "Refroidissement : {{seconds}} s",
+    "Upstream error minimum samples must be a non-negative integer": "Le nombre minimal de tentatives d'erreur en amont doit être un entier non négatif",
+    "Upstream error trigger count must be a non-negative integer": "Le seuil d'erreurs en amont doit être un entier non négatif"
   }
 }

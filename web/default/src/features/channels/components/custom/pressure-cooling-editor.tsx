@@ -146,7 +146,8 @@ export function PressureCoolingEditor({ form }: Props) {
         <p className='text-muted-foreground text-xs'>
           {t('Both conditions share the same observation window')}
         </p>
-        {data.upstream_error_enabled === true && (
+        {(data.upstream_error_trigger_percent ?? 0) > 0 ||
+        (data.upstream_error_trigger_count ?? 0) > 0 ? (
           <div className='space-y-1'>
             <Label className='text-xs'>{t('Condition Combination')}</Label>
             <RadioGroup
@@ -183,7 +184,7 @@ export function PressureCoolingEditor({ form }: Props) {
               </div>
             </RadioGroup>
           </div>
-        )}
+        ) : null}
         <div className='space-y-2'>
           <div className='flex items-center gap-2'>
             <span className='text-xs' aria-hidden='true'>
@@ -248,30 +249,18 @@ export function PressureCoolingEditor({ form }: Props) {
           </div>
         </div>
         <div className='space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-2'>
-              <span className='text-xs' aria-hidden='true'>
-                ②
-              </span>
-              <Label
-                htmlFor='pressure-cooling-upstream-errors'
-                className='text-xs'
-              >
-                {t('Upstream Errors')}
-              </Label>
-            </div>
-            <Switch
-              id='pressure-cooling-upstream-errors'
-              checked={data.upstream_error_enabled}
-              aria-label={t('Upstream Errors')}
-              onCheckedChange={(value) =>
-                update('upstream_error_enabled', value)
-              }
-            />
+          <div className='flex items-center gap-2'>
+            <span className='text-xs' aria-hidden='true'>
+              ②
+            </span>
+            <span className='text-xs font-medium'>{t('Upstream Errors')}</span>
           </div>
-        </div>
-        {data.upstream_error_enabled && (
-          <div className='grid grid-cols-2 gap-3'>
+          <p className='text-muted-foreground text-xs'>
+            {t(
+              'Either upstream error condition can trigger cooling. Enter 0 to disable that condition. Interpret the error count threshold with the observation window; use caution for high-traffic channels, where even a low error rate can quickly reach the absolute count.'
+            )}
+          </p>
+          <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
             <div className='space-y-1'>
               <Label
                 htmlFor='pressure-cooling-upstream-error-percent'
@@ -285,14 +274,15 @@ export function PressureCoolingEditor({ form }: Props) {
                 step='1'
                 min='0'
                 max='100'
-                placeholder='50'
+                placeholder='0'
                 value={data.upstream_error_trigger_percent ?? ''}
                 onChange={(event) => {
                   const value = event.target.valueAsNumber
+                  const roundedValue = Math.round(value)
                   update(
                     'upstream_error_trigger_percent',
                     Number.isFinite(value)
-                      ? Math.min(100, Math.max(0, value))
+                      ? Math.min(100, Math.max(0, roundedValue))
                       : null
                   )
                 }}
@@ -302,15 +292,17 @@ export function PressureCoolingEditor({ form }: Props) {
               <Label
                 htmlFor='pressure-cooling-upstream-error-min-samples'
                 className='text-xs'
+                title={t(
+                  'Minimum attempts for the error rate condition (denominator), not the minimum error count.'
+                )}
               >
-                {t('Minimum Samples')}
+                {t('Minimum Attempts (rate denominator)')}
               </Label>
               <Input
                 id='pressure-cooling-upstream-error-min-samples'
                 type='number'
                 step='1'
-                min='1'
-                max='10000'
+                min='0'
                 placeholder='10'
                 value={data.upstream_error_min_samples ?? ''}
                 onChange={(event) => {
@@ -318,14 +310,39 @@ export function PressureCoolingEditor({ form }: Props) {
                   update(
                     'upstream_error_min_samples',
                     Number.isFinite(value)
-                      ? Math.min(10000, Math.max(1, Math.round(value)))
+                      ? Math.max(0, Math.round(value))
+                      : null
+                  )
+                }}
+              />
+            </div>
+            <div className='space-y-1'>
+              <Label
+                htmlFor='pressure-cooling-upstream-error-count'
+                className='text-xs'
+              >
+                {t('Error Count Threshold')}
+              </Label>
+              <Input
+                id='pressure-cooling-upstream-error-count'
+                type='number'
+                step='1'
+                min='0'
+                placeholder='0'
+                value={data.upstream_error_trigger_count ?? ''}
+                onChange={(event) => {
+                  const value = event.target.valueAsNumber
+                  update(
+                    'upstream_error_trigger_count',
+                    Number.isFinite(value)
+                      ? Math.max(0, Math.round(value))
                       : null
                   )
                 }}
               />
             </div>
           </div>
-        )}
+        </div>
       </section>
       <section
         className='space-y-3 border-t pt-3'

@@ -59,9 +59,9 @@ const DEFAULT_VALUE = Object.freeze({
   trigger_percent: null,
   cooldown_seconds: null,
   observation_window_seconds: null,
-  upstream_error_enabled: false,
   upstream_error_trigger_percent: null,
   upstream_error_min_samples: null,
+  upstream_error_trigger_count: null,
   condition_mode: 'any',
   scope: 'channel',
   cooldown_groups: [],
@@ -96,9 +96,9 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
     v.trigger_percent != null ||
     v.cooldown_seconds != null ||
     v.observation_window_seconds != null ||
-    v.upstream_error_enabled ||
     v.upstream_error_trigger_percent != null ||
     v.upstream_error_min_samples != null ||
+    v.upstream_error_trigger_count != null ||
     v.condition_mode !== 'any' ||
     (value &&
       typeof value === 'object' &&
@@ -218,7 +218,8 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
               {t('两个条件共用同一个观察窗口')}
             </Text>
 
-            {v.upstream_error_enabled === true && (
+            {(v.upstream_error_trigger_percent > 0 ||
+              v.upstream_error_trigger_count > 0) && (
               <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
                 <Col xs={24} md={12} style={{ marginBottom: 8 }}>
                   <FieldLabel>{t('条件组合')}</FieldLabel>
@@ -296,66 +297,88 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <div
-                className='flex items-center justify-between'
-                style={{ marginBottom: 6 }}
-              >
+              <div className='flex items-center' style={{ marginBottom: 6 }}>
                 <Text strong size='small'>
                   ② {t('上游报错')}
                 </Text>
-                <Switch
-                  checked={v.upstream_error_enabled}
-                  aria-label={t('上游报错')}
-                  onChange={(checked) =>
-                    update({ upstream_error_enabled: checked })
-                  }
-                />
               </div>
-              {v.upstream_error_enabled === true && (
-                <Row gutter={16} type='flex'>
-                  <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-                    <FieldLabel>{t('错误率')}</FieldLabel>
-                    <InputNumber
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={v.upstream_error_trigger_percent}
-                      placeholder='50'
-                      suffix='%'
-                      onChange={(n) =>
-                        update({
-                          upstream_error_trigger_percent:
-                            typeof n === 'number' && Number.isFinite(n)
-                              ? Math.min(100, Math.max(0, n))
-                              : null,
-                        })
-                      }
-                      style={{ width: '100%' }}
-                      innerButtons
-                    />
-                  </Col>
-                  <Col xs={24} md={12} style={{ marginBottom: 8 }}>
-                    <FieldLabel>{t('最小样本数')}</FieldLabel>
-                    <InputNumber
-                      min={1}
-                      max={10000}
-                      step={1}
-                      value={v.upstream_error_min_samples}
-                      placeholder='10'
-                      onChange={(n) =>
-                        update({
-                          upstream_error_min_samples:
-                            typeof n === 'number' && Number.isFinite(n)
-                              ? Math.min(10000, Math.max(1, Math.round(n)))
-                              : null,
-                        })
-                      }
-                      style={{ width: '100%' }}
-                      innerButtons
-                    />
-                  </Col>
-                </Row>
-              )}
+              <Text
+                size='small'
+                style={{
+                  display: 'block',
+                  color: 'var(--semi-color-text-2)',
+                  marginBottom: 10,
+                }}
+              >
+                {t('条件满足其一即触发')}；{t('填 0 表示不启用该条件')}。
+                {t('最小样本数是比例条件的最小尝试数（分母）')}。
+                {t('错误数阈值需结合观察窗口理解，高流量渠道慎用')}。
+              </Text>
+              <Row gutter={16} type='flex'>
+                <Col xs={24} md={8} style={{ marginBottom: 8 }}>
+                  <FieldLabel>
+                    {t('错误率')} ({t('填 0 表示不启用该条件')})
+                  </FieldLabel>
+                  <InputNumber
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={v.upstream_error_trigger_percent}
+                    placeholder='0'
+                    suffix='%'
+                    onChange={(n) =>
+                      update({
+                        upstream_error_trigger_percent:
+                          typeof n === 'number' && Number.isFinite(n)
+                            ? Math.min(100, Math.max(0, Math.round(n)))
+                            : null,
+                      })
+                    }
+                    style={{ width: '100%' }}
+                    innerButtons
+                  />
+                </Col>
+                <Col xs={24} md={8} style={{ marginBottom: 8 }}>
+                  <FieldLabel>{t('最小样本数')}</FieldLabel>
+                  <InputNumber
+                    min={0}
+                    step={1}
+                    value={v.upstream_error_min_samples}
+                    placeholder='10'
+                    onChange={(n) =>
+                      update({
+                        upstream_error_min_samples:
+                          typeof n === 'number' && Number.isFinite(n)
+                            ? Math.max(0, Math.round(n))
+                            : null,
+                      })
+                    }
+                    style={{ width: '100%' }}
+                    innerButtons
+                  />
+                </Col>
+                <Col xs={24} md={8} style={{ marginBottom: 8 }}>
+                  <FieldLabel>
+                    {t('错误数阈值')} ({t('填 0 表示不启用该条件')})
+                  </FieldLabel>
+                  <InputNumber
+                    min={0}
+                    step={1}
+                    value={v.upstream_error_trigger_count}
+                    placeholder='0'
+                    onChange={(n) =>
+                      update({
+                        upstream_error_trigger_count:
+                          typeof n === 'number' && Number.isFinite(n)
+                            ? Math.max(0, Math.round(n))
+                            : null,
+                      })
+                    }
+                    style={{ width: '100%' }}
+                    innerButtons
+                  />
+                </Col>
+              </Row>
             </div>
           </div>
 

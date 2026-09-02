@@ -5539,6 +5539,14 @@
     "Always enabled": "Luôn bật",
     "Pressure cooling condition mode must be either any or all": "Chế độ kết hợp điều kiện làm mát áp suất phải là any hoặc all",
     "Pressure cooling configuration is not valid JSON": "Cấu hình làm mát áp suất không phải là JSON hợp lệ",
-    "Trigger percent must be a number between 1 and 100": "Tỷ lệ kích hoạt phải là một số từ 1 đến 100"
+    "Trigger percent must be a number between 1 and 100": "Tỷ lệ kích hoạt phải là một số từ 1 đến 100",
+    "Either upstream error condition can trigger cooling. Enter 0 to disable that condition. Interpret the error count threshold with the observation window; use caution for high-traffic channels, where even a low error rate can quickly reach the absolute count.": "Một trong hai điều kiện lỗi upstream đều có thể kích hoạt làm mát. Nhập 0 để tắt điều kiện đó. Cần xem ngưỡng số lỗi cùng với cửa sổ quan sát; hãy thận trọng với kênh lưu lượng cao vì tỷ lệ lỗi thấp vẫn có thể nhanh chóng đạt số lỗi tuyệt đối.",
+    "Minimum Attempts (rate denominator)": "Số lần thử tối thiểu (mẫu số tỷ lệ)",
+    "Minimum attempts for the error rate condition (denominator), not the minimum error count.": "Số lần thử tối thiểu cho điều kiện tỷ lệ lỗi (mẫu số), không phải số lỗi tối thiểu.",
+    "Error Count Threshold": "Ngưỡng số lỗi",
+    "Error Count": "Số lỗi",
+    "Cooling: {{seconds}}s": "Đang làm mát: còn {{seconds}} giây",
+    "Upstream error minimum samples must be a non-negative integer": "Số lần thử tối thiểu cho tỷ lệ lỗi upstream phải là số nguyên không âm",
+    "Upstream error trigger count must be a non-negative integer": "Ngưỡng số lỗi upstream phải là số nguyên không âm"
   }
 }

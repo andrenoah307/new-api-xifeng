@@ -177,13 +177,21 @@ async function setInputValue(input: DomInputElement, value: string) {
 }
 
 describe('pressure cooling scope configuration', () => {
-  test('normalizes legacy configuration without scope as channel and avoids scope noise', () => {
-    const legacy = JSON.stringify({ enabled: true, frt_threshold_ms: 8000 })
+  test('ignores the retired upstream error switch while preserving other fields', () => {
+    const legacy = JSON.stringify({
+      enabled: true,
+      frt_threshold_ms: 8000,
+      upstream_error_enabled: true,
+    })
     const normalized = parsePressureCooling(legacy)
 
     assert.equal(normalized.scope, 'channel')
     assert.equal(normalized.cooldown_groups.length, 0)
-    assert.equal(normalized.upstream_error_enabled, false)
+    assert.equal(normalized.enabled, true)
+    assert.equal(normalized.frt_threshold_ms, 8000)
+    assert.equal(normalized.upstream_error_trigger_percent, null)
+    assert.equal(normalized.upstream_error_min_samples, null)
+    assert.equal(normalized.upstream_error_trigger_count, null)
     assert.equal(normalized.condition_mode, 'any')
     assert.deepEqual(JSON.parse(serializePressureCooling(normalized)), {
       enabled: true,
@@ -260,12 +268,12 @@ describe('pressure cooling scope configuration', () => {
     })
   })
 
-  test('round-trips an enabled upstream error condition and omits defaults', () => {
+  test('serializes all non-null upstream error thresholds, including defaults', () => {
     const value = normalizePressureCooling({
       enabled: true,
-      upstream_error_enabled: true,
       upstream_error_trigger_percent: 75,
       upstream_error_min_samples: 25,
+      upstream_error_trigger_count: 100,
       condition_mode: 'all',
     })
 
@@ -277,26 +285,83 @@ describe('pressure cooling scope configuration', () => {
       trigger_percent: null,
       cooldown_seconds: null,
       observation_window_seconds: null,
-      upstream_error_enabled: true,
       upstream_error_trigger_percent: 75,
       upstream_error_min_samples: 25,
+      upstream_error_trigger_count: 100,
       condition_mode: 'all',
     })
     assert.deepEqual(parsePressureCooling(JSON.stringify(serialized)), value)
 
-    const withDefaults = normalizePressureCooling({
+    const defaultValue = normalizePressureCooling({
       enabled: true,
-      upstream_error_enabled: true,
       upstream_error_trigger_percent: 50,
       upstream_error_min_samples: 10,
-      condition_mode: 'any',
+      upstream_error_trigger_count: 0,
     })
-    assert.ok(withDefaults)
-    const defaultPayload = JSON.parse(serializePressureCooling(withDefaults))
-    assert.equal(defaultPayload.upstream_error_enabled, true)
-    assert.equal(Object.hasOwn(defaultPayload, 'upstream_error_trigger_percent'), false)
-    assert.equal(Object.hasOwn(defaultPayload, 'upstream_error_min_samples'), false)
-    assert.equal(Object.hasOwn(defaultPayload, 'condition_mode'), false)
+    assert.ok(defaultValue)
+    assert.deepEqual(JSON.parse(serializePressureCooling(defaultValue)), {
+      enabled: true,
+      frt_threshold_ms: null,
+      trigger_percent: null,
+      cooldown_seconds: null,
+      observation_window_seconds: null,
+      upstream_error_trigger_percent: 50,
+      upstream_error_min_samples: 10,
+      upstream_error_trigger_count: 0,
+    })
+  })
+
+  test('serializes upstream thresholds by nullability', () => {
+    const cases: Array<{
+      name: string
+      input: Record<string, unknown>
+      expected: Record<string, unknown>
+    }> = [
+      {
+        name: 'trigger percent default',
+        input: { upstream_error_trigger_percent: 50 },
+        expected: { upstream_error_trigger_percent: 50 },
+      },
+      {
+        name: 'minimum attempts default',
+        input: { upstream_error_min_samples: 10 },
+        expected: { upstream_error_min_samples: 10 },
+      },
+      {
+        name: 'zero trigger count',
+        input: { upstream_error_trigger_count: 0 },
+        expected: { upstream_error_trigger_count: 0 },
+      },
+    ]
+
+    for (const testCase of cases) {
+      const value = normalizePressureCooling(testCase.input)
+      assert.ok(value, testCase.name)
+      const serialized = JSON.parse(serializePressureCooling(value))
+      for (const [key, expected] of Object.entries(testCase.expected)) {
+        assert.equal(serialized[key], expected, testCase.name)
+      }
+    }
+  })
+
+  test('returns an empty payload when every pressure-cooling field is empty', () => {
+    const value = parsePressureCooling('')
+    assert.equal(serializePressureCooling(value), '')
+  })
+
+  test('omits all upstream error thresholds when they are null', () => {
+    const value = normalizePressureCooling({ enabled: true })
+    assert.ok(value)
+    const serialized = JSON.parse(serializePressureCooling(value))
+    assert.equal(
+      Object.hasOwn(serialized, 'upstream_error_trigger_percent'),
+      false
+    )
+    assert.equal(Object.hasOwn(serialized, 'upstream_error_min_samples'), false)
+    assert.equal(
+      Object.hasOwn(serialized, 'upstream_error_trigger_count'),
+      false
+    )
   })
 
   test('cleans cooldown groups removed from the channel group field before serialization', () => {
@@ -358,9 +423,9 @@ describe('pressure cooling scope configuration', () => {
     const invalidValues = [
       { upstream_error_trigger_percent: -1 },
       { upstream_error_trigger_percent: 101 },
-      { upstream_error_min_samples: 0 },
-      { upstream_error_min_samples: 10001 },
       { upstream_error_min_samples: 1.5 },
+      { upstream_error_trigger_count: -1 },
+      { upstream_error_trigger_count: 1.5 },
       { condition_mode: 'sometimes' },
     ]
 
@@ -371,6 +436,12 @@ describe('pressure cooling scope configuration', () => {
       })
       assert.equal(result.success, false)
     }
+
+    const largeValidValue = channelFormSchema.safeParse({
+      ...base,
+      pressure_cooling: JSON.stringify({ upstream_error_min_samples: 10001 }),
+    })
+    assert.equal(largeValidValue.success, true)
   })
 
   test('rejects invalid pressure cooling JSON before payload construction', () => {
@@ -421,7 +492,7 @@ describe('pressure cooling scope configuration', () => {
     }
   })
 
-  test('renders the trigger conditions and hides upstream fields when disabled', () => {
+  test('always renders upstream thresholds and the error count threshold', () => {
     const form = {
       watch: (name: string) =>
         name === 'group' ? ['pro'] : JSON.stringify({ enabled: true }),
@@ -436,13 +507,19 @@ describe('pressure cooling scope configuration', () => {
     )
     assert.match(disabledMarkup, />Trigger Conditions</)
     assert.match(disabledMarkup, />Upstream Errors</)
-    assert.equal(disabledMarkup.includes('Minimum Samples'), false)
+    assert.match(disabledMarkup, />Minimum Attempts \(rate denominator\)</)
+    assert.match(disabledMarkup, />Error Count Threshold</)
 
     const enabledForm = {
       watch: (name: string) =>
         name === 'group'
           ? ['pro']
-          : JSON.stringify({ enabled: true, upstream_error_enabled: true }),
+          : JSON.stringify({
+              enabled: true,
+              upstream_error_trigger_percent: 50,
+              upstream_error_min_samples: 10,
+              upstream_error_trigger_count: 100,
+            }),
       setValue: () => undefined,
     }
     const enabledMarkup = renderToStaticMarkup(
@@ -453,18 +530,19 @@ describe('pressure cooling scope configuration', () => {
       )
     )
     assert.match(enabledMarkup, />Error Rate \(%\)</)
-    assert.match(enabledMarkup, />Minimum Samples</)
+    assert.match(enabledMarkup, />Minimum Attempts \(rate denominator\)</)
+    assert.match(enabledMarkup, />Error Count Threshold</)
   })
 
-  test('shows condition combination only when upstream errors are enabled', () => {
-    const renderEditor = (upstreamErrorEnabled: boolean) => {
+  test('shows condition combination when either upstream threshold is active', () => {
+    const renderEditor = (thresholds: Record<string, number>) => {
       const form = {
         watch: (name: string) =>
           name === 'group'
             ? ['pro']
             : JSON.stringify({
                 enabled: true,
-                upstream_error_enabled: upstreamErrorEnabled,
+                ...thresholds,
               }),
         setValue: () => undefined,
       }
@@ -477,8 +555,19 @@ describe('pressure cooling scope configuration', () => {
       )
     }
 
-    assert.equal(renderEditor(false).includes('Condition Combination'), false)
-    assert.equal(renderEditor(true).includes('Condition Combination'), true)
+    assert.equal(renderEditor({}).includes('Condition Combination'), false)
+    assert.equal(
+      renderEditor({ upstream_error_trigger_percent: 50 }).includes(
+        'Condition Combination'
+      ),
+      true
+    )
+    assert.equal(
+      renderEditor({ upstream_error_trigger_count: 100 }).includes(
+        'Condition Combination'
+      ),
+      true
+    )
   })
 
   test('renders FRT inputs inside the trigger conditions section', () => {

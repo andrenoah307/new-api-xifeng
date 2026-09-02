@@ -40,6 +40,7 @@ import { TableId } from '@/components/table-id'
 import { TruncatedText } from '@/components/truncated-text'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Progress } from '@/components/ui/progress'
 import {
   Tooltip,
   TooltipContent,
@@ -75,7 +76,11 @@ import {
   type TagRow,
 } from '../lib'
 import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
-import type { Channel, ChannelRateLimitStat } from '../types'
+import type {
+  Channel,
+  ChannelRateLimitStat,
+  PressureCoolingRuntime,
+} from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
 import { useChannels } from './channels-provider'
 import { DataTableRowActions } from './data-table-row-actions'
@@ -87,6 +92,8 @@ import {
 import { NumericSpinnerInput } from './numeric-spinner-input'
 
 const EMPTY_CHANNEL_RATE_LIMIT_STATS: Record<string, ChannelRateLimitStat> = {}
+const EMPTY_PRESSURE_COOLING_RUNTIME: Record<string, PressureCoolingRuntime> =
+  {}
 
 function parseIonetMeta(otherInfo: string | null | undefined): null | {
   source?: string
@@ -115,6 +122,84 @@ function getRateLimitUsageClassName(current: number, limit: number): string {
     return 'text-warning'
   }
   return 'text-muted-foreground'
+}
+
+function formatPressureCoolingPercent(value: number): string {
+  if (!Number.isFinite(value)) return '0%'
+  return Number.isInteger(value) ? `${value}%` : `${value.toFixed(1)}%`
+}
+
+function PressureCoolingRuntimeProgress({
+  runtime,
+}: {
+  runtime: PressureCoolingRuntime
+}) {
+  const { t } = useTranslation()
+  const attempts = Number.isFinite(runtime.attempts)
+    ? Math.max(0, Math.trunc(runtime.attempts))
+    : 0
+  const errors = Number.isFinite(runtime.errors)
+    ? Math.max(0, Math.trunc(runtime.errors))
+    : 0
+  const triggerPercent = Number.isFinite(runtime.trigger_percent)
+    ? Math.max(0, runtime.trigger_percent)
+    : 0
+  const triggerCount = Number.isFinite(runtime.trigger_count)
+    ? Math.max(0, Math.trunc(runtime.trigger_count))
+    : 0
+  const errorRate = attempts > 0 ? (errors / attempts) * 100 : 0
+  const errorRateProgress =
+    triggerPercent > 0 ? Math.min(100, (errorRate / triggerPercent) * 100) : 0
+  const errorCountProgress =
+    triggerCount > 0 ? Math.min(100, (errors / triggerCount) * 100) : 0
+  const cooldownRemaining =
+    runtime.state === 'cool'
+      ? runtime.cooldown_until - Math.floor(Date.now() / 1000)
+      : 0
+
+  if (triggerPercent <= 0 && triggerCount <= 0 && cooldownRemaining <= 0) {
+    return null
+  }
+
+  const progressClassName = cn(
+    'h-1.5 gap-0',
+    !runtime.enabled &&
+      'opacity-60 [&_[data-slot=progress-indicator]]:bg-muted-foreground'
+  )
+
+  return (
+    <div className='w-full space-y-1'>
+      {triggerPercent > 0 && (
+        <div className='space-y-0.5'>
+          <div className='flex items-center justify-between gap-1 text-[10px] leading-3'>
+            <span className='shrink-0'>{t('Error Rate')}</span>
+            <span className='text-muted-foreground shrink-0 whitespace-nowrap tabular-nums'>
+              {formatPressureCoolingPercent(errorRate)} / {triggerPercent}% (
+              {errors}/{attempts}){!runtime.enabled && ` (${t('Not enabled')})`}
+            </span>
+          </div>
+          <Progress value={errorRateProgress} className={progressClassName} />
+        </div>
+      )}
+      {triggerCount > 0 && (
+        <div className='space-y-0.5'>
+          <div className='flex items-center justify-between gap-1 text-[10px] leading-3'>
+            <span className='shrink-0'>{t('Error Count')}</span>
+            <span className='text-muted-foreground shrink-0 whitespace-nowrap tabular-nums'>
+              {errors} / {triggerCount}
+              {!runtime.enabled && ` (${t('Not enabled')})`}
+            </span>
+          </div>
+          <Progress value={errorCountProgress} className={progressClassName} />
+        </div>
+      )}
+      {cooldownRemaining > 0 && (
+        <span className='text-muted-foreground block text-[10px] leading-3 tabular-nums'>
+          {t('Cooling: {{seconds}}s', { seconds: cooldownRemaining })}
+        </span>
+      )}
+    </div>
+  )
 }
 
 /**
@@ -529,6 +614,7 @@ export function useChannelsColumns(
   options: {
     enableSelection?: boolean
     rateLimitStats?: Record<string, ChannelRateLimitStat>
+    pressureCoolingRuntime?: Record<string, PressureCoolingRuntime>
   } = {}
 ): ColumnDef<Channel>[] {
   const { t, i18n } = useTranslation()
@@ -536,6 +622,8 @@ export function useChannelsColumns(
   const enableSelection = options.enableSelection ?? true
   const rateLimitStats =
     options.rateLimitStats ?? EMPTY_CHANNEL_RATE_LIMIT_STATS
+  const pressureCoolingRuntime =
+    options.pressureCoolingRuntime ?? EMPTY_PRESSURE_COOLING_RUNTIME
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   // Memoizing keeps the array (and every cell renderer reference) stable across
   // unrelated re-renders, so react-table does not invalidate the whole row
@@ -1037,9 +1125,10 @@ export function useChannelsColumns(
         header: t('Groups'),
         meta: { mobileHidden: true },
         cell: ({ row }) => {
+          const channel = row.original
           const group = row.getValue('group') as string
           const groupArray = parseGroupsList(group)
-          return (
+          const badges = (
             <BadgeListCell
               items={groupArray.map((g) => (
                 <GroupBadge
@@ -1050,6 +1139,20 @@ export function useChannelsColumns(
                 />
               ))}
             />
+          )
+
+          if (isTagAggregateRow(channel)) {
+            return badges
+          }
+
+          const runtime = pressureCoolingRuntime[String(channel.id)]
+          return (
+            <div className='min-w-0 space-y-1'>
+              {badges}
+              {runtime?.configured && (
+                <PressureCoolingRuntimeProgress runtime={runtime} />
+              )}
+            </div>
           )
         },
         filterFn: (row, id, value) => {
@@ -1203,6 +1306,13 @@ export function useChannelsColumns(
         meta: { pinned: 'right' as const },
       },
     ],
-    [enableSelection, t, locale, sensitiveVisible, rateLimitStats]
+    [
+      enableSelection,
+      t,
+      locale,
+      sensitiveVisible,
+      rateLimitStats,
+      pressureCoolingRuntime,
+    ]
   )
 }
