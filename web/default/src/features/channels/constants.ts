@@ -338,6 +338,7 @@ export const FIELD_PLACEHOLDERS = {
   KEY: 'API Key (one per line for batch mode)',
   MODELS: 'Comma-separated model names, e.g., gpt-4,gpt-3.5-turbo',
   GROUP: 'Please Select user groups that can access this channel.',
+  EXCLUDED_USER_GROUPS: 'Leave empty to exclude nobody',
   MODEL_MAPPING: '{"request_model": "actual_model"}',
   TEST_MODEL: 'Model to use for testing',
   TAG: 'Optional tag for grouping channels',
@@ -355,6 +356,8 @@ export const FIELD_DESCRIPTIONS = {
   MODELS:
     'List of models supported by this channel. Use comma to separate multiple models.',
   GROUP: 'User groups that can access this channel. ',
+  EXCLUDED_USER_GROUPS:
+    'Callers in these user groups can never be routed to this channel, whichever group they call through. Use it when the price for that user group is below this channel cost.',
   MODEL_MAPPING:
     'Map request model names to actual provider model names (JSON format)',
   PRIORITY: 'Higher priority channels are selected first',

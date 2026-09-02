@@ -71,6 +71,10 @@ type ChannelSettings struct {
 	RiskControlHeaders     []RiskControlHeaderRule  `json:"risk_control_headers,omitempty"`
 	RateLimit              *ChannelRateLimit        `json:"rate_limit,omitempty"`
 	PressureCooling        *PressureCoolingOverride `json:"pressure_cooling,omitempty"`
+	// ExcludedUserGroups 排除分组：命中的**用户分组**不得通过本渠道选路。
+	// 用于二维分组倍率（GetGroupGroupRatio）下售价低于渠道成本的亏本组合。
+	// 空列表表示不排除；匹配为精确字符串，不支持通配。
+	ExcludedUserGroups []string `json:"excluded_user_groups,omitempty"`
 }
 
 // ChannelRateLimit 渠道级 RPM / 并发限流配置

@@ -33,6 +33,17 @@ func IsChannelEnabledForGroupModel(group string, modelName string, channelID int
 	return false
 }
 
+// IsChannelAvailableForUserGroup is the user-aware wrapper around
+// IsChannelEnabledForGroupModel, used by the channel-affinity path. The wrapped
+// function keeps its signature on purpose: pressure cooling calls it with no user
+// context at all, and a per-user policy must not leak into a global decision.
+func IsChannelAvailableForUserGroup(group string, modelName string, channelID int, userGroup string) bool {
+	if !IsChannelEnabledForGroupModel(group, modelName, channelID) {
+		return false
+	}
+	return !IsChannelExcludedForUserGroup(channelID, userGroup)
+}
+
 func IsChannelEnabledForAnyGroupModel(groups []string, modelName string, channelID int) bool {
 	if len(groups) == 0 {
 		return false

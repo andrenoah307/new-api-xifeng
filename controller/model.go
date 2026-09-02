@@ -193,8 +193,8 @@ func filterGroupBlockedUserModels(group string, models []string) []string {
 	return filtered
 }
 
-func getPreferredModelOwners(modelNames []string, groups []string) map[string]string {
-	channelTypes, err := model.GetPreferredModelOwnerChannelTypes(modelNames, groups)
+func getPreferredModelOwners(modelNames []string, groups []string, userGroup string) map[string]string {
+	channelTypes, err := model.GetPreferredModelOwnerChannelTypes(modelNames, groups, userGroup)
 	if err != nil {
 		common.SysLog(fmt.Sprintf("GetPreferredModelOwnerChannelTypes error: %v", err))
 		return map[string]string{}
@@ -313,7 +313,7 @@ func ListModels(c *gin.Context, modelType int) {
 		var models []string
 		if groups.tokenGroup == "auto" {
 			for _, autoGroup := range ownerGroups {
-				groupModels := model.GetGroupEnabledModels(autoGroup)
+				groupModels := model.FilterModelsAvailableForUserGroup(autoGroup, model.GetGroupEnabledModels(autoGroup), groups.userGroup)
 				for _, g := range groupModels {
 					if !common.StringsContains(models, g) {
 						models = append(models, g)
@@ -321,7 +321,7 @@ func ListModels(c *gin.Context, modelType int) {
 				}
 			}
 		} else {
-			models = model.GetGroupEnabledModels(ownerGroups[0])
+			models = model.FilterModelsAvailableForUserGroup(ownerGroups[0], model.GetGroupEnabledModels(ownerGroups[0]), groups.userGroup)
 		}
 		for _, modelName := range models {
 			if !acceptUnsetRatioModel {
@@ -335,7 +335,7 @@ func ListModels(c *gin.Context, modelType int) {
 
 	ownerByModel := map[string]string{}
 	if len(ownerGroups) > 0 {
-		ownerByModel = getPreferredModelOwners(userModelNames, ownerGroups)
+		ownerByModel = getPreferredModelOwners(userModelNames, ownerGroups, groups.userGroup)
 	}
 	userOpenAiModels := make([]dto.OpenAIModels, 0, len(userModelNames))
 	for _, modelName := range userModelNames {

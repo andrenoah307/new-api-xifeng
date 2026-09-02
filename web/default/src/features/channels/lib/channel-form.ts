@@ -212,6 +212,7 @@ export const channelFormSchema = z
     upstream_model_update_ignored_models: z.string().optional(),
     // --- Custom extensions (fork) ---
     pressure_cooling: z.string().optional(),
+    excluded_user_groups: z.array(z.string()).optional(),
     channel_rate_limit: z.string().optional(),
     error_filter_rules: z.string().optional(),
     risk_control_headers: z.string().optional(),
@@ -423,6 +424,7 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   openai_organization: '',
   models: '',
   group: ['default'],
+  excluded_user_groups: [],
   model_mapping: '',
   priority: 0,
   weight: 0,
@@ -491,6 +493,7 @@ export function transformChannelToFormDefaults(
   }
   // --- Custom extensions (fork) ---
   const customExtensions: Record<string, string> = {}
+  let excludedUserGroups: string[] = []
 
   if (channel.setting) {
     try {
@@ -508,6 +511,12 @@ export function transformChannelToFormDefaults(
       if (parsed.pressure_cooling) {
         customExtensions.pressure_cooling = JSON.stringify(
           parsed.pressure_cooling
+        )
+      }
+      if (Array.isArray(parsed.excluded_user_groups)) {
+        excludedUserGroups = parsed.excluded_user_groups.filter(
+          (group: unknown): group is string =>
+            typeof group === 'string' && group.trim() !== ''
         )
       }
       if (parsed.rate_limit) {
@@ -588,6 +597,7 @@ export function transformChannelToFormDefaults(
     openai_organization: channel.openai_organization || '',
     models: channel.models || '',
     group: parseGroups(channel.group || 'default'),
+    excluded_user_groups: excludedUserGroups,
     model_mapping: channel.model_mapping || '',
     priority: channel.priority || 0,
     weight: channel.weight || 0,
@@ -644,6 +654,14 @@ function buildSettingJSON(formData: ChannelFormValues): string {
     system_prompt_override: formData.system_prompt_override || false,
   }
   // --- Custom extensions (fork) ---
+  // Always re-emit: this object is rebuilt from scratch, so a field that is not
+  // written here is erased from the channel on every save.
+  const excludedUserGroups = normalizeExcludedUserGroups(
+    formData.excluded_user_groups
+  )
+  if (excludedUserGroups.length > 0) {
+    settingObj.excluded_user_groups = excludedUserGroups
+  }
   try {
     if (formData.pressure_cooling) {
       settingObj.pressure_cooling = JSON.parse(formData.pressure_cooling)
@@ -964,6 +982,24 @@ export function parseGroups(groups: string): string[] {
  */
 export function formatModels(models: string[]): string {
   return models.join(',')
+}
+
+/**
+ * Drop blank entries and duplicates from the excluded user group list while
+ * preserving the order the administrator picked them in.
+ */
+export function normalizeExcludedUserGroups(groups?: string[]): string[] {
+  if (!Array.isArray(groups)) return []
+  const seen = new Set<string>()
+  const result: string[] = []
+  for (const group of groups) {
+    if (typeof group !== 'string') continue
+    const trimmed = group.trim()
+    if (!trimmed || seen.has(trimmed)) continue
+    seen.add(trimmed)
+    result.push(trimmed)
+  }
+  return result
 }
 
 /**

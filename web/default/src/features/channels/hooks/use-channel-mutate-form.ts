@@ -78,6 +78,7 @@ const SENSITIVE_FORM_FIELDS = [
   'upstream_model_update_auto_sync_enabled',
   'upstream_model_update_ignored_models',
   'pressure_cooling',
+  'excluded_user_groups',
   'channel_rate_limit',
   'error_filter_rules',
   'risk_control_headers',

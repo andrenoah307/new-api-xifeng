@@ -701,6 +701,7 @@ export function ChannelMutateDrawer({
   const multiKeyType = form.watch('multi_key_type')
   const keyMode = form.watch('key_mode')
   const currentGroups = form.watch('group')
+  const currentExcludedUserGroups = form.watch('excluded_user_groups')
   const currentType = form.watch('type')
   const currentStatus = form.watch('status')
   const currentBaseUrl = form.watch('base_url')
@@ -888,12 +889,18 @@ export function ChannelMutateDrawer({
   // Transform groups to multi-select options
   const groupOptions = useMemo(() => {
     if (!groupsData?.data) return []
-    const allGroups = new Set([...groupsData.data, ...(currentGroups || [])])
+    // Includes the already-excluded groups so a group deleted after the fact
+    // still renders instead of silently vanishing from the picker.
+    const allGroups = new Set([
+      ...groupsData.data,
+      ...(currentGroups || []),
+      ...(currentExcludedUserGroups || []),
+    ])
     return [...allGroups].map((group) => ({
       value: group,
       label: group,
     }))
-  }, [groupsData, currentGroups])
+  }, [groupsData, currentGroups, currentExcludedUserGroups])
 
   // Parse current models as array
   const currentModelsArray = useMemo(
@@ -3656,6 +3663,42 @@ export function ChannelMutateDrawer({
                                         onChange={field.onChange}
                                         placeholder={t(
                                           FIELD_PLACEHOLDERS.GROUP
+                                        )}
+                                      />
+                                    )}
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <div className='border-border/60 rounded-lg border p-4'>
+                            <FormField
+                              control={form.control}
+                              name='excluded_user_groups'
+                              render={({ field }) => (
+                                <FormItem className='space-y-3'>
+                                  <div className='space-y-1'>
+                                    <FormLabel>
+                                      {t('Excluded User Groups')}
+                                    </FormLabel>
+                                    <FormDescription>
+                                      {t(
+                                        FIELD_DESCRIPTIONS.EXCLUDED_USER_GROUPS
+                                      )}
+                                    </FormDescription>
+                                  </div>
+                                  <FormControl>
+                                    {isLoadingGroups ? (
+                                      <Skeleton className='h-10 w-full' />
+                                    ) : (
+                                      <MultiSelect
+                                        options={groupOptions}
+                                        selected={field.value || []}
+                                        onChange={field.onChange}
+                                        placeholder={t(
+                                          FIELD_PLACEHOLDERS.EXCLUDED_USER_GROUPS
                                         )}
                                       />
                                     )}

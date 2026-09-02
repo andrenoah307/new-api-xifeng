@@ -30,6 +30,7 @@ func InitChannelCache() {
 	}
 	newChannelId2channel := make(map[int]*Channel)
 	newChannel2advancedCustomConfig := make(map[int]*dto.AdvancedCustomConfig)
+	newChannel2excludedUserGroups := make(map[int]map[string]struct{})
 	var channels []*Channel
 	DB.Find(&channels)
 	for _, channel := range channels {
@@ -38,6 +39,9 @@ func InitChannelCache() {
 			if config := channel.GetOtherSettings().AdvancedCustom; config != nil {
 				newChannel2advancedCustomConfig[channel.Id] = config
 			}
+		}
+		if excluded := buildChannelExcludedUserGroupSet(channel); excluded != nil {
+			newChannel2excludedUserGroups[channel.Id] = excluded
 		}
 	}
 	var abilities []*Ability
@@ -94,6 +98,7 @@ func InitChannelCache() {
 	}
 	channelsIDM = newChannelId2channel
 	channel2advancedCustomConfig = newChannel2advancedCustomConfig
+	channel2excludedUserGroups = newChannel2excludedUserGroups
 	channelSyncLock.Unlock()
 	// Lock ordering: InvalidatePricingCache acquires updatePricingLock, and
 	// GetPricing (holding updatePricingLock) nests channelSyncLock.RLock via
@@ -111,8 +116,8 @@ func SyncChannelCache(frequency int) {
 	}
 }
 
-func GetRandomSatisfiedChannel(group string, model string, retry int, requestPath string) (*Channel, error) {
-	candidates, err := GetSatisfiedChannelCandidates(group, model, retry, requestPath)
+func GetRandomSatisfiedChannel(group string, model string, retry int, requestPath string, userGroup string) (*Channel, error) {
+	candidates, err := GetSatisfiedChannelCandidates(group, model, retry, requestPath, userGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -123,13 +128,23 @@ func GetRandomSatisfiedChannel(group string, model string, retry int, requestPat
 // priority selected by group, model, and retry. The cache lock only protects
 // reading and copying the candidate slice; callers may perform external I/O
 // after this function returns without holding channelSyncLock.
-func GetSatisfiedChannelCandidates(group string, model string, retry int, requestPath string) ([]*Channel, error) {
+//
+// userGroup is the caller's user group (not the routing group). Channels that
+// exclude it are dropped BEFORE the priority tier is computed, so an excluded
+// top-priority channel lets the next priority tier be selected on the very first
+// attempt instead of burning a retry on an empty tier.
+func GetSatisfiedChannelCandidates(group string, model string, retry int, requestPath string, userGroup string) ([]*Channel, error) {
 	if !common.MemoryCacheEnabled {
 		candidates, err := getChannelCandidates(group, model, retry, requestPath)
 		if err != nil {
 			return nil, err
 		}
-		return filterCooledChannels(candidates, group), nil
+		// The database branch keeps the existing post-priority filter shape used by
+		// group cooling: getChannelQuery already resolved the priority tier in SQL.
+		// It is fail-closed (an excluded user is never admitted); the worst case is
+		// an extra retry when the whole tier is filtered out.
+		candidates = filterCooledChannels(candidates, group)
+		return filterExcludedUserGroupChannels(candidates, userGroup), nil
 	}
 
 	channelSyncLock.RLock()
@@ -138,12 +153,14 @@ func GetSatisfiedChannelCandidates(group string, model string, retry int, reques
 	// First, try to find channels with the exact model name.
 	channels := filterChannelsByRequestPathAndModel(group2model2channels[group][model], requestPath, model)
 	channels = filterCooledChannelIDs(channels, group)
+	channels = filterExcludedUserGroupChannelIDs(channels, userGroup)
 
 	// If no channels found, try to find channels with the normalized model name.
 	if len(channels) == 0 {
 		normalizedModel := ratio_setting.FormatMatchingModelName(model)
 		channels = filterChannelsByRequestPathAndModel(group2model2channels[group][normalizedModel], requestPath, model)
 		channels = filterCooledChannelIDs(channels, group)
+		channels = filterExcludedUserGroupChannelIDs(channels, userGroup)
 	}
 
 	if len(channels) == 0 {
@@ -395,6 +412,15 @@ func CacheUpdateChannel(channel *Channel) {
 		if config := channel.GetOtherSettings().AdvancedCustom; config != nil {
 			channel2advancedCustomConfig[channel.Id] = config
 		}
+	}
+	if channel2excludedUserGroups == nil {
+		channel2excludedUserGroups = make(map[int]map[string]struct{})
+	}
+	// Always rebuild-and-replace; never mutate the set in place, because readers
+	// hold only a read lock and iterate the map they found.
+	delete(channel2excludedUserGroups, channel.Id)
+	if excluded := buildChannelExcludedUserGroupSet(channel); excluded != nil {
+		channel2excludedUserGroups[channel.Id] = excluded
 	}
 	logger.LogDebug(nil, "CacheUpdateChannel after: id=%d, name=%s, status=%d, polling_index=%d", channel.Id, channel.Name, channel.Status, channel.ChannelInfo.MultiKeyPollingIndex)
 	// Lock ordering: do NOT hold channelSyncLock while calling

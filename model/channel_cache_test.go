@@ -74,7 +74,7 @@ func TestGetSatisfiedChannelCandidatesSnapshot(t *testing.T) {
 				})
 			}
 
-			candidates, err := GetSatisfiedChannelCandidates("default", "snapshot-model", 0, "")
+			candidates, err := GetSatisfiedChannelCandidates("default", "snapshot-model", 0, "", "")
 			require.NoError(t, err)
 			require.Len(t, candidates, 2)
 			assert.ElementsMatch(t, []int{9101, 9102}, []int{candidates[0].Id, candidates[1].Id})
@@ -93,12 +93,12 @@ func TestGetSatisfiedChannelCandidatesSnapshot(t *testing.T) {
 			}
 
 			candidates[0] = nil
-			again, err := GetSatisfiedChannelCandidates("default", "snapshot-model", 0, "")
+			again, err := GetSatisfiedChannelCandidates("default", "snapshot-model", 0, "", "")
 			require.NoError(t, err)
 			require.Len(t, again, 2)
 			assert.NotNil(t, again[0], "mutating a returned snapshot must not alter the cached candidate slice")
 
-			lowerPriority, err := GetSatisfiedChannelCandidates("default", "snapshot-model", 1, "")
+			lowerPriority, err := GetSatisfiedChannelCandidates("default", "snapshot-model", 1, "", "")
 			require.NoError(t, err)
 			require.Len(t, lowerPriority, 1)
 			assert.Equal(t, 9103, lowerPriority[0].Id)
@@ -138,7 +138,7 @@ func TestGetSatisfiedChannelCandidatesFiltersCooledGroupInMemoryAndDB(t *testing
 				channelsIDM = map[int]*Channel{9201: channels[0], 9202: channels[1]}
 			}
 
-			candidates, err := GetSatisfiedChannelCandidates("pro", "cooling-model", 0, "")
+			candidates, err := GetSatisfiedChannelCandidates("pro", "cooling-model", 0, "", "")
 			require.NoError(t, err)
 			require.Len(t, candidates, 1)
 			assert.Equal(t, 9202, candidates[0].Id)

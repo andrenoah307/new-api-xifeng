@@ -80,6 +80,7 @@ import PressureCoolingEditor, {
   normalizePressureCooling,
   serializePressureCooling,
 } from '../../../channel/PressureCoolingEditor';
+import { normalizeExcludedUserGroups } from '../../../channel/channelExcludedUserGroups';
 import { useSecureVerification } from '../../../../hooks/common/useSecureVerification';
 import { parseChannelConnectionString } from '../../../../helpers/token';
 import { createApiCalls } from '../../../../services/secureVerification';
@@ -268,6 +269,7 @@ const EditChannelModal = (props) => {
     auto_ban: 1,
     test_model: '',
     groups: ['default'],
+    excluded_user_groups: [],
     priority: 0,
     weight: 0,
     tag: '',
@@ -1007,6 +1009,9 @@ const EditChannelModal = (props) => {
           data.rate_limit = normalizeChannelRateLimit(
             parsedSettings.rate_limit,
           );
+          data.excluded_user_groups = normalizeExcludedUserGroups(
+            parsedSettings.excluded_user_groups,
+          );
           data.pressure_cooling = normalizePressureCooling(
             parsedSettings.pressure_cooling,
           );
@@ -1031,6 +1036,7 @@ const EditChannelModal = (props) => {
           data.error_filter_rules = [];
           data.risk_control_headers = [];
           data.rate_limit = normalizeChannelRateLimit(null);
+          data.excluded_user_groups = [];
           data.pressure_cooling = null;
         }
       } else {
@@ -1044,6 +1050,7 @@ const EditChannelModal = (props) => {
         data.error_filter_rules = [];
         data.risk_control_headers = [];
         data.rate_limit = normalizeChannelRateLimit(null);
+        data.excluded_user_groups = [];
         data.pressure_cooling = null;
       }
 
@@ -1990,6 +1997,14 @@ const EditChannelModal = (props) => {
     ) {
       channelExtraSettings.rate_limit = normalizedRateLimit;
     }
+    // 与 groups 一样是注册的 Form.Field，可直接读 localInputs；这里必须无条件
+    // 重建，否则本主题保存一次就会抹掉另一主题写入的排除分组，重新放开亏本选路。
+    const excludedUserGroups = normalizeExcludedUserGroups(
+      localInputs.excluded_user_groups,
+    );
+    if (excludedUserGroups.length > 0) {
+      channelExtraSettings.excluded_user_groups = excludedUserGroups;
+    }
     const serializedPC = serializePressureCooling(
       normalizedPCForSave,
       inputs.groups,
@@ -2086,6 +2101,7 @@ const EditChannelModal = (props) => {
     delete localInputs.risk_control_headers;
     delete localInputs.rate_limit;
     delete localInputs.pressure_cooling;
+    delete localInputs.excluded_user_groups;
     delete localInputs.is_enterprise_account;
     // 顶层的 vertex_key_type 不应发送给后端
     delete localInputs.vertex_key_type;
@@ -4149,6 +4165,27 @@ const EditChannelModal = (props) => {
                         style={{ width: '100%' }}
                         position='top'
                         onChange={(value) => handleInputChange('groups', value)}
+                      />
+
+                      {/* Excluded user groups - Core Config */}
+                      <Form.Select
+                        field='excluded_user_groups'
+                        label={t('排除分组')}
+                        placeholder={t('留空表示不排除任何分组')}
+                        multiple
+                        allowAdditions
+                        additionLabel={t(
+                          '请在系统设置页面编辑分组倍率以添加新的分组：',
+                        )}
+                        optionList={groupOptions}
+                        style={{ width: '100%' }}
+                        position='top'
+                        onChange={(value) =>
+                          handleInputChange('excluded_user_groups', value)
+                        }
+                        extraText={t(
+                          '这些用户分组的调用者永远不会被路由到本渠道，无论他们通过哪个分组调用。当该用户分组的售价低于本渠道成本时使用。',
+                        )}
                       />
 
                       {/* Model Mapping - Core Config */}

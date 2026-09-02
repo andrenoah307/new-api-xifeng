@@ -208,7 +208,7 @@ func TestPressureCoolingRecoveryGroupsRestoresOverlayWithoutChangingChannelStatu
 	stored, err := model.GetChannelById(channel.Id, true)
 	require.NoError(t, err)
 	assert.Equal(t, common.ChannelStatusEnabled, stored.Status)
-	candidates, err := model.GetSatisfiedChannelCandidates("pro", "recover-model", 0, "")
+	candidates, err := model.GetSatisfiedChannelCandidates("pro", "recover-model", 0, "", "")
 	require.NoError(t, err)
 	assert.Len(t, candidates, 1)
 }

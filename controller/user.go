@@ -742,17 +742,22 @@ func GetUserModels(c *gin.Context) {
 			return
 		}
 
+		// The single-group path used to return the raw ability list, skipping every
+		// filter the aggregate path below applies.
+		groupModels := model.FilterModelsAvailableForUserGroup(group, model.GetGroupEnabledModels(group), user.Group)
+		groupModels = filterRegionBlockedUserModels(c, groupModels)
+		groupModels = filterGroupBlockedUserModels(user.Group, groupModels)
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "",
-			"data":    model.GetGroupEnabledModels(group),
+			"data":    groupModels,
 		})
 		return
 	}
 
 	var models []string
 	for group := range groups {
-		for _, g := range model.GetGroupEnabledModels(group) {
+		for _, g := range model.FilterModelsAvailableForUserGroup(group, model.GetGroupEnabledModels(group), user.Group) {
 			if !common.StringsContains(models, g) {
 				models = append(models, g)
 			}

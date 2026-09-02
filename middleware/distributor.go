@@ -160,16 +160,18 @@ func Distribute() func(c *gin.Context) {
 					if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
 						channelSupportsRequestPath(preferred, c.Request.URL.Path, modelRequest.Model) {
 						preferredGroup := ""
+						// The affinity cache key carries no user group, so a cached target may
+						// have been left by a user whose group this channel excludes.
+						userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 						if usingGroup == "auto" {
-							userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
 							autoGroups := service.GetUserAutoGroup(userGroup)
 							for _, g := range autoGroups {
-								if model.IsChannelEnabledForGroupModel(g, modelRequest.Model, preferred.Id) {
+								if model.IsChannelAvailableForUserGroup(g, modelRequest.Model, preferred.Id, userGroup) {
 									preferredGroup = g
 									break
 								}
 							}
-						} else if model.IsChannelEnabledForGroupModel(usingGroup, modelRequest.Model, preferred.Id) {
+						} else if model.IsChannelAvailableForUserGroup(usingGroup, modelRequest.Model, preferred.Id, userGroup) {
 							preferredGroup = usingGroup
 						}
 

@@ -152,7 +152,10 @@ func normalizeLookupValues(values []string) []string {
 	return normalized
 }
 
-func GetPreferredModelOwnerChannelTypes(modelNames []string, groups []string) (map[string]int, error) {
+// GetPreferredModelOwnerChannelTypes resolves the vendor label shown for each
+// model. userGroup, when set, skips channels that exclude it so the label never
+// names a channel the caller can never be routed to.
+func GetPreferredModelOwnerChannelTypes(modelNames []string, groups []string, userGroup string) (map[string]int, error) {
 	result := make(map[string]int)
 	modelNames = normalizeLookupValues(modelNames)
 	if len(modelNames) == 0 {
@@ -162,11 +165,12 @@ func GetPreferredModelOwnerChannelTypes(modelNames []string, groups []string) (m
 	type row struct {
 		Model       string
 		ChannelType int
+		ChannelId   int
 	}
 	var rows []row
 
 	query := DB.Table("abilities").
-		Select("abilities.model as model, channels.type as channel_type").
+		Select("abilities.model as model, channels.type as channel_type, abilities.channel_id as channel_id").
 		Joins("JOIN channels ON abilities.channel_id = channels.id").
 		Where("abilities.model IN ? AND abilities.enabled = ? AND channels.status = ?", modelNames, true, common.ChannelStatusEnabled).
 		Order("COALESCE(abilities.priority, 0) DESC").
@@ -184,6 +188,9 @@ func GetPreferredModelOwnerChannelTypes(modelNames []string, groups []string) (m
 
 	for _, r := range rows {
 		if _, ok := result[r.Model]; ok {
+			continue
+		}
+		if IsChannelExcludedForUserGroup(r.ChannelId, userGroup) {
 			continue
 		}
 		result[r.Model] = r.ChannelType

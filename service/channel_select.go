@@ -17,10 +17,15 @@ import (
 type channelLimitBatchChecker func(context.Context, map[int]*dto.ChannelRateLimit) map[int]channel_limiter.Decision
 
 type RetryParam struct {
-	Ctx          *gin.Context
-	TokenGroup   string
-	ModelName    string
-	RequestPath  string
+	Ctx         *gin.Context
+	TokenGroup  string
+	ModelName   string
+	RequestPath string
+	// UserGroup is the caller's user group, used to honour a channel's excluded
+	// user groups. It is resolved from the request context by
+	// CacheGetRandomSatisfiedChannel, so callers do not have to set it; tests may
+	// set it directly to drive selection without a gin context.
+	UserGroup    string
 	Retry        *int
 	resetNextTry bool
 	checkBatch   channelLimitBatchChecker
@@ -63,7 +68,7 @@ func ShouldPreFilterChannelRateLimit(cfg *dto.ChannelRateLimit) bool {
 }
 
 func selectRandomSatisfiedChannel(param *RetryParam, group string, retry int) (*model.Channel, error) {
-	candidates, err := model.GetSatisfiedChannelCandidates(group, param.ModelName, retry, param.RequestPath)
+	candidates, err := model.GetSatisfiedChannelCandidates(group, param.ModelName, retry, param.RequestPath, param.UserGroup)
 	if err != nil || len(candidates) == 0 {
 		return nil, err
 	}
@@ -143,6 +148,11 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 	var err error
 	selectGroup := param.TokenGroup
 	userGroup := common.GetContextKeyString(param.Ctx, constant.ContextKeyUserGroup)
+	// Resolve once here rather than at every construction site: a call site that
+	// forgot to populate it would silently re-open an excluded, loss-making route.
+	if param.UserGroup == "" {
+		param.UserGroup = userGroup
+	}
 
 	if param.TokenGroup == "auto" {
 		if len(setting.GetAutoGroups()) == 0 {
