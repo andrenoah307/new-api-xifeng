@@ -195,6 +195,13 @@ type RelayInfo struct {
 	// It is surfaced onto the consume/task log's admin_info for auditing.
 	QuotaClamp *common.QuotaClamp
 
+	// Tool-result media metadata is collected while Claude request content is
+	// converted and copied into consume-log admin_info by the service layer.
+	ToolResultImageCount       int
+	ToolResultImageBase64Chars int
+	ToolResultMediaTypes       []string
+	ToolResultMediaFallback    bool
+
 	StreamOverloadRewrite *StreamOverloadRewriteMarker
 
 	// TieredBillingSnapshot is a frozen snapshot of tiered billing rules

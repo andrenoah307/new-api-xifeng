@@ -450,8 +450,42 @@ func (c *ClaudeRequest) GetTokenCountMeta() *types.TokenCountMeta {
 				}
 			case "tool_result":
 				if media.Content != nil {
-					b, _ := common.Marshal(media.Content)
-					texts = append(texts, string(b))
+					if media.IsStringContent() {
+						b, _ := common.Marshal(media.Content)
+						texts = append(texts, string(b))
+						continue
+					}
+					mediaContents := media.ParseMediaContent()
+					hasNonTextContent := false
+					for _, content := range mediaContents {
+						if content.Type != "text" && content.Type != "input_text" {
+							hasNonTextContent = true
+							break
+						}
+					}
+					if !hasNonTextContent {
+						b, _ := common.Marshal(media.Content)
+						texts = append(texts, string(b))
+						continue
+					}
+					for _, content := range mediaContents {
+						switch content.Type {
+						case "text", "input_text":
+							texts = append(texts, content.GetText())
+						case "image":
+							// The placeholder mode still estimates the image conservatively;
+							// settlement uses upstream usage, so this can only over-reserve.
+							if source := content.ToFileSource(); source != nil {
+								fileMeta = append(fileMeta, &types.FileMeta{
+									FileType: types.FileTypeImage,
+									Source:   source,
+								})
+							}
+						default:
+							b, _ := common.Marshal(content)
+							texts = append(texts, string(b))
+						}
+					}
 				}
 			}
 		}

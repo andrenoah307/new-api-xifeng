@@ -2,6 +2,8 @@ package claudemessages
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -206,4 +208,192 @@ func TestClaudeMessagesRequestToOpenAIChatResolvesAllToolResultNames(t *testing.
 	assert.Equal(t, "call_weather", converted.Messages[1].ToolCallId)
 	assert.Equal(t, "calculate", *converted.Messages[2].Name)
 	assert.Equal(t, "call_math", converted.Messages[2].ToolCallId)
+	assert.Equal(t, []string{"assistant", "tool", "tool"}, []string{converted.Messages[0].Role, converted.Messages[1].Role, converted.Messages[2].Role})
+}
+
+func TestClaudeMessagesRequestToOpenAIChatToolResultGatePreservesLegacyJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		content any
+	}{
+		{name: "string", content: "plain result"},
+		{name: "text blocks", content: []dto.ClaudeMediaMessage{
+			{Type: "text", Text: common.GetPointer("alpha")},
+			{Type: "input_text", Text: common.GetPointer("beta")},
+		}},
+		{name: "unparseable map", content: map[string]any{"result": true}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+				{Role: "assistant", Content: []dto.ClaudeMediaMessage{{
+					Type: "tool_use", Id: "call_1", Name: "lookup", Input: map[string]any{},
+				}}},
+				{Role: "user", Content: []dto.ClaudeMediaMessage{{
+					Type: "tool_result", ToolUseId: "call_1", Content: test.content,
+				}}},
+			}}
+
+			converted, err := ClaudeMessagesRequestToOpenAIChat(request, nil)
+			require.NoError(t, err)
+			got, err := common.Marshal(converted)
+			require.NoError(t, err)
+
+			encodedContent, err := common.Marshal(test.content)
+			require.NoError(t, err)
+			if test.name == "string" {
+				encodedContent = []byte(`plain result`)
+			} else if test.name == "unparseable map" {
+				encodedContent = []byte(`null`)
+			}
+			expectedMessages := []dto.Message{
+				{Role: "assistant", Content: nil, ToolCalls: mustToolCallsJSON(t)},
+				{Role: "tool", Content: string(encodedContent), Name: common.GetPointer("lookup"), ToolCallId: "call_1"},
+			}
+			expected, err := common.Marshal(&dto.GeneralOpenAIRequest{Model: request.Model, Messages: expectedMessages})
+			require.NoError(t, err)
+			assert.Equal(t, expected, got)
+		})
+	}
+}
+
+func TestClaudeMessagesRequestToOpenAIChatRelocatesToolResultImage(t *testing.T) {
+	t.Setenv("CLAUDE_TOOL_RESULT_RELOCATE_MEDIA", "true")
+	imageData := strings.Repeat("A", 734008)
+	cacheControl := json.RawMessage(`{"type":"ephemeral"}`)
+	request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{
+			Type: "tool_use", Id: "call_1", Name: "lookup", Input: map[string]any{"q": "x"},
+		}}},
+		{Role: "user", Content: []dto.ClaudeMediaMessage{{
+			Type: "tool_result", ToolUseId: "call_1", Content: []dto.ClaudeMediaMessage{
+				{Type: "text", Text: common.GetPointer("before")},
+				{Type: "image", CacheControl: cacheControl, Source: &dto.ClaudeMessageSource{Type: "base64", MediaType: "image/png", Data: imageData}},
+				{Type: "input_text", Text: common.GetPointer("after")},
+			}},
+		}},
+	}}
+
+	info := &relaycommon.RelayInfo{}
+	converted, err := ClaudeMessagesRequestToOpenAIChat(request, info)
+	require.NoError(t, err)
+	require.Len(t, converted.Messages, 3)
+	assert.Equal(t, "assistant", converted.Messages[0].Role)
+	assert.Equal(t, "tool", converted.Messages[1].Role)
+	assert.Equal(t, "call_1", converted.Messages[1].ToolCallId)
+	assert.NotContains(t, converted.Messages[1].StringContent(), imageData)
+	assert.NotContains(t, converted.Messages[1].StringContent(), "data:image")
+	assert.Equal(t, "beforeafter [tool_result_image_relocated]", converted.Messages[1].StringContent())
+
+	assert.Equal(t, "user", converted.Messages[2].Role)
+	parts := converted.Messages[2].ParseContent()
+	require.Len(t, parts, 1)
+	assert.Equal(t, "data:image/png;base64,"+imageData, parts[0].GetImageMedia().Url)
+	assert.JSONEq(t, string(cacheControl), string(parts[0].CacheControl))
+
+	body, err := common.Marshal(converted)
+	require.NoError(t, err)
+	legacyToolContent, err := common.Marshal([]dto.ClaudeMediaMessage{
+		{Type: "text", Text: common.GetPointer("before")},
+		{Type: "image", CacheControl: cacheControl, Source: &dto.ClaudeMessageSource{Type: "base64", MediaType: "image/png", Data: imageData}},
+		{Type: "input_text", Text: common.GetPointer("after")},
+	})
+	require.NoError(t, err)
+	assert.Greater(t, len(legacyToolContent), len(converted.Messages[1].StringContent())*1000)
+	legacyMessages := []dto.Message{
+		{Role: "assistant", Content: nil, ToolCalls: converted.Messages[0].ToolCalls},
+		{Role: "tool", Content: string(legacyToolContent), Name: common.GetPointer("lookup"), ToolCallId: "call_1"},
+	}
+	legacyBody, err := common.Marshal(&dto.GeneralOpenAIRequest{Model: request.Model, Messages: legacyMessages})
+	require.NoError(t, err)
+	assert.Less(t, len(body), len(legacyBody), "relocated media should not retain the tool_result JSON payload")
+	assert.Equal(t, 1, info.ToolResultImageCount)
+	assert.Equal(t, len(imageData), info.ToolResultImageBase64Chars)
+	assert.Equal(t, []string{"image/png"}, info.ToolResultMediaTypes)
+	assert.False(t, info.ToolResultMediaFallback)
+}
+
+func TestClaudeMessagesRequestToOpenAIChatToolResultOrderFollowsAssistantToolCalls(t *testing.T) {
+	t.Setenv("CLAUDE_TOOL_RESULT_RELOCATE_MEDIA", "true")
+	request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+		{Role: "assistant", Content: []dto.ClaudeMediaMessage{
+			{Type: "tool_use", Id: "call_1", Name: "first"},
+			{Type: "tool_use", Id: "call_2", Name: "second"},
+		}},
+		{Role: "user", Content: []dto.ClaudeMediaMessage{
+			{Type: "tool_result", ToolUseId: "call_1", Content: []dto.ClaudeMediaMessage{{Type: "text", Text: common.GetPointer("one")}, {Type: "image", Source: &dto.ClaudeMessageSource{MediaType: "image/png", Data: "one"}}}},
+			{Type: "tool_result", ToolUseId: "call_2", Content: []dto.ClaudeMediaMessage{{Type: "text", Text: common.GetPointer("two")}, {Type: "image", Source: &dto.ClaudeMessageSource{MediaType: "image/png", Data: "two"}}}},
+		}},
+	}}
+	converted, err := ClaudeMessagesRequestToOpenAIChat(request, &relaycommon.RelayInfo{})
+	require.NoError(t, err)
+	require.Len(t, converted.Messages, 4)
+	assert.Equal(t, "assistant", converted.Messages[0].Role)
+	assert.Equal(t, []string{"call_1", "call_2"}, []string{converted.Messages[1].ToolCallId, converted.Messages[2].ToolCallId})
+	assert.Equal(t, "user", converted.Messages[3].Role)
+	parts := converted.Messages[3].ParseContent()
+	require.Len(t, parts, 2)
+	assert.Equal(t, "data:image/png;base64,one", parts[0].GetImageMedia().Url)
+	assert.Equal(t, "data:image/png;base64,two", parts[1].GetImageMedia().Url)
+}
+
+func TestClaudeMessagesRequestToOpenAIChatToolResultRelocationSwitch(t *testing.T) {
+	imageData := "c2hvcnQ="
+	for _, enabled := range []bool{true, false} {
+		t.Run(fmt.Sprintf("enabled_%t", enabled), func(t *testing.T) {
+			t.Setenv("CLAUDE_TOOL_RESULT_RELOCATE_MEDIA", fmt.Sprintf("%t", enabled))
+			request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+				{Role: "assistant", Content: []dto.ClaudeMediaMessage{{Type: "tool_use", Id: "call_1", Name: "lookup"}}},
+				{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "call_1", Content: []dto.ClaudeMediaMessage{{
+					Type: "image", Source: &dto.ClaudeMessageSource{MediaType: "image/png", Data: imageData},
+				}}}}},
+			}}
+			info := &relaycommon.RelayInfo{}
+			converted, err := ClaudeMessagesRequestToOpenAIChat(request, info)
+			require.NoError(t, err)
+			if enabled {
+				require.Len(t, converted.Messages, 3)
+			} else {
+				require.Len(t, converted.Messages, 2)
+			}
+			toolMessage := converted.Messages[1]
+			assert.NotContains(t, toolMessage.StringContent(), imageData)
+			assert.NotContains(t, toolMessage.StringContent(), "data:image")
+			if enabled {
+				parts := converted.Messages[2].ParseContent()
+				require.Len(t, parts, 1)
+				assert.Equal(t, "data:image/png;base64,"+imageData, parts[0].GetImageMedia().Url)
+			} else {
+				assert.Contains(t, converted.Messages[1].StringContent(), "[tool_result_media_fallback]")
+			}
+			assert.Equal(t, enabled == false, info.ToolResultMediaFallback)
+		})
+	}
+}
+
+func TestClaudeMessagesRequestToOpenAIChatToolResultDocumentFallsBack(t *testing.T) {
+	request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{Type: "tool_use", Id: "call_1", Name: "lookup"}}},
+		{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "call_1", Content: []dto.ClaudeMediaMessage{{
+			Type: "document", Source: &dto.ClaudeMessageSource{MediaType: "application/pdf", Data: strings.Repeat("B", 128)},
+		}}}}},
+	}}
+	info := &relaycommon.RelayInfo{}
+	converted, err := ClaudeMessagesRequestToOpenAIChat(request, info)
+	require.NoError(t, err)
+	require.Len(t, converted.Messages, 2)
+	assert.Contains(t, converted.Messages[1].StringContent(), "[tool_result_media_omitted:document]")
+	assert.NotContains(t, converted.Messages[1].StringContent(), strings.Repeat("B", 128))
+	assert.True(t, info.ToolResultMediaFallback)
+	assert.Equal(t, []string{"application/pdf"}, info.ToolResultMediaTypes)
+}
+
+func mustToolCallsJSON(t *testing.T) json.RawMessage {
+	t.Helper()
+	toolCalls, err := common.Marshal([]dto.ToolCallRequest{{
+		ID: "call_1", Type: "function", Function: dto.FunctionRequest{Name: "lookup", Arguments: "{}"},
+	}})
+	require.NoError(t, err)
+	return toolCalls
 }

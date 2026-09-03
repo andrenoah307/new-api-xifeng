@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -201,6 +202,7 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 	}
 
 	AppendChannelAffinityAdminInfo(ctx, adminInfo)
+	appendClaudeToolResultMediaInfo(relayInfo, adminInfo)
 
 	other["admin_info"] = adminInfo
 	appendRequestPath(ctx, relayInfo, other)
@@ -211,6 +213,27 @@ func GenerateTextOtherInfo(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, m
 	appendStreamStatus(relayInfo, other)
 	AppendRiskAuditToOther(other, relayInfo.RiskAudit)
 	return other
+}
+
+func appendClaudeToolResultMediaInfo(relayInfo *relaycommon.RelayInfo, adminInfo map[string]interface{}) {
+	if relayInfo == nil || adminInfo == nil {
+		return
+	}
+	if relayInfo.ToolResultImageCount == 0 && relayInfo.ToolResultImageBase64Chars == 0 && len(relayInfo.ToolResultMediaTypes) == 0 && !relayInfo.ToolResultMediaFallback {
+		return
+	}
+	mediaTypes := append([]string(nil), relayInfo.ToolResultMediaTypes...)
+	sort.Strings(mediaTypes)
+	uniqueMediaTypes := mediaTypes[:0]
+	for _, mediaType := range mediaTypes {
+		if len(uniqueMediaTypes) == 0 || uniqueMediaTypes[len(uniqueMediaTypes)-1] != mediaType {
+			uniqueMediaTypes = append(uniqueMediaTypes, mediaType)
+		}
+	}
+	adminInfo["tool_result_image_count"] = relayInfo.ToolResultImageCount
+	adminInfo["tool_result_image_base64_chars"] = relayInfo.ToolResultImageBase64Chars
+	adminInfo["tool_result_media_types"] = uniqueMediaTypes
+	adminInfo["tool_result_media_fallback"] = relayInfo.ToolResultMediaFallback
 }
 
 func appendParamOverrideInfo(relayInfo *relaycommon.RelayInfo, other map[string]interface{}) {

@@ -2,6 +2,7 @@ package claudemessages
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -12,9 +13,12 @@ import (
 )
 
 const (
-	webSearchMaxUsesLow    = 1
-	webSearchMaxUsesMedium = 5
-	webSearchMaxUsesHigh   = 10
+	webSearchMaxUsesLow              = 1
+	webSearchMaxUsesMedium           = 5
+	webSearchMaxUsesHigh             = 10
+	claudeToolResultRelocateMediaEnv = "CLAUDE_TOOL_RESULT_RELOCATE_MEDIA"
+	toolResultMediaRelocatedMarker   = "[tool_result_image_relocated]"
+	toolResultMediaFallbackMarker    = "[tool_result_media_fallback]"
 )
 
 type openRouterRequestReasoning struct {
@@ -28,6 +32,13 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 	openAIRequest := dto.GeneralOpenAIRequest{
 		Model:       claudeRequest.Model,
 		Temperature: claudeRequest.Temperature,
+	}
+	relocateToolResultMedia := common.GetEnvOrDefaultBool(claudeToolResultRelocateMediaEnv, true)
+	if info != nil {
+		info.ToolResultImageCount = 0
+		info.ToolResultImageBase64Chars = 0
+		info.ToolResultMediaTypes = nil
+		info.ToolResultMediaFallback = false
 	}
 	if claudeRequest.MaxTokens != nil {
 		openAIRequest.MaxTokens = common.GetPointer(*claudeRequest.MaxTokens)
@@ -195,8 +206,75 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 						oaiToolMessage.SetStringContent(mediaMsg.GetStringContent())
 					} else {
 						mediaContents := mediaMsg.ParseMediaContent()
-						encodedJSON, _ := common.Marshal(mediaContents)
-						oaiToolMessage.SetStringContent(string(encodedJSON))
+						hasNonTextContent := false
+						for _, content := range mediaContents {
+							if content.Type != "text" && content.Type != "input_text" {
+								hasNonTextContent = true
+								break
+							}
+						}
+						if !hasNonTextContent {
+							// Keep the legacy byte-for-byte representation for string-like
+							// and unparseable tool_result content.
+							encodedJSON, _ := common.Marshal(mediaContents)
+							oaiToolMessage.SetStringContent(string(encodedJSON))
+						} else {
+							var toolText strings.Builder
+							mediaMoved := false
+							mediaFallback := false
+							for _, content := range mediaContents {
+								switch content.Type {
+								case "text", "input_text":
+									toolText.WriteString(content.GetText())
+								case "image":
+									if info != nil {
+										info.ToolResultImageCount++
+										if content.Source != nil {
+											info.ToolResultImageBase64Chars += len(common.Interface2String(content.Source.Data))
+										}
+										addToolResultMediaType(info, content)
+									}
+									if relocateToolResultMedia && content.Source != nil {
+										imageData := fmt.Sprintf("data:%s;base64,%s", content.Source.MediaType, common.Interface2String(content.Source.Data))
+										mediaMessages = append(mediaMessages, dto.MediaContent{
+											Type:         "image_url",
+											ImageUrl:     &dto.MessageImageUrl{Url: imageData},
+											CacheControl: content.CacheControl,
+										})
+										mediaMoved = true
+									} else {
+										toolText.WriteString("[tool_result_media_omitted:image]")
+										mediaFallback = true
+									}
+								default:
+									if info != nil {
+										addToolResultMediaType(info, content)
+									}
+									toolText.WriteString("[tool_result_media_omitted:")
+									toolText.WriteString(content.Type)
+									toolText.WriteString("]")
+									mediaFallback = true
+								}
+							}
+							if mediaMoved || mediaFallback {
+								if toolText.Len() > 0 {
+									toolText.WriteByte(' ')
+								}
+								if mediaMoved {
+									toolText.WriteString(toolResultMediaRelocatedMarker)
+								}
+								if mediaMoved && mediaFallback {
+									toolText.WriteByte(' ')
+								}
+								if mediaFallback {
+									toolText.WriteString(toolResultMediaFallbackMarker)
+								}
+							}
+							oaiToolMessage.SetStringContent(toolText.String())
+							if info != nil && mediaFallback {
+								info.ToolResultMediaFallback = true
+							}
+						}
 					}
 					openAIMessages = append(openAIMessages, oaiToolMessage)
 				}
@@ -213,9 +291,28 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 			openAIMessages = append(openAIMessages, openAIMessage)
 		}
 	}
+	if info != nil && len(info.ToolResultMediaTypes) > 1 {
+		sort.Strings(info.ToolResultMediaTypes)
+	}
 
 	openAIRequest.Messages = openAIMessages
 	return &openAIRequest, nil
+}
+
+func addToolResultMediaType(info *relaycommon.RelayInfo, content dto.ClaudeMediaMessage) {
+	if info == nil {
+		return
+	}
+	mediaType := content.Type
+	if content.Source != nil && content.Source.MediaType != "" {
+		mediaType = content.Source.MediaType
+	}
+	for _, existing := range info.ToolResultMediaTypes {
+		if existing == mediaType {
+			return
+		}
+	}
+	info.ToolResultMediaTypes = append(info.ToolResultMediaTypes, mediaType)
 }
 
 func requestToJSONString(v interface{}) string {

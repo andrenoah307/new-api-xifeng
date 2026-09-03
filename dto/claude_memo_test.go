@@ -2,6 +2,7 @@ package dto
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -442,6 +443,60 @@ func TestClaudeRequestTokenCountMetaAllContentKinds(t *testing.T) {
 		},
 	}
 	assert.Equal(t, want, request.GetTokenCountMeta())
+}
+
+func TestClaudeRequestTokenCountMetaToolResultMediaUsesFiles(t *testing.T) {
+	imageData := "aGVsbG8="
+	request := &ClaudeRequest{Messages: []ClaudeMessage{
+		{Role: "assistant", Content: []ClaudeMediaMessage{{Type: "tool_use", Id: "call_1", Name: "lookup"}}},
+		{Role: "user", Content: []ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "call_1", Content: []ClaudeMediaMessage{
+			{Type: "text", Text: common.GetPointer("before")},
+			{Type: "image", Source: &ClaudeMessageSource{Type: "base64", MediaType: "image/png", Data: imageData}},
+			{Type: "input_text", Text: common.GetPointer("after")},
+		}}}},
+	}}
+	meta := request.GetTokenCountMeta()
+	require.Len(t, meta.Files, 1)
+	assert.Equal(t, types.FileTypeImage, meta.Files[0].FileType)
+	assert.Equal(t, imageData, meta.Files[0].GetRawData())
+	assert.Equal(t, "assistant\nlookup\nuser\nbefore\nafter", meta.CombineText)
+	assert.NotContains(t, meta.CombineText, imageData)
+}
+
+func TestClaudeRequestTokenCountMetaLargeToolResultImageDoesNotBecomeText(t *testing.T) {
+	imageData := strings.Repeat("A", 734008)
+	request := &ClaudeRequest{Messages: []ClaudeMessage{
+		{Role: "assistant", Content: []ClaudeMediaMessage{{Type: "tool_use", Id: "call_1", Name: "lookup"}}},
+		{Role: "user", Content: []ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "call_1", Content: []ClaudeMediaMessage{{
+			Type: "image", Source: &ClaudeMessageSource{Type: "base64", MediaType: "image/png", Data: imageData},
+		}}}}},
+	}}
+	meta := request.GetTokenCountMeta()
+	require.Len(t, meta.Files, 1)
+	assert.Less(t, len(meta.CombineText), 100)
+	assert.NotContains(t, meta.CombineText, imageData)
+}
+
+func TestClaudeRequestTokenCountMetaToolResultTextAndNilKeepLegacyText(t *testing.T) {
+	tests := []struct {
+		name    string
+		content any
+		want    string
+	}{
+		{name: "string content", content: "result", want: "assistant\nlookup\nuser\n\"result\""},
+		{name: "text blocks", content: []ClaudeMediaMessage{{Type: "text", Text: common.GetPointer("result")}, {Type: "input_text", Text: common.GetPointer("second")}}, want: "assistant\nlookup\nuser\n[{\"type\":\"text\",\"text\":\"result\"},{\"type\":\"input_text\",\"text\":\"second\"}]"},
+		{name: "nil parse", content: map[string]any{"ok": true}, want: "assistant\nlookup\nuser\n{\"ok\":true}"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := &ClaudeRequest{Messages: []ClaudeMessage{
+				{Role: "assistant", Content: []ClaudeMediaMessage{{Type: "tool_use", Id: "call_1", Name: "lookup"}}},
+				{Role: "user", Content: []ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "call_1", Content: test.content}}},
+			}}
+			assert.Equal(t, test.want, request.GetTokenCountMeta().CombineText)
+			assert.Empty(t, request.GetTokenCountMeta().Files)
+		})
+	}
 }
 
 func TestClaudeRequestReadHelpersDoNotRetainParsedContent(t *testing.T) {

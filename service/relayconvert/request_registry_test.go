@@ -1,6 +1,7 @@
 package relayconvert
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -10,6 +11,7 @@ import (
 	sharedgemini "github.com/QuantumNous/new-api/service/relayconvert/internal/shared/gemini"
 	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/QuantumNous/new-api/types"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -169,6 +171,59 @@ func TestConvertRequestPlansMultiHopPath(t *testing.T) {
 		},
 	}, result.Steps)
 	assert.Equal(t, []types.RelayFormat{types.RelayFormatClaude, types.RelayFormatOpenAI, types.RelayFormatOpenAIResponses}, info.RequestConversionChain)
+}
+
+func TestClaudeToolResultMediaDoesNotLeakAcrossMultiHopConverters(t *testing.T) {
+	t.Setenv("CLAUDE_TOOL_RESULT_RELOCATE_MEDIA", "true")
+	imageData := strings.Repeat("A", 64)
+	request := &dto.ClaudeRequest{Model: "claude-test", Messages: []dto.ClaudeMessage{
+		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{Type: "tool_use", Id: "call_1", Name: "lookup", Input: map[string]any{"q": "x"}}}},
+		{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "call_1", Content: []dto.ClaudeMediaMessage{
+			{Type: "text", Text: common.GetPointer("ok")},
+			{Type: "image", Source: &dto.ClaudeMessageSource{MediaType: "image/png", Data: imageData}},
+		}}}},
+	}}
+
+	t.Run("gemini", func(t *testing.T) {
+		SetMediaResolver(MediaResolver{GetBase64Data: func(_ *gin.Context, source types.FileSource, _ ...string) (string, string, error) {
+			return source.GetRawData(), "image/png", nil
+		}})
+		t.Cleanup(func() { SetMediaResolver(MediaResolver{}) })
+		info := &relaycommon.RelayInfo{RelayFormat: types.RelayFormatClaude, RequestConversionChain: []types.RelayFormat{types.RelayFormatClaude}, ChannelMeta: &relaycommon.ChannelMeta{UpstreamModelName: "gemini-test"}}
+		result, err := ConvertRequest(nil, info, types.RelayFormatGemini, request)
+		require.NoError(t, err)
+		geminiRequest, ok := result.Value.(*dto.GeminiChatRequest)
+		require.True(t, ok)
+		var functionResponse *dto.GeminiFunctionResponse
+		for _, content := range geminiRequest.Contents {
+			for _, part := range content.Parts {
+				if part.FunctionResponse != nil {
+					functionResponse = part.FunctionResponse
+				}
+			}
+		}
+		require.NotNil(t, functionResponse)
+		responseJSON, err := common.Marshal(functionResponse.Response)
+		require.NoError(t, err)
+		assert.NotContains(t, string(responseJSON), imageData)
+		assert.Equal(t, "lookup", geminiRequest.Contents[0].Parts[0].FunctionCall.FunctionName)
+	})
+
+	t.Run("responses", func(t *testing.T) {
+		info := &relaycommon.RelayInfo{RelayFormat: types.RelayFormatClaude, RequestConversionChain: []types.RelayFormat{types.RelayFormatClaude}}
+		result, err := ConvertRequest(nil, info, types.RelayFormatOpenAIResponses, request)
+		require.NoError(t, err)
+		responsesRequest, ok := result.Value.(*dto.OpenAIResponsesRequest)
+		require.True(t, ok)
+		var inputItems []map[string]any
+		require.NoError(t, common.Unmarshal(responsesRequest.Input, &inputItems))
+		require.Len(t, inputItems, 4)
+		outputJSON, err := common.Marshal(inputItems[2]["output"])
+		require.NoError(t, err)
+		assert.NotContains(t, string(outputJSON), imageData)
+		assert.Equal(t, "call_1", inputItems[2]["call_id"])
+		assert.Equal(t, "function_call_output", inputItems[2]["type"])
+	})
 }
 
 func TestConvertRequestViaExecutesExplicitPath(t *testing.T) {
