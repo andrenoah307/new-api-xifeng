@@ -343,9 +343,8 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 			request.ReasoningEffort = effort
 			info.UpstreamModelName = originModel
 			request.Model = originModel
+			info.ReasoningEffort = effort
 		}
-
-		info.ReasoningEffort = request.ReasoningEffort
 
 		// o系列模型developer适配（o1-mini除外）
 		if !strings.HasPrefix(info.UpstreamModelName, "o1-mini") && !strings.HasPrefix(info.UpstreamModelName, "o1-preview") {
@@ -354,6 +353,9 @@ func (a *Adaptor) ConvertOpenAIRequest(c *gin.Context, info *relaycommon.RelayIn
 				request.Messages[0].Role = "developer"
 			}
 		}
+	}
+	if info.ReasoningEffort == "" && request.ReasoningEffort != "" {
+		info.ReasoningEffort = request.ReasoningEffort
 	}
 
 	return request, nil
@@ -608,7 +610,9 @@ func (a *Adaptor) ConvertOpenAIResponsesRequest(c *gin.Context, info *relaycommo
 		request.Model = originModel
 	}
 	if info != nil && request.Reasoning != nil && request.Reasoning.Effort != "" {
-		info.ReasoningEffort = request.Reasoning.Effort
+		if effort != "" || info.ReasoningEffort == "" {
+			info.ReasoningEffort = request.Reasoning.Effort
+		}
 	}
 	return request, nil
 }

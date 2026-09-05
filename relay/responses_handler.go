@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/model_setting"
+	"github.com/QuantumNous/new-api/setting/reasoning"
 	"github.com/QuantumNous/new-api/types"
 
 	"github.com/gin-gonic/gin"
@@ -88,7 +89,10 @@ func ResponsesHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *
 		// 坑点 #134：Responses 透传同样跳过 ConvertOpenAIResponsesRequest，需在此补写 info.ReasoningEffort，否则日志丢思考等级
 		if info.RelayMode == relayconstant.RelayModeResponses {
 			if effort := relaycommon.ResolveResponsesReasoningEffortForPassthrough(request.Model, request.Reasoning); effort != "" {
-				info.ReasoningEffort = effort
+				suffixEffort, _ := reasoning.ParseOpenAIReasoningEffortFromModelSuffix(request.Model)
+				if suffixEffort != "" || info.ReasoningEffort == "" {
+					info.ReasoningEffort = effort
+				}
 			}
 		}
 	} else {

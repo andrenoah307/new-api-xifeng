@@ -5247,6 +5247,11 @@
     "错误数阈值": "Error-count threshold",
     "冷却剩余 {{seconds}} 秒": "{{seconds}} seconds of cooldown remaining",
     "压力冷却上游报错最小样本数必须大于等于 0": "Pressure cooling upstream error minimum samples must be at least 0",
-    "压力冷却上游报错绝对错误数必须大于等于 0": "Pressure cooling upstream error count must be at least 0"
+    "压力冷却上游报错绝对错误数必须大于等于 0": "Pressure cooling upstream error count must be at least 0",
+    "Thinking Budget (Request)": "Thinking Budget (Request)",
+    "Thinking Mode (Request)": "Thinking Mode (Request)",
+    "Reasoning Tokens (Actual)": "Reasoning Tokens (Actual)",
+    "Dynamic": "Dynamic",
+    "Thinking Disabled": "Disabled"
   }
 }

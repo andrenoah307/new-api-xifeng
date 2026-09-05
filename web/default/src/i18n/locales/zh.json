@@ -5550,6 +5550,11 @@
     "Error Count": "错误数",
     "Cooling: {{seconds}}s": "冷却剩余 {{seconds}} 秒",
     "Upstream error minimum samples must be a non-negative integer": "上游报错比例条件的最小尝试数必须是非负整数",
-    "Upstream error trigger count must be a non-negative integer": "上游报错数阈值必须是非负整数"
+    "Upstream error trigger count must be a non-negative integer": "上游报错数阈值必须是非负整数",
+    "Dynamic": "动态",
+    "Reasoning Tokens (Actual)": "推理 Tokens（上游实际）",
+    "Thinking Budget (Request)": "思考预算（请求设置）",
+    "Thinking Mode (Request)": "思考模式（请求设置）",
+    "Thinking Disabled": "已关闭"
   }
 }

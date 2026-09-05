@@ -5550,6 +5550,11 @@
     "Error Count": "Error Count",
     "Cooling: {{seconds}}s": "Cooling: {{seconds}}s",
     "Upstream error minimum samples must be a non-negative integer": "Upstream error minimum samples must be a non-negative integer",
-    "Upstream error trigger count must be a non-negative integer": "Upstream error trigger count must be a non-negative integer"
+    "Upstream error trigger count must be a non-negative integer": "Upstream error trigger count must be a non-negative integer",
+    "Dynamic": "Dynamic",
+    "Reasoning Tokens (Actual)": "Reasoning Tokens (Actual)",
+    "Thinking Budget (Request)": "Thinking Budget (Request)",
+    "Thinking Mode (Request)": "Thinking Mode (Request)",
+    "Thinking Disabled": "Disabled"
   }
 }

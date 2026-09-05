@@ -137,6 +137,9 @@ func GeminiHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 			request.SystemInstructions = nil
 		}
 	}
+	logBudget, logThinkingType := relaycommon.ResolveGeminiThinkingForLog(&request.GenerationConfig)
+	info.ThinkingBudget = logBudget
+	info.ThinkingType = logThinkingType
 
 	var requestBody io.Reader
 	if model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled {

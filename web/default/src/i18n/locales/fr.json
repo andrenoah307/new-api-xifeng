@@ -5550,6 +5550,11 @@
     "Error Count": "Nombre d'erreurs",
     "Cooling: {{seconds}}s": "Refroidissement : {{seconds}} s",
     "Upstream error minimum samples must be a non-negative integer": "Le nombre minimal de tentatives d'erreur en amont doit être un entier non négatif",
-    "Upstream error trigger count must be a non-negative integer": "Le seuil d'erreurs en amont doit être un entier non négatif"
+    "Upstream error trigger count must be a non-negative integer": "Le seuil d'erreurs en amont doit être un entier non négatif",
+    "Dynamic": "Dynamique",
+    "Reasoning Tokens (Actual)": "Tokens de raisonnement (réels)",
+    "Thinking Budget (Request)": "Budget de réflexion (requête)",
+    "Thinking Mode (Request)": "Mode de réflexion (requête)",
+    "Thinking Disabled": "Désactivé"
   }
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
+	"github.com/QuantumNous/new-api/setting/reasoning"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/samber/lo"
 
@@ -41,6 +42,18 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 	if err != nil {
 		return types.NewError(err, types.ErrorCodeChannelModelMappedError, types.ErrOptionWithSkipRetry())
 	}
+
+	// Capture request-side thinking settings before either pass-through or conversion.
+	// A model suffix is more specific than body fields and may overwrite the effort.
+	if suffixEffort, _ := reasoning.ParseOpenAIReasoningEffortFromModelSuffix(info.UpstreamModelName); suffixEffort != "" {
+		info.ReasoningEffort = suffixEffort
+	}
+	logEffort, logBudget, logThinkingType := relaycommon.ResolveOpenAIChatThinkingForLog(request)
+	if info.ReasoningEffort == "" && logEffort != "" {
+		info.ReasoningEffort = logEffort
+	}
+	info.ThinkingBudget = logBudget
+	info.ThinkingType = logThinkingType
 
 	includeUsage := true
 	// 判断用户是否需要返回使用情况
@@ -108,8 +121,11 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 		}
 		requestBody = common.ReaderOnly(storage)
 		// 坑点 #134：透传请求体跳过 ConvertOpenAIRequest，需在此补写 info.ReasoningEffort，否则日志丢思考等级
-		if effort := relaycommon.ResolveOpenAIReasoningEffortForPassthrough(info.UpstreamModelName, request.ReasoningEffort); effort != "" {
-			info.ReasoningEffort = effort
+		if info.ReasoningEffort == "" {
+			effort := relaycommon.ResolveOpenAIReasoningEffortForPassthrough(info.UpstreamModelName, request.ReasoningEffort)
+			if effort != "" {
+				info.ReasoningEffort = effort
+			}
 		}
 	} else {
 		convertedRequest, err := adaptor.ConvertOpenAIRequest(c, info, request)

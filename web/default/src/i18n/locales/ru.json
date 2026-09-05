@@ -5550,6 +5550,11 @@
     "Error Count": "Число ошибок",
     "Cooling: {{seconds}}s": "Охлаждение: осталось {{seconds}} с",
     "Upstream error minimum samples must be a non-negative integer": "Минимум попыток для доли ошибок upstream должен быть неотрицательным целым числом",
-    "Upstream error trigger count must be a non-negative integer": "Порог ошибок upstream должен быть неотрицательным целым числом"
+    "Upstream error trigger count must be a non-negative integer": "Порог ошибок upstream должен быть неотрицательным целым числом",
+    "Dynamic": "Динамически",
+    "Reasoning Tokens (Actual)": "Токены рассуждений (фактически)",
+    "Thinking Budget (Request)": "Бюджет размышлений (запрос)",
+    "Thinking Mode (Request)": "Режим размышлений (запрос)",
+    "Thinking Disabled": "Отключено"
   }
 }

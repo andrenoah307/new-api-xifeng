@@ -224,7 +224,7 @@
     "service_tier 字段用于指定服务层级，允许透传可能导致实际计费高于预期。默认关闭以避免额外费用": "service_tier 字段用于指定服务层级，允许透传可能导致实际计费高于预期。默认关闭以避免额外费用",
     "sk_xxx 或 rk_xxx 的 Stripe 密钥，敏感信息不显示": "sk_xxx 或 rk_xxx 的 Stripe 密钥，敏感信息不显示",
     "SMTP 加密方式": "SMTP 加密方式",
-    "Reasoning Effort": "Reasoning Effort",
+    "Reasoning Effort": "推理强度",
     "Redis 队列": "Redis 队列",
     "Request ID": "Request ID",
     "S3 Endpoint（可选，MinIO/R2 使用）": "S3 Endpoint（可选，MinIO/R2 使用）",
@@ -5162,6 +5162,11 @@
     "错误数阈值": "错误数阈值",
     "冷却剩余 {{seconds}} 秒": "冷却剩余 {{seconds}} 秒",
     "压力冷却上游报错最小样本数必须大于等于 0": "压力冷却上游报错最小样本数必须大于等于 0",
-    "压力冷却上游报错绝对错误数必须大于等于 0": "压力冷却上游报错绝对错误数必须大于等于 0"
+    "压力冷却上游报错绝对错误数必须大于等于 0": "压力冷却上游报错绝对错误数必须大于等于 0",
+    "Thinking Budget (Request)": "思考预算（请求设置）",
+    "Thinking Mode (Request)": "思考模式（请求设置）",
+    "Reasoning Tokens (Actual)": "推理 Tokens（上游实际）",
+    "Dynamic": "动态",
+    "Thinking Disabled": "已关闭"
   }
 }

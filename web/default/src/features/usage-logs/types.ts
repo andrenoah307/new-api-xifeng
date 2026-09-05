@@ -218,6 +218,9 @@ export interface LogOtherData {
   // was rewritten to server_error so clients can retry with exponential backoff.
   stream_overload_rewrite?: boolean
   reasoning_effort?: string
+  thinking_budget?: number
+  thinking_type?: string
+  reasoning_tokens?: number
   image?: boolean
   image_ratio?: number
   image_output?: number

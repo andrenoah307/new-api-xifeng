@@ -146,6 +146,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	}
 
 	applyClaudeSystemPrompt(c, request, info.ChannelSetting)
+	logEffort, logBudget, logThinkingType := relaycommon.ResolveClaudeThinkingForLog(request)
 
 	if !model_setting.GetGlobalSettings().PassThroughRequestEnabled &&
 		!info.ChannelSetting.PassThroughBodyEnabled &&
@@ -168,6 +169,11 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 			return retryErr
 		}
 
+		if info.ReasoningEffort == "" && logEffort != "" {
+			info.ReasoningEffort = logEffort
+		}
+		info.ThinkingBudget = logBudget
+		info.ThinkingType = logThinkingType
 		service.PostTextConsumeQuota(c, info, usage, nil)
 		return nil
 	}
@@ -245,6 +251,11 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 		return retryErr
 	}
 
+	if info.ReasoningEffort == "" && logEffort != "" {
+		info.ReasoningEffort = logEffort
+	}
+	info.ThinkingBudget = logBudget
+	info.ThinkingType = logThinkingType
 	service.PostTextConsumeQuota(c, info, usage.(*dto.Usage), nil)
 	return nil
 }

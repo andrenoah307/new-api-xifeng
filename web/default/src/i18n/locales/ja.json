@@ -5550,6 +5550,11 @@
     "Error Count": "エラー数",
     "Cooling: {{seconds}}s": "冷却残り {{seconds}} 秒",
     "Upstream error minimum samples must be a non-negative integer": "上流エラー率条件の最小試行数は 0 以上の整数で指定してください",
-    "Upstream error trigger count must be a non-negative integer": "上流エラー数のしきい値は 0 以上の整数で指定してください"
+    "Upstream error trigger count must be a non-negative integer": "上流エラー数のしきい値は 0 以上の整数で指定してください",
+    "Dynamic": "動的",
+    "Reasoning Tokens (Actual)": "推論トークン（実測）",
+    "Thinking Budget (Request)": "思考予算（リクエスト）",
+    "Thinking Mode (Request)": "思考モード（リクエスト）",
+    "Thinking Disabled": "無効"
   }
 }

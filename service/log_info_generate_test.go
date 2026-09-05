@@ -39,3 +39,16 @@ func TestGenerateTextOtherInfoOmitsZeroClaudeToolResultMediaMetadata(t *testing.
 	assert.NotContains(t, adminInfo, "tool_result_media_types")
 	assert.NotContains(t, adminInfo, "tool_result_media_fallback")
 }
+
+func TestGenerateTextOtherInfoCarriesThinkingRequestFields(t *testing.T) {
+	ctx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	budget := 0
+	info := &relaycommon.RelayInfo{
+		ChannelMeta:    &relaycommon.ChannelMeta{},
+		ThinkingBudget: &budget,
+		ThinkingType:   "disabled",
+	}
+	other := GenerateTextOtherInfo(ctx, info, 1, 1, 1, 0, 0, 0, 0)
+	assert.Equal(t, 0, other["thinking_budget"])
+	assert.Equal(t, "disabled", other["thinking_type"])
+}

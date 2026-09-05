@@ -5020,6 +5020,11 @@
     "错误数阈值": "Seuil d'erreurs",
     "冷却剩余 {{seconds}} 秒": "{{seconds}} secondes de refroidissement restantes",
     "压力冷却上游报错最小样本数必须大于等于 0": "Le nombre minimal d'échantillons d'erreurs en amont doit être d'au moins 0",
-    "压力冷却上游报错绝对错误数必须大于等于 0": "Le nombre d'erreurs en amont doit être d'au moins 0"
+    "压力冷却上游报错绝对错误数必须大于等于 0": "Le nombre d'erreurs en amont doit être d'au moins 0",
+    "Thinking Budget (Request)": "Budget de réflexion (requête)",
+    "Thinking Mode (Request)": "Mode de réflexion (requête)",
+    "Reasoning Tokens (Actual)": "Tokens de raisonnement (réels)",
+    "Dynamic": "Dynamique",
+    "Thinking Disabled": "Désactivé"
   }
 }

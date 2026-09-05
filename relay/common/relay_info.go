@@ -127,6 +127,8 @@ type RelayInfo struct {
 	IsFirstRequest         bool
 	AudioUsage             bool
 	ReasoningEffort        string
+	ThinkingBudget         *int   // 请求侧显式思考预算，保留显式 0 与 -1
+	ThinkingType           string // 仅当协议给出且无法由其他字段推导时填充
 	UserSetting            dto.UserSetting
 	UserEmail              string
 	UserQuota              int

@@ -688,6 +688,14 @@ export function DetailsDialog(props: DetailsDialogProps) {
   } else if (other?.reasoning_effort === 'medium') {
     reasoningEffortVariant = 'yellow'
   }
+  let thinkingBudgetValue: React.ReactNode
+  if (other?.thinking_budget === -1) {
+    thinkingBudgetValue = t('Dynamic')
+  } else if (other?.thinking_budget === 0) {
+    thinkingBudgetValue = t('Thinking Disabled')
+  } else if (other?.thinking_budget != null) {
+    thinkingBudgetValue = formatTokens(other.thinking_budget)
+  }
 
   return (
     <Dialog
@@ -1199,6 +1207,29 @@ export function DetailsDialog(props: DetailsDialogProps) {
                 copyable={false}
               />
             }
+          />
+        )}
+
+        {other?.thinking_budget != null && (
+          <DetailRow
+            label={t('Thinking Budget (Request)')}
+            value={thinkingBudgetValue}
+            mono
+          />
+        )}
+
+        {other?.thinking_type && (
+          <DetailRow
+            label={t('Thinking Mode (Request)')}
+            value={other.thinking_type}
+          />
+        )}
+
+        {other?.reasoning_tokens != null && other.reasoning_tokens > 0 && (
+          <DetailRow
+            label={t('Reasoning Tokens (Actual)')}
+            value={formatTokens(other.reasoning_tokens)}
+            mono
           />
         )}
 

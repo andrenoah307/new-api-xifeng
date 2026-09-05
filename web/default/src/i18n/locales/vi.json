@@ -5550,6 +5550,11 @@
     "Error Count": "Số lỗi",
     "Cooling: {{seconds}}s": "Đang làm mát: còn {{seconds}} giây",
     "Upstream error minimum samples must be a non-negative integer": "Số lần thử tối thiểu cho tỷ lệ lỗi upstream phải là số nguyên không âm",
-    "Upstream error trigger count must be a non-negative integer": "Ngưỡng số lỗi upstream phải là số nguyên không âm"
+    "Upstream error trigger count must be a non-negative integer": "Ngưỡng số lỗi upstream phải là số nguyên không âm",
+    "Dynamic": "Động",
+    "Reasoning Tokens (Actual)": "Token suy luận (thực tế)",
+    "Thinking Budget (Request)": "Ngân sách suy luận (yêu cầu)",
+    "Thinking Mode (Request)": "Chế độ suy luận (yêu cầu)",
+    "Thinking Disabled": "Đã tắt"
   }
 }

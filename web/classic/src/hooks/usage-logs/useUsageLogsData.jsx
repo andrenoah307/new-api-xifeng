@@ -522,6 +522,32 @@ export const useLogsData = () => {
             value: renderReasoningEffortTag(other.reasoning_effort),
           });
         }
+        if (other?.thinking_budget != null) {
+          let budgetLabel = other.thinking_budget;
+          if (other.thinking_budget === -1) {
+            budgetLabel = t('Dynamic');
+          } else if (other.thinking_budget === 0) {
+            budgetLabel = t('Thinking Disabled');
+          } else {
+            budgetLabel = renderNumber(other.thinking_budget);
+          }
+          expandDataLocal.push({
+            key: t('Thinking Budget (Request)'),
+            value: <Tag color='blue' size='small'>{budgetLabel}</Tag>,
+          });
+        }
+        if (other?.thinking_type) {
+          expandDataLocal.push({
+            key: t('Thinking Mode (Request)'),
+            value: <Tag color='blue' size='small'>{other.thinking_type}</Tag>,
+          });
+        }
+        if (other?.reasoning_tokens != null && other.reasoning_tokens > 0) {
+          expandDataLocal.push({
+            key: t('Reasoning Tokens (Actual)'),
+            value: <Tag color='green' size='small'>{renderNumber(other.reasoning_tokens)}</Tag>,
+          });
+        }
         if (other?.long_context_tier) {
           expandDataLocal.push({
             key: t('计费提示'),

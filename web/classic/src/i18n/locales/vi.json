@@ -5530,6 +5530,11 @@
     "错误数阈值": "Ngưỡng số lỗi",
     "冷却剩余 {{seconds}} 秒": "Còn {{seconds}} giây làm mát",
     "压力冷却上游报错最小样本数必须大于等于 0": "Số mẫu lỗi upstream tối thiểu của làm mát áp suất phải từ 0 trở lên",
-    "压力冷却上游报错绝对错误数必须大于等于 0": "Số lỗi upstream của làm mát áp suất phải từ 0 trở lên"
+    "压力冷却上游报错绝对错误数必须大于等于 0": "Số lỗi upstream của làm mát áp suất phải từ 0 trở lên",
+    "Thinking Budget (Request)": "Ngân sách suy luận (yêu cầu)",
+    "Thinking Mode (Request)": "Chế độ suy luận (yêu cầu)",
+    "Reasoning Tokens (Actual)": "Token suy luận (thực tế)",
+    "Dynamic": "Động",
+    "Thinking Disabled": "Đã tắt"
   }
 }
