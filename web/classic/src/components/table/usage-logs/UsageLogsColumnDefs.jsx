@@ -674,6 +674,40 @@ export const getLogsColumns = ({
       },
     },
     {
+      key: COLUMN_KEYS.REASONING_EFFORT,
+      title: t('Reasoning Effort'),
+      dataIndex: 'reasoning_effort',
+      render: (text, record) => {
+        if (
+          !(
+            record.type === 0 ||
+            record.type === 2 ||
+            record.type === 5 ||
+            record.type === 6
+          )
+        ) {
+          return <></>;
+        }
+
+        const other = getLogOther(record.other);
+        if (other?.reasoning_effort) {
+          const color =
+            other.reasoning_effort === 'high'
+              ? 'orange'
+              : other.reasoning_effort === 'medium'
+                ? 'amber'
+                : 'green';
+          return (
+            <Tag color={color} size='small'>
+              {other.reasoning_effort}
+            </Tag>
+          );
+        }
+
+        return <Typography.Text type='tertiary'>-</Typography.Text>;
+      },
+    },
+    {
       key: COLUMN_KEYS.MODEL,
       title: t('模型'),
       dataIndex: 'model_name',

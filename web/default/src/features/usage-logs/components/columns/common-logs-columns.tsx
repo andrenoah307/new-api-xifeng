@@ -615,6 +615,30 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
   })
   columns.push(
     {
+      id: 'reasoning_effort',
+      header: t('Reasoning Effort'),
+      cell: ({ row }) => {
+        const log = row.original
+        if (!isDisplayableLogType(log.type)) return null
+
+        const other = parseLogOther(log.other)
+        const effort = other?.reasoning_effort
+        if (!effort) {
+          return <span className='text-muted-foreground'>-</span>
+        }
+
+        let variant: StatusBadgeProps['variant'] = 'green'
+        if (effort === 'high') {
+          variant = 'orange'
+        } else if (effort === 'medium') {
+          variant = 'yellow'
+        }
+
+        return <StatusBadge label={effort} variant={variant} size='sm' />
+      },
+      meta: { label: t('Reasoning Effort') },
+    },
+    {
       accessorKey: 'model_name',
       header: t('Model'),
       cell: function ModelCell({ row }) {
