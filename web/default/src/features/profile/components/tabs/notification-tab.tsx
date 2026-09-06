@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { formatQuota } from '@/lib/format'
 import { ROLE } from '@/lib/roles'
 
 import { updateUserSettings } from '../../api'
@@ -133,6 +134,11 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
   }
 
   const notifyType = normalizeNotifyType(settings.notify_type)
+  const quotaWarningThreshold = settings.quota_warning_threshold
+  const hasValidQuotaWarningThreshold =
+    typeof quotaWarningThreshold === 'number' &&
+    Number.isFinite(quotaWarningThreshold) &&
+    quotaWarningThreshold > 0
 
   return (
     <div className='space-y-4 sm:space-y-6'>
@@ -172,7 +178,14 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
 
       {/* Warning Threshold */}
       <div className='space-y-1.5'>
-        <Label htmlFor='threshold'>{t('Quota Warning Threshold')}</Label>
+        <div className='flex items-center gap-2'>
+          <Label htmlFor='threshold'>{t('Quota Warning Threshold')}</Label>
+          {hasValidQuotaWarningThreshold && (
+            <span className='text-muted-foreground text-xs font-normal'>
+              ≈ {formatQuota(quotaWarningThreshold)}
+            </span>
+          )}
+        </div>
         <Input
           id='threshold'
           type='number'
@@ -183,6 +196,19 @@ export function NotificationTab({ profile, onUpdate }: NotificationTabProps) {
           }
           placeholder={t('Enter threshold')}
         />
+        <div className='flex flex-wrap gap-2'>
+          {[100000, 500000, 1000000, 5000000].map((value) => (
+            <Button
+              key={value}
+              type='button'
+              variant={quotaWarningThreshold === value ? 'secondary' : 'outline'}
+              size='sm'
+              onClick={() => updateField('quota_warning_threshold', value)}
+            >
+              {formatQuota(value)}
+            </Button>
+          ))}
+        </div>
         <p className='text-muted-foreground text-xs'>
           {t('Get notified when balance falls below this value')}
         </p>

@@ -35,6 +35,7 @@ import {
 import { IconMail, IconKey, IconBell, IconLink } from '@douyinfe/semi-icons';
 import { ShieldCheck, Bell, DollarSign, Settings } from 'lucide-react';
 import {
+  renderQuota,
   renderQuotaWithPrompt,
   API,
   showSuccess,
@@ -461,10 +462,10 @@ const NotificationSettings = ({
                   }
                   placeholder={t('请输入预警额度')}
                   data={[
-                    { value: 100000, label: '0.2$' },
-                    { value: 500000, label: '1$' },
-                    { value: 1000000, label: '2$' },
-                    { value: 5000000, label: '10$' },
+                    { value: 100000, label: renderQuota(100000) },
+                    { value: 500000, label: renderQuota(500000) },
+                    { value: 1000000, label: renderQuota(1000000) },
+                    { value: 5000000, label: renderQuota(5000000) },
                   ]}
                   onChange={(val) => handleFormChange('warningThreshold', val)}
                   prefix={<IconBell />}

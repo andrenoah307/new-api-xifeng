@@ -514,32 +514,16 @@ func checkAndSendQuotaNotify(relayInfo *relaycommon.RelayInfo, quota int, preCon
 		if shouldSendQuotaWarningEdge(stateKey, below) {
 			prompt := "您的额度即将用尽"
 			topUpLink := PaymentReturnURL("/console/topup")
-
-			// 根据通知方式生成不同的内容格式
-			var content string
-			var values []interface{}
-
-			notifyType := userSetting.NotifyType
-			if notifyType == "" {
-				notifyType = dto.NotifyTypeEmail
-			}
-
-			if notifyType == dto.NotifyTypeBark {
-				// Bark推送使用简短文本，不支持HTML
-				content = "{{value}}，剩余额度：{{value}}，请及时充值"
-				values = []interface{}{prompt, logger.FormatQuota(relayInfo.UserQuota)}
-			} else if notifyType == dto.NotifyTypeGotify {
-				content = "{{value}}，当前剩余额度为 {{value}}，请及时充值。"
-				values = []interface{}{prompt, logger.FormatQuota(relayInfo.UserQuota)}
-			} else {
-				// 默认内容格式，适用于Email和Webhook（支持HTML）
-				content = "{{value}}，当前剩余额度为 {{value}}，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='{{value}}'>{{value}}</a>"
-				values = []interface{}{prompt, logger.FormatQuota(relayInfo.UserQuota), topUpLink, topUpLink}
-			}
+			remaining := relayInfo.UserQuota - consumeQuota
+			content, values := buildQuotaWarningNotify(userSetting.NotifyType, prompt, remaining, topUpLink)
 
 			err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaExceed, prompt, content, values))
 			if err != nil {
 				common.SysError(fmt.Sprintf("failed to send quota notify to user %d: %s", relayInfo.UserId, err.Error()))
+				// 限流拒绝说明近期已发过，不是投递失败，释放闩锁只会造成每次结算重试。
+				if !errors.Is(err, ErrNotificationLimitExceeded) {
+					releaseQuotaWarningLatch(stateKey)
+				}
 			}
 		}
 	})
@@ -571,29 +555,34 @@ func checkAndSendSubscriptionQuotaNotify(relayInfo *relaycommon.RelayInfo) {
 
 		prompt := "您的订阅额度即将用尽"
 		topUpLink := PaymentReturnURL("/console/topup")
-
-		var content string
-		var values []interface{}
-		notifyType := userSetting.NotifyType
-		if notifyType == "" {
-			notifyType = dto.NotifyTypeEmail
-		}
-
-		if notifyType == dto.NotifyTypeBark {
-			content = "{{value}}，剩余额度：{{value}}，请及时充值"
-			values = []interface{}{prompt, logger.FormatQuota(int(remaining))}
-		} else if notifyType == dto.NotifyTypeGotify {
-			content = "{{value}}，当前剩余额度为 {{value}}，请及时充值。"
-			values = []interface{}{prompt, logger.FormatQuota(int(remaining))}
-		} else {
-			content = "{{value}}，当前剩余额度为 {{value}}，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='{{value}}'>{{value}}</a>"
-			values = []interface{}{prompt, logger.FormatQuota(int(remaining)), topUpLink, topUpLink}
-		}
+		content, values := buildQuotaWarningNotify(userSetting.NotifyType, prompt, int(remaining), topUpLink)
 
 		if err := NotifyUser(relayInfo.UserId, relayInfo.UserEmail, relayInfo.UserSetting, dto.NewNotify(dto.NotifyTypeQuotaExceed, prompt, content, values)); err != nil {
 			common.SysError(fmt.Sprintf("failed to send subscription quota notify to user %d: %s", relayInfo.UserId, err.Error()))
+			if !errors.Is(err, ErrNotificationLimitExceeded) {
+				releaseQuotaWarningLatch(stateKey)
+			}
 		}
 	})
+}
+
+// buildQuotaWarningNotify 生成额度预警的正文模板与占位值。
+// 钱包与订阅两条预警链路共用同一份实现，避免文案再次漂移
+// （钱包路径曾经渲染扣费前的余额，比实际剩余多一次本次消费）。
+func buildQuotaWarningNotify(notifyType string, prompt string, remaining int, topUpLink string) (string, []interface{}) {
+	switch notifyType {
+	case dto.NotifyTypeBark:
+		// Bark 推送使用简短文本，不支持 HTML
+		return "{{value}}，剩余额度：{{value}}，请及时充值",
+			[]interface{}{prompt, logger.FormatQuota(remaining)}
+	case dto.NotifyTypeGotify:
+		return "{{value}}，当前剩余额度为 {{value}}，请及时充值。",
+			[]interface{}{prompt, logger.FormatQuota(remaining)}
+	default:
+		// 默认格式，适用于 Email 和 Webhook（支持 HTML）
+		return "{{value}}，当前剩余额度为 {{value}}，为了不影响您的使用，请及时充值。<br/>充值链接：<a href='{{value}}'>{{value}}</a>",
+			[]interface{}{prompt, logger.FormatQuota(remaining), topUpLink, topUpLink}
+	}
 }
 
 // quotaWarnStateStore 是 Redis 未启用时的内存回退，记录每个状态键当前是否处于「已低于阈值」。
@@ -610,19 +599,17 @@ const quotaWarnStateTTL = 30 * 24 * time.Hour
 // 优先用 Redis（多实例一致），未启用时退化为进程内 sync.Map。
 func shouldSendQuotaWarningEdge(stateKey string, below bool) bool {
 	if common.RedisEnabled {
-		prev, err := common.RedisGet(stateKey)
-		wasBelow := err == nil && prev == "1"
 		if below {
-			if wasBelow {
+			acquired, err := common.RedisSetNX(stateKey, "1", quotaWarnStateTTL)
+			if err != nil {
+				// Redis 故障时不发：通知限流回退同样依赖 Redis，这里放行会让每一次结算都发一条。
+				common.SysError("failed to acquire quota warn state: " + err.Error())
 				return false
 			}
-			if setErr := common.RedisSet(stateKey, "1", quotaWarnStateTTL); setErr != nil {
-				common.SysError("failed to set quota warn state: " + setErr.Error())
-			}
-			return true
+			return acquired
 		}
-		if wasBelow {
-			_ = common.RedisDel(stateKey)
+		if err := common.RedisDel(stateKey); err != nil {
+			common.SysError("failed to clear quota warn state: " + err.Error())
 		}
 		return false
 	}
@@ -640,4 +627,20 @@ func shouldSendQuotaWarningEdge(stateKey string, below bool) bool {
 		quotaWarnStateStore.Delete(stateKey)
 	}
 	return false
+}
+
+// quotaWarnFailureRetryTTL 发送失败后闩锁保留的时长。
+const quotaWarnFailureRetryTTL = 10 * time.Minute
+
+// releaseQuotaWarningLatch 在预警发送失败后把闩锁 TTL 缩短到重试窗口，
+// 让后续结算有机会重发。不直接删除：删除会让紧接着的每一次结算都重试，形成风暴。
+// 内存回退没有 TTL，只能删除；此时靠 CheckNotificationLimit 的 2 次/10 分钟兜底。
+func releaseQuotaWarningLatch(stateKey string) {
+	if common.RedisEnabled {
+		if err := common.RedisSet(stateKey, "1", quotaWarnFailureRetryTTL); err != nil {
+			common.SysError("failed to shorten quota warn state: " + err.Error())
+		}
+		return
+	}
+	quotaWarnStateStore.Delete(stateKey)
 }
