@@ -97,6 +97,12 @@ export function OfflineExportDialog({
                 <span>{filters.token}</span>
               </div>
             )}
+            {filters.upstreamRequestId && (
+              <div className='flex justify-between'>
+                <span className='text-muted-foreground'>{t('Upstream Request ID')}</span>
+                <span>{filters.upstreamRequestId}</span>
+              </div>
+            )}
             {logType && (
               <div className='flex justify-between'>
                 <span className='text-muted-foreground'>{t('Log Type')}</span>

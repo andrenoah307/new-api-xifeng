@@ -448,6 +448,7 @@ export interface SubmitOfflineExportParams {
     type: number
     model_name?: string
     token_name?: string
+    upstream_request_id?: string
   }
   email?: string
 }

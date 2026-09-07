@@ -112,6 +112,7 @@ export const useLogsData = () => {
     channel: '',
     group: '',
     request_id: '',
+    upstream_request_id: '',
     dateRange: [
       timestamp2string(getTodayStartTimestamp()),
       timestamp2string(getTodayEndTimestamp()),
@@ -269,6 +270,7 @@ export const useLogsData = () => {
       channel: formValues.channel || '',
       group: formValues.group || '',
       request_id: formValues.request_id || '',
+      upstream_request_id: formValues.upstream_request_id || '',
       logType: formValues.logType ? parseInt(formValues.logType) : 0,
     };
   };
@@ -282,12 +284,13 @@ export const useLogsData = () => {
       end_timestamp,
       group,
       request_id,
+      upstream_request_id,
       logType: formLogType,
     } = getFormValues();
     const currentLogType = formLogType !== undefined ? formLogType : logType;
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
-    let url = `/api/log/self/stat?type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&request_id=${request_id}`;
+    let url = `/api/log/self/stat?type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&request_id=${request_id}&upstream_request_id=${upstream_request_id}`;
     url = encodeURI(url);
     try {
       let res = await API.get(url, { skipErrorHandler: true });
@@ -312,12 +315,13 @@ export const useLogsData = () => {
       channel,
       group,
       request_id,
+      upstream_request_id,
       logType: formLogType,
     } = getFormValues();
     const currentLogType = formLogType !== undefined ? formLogType : logType;
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
-    let url = `/api/log/stat?type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&request_id=${request_id}`;
+    let url = `/api/log/stat?type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&request_id=${request_id}&upstream_request_id=${upstream_request_id}`;
     url = encodeURI(url);
     try {
       let res = await API.get(url, { skipErrorHandler: true });
@@ -381,6 +385,7 @@ export const useLogsData = () => {
       lines,
       modelName: log?.model_name || '',
       requestId: log?.request_id || '',
+      upstreamRequestId: log?.upstream_request_id || '',
       requestPath: other?.request_path || '',
     });
     setShowParamOverrideModal(true);
@@ -420,6 +425,12 @@ export const useLogsData = () => {
         expandDataLocal.push({
           key: t('Request ID'),
           value: logs[i].request_id,
+        });
+      }
+      if (logs[i].upstream_request_id) {
+        expandDataLocal.push({
+          key: t('Upstream Request ID'),
+          value: logs[i].upstream_request_id,
         });
       }
       if (other?.ws || other?.audio) {
@@ -865,6 +876,7 @@ export const useLogsData = () => {
       channel,
       group,
       request_id,
+      upstream_request_id,
       logType: formLogType,
     } = getFormValues();
 
@@ -878,9 +890,9 @@ export const useLogsData = () => {
     let localStartTimestamp = Date.parse(start_timestamp) / 1000;
     let localEndTimestamp = Date.parse(end_timestamp) / 1000;
     if (isAdminUser) {
-      url = `/api/log/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&request_id=${request_id}`;
+      url = `/api/log/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&username=${username}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&channel=${channel}&group=${group}&request_id=${request_id}&upstream_request_id=${upstream_request_id}`;
     } else {
-      url = `/api/log/self/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&request_id=${request_id}`;
+      url = `/api/log/self/?p=${startIdx}&page_size=${pageSize}&type=${currentLogType}&token_name=${token_name}&model_name=${model_name}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}&group=${group}&request_id=${request_id}&upstream_request_id=${upstream_request_id}`;
     }
     if (skipCount && logCount > 0 && Number.isFinite(logCount)) {
       url += `&total_count=${logCount}`;
@@ -992,6 +1004,7 @@ export const useLogsData = () => {
       if (formValues.model_name) params.set('model_name', formValues.model_name);
       if (formValues.group) params.set('group', formValues.group);
       if (formValues.request_id) params.set('request_id', formValues.request_id);
+      if (formValues.upstream_request_id) params.set('upstream_request_id', formValues.upstream_request_id);
       if (isAdminUser && formValues.username) params.set('username', formValues.username);
       if (isAdminUser && formValues.channel) params.set('channel', formValues.channel);
 

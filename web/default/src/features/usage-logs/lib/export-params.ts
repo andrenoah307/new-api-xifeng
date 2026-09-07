@@ -67,5 +67,6 @@ export function buildOfflineExportFilters(
     type: Number(logType ?? LOG_TYPE_ALL_VALUE),
     ...(filters.model ? { model_name: filters.model } : {}),
     ...(filters.token ? { token_name: filters.token } : {}),
+    ...(filters.upstreamRequestId ? { upstream_request_id: filters.upstreamRequestId } : {}),
   }
 }

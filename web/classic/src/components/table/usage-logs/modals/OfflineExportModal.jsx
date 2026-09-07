@@ -51,6 +51,9 @@ export default function OfflineExportModal({
     if (filters?.token_name) {
       exportFilters.token_name = filters.token_name;
     }
+    if (filters?.upstream_request_id) {
+      exportFilters.upstream_request_id = filters.upstream_request_id;
+    }
     onSubmit(exportFilters);
   };
 
@@ -79,6 +82,7 @@ export default function OfflineExportModal({
           <div>{t('时间范围')}: {formatTime(filters?.start_timestamp)} ~ {formatTime(filters?.end_timestamp)}</div>
           {filters?.model_name && <div>{t('模型名称')}: {filters.model_name}</div>}
           {filters?.token_name && <div>{t('令牌名称')}: {filters.token_name}</div>}
+          {filters?.upstream_request_id && <div>{t('Upstream Request ID')}: {filters.upstream_request_id}</div>}
         </div>
       </div>
       <div style={{ marginBottom: 12 }}>

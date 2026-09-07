@@ -61,6 +61,7 @@ const LogsPage = () => {
       end_timestamp: dateRange[1] ? Math.floor(Date.parse(dateRange[1]) / 1000) : undefined,
       model_name: formValues.model_name || undefined,
       token_name: formValues.token_name || undefined,
+      upstream_request_id: formValues.upstream_request_id || undefined,
     };
   };
 

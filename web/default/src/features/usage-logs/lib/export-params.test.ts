@@ -163,3 +163,15 @@ test('includes the selected log type in offline export filters, including all ty
     }
   )
 })
+
+test('includes the upstream request ID in offline export filters', () => {
+  assert.deepEqual(
+    buildOfflineExportFilters({ startTime, endTime, upstreamRequestId: 'upstream-456' }, '2'),
+    {
+      start_timestamp: 1_700_000_000,
+      end_timestamp: 1_700_000_123,
+      type: 2,
+      upstream_request_id: 'upstream-456',
+    }
+  )
+})

@@ -253,6 +253,7 @@
     "Reasoning Effort": "Усилие рассуждения",
     "Redis 队列": "",
     "Request ID": "Request ID",
+    "Upstream Request ID": "ID вышестоящего запроса",
     "S3 Endpoint（可选，MinIO/R2 使用）": "",
     "SMTP 发送者邮箱": "Email отправителя SMTP",
     "SMTP 服务器地址": "Адрес сервера SMTP",

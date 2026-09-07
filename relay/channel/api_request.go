@@ -748,9 +748,9 @@ func doRequestWithTimeouts(c *gin.Context, req *http.Request, info *common.Relay
 		return nil, errors.New("resp is nil")
 	}
 
-	if upID := resp.Header.Get(common2.RequestIdKey); upID != "" {
-		c.Set(common2.UpstreamRequestIdKey, upID)
-	}
+	// Retries reuse the same *gin.Context. Always overwrite so the log carries
+	// the ID from the final successful attempt instead of stale failed-attempt data.
+	c.Set(common2.UpstreamRequestIdKey, common2.UpstreamRequestIdFromHeader(resp.Header))
 
 	_ = req.Body.Close()
 	_ = c.Request.Body.Close()

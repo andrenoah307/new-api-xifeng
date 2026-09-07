@@ -45,6 +45,13 @@ func TestExportFiltersAllowValidLongRange(t *testing.T) {
 	assert.NoError(t, validateExportFilters(filters))
 }
 
+func TestExportFiltersPreserveUpstreamRequestID(t *testing.T) {
+	filters, err := parseExportFilters(`{"start_timestamp":100,"end_timestamp":200,"upstream_request_id":"upstream-match"}`)
+	require.NoError(t, err)
+
+	assert.Equal(t, "upstream-match", filters.UpstreamRequestId)
+}
+
 func TestLogExportWorkerAppliesTypeFilter(t *testing.T) {
 	t.Chdir(t.TempDir())
 	require.NoError(t, os.MkdirAll(exportDir, 0o755))

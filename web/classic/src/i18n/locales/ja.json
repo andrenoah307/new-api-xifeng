@@ -228,6 +228,7 @@
     "Reasoning Effort": "Reasoning Effort",
     "Redis 队列": "",
     "Request ID": "Request ID",
+    "Upstream Request ID": "上流リクエストID",
     "S3 Endpoint（可选，MinIO/R2 使用）": "",
     "SMTP 发送者邮箱": "SMTP 送信元メールアドレス",
     "SMTP 服务器地址": "SMTP サーバーURL",

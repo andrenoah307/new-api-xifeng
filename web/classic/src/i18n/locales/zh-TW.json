@@ -227,6 +227,7 @@
     "Reasoning Effort": "推理强度",
     "Redis 队列": "",
     "Request ID": "",
+    "Upstream Request ID": "上游請求 ID",
     "S3 Endpoint（可选，MinIO/R2 使用）": "",
     "SMTP 发送者邮箱": "SMTP 發送者信箱",
     "SMTP 服务器地址": "SMTP 伺服器位址",

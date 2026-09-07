@@ -222,7 +222,7 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 	_, _ = csvFile.Write([]byte{0xEF, 0xBB, 0xBF})
 	headers := []string{
 		"时间", "类型", "令牌名称", "模型名称", "花费",
-		"提示词tokens", "补全tokens", "请求耗时ms", "分组", "请求ID", "详情",
+		"提示词tokens", "补全tokens", "请求耗时ms", "分组", "请求ID", "上游请求ID", "详情",
 	}
 	if err := writer.Write(headers); err != nil {
 		return 0, 0, fmt.Errorf("write csv header: %w", err)
@@ -242,7 +242,7 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 
 	streamErr := model.ExportUserLogs(ctx, task.UserId, filters.Type,
 		filters.StartTimestamp, filters.EndTimestamp,
-		filters.ModelName, filters.TokenName, filters.Group, "", "",
+		filters.ModelName, filters.TokenName, filters.Group, "", filters.UpstreamRequestId,
 		func(logs []*model.Log) error {
 			for _, log := range logs {
 				if truncated {
@@ -259,6 +259,7 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 					strconv.Itoa(log.UseTime),
 					log.Group,
 					log.RequestId,
+					log.UpstreamRequestId,
 					log.Content,
 				}
 				if err := writer.Write(record); err != nil {
@@ -440,12 +441,13 @@ func (ec *logExportCenter) cleanupExpiredFiles() {
 // ---------------------------------------------------------------------------
 
 type exportFilters struct {
-	StartTimestamp int64  `json:"start_timestamp"`
-	EndTimestamp   int64  `json:"end_timestamp"`
-	Type           int    `json:"type"`
-	ModelName      string `json:"model_name"`
-	TokenName      string `json:"token_name"`
-	Group          string `json:"group"`
+	StartTimestamp    int64  `json:"start_timestamp"`
+	EndTimestamp      int64  `json:"end_timestamp"`
+	Type              int    `json:"type"`
+	ModelName         string `json:"model_name"`
+	TokenName         string `json:"token_name"`
+	Group             string `json:"group"`
+	UpstreamRequestId string `json:"upstream_request_id"`
 }
 
 func parseExportFilters(filtersJSON string) (*exportFilters, error) {

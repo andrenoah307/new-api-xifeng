@@ -163,6 +163,7 @@
     "Turnstile Secret Key": "Turnstile Secret Key",
     "Turnstile Site Key": "Turnstile Site Key",
     "Unix时间戳": "Unix时间戳",
+    "Upstream Request ID": "上游请求 ID",
     "Uptime Kuma地址": "Uptime Kuma地址",
     "Uptime Kuma监控分类管理，可以配置多个监控分类用于服务状态展示（最多20个）": "Uptime Kuma监控分类管理，可以配置多个监控分类用于服务状态展示（最多20个）",
     "URL链接": "URL链接",
