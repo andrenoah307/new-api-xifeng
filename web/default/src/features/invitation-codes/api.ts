@@ -4,6 +4,12 @@ import { api } from '@/lib/api'
 // Types
 // ============================================================================
 
+export interface ApiResponse<T = unknown> {
+  success: boolean
+  message?: string
+  data?: T
+}
+
 export interface InvitationCode {
   id: number
   name: string
@@ -91,10 +97,9 @@ export async function getInvitationCode(
 
 export async function createInvitationCodes(
   params: CreateInvitationCodeParams
-): Promise<string[]> {
+): Promise<ApiResponse<string[]>> {
   const res = await api.post('/api/invitation_code/', params)
-  const data = res.data?.data
-  return Array.isArray(data) ? data : []
+  return res.data
 }
 
 export async function updateInvitationCode(

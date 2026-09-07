@@ -155,6 +155,7 @@ export function UsersTable() {
   const { table } = useDataTable({
     data: users,
     columns,
+    getRowId: (row) => String(row.id),
     enableRowSelection: true,
     columnFilters,
     globalFilter,

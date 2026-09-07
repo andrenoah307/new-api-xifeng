@@ -3,6 +3,8 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
@@ -75,6 +77,10 @@ func AddRedemption(c *gin.Context) {
 	}
 	if utf8.RuneCountInString(redemption.Name) == 0 || utf8.RuneCountInString(redemption.Name) > 20 {
 		common.ApiErrorI18n(c, i18n.MsgRedemptionNameLength)
+		return
+	}
+	if strings.ContainsFunc(redemption.Name, unicode.IsControl) {
+		common.ApiErrorI18n(c, i18n.MsgRedemptionNameInvalidChars)
 		return
 	}
 	if redemption.Count <= 0 {
@@ -155,6 +161,10 @@ func UpdateRedemption(c *gin.Context) {
 	if statusOnly == "" {
 		if valid, msg := validateExpiredTime(c, redemption.ExpiredTime); !valid {
 			c.JSON(http.StatusOK, gin.H{"success": false, "message": msg})
+			return
+		}
+		if strings.ContainsFunc(redemption.Name, unicode.IsControl) {
+			common.ApiErrorI18n(c, i18n.MsgRedemptionNameInvalidChars)
 			return
 		}
 		// If you add more editable fields, please also update redemption.Update().

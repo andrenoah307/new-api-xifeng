@@ -1,21 +1,14 @@
-import { useEffect, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { useForm, type Resolver } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { z } from 'zod'
+
+import { GeneratedCodesDialog } from '@/components/generated-codes-dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
 import {
   Form,
   FormControl,
@@ -25,6 +18,16 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+
 import {
   createInvitationCodes,
   updateInvitationCode,
@@ -43,21 +46,16 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-function downloadTextFile(text: string, filename: string) {
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
 export function EditInvitationCodeSheet() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { editingCode, sheetOpen, closeSheet } = useInvitationCodes()
   const isEdit = editingCode !== null
+  const [generatedCodes, setGeneratedCodes] = useState<{
+    codes: string[]
+    partial?: boolean
+    filename: string
+  } | null>(null)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as Resolver<FormValues>,
@@ -72,7 +70,8 @@ export function EditInvitationCodeSheet() {
 
   const { data: loadedCode } = useQuery({
     queryKey: invitationCodesQueryKeys.detail(editingCode?.id ?? 0),
-    queryFn: () => getInvitationCode(editingCode!.id),
+    queryFn: () =>
+      editingCode ? getInvitationCode(editingCode.id) : Promise.resolve(null),
     enabled: isEdit && sheetOpen,
   })
 
@@ -104,18 +103,23 @@ export function EditInvitationCodeSheet() {
 
   const createMutation = useMutation({
     mutationFn: createInvitationCodes,
-    onSuccess: (codes) => {
-      toast.success(t('Created successfully'))
+    onSuccess: (result, variables) => {
+      const codes = Array.isArray(result.data) ? result.data : []
+      if (!result.success && codes.length === 0) return
+      if (result.success) {
+        toast.success(t('Created successfully'))
+      }
       queryClient.invalidateQueries({
         queryKey: invitationCodesQueryKeys.lists(),
       })
       closeSheet()
       if (codes.length > 0) {
-        const text = codes.join('\n')
-        downloadTextFile(
-          text,
-          `${form.getValues('name') || 'invitation-codes'}.txt`
-        )
+        const generated = {
+          codes,
+          filename: variables.name?.trim() || 'invitation-codes',
+          ...(result.success ? {} : { partial: true }),
+        }
+        setGeneratedCodes(generated)
       }
     },
   })
@@ -132,6 +136,9 @@ export function EditInvitationCodeSheet() {
   })
 
   const isPending = createMutation.isPending || updateMutation.isPending
+  let submitLabel = t('Generate')
+  if (isEdit) submitLabel = t('Save')
+  if (isPending) submitLabel = t('Saving...')
 
   const onSubmit = useCallback(
     (values: FormValues) => {
@@ -264,16 +271,22 @@ export function EditInvitationCodeSheet() {
             <SheetFooter className="mt-auto">
               <Button type="submit" disabled={isPending}>
                 <Save className="mr-1.5 h-4 w-4" />
-                {isPending
-                  ? t('Saving...')
-                  : isEdit
-                    ? t('Save')
-                    : t('Generate')}
+                {submitLabel}
               </Button>
             </SheetFooter>
           </form>
         </Form>
       </SheetContent>
+      <GeneratedCodesDialog
+        open={generatedCodes !== null}
+        onOpenChange={(dialogOpen) => {
+          if (!dialogOpen) setGeneratedCodes(null)
+        }}
+        title={t('Invitation codes created')}
+        codes={generatedCodes?.codes ?? []}
+        filename={generatedCodes?.filename ?? 'invitation-codes'}
+        partial={generatedCodes?.partial}
+      />
     </Sheet>
   )
 }

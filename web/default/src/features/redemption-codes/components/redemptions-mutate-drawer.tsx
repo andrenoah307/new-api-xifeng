@@ -30,6 +30,7 @@ import {
   sideDrawerFormClassName,
   sideDrawerHeaderClassName,
 } from '@/components/drawer-layout'
+import { GeneratedCodesDialog } from '@/components/generated-codes-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -63,7 +64,7 @@ import {
   transformFormDataToPayload,
   transformRedemptionToFormDefaults,
 } from '../lib'
-import { type Redemption } from '../types'
+import type { Redemption } from '../types'
 import { useRedemptions } from './redemptions-provider'
 
 type RedemptionsMutateDrawerProps = {
@@ -81,6 +82,11 @@ export function RedemptionsMutateDrawer({
   const isUpdate = !!currentRow
   const { triggerRefresh } = useRedemptions()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [generatedCodes, setGeneratedCodes] = useState<{
+    codes: string[]
+    partial?: boolean
+    filename: string
+  } | null>(null)
 
   const form = useForm<RedemptionFormValues>({
     resolver: zodResolver(getRedemptionFormSchema(t)),
@@ -91,11 +97,13 @@ export function RedemptionsMutateDrawer({
   useEffect(() => {
     if (open && isUpdate && currentRow) {
       // For update, fetch fresh data
-      getRedemption(currentRow.id).then((result) => {
-        if (result.success && result.data) {
-          form.reset(transformRedemptionToFormDefaults(result.data))
-        }
-      })
+      void getRedemption(currentRow.id)
+        .then((result) => {
+          if (result.success && result.data) {
+            form.reset(transformRedemptionToFormDefaults(result.data))
+          }
+        })
+        .catch(() => {})
     } else if (open && !isUpdate) {
       // For create, reset to defaults
       form.reset(REDEMPTION_FORM_DEFAULT_VALUES)
@@ -120,8 +128,9 @@ export function RedemptionsMutateDrawer({
       } else {
         // Create mode
         const result = await createRedemption(basePayload)
+        const codes = Array.isArray(result.data) ? result.data : []
         if (result.success) {
-          const count = result.data?.length || 0
+          const count = codes.length
           toast.success(
             count > 1
               ? t('Successfully created {{count}} redemption codes', {
@@ -131,6 +140,20 @@ export function RedemptionsMutateDrawer({
           )
           onOpenChange(false)
           triggerRefresh()
+          if (codes.length > 0) {
+            setGeneratedCodes({
+              codes,
+              filename: data.name?.trim() || 'redemption-codes',
+            })
+          }
+        } else if (codes.length > 0) {
+          onOpenChange(false)
+          triggerRefresh()
+          setGeneratedCodes({
+            codes,
+            partial: true,
+            filename: data.name?.trim() || 'redemption-codes',
+          })
         }
       }
     } finally {
@@ -226,7 +249,7 @@ export function RedemptionsMutateDrawer({
                         step={tokensOnly ? 1 : 0.01}
                         placeholder={quotaPlaceholder}
                         onChange={(e) =>
-                          field.onChange(parseFloat(e.target.value) || 0)
+                          field.onChange(Number.parseFloat(e.target.value) || 0)
                         }
                       />
                     </FormControl>
@@ -314,7 +337,9 @@ export function RedemptionsMutateDrawer({
                           max='100'
                           placeholder={t('Number of codes to create')}
                           onChange={(e) =>
-                            field.onChange(parseInt(e.target.value, 10) || 1)
+                            field.onChange(
+                              Number.parseInt(e.target.value, 10) || 1
+                            )
                           }
                         />
                       </FormControl>
@@ -338,6 +363,16 @@ export function RedemptionsMutateDrawer({
           </Button>
         </SheetFooter>
       </SheetContent>
+      <GeneratedCodesDialog
+        open={generatedCodes !== null}
+        onOpenChange={(dialogOpen) => {
+          if (!dialogOpen) setGeneratedCodes(null)
+        }}
+        title={t('Redemption codes created')}
+        codes={generatedCodes?.codes ?? []}
+        filename={generatedCodes?.filename ?? 'redemption-codes'}
+        partial={generatedCodes?.partial}
+      />
     </Sheet>
   )
 }

@@ -61,6 +61,7 @@ const (
 // Redemption related messages
 const (
 	MsgRedemptionNameLength        = "redemption.name_length"
+	MsgRedemptionNameInvalidChars  = "redemption.name_invalid_chars"
 	MsgRedemptionCountPositive     = "redemption.count_positive"
 	MsgRedemptionCountMax          = "redemption.count_max"
 	MsgRedemptionCreateFailed      = "redemption.create_failed"

@@ -5536,6 +5536,10 @@
     "Thinking Mode (Request)": "Chế độ suy luận (yêu cầu)",
     "Reasoning Tokens (Actual)": "Token suy luận (thực tế)",
     "Dynamic": "Động",
-    "Thinking Disabled": "Đã tắt"
+    "Thinking Disabled": "Đã tắt",
+    "下载选中": "Tải xuống mục đã chọn",
+    "请立即保存这些码，关闭本对话框后将无法再次查看。": "Hãy lưu các mã này ngay. Chúng sẽ không được hiển thị lại sau khi bạn đóng hộp thoại.",
+    "已显示 {{shown}} / {{count}}": "Đang hiển thị {{shown}} trên {{count}}",
+    "创建中途失败，出错前已生成 {{count}} 个码。": "Việc tạo đã dừng giữa chừng. {{count}} mã đã được tạo trước khi xảy ra lỗi."
   }
 }

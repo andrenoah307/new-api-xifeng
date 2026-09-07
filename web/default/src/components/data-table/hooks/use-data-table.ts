@@ -364,6 +364,7 @@ export function useDataTable<TData>(options: UseDataTableOptions<TData>) {
     initialPagination,
     options.onPaginationChange
   )
+  const manualPaginationKeyRef = React.useRef<string | null>(null)
 
   const resolvedPageCount =
     explicitPageCount ??
@@ -425,6 +426,29 @@ export function useDataTable<TData>(options: UseDataTableOptions<TData>) {
   React.useEffect(() => {
     ensurePageInRange?.(actualPageCount)
   }, [actualPageCount, ensurePageInRange])
+
+  // Manual pagination replaces the data page, so the selection set must reset.
+  React.useEffect(() => {
+    if (!manualPagination) {
+      manualPaginationKeyRef.current = null
+      return
+    }
+
+    const paginationKey = `${pagination.pageIndex}:${pagination.pageSize}`
+    if (manualPaginationKeyRef.current === null) {
+      manualPaginationKeyRef.current = paginationKey
+      return
+    }
+    if (manualPaginationKeyRef.current === paginationKey) return
+
+    manualPaginationKeyRef.current = paginationKey
+    onRowSelectionChange({})
+  }, [
+    manualPagination,
+    onRowSelectionChange,
+    pagination.pageIndex,
+    pagination.pageSize,
+  ])
 
   React.useEffect(() => {
     if (

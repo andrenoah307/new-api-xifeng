@@ -5168,6 +5168,10 @@
     "Thinking Mode (Request)": "思考模式（请求设置）",
     "Reasoning Tokens (Actual)": "推理 Tokens（上游实际）",
     "Dynamic": "动态",
-    "Thinking Disabled": "已关闭"
+    "Thinking Disabled": "已关闭",
+    "下载选中": "下载选中",
+    "请立即保存这些码，关闭本对话框后将无法再次查看。": "请立即保存这些码，关闭本对话框后将无法再次查看。",
+    "已显示 {{shown}} / {{count}}": "已显示 {{shown}} / {{count}}",
+    "创建中途失败，出错前已生成 {{count}} 个码。": "创建中途失败，出错前已生成 {{count}} 个码。"
   }
 }

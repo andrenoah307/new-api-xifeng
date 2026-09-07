@@ -5253,6 +5253,10 @@
     "Thinking Mode (Request)": "Thinking Mode (Request)",
     "Reasoning Tokens (Actual)": "Reasoning Tokens (Actual)",
     "Dynamic": "Dynamic",
-    "Thinking Disabled": "Disabled"
+    "Thinking Disabled": "Disabled",
+    "下载选中": "Download selected",
+    "请立即保存这些码，关闭本对话框后将无法再次查看。": "Save these codes now. They will not be shown again after you close this dialog.",
+    "已显示 {{shown}} / {{count}}": "Showing {{shown}} of {{count}}",
+    "创建中途失败，出错前已生成 {{count}} 个码。": "Creation stopped partway. {{count}} code(s) were generated before the error."
   }
 }

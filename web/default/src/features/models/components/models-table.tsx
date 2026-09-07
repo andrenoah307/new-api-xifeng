@@ -158,6 +158,7 @@ export function ModelsTable() {
   const { table } = useDataTable({
     data: models,
     columns,
+    getRowId: (row) => String(row.id),
     totalCount,
     initialColumnVisibility: {
       description: false,

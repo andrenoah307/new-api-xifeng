@@ -18,7 +18,13 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import { useState, useEffect } from 'react';
-import { API, showError, showSuccess, copy } from '../../helpers';
+import {
+  API,
+  copy,
+  downloadTextAsFile,
+  showError,
+  showSuccess,
+} from '../../helpers';
 import { ITEMS_PER_PAGE } from '../../constants';
 import {
   REDEMPTION_ACTIONS,
@@ -238,6 +244,14 @@ export const useRedemptionsData = () => {
     }
   };
 
+  const getSelectedRedemptionsText = () => {
+    let keys = '';
+    for (let i = 0; i < selectedKeys.length; i++) {
+      keys += selectedKeys[i].name + '    ' + selectedKeys[i].key + '\n';
+    }
+    return keys;
+  };
+
   // Batch copy redemption codes
   const batchCopyRedemptions = async () => {
     if (selectedKeys.length === 0) {
@@ -245,11 +259,17 @@ export const useRedemptionsData = () => {
       return;
     }
 
-    let keys = '';
-    for (let i = 0; i < selectedKeys.length; i++) {
-      keys += selectedKeys[i].name + '    ' + selectedKeys[i].key + '\n';
+    await copyText(getSelectedRedemptionsText());
+  };
+
+  // Batch download redemption codes
+  const batchDownloadRedemptions = () => {
+    if (selectedKeys.length === 0) {
+      showError(t('请至少选择一个兑换码！'));
+      return;
     }
-    await copyText(keys);
+
+    downloadTextAsFile(getSelectedRedemptionsText(), 'redemption-codes.txt');
   };
 
   // Batch delete redemption codes (clear invalid)
@@ -352,6 +372,7 @@ export const useRedemptionsData = () => {
 
     // Batch operations
     batchCopyRedemptions,
+    batchDownloadRedemptions,
     batchDeleteRedemptions,
 
     // Translation function

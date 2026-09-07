@@ -374,6 +374,7 @@ export function ChannelsTable() {
   const { table } = useDataTable({
     data: channels,
     columns,
+    getRowId: (row) => String(row.id),
     totalCount,
     sorting,
     initialColumnVisibility: {

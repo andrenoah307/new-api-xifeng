@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import {
@@ -12,13 +11,16 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { useMediaQuery } from '@/hooks'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useTableUrlState } from '@/hooks/use-table-url-state'
+
 import { DataTablePage } from '@/components/data-table'
+import { useMediaQuery } from '@/hooks'
+import { useTableUrlState } from '@/hooks/use-table-url-state'
+
 import { getRules } from '../api'
-import { useRulesColumns } from './rules-columns'
 import { useAutoGroup } from './auto-group-provider'
+import { useRulesColumns } from './rules-columns'
 
 const route = getRouteApi('/_authenticated/auto-group/')
 
@@ -73,6 +75,7 @@ export function RulesTable() {
   const table = useReactTable({
     data: rules,
     columns,
+    getRowId: (row) => String(row.id),
     state: {
       sorting,
       columnVisibility,
@@ -97,6 +100,19 @@ export function RulesTable() {
     manualPagination: true,
     pageCount: Math.ceil((data?.total || 0) / pagination.pageSize),
   })
+
+  const manualPaginationKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    const paginationKey = `${pagination.pageIndex}:${pagination.pageSize}`
+    if (manualPaginationKeyRef.current === null) {
+      manualPaginationKeyRef.current = paginationKey
+      return
+    }
+    if (manualPaginationKeyRef.current === paginationKey) return
+
+    manualPaginationKeyRef.current = paginationKey
+    setRowSelection({})
+  }, [pagination.pageIndex, pagination.pageSize])
 
   const pageCount = table.getPageCount()
   useEffect(() => {

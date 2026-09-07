@@ -21,7 +21,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   API,
-  downloadTextAsFile,
   showError,
   showSuccess,
   renderQuota,
@@ -35,7 +34,6 @@ import {
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
 import {
   Button,
-  Modal,
   SideSheet,
   Space,
   Spin,
@@ -54,6 +52,7 @@ import {
   IconClose,
   IconGift,
 } from '@douyinfe/semi-icons';
+import GeneratedCodesModal from '../../../common/modals/GeneratedCodesModal';
 
 const { Text, Title } = Typography;
 
@@ -64,6 +63,12 @@ const EditRedemptionModal = (props) => {
   const isMobile = useIsMobile();
   const formApiRef = useRef(null);
   const [showQuotaInput, setShowQuotaInput] = useState(false);
+  const [generatedCodesModal, setGeneratedCodesModal] = useState({
+    visible: false,
+    codes: [],
+    filename: 'redemption-codes',
+    partial: false,
+  });
 
   const getInitValues = () => ({
     name: '',
@@ -139,6 +144,7 @@ const EditRedemptionModal = (props) => {
       });
     }
     const { success, message, data } = res.data;
+    const hasCodes = Array.isArray(data) && data.length > 0;
     if (success) {
       if (isEdit) {
         showSuccess(t('兑换码更新成功！'));
@@ -149,33 +155,44 @@ const EditRedemptionModal = (props) => {
         props.refresh();
         formApiRef.current?.setValues(getInitValues());
         props.handleClose();
+        if (hasCodes) {
+          setGeneratedCodesModal({
+            visible: true,
+            codes: data,
+            filename: localInputs.name || 'redemption-codes',
+            partial: false,
+          });
+        }
       }
     } else {
       showError(message);
-    }
-    if (!isEdit && data) {
-      let text = '';
-      for (let i = 0; i < data.length; i++) {
-        text += data[i] + '\n';
+      if (!isEdit && hasCodes) {
+        setGeneratedCodesModal({
+          visible: true,
+          codes: data,
+          filename: localInputs.name || 'redemption-codes',
+          partial: true,
+        });
       }
-      Modal.confirm({
-        title: t('兑换码创建成功'),
-        content: (
-          <div>
-            <p>{t('兑换码创建成功，是否下载兑换码？')}</p>
-            <p>{t('兑换码将以文本文件的形式下载，文件名为兑换码的名称。')}</p>
-          </div>
-        ),
-        onOk: () => {
-          downloadTextAsFile(text, `${localInputs.name}.txt`);
-        },
-      });
     }
     setLoading(false);
   };
 
   return (
     <>
+      <GeneratedCodesModal
+        visible={generatedCodesModal.visible}
+        onClose={() =>
+          setGeneratedCodesModal((current) => ({
+            ...current,
+            visible: false,
+          }))
+        }
+        title={t('兑换码创建成功')}
+        codes={generatedCodesModal.codes}
+        filename={generatedCodesModal.filename}
+        partial={generatedCodesModal.partial}
+      />
       <SideSheet
         placement={isEdit ? 'right' : 'left'}
         title={

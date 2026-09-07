@@ -5026,6 +5026,10 @@
     "Thinking Mode (Request)": "Mode de réflexion (requête)",
     "Reasoning Tokens (Actual)": "Tokens de raisonnement (réels)",
     "Dynamic": "Dynamique",
-    "Thinking Disabled": "Désactivé"
+    "Thinking Disabled": "Désactivé",
+    "下载选中": "Télécharger la sélection",
+    "请立即保存这些码，关闭本对话框后将无法再次查看。": "Enregistrez ces codes maintenant. Ils ne seront plus affichés après la fermeture de cette boîte de dialogue.",
+    "已显示 {{shown}} / {{count}}": "Affichage de {{shown}} sur {{count}}",
+    "创建中途失败，出错前已生成 {{count}} 个码。": "Création interrompue. {{count}} code(s) ont été générés avant l'erreur."
   }
 }

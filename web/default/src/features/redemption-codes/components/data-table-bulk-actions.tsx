@@ -17,11 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { Table } from '@tanstack/react-table'
+import { Download } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { CopyButton } from '@/components/copy-button'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
+import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { downloadTextFile } from '@/lib/download'
 
 import type { Redemption } from '../types'
 
@@ -43,6 +52,14 @@ export function DataTableBulkActions<TData>({
     return selectedCodes.join('\n')
   }, [selectedRows])
 
+  const handleDownload = () => {
+    try {
+      downloadTextFile(contentToCopy, 'redemption-codes.txt')
+    } catch {
+      toast.error(t('Download failed'))
+    }
+  }
+
   return (
     <BulkActionsToolbar table={table} entityName={t('redemption code')}>
       <CopyButton
@@ -54,6 +71,25 @@ export function DataTableBulkActions<TData>({
         successTooltip={t('Codes copied!')}
         aria-label={t('Copy selected codes')}
       />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type='button'
+              variant='outline'
+              size='icon'
+              className='size-8'
+              onClick={handleDownload}
+              aria-label={t('Download selected codes')}
+            />
+          }
+        >
+          <Download className='size-4' />
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{t('Download selected codes')}</p>
+        </TooltipContent>
+      </Tooltip>
     </BulkActionsToolbar>
   )
 }

@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import {
@@ -12,14 +11,17 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { useMediaQuery } from '@/hooks'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useTableUrlState } from '@/hooks/use-table-url-state'
+
 import {
   DISABLED_ROW_DESKTOP,
   DISABLED_ROW_MOBILE,
   DataTablePage,
 } from '@/components/data-table'
+import { useMediaQuery } from '@/hooks'
+import { useTableUrlState } from '@/hooks/use-table-url-state'
+
 import { getDiscountCodes, searchDiscountCodes } from '../api'
 import {
   DISCOUNT_CODE_STATUS,
@@ -94,6 +96,7 @@ export function DiscountCodesTable() {
   const table = useReactTable({
     data: discountCodes,
     columns,
+    getRowId: (row) => String(row.id),
     state: {
       sorting,
       columnVisibility,
@@ -131,6 +134,25 @@ export function DiscountCodesTable() {
     pageCount: Math.ceil((data?.total || 0) / pagination.pageSize),
   })
 
+  const manualPaginationKeyRef = useRef<string | null>(null)
+  useEffect(() => {
+    const isManualPagination = !globalFilter
+    if (!isManualPagination) {
+      manualPaginationKeyRef.current = null
+      return
+    }
+
+    const paginationKey = `${pagination.pageIndex}:${pagination.pageSize}`
+    if (manualPaginationKeyRef.current === null) {
+      manualPaginationKeyRef.current = paginationKey
+      return
+    }
+    if (manualPaginationKeyRef.current === paginationKey) return
+
+    manualPaginationKeyRef.current = paginationKey
+    setRowSelection({})
+  }, [globalFilter, pagination.pageIndex, pagination.pageSize])
+
   const pageCount = table.getPageCount()
   useEffect(() => {
     ensurePageInRange(pageCount)
@@ -162,13 +184,10 @@ export function DiscountCodesTable() {
           },
         ],
       }}
-      getRowClassName={(row, { isMobile }) =>
-        isDisabledRow(row.original)
-          ? isMobile
-            ? DISABLED_ROW_MOBILE
-            : DISABLED_ROW_DESKTOP
-          : undefined
-      }
+      getRowClassName={(row, { isMobile }) => {
+        if (!isDisabledRow(row.original)) return undefined
+        return isMobile ? DISABLED_ROW_MOBILE : DISABLED_ROW_DESKTOP
+      }}
     />
   )
 }

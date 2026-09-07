@@ -302,12 +302,22 @@ export function isDataCrossYear(timestamps) {
 }
 
 export function downloadTextAsFile(text, filename) {
+  const safeFilename =
+    String(filename ?? '')
+      .replace(/[\\/]/g, '')
+      .replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
+      .trim() || 'download';
   let blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   let url = URL.createObjectURL(blob);
   let a = document.createElement('a');
   a.href = url;
-  a.download = filename;
-  a.click();
+  a.download = safeFilename;
+  try {
+    a.click();
+  } finally {
+    // 立即 revoke 会在部分浏览器里取消尚未开始读取 blob 的下载，推到下一个任务再回收
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
 }
 
 export const verifyJSON = (str) => {

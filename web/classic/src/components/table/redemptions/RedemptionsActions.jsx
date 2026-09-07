@@ -19,12 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React from 'react';
 import { Button } from '@douyinfe/semi-ui';
+import { IconDownload } from '@douyinfe/semi-icons';
 
 const RedemptionsActions = ({
   selectedKeys,
   setEditingRedemption,
   setShowEdit,
   batchCopyRedemptions,
+  batchDownloadRedemptions,
   batchDeleteRedemptions,
   t,
 }) => {
@@ -45,6 +47,16 @@ const RedemptionsActions = ({
         size='small'
       >
         {t('添加兑换码')}
+      </Button>
+
+      <Button
+        type='tertiary'
+        className='flex-1 md:flex-initial'
+        onClick={batchDownloadRedemptions}
+        icon={<IconDownload />}
+        size='small'
+      >
+        {t('下载选中')}
       </Button>
 
       <Button

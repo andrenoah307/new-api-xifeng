@@ -50,6 +50,7 @@ token.db_error: "Invalid token, database query error, please contact administrat
 
 # Redemption messages
 redemption.name_length: "Redemption code name length must be between 1-20"
+redemption.name_invalid_chars: "Redemption code name cannot contain control characters such as tabs or line breaks"
 redemption.count_positive: "Redemption code count must be greater than 0"
 redemption.count_max: "Maximum 100 redemption codes can be generated at once"
 redemption.create_failed: "Failed to create redemption code, please try again later"
