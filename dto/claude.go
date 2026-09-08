@@ -456,14 +456,14 @@ func (c *ClaudeRequest) GetTokenCountMeta() *types.TokenCountMeta {
 						continue
 					}
 					mediaContents := media.ParseMediaContent()
-					hasNonTextContent := false
+					hasImageContent := false
 					for _, content := range mediaContents {
-						if content.Type != "text" && content.Type != "input_text" {
-							hasNonTextContent = true
+						if content.Type == "image" {
+							hasImageContent = true
 							break
 						}
 					}
-					if !hasNonTextContent {
+					if !hasImageContent {
 						b, _ := common.Marshal(media.Content)
 						texts = append(texts, string(b))
 						continue

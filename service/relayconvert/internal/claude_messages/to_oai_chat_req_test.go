@@ -258,6 +258,123 @@ func TestClaudeMessagesRequestToOpenAIChatToolResultGatePreservesLegacyJSON(t *t
 	}
 }
 
+func TestClaudeMessagesRequestToOpenAIChatToolResultToolReferencePreservesLegacyJSON(t *testing.T) {
+	mediaContents := []dto.ClaudeMediaMessage{
+		{Type: "text", Text: common.GetPointer("result")},
+		{Type: "tool_reference", Id: "ref_123", Name: "search_result"},
+	}
+	request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{
+			Type: "tool_use", Id: "call_1", Name: "lookup", Input: map[string]any{},
+		}}},
+		{Role: "user", Content: []dto.ClaudeMediaMessage{{
+			Type: "tool_result", ToolUseId: "call_1", Content: mediaContents,
+		}}},
+	}}
+	info := &relaycommon.RelayInfo{}
+
+	converted, err := ClaudeMessagesRequestToOpenAIChat(request, info)
+	require.NoError(t, err)
+	require.Len(t, converted.Messages, 2)
+
+	want, err := common.Marshal(mediaContents)
+	require.NoError(t, err)
+	assert.Equal(t, string(want), converted.Messages[1].StringContent())
+	assert.NotContains(t, converted.Messages[1].StringContent(), "[tool_result_media_omitted:")
+	assert.Equal(t, 0, info.ToolResultImageCount)
+	assert.Nil(t, info.ToolResultMediaTypes)
+	assert.False(t, info.ToolResultMediaFallback)
+}
+
+func TestClaudeMessagesRequestToOpenAIChatToolResultUnknownOnlyPreservesLegacyJSON(t *testing.T) {
+	mediaContents := []dto.ClaudeMediaMessage{{Type: "tool_reference", Id: "ref_only"}}
+	request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{
+			Type: "tool_use", Id: "call_1", Name: "lookup", Input: map[string]any{},
+		}}},
+		{Role: "user", Content: []dto.ClaudeMediaMessage{{
+			Type: "tool_result", ToolUseId: "call_1", Content: mediaContents,
+		}}},
+	}}
+	info := &relaycommon.RelayInfo{}
+
+	converted, err := ClaudeMessagesRequestToOpenAIChat(request, info)
+	require.NoError(t, err)
+	require.Len(t, converted.Messages, 2)
+
+	want, err := common.Marshal(mediaContents)
+	require.NoError(t, err)
+	assert.Equal(t, string(want), converted.Messages[1].StringContent())
+	assert.NotContains(t, converted.Messages[1].StringContent(), "[tool_result_media_omitted:")
+	assert.Equal(t, 0, info.ToolResultImageCount)
+	assert.Nil(t, info.ToolResultMediaTypes)
+	assert.False(t, info.ToolResultMediaFallback)
+}
+
+func TestClaudeMessagesRequestToOpenAITokenEstimatePreservesNonImageToolResult(t *testing.T) {
+	tests := []struct {
+		name          string
+		mediaContents []dto.ClaudeMediaMessage
+	}{
+		{
+			name: "text and unknown blocks",
+			mediaContents: []dto.ClaudeMediaMessage{
+				{Type: "text", Text: common.GetPointer("result")},
+				{Type: "tool_reference", Id: "ref_123"},
+			},
+		},
+		{
+			name:          "unknown blocks",
+			mediaContents: []dto.ClaudeMediaMessage{{Type: "tool_reference", Id: "ref_only"}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+				{Role: "assistant", Content: []dto.ClaudeMediaMessage{{Type: "tool_use", Id: "call_1", Name: "lookup"}}},
+				{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "call_1", Content: test.mediaContents}}},
+			}}
+			encodedContent, err := common.Marshal(test.mediaContents)
+			require.NoError(t, err)
+
+			meta := request.GetTokenCountMeta()
+			assert.Equal(t, "assistant\nlookup\nuser\n"+string(encodedContent), meta.CombineText)
+			assert.Empty(t, meta.Files)
+		})
+	}
+}
+
+func TestClaudeMessagesRequestToOpenAIChatToolResultImageAndToolReferencePreserveReference(t *testing.T) {
+	t.Setenv("CLAUDE_TOOL_RESULT_RELOCATE_MEDIA", "true")
+	request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
+		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{
+			Type: "tool_use", Id: "call_1", Name: "lookup", Input: map[string]any{},
+		}}},
+		{Role: "user", Content: []dto.ClaudeMediaMessage{{
+			Type: "tool_result", ToolUseId: "call_1", Content: []dto.ClaudeMediaMessage{
+				{Type: "image", Source: &dto.ClaudeMessageSource{Type: "base64", MediaType: "image/png", Data: "aGVsbG8="}},
+				{Type: "tool_reference", Id: "ref_mixed", Name: "search_result"},
+			}},
+		}}},
+	}
+	info := &relaycommon.RelayInfo{}
+
+	converted, err := ClaudeMessagesRequestToOpenAIChat(request, info)
+	require.NoError(t, err)
+	require.Len(t, converted.Messages, 3)
+	assert.Equal(t, "tool", converted.Messages[1].Role)
+	assert.Contains(t, converted.Messages[1].StringContent(), "ref_mixed")
+	assert.Contains(t, converted.Messages[1].StringContent(), "tool_reference")
+	assert.NotContains(t, converted.Messages[1].StringContent(), "[tool_result_media_omitted:")
+
+	parts := converted.Messages[2].ParseContent()
+	require.Len(t, parts, 1)
+	assert.Equal(t, "data:image/png;base64,aGVsbG8=", parts[0].GetImageMedia().Url)
+	assert.Equal(t, []string{"image/png", "tool_reference"}, info.ToolResultMediaTypes)
+	assert.False(t, info.ToolResultMediaFallback)
+}
+
 func TestClaudeMessagesRequestToOpenAIChatRelocatesToolResultImage(t *testing.T) {
 	t.Setenv("CLAUDE_TOOL_RESULT_RELOCATE_MEDIA", "true")
 	imageData := strings.Repeat("A", 734008)
@@ -372,7 +489,7 @@ func TestClaudeMessagesRequestToOpenAIChatToolResultRelocationSwitch(t *testing.
 	}
 }
 
-func TestClaudeMessagesRequestToOpenAIChatToolResultDocumentFallsBack(t *testing.T) {
+func TestClaudeMessagesRequestToOpenAIChatToolResultDocumentPreservesContent(t *testing.T) {
 	request := dto.ClaudeRequest{Messages: []dto.ClaudeMessage{
 		{Role: "assistant", Content: []dto.ClaudeMediaMessage{{Type: "tool_use", Id: "call_1", Name: "lookup"}}},
 		{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: "tool_result", ToolUseId: "call_1", Content: []dto.ClaudeMediaMessage{{
@@ -383,10 +500,10 @@ func TestClaudeMessagesRequestToOpenAIChatToolResultDocumentFallsBack(t *testing
 	converted, err := ClaudeMessagesRequestToOpenAIChat(request, info)
 	require.NoError(t, err)
 	require.Len(t, converted.Messages, 2)
-	assert.Contains(t, converted.Messages[1].StringContent(), "[tool_result_media_omitted:document]")
-	assert.NotContains(t, converted.Messages[1].StringContent(), strings.Repeat("B", 128))
-	assert.True(t, info.ToolResultMediaFallback)
-	assert.Equal(t, []string{"application/pdf"}, info.ToolResultMediaTypes)
+	assert.Contains(t, converted.Messages[1].StringContent(), strings.Repeat("B", 128))
+	assert.Contains(t, converted.Messages[1].StringContent(), "application/pdf")
+	assert.False(t, info.ToolResultMediaFallback)
+	assert.Equal(t, []string(nil), info.ToolResultMediaTypes)
 }
 
 func mustToolCallsJSON(t *testing.T) json.RawMessage {

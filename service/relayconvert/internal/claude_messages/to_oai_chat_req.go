@@ -206,16 +206,16 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 						oaiToolMessage.SetStringContent(mediaMsg.GetStringContent())
 					} else {
 						mediaContents := mediaMsg.ParseMediaContent()
-						hasNonTextContent := false
+						hasImageContent := false
 						for _, content := range mediaContents {
-							if content.Type != "text" && content.Type != "input_text" {
-								hasNonTextContent = true
+							if content.Type == "image" {
+								hasImageContent = true
 								break
 							}
 						}
-						if !hasNonTextContent {
+						if !hasImageContent {
 							// Keep the legacy byte-for-byte representation for string-like
-							// and unparseable tool_result content.
+							// and non-image tool_result content.
 							encodedJSON, _ := common.Marshal(mediaContents)
 							oaiToolMessage.SetStringContent(string(encodedJSON))
 						} else {
@@ -250,10 +250,8 @@ func ClaudeMessagesRequestToOpenAIChat(claudeRequest dto.ClaudeRequest, info *re
 									if info != nil {
 										addToolResultMediaType(info, content)
 									}
-									toolText.WriteString("[tool_result_media_omitted:")
-									toolText.WriteString(content.Type)
-									toolText.WriteString("]")
-									mediaFallback = true
+									encodedContent, _ := common.Marshal(content)
+									toolText.Write(encodedContent)
 								}
 							}
 							if mediaMoved || mediaFallback {
