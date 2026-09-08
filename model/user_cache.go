@@ -1,7 +1,10 @@
 package model
 
 import (
+	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -68,11 +71,12 @@ func populateUserCache(user User) error {
 		return nil
 	}
 
-	return common.RedisHSetObj(
+	_, err := common.RedisHSetObjIfAbsent(
 		getUserCacheKey(user.Id),
 		user.ToBaseUser(),
 		time.Duration(common.RedisKeyCacheSeconds())*time.Second,
 	)
+	return err
 }
 
 // updateUserCache refreshes non-quota user cache fields.
@@ -144,10 +148,24 @@ func cacheGetUserBase(userId int) (*UserBase, error) {
 		return nil, fmt.Errorf("redis is not enabled")
 	}
 	var userCache UserBase
-	// Try getting from Redis first
-	err := common.RedisHGetObj(getUserCacheKey(userId), &userCache)
+	fields, err := common.RedisHGetObjWithFields(getUserCacheKey(userId), &userCache)
 	if err != nil {
 		return nil, err
+	}
+	requiredFields := []string{"Id", "Status", "Quota", "Group", "Username", "Email", "Setting"}
+	missingFields := make([]string, 0)
+	for _, field := range requiredFields {
+		if _, ok := fields[field]; !ok {
+			missingFields = append(missingFields, field)
+		}
+	}
+	if len(missingFields) > 0 {
+		sort.Strings(missingFields)
+		if deleteErr := common.RedisDelKey(getUserCacheKey(userId)); deleteErr != nil {
+			common.SysError(fmt.Sprintf("failed to delete malformed user cache user_id=%d: %v", userId, deleteErr))
+		}
+		common.SysLog(fmt.Sprintf("user cache malformed user_id=%d missing_fields=%s", userId, strings.Join(missingFields, ",")))
+		return nil, fmt.Errorf("user cache for %d is missing fields: %s", userId, strings.Join(missingFields, ","))
 	}
 	return &userCache, nil
 }
@@ -214,21 +232,26 @@ func updateUserStatusCache(userId int, status bool) error {
 	if !status {
 		statusInt = common.UserStatusDisabled
 	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Status", fmt.Sprintf("%d", statusInt))
+	return updateUserCacheField(userId, "Status", fmt.Sprintf("%d", statusInt))
 }
 
 func updateUserQuotaCache(userId int, quota int) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Quota", fmt.Sprintf("%d", quota))
+	_, err := common.RedisHSetFieldIfAbsent(getUserCacheKey(userId), "Quota", fmt.Sprintf("%d", quota))
+	if errors.Is(err, common.ErrRedisKeyMiss) {
+		common.SysLog(fmt.Sprintf("user cache quota update skipped on cache miss user_id=%d", userId))
+		return nil
+	}
+	return err
 }
 
 func updateUserGroupCache(userId int, group string) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Group", group)
+	return updateUserCacheField(userId, "Group", group)
 }
 
 func UpdateUserGroupCache(userId int, group string) error {
@@ -239,21 +262,30 @@ func updateUserEmailCache(userId int, email string) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Email", email)
+	return updateUserCacheField(userId, "Email", email)
 }
 
 func updateUserNameCache(userId int, username string) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Username", username)
+	return updateUserCacheField(userId, "Username", username)
 }
 
 func updateUserSettingCache(userId int, setting string) error {
 	if !common.RedisEnabled {
 		return nil
 	}
-	return common.RedisHSetField(getUserCacheKey(userId), "Setting", setting)
+	return updateUserCacheField(userId, "Setting", setting)
+}
+
+func updateUserCacheField(userId int, field string, value interface{}) error {
+	err := common.RedisHSetField(getUserCacheKey(userId), field, value)
+	if errors.Is(err, common.ErrRedisKeyMiss) {
+		common.SysLog(fmt.Sprintf("user cache field update skipped on cache miss user_id=%d field=%s", userId, field))
+		return nil
+	}
+	return err
 }
 
 // GetUserLanguage returns the user's language preference from cache

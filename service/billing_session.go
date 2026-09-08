@@ -226,6 +226,14 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 	// ---- 1) 预扣令牌额度 ----
 	if effectiveQuota > 0 {
 		if err := s.preConsumeTokenQuota(effectiveQuota); err != nil {
+			markPreConsumeReject(c, PreConsumeRejectDetails{
+				Reason:         PreConsumeRejectReasonTokenPreConsume,
+				BillingSource:  s.funding.Source(),
+				UserQuota:      s.relayInfo.UserQuota,
+				TokenQuota:     c.GetInt("token_quota"),
+				FullQuota:      quota,
+				EstimateTokens: s.relayInfo.GetEstimatePromptTokens(),
+			})
 			return types.NewErrorWithStatusCode(err, types.ErrorCodePreConsumeTokenQuotaFailed, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 		}
 		s.tokenConsumed = effectiveQuota
@@ -244,6 +252,14 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 		// TODO: model 层应定义哨兵错误（如 ErrNoActiveSubscription），用 errors.Is 替代字符串匹配
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "no active subscription") || strings.Contains(errMsg, "subscription quota insufficient") {
+			markPreConsumeReject(c, PreConsumeRejectDetails{
+				Reason:         PreConsumeRejectReasonSubscriptionQuota,
+				BillingSource:  s.funding.Source(),
+				UserQuota:      s.relayInfo.UserQuota,
+				TokenQuota:     c.GetInt("token_quota"),
+				FullQuota:      quota,
+				EstimateTokens: s.relayInfo.GetEstimatePromptTokens(),
+			})
 			return types.NewErrorWithStatusCode(fmt.Errorf("订阅额度不足或未配置订阅: %s", errMsg), types.ErrorCodeInsufficientUserQuota, http.StatusForbidden, types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
 		}
 		return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
@@ -260,8 +276,27 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 func (s *BillingSession) reserveFunding(delta int) error {
 	switch funding := s.funding.(type) {
 	case *WalletFunding:
-		if err := model.DecreaseUserQuota(funding.userId, delta, false); err != nil {
+		reserved, err := model.ReserveUserQuota(funding.userId, delta)
+		if err != nil {
 			return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
+		}
+		if !reserved {
+			userQuota, quotaErr := model.GetUserQuota(funding.userId, true)
+			if quotaErr != nil {
+				return types.NewError(quotaErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+			}
+			// Reserve 走的是流式中途补扣，没有 gin 上下文也没有 PreConsumeBilling 边界，
+			// 所以在这里直接落一行：条件扣减未命中是文档 103 §7 要求的上线后可观测项。
+			LogPreConsumeReject(nil, s.relayInfo, PreConsumeRejectDetails{
+				Reason:         PreConsumeRejectReasonWalletReserve,
+				ErrorCode:      string(types.ErrorCodeInsufficientUserQuota),
+				BillingSource:  s.funding.Source(),
+				UserQuota:      userQuota,
+				FullQuota:      delta,
+				MinQuota:       delta,
+				EstimateTokens: s.relayInfo.GetEstimatePromptTokens(),
+			})
+			return newWalletInsufficientQuotaError(s.relayInfo, userQuota, delta)
 		}
 		funding.consumed += delta
 		return nil
@@ -463,6 +498,13 @@ func buildInsufficientQuotaMessage(info *relaycommon.RelayInfo, remainQuota, min
 		info.GetEstimatePromptTokens(), logger.FormatQuota(minQuota), remainLabel, logger.FormatQuota(remainQuota))
 }
 
+func newWalletInsufficientQuotaError(info *relaycommon.RelayInfo, remainQuota, minQuota int) *types.NewAPIError {
+	return types.NewErrorWithStatusCode(
+		fmt.Errorf("%s", buildInsufficientQuotaMessage(info, remainQuota, minQuota, false)),
+		types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+		types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+}
+
 // computePartialTarget 计算非受信任用户的实际预扣目标额（坑点 #137 优雅部分预扣）。
 // 当余额/令牌不足以覆盖最坏估算 fullQuota、但仍能覆盖仅输入的预扣下限 minQuota 时，
 // 预扣「可用额」而非硬拒；结算回真（可短暂走负，有界，下一请求 userQuota<=0 兜底）。
@@ -507,6 +549,15 @@ func (s *BillingSession) reconcileTokenReject(c *gin.Context, userQuota, fullQuo
 	}
 	target, ok := resolveFreshTokenTarget(token.UnlimitedQuota, userQuota, fullQuota, minQuota)
 	if !ok {
+		markPreConsumeReject(c, PreConsumeRejectDetails{
+			Reason:         PreConsumeRejectReasonTokenQuota,
+			BillingSource:  s.funding.Source(),
+			UserQuota:      userQuota,
+			TokenQuota:     token.RemainQuota,
+			FullQuota:      fullQuota,
+			MinQuota:       minQuota,
+			EstimateTokens: s.relayInfo.GetEstimatePromptTokens(),
+		})
 		return 0, types.NewErrorWithStatusCode(
 			fmt.Errorf("%s", buildInsufficientQuotaMessage(s.relayInfo, token.RemainQuota, minQuota, true)),
 			types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
@@ -528,7 +579,7 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 
 	// 钱包路径需要先检查用户额度
 	tryWallet := func() (*BillingSession, *types.NewAPIError) {
-		userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
+		userQuota, freshFromDB, err := readAuthoritativeUserQuota(relayInfo.UserId)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
 		}
@@ -543,51 +594,93 @@ func NewBillingSession(c *gin.Context, relayInfo *relaycommon.RelayInfo, preCons
 		// prevents wallet_first from falling back to a subscription around a
 		// token-period rejection.
 		trusted := session.shouldTrust(c)
+		recheckWalletQuota := func() *types.NewAPIError {
+			if freshFromDB {
+				return nil
+			}
+			freshQuota, freshErr := model.GetUserQuota(relayInfo.UserId, true)
+			if freshErr != nil {
+				return types.NewError(freshErr, types.ErrorCodeQueryDataError, types.ErrOptionWithSkipRetry())
+			}
+			userQuota = freshQuota
+			freshFromDB = true
+			relayInfo.UserQuota = freshQuota
+			trusted = session.shouldTrust(c)
+			return nil
+		}
 		if apiErr := session.checkPeriodGateAfterTrust(preConsumedQuota); apiErr != nil {
 			return nil, apiErr
 		}
 		if userQuota <= 0 {
-			return nil, types.NewErrorWithStatusCode(
-				fmt.Errorf("用户额度不足, 剩余额度: %s", logger.FormatQuota(userQuota)),
-				types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-				types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			if apiErr := recheckWalletQuota(); apiErr != nil {
+				return nil, apiErr
+			}
+			if userQuota <= 0 {
+				markPreConsumeReject(c, PreConsumeRejectDetails{
+					Reason:         PreConsumeRejectReasonWalletExhausted,
+					BillingSource:  BillingSourceWallet,
+					UserQuota:      userQuota,
+					TokenQuota:     c.GetInt("token_quota"),
+					FullQuota:      preConsumedQuota,
+					MinQuota:       minPreConsumedQuota,
+					EstimateTokens: relayInfo.GetEstimatePromptTokens(),
+				})
+				return nil, types.NewErrorWithStatusCode(
+					fmt.Errorf("用户额度不足, 剩余额度: %s", logger.FormatQuota(userQuota)),
+					types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
+					types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
+			}
 		}
 
 		// 预扣硬门控必须放在信任判定之后。受信任用户（余额 > TrustQuota 且令牌额度充足）
 		// 实际预扣为 0，真实成本由结算补正，不能因为「虚高的预扣估算 > 当前余额」而误杀
 		// （历史 bug：大输入估算冲高时，余额上百的信任用户仍被拒 "预扣费额度失败"）。
 		// 仅当用户不被信任时，才用预扣估算去卡余额。
-		preConsumeTarget := preConsumedQuota
-		if !trusted {
-			// 坑点 #137：优雅部分预扣——余额/令牌不足以覆盖最坏估算但能覆盖输入下限时，
-			// 预扣可用额而非硬拒，避免临界拒绝与「末位余额不可花费」。
-			tokenQuota := c.GetInt("token_quota")
-			// 坑点 #139：操练场合成令牌（无 Key/非无限/token_quota=0）令牌侧不参与门控，
-			// 否则令牌分支必拒并触发空 Key 的 reconcileTokenReject 硬拒；与既有 IsPlayground 跳过一致。
-			target, reject := computePartialTarget(userQuota, tokenQuota, tokenNonGating(relayInfo.TokenUnlimited, relayInfo.IsPlayground), preConsumedQuota, minPreConsumedQuota)
-			switch reject {
-			case preConsumeRejectWallet:
-				return nil, types.NewErrorWithStatusCode(
-					fmt.Errorf("%s", buildInsufficientQuotaMessage(relayInfo, userQuota, minPreConsumedQuota, false)),
-					types.ErrorCodeInsufficientUserQuota, http.StatusForbidden,
-					types.ErrOptionWithSkipRetry(), types.ErrOptionWithNoRecordErrorLog())
-			case preConsumeRejectToken:
-				// 坑点 #138：令牌分支拒绝时上下文 token_quota 可能过期，以 fresh DB 令牌为权威复核，
-				// 避免误拒钱包充裕用户，并正确归因（限额耗尽报令牌，无限则放行并修复标志）。
-				freshTarget, apiErr := session.reconcileTokenReject(c, userQuota, preConsumedQuota, minPreConsumedQuota)
-				if apiErr != nil {
-					return nil, apiErr
+		for {
+			preConsumeTarget := preConsumedQuota
+			if !trusted {
+				// 坑点 #137：优雅部分预扣——余额/令牌不足以覆盖最坏估算但能覆盖输入下限时，
+				// 预扣可用额而非硬拒，避免临界拒绝与「末位余额不可花费」。
+				tokenQuota := c.GetInt("token_quota")
+				// 坑点 #139：操练场合成令牌（无 Key/非无限/token_quota=0）令牌侧不参与门控，
+				// 否则令牌分支必拒并触发空 Key 的 reconcileTokenReject 硬拒；与既有 IsPlayground 跳过一致。
+				target, reject := computePartialTarget(userQuota, tokenQuota, tokenNonGating(relayInfo.TokenUnlimited, relayInfo.IsPlayground), preConsumedQuota, minPreConsumedQuota)
+				switch reject {
+				case preConsumeRejectWallet:
+					if freshFromDB {
+						markPreConsumeReject(c, PreConsumeRejectDetails{
+							Reason:         PreConsumeRejectReasonWalletGate,
+							BillingSource:  BillingSourceWallet,
+							UserQuota:      userQuota,
+							TokenQuota:     tokenQuota,
+							FullQuota:      preConsumedQuota,
+							MinQuota:       minPreConsumedQuota,
+							EstimateTokens: relayInfo.GetEstimatePromptTokens(),
+						})
+						return nil, newWalletInsufficientQuotaError(relayInfo, userQuota, minPreConsumedQuota)
+					}
+					if apiErr := recheckWalletQuota(); apiErr != nil {
+						return nil, apiErr
+					}
+					continue
+				case preConsumeRejectToken:
+					// 坑点 #138：令牌分支拒绝时上下文 token_quota 可能过期，以 fresh DB 令牌为权威复核，
+					// 避免误拒钱包充裕用户，并正确归因（限额耗尽报令牌，无限则放行并修复标志）。
+					freshTarget, apiErr := session.reconcileTokenReject(c, userQuota, preConsumedQuota, minPreConsumedQuota)
+					if apiErr != nil {
+						return nil, apiErr
+					}
+					preConsumeTarget = freshTarget
+				default:
+					preConsumeTarget = target
 				}
-				preConsumeTarget = freshTarget
-			default:
-				preConsumeTarget = target
 			}
-		}
 
-		if apiErr := session.preConsume(c, preConsumeTarget); apiErr != nil {
-			return nil, apiErr
+			if apiErr := session.preConsume(c, preConsumeTarget); apiErr != nil {
+				return nil, apiErr
+			}
+			return session, nil
 		}
-		return session, nil
 	}
 
 	trySubscription := func() (*BillingSession, *types.NewAPIError) {

@@ -166,6 +166,9 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		common.SysError("topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
 	}
+	if err := invalidateUserCache(topUp.UserId); err != nil {
+		common.SysError("failed to invalidate user cache after Stripe topup: " + err.Error())
+	}
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
 	GrantTopUpCommission(topUp, false)
@@ -518,6 +521,11 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 	if err != nil {
 		return err
 	}
+	if quotaToAdd > 0 {
+		if err := invalidateUserCache(userId); err != nil {
+			common.SysError("failed to invalidate user cache after manual topup: " + err.Error())
+		}
+	}
 
 	// 事务外记录日志，避免阻塞
 	RecordTopupLog(userId, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", logger.FormatQuota(quotaToAdd), payMoney), callerIp, paymentMethod, "admin")
@@ -594,6 +602,11 @@ func RechargeCreem(referenceId string, customerEmail string, customerName string
 	if err != nil {
 		common.SysError("creem topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
+	}
+	if quota > 0 {
+		if err := invalidateUserCache(topUp.UserId); err != nil {
+			common.SysError("failed to invalidate user cache after Creem topup: " + err.Error())
+		}
 	}
 
 	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用Creem充值成功，充值额度: %v，支付金额：%.2f", quota, topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodCreem)
@@ -729,6 +742,11 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 		common.SysError("waffo topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
 	}
+	if quotaToAdd > 0 {
+		if err := invalidateUserCache(topUp.UserId); err != nil {
+			common.SysError("failed to invalidate user cache after Waffo topup: " + err.Error())
+		}
+	}
 
 	if quotaToAdd > 0 {
 		RecordTopupLog(topUp.UserId, fmt.Sprintf("Waffo充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodWaffo)
@@ -796,6 +814,11 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 	if err != nil {
 		common.SysError("waffo pancake topup failed: " + err.Error())
 		return errors.New("充值失败，请稍后重试")
+	}
+	if quotaToAdd > 0 {
+		if err := invalidateUserCache(topUp.UserId); err != nil {
+			common.SysError("failed to invalidate user cache after Waffo Pancake topup: " + err.Error())
+		}
 	}
 
 	if quotaToAdd > 0 {

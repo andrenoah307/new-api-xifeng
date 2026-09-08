@@ -115,7 +115,15 @@ func userCheckinWithTransaction(checkin *Checkin, userId int, quotaAwarded int) 
 
 	// 事务成功后，异步更新缓存
 	go func() {
-		_ = cacheIncrUserQuota(userId, int64(quotaAwarded))
+		if err := cacheIncrUserQuota(userId, int64(quotaAwarded)); err != nil {
+			if errors.Is(err, common.ErrRedisKeyMiss) {
+				if invalidateErr := invalidateUserCache(userId); invalidateErr != nil {
+					common.SysError("failed to invalidate user cache after checkin cache miss: " + invalidateErr.Error())
+				}
+				return
+			}
+			common.SysLog("failed to increase user quota cache after checkin: " + err.Error())
+		}
 	}()
 
 	return checkin, nil

@@ -563,7 +563,13 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 		return err
 	}
 
-	return tx.Commit().Error
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+	if err := invalidateUserCache(user.Id); err != nil {
+		common.SysError("failed to invalidate user cache after affiliate quota transfer: " + err.Error())
+	}
+	return nil
 }
 
 func (user *User) prepareForInsert(tx *gorm.DB) error {
@@ -1058,8 +1064,22 @@ func ValidateAccessToken(token string) (*User, error) {
 	return user, nil
 }
 
-// GetUserQuota gets quota from Redis first, falls back to DB if needed
+type UserQuotaSource int
+
+const (
+	UserQuotaSourceCache UserQuotaSource = iota
+	UserQuotaSourceDB
+)
+
+// GetUserQuota gets quota from Redis first, falls back to DB if needed.
 func GetUserQuota(id int, fromDB bool) (quota int, err error) {
+	quota, _, err = GetUserQuotaWithSource(id, fromDB)
+	return quota, err
+}
+
+// GetUserQuotaWithSource gets quota and reports whether the returned value came
+// from Redis or the authoritative database.
+func GetUserQuotaWithSource(id int, fromDB bool) (quota int, source UserQuotaSource, err error) {
 	defer func() {
 		// Update Redis cache asynchronously on successful DB read
 		if shouldUpdateRedis(fromDB, err) {
@@ -1071,19 +1091,20 @@ func GetUserQuota(id int, fromDB bool) (quota int, err error) {
 		}
 	}()
 	if !fromDB && common.RedisEnabled {
-		quota, err := getUserQuotaCache(id)
-		if err == nil {
-			return quota, nil
+		cachedQuota, cacheErr := getUserQuotaCache(id)
+		if cacheErr == nil {
+			return cachedQuota, UserQuotaSourceCache, nil
 		}
 		// Don't return error - fall through to DB
 	}
 	fromDB = true
+	source = UserQuotaSourceDB
 	err = DB.Model(&User{}).Where("id = ?", id).Select("quota").Find(&quota).Error
 	if err != nil {
-		return 0, err
+		return 0, source, err
 	}
 
-	return quota, nil
+	return quota, source, nil
 }
 
 func GetUserUsedQuota(id int) (quota int, err error) {
@@ -1280,6 +1301,12 @@ func updateUserQuotaUsedQuotaAndRequestCount(id int, quota int, usedQuota int, r
 	).Error
 	if err != nil {
 		common.SysLog("failed to batch update user quota, used quota and request count: " + err.Error())
+		return
+	}
+	if quota != 0 {
+		if err := invalidateUserCache(id); err != nil {
+			common.SysError("failed to invalidate user cache after batch quota update: " + err.Error())
+		}
 	}
 }
 

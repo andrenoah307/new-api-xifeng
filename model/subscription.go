@@ -816,7 +816,13 @@ func PurchaseSubscriptionWithBalance(userId int, planId int) error {
 
 	if chargedQuota > 0 {
 		if err := cacheDecrUserQuota(userId, int64(chargedQuota)); err != nil {
-			common.SysLog("failed to decrease user quota cache after subscription balance purchase: " + err.Error())
+			if errors.Is(err, common.ErrRedisKeyMiss) {
+				if invalidateErr := invalidateUserCache(userId); invalidateErr != nil {
+					common.SysError("failed to invalidate user cache after subscription cache miss: " + invalidateErr.Error())
+				}
+			} else {
+				common.SysLog("failed to decrease user quota cache after subscription balance purchase: " + err.Error())
+			}
 		}
 	}
 	if upgradeGroup != "" {

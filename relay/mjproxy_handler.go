@@ -211,18 +211,39 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 		}
 	}
 	if apiErr := service.CheckTokenPeriodGate(info, priceData.Quota); apiErr != nil {
+		service.LogPreConsumeReject(c, info, service.PreConsumeRejectDetails{
+			Reason:    service.PreConsumeRejectReasonTokenPeriodLimit,
+			ErrorCode: string(apiErr.GetErrorCode()),
+			FullQuota: priceData.Quota,
+		})
 		return &dto.MidjourneyResponse{Code: 4, Description: apiErr.Error()}
 	}
 
-	userQuota, err := model.GetUserQuota(info.UserId, false)
+	userQuota, freshFromDB, err := service.ReadAuthoritativeUserQuota(info.UserId)
 	if err != nil {
 		return &dto.MidjourneyResponse{
 			Code:        4,
 			Description: err.Error(),
 		}
 	}
+	info.UserQuota = userQuota
 
+	if userQuota-priceData.Quota < 0 && !freshFromDB {
+		userQuota, err = model.GetUserQuota(info.UserId, true)
+		if err != nil {
+			return &dto.MidjourneyResponse{Code: 4, Description: err.Error()}
+		}
+		info.UserQuota = userQuota
+	}
 	if userQuota-priceData.Quota < 0 {
+		service.LogPreConsumeReject(c, info, service.PreConsumeRejectDetails{
+			Reason:        service.PreConsumeRejectReasonWalletExhausted,
+			ErrorCode:     "quota_not_enough",
+			BillingSource: service.BillingSourceWallet,
+			UserQuota:     userQuota,
+			FullQuota:     priceData.Quota,
+			MinQuota:      priceData.Quota,
+		})
 		return &dto.MidjourneyResponse{
 			Code:        4,
 			Description: "quota_not_enough",
@@ -529,19 +550,41 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 	}
 	if consumeQuota {
 		if apiErr := service.CheckTokenPeriodGate(relayInfo, priceData.Quota); apiErr != nil {
+			service.LogPreConsumeReject(c, relayInfo, service.PreConsumeRejectDetails{
+				Reason:    service.PreConsumeRejectReasonTokenPeriodLimit,
+				ErrorCode: string(apiErr.GetErrorCode()),
+				FullQuota: priceData.Quota,
+			})
 			return &dto.MidjourneyResponse{Code: 4, Description: apiErr.Error()}
 		}
 	}
 
-	userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
+	userQuota, freshFromDB, err := service.ReadAuthoritativeUserQuota(relayInfo.UserId)
 	if err != nil {
 		return &dto.MidjourneyResponse{
 			Code:        4,
 			Description: err.Error(),
 		}
 	}
+	relayInfo.UserQuota = userQuota
+
+	if consumeQuota && userQuota-priceData.Quota < 0 && !freshFromDB {
+		userQuota, err = model.GetUserQuota(relayInfo.UserId, true)
+		if err != nil {
+			return &dto.MidjourneyResponse{Code: 4, Description: err.Error()}
+		}
+		relayInfo.UserQuota = userQuota
+	}
 
 	if consumeQuota && userQuota-priceData.Quota < 0 {
+		service.LogPreConsumeReject(c, relayInfo, service.PreConsumeRejectDetails{
+			Reason:        service.PreConsumeRejectReasonWalletExhausted,
+			ErrorCode:     "quota_not_enough",
+			BillingSource: service.BillingSourceWallet,
+			UserQuota:     userQuota,
+			FullQuota:     priceData.Quota,
+			MinQuota:      priceData.Quota,
+		})
 		return &dto.MidjourneyResponse{
 			Code:        4,
 			Description: "quota_not_enough",

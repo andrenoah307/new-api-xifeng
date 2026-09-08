@@ -91,10 +91,11 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 	if relayInfo.UsePrice {
 		return nil
 	}
-	userQuota, err := model.GetUserQuota(relayInfo.UserId, false)
+	userQuota, freshFromDB, err := readAuthoritativeUserQuota(relayInfo.UserId)
 	if err != nil {
 		return err
 	}
+	relayInfo.UserQuota = userQuota
 
 	token, err := model.GetTokenByKey(strings.TrimPrefix(relayInfo.TokenKey, "sk-"), false)
 	if err != nil {
@@ -141,6 +142,13 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 	noteQuotaClamp(relayInfo, clamp)
 	if quota > 0 && !relayInfo.IsPlayground {
 		if _, _, apiErr := checkTokenPeriodGate(relayInfo, time.Now()); apiErr != nil {
+			LogPreConsumeReject(ctx, relayInfo, PreConsumeRejectDetails{
+				Reason:     PreConsumeRejectReasonTokenPeriodLimit,
+				ErrorCode:  string(apiErr.GetErrorCode()),
+				UserQuota:  userQuota,
+				TokenQuota: token.RemainQuota,
+				FullQuota:  quota,
+			})
 			return apiErr
 		}
 	}
@@ -153,10 +161,38 @@ func PreWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usag
 
 	if !trusted {
 		if userQuota < quota {
+			if !freshFromDB {
+				userQuota, err = model.GetUserQuota(relayInfo.UserId, true)
+				if err != nil {
+					return err
+				}
+				freshFromDB = true
+				relayInfo.UserQuota = userQuota
+				trusted = !relayInfo.ForcePreConsume && trustQuota > 0 && userQuota > trustQuota &&
+					(token.UnlimitedQuota || token.RemainQuota > trustQuota)
+			}
+		}
+		if !trusted && userQuota < quota {
+			LogPreConsumeReject(ctx, relayInfo, PreConsumeRejectDetails{
+				Reason:        PreConsumeRejectReasonWalletExhausted,
+				BillingSource: BillingSourceWallet,
+				UserQuota:     userQuota,
+				TokenQuota:    token.RemainQuota,
+				FullQuota:     quota,
+				MinQuota:      quota,
+			})
 			return fmt.Errorf("user quota is not enough, user quota: %s, need quota: %s", logger.FormatQuota(userQuota), logger.FormatQuota(quota))
 		}
 
-		if !token.UnlimitedQuota && token.RemainQuota < quota {
+		if !trusted && !token.UnlimitedQuota && token.RemainQuota < quota {
+			LogPreConsumeReject(ctx, relayInfo, PreConsumeRejectDetails{
+				Reason:        PreConsumeRejectReasonTokenQuota,
+				BillingSource: BillingSourceWallet,
+				UserQuota:     userQuota,
+				TokenQuota:    token.RemainQuota,
+				FullQuota:     quota,
+				MinQuota:      quota,
+			})
 			return fmt.Errorf("token quota is not enough, token remain quota: %s, need quota: %s", logger.FormatQuota(token.RemainQuota), logger.FormatQuota(quota))
 		}
 	}

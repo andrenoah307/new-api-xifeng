@@ -16,6 +16,11 @@ import (
 var RDB *redis.Client
 var RedisEnabled = true
 
+// ErrRedisKeyMiss indicates that a cache hash is absent or has no positive TTL.
+// Callers should treat this as a normal cache miss and fall back to their
+// authoritative source when appropriate.
+var ErrRedisKeyMiss = errors.New("redis key missing or has no ttl")
+
 func RedisKeyCacheSeconds() int {
 	return SyncFrequency
 }
@@ -118,37 +123,9 @@ func RedisHSetObj(key string, obj interface{}, expiration time.Duration) error {
 	}
 	ctx := context.Background()
 
-	data := make(map[string]interface{})
-
-	// 使用反射遍历结构体字段
-	v := reflect.ValueOf(obj).Elem()
-	t := v.Type()
-	for i := 0; i < v.NumField(); i++ {
-		field := t.Field(i)
-		value := v.Field(i)
-
-		// Skip DeletedAt field
-		if field.Type.String() == "gorm.DeletedAt" {
-			continue
-		}
-
-		// 处理指针类型
-		if value.Kind() == reflect.Ptr {
-			if value.IsNil() {
-				data[field.Name] = ""
-				continue
-			}
-			value = value.Elem()
-		}
-
-		// 处理布尔类型
-		if value.Kind() == reflect.Bool {
-			data[field.Name] = strconv.FormatBool(value.Bool())
-			continue
-		}
-
-		// 其他类型直接转换为字符串
-		data[field.Name] = fmt.Sprintf("%v", value.Interface())
+	data, err := redisHashFields(obj)
+	if err != nil {
+		return err
 	}
 
 	txn := RDB.TxPipeline()
@@ -159,14 +136,95 @@ func RedisHSetObj(key string, obj interface{}, expiration time.Duration) error {
 		txn.Expire(ctx, key, expiration)
 	}
 
-	_, err := txn.Exec(ctx)
+	_, err = txn.Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to execute transaction: %w", err)
 	}
 	return nil
 }
 
+func redisHashFields(obj interface{}) (map[string]interface{}, error) {
+	val := reflect.ValueOf(obj)
+	if val.Kind() != reflect.Ptr || val.IsNil() {
+		return nil, fmt.Errorf("obj must be a pointer to a struct, got %T", obj)
+	}
+	v := val.Elem()
+	if v.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("obj must be a pointer to a struct, got pointer to %T", v.Interface())
+	}
+
+	data := make(map[string]interface{})
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		value := v.Field(i)
+		if field.Type.String() == "gorm.DeletedAt" {
+			continue
+		}
+		if value.Kind() == reflect.Ptr {
+			if value.IsNil() {
+				data[field.Name] = ""
+				continue
+			}
+			value = value.Elem()
+		}
+		if value.Kind() == reflect.Bool {
+			data[field.Name] = strconv.FormatBool(value.Bool())
+			continue
+		}
+		data[field.Name] = fmt.Sprintf("%v", value.Interface())
+	}
+	return data, nil
+}
+
+// RedisHSetObjIfAbsent atomically creates a hash only when the key is absent.
+// It returns false when another writer already created the key.
+func RedisHSetObjIfAbsent(key string, obj interface{}, expiration time.Duration) (bool, error) {
+	if DebugEnabled {
+		SysLog(fmt.Sprintf("Redis HSETNX object: key=%s, obj=%+v, expiration=%v", key, obj, expiration))
+	}
+	data, err := redisHashFields(obj)
+	if err != nil {
+		return false, err
+	}
+	args := make([]interface{}, 0, 1+len(data)*2)
+	expirationMillis := expiration.Milliseconds()
+	if expiration > 0 && expirationMillis == 0 {
+		expirationMillis = 1
+	}
+	args = append(args, expirationMillis)
+	for field, value := range data {
+		args = append(args, field, value)
+	}
+
+	const script = `
+if redis.call('EXISTS', KEYS[1]) == 1 then
+  return 0
+end
+for i = 2, #ARGV, 2 do
+  redis.call('HSET', KEYS[1], ARGV[i], ARGV[i + 1])
+end
+if tonumber(ARGV[1]) > 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+return 1
+`
+	result, err := RDB.Eval(context.Background(), script, []string{key}, args...).Int()
+	if err != nil {
+		return false, fmt.Errorf("failed to execute Redis HSETNX object script: %w", err)
+	}
+	return result == 1, nil
+}
+
 func RedisHGetObj(key string, obj interface{}) error {
+	_, err := RedisHGetObjWithFields(key, obj)
+	return err
+}
+
+// RedisHGetObjWithFields loads a hash and returns the raw field set alongside
+// the decoded object. The raw set lets callers distinguish a missing field from
+// a legitimate zero value.
+func RedisHGetObjWithFields(key string, obj interface{}) (map[string]string, error) {
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis HGETALL: key=%s", key))
 	}
@@ -174,22 +232,22 @@ func RedisHGetObj(key string, obj interface{}) error {
 
 	result, err := RDB.HGetAll(ctx, key).Result()
 	if err != nil {
-		return fmt.Errorf("failed to load hash from Redis: %w", err)
+		return nil, fmt.Errorf("failed to load hash from Redis: %w", err)
 	}
 
 	if len(result) == 0 {
-		return fmt.Errorf("key %s not found in Redis", key)
+		return nil, fmt.Errorf("key %s not found in Redis", key)
 	}
 
 	// Handle both pointer and non-pointer values
 	val := reflect.ValueOf(obj)
 	if val.Kind() != reflect.Ptr {
-		return fmt.Errorf("obj must be a pointer to a struct, got %T", obj)
+		return nil, fmt.Errorf("obj must be a pointer to a struct, got %T", obj)
 	}
 
 	v := val.Elem()
 	if v.Kind() != reflect.Struct {
-		return fmt.Errorf("obj must be a pointer to a struct, got pointer to %T", v.Interface())
+		return nil, fmt.Errorf("obj must be a pointer to a struct, got pointer to %T", v.Interface())
 	}
 
 	t := v.Type()
@@ -217,13 +275,13 @@ func RedisHGetObj(key string, obj interface{}) error {
 			case reflect.Int, reflect.Int64:
 				intValue, err := strconv.ParseInt(value, 10, 64)
 				if err != nil {
-					return fmt.Errorf("failed to parse int field %s: %w", fieldName, err)
+					return nil, fmt.Errorf("failed to parse int field %s: %w", fieldName, err)
 				}
 				fieldValue.SetInt(intValue)
 			case reflect.Bool:
 				boolValue, err := strconv.ParseBool(value)
 				if err != nil {
-					return fmt.Errorf("failed to parse bool field %s: %w", fieldName, err)
+					return nil, fmt.Errorf("failed to parse bool field %s: %w", fieldName, err)
 				}
 				fieldValue.SetBool(boolValue)
 			case reflect.Struct:
@@ -232,18 +290,18 @@ func RedisHGetObj(key string, obj interface{}) error {
 					if value != "" {
 						timeValue, err := time.Parse(time.RFC3339, value)
 						if err != nil {
-							return fmt.Errorf("failed to parse DeletedAt field %s: %w", fieldName, err)
+							return nil, fmt.Errorf("failed to parse DeletedAt field %s: %w", fieldName, err)
 						}
 						fieldValue.Set(reflect.ValueOf(gorm.DeletedAt{Time: timeValue, Valid: true}))
 					}
 				}
 			default:
-				return fmt.Errorf("unsupported field type: %s for field %s", fieldValue.Kind(), fieldName)
+				return nil, fmt.Errorf("unsupported field type: %s for field %s", fieldValue.Kind(), fieldName)
 			}
 		}
 	}
 
-	return nil
+	return result, nil
 }
 
 // RedisIncr Add this function to handle atomic increments
@@ -284,6 +342,8 @@ func RedisHIncrBy(key, field string, delta int64) error {
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis HINCRBY: key=%s, field=%s, delta=%d", key, field, delta))
 	}
+	// TTL is checked before the pipeline; the key can expire between this
+	// check and TxPipeline execution, so callers must tolerate a sparse hash.
 	ttlCmd := RDB.TTL(context.Background(), key)
 	ttl, err := ttlCmd.Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
@@ -304,13 +364,15 @@ func RedisHIncrBy(key, field string, delta int64) error {
 		_, err = txn.Exec(ctx)
 		return err
 	}
-	return nil
+	return ErrRedisKeyMiss
 }
 
 func RedisHSetField(key, field string, value interface{}) error {
 	if DebugEnabled {
 		SysLog(fmt.Sprintf("Redis HSET field: key=%s, field=%s, value=%v", key, field, value))
 	}
+	// TTL is checked before the pipeline; the key can expire between this
+	// check and TxPipeline execution, so callers must tolerate a sparse hash.
 	ttlCmd := RDB.TTL(context.Background(), key)
 	ttl, err := ttlCmd.Result()
 	if err != nil && !errors.Is(err, redis.Nil) {
@@ -331,5 +393,33 @@ func RedisHSetField(key, field string, value interface{}) error {
 		_, err = txn.Exec(ctx)
 		return err
 	}
-	return nil
+	return ErrRedisKeyMiss
+}
+
+// RedisHSetFieldIfAbsent sets a field only when the hash field is missing.
+// It never creates a hash without a positive TTL, preserving cache-miss
+// semantics for expired user hashes.
+func RedisHSetFieldIfAbsent(key, field string, value interface{}) (bool, error) {
+	if DebugEnabled {
+		SysLog(fmt.Sprintf("Redis HSETNX field: key=%s, field=%s, value=%v", key, field, value))
+	}
+	const script = `
+local ttl = redis.call('TTL', KEYS[1])
+if ttl <= 0 then
+  return -1
+end
+if redis.call('HEXISTS', KEYS[1], ARGV[1]) == 1 then
+  return 0
+end
+redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+return 1
+`
+	result, err := RDB.Eval(context.Background(), script, []string{key}, field, value).Int()
+	if err != nil {
+		return false, fmt.Errorf("failed to execute Redis HSETNX field script: %w", err)
+	}
+	if result < 0 {
+		return false, ErrRedisKeyMiss
+	}
+	return result == 1, nil
 }

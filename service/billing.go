@@ -44,6 +44,9 @@ func PreConsumeBilling(c *gin.Context, preConsumedQuota int, minPreConsumedQuota
 	}
 	session, apiErr := NewBillingSession(c, relayInfo, preConsumedQuota, minPreConsumedQuota)
 	if apiErr != nil {
+		// 预扣 403 携 ErrOptionWithNoRecordErrorLog 不落 logs 表（坑点 #138），
+		// 后台侧在此补一行带 user_id / token_id / 模型的结构化归因。
+		logPreConsumeRejectBoundary(c, relayInfo, apiErr)
 		return apiErr
 	}
 	relayInfo.Billing = session
