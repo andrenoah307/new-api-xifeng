@@ -7,18 +7,23 @@ import (
 )
 
 type GroupMonitoringSetting struct {
-	Enabled                        bool     `json:"enabled"`
-	MonitoringGroups               []string `json:"monitoring_groups"`
-	AvailabilityPeriodMinutes      int      `json:"availability_period_minutes"`
-	CacheHitPeriodMinutes          int      `json:"cache_hit_period_minutes"`
-	AvailabilityExcludeModels      []string `json:"availability_exclude_models"`
-	CacheHitExcludeModels          []string `json:"cache_hit_exclude_models"`
-	AvailabilityExcludeKeywords    []string `json:"availability_exclude_keywords"`
-	AvailabilityExcludeStatusCodes []int    `json:"availability_exclude_status_codes"`
-	GroupDisplayOrder              []string `json:"group_display_order"`
-	AggregationIntervalMinutes     int      `json:"aggregation_interval_minutes"`
-	CacheTokensSeparateGroups      []string `json:"cache_tokens_separate_groups"`
-	FRTExcludeThresholdSeconds     float64  `json:"frt_exclude_threshold_seconds"`
+	Enabled                        bool                `json:"enabled"`
+	MonitoringGroups               []string            `json:"monitoring_groups"`
+	AvailabilityPeriodMinutes      int                 `json:"availability_period_minutes"`
+	CacheHitPeriodMinutes          int                 `json:"cache_hit_period_minutes"`
+	AvailabilityExcludeModels      []string            `json:"availability_exclude_models"`
+	CacheHitExcludeModels          []string            `json:"cache_hit_exclude_models"`
+	AvailabilityExcludeKeywords    []string            `json:"availability_exclude_keywords"`
+	AvailabilityExcludeStatusCodes []int               `json:"availability_exclude_status_codes"`
+	GroupDisplayOrder              []string            `json:"group_display_order"`
+	AggregationIntervalMinutes     int                 `json:"aggregation_interval_minutes"`
+	CacheTokensSeparateGroups      []string            `json:"cache_tokens_separate_groups"`
+	FRTExcludeThresholdSeconds     float64             `json:"frt_exclude_threshold_seconds"`
+	PerfCardEnabled                bool                `json:"perf_card_enabled"`
+	PerfCardShowAllModels          bool                `json:"perf_card_show_all_models"`
+	PerfCardTopN                   int                 `json:"perf_card_top_n"`
+	PerfCardHiddenGroups           []string            `json:"perf_card_hidden_groups"`
+	PerfCardGroupModels            map[string][]string `json:"perf_card_group_models"`
 }
 
 var groupMonitoringSetting = GroupMonitoringSetting{
@@ -34,6 +39,37 @@ var groupMonitoringSetting = GroupMonitoringSetting{
 	AggregationIntervalMinutes:     5,
 	CacheTokensSeparateGroups:      []string{},
 	FRTExcludeThresholdSeconds:     0,
+	PerfCardEnabled:                true,
+	PerfCardShowAllModels:          false,
+	PerfCardTopN:                   6,
+	PerfCardHiddenGroups:           []string{},
+	PerfCardGroupModels:            map[string][]string{},
+}
+
+func (s GroupMonitoringSetting) IsPerfCardGroupHidden(group string) bool {
+	for _, value := range s.PerfCardHiddenGroups {
+		if value == group {
+			return true
+		}
+	}
+	return false
+}
+
+func (s GroupMonitoringSetting) PerfCardModelsForGroup(group string) []string {
+	if len(s.PerfCardGroupModels[group]) == 0 {
+		return nil
+	}
+	return s.PerfCardGroupModels[group]
+}
+
+func (s GroupMonitoringSetting) PerfCardTopNOrDefault() int {
+	if s.PerfCardTopN <= 0 {
+		return 6
+	}
+	if s.PerfCardTopN > 50 {
+		return 50
+	}
+	return s.PerfCardTopN
 }
 
 func init() {

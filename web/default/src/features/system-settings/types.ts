@@ -339,6 +339,11 @@ export type BillingSettings = {
 }
 
 export type OperationsSettings = {
+  'group_monitoring_setting.perf_card_enabled': boolean
+  'group_monitoring_setting.perf_card_show_all_models': boolean
+  'group_monitoring_setting.perf_card_top_n': number
+  'group_monitoring_setting.perf_card_hidden_groups': string[]
+  'group_monitoring_setting.perf_card_group_models': Record<string, string[]>
   DefaultCollapseSidebar: boolean
   DemoSiteEnabled: boolean
   SelfUseModeEnabled: boolean

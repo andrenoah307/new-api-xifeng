@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/tooltip'
 import { useStatus } from '@/hooks/use-status'
 
-import type { MonitoringGroupWithHistory } from '../api'
+import type { GroupModelPerf, MonitoringGroupWithHistory } from '../api'
+import GroupModelPerformance from './group-model-performance'
 import {
   formatFRT,
   formatClock,
@@ -24,12 +25,14 @@ interface GroupStatusCardProps {
   group: MonitoringGroupWithHistory
   onClick?: (group: MonitoringGroupWithHistory) => void
   regionBlockedGroups?: string[]
+  modelPerformance?: { models: GroupModelPerf[]; showAll: boolean; topN: number; windowHours: number }
 }
 
 const GroupStatusCard = memo(function GroupStatusCard({
   group,
   onClick,
   regionBlockedGroups = [],
+  modelPerformance,
 }: GroupStatusCardProps) {
   const { t } = useTranslation()
   const { status } = useStatus()
@@ -79,7 +82,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
     headlineColor = 'var(--destructive)'
   }
 
-  let headlineLabel = t('Availability')
+  let headlineLabel = t('Group availability')
   if (noData) {
     headlineLabel = t('No data available')
   } else if (!online) {
@@ -88,7 +91,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
 
   return (
     <div
-      className='group border-border bg-card hover:border-primary/40 relative rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg'
+      className={`group border-border bg-card hover:border-primary/40 relative rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${modelPerformance ? 'lg:grid lg:grid-cols-2 lg:gap-6' : ''}`}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
       onClick={() => onClick?.(group)}
     >
@@ -176,7 +179,9 @@ const GroupStatusCard = memo(function GroupStatusCard({
         <div className='flex items-center gap-3'>
           <span className='inline-flex items-center gap-1'>
             <Zap size={11} className='text-muted-foreground/70' />
-            <span className='font-mono'>{formatFRT(frt)}</span>
+            <span title={t('Group first token latency')} className='font-mono'>
+              {formatFRT(frt)}
+            </span>
           </span>
           <span className='inline-flex items-center gap-1'>
             <Database size={11} className='text-muted-foreground/70' />
@@ -203,6 +208,11 @@ const GroupStatusCard = memo(function GroupStatusCard({
           )}
         </div>
       </div>
+      {modelPerformance && (
+        <div className='mt-5 min-w-0 lg:mt-0'>
+          <GroupModelPerformance {...modelPerformance} />
+        </div>
+      )}
     </div>
   )
 })

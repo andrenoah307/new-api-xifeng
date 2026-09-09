@@ -91,6 +91,56 @@ func GetLastMonitoringHistoryBefore(groupName string, beforeTime int64) (*Monito
 	return &h, nil
 }
 
+func GetMonitoringHistoryBatch(groups []string, startTime, endTime int64) (map[string][]MonitoringHistory, error) {
+	result := make(map[string][]MonitoringHistory)
+	if len(groups) == 0 {
+		return result, nil
+	}
+	var rows []MonitoringHistory
+	if err := DB.Where("group_name IN ? AND recorded_at BETWEEN ? AND ?", groups, startTime, endTime).Order("recorded_at ASC").Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.GroupName] = append(result[row.GroupName], row)
+	}
+	return result, nil
+}
+
+func GetLastMonitoringHistoryBeforeBatch(groups []string, beforeTime int64) (map[string]MonitoringHistory, error) {
+	result := make(map[string]MonitoringHistory)
+	if len(groups) == 0 {
+		return result, nil
+	}
+	type latest struct {
+		GroupName  string
+		RecordedAt int64
+	}
+	var latestRows []latest
+	if err := DB.Model(&MonitoringHistory{}).Select("group_name, MAX(recorded_at) AS recorded_at").Where("group_name IN ? AND recorded_at < ?", groups, beforeTime).Group("group_name").Find(&latestRows).Error; err != nil {
+		return nil, err
+	}
+	if len(latestRows) == 0 {
+		return result, nil
+	}
+	times := make([]int64, 0, len(latestRows))
+	for _, row := range latestRows {
+		times = append(times, row.RecordedAt)
+	}
+	var rows []MonitoringHistory
+	if err := DB.Where("group_name IN ? AND recorded_at IN ?", groups, times).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		for _, wanted := range latestRows {
+			if row.GroupName == wanted.GroupName && row.RecordedAt == wanted.RecordedAt {
+				result[row.GroupName] = row
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
 func UpsertChannelMonitoringStat(stat *ChannelMonitoringStat) error {
 	stat.UpdatedAt = time.Now().Unix()
 	return DB.Clauses(clause.OnConflict{

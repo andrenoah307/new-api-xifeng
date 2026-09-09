@@ -348,6 +348,8 @@ func SetApiRouter(router *gin.Engine) {
 		monitoringAdminRoute := apiRouter.Group("/monitoring/admin")
 		monitoringAdminRoute.Use(middleware.AdminAuth())
 		{
+			monitoringAdminRoute.GET("/model-performance", controller.GetAdminMonitoringGroupModels)
+			monitoringAdminRoute.GET("/group-history", controller.GetAdminMonitoringGroupsHistoryBatch)
 			monitoringAdminRoute.GET("/groups", controller.GetAdminMonitoringGroups)
 			monitoringAdminRoute.GET("/groups/:group", controller.GetAdminMonitoringGroupDetail)
 			monitoringAdminRoute.GET("/groups/:group/history", controller.GetAdminMonitoringGroupHistory)

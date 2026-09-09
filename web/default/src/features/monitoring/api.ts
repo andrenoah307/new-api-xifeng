@@ -87,3 +87,37 @@ export async function getGroupDetail(groupName: string): Promise<GroupDetail> {
 export async function refreshMonitoringData(): Promise<void> {
   await api.post('/api/monitoring/admin/refresh')
 }
+
+export interface GroupModelPerf {
+  model_name: string
+  request_count: number
+  success_rate: number
+  avg_latency_ms: number
+  avg_ttft_ms: number
+  has_ttft: boolean
+  avg_tps: number
+}
+
+export interface GroupModelPerfData {
+  enabled: boolean
+  window_hours: number
+  bucket_seconds: number
+  show_all_models: boolean
+  top_n: number
+  groups: Record<string, GroupModelPerf[]>
+}
+
+export async function getGroupModelPerformance(): Promise<GroupModelPerfData> {
+  const res = await api.get('/api/monitoring/admin/model-performance', { skipErrorHandler: true })
+  return res.data.data
+}
+
+export async function getGroupHistoryBatch(admin: boolean): Promise<{ history: Record<string, MonitoringHistoryPoint[]>; intervalMinutes: number }> {
+  if (!admin) return { history: {}, intervalMinutes: 5 }
+  const res = await api.get('/api/monitoring/admin/group-history', { skipErrorHandler: true })
+  const data = res.data.data ?? {}
+  return {
+    history: data.history ?? {},
+    intervalMinutes: data.aggregation_interval_minutes ?? 5,
+  }
+}

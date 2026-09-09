@@ -98,6 +98,14 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
   const [frtExcludeThreshold, setFrtExcludeThreshold] = useState(
     getVal(settings, 'frt_exclude_threshold_seconds') || '0'
   )
+  const [perfCardEnabled, setPerfCardEnabled] = useState(getVal(settings, 'perf_card_enabled') !== 'false')
+  const [perfCardShowAll, setPerfCardShowAll] = useState(getVal(settings, 'perf_card_show_all_models') === 'true')
+  const [perfCardTopN, setPerfCardTopN] = useState(getVal(settings, 'perf_card_top_n') || '6')
+  const [perfCardHiddenGroups, setPerfCardHiddenGroups] = useState(() => parseArr(getVal(settings, 'perf_card_hidden_groups')))
+  const [perfCardGroup, setPerfCardGroup] = useState('')
+  const [perfCardModels, setPerfCardModels] = useState<Record<string, string[]>>(() => {
+    try { return JSON.parse(getVal(settings, 'perf_card_group_models')) || {} } catch { return {} }
+  })
 
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -153,6 +161,11 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
           key: PREFIX + 'frt_exclude_threshold_seconds',
           value: String(parseFloat(frtExcludeThreshold) || 0),
         },
+        { key: PREFIX + 'perf_card_enabled', value: String(perfCardEnabled) },
+        { key: PREFIX + 'perf_card_show_all_models', value: String(perfCardShowAll) },
+        { key: PREFIX + 'perf_card_top_n', value: perfCardTopN },
+        { key: PREFIX + 'perf_card_hidden_groups', value: JSON.stringify(perfCardHiddenGroups) },
+        { key: PREFIX + 'perf_card_group_models', value: JSON.stringify(perfCardModels) },
       ]
       for (const u of updates) {
         await updateOption.mutateAsync(u)
@@ -321,6 +334,14 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
               'Requests whose first-response time exceeds this are excluded from all monitoring statistics. 0 disables.'
             )}
           </p>
+        </div>
+
+        <div className='space-y-4 border-t pt-4'>
+          <div className='flex items-center justify-between'><Label>{t('Enable model performance card')}</Label><Switch checked={perfCardEnabled} onCheckedChange={setPerfCardEnabled} /></div>
+          <div className='flex items-center justify-between'><Label>{t('Show all models')}</Label><Switch disabled={!perfCardEnabled} checked={perfCardShowAll} onCheckedChange={setPerfCardShowAll} /></div>
+          <div className='space-y-1'><Label>{t('Model performance top N')}</Label><Input disabled={!perfCardEnabled} type='number' min='1' max='50' value={perfCardTopN} onChange={(e) => setPerfCardTopN(e.target.value)} /><p className='text-muted-foreground text-xs'>{t('Values outside the range are normalized by the backend to 6 or 50.')}</p></div>
+          <div className='space-y-1'><Label>{t('Hidden groups for model performance')}</Label><MultiSelect disabled={!perfCardEnabled} options={groupOptions} selected={perfCardHiddenGroups} onChange={setPerfCardHiddenGroups} /></div>
+          <div className='space-y-1'><Label>{t('Model whitelist by group')}</Label><MultiSelect disabled={!perfCardEnabled} options={groupOptions} selected={perfCardGroup ? [perfCardGroup] : []} onChange={(next) => setPerfCardGroup(next[0] || '')} /><TagInput disabled={!perfCardEnabled || !perfCardGroup} value={perfCardModels[perfCardGroup] || []} onChange={(next) => setPerfCardModels((prev) => ({ ...prev, [perfCardGroup]: next }))} /><p className='text-muted-foreground text-xs'>{t('Leave empty to include all models in the group.')}</p></div>
         </div>
 
         <div className='flex gap-2'>

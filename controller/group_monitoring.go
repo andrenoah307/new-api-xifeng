@@ -5,9 +5,11 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/model"
+	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	"github.com/QuantumNous/new-api/pkg/requestip"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/perf_metrics_setting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,6 +42,72 @@ func GetAdminMonitoringGroups(c *gin.Context) {
 		"message": "",
 		"data":    orderedStats,
 	})
+}
+
+func GetAdminMonitoringGroupModels(c *gin.Context) {
+	cfg := operation_setting.GetGroupMonitoringSetting()
+	if !cfg.Enabled || !cfg.PerfCardEnabled {
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": false, "groups": gin.H{}}})
+		return
+	}
+	groups := filterRegionBlockedGroupNames(c, cfg.MonitoringGroups)
+	visible := make([]string, 0, len(groups))
+	for _, group := range groups {
+		if !cfg.IsPerfCardGroupHidden(group) {
+			visible = append(visible, group)
+		}
+	}
+	if len(visible) == 0 {
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": true, "window_hours": 24, "bucket_seconds": perf_metrics_setting.GetBucketSeconds(), "show_all_models": cfg.PerfCardShowAllModels, "top_n": cfg.PerfCardTopNOrDefault(), "groups": gin.H{}}})
+		return
+	}
+	data, err := perfmetrics.QueryGroupModelSummary(24, visible)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取模型性能数据失败"})
+		return
+	}
+	for group, models := range data {
+		allowed := cfg.PerfCardModelsForGroup(group)
+		if allowed == nil {
+			continue
+		}
+		set := map[string]bool{}
+		for _, name := range allowed {
+			set[name] = true
+		}
+		filtered := models[:0]
+		for _, item := range models {
+			if set[item.ModelName] {
+				filtered = append(filtered, item)
+			}
+		}
+		data[group] = filtered
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": true, "window_hours": 24, "bucket_seconds": perf_metrics_setting.GetBucketSeconds(), "show_all_models": cfg.PerfCardShowAllModels, "top_n": cfg.PerfCardTopNOrDefault(), "groups": data}})
+}
+
+func GetAdminMonitoringGroupsHistoryBatch(c *gin.Context) {
+	cfg := operation_setting.GetGroupMonitoringSetting()
+	groups := filterRegionBlockedGroupNames(c, cfg.MonitoringGroups)
+	end := time.Now().Unix()
+	start := end - int64(cfg.AvailabilityPeriodMinutes*60)
+	history, err := model.GetMonitoringHistoryBatch(groups, start, end)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取历史数据失败"})
+		return
+	}
+	seeds, err := model.GetLastMonitoringHistoryBeforeBatch(groups, start)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取历史数据失败"})
+		return
+	}
+	for _, group := range groups {
+		if seed, ok := seeds[group]; ok {
+			seed.RecordedAt = start
+			history[group] = append([]model.MonitoringHistory{seed}, history[group]...)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": history, "period_minutes": cfg.AvailabilityPeriodMinutes, "aggregation_interval_minutes": cfg.AggregationIntervalMinutes})
 }
 
 func GetAdminMonitoringGroupDetail(c *gin.Context) {

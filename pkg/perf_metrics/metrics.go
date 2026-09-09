@@ -22,9 +22,81 @@ var hotBuckets sync.Map
 const seriesSchema = "dbcd0a3c01b55203"
 
 func Init() {
+	if setting := perf_metrics_setting.GetSetting(); setting.RetentionDays <= 0 {
+		common.SysLog("perf_metrics 未配置保留期，数据将无限增长")
+	}
 	go flushLoop()
 }
 
+type GroupModelPerf struct {
+	ModelName    string  `json:"model_name"`
+	RequestCount int64   `json:"request_count"`
+	SuccessRate  float64 `json:"success_rate"`
+	AvgLatencyMs int64   `json:"avg_latency_ms"`
+	AvgTtftMs    int64   `json:"avg_ttft_ms"`
+	HasTtft      bool    `json:"has_ttft"`
+	AvgTps       float64 `json:"avg_tps"`
+}
+
+func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModelPerf, error) {
+	if hours <= 0 {
+		hours = 24
+	}
+	if hours > 24*30 {
+		hours = 24 * 30
+	}
+	endTs := time.Now().Unix()
+	startTs := endTs - int64(hours)*3600
+	allowed := allowedGroupSet(groups)
+	rows, err := model.GetPerfMetricsGroupModelSummary(startTs, endTs, groups)
+	if err != nil {
+		return nil, err
+	}
+	totals := map[bucketKey]counters{}
+	for _, row := range rows {
+		mergeCounters(totals, bucketKey{model: row.ModelName, group: row.Group}, counters{requestCount: row.RequestCount, successCount: row.SuccessCount, totalLatencyMs: row.TotalLatencyMs, ttftSumMs: row.TtftSumMs, ttftCount: row.TtftCount, outputTokens: row.OutputTokens, generationMs: row.GenerationMs})
+	}
+	hotBuckets.Range(func(key, value any) bool {
+		k := key.(bucketKey)
+		if k.bucketTs < startTs || k.bucketTs > endTs {
+			return true
+		}
+		if allowed != nil {
+			if _, ok := allowed[k.group]; !ok {
+				return true
+			}
+		}
+		// 归一到 (model, group)：数据库行已跨桶聚合，热桶必须丢弃 bucketTs 才能并入同一条目
+		mergeCounters(totals, bucketKey{model: k.model, group: k.group}, value.(*atomicBucket).snapshot())
+		return true
+	})
+	result := map[string][]GroupModelPerf{}
+	for key, total := range totals {
+		if total.requestCount == 0 {
+			continue
+		}
+		rate := float64(total.successCount) / float64(total.requestCount) * 100
+		tps := 0.0
+		if total.generationMs > 0 {
+			tps = float64(total.outputTokens) / (float64(total.generationMs) / 1000)
+		}
+		item := GroupModelPerf{ModelName: key.model, RequestCount: total.requestCount, SuccessRate: math.Round(rate*100) / 100, AvgLatencyMs: total.totalLatencyMs / total.requestCount, AvgTps: math.Round(tps*100) / 100}
+		if total.ttftCount > 0 {
+			item.HasTtft = true
+			item.AvgTtftMs = total.ttftSumMs / total.ttftCount
+		}
+		result[key.group] = append(result[key.group], item)
+	}
+	for group := range result {
+		sort.Slice(result[group], func(i, j int) bool {
+			if result[group][i].RequestCount == result[group][j].RequestCount {
+				return result[group][i].ModelName < result[group][j].ModelName
+			}
+			return result[group][i].RequestCount > result[group][j].RequestCount
+		})
+	}
+	return result, nil
+}
 func RecordRelaySample(info *relaycommon.RelayInfo, success bool, outputTokens int64, statusCode int, errContent string) {
 	if info == nil {
 		return
@@ -409,24 +481,6 @@ func recordRedis(key bucketKey, sample Sample) {
 	}
 	pipe.Expire(ctx, redisKey, time.Hour)
 	_, _ = pipe.Exec(ctx)
-}
-
-func mergeRedisActiveBuckets(merged map[bucketKey]counters, params QueryParams, startTs int64, endTs int64) {
-	if !common.RedisEnabled || common.RDB == nil || params.Model == "" || params.Group == "" {
-		return
-	}
-	active := bucketStart(time.Now().Unix())
-	if active < startTs || active > endTs {
-		return
-	}
-	key := bucketKey{model: params.Model, group: params.Group, bucketTs: active}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	values, err := common.RDB.HGetAll(ctx, redisBucketKey(key)).Result()
-	if err != nil || len(values) == 0 {
-		return
-	}
-	mergeCounters(merged, key, redisCounters(values))
 }
 
 func redisBucketKey(key bucketKey) string {

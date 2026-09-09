@@ -20,9 +20,12 @@ import { useStatus } from '@/hooks/use-status'
 import {
   getMonitoringGroups,
   getGroupHistory,
+  getGroupHistoryBatch,
+  getGroupModelPerformance,
   refreshMonitoringData,
   type MonitoringGroupWithHistory,
   type MonitoringHistoryPoint,
+  type GroupModelPerfData,
 } from '../api'
 import {
   avgAvailability,
@@ -149,6 +152,17 @@ export default function MonitoringDashboard() {
   const { data: historyMap } = useQuery({
     queryKey: ['monitoring', 'allHistory', groupNamesKey, admin],
     queryFn: async () => {
+      if (admin) {
+        const batch = await getGroupHistoryBatch(true)
+        const map = Object.fromEntries(
+          Object.entries(batch.history).map(([name, history]) => [name, {
+            history,
+            intervalMinutes: batch.intervalMinutes,
+          }])
+        )
+        historyCache.current = { ...historyCache.current, ...map }
+        return map
+      }
       const results = await Promise.all(
         groupNames.map(async (name) => {
           try {
@@ -177,7 +191,15 @@ export default function MonitoringDashboard() {
       return map
     },
     enabled: groupNames.length > 0,
-    staleTime: Infinity, // History only refreshes on manual action
+    staleTime: Infinity,
+  })
+
+  const { data: modelPerformance } = useQuery<GroupModelPerfData>({
+    queryKey: ['monitoring', 'model-performance'],
+    queryFn: getGroupModelPerformance,
+    enabled: admin,
+    refetchInterval: 60_000,
+    staleTime: 55_000,
   })
 
   // 3. Merge groups + history
@@ -375,7 +397,7 @@ export default function MonitoringDashboard() {
 
         {/* Card grid */}
         {loading && (
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4'>
+          <div className='grid grid-cols-1 gap-4 sm:gap-5'>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
@@ -403,13 +425,23 @@ export default function MonitoringDashboard() {
           />
         )}
         {!loading && visible.length > 0 && (
-          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4'>
+          <div className='grid grid-cols-1 gap-4 sm:gap-5'>
             {visible.map((g) => (
               <GroupStatusCard
                 key={g.group_name}
                 group={g}
                 onClick={admin ? handleCardClick : undefined}
                 regionBlockedGroups={regionBlockedGroups}
+                modelPerformance={
+                  admin && modelPerformance?.groups[g.group_name]?.length
+                    ? {
+                        models: modelPerformance.groups[g.group_name],
+                        showAll: modelPerformance.show_all_models,
+                        topN: modelPerformance.top_n,
+                        windowHours: modelPerformance.window_hours,
+                      }
+                    : undefined
+                }
               />
             ))}
           </div>
