@@ -233,8 +233,9 @@ var GeminiSafetySetting string
 var CohereSafetySetting string
 
 const (
-	RequestIdKey         = "X-Oneapi-Request-Id"
-	UpstreamRequestIdKey = "X-Upstream-Request-Id"
+	RequestIdKey               = "X-Oneapi-Request-Id"
+	UpstreamRequestIdKey       = "X-Upstream-Request-Id"
+	UpstreamRequestIdSourceKey = "X-Upstream-Request-Id-Source"
 )
 
 const (

@@ -1,13 +1,12 @@
 package service
 
 import (
-	"strings"
+	"net/http"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func newHeaderCaptureContext(t *testing.T) *gin.Context {
@@ -17,78 +16,56 @@ func newHeaderCaptureContext(t *testing.T) *gin.Context {
 	return c
 }
 
+func TestCaptureUpstreamRequestIdFallbackUsesPriority(t *testing.T) {
+	for i := 0; i < 200; i++ {
+		c := newHeaderCaptureContext(t)
+		CaptureUpstreamRequestIdFallback(c, http.Header{
+			"X-Request-Id":        []string{"generic-id"},
+			"X-Oneapi-Request-Id": []string{"own-id"},
+		})
+		assert.Equal(t, "own-id", c.GetString(common.UpstreamRequestIdKey))
+		assert.Equal(t, "X-Oneapi-Request-Id", c.GetString(common.UpstreamRequestIdSourceKey))
+	}
+}
+
+func TestCaptureUpstreamRequestIdFallbackFillsOnlyEmptyContext(t *testing.T) {
+	c := newHeaderCaptureContext(t)
+	common.SetUpstreamRequestId(c, "existing-id", "X-Request-Id")
+
+	CaptureUpstreamRequestIdFallback(c, http.Header{
+		"X-Oneapi-Request-Id": []string{"own-id"},
+	})
+
+	assert.Equal(t, "existing-id", c.GetString(common.UpstreamRequestIdKey))
+	assert.Equal(t, "X-Request-Id", c.GetString(common.UpstreamRequestIdSourceKey))
+}
+
+func TestCaptureUpstreamRequestIdFallbackHandlesNilAndEmptyInputs(t *testing.T) {
+	assert.NotPanics(t, func() { CaptureUpstreamRequestIdFallback(nil, nil) })
+	c := newHeaderCaptureContext(t)
+	CaptureUpstreamRequestIdFallback(c, nil)
+	assert.Empty(t, c.GetString(common.UpstreamRequestIdKey))
+	assert.Empty(t, c.GetString(common.UpstreamRequestIdSourceKey))
+}
+
 func TestShouldCopyUpstreamHeader(t *testing.T) {
 	tests := []struct {
-		name        string
-		key         string
-		values      []string
-		initial     string
-		wantCopy    bool
-		wantCapture string
+		name string
+		key  string
+		want bool
 	}{
-		{
-			name:        "generic request id is copied and captured",
-			key:         "X-Request-Id",
-			values:      []string{" generic-id "},
-			wantCopy:    true,
-			wantCapture: "generic-id",
-		},
-		{
-			name:        "own request id is hidden and captured",
-			key:         "X-Oneapi-Request-Id",
-			values:      []string{"own-id"},
-			wantCopy:    false,
-			wantCapture: "own-id",
-		},
-		{
-			name:        "existing capture is not overwritten",
-			key:         "X-Request-Id",
-			values:      []string{"generic-id"},
-			initial:     "existing-id",
-			wantCopy:    true,
-			wantCapture: "existing-id",
-		},
-		{
-			name:     "content length is managed separately",
-			key:      "Content-Length",
-			values:   []string{"12"},
-			wantCopy: false,
-		},
-		{
-			name:     "ordinary header is copied without capture",
-			key:      "Content-Type",
-			values:   []string{"application/json"},
-			wantCopy: true,
-		},
-		{
-			name:     "overlong id is not captured but is copied",
-			key:      "X-Request-Id",
-			values:   []string{strings.Repeat("x", 129)},
-			wantCopy: true,
-		},
+		{name: "content length", key: "Content-Length", want: false},
+		{name: "content length lower case", key: "content-length", want: false},
+		{name: "own request id", key: "X-Oneapi-Request-Id", want: false},
+		{name: "own request id lower case", key: "x-oneapi-request-id", want: false},
+		{name: "own request id upper case", key: "X-ONEAPI-REQUEST-ID", want: false},
+		{name: "generic request id", key: "X-Request-Id", want: true},
+		{name: "content type", key: "Content-Type", want: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newHeaderCaptureContext(t)
-			if tt.initial != "" {
-				c.Set(common.UpstreamRequestIdKey, tt.initial)
-			}
-
-			assert.Equal(t, tt.wantCopy, ShouldCopyUpstreamHeader(c, tt.key, tt.values))
-			require.Equal(t, tt.wantCapture, c.GetString(common.UpstreamRequestIdKey))
+			assert.Equal(t, tt.want, ShouldCopyUpstreamHeader(tt.key))
 		})
 	}
-}
-
-func TestShouldCopyUpstreamHeaderWithNilContext(t *testing.T) {
-	assert.True(t, ShouldCopyUpstreamHeader(nil, "X-Request-Id", []string{"generic-id"}))
-	assert.False(t, ShouldCopyUpstreamHeader(nil, "X-Oneapi-Request-Id", []string{"own-id"}))
-	assert.False(t, ShouldCopyUpstreamHeader(nil, "Content-Length", []string{"12"}))
-}
-
-func TestShouldCopyUpstreamHeaderDoesNotPanicOnEmptyValues(t *testing.T) {
-	c := newHeaderCaptureContext(t)
-	assert.True(t, ShouldCopyUpstreamHeader(c, "X-Request-Id", nil))
-	assert.Empty(t, c.GetString(common.UpstreamRequestIdKey))
 }

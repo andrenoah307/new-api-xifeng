@@ -3,6 +3,8 @@ package common
 import (
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 // UpstreamRequestIdHeaders lists response headers that may carry an upstream
@@ -22,18 +24,26 @@ func NormalizeUpstreamRequestId(v string) string {
 	return v
 }
 
-func UpstreamRequestIdFromHeader(h http.Header) string {
+func UpstreamRequestIdFromHeader(h http.Header) (string, string) {
 	if h == nil {
-		return ""
+		return "", ""
 	}
 	for _, name := range UpstreamRequestIdHeaders {
 		for _, value := range h.Values(name) {
 			if normalized := NormalizeUpstreamRequestId(value); normalized != "" {
-				return normalized
+				return normalized, name
 			}
 		}
 	}
-	return ""
+	return "", ""
+}
+
+func SetUpstreamRequestId(c *gin.Context, id, source string) {
+	if c == nil {
+		return
+	}
+	c.Set(UpstreamRequestIdKey, id)
+	c.Set(UpstreamRequestIdSourceKey, source)
 }
 
 func IsUpstreamRequestIdHeader(k string) bool {

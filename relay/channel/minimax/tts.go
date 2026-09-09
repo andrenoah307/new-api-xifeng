@@ -184,8 +184,9 @@ func handleChatCompletionResponse(c *gin.Context, resp *http.Response, info *rel
 	defer resp.Body.Close()
 
 	// Set response headers
+	service.CaptureUpstreamRequestIdFallback(c, resp.Header)
 	for key, values := range resp.Header {
-		if !service.ShouldCopyUpstreamHeader(c, key, values) {
+		if !service.ShouldCopyUpstreamHeader(key) {
 			continue
 		}
 		for _, value := range values {

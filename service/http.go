@@ -26,24 +26,26 @@ func CloseResponseBodyGracefully(httpResponse *http.Response) {
 // ShouldCopyUpstreamHeader checks whether a given upstream response header
 // should be copied to the client response. Content-Length is managed
 // separately and X-Oneapi-Request-Id is hidden to preserve the local instance
-// ID. Request-ID capture is only a fallback here: doRequest parses the complete
-// header set with deterministic priority before response headers are copied.
-func ShouldCopyUpstreamHeader(c *gin.Context, k string, v []string) bool {
+// ID. Request-ID capture is handled separately by CaptureUpstreamRequestIdFallback.
+func ShouldCopyUpstreamHeader(k string) bool {
 	if strings.EqualFold(k, "Content-Length") {
 		return false
 	}
 	if common.IsUpstreamRequestIdHeader(k) {
-		if c != nil && c.GetString(common.UpstreamRequestIdKey) == "" {
-			for _, value := range v {
-				if normalized := common.NormalizeUpstreamRequestId(value); normalized != "" {
-					c.Set(common.UpstreamRequestIdKey, normalized)
-					break
-				}
-			}
-		}
 		return !strings.EqualFold(k, common.RequestIdKey)
 	}
 	return true
+}
+
+// CaptureUpstreamRequestIdFallback captures an upstream request ID once from
+// the complete response header set when the request has not already captured one.
+func CaptureUpstreamRequestIdFallback(c *gin.Context, h http.Header) {
+	if c == nil || c.GetString(common.UpstreamRequestIdKey) != "" {
+		return
+	}
+	if id, source := common.UpstreamRequestIdFromHeader(h); id != "" {
+		common.SetUpstreamRequestId(c, id, source)
+	}
 }
 
 func IOCopyBytesGracefully(c *gin.Context, src *http.Response, data []byte) {
@@ -58,8 +60,9 @@ func IOCopyBytesGracefully(c *gin.Context, src *http.Response, data []byte) {
 	// So the httpClient will be confused by the response.
 	// For example, Postman will report error, and we cannot check the response at all.
 	if src != nil {
+		CaptureUpstreamRequestIdFallback(c, src.Header)
 		for k, v := range src.Header {
-			if !ShouldCopyUpstreamHeader(c, k, v) {
+			if !ShouldCopyUpstreamHeader(k) {
 				continue
 			}
 			c.Writer.Header().Set(k, v[0])

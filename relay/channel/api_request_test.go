@@ -261,6 +261,7 @@ func TestDoRequestNonStreamBodyCloseCancelsDerivedContext(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, bodyText, string(data))
 	assert.Equal(t, "upstream-request", c.GetString(common.UpstreamRequestIdKey))
+	assert.Equal(t, common.RequestIdKey, c.GetString(common.UpstreamRequestIdSourceKey))
 	ctx := <-requestContext
 	select {
 	case <-ctx.Done():

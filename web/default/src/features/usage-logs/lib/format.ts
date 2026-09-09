@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import type { TFunction } from 'i18next'
 import type { StatusBadgeProps } from '@/components/status-badge'
 import {
   BILLING_PRICING_VARS,
@@ -64,6 +65,22 @@ export function getParamOverrideActionLabel(
 ): string {
   const key = PARAM_OVERRIDE_ACTION_MAP[action.toLowerCase()]
   return key ? t(key) : action
+}
+
+export function getUpstreamRequestIdSourceLabel(
+  t: TFunction,
+  source?: string
+): string {
+  if (!source) return t('Unknown (recorded before source tracking)')
+  if (source === 'X-Oneapi-Request-Id') {
+    return t('Upstream gateway own request ID (X-Oneapi-Request-Id)')
+  }
+  if (source === 'X-Request-Id') {
+    return t(
+      'Generic request ID (X-Request-Id), origin unknown, may be forwarded by a deeper proxy'
+    )
+  }
+  return source
 }
 
 /**

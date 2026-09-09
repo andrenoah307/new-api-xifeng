@@ -649,6 +649,7 @@ func attachResponseCancellation(resp *http.Response, cancel context.CancelFunc) 
 }
 
 func doRequestWithTimeouts(c *gin.Context, req *http.Request, info *common.RelayInfo, nonStreamTimeout, streamResponseHeaderTimeout time.Duration) (*http.Response, error) {
+	common2.SetUpstreamRequestId(c, "", "")
 	var cancel context.CancelFunc
 	var streamHeaderTimer *time.Timer
 	var streamHeaderTimerDone chan struct{}
@@ -750,7 +751,8 @@ func doRequestWithTimeouts(c *gin.Context, req *http.Request, info *common.Relay
 
 	// Retries reuse the same *gin.Context. Always overwrite so the log carries
 	// the ID from the final successful attempt instead of stale failed-attempt data.
-	c.Set(common2.UpstreamRequestIdKey, common2.UpstreamRequestIdFromHeader(resp.Header))
+	upstreamRequestId, upstreamRequestIdSource := common2.UpstreamRequestIdFromHeader(resp.Header)
+	common2.SetUpstreamRequestId(c, upstreamRequestId, upstreamRequestIdSource)
 
 	_ = req.Body.Close()
 	_ = c.Request.Body.Close()

@@ -58,7 +58,7 @@ func copyCodexSSEHeaders(c *gin.Context, resp *http.Response) {
 	// codex
 	for _, name := range []string{"X-Reasoning-Included", "X-Codex-Turn-State"} {
 		values := resp.Header.Values(name)
-		if !service.ShouldCopyUpstreamHeader(c, name, values) {
+		if !service.ShouldCopyUpstreamHeader(name) {
 			continue
 		}
 		for _, value := range values {

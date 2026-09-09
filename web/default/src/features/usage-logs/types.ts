@@ -150,6 +150,8 @@ export interface LogOtherData {
       original_code?: string
       count?: number
     }
+    // Source response header for upstream_request_id. Admin-only.
+    upstream_request_id_source?: string
     // Empty/untrusted upstream usage was zeroed before settlement. Admin-only.
     zero_charge_guard?: {
       reason: 'empty_output' | 'usage_missing' | string

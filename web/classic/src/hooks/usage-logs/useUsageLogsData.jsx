@@ -433,6 +433,25 @@ export const useLogsData = () => {
           value: logs[i].upstream_request_id,
         });
       }
+      if (isAdminUser && logs[i].upstream_request_id) {
+        const source = other?.admin_info?.upstream_request_id_source;
+        let sourceLabel;
+        if (source === 'X-Oneapi-Request-Id') {
+          sourceLabel = t('Upstream gateway own request ID (X-Oneapi-Request-Id)');
+        } else if (source === 'X-Request-Id') {
+          sourceLabel = t(
+            'Generic request ID (X-Request-Id), origin unknown, may be forwarded by a deeper proxy',
+          );
+        } else if (source) {
+          sourceLabel = source;
+        } else {
+          sourceLabel = t('Unknown (recorded before source tracking)');
+        }
+        expandDataLocal.push({
+          key: t('Upstream Request ID Source'),
+          value: sourceLabel,
+        });
+      }
       if (other?.ws || other?.audio) {
         expandDataLocal.push({
           key: t('语音输入'),

@@ -19,12 +19,16 @@ For commercial licensing, please contact support@quantumnous.com
 
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
+import type { TFunction } from 'i18next'
 
 import { formatLogQuota } from '@/lib/format'
 
-import { renderAuditContent } from './format.ts'
+import {
+  getUpstreamRequestIdSourceLabel,
+  renderAuditContent,
+} from './format.ts'
 
-const translate = (
+const translate = ((
   key: string,
   options: Record<string, unknown> = {}
 ): string =>
@@ -32,7 +36,38 @@ const translate = (
     Object.hasOwn(options, name)
       ? String(options[name])
       : placeholder
-  )
+  )) as unknown as TFunction
+
+describe('getUpstreamRequestIdSourceLabel', () => {
+  test('maps known sources and legacy missing values', () => {
+    const cases = [
+      {
+        source: 'X-Oneapi-Request-Id',
+        expected: 'Upstream gateway own request ID (X-Oneapi-Request-Id)',
+      },
+      {
+        source: 'X-Request-Id',
+        expected:
+          'Generic request ID (X-Request-Id), origin unknown, may be forwarded by a deeper proxy',
+      },
+      {
+        source: 'x-future-request-id',
+        expected: 'x-future-request-id',
+      },
+      {
+        source: undefined,
+        expected: 'Unknown (recorded before source tracking)',
+      },
+    ]
+
+    for (const testCase of cases) {
+      assert.equal(
+        getUpstreamRequestIdSourceLabel(translate, testCase.source),
+        testCase.expected
+      )
+    }
+  })
+})
 
 describe('renderAuditContent quota actions', () => {
   test('formats numeric add and subtract quotas with the log quota formatter', () => {

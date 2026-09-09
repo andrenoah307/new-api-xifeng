@@ -113,6 +113,21 @@ func createLog(log *Log) error {
 	return LOG_DB.Create(log).Error
 }
 
+// attachUpstreamRequestIdSource records which response header produced the
+// upstream request ID. Nested under admin_info so non-admin log views strip it
+// with the existing projection instead of a second redaction path.
+func attachUpstreamRequestIdSource(other map[string]interface{}, source string) {
+	if other == nil {
+		return
+	}
+	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	if !ok || adminInfo == nil {
+		adminInfo = map[string]interface{}{}
+		other["admin_info"] = adminInfo
+	}
+	adminInfo["upstream_request_id_source"] = source
+}
+
 func clickHouseLogOrder(prefix string) string {
 	return prefix + "created_at desc, " + prefix + "request_id desc"
 }
@@ -337,6 +352,14 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
+	if upstreamRequestId != "" {
+		if source := c.GetString(common.UpstreamRequestIdSourceKey); source != "" {
+			if other == nil {
+				other = map[string]interface{}{}
+			}
+			attachUpstreamRequestIdSource(other, source)
+		}
+	}
 	otherStr := common.MapToJsonStr(other)
 	// 判断是否需要记录 IP
 	needRecordIp := common.ForceRecordIPEnabled
@@ -428,8 +451,17 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
 	upstreamRequestId := c.GetString(common.UpstreamRequestIdKey)
+	other := params.Other
+	if upstreamRequestId != "" {
+		if source := c.GetString(common.UpstreamRequestIdSourceKey); source != "" {
+			if other == nil {
+				other = map[string]interface{}{}
+			}
+			attachUpstreamRequestIdSource(other, source)
+		}
+	}
 	createdAt := common.GetTimestamp()
-	otherStr := common.MapToJsonStr(params.Other)
+	otherStr := common.MapToJsonStr(other)
 	// 判断是否需要记录 IP
 	needRecordIp := common.ForceRecordIPEnabled
 	if !needRecordIp {
