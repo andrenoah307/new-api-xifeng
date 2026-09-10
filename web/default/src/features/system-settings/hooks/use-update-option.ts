@@ -24,8 +24,8 @@ import {
 import i18next from 'i18next'
 import { toast } from 'sonner'
 
-import { updateSystemOption } from '../api'
-import type { UpdateOptionRequest } from '../types'
+import { updateSystemOption, updateSystemOptions } from '../api'
+import type { UpdateOptionRequest, UpdateOptionsRequest } from '../types'
 
 // Configuration keys that require status refresh
 const STATUS_RELATED_KEYS = new Set([
@@ -57,11 +57,13 @@ const STATUS_RELATED_KEYS = new Set([
 
 export function invalidateOptionQueries(
   queryClient: QueryClient,
-  optionKey: string
+  optionKey: string | string[]
 ): void {
+  const optionKeys = Array.isArray(optionKey) ? optionKey : [optionKey]
+  if (optionKeys.length === 0) return
   void queryClient.invalidateQueries({ queryKey: ['system-options'] })
 
-  if (!STATUS_RELATED_KEYS.has(optionKey)) return
+  if (!optionKeys.some(key => STATUS_RELATED_KEYS.has(key))) return
 
   void queryClient.invalidateQueries({ queryKey: ['status'] })
   try {
@@ -80,6 +82,25 @@ export function useUpdateOption() {
       if (data.success) {
         invalidateOptionQueries(queryClient, variables.key)
 
+        toast.success(i18next.t('Setting updated successfully'))
+      } else {
+        toast.error(data.message || i18next.t('Failed to update setting'))
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || i18next.t('Failed to update setting'))
+    },
+  })
+}
+
+export function useUpdateOptions() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (request: UpdateOptionsRequest) => updateSystemOptions(request),
+    onSuccess: (data, variables) => {
+      if (data.success) {
+        invalidateOptionQueries(queryClient, variables.options.map(option => option.key))
         toast.success(i18next.t('Setting updated successfully'))
       } else {
         toast.error(data.message || i18next.t('Failed to update setting'))

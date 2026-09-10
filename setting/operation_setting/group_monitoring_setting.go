@@ -22,7 +22,7 @@ type GroupMonitoringSetting struct {
 	PerfCardEnabled                bool                `json:"perf_card_enabled"`
 	PerfCardShowAllModels          bool                `json:"perf_card_show_all_models"`
 	PerfCardTopN                   int                 `json:"perf_card_top_n"`
-	PerfCardHiddenGroups           []string            `json:"perf_card_hidden_groups"`
+	PerfCardGroups                 []string            `json:"perf_card_groups"`
 	PerfCardGroupModels            map[string][]string `json:"perf_card_group_models"`
 }
 
@@ -42,12 +42,12 @@ var groupMonitoringSetting = GroupMonitoringSetting{
 	PerfCardEnabled:                true,
 	PerfCardShowAllModels:          false,
 	PerfCardTopN:                   6,
-	PerfCardHiddenGroups:           []string{},
+	PerfCardGroups:                 []string{},
 	PerfCardGroupModels:            map[string][]string{},
 }
 
-func (s GroupMonitoringSetting) IsPerfCardGroupHidden(group string) bool {
-	for _, value := range s.PerfCardHiddenGroups {
+func (s GroupMonitoringSetting) IsPerfCardGroupEnabled(group string) bool {
+	for _, value := range s.PerfCardGroups {
 		if value == group {
 			return true
 		}

@@ -96,6 +96,7 @@ export interface GroupModelPerf {
   avg_ttft_ms: number
   has_ttft: boolean
   avg_tps: number
+  series: (number | null)[]
 }
 
 export interface GroupModelPerfData {
@@ -105,6 +106,8 @@ export interface GroupModelPerfData {
   show_all_models: boolean
   top_n: number
   groups: Record<string, GroupModelPerf[]>
+  series_slot_seconds: number
+  enabled_groups: string[]
 }
 
 export async function getGroupModelPerformance(): Promise<GroupModelPerfData> {

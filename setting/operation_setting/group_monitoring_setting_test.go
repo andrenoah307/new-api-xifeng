@@ -28,13 +28,17 @@ func TestPerfCardModelsForGroup(t *testing.T) {
 	}
 }
 
-func TestIsPerfCardGroupHidden(t *testing.T) {
-	s := GroupMonitoringSetting{PerfCardHiddenGroups: []string{"internal", "staging"}}
-	assert.True(t, s.IsPerfCardGroupHidden("internal"))
-	assert.True(t, s.IsPerfCardGroupHidden("staging"))
-	assert.False(t, s.IsPerfCardGroupHidden("default"))
-	assert.False(t, s.IsPerfCardGroupHidden(""))
-	assert.False(t, GroupMonitoringSetting{}.IsPerfCardGroupHidden("default"))
+// 契约：PerfCardGroups 是白名单，只有列进去的分组才展示模型性能卡片。
+// 未配置（nil / 空切片）表示"一个都没启用"，必须返回 false —— 白名单语义下
+// 空集合就是空集合，不能像黑名单那样被理解成"全部放行"。
+func TestIsPerfCardGroupEnabled(t *testing.T) {
+	s := GroupMonitoringSetting{PerfCardGroups: []string{"internal", "staging"}}
+	assert.True(t, s.IsPerfCardGroupEnabled("internal"))
+	assert.True(t, s.IsPerfCardGroupEnabled("staging"))
+	assert.False(t, s.IsPerfCardGroupEnabled("default"))
+	assert.False(t, s.IsPerfCardGroupEnabled(""))
+	assert.False(t, GroupMonitoringSetting{}.IsPerfCardGroupEnabled("internal"))
+	assert.False(t, GroupMonitoringSetting{PerfCardGroups: []string{}}.IsPerfCardGroupEnabled("internal"))
 }
 
 // 契约：TopN 必须落在 [1, 50]。0/负数来自"管理员清空输入框"，必须回落到默认值而不是
@@ -58,12 +62,12 @@ func TestPerfCardTopNOrDefault(t *testing.T) {
 	}
 }
 
-// 默认值即生产未配置时的行为：卡片开启、只显示 top 6、不隐藏任何分组、不限制任何模型。
+// 默认值即生产未配置时的行为：卡片总开关开启，但白名单为空，因此实际不展示任何分组。
 func TestGroupMonitoringPerfCardDefaults(t *testing.T) {
 	s := GetGroupMonitoringSetting()
 	assert.True(t, s.PerfCardEnabled)
 	assert.False(t, s.PerfCardShowAllModels)
 	assert.Equal(t, 6, s.PerfCardTopNOrDefault())
-	assert.Empty(t, s.PerfCardHiddenGroups)
+	assert.Empty(t, s.PerfCardGroups, "默认不启用任何分组的模型性能卡片，管理员必须显式勾选")
 	assert.Nil(t, s.PerfCardModelsForGroup("default"))
 }

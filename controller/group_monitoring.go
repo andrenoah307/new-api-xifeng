@@ -47,18 +47,18 @@ func GetAdminMonitoringGroups(c *gin.Context) {
 func GetAdminMonitoringGroupModels(c *gin.Context) {
 	cfg := operation_setting.GetGroupMonitoringSetting()
 	if !cfg.Enabled || !cfg.PerfCardEnabled {
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": false, "groups": gin.H{}}})
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": false, "enabled_groups": []string{}, "groups": gin.H{}}})
 		return
 	}
 	groups := filterRegionBlockedGroupNames(c, cfg.MonitoringGroups)
 	visible := make([]string, 0, len(groups))
 	for _, group := range groups {
-		if !cfg.IsPerfCardGroupHidden(group) {
+		if cfg.IsPerfCardGroupEnabled(group) {
 			visible = append(visible, group)
 		}
 	}
 	if len(visible) == 0 {
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": true, "window_hours": 24, "bucket_seconds": perf_metrics_setting.GetBucketSeconds(), "show_all_models": cfg.PerfCardShowAllModels, "top_n": cfg.PerfCardTopNOrDefault(), "groups": gin.H{}}})
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": true, "window_hours": 24, "bucket_seconds": perf_metrics_setting.GetBucketSeconds(), "series_slot_seconds": perfmetrics.GroupModelSeriesSlotSeconds(24), "enabled_groups": visible, "show_all_models": cfg.PerfCardShowAllModels, "top_n": cfg.PerfCardTopNOrDefault(), "groups": gin.H{}}})
 		return
 	}
 	data, err := perfmetrics.QueryGroupModelSummary(24, visible)
@@ -83,7 +83,7 @@ func GetAdminMonitoringGroupModels(c *gin.Context) {
 		}
 		data[group] = filtered
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": true, "window_hours": 24, "bucket_seconds": perf_metrics_setting.GetBucketSeconds(), "show_all_models": cfg.PerfCardShowAllModels, "top_n": cfg.PerfCardTopNOrDefault(), "groups": data}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": true, "window_hours": 24, "bucket_seconds": perf_metrics_setting.GetBucketSeconds(), "series_slot_seconds": perfmetrics.GroupModelSeriesSlotSeconds(24), "enabled_groups": visible, "show_all_models": cfg.PerfCardShowAllModels, "top_n": cfg.PerfCardTopNOrDefault(), "groups": data}})
 }
 
 func GetAdminMonitoringGroupsHistoryBatch(c *gin.Context) {

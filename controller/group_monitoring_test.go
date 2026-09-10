@@ -36,6 +36,9 @@ func setupMonitoringControllerTestDB(t *testing.T, migrate bool) *gorm.DB {
 	require.NoError(t, err)
 	model.DB = db
 	model.LOG_DB = db
+	// initCol() 决定手写 SQL 里 `group` 列的引号形态；不初始化时它是空串，
+	// perf_metrics 的分组聚合查询会直接报语法错误。单独跑本文件时尤其明显。
+	require.NoError(t, model.InitLogDB())
 	if migrate {
 		require.NoError(t, db.AutoMigrate(&model.MonitoringHistory{}, &model.GroupMonitoringStat{}))
 	}

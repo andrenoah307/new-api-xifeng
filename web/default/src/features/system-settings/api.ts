@@ -27,6 +27,8 @@ import type {
   SystemTaskResponse,
   UpdateOptionRequest,
   UpdateOptionResponse,
+  UpdateOptionsRequest,
+  UpdateOptionsResponse,
   UpstreamChannelsResponse,
   UpstreamRatiosResponse,
 } from './types'
@@ -38,6 +40,11 @@ export async function getSystemOptions() {
 
 export async function updateSystemOption(request: UpdateOptionRequest) {
   const res = await api.put<UpdateOptionResponse>('/api/option/', request)
+  return res.data
+}
+
+export async function updateSystemOptions(request: UpdateOptionsRequest) {
+  const res = await api.put<UpdateOptionsResponse>('/api/option/batch', request)
   return res.data
 }
 

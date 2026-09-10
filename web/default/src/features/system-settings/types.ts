@@ -39,6 +39,19 @@ export type UpdateOptionResponse = {
   message: string
 }
 
+export type UpdateOptionsRequest = {
+  options: UpdateOptionRequest[]
+}
+
+export type UpdateOptionsResponse = {
+  success: boolean
+  message: string
+  data?: {
+    applied?: string[]
+    failed?: { key: string; message: string }
+  }
+}
+
 export type ConfirmPaymentComplianceResponse = {
   success: boolean
   message: string

@@ -29,32 +29,63 @@ func Init() {
 }
 
 type GroupModelPerf struct {
-	ModelName    string  `json:"model_name"`
-	RequestCount int64   `json:"request_count"`
-	SuccessRate  float64 `json:"success_rate"`
-	AvgLatencyMs int64   `json:"avg_latency_ms"`
-	AvgTtftMs    int64   `json:"avg_ttft_ms"`
-	HasTtft      bool    `json:"has_ttft"`
-	AvgTps       float64 `json:"avg_tps"`
+	ModelName    string     `json:"model_name"`
+	RequestCount int64      `json:"request_count"`
+	SuccessRate  float64    `json:"success_rate"`
+	AvgLatencyMs int64      `json:"avg_latency_ms"`
+	AvgTtftMs    int64      `json:"avg_ttft_ms"`
+	HasTtft      bool       `json:"has_ttft"`
+	AvgTps       float64    `json:"avg_tps"`
+	Series       []*float64 `json:"series"`
+}
+
+const GroupModelSeriesSlots = 24
+
+func GroupModelSeriesSlotSeconds(hours int) int64 {
+	if hours <= 0 {
+		hours = 24
+	}
+	if hours > 720 {
+		hours = 720
+	}
+	window := int64(hours) * 3600
+	slots := (window + GroupModelSeriesSlots - 1) / GroupModelSeriesSlots
+	if slots < 1 {
+		return 1
+	}
+	return slots
 }
 
 func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModelPerf, error) {
 	if hours <= 0 {
 		hours = 24
 	}
-	if hours > 24*30 {
-		hours = 24 * 30
+	if hours > 720 {
+		hours = 720
 	}
 	endTs := time.Now().Unix()
 	startTs := endTs - int64(hours)*3600
 	allowed := allowedGroupSet(groups)
-	rows, err := model.GetPerfMetricsGroupModelSummary(startTs, endTs, groups)
+	rows, err := model.GetPerfMetricsGroupModelBuckets(startTs, endTs, groups)
 	if err != nil {
 		return nil, err
 	}
+	slotSeconds := GroupModelSeriesSlotSeconds(hours)
 	totals := map[bucketKey]counters{}
+	series := map[bucketKey]counters{}
 	for _, row := range rows {
-		mergeCounters(totals, bucketKey{model: row.ModelName, group: row.Group}, counters{requestCount: row.RequestCount, successCount: row.SuccessCount, totalLatencyMs: row.TotalLatencyMs, ttftSumMs: row.TtftSumMs, ttftCount: row.TtftCount, outputTokens: row.OutputTokens, generationMs: row.GenerationMs})
+		value := counters{requestCount: row.RequestCount, successCount: row.SuccessCount, totalLatencyMs: row.TotalLatencyMs, ttftSumMs: row.TtftSumMs, ttftCount: row.TtftCount, outputTokens: row.OutputTokens, generationMs: row.GenerationMs}
+		key := bucketKey{model: row.ModelName, group: row.Group}
+		mergeCounters(totals, key, value)
+		idx := int((row.BucketTs - startTs) / slotSeconds)
+		if idx < 0 {
+			idx = 0
+		}
+		if idx >= GroupModelSeriesSlots {
+			idx = GroupModelSeriesSlots - 1
+		}
+		key.bucketTs = int64(idx)
+		mergeCounters(series, key, value)
 	}
 	hotBuckets.Range(func(key, value any) bool {
 		k := key.(bucketKey)
@@ -67,7 +98,19 @@ func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModel
 			}
 		}
 		// 归一到 (model, group)：数据库行已跨桶聚合，热桶必须丢弃 bucketTs 才能并入同一条目
-		mergeCounters(totals, bucketKey{model: k.model, group: k.group}, value.(*atomicBucket).snapshot())
+		snapshot := value.(*atomicBucket).snapshot()
+		baseKey := bucketKey{model: k.model, group: k.group}
+		mergeCounters(totals, baseKey, snapshot)
+		idx := int((k.bucketTs - startTs) / slotSeconds)
+		if idx < 0 {
+			idx = 0
+		}
+		if idx >= GroupModelSeriesSlots {
+			idx = GroupModelSeriesSlots - 1
+		}
+		slotKey := baseKey
+		slotKey.bucketTs = int64(idx)
+		mergeCounters(series, slotKey, snapshot)
 		return true
 	})
 	result := map[string][]GroupModelPerf{}
@@ -80,7 +123,16 @@ func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModel
 		if total.generationMs > 0 {
 			tps = float64(total.outputTokens) / (float64(total.generationMs) / 1000)
 		}
-		item := GroupModelPerf{ModelName: key.model, RequestCount: total.requestCount, SuccessRate: math.Round(rate*100) / 100, AvgLatencyMs: total.totalLatencyMs / total.requestCount, AvgTps: math.Round(tps*100) / 100}
+		item := GroupModelPerf{ModelName: key.model, RequestCount: total.requestCount, SuccessRate: math.Round(rate*100) / 100, AvgLatencyMs: total.totalLatencyMs / total.requestCount, AvgTps: math.Round(tps*100) / 100, Series: make([]*float64, GroupModelSeriesSlots)}
+		for idx := 0; idx < GroupModelSeriesSlots; idx++ {
+			slotKey := key
+			slotKey.bucketTs = int64(idx)
+			value := series[slotKey]
+			if value.requestCount > 0 {
+				rate := math.Round(successRate(value)*100) / 100
+				item.Series[idx] = &rate
+			}
+		}
 		if total.ttftCount > 0 {
 			item.HasTtft = true
 			item.AvgTtftMs = total.ttftSumMs / total.ttftCount

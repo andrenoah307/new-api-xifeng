@@ -115,9 +115,10 @@ func GetPerfMetricsSummaryBucketsAll(startTs int64, endTs int64, groups []string
 	return summaries, err
 }
 
-type PerfMetricGroupModel struct {
+type PerfMetricGroupModelBucket struct {
 	Group          string `gorm:"column:group_name"`
 	ModelName      string
+	BucketTs       int64
 	RequestCount   int64
 	SuccessCount   int64
 	TotalLatencyMs int64
@@ -127,16 +128,16 @@ type PerfMetricGroupModel struct {
 	GenerationMs   int64
 }
 
-func GetPerfMetricsGroupModelSummary(startTs, endTs int64, groups []string) ([]PerfMetricGroupModel, error) {
-	var summaries []PerfMetricGroupModel
-	query := DB.Model(&PerfMetric{}).Select(commonGroupCol+" as group_name, model_name, SUM(request_count) as request_count, SUM(success_count) as success_count, SUM(total_latency_ms) as total_latency_ms, SUM(ttft_sum_ms) as ttft_sum_ms, SUM(ttft_count) as ttft_count, SUM(output_tokens) as output_tokens, SUM(generation_ms) as generation_ms").Where("bucket_ts >= ? AND bucket_ts <= ?", startTs, endTs)
+func GetPerfMetricsGroupModelBuckets(startTs, endTs int64, groups []string) ([]PerfMetricGroupModelBucket, error) {
+	var summaries []PerfMetricGroupModelBucket
+	query := DB.Model(&PerfMetric{}).Select(commonGroupCol+" as group_name, model_name, bucket_ts, SUM(request_count) as request_count, SUM(success_count) as success_count, SUM(total_latency_ms) as total_latency_ms, SUM(ttft_sum_ms) as ttft_sum_ms, SUM(ttft_count) as ttft_count, SUM(output_tokens) as output_tokens, SUM(generation_ms) as generation_ms").Where("bucket_ts >= ? AND bucket_ts <= ?", startTs, endTs)
 	if groups != nil {
 		if len(groups) == 0 {
 			return summaries, nil
 		}
 		query = query.Where(commonGroupCol+" IN ?", groups)
 	}
-	return summaries, query.Group(commonGroupCol + ", model_name").Having("SUM(request_count) > 0").Find(&summaries).Error
+	return summaries, query.Group(commonGroupCol + ", model_name, bucket_ts").Having("SUM(request_count) > 0").Order("bucket_ts ASC").Find(&summaries).Error
 }
 
 func DeletePerfMetricsBefore(cutoffTs int64) error {

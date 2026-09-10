@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GroupModelPerf } from '../api'
 import { formatLatency, formatThroughput, formatUptimePct, getSuccessRateTextClass } from '@/features/performance-metrics/lib/format'
+import MiniSparkline from './mini-sparkline'
 
 export default function GroupModelPerformance({ models, showAll, topN, windowHours }: { models: GroupModelPerf[]; showAll: boolean; topN: number; windowHours: number }) {
   const { t } = useTranslation()
@@ -13,7 +14,7 @@ export default function GroupModelPerformance({ models, showAll, topN, windowHou
   return (
     <div className='space-y-2'>
       <div className='text-muted-foreground text-xs'>{t('Model performance metrics')} · {t('Last {{hours}} hours', { hours: windowHours })}</div>
-      <div className='grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3'>
+      <div className='grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2'>
         {visible.map((model) => (
           <div key={model.model_name} className='bg-muted/30 rounded-lg p-2 text-xs'>
             <div className='truncate font-medium' title={model.model_name}>{model.model_name}</div>
@@ -23,6 +24,7 @@ export default function GroupModelPerformance({ models, showAll, topN, windowHou
               <span>{t('Throughput short')} {formatThroughput(model.avg_tps)}</span>
               <span className={getSuccessRateTextClass(model.success_rate)}>{t('Model success rate')} {formatUptimePct(model.success_rate)}</span>
             </div>
+            <div className='mt-2'><MiniSparkline series={model.series ?? []} /></div>
           </div>
         ))}
       </div>

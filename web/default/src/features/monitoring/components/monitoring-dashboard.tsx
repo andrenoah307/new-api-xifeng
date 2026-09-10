@@ -35,6 +35,7 @@ import {
   saveSortMode,
   rateAccentColor,
   computeRateFromHistory,
+  splitFeaturedGroups,
   type SortMode,
 } from '../constants'
 import GroupDetailPanel from './group-detail-panel'
@@ -281,6 +282,10 @@ export default function MonitoringDashboard() {
     if (sortMode === 'default') return filtered
     return [...filtered].sort((a, b) => compareGroups(a, b, sortMode))
   }, [groups, keyword, sortMode])
+  const featuredNames = new Set(
+    admin && modelPerformance?.enabled ? modelPerformance.enabled_groups : []
+  )
+  const { featured, rest } = splitFeaturedGroups(visible, featuredNames)
 
   const onlineCount = groups.filter(isGroupOnline).length
   const noDataCount = groups.filter(
@@ -397,7 +402,7 @@ export default function MonitoringDashboard() {
 
         {/* Card grid */}
         {loading && (
-          <div className='grid grid-cols-1 gap-4 sm:gap-5'>
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4'>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
@@ -425,26 +430,28 @@ export default function MonitoringDashboard() {
           />
         )}
         {!loading && visible.length > 0 && (
-          <div className='grid grid-cols-1 gap-4 sm:gap-5'>
-            {visible.map((g) => (
+          <>
+          {featured.length > 0 && <div className='mb-4 grid grid-cols-1 gap-4 sm:gap-5'>
+            {featured.map((g) => (
               <GroupStatusCard
                 key={g.group_name}
                 group={g}
                 onClick={admin ? handleCardClick : undefined}
                 regionBlockedGroups={regionBlockedGroups}
-                modelPerformance={
-                  admin && modelPerformance?.groups[g.group_name]?.length
-                    ? {
-                        models: modelPerformance.groups[g.group_name],
+                variant='wide'
+                modelPerformance={admin && modelPerformance ? {
+                        models: modelPerformance.groups[g.group_name] ?? [],
                         showAll: modelPerformance.show_all_models,
                         topN: modelPerformance.top_n,
                         windowHours: modelPerformance.window_hours,
-                      }
-                    : undefined
-                }
+                      } : undefined}
               />
             ))}
+          </div>}
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4'>
+            {rest.map((g) => <GroupStatusCard key={g.group_name} group={g} onClick={admin ? handleCardClick : undefined} regionBlockedGroups={regionBlockedGroups} />)}
           </div>
+          </>
         )}
 
         <GroupDetailPanel

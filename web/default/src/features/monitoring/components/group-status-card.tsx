@@ -26,6 +26,7 @@ interface GroupStatusCardProps {
   onClick?: (group: MonitoringGroupWithHistory) => void
   regionBlockedGroups?: string[]
   modelPerformance?: { models: GroupModelPerf[]; showAll: boolean; topN: number; windowHours: number }
+  variant?: 'grid' | 'wide'
 }
 
 const GroupStatusCard = memo(function GroupStatusCard({
@@ -33,6 +34,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
   onClick,
   regionBlockedGroups = [],
   modelPerformance,
+  variant = 'grid',
 }: GroupStatusCardProps) {
   const { t } = useTranslation()
   const { status } = useStatus()
@@ -91,7 +93,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
 
   return (
     <div
-      className={`group border-border bg-card hover:border-primary/40 relative rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${modelPerformance ? 'lg:grid lg:grid-cols-2 lg:gap-6' : ''}`}
+      className={`group border-border bg-card hover:border-primary/40 relative min-w-0 rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${modelPerformance && variant === 'wide' ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6' : ''}`}
       style={{ cursor: onClick ? 'pointer' : 'default' }}
       onClick={() => onClick?.(group)}
     >

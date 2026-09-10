@@ -6,6 +6,18 @@ export function rateAccentColor(rate: number | null | undefined): string {
   return 'var(--destructive)'
 }
 
+export function splitFeaturedGroups<T extends { group_name: string }>(
+  groups: T[],
+  featuredNames: Set<string>
+): { featured: T[]; rest: T[] } {
+  const featured: T[] = []
+  const rest: T[] = []
+  for (const group of groups) {
+    ;(featuredNames.has(group.group_name) ? featured : rest).push(group)
+  }
+  return { featured, rest }
+}
+
 export function rateVariant(
   rate: number | null | undefined
 ): 'default' | 'secondary' | 'destructive' | 'outline' {
