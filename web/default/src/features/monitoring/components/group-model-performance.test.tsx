@@ -78,6 +78,29 @@ function occurrences(markup: string, needle: string): number {
   return markup.split(needle).length - 1
 }
 
+// 走势列的宽度契约：auto 表格布局下，百分比宽度（w-full）与 flex-1 子项
+// 对列的固有宽度贡献为 0，列会塌到只剩 gap 的宽度。因此"给单元格内容一个
+// 固定宽度"不是样式偏好，而是这一列能否被看见的唯一机制。
+function trendHeaderClass(markup: string): string {
+  const head = markup.slice(markup.indexOf('<thead>'), markup.indexOf('</thead>'))
+  const th = [...head.matchAll(/<th([^>]*)>(.*?)<\/th>/g)].find((m) => m[2].includes('Trend'))
+  return th ? (th[1].match(/class="([^"]*)"/)?.[1] ?? '') : ''
+}
+
+function trendCell(markup: string): { className: string; inner: string } {
+  const body = markup.slice(markup.indexOf('<tbody>'), markup.indexOf('</tbody>'))
+  const row = body.match(/<tr[^>]*>(.*?)<\/tr>/)?.[1] ?? ''
+  const cells = [...row.matchAll(/<td([^>]*)>(.*?)<\/td>/g)]
+  const last = cells[cells.length - 1]
+  return last
+    ? { className: last[1].match(/class="([^"]*)"/)?.[1] ?? '', inner: last[2] }
+    : { className: '', inner: '' }
+}
+
+function containerBreakpoint(className: string): string {
+  return className.match(/@([\w[\]]+)\/perfcols:table-cell/)?.[1] ?? ''
+}
+
 describe('group model performance', () => {
   // 契约：窗口内没有任何一次首字采样时后端返回 avg_ttft_ms=0，
   // 必须渲染"—"。若改成直出数值会显示 "0ms"，运营会误判为极快。
@@ -199,5 +222,43 @@ describe('group model performance', () => {
     })
     assert.equal(renderedModelNames(markup)[0], longName)
     assert.ok(markup.includes(`title="${longName}"`))
+  })
+})
+
+describe('group model performance trend column', () => {
+  async function renderOne(): Promise<string> {
+    return render({
+      models: [perf({ model_name: 'gpt-5.6-luna', series: Array(24).fill(99) })],
+      showAll: true,
+      topN: 6,
+    })
+  }
+
+  // 表头与单元格是同一列的两半。只改其中一个的显隐断点，浏览器会渲染出
+  // "有表头没数据"或"有数据没表头"的错位表格，而 tsc 与其余测试全绿。
+  test('reveals the trend header and its cells at the same container breakpoint', async () => {
+    const markup = await renderOne()
+    const head = containerBreakpoint(trendHeaderClass(markup))
+    const cell = containerBreakpoint(trendCell(markup).className)
+    assert.notEqual(head, '', 'trend header must declare a container breakpoint')
+    assert.equal(head, cell)
+  })
+
+  // 回归护栏：走势列曾只在 <th> 上写 w-[76px]，而 auto 布局按单元格内容定列宽，
+  // 表头上的宽度声明不参与，24 段被压成约 1.7px 的噪点。宽度必须落在单元格内容上。
+  test('gives the trend cell content an intrinsic width instead of a percentage', async () => {
+    const { inner } = trendCell(await renderOne())
+    // 只认独立的 w-<数字>；min-w-0 / max-w-0 这类收缩声明不构成宽度契约
+    assert.match(
+      inner,
+      /class="(?:[^"]*\s)?w-\d/,
+      'trend cell must wrap the sparkline in a fixed-width box'
+    )
+  })
+
+  // 表头单独声明像素宽度在 auto 布局下是无效声明，留着会误导后续维护者
+  // 以为这一列已经有宽度契约了。
+  test('does not declare a dead pixel width on the trend header', async () => {
+    assert.doesNotMatch(trendHeaderClass(await renderOne()), /w-\[\d+px\]/)
   })
 })

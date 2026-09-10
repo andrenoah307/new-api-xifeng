@@ -22,7 +22,7 @@ import { segmentColor } from '../constants'
 export default function MiniSparkline({ series }: { series: (number | null)[] }) {
   const { t } = useTranslation()
   if (!series.length) return null
-  return <div className='flex h-1.5 w-full flex-nowrap gap-px overflow-hidden' aria-label={t('Model success rate')}>
+  return <div className='flex h-2 w-full flex-nowrap gap-px overflow-hidden' aria-label={t('Model success rate')}>
     {series.map((value, index) => (
       <span key={index} className='min-w-0 flex-1' style={{ background: segmentColor(value, null) }} title={value == null ? t('No data available') : `${value}%`} />
     ))}

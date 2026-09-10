@@ -120,3 +120,33 @@ describe('group status card layout', () => {
     assert.ok(markup.includes('gpt-5.6-luna'))
   })
 })
+
+// 四列骨架由三段 class 共同决定：Grid 的 grid-cols-N、左列 col-span-a、右列
+// col-span-b。三者任意一段的断点或数字被单独改动，浏览器都会静默给出错误
+// 布局（空轨道、断点错位、右列反被挤压），而 SSR 结构断言依旧全绿。
+function perfColClass(markup: string, col: string): string {
+  const tag = markup.match(new RegExp(`<div[^>]*data-perf-col="${col}"[^>]*>`))?.[0] ?? ''
+  return tag.match(/class="([^"]*)"/)?.[1] ?? ''
+}
+
+function span(className: string): { breakpoint: string; cols: number } {
+  const m = className.match(/@([\w[\]]+)\/perfcard:col-span-(\d+)/)
+  return { breakpoint: m?.[1] ?? '', cols: m ? Number(m[2]) : 0 }
+}
+
+describe('group status card split ratio', () => {
+  test('splits the grid tracks exactly between the two columns at one breakpoint', async () => {
+    const markup = await renderCard({ variant: 'wide', withModelPerformance: true })
+    const grid = markup.match(/@([\w[\]]+)\/perfcard:grid-cols-(\d+)/)
+    assert.ok(grid, 'the wide card must define its multi-column tracks')
+    const left = span(perfColClass(markup, 'group'))
+    const right = span(perfColClass(markup, 'models'))
+    // 左列可以省略 col-span-1（Grid 默认跨 1 轨），此时按 1 计
+    const leftCols = left.cols || 1
+    assert.equal(right.breakpoint, grid[1], 'columns must span at the same breakpoint as the tracks')
+    if (left.cols) assert.equal(left.breakpoint, grid[1])
+    assert.equal(leftCols + right.cols, Number(grid[2]), 'the two columns must consume every track')
+    // 信息密度：模型性能表承载 6 列 × 最多 20 行，必须拿到不少于分组卡片的宽度
+    assert.ok(right.cols > leftCols, 'the model table must be wider than the group card')
+  })
+})

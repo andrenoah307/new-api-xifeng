@@ -222,16 +222,16 @@ const GroupStatusCard = memo(function GroupStatusCard({
       onClick={() => onClick?.(group)}
     >
       {splitLayout && modelPerformance ? (
-        <div className='grid grid-cols-1 gap-6 @5xl/perfcard:grid-cols-4'>
+        <div className='grid grid-cols-1 gap-6 @7xl/perfcard:grid-cols-4'>
           <div
             data-perf-col='group'
-            className='min-w-0 @5xl/perfcard:col-span-2'
+            className='min-w-0 @7xl/perfcard:col-span-1'
           >
             {groupBody}
           </div>
           <div
             data-perf-col='models'
-            className='min-w-0 @5xl/perfcard:col-span-2'
+            className='min-w-0 @7xl/perfcard:col-span-3'
           >
             <GroupModelPerformance {...modelPerformance} />
           </div>

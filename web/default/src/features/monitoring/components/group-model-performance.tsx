@@ -35,7 +35,7 @@ export default function GroupModelPerformance({
             <th scope='col' className='text-right'>{t('Latency')}</th>
             <th scope='col' className='text-right' title={t('Throughput')}>{t('Throughput short')}</th>
             <th scope='col' className='text-right' title={t('Model success rate')}>{t('Model success rate short')}</th>
-            <th scope='col' className='hidden w-[76px] text-right @sm/perfcols:table-cell'>{t('Trend')}</th>
+            <th scope='col' className='hidden text-left @lg/perfcols:table-cell'>{t('Trend')}</th>
           </tr>
         </thead>
         <tbody>
@@ -47,8 +47,12 @@ export default function GroupModelPerformance({
               <td className='px-1.5 py-1 text-right font-mono tabular-nums whitespace-nowrap'>{formatLatency(model.avg_latency_ms)}</td>
               <td className='px-1.5 py-1 text-right font-mono tabular-nums whitespace-nowrap'>{formatThroughput(model.avg_tps)}</td>
               <td className={`px-1.5 py-1 text-right font-mono tabular-nums whitespace-nowrap ${getSuccessRateTextClass(model.success_rate)}`}>{formatUptimePct(model.success_rate)}</td>
-              {/* 容器窄于 24rem 时把这 76px 让给模型名，成功率数值已承载同一信息 */}
-              <td className='hidden px-1.5 py-1 align-middle @sm/perfcols:table-cell'><MiniSparkline series={model.series ?? []} /></td>
+              {/* auto 布局按单元格内容定列宽：色带的 w-full 与 flex-1 子项贡献为 0，
+                  必须由这层固定宽度撑出列宽。容器窄于 32rem 时整列让给模型名，
+                  成功率数值已承载同一信息。 */}
+              <td className='hidden px-1.5 py-1 align-middle @lg/perfcols:table-cell'>
+                <div className='w-32 @xl/perfcols:w-44 @3xl/perfcols:w-56'><MiniSparkline series={model.series ?? []} /></div>
+              </td>
             </tr>
           ))}
         </tbody>
