@@ -20,7 +20,12 @@ For commercial licensing, please contact support@quantumnous.com
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
-import { splitFeaturedGroups } from './constants'
+import {
+  SLOW_FRT_THRESHOLD_MS,
+  segmentColor,
+  segmentLabel,
+  splitFeaturedGroups,
+} from './constants'
 
 const groups = ['alpha', 'beta', 'gamma', 'delta'].map((group_name) => ({
   group_name,
@@ -89,5 +94,32 @@ describe('splitFeaturedGroups', () => {
       ['beta']
     )
     assert.equal(featured.length + rest.length, groups.length)
+  })
+})
+
+describe('slow response threshold', () => {
+  // 门槛是 10s：可用率达标但首字慢的时段才降级为黄色。
+  // 着色与文案必须同源，否则会出现「颜色是黄的、文案说正常」。
+  const green = segmentColor(99.9, 0)
+  const yellow = segmentColor(85, 0)
+  const echo = (key: string) => key
+
+  test('keeps a healthy window green until first token passes 10s', () => {
+    assert.equal(SLOW_FRT_THRESHOLD_MS, 10_000)
+    assert.equal(segmentColor(99.9, 9_999), green)
+    assert.equal(segmentColor(99.9, 10_000), green, '正好 10s 不算慢')
+    assert.equal(segmentColor(99.9, 10_001), yellow)
+  })
+
+  test('labels the window the same way it colors it', () => {
+    assert.equal(segmentLabel(99.9, 10_000, echo), 'Normal')
+    assert.equal(segmentLabel(99.9, 10_001, echo), 'Slow Response')
+  })
+
+  // 慢只降级"健康"块。可用率本身不达标时颜色由可用率决定，
+  // 不能因为首字快就把异常时段染回绿色。
+  test('never lets a fast first token mask an unhealthy window', () => {
+    assert.equal(segmentColor(85, 100), yellow)
+    assert.equal(segmentLabel(85, 100, echo), 'Partial Anomaly')
   })
 })

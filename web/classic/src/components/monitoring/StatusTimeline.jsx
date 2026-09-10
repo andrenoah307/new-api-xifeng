@@ -25,12 +25,15 @@ import { useTranslation } from 'react-i18next';
  * Color mapping for availability segments. Uses Semi design tokens so dark
  * mode is automatic via `theme-mode=dark` on body.
  */
+// 「健康但慢」的判定门槛，与 Default 的 SLOW_FRT_THRESHOLD_MS 保持一致
+const SLOW_FRT_THRESHOLD_MS = 10000;
+
 function segmentColor(rate, avgFrt) {
   // 无数据留灰；否则按每区间可用率梯度着色，
   // FRT 仅用于把健康块降级为“响应缓慢”（warning）
   if (rate == null || rate < 0) return 'var(--semi-color-fill-1)';
   if (rate >= 99)
-    return avgFrt != null && avgFrt > 8000
+    return avgFrt != null && avgFrt > SLOW_FRT_THRESHOLD_MS
       ? 'var(--semi-color-warning)'
       : 'var(--semi-color-success)';
   if (rate >= 95) return 'var(--semi-color-success)';
@@ -42,7 +45,7 @@ function segmentColor(rate, avgFrt) {
 function segmentLabel(rate, avgFrt, t) {
   if (rate == null || rate < 0) return t('暂无数据');
   if (rate >= 99)
-    return avgFrt != null && avgFrt > 8000 ? t('响应缓慢') : t('正常');
+    return avgFrt != null && avgFrt > SLOW_FRT_THRESHOLD_MS ? t('响应缓慢') : t('正常');
   if (rate >= 95) return t('轻微抖动');
   if (rate >= 80) return t('部分异常');
   if (rate >= 50) return t('严重异常');

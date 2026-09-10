@@ -144,6 +144,10 @@ export function saveSortMode(mode: SortMode): void {
   }
 }
 
+// 「健康但慢」的判定门槛：可用率达标的时段，FRT 超过这个值才降级为黄色。
+// 两处（着色与文案）必须同源，否则会出现「颜色是黄的、文案说正常」。
+export const SLOW_FRT_THRESHOLD_MS = 10_000
+
 export function segmentColor(
   rate: number | null | undefined,
   avgFrt: number | null | undefined
@@ -152,7 +156,7 @@ export function segmentColor(
   // FRT 仅用于把健康块（可用率高）降级为黄色“慢响应”
   const noData = 'color-mix(in oklch, var(--muted) 50%, transparent)'
   if (rate == null || rate < 0) return noData
-  if (rate >= 99) return avgFrt != null && avgFrt > 8000 ? '#eab308' : '#22c55e'
+  if (rate >= 99) return avgFrt != null && avgFrt > SLOW_FRT_THRESHOLD_MS ? '#eab308' : '#22c55e'
   if (rate >= 95) return 'rgba(34,197,94,0.7)'
   if (rate >= 80) return '#eab308'
   if (rate >= 50) return '#f97316'
@@ -166,7 +170,7 @@ export function segmentLabel(
 ): string {
   if (rate == null || rate < 0) return t('No data available')
   if (rate >= 99) {
-    return avgFrt != null && avgFrt > 8000 ? t('Slow Response') : t('Normal')
+    return avgFrt != null && avgFrt > SLOW_FRT_THRESHOLD_MS ? t('Slow Response') : t('Normal')
   }
   if (rate >= 95) return t('Minor Jitter')
   if (rate >= 80) return t('Partial Anomaly')
