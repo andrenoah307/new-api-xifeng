@@ -117,7 +117,7 @@ export async function getGroupHistoryBatch(admin: boolean): Promise<{ history: R
   const res = await api.get('/api/monitoring/admin/group-history', { skipErrorHandler: true })
   const data = res.data.data ?? {}
   return {
-    history: data.history ?? {},
-    intervalMinutes: data.aggregation_interval_minutes ?? 5,
+    history: data ?? {},
+    intervalMinutes: res.data.aggregation_interval_minutes ?? 5,
   }
 }
