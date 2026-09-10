@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Show model performance to all users": "Afficher les performances des modèles à tous les utilisateurs",
+    "Regular users see latency, first token, throughput and success rate. Request volume is never exposed.": "Les utilisateurs ordinaires voient la latence, le premier jeton, le débit et le taux de réussite. Le volume de requêtes n'est jamais exposé.",
+    "Offline": "Hors ligne",
     "Enable model performance card": "Activer la carte de performance des modèles",
     "Show all models": "Afficher tous les modèles",
     "Model performance top N": "Nombre de modèles affichés (top N)",

@@ -1,4 +1,3 @@
-import { Database, Zap } from 'lucide-react'
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -99,7 +98,8 @@ const GroupStatusCard = memo(function GroupStatusCard({
   // 把它们各自直接挂到 Grid 上会被逐格换行摆放，左右分栏就永远不会生效。
   const groupBody = (
     <>
-      {/* Header: name + meta on left, big availability on right */}
+      {/* Header: name + meta on left, channel count + clock on right.
+          可用率大号数字已下沉到底部指标栏，这里让出的空间接管两项元信息。 */}
       <div className='flex items-start justify-between gap-3'>
         <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-2'>
@@ -147,69 +147,78 @@ const GroupStatusCard = memo(function GroupStatusCard({
           </div>
         </div>
 
-        <div className='shrink-0 text-right leading-none'>
-          {availRate != null ? (
-            <div
-              className='font-mono text-[28px] font-semibold tracking-tight'
-              style={{ color: headlineColor }}
-            >
-              {availRate.toFixed(1)}
-              <span className='ml-0.5 text-base font-normal'>%</span>
-            </div>
-          ) : (
-            <div className='text-muted-foreground font-mono text-[28px] font-semibold tracking-tight'>
-              &mdash;
-            </div>
-          )}
-          <div className='text-muted-foreground mt-1 text-[10px] tracking-wider uppercase'>
-            {headlineLabel}
-          </div>
-        </div>
-      </div>
-
-      {/* Status timeline */}
-      <div className='mt-5'>
-        {group.history && group.history.length > 0 ? (
-          <StatusTimeline history={group.history} segmentCount={32} compact />
-        ) : (
-          <div className='bg-muted/50 text-muted-foreground flex h-[22px] items-center justify-center rounded-md text-[10px]'>
-            {t('No history data')}
-          </div>
-        )}
-      </div>
-
-      {/* Footer: inline stats */}
-      <div className='text-muted-foreground mt-4 flex items-center justify-between text-[11px]'>
-        <div className='flex items-center gap-3'>
-          <span className='inline-flex items-center gap-1'>
-            <Zap size={11} className='text-muted-foreground/70' />
-            <span title={t('Group first token latency')} className='font-mono'>
-              {formatFRT(frt)}
-            </span>
-          </span>
-          <span className='inline-flex items-center gap-1'>
-            <Database size={11} className='text-muted-foreground/70' />
-            <span className='font-mono'>
-              {showCache ? `${cacheRate.toFixed(1)}%` : '—'}
-            </span>
-          </span>
-        </div>
-        <div className='flex items-center gap-3'>
+        <div className='text-muted-foreground shrink-0 space-y-1 text-right text-[11px] leading-none'>
           {group.total_channels != null && (
-            <span>
+            <div className='whitespace-nowrap'>
               <span className='text-foreground font-mono'>
                 {group.online_channels ?? 0}
               </span>
-              <span className='text-muted-foreground'>
-                /{group.total_channels}
-              </span>
-            </span>
+              <span>/{group.total_channels}</span>
+            </div>
           )}
           {group.updated_at > 0 && (
-            <span className='text-muted-foreground font-mono'>
+            <div className='font-mono whitespace-nowrap'>
               {formatClock(group.updated_at)}
-            </span>
+            </div>
           )}
+        </div>
+      </div>
+
+      {/* 时序条吃掉整段富余高度并垂直居中：宽卡片里右侧模型表有 6-20 行，
+          左列若不拉伸就会在左下角留下与右列等高的死白。窄卡片没有富余，
+          flex-1 退化成"占一行"，与改动前等价。 */}
+      <div data-perf-row='timeline' className='mt-5 flex flex-1 items-center'>
+        <div className='w-full'>
+          {group.history && group.history.length > 0 ? (
+            <StatusTimeline history={group.history} segmentCount={32} compact />
+          ) : (
+            <div className='bg-muted/50 text-muted-foreground flex h-[22px] items-center justify-center rounded-md text-[10px]'>
+              {t('No history data')}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 三个服务质量指标共享同一条基线与同一种字号，才能横向对照。
+          此前可用率是头部右上的 28px 大字、首字与缓存是左下角的 11px 小字，
+          三者没有可比性。等分三列让每格宽度随卡片自适应。 */}
+      <div className='border-border/60 mt-4 grid grid-cols-3 gap-2 border-t pt-3'>
+        <div data-perf-stat='availability' className='min-w-0'>
+          <div className='text-muted-foreground truncate text-[10px] tracking-wider uppercase'>
+            {headlineLabel}
+          </div>
+          <div
+            className='mt-1 font-mono text-xl leading-none font-semibold tracking-tight tabular-nums'
+            style={{ color: availRate != null ? headlineColor : undefined }}
+          >
+            {availRate != null ? (
+              <>
+                {availRate.toFixed(1)}
+                <span className='ml-0.5 text-xs font-normal'>%</span>
+              </>
+            ) : (
+              <span className='text-muted-foreground'>&mdash;</span>
+            )}
+          </div>
+        </div>
+        <div data-perf-stat='ttft' className='min-w-0'>
+          <div
+            className='text-muted-foreground truncate text-[10px] tracking-wider uppercase'
+            title={t('Group first token latency')}
+          >
+            {t('First token latency short')}
+          </div>
+          <div className='text-foreground mt-1 font-mono text-base leading-none tabular-nums'>
+            {formatFRT(frt)}
+          </div>
+        </div>
+        <div data-perf-stat='cache' className='min-w-0'>
+          <div className='text-muted-foreground truncate text-[10px] tracking-wider uppercase'>
+            {t('Cache')}
+          </div>
+          <div className='text-foreground mt-1 font-mono text-base leading-none tabular-nums'>
+            {showCache ? `${cacheRate.toFixed(1)}%` : '—'}
+          </div>
         </div>
       </div>
     </>
@@ -225,7 +234,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
         <div className='grid grid-cols-1 gap-6 @7xl/perfcard:grid-cols-4'>
           <div
             data-perf-col='group'
-            className='min-w-0 @7xl/perfcard:col-span-1'
+            className='flex h-full min-w-0 flex-col @7xl/perfcard:col-span-1'
           >
             {groupBody}
           </div>

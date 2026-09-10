@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Show model performance to all users": "Show model performance to all users",
+    "Regular users see latency, first token, throughput and success rate. Request volume is never exposed.": "Regular users see latency, first token, throughput and success rate. Request volume is never exposed.",
+    "Offline": "Offline",
     "Enable model performance card": "Enable model performance card",
     "Show all models": "Show all models",
     "Model performance top N": "Model performance top N",

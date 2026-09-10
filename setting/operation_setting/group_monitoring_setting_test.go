@@ -70,4 +70,5 @@ func TestGroupMonitoringPerfCardDefaults(t *testing.T) {
 	assert.Equal(t, 6, s.PerfCardTopNOrDefault())
 	assert.Empty(t, s.PerfCardGroups, "默认不启用任何分组的模型性能卡片，管理员必须显式勾选")
 	assert.Nil(t, s.PerfCardModelsForGroup("default"))
+	assert.False(t, s.PerfCardPublic, "升级不得把模型性能顺带放开给普通用户，必须管理员显式勾选")
 }

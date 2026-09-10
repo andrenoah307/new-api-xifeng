@@ -361,6 +361,7 @@ func SetApiRouter(router *gin.Engine) {
 		monitoringPublicRoute.Use(middleware.HeaderNavModuleAuth("monitoring"))
 		{
 			monitoringPublicRoute.GET("/groups", controller.GetPublicMonitoringGroups)
+			monitoringPublicRoute.GET("/model-performance", controller.GetPublicMonitoringGroupModels)
 			monitoringPublicRoute.GET("/groups/:group/history", controller.GetPublicMonitoringGroupHistory)
 		}
 		registerChannelRoutes(apiRouter)

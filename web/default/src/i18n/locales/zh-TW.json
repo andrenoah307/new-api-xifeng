@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Show model performance to all users": "對所有使用者展示模型效能",
+    "Regular users see latency, first token, throughput and success rate. Request volume is never exposed.": "一般使用者可見延遲、首字、吞吐與成功率；請求量不會公開。",
+    "Offline": "離線",
     "Enable model performance card": "啟用模型效能卡片",
     "Show all models": "顯示全部模型",
     "Model performance top N": "模型效能顯示數量（Top N）",

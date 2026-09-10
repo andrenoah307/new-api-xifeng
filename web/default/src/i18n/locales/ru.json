@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Show model performance to all users": "Показывать производительность моделей всем пользователям",
+    "Regular users see latency, first token, throughput and success rate. Request volume is never exposed.": "Обычные пользователи видят задержку, первый токен, пропускную способность и успешность. Объём запросов не раскрывается.",
+    "Offline": "Не в сети",
     "Enable model performance card": "Включить карточку производительности моделей",
     "Show all models": "Показывать все модели",
     "Model performance top N": "Количество моделей (топ N)",

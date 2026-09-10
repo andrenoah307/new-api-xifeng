@@ -39,6 +39,9 @@ func setupMonitoringControllerTestDB(t *testing.T, migrate bool) *gorm.DB {
 	// initCol() 决定手写 SQL 里 `group` 列的引号形态；不初始化时它是空串，
 	// perf_metrics 的分组聚合查询会直接报语法错误。单独跑本文件时尤其明显。
 	require.NoError(t, model.InitLogDB())
+	// perf_card 快照是按当前库内容构建的进程内状态，换库必须一并清掉，
+	// 否则用例之间会互相读到对方的数据。
+	perfCardCache.Store(nil)
 	if migrate {
 		require.NoError(t, db.AutoMigrate(&model.MonitoringHistory{}, &model.GroupMonitoringStat{}))
 	}

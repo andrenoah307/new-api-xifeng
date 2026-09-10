@@ -150,3 +150,66 @@ describe('group status card split ratio', () => {
     assert.ok(right.cols > leftCols, 'the model table must be wider than the group card')
   })
 })
+
+// 左列的三段（头部 / 时序条 / 指标栏）在宽卡片里必须撑满整列高度：
+// 右列的模型表有 6-20 行，左列内容只占约三分之一，不拉伸就会在左下角
+// 留下与右列等高的死白，这正是本次要修的观感问题。
+function statCell(markup: string, name: string): string {
+  return (
+    markup.match(new RegExp(`<div[^>]*data-perf-stat="${name}"[^>]*>(.*?)</div></div>`, 's'))?.[1] ?? ''
+  ).replaceAll(/<[^>]*>/g, '')
+}
+
+describe('group status card metric bar', () => {
+  // 可用率、首字、缓存三个指标过去分散在两处（大号数字挂头部右上、
+  // 首字与缓存挤在底部左下），彼此没有可比性。收拢成一条等分栏后，
+  // 三者共享同一基线，读一眼就能横向对照。
+  for (const variant of ['grid', 'wide'] as const) {
+    test(`groups availability, first token and cache into one bottom bar (${variant})`, async () => {
+      const markup = await renderCard({ variant, withModelPerformance: true })
+      for (const name of ['availability', 'ttft', 'cache']) {
+        assert.equal(
+          occurrences(markup, `data-perf-stat="${name}"`),
+          1,
+          `${name} must appear exactly once`
+        )
+      }
+      assert.match(statCell(markup, 'availability'), /99\.5/)
+      assert.match(statCell(markup, 'cache'), /12\.4/)
+      assert.match(statCell(markup, 'ttft'), /\d/)
+    })
+  }
+
+  // 顺序契约：指标栏是最后一段。若它被摆到时序条之前，flex-1 的拉伸就会
+  // 落在栏下方，底对齐失效。
+  test('renders the metric bar after the timeline, not before it', async () => {
+    const markup = await renderCard({ variant: 'wide', withModelPerformance: true })
+    const timeline = markup.indexOf('data-perf-row="timeline"')
+    assert.ok(timeline > 0, 'timeline row must be addressable')
+    assert.ok(markup.indexOf('data-perf-stat="availability"') > timeline)
+  })
+
+  // 头部腾出的右上角接管渠道数与更新时间——它们是元信息不是指标，
+  // 留在底部会稀释指标栏的三等分。
+  test('moves channel count and clock into the header meta', async () => {
+    const markup = await renderCard({ variant: 'wide', withModelPerformance: true })
+    const timeline = markup.indexOf('data-perf-row="timeline"')
+    assert.ok(timeline > 0, 'timeline row must be addressable')
+    const header = markup.slice(0, timeline)
+    assert.ok(header.includes('8'), 'online channel count belongs to the header')
+    assert.ok(header.includes('/9'), 'total channel count belongs to the header')
+  })
+
+  test('stretches the group column so the bar can sit at its bottom', async () => {
+    const markup = await renderCard({ variant: 'wide', withModelPerformance: true })
+    const cls = perfColClass(markup, 'group')
+    for (const token of ['flex', 'h-full', 'flex-col']) {
+      assert.ok(cls.split(/\s+/).includes(token), `group column needs ${token}, got: ${cls}`)
+    }
+    const row = markup.match(/<div[^>]*data-perf-row="timeline"[^>]*>/)?.[0] ?? ''
+    assert.ok(
+      (row.match(/class="([^"]*)"/)?.[1] ?? '').split(/\s+/).includes('flex-1'),
+      'the timeline row must absorb the surplus height so it centers'
+    )
+  })
+})

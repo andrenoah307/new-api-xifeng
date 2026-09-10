@@ -201,9 +201,10 @@ export default function MonitoringDashboard() {
   })
 
   const { data: modelPerformance } = useQuery<GroupModelPerfData>({
-    queryKey: ['monitoring', 'model-performance'],
-    queryFn: getGroupModelPerformance,
-    enabled: admin,
+    // admin 进 queryKey：管理员与普通用户拿的是同一张表的两种投影
+    // （公开侧剥掉 request_count），共用一份缓存会让先登录的那一方决定另一方看到什么。
+    queryKey: ['monitoring', 'model-performance', admin],
+    queryFn: () => getGroupModelPerformance(admin),
     refetchInterval: 60_000,
     staleTime: 55_000,
   })
@@ -288,16 +289,18 @@ export default function MonitoringDashboard() {
     return [...filtered].sort((a, b) => compareGroups(a, b, sortMode))
   }, [groups, keyword, sortMode])
   const { featured, rest } = useMemo(() => {
+    // 是否放开给普通用户由后端的 perf_card_public 开关裁决：关闭时公开端点
+    // 直接返回 enabled=false，前端无需再判角色。
     const names = new Set(
-      admin && modelPerformance?.enabled ? modelPerformance.enabled_groups : []
+      modelPerformance?.enabled ? modelPerformance.enabled_groups : []
     )
     return splitFeaturedGroups(visible, names)
-  }, [visible, admin, modelPerformance])
+  }, [visible, modelPerformance])
 
   // 倒计时每秒重渲染整个看板；置顶卡片的 props 必须逐组保持引用稳定，
   // 否则 memo 形同虚设，每秒重算所有模型行与 sparkline。
   const featuredPerfProps = useMemo(() => {
-    if (!admin || !modelPerformance) return null
+    if (!modelPerformance?.enabled) return null
     const map: Record<string, GroupModelPerformanceProps> = {}
     for (const g of featured) {
       map[g.group_name] = {
@@ -308,7 +311,7 @@ export default function MonitoringDashboard() {
       }
     }
     return map
-  }, [featured, admin, modelPerformance])
+  }, [featured, modelPerformance])
 
   const onlineCount = groups.filter(isGroupOnline).length
   const noDataCount = groups.filter(

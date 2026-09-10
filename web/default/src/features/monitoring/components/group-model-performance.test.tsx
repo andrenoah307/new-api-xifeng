@@ -87,14 +87,28 @@ function trendHeaderClass(markup: string): string {
   return th ? (th[1].match(/class="([^"]*)"/)?.[1] ?? '') : ''
 }
 
-function trendCell(markup: string): { className: string; inner: string } {
+// 按空白切成 token 再比对。用正则在整段 class 串里找子串会误判：
+// min-w-0 含 "w-0"、内层 MiniSparkline 的 span 也带 min-w-0，
+// 两者都会让宽度断言在实际没有宽度契约时静默通过。
+function classTokens(attrs: string): string[] {
+  return (attrs.match(/class="([^"]*)"/)?.[1] ?? '').split(/\s+/).filter(Boolean)
+}
+
+function bodyCells(markup: string): { attrs: string; inner: string }[] {
   const body = markup.slice(markup.indexOf('<tbody>'), markup.indexOf('</tbody>'))
   const row = body.match(/<tr[^>]*>(.*?)<\/tr>/)?.[1] ?? ''
-  const cells = [...row.matchAll(/<td([^>]*)>(.*?)<\/td>/g)]
-  const last = cells[cells.length - 1]
-  return last
-    ? { className: last[1].match(/class="([^"]*)"/)?.[1] ?? '', inner: last[2] }
-    : { className: '', inner: '' }
+  return [...row.matchAll(/<td([^>]*)>(.*?)<\/td>/g)].map((m) => ({ attrs: m[1], inner: m[2] }))
+}
+
+function trendCell(markup: string): { className: string; inner: string } {
+  const last = bodyCells(markup).at(-1)
+  return last ? { className: last.attrs.match(/class="([^"]*)"/)?.[1] ?? '', inner: last.inner } : { className: '', inner: '' }
+}
+
+// 走势单元格里紧贴 <td> 的那一层 div 才是宽度契约的落点，
+// 再往里是 MiniSparkline 自己的 flex 结构。
+function trendWidthBoxTokens(markup: string): string[] {
+  return classTokens(trendCell(markup).inner.match(/^<div([^>]*)>/)?.[1] ?? '')
 }
 
 function containerBreakpoint(className: string): string {
@@ -246,13 +260,27 @@ describe('group model performance trend column', () => {
 
   // 回归护栏：走势列曾只在 <th> 上写 w-[76px]，而 auto 布局按单元格内容定列宽，
   // 表头上的宽度声明不参与，24 段被压成约 1.7px 的噪点。宽度必须落在单元格内容上。
-  test('gives the trend cell content an intrinsic width instead of a percentage', async () => {
-    const { inner } = trendCell(await renderOne())
-    // 只认独立的 w-<数字>；min-w-0 / max-w-0 这类收缩声明不构成宽度契约
-    assert.match(
-      inner,
-      /class="(?:[^"]*\s)?w-\d/,
-      'trend cell must wrap the sparkline in a fixed-width box'
+  // 现在用 min-w-* 而不是 w-*：它同样撑得起固有宽度，但允许这一列继续吸收
+  // 名称列让出的剩余宽度——走势列是唯一"越宽信息越多"的列。
+  test('gives the trend cell content an intrinsic minimum width', async () => {
+    const tokens = trendWidthBoxTokens(await renderOne())
+    assert.ok(
+      tokens.some((c) => /^(?:@[\w[\]]+\/perfcols:)?min-w-\d/.test(c)),
+      `trend cell must wrap the sparkline in a min-width box, got: ${tokens.join(' ')}`
+    )
+    assert.ok(
+      !tokens.some((c) => /^(?:@[\w[\]]+\/perfcols:)?w-\d/.test(c)),
+      `a fixed w-* would cap the column and re-strand the surplus, got: ${tokens.join(' ')}`
+    )
+  })
+
+  // 名称列若继续声明 w-full，auto 布局会把整行剩余宽度全部判给它，
+  // 生产上模型名只占约 90px，于是留下约 400px 死白而数值列挤在最右侧。
+  test('does not let the model name column claim the whole row width', async () => {
+    const tokens = classTokens(bodyCells(await renderOne())[0]?.attrs ?? '')
+    assert.ok(
+      !tokens.includes('w-full'),
+      `model name column must not absorb the surplus width, got: ${tokens.join(' ')}`
     )
   })
 
@@ -260,5 +288,33 @@ describe('group model performance trend column', () => {
   // 以为这一列已经有宽度契约了。
   test('does not declare a dead pixel width on the trend header', async () => {
     assert.doesNotMatch(trendHeaderClass(await renderOne()), /w-\[\d+px\]/)
+  })
+})
+
+describe('group model performance ordering', () => {
+  // 后端按请求量倒序返回，那是 topN "取最热的 N 个"的依据，必须保留。
+  // 展示顺序是另一件事：同一张卡片每次刷新都换行序，运营无法用肌肉记忆定位模型。
+  test('renders rows in model-name order regardless of backend order', async () => {
+    const markup = await render({
+      models: ['zebra', 'alpha', 'mid'].map((n) => perf({ model_name: n })),
+      showAll: true,
+      topN: 6,
+    })
+    assert.deepEqual(renderedModelNames(markup), ['alpha', 'mid', 'zebra'])
+  })
+
+  // 分工契约：选谁由后端的请求量倒序决定，怎么排由前端的字典序决定。
+  // 若把排序下沉到后端，topN 会从"最热的 N 个"静默降级成"字母序前 N 个"。
+  test('selects by backend order then sorts only the visible slice', async () => {
+    const markup = await render({
+      models: ['zebra', 'alpha', 'beta'].map((n) => perf({ model_name: n })),
+      showAll: false,
+      topN: 2,
+    })
+    assert.deepEqual(
+      renderedModelNames(markup),
+      ['alpha', 'zebra'],
+      'beta 排在后端第三位，未入选；入选的两个再按名称排序'
+    )
   })
 })

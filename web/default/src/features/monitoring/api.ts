@@ -90,13 +90,16 @@ export async function refreshMonitoringData(): Promise<void> {
 
 export interface GroupModelPerf {
   model_name: string
-  request_count: number
+  // 公开端点会剥掉这个字段：它是唯一直接暴露真实业务量的指标，
+  // 与"渠道数折成布尔"同一判据——服务质量可公开，生意规模不可。
+  request_count?: number
   success_rate: number
   avg_latency_ms: number
   avg_ttft_ms: number
   has_ttft: boolean
   avg_tps: number
-  series: (number | null)[]
+  // 后端只在有窗口数据时下发；组件一律按 `?? []` 读，接口跟着实际契约走
+  series?: (number | null)[]
 }
 
 export interface GroupModelPerfData {
@@ -110,8 +113,9 @@ export interface GroupModelPerfData {
   enabled_groups: string[]
 }
 
-export async function getGroupModelPerformance(): Promise<GroupModelPerfData> {
-  const res = await api.get('/api/monitoring/admin/model-performance', { skipErrorHandler: true })
+export async function getGroupModelPerformance(admin: boolean): Promise<GroupModelPerfData> {
+  const prefix = admin ? 'admin' : 'public'
+  const res = await api.get(`/api/monitoring/${prefix}/model-performance`, { skipErrorHandler: true })
   return res.data.data
 }
 

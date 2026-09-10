@@ -20,6 +20,7 @@ type GroupMonitoringSetting struct {
 	CacheTokensSeparateGroups      []string            `json:"cache_tokens_separate_groups"`
 	FRTExcludeThresholdSeconds     float64             `json:"frt_exclude_threshold_seconds"`
 	PerfCardEnabled                bool                `json:"perf_card_enabled"`
+	PerfCardPublic                 bool                `json:"perf_card_public"`
 	PerfCardShowAllModels          bool                `json:"perf_card_show_all_models"`
 	PerfCardTopN                   int                 `json:"perf_card_top_n"`
 	PerfCardGroups                 []string            `json:"perf_card_groups"`
@@ -40,6 +41,7 @@ var groupMonitoringSetting = GroupMonitoringSetting{
 	CacheTokensSeparateGroups:      []string{},
 	FRTExcludeThresholdSeconds:     0,
 	PerfCardEnabled:                true,
+	PerfCardPublic:                 false,
 	PerfCardShowAllModels:          false,
 	PerfCardTopN:                   6,
 	PerfCardGroups:                 []string{},

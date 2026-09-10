@@ -100,6 +100,9 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
   )
   const [perfCardEnabled, setPerfCardEnabled] = useState(getVal(settings, 'perf_card_enabled') !== 'false')
   const [perfCardShowAll, setPerfCardShowAll] = useState(getVal(settings, 'perf_card_show_all_models') === 'true')
+  // 默认关：升级不得把模型性能顺带放开给普通用户，必须管理员显式勾选。
+  // 因此这里是 === 'true'，与同屏其余默认开启的开关（!== 'false'）相反。
+  const [perfCardPublic, setPerfCardPublic] = useState(getVal(settings, 'perf_card_public') === 'true')
   const [perfCardTopN, setPerfCardTopN] = useState(getVal(settings, 'perf_card_top_n') || '6')
   const [perfCardGroups, setPerfCardGroups] = useState(() => parseArr(getVal(settings, 'perf_card_groups')))
   const [perfCardGroup, setPerfCardGroup] = useState('')
@@ -162,6 +165,7 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
           value: String(parseFloat(frtExcludeThreshold) || 0),
         },
         { key: PREFIX + 'perf_card_enabled', value: String(perfCardEnabled) },
+        { key: PREFIX + 'perf_card_public', value: String(perfCardPublic) },
         { key: PREFIX + 'perf_card_show_all_models', value: String(perfCardShowAll) },
         { key: PREFIX + 'perf_card_top_n', value: perfCardTopN },
         { key: PREFIX + 'perf_card_groups', value: JSON.stringify(perfCardGroups) },
@@ -335,6 +339,7 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
 
         <div className='space-y-4 border-t pt-4'>
           <div className='flex items-center justify-between'><Label>{t('Enable model performance card')}</Label><Switch checked={perfCardEnabled} onCheckedChange={setPerfCardEnabled} /></div>
+          <div className='space-y-1'><div className='flex items-center justify-between'><Label>{t('Show model performance to all users')}</Label><Switch disabled={!perfCardEnabled} checked={perfCardPublic} onCheckedChange={setPerfCardPublic} /></div><p className='text-muted-foreground text-xs'>{t('Regular users see latency, first token, throughput and success rate. Request volume is never exposed.')}</p></div>
           <div className='flex items-center justify-between'><Label>{t('Show all models')}</Label><Switch disabled={!perfCardEnabled} checked={perfCardShowAll} onCheckedChange={setPerfCardShowAll} /></div>
           <div className='space-y-1'><Label>{t('Model performance top N')}</Label><Input disabled={!perfCardEnabled} type='number' min='1' max='50' value={perfCardTopN} onChange={(e) => setPerfCardTopN(e.target.value)} /><p className='text-muted-foreground text-xs'>{t('Values outside the range are normalized by the backend to 6 or 50.')}</p></div>
           <div className='space-y-1'><Label>{t('Groups showing model performance')}</Label><MultiSelect disabled={!perfCardEnabled} options={groupOptions} selected={perfCardGroups} onChange={setPerfCardGroups} /><p className='text-muted-foreground text-xs'>{t('Only the selected groups render the model performance panel.')}</p></div>

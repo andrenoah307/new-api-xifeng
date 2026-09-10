@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Show model performance to all users": "モデル性能をすべてのユーザーに表示",
+    "Regular users see latency, first token, throughput and success rate. Request volume is never exposed.": "一般ユーザーには遅延・初回トークン・スループット・成功率のみ表示され、リクエスト数は公開されません。",
+    "Offline": "オフライン",
     "Enable model performance card": "モデル性能カードを有効化",
     "Show all models": "すべてのモデルを表示",
     "Model performance top N": "モデル性能の表示件数（上位 N）",

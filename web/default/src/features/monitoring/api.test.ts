@@ -22,7 +22,7 @@ import test from 'node:test'
 
 import { api } from '@/lib/api'
 
-import { getGroupHistoryBatch } from './api.ts'
+import { getGroupModelPerformance, getGroupHistoryBatch } from './api.ts'
 
 async function withStubbedResponse<T>(
   payload: unknown,
@@ -96,4 +96,54 @@ test('batch group history never fires for non-admin viewers', async () => {
   assert.deepEqual(urls, [])
   assert.deepEqual(result.history, {})
   assert.equal(result.intervalMinutes, 5)
+})
+
+// 模型性能过去只有管理员端点，普通用户的看板整块缺失。放开后两侧共用同一段
+// 取数与渲染，唯一的差别是端点前缀——与 groups / history 已有的 admin|public
+// 约定保持一致，不引入第二套写法。
+test('model performance picks the endpoint by viewer role', async () => {
+  const payload = { success: true, message: '', data: { enabled: true, groups: {} } }
+  const asAdmin = await withStubbedResponse(payload, () => getGroupModelPerformance(true))
+  const asUser = await withStubbedResponse(payload, () => getGroupModelPerformance(false))
+
+  assert.deepEqual(asAdmin.urls, ['/api/monitoring/admin/model-performance'])
+  assert.deepEqual(asUser.urls, ['/api/monitoring/public/model-performance'])
+})
+
+// 公开端点剥掉 request_count（真实业务量），其余七个服务质量字段原样保留。
+// 前端必须能在缺字段的情况下正常渲染，否则脱敏一上线普通用户就白屏。
+test('model performance survives the desensitized payload without request counts', async () => {
+  const { result } = await withStubbedResponse(
+    {
+      success: true,
+      message: '',
+      data: {
+        enabled: true,
+        window_hours: 24,
+        top_n: 6,
+        show_all_models: false,
+        enabled_groups: ['alpha'],
+        groups: {
+          alpha: [
+            {
+              model_name: 'gpt-5.6-luna',
+              success_rate: 99.2,
+              avg_latency_ms: 1200,
+              avg_ttft_ms: 300,
+              has_ttft: true,
+              avg_tps: 45,
+              series: [null, 99],
+            },
+          ],
+        },
+      },
+    },
+    () => getGroupModelPerformance(false)
+  )
+
+  const model = result.groups.alpha[0]
+  assert.equal(model.request_count, undefined)
+  assert.equal(model.model_name, 'gpt-5.6-luna')
+  assert.equal(model.success_rate, 99.2)
+  assert.deepEqual(model.series, [null, 99])
 })

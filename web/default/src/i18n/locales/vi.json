@@ -1,5 +1,8 @@
 {
   "translation": {
+    "Show model performance to all users": "Hiển thị hiệu năng mô hình cho tất cả người dùng",
+    "Regular users see latency, first token, throughput and success rate. Request volume is never exposed.": "Người dùng thường thấy độ trễ, token đầu tiên, thông lượng và tỷ lệ thành công. Số lượng yêu cầu không bao giờ được tiết lộ.",
+    "Offline": "Ngoại tuyến",
     "Enable model performance card": "Bật thẻ hiệu năng mô hình",
     "Show all models": "Hiển thị tất cả mô hình",
     "Model performance top N": "Số mô hình hiển thị (top N)",

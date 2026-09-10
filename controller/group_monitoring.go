@@ -47,43 +47,73 @@ func GetAdminMonitoringGroups(c *gin.Context) {
 func GetAdminMonitoringGroupModels(c *gin.Context) {
 	cfg := operation_setting.GetGroupMonitoringSetting()
 	if !cfg.Enabled || !cfg.PerfCardEnabled {
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": false, "enabled_groups": []string{}, "groups": gin.H{}}})
+		respondPerfCardDisabled(c)
 		return
 	}
-	groups := filterRegionBlockedGroupNames(c, cfg.MonitoringGroups)
-	visible := make([]string, 0, len(groups))
-	for _, group := range groups {
-		if cfg.IsPerfCardGroupEnabled(group) {
-			visible = append(visible, group)
-		}
+	respondPerfCard(c, cfg, false)
+}
+
+// GetPublicMonitoringGroupModels 是模型性能卡片的公开端点。
+// 与管理员端点共用取数快照与白名单语义，只在写出前多一层脱敏投影；
+// 是否放开由管理员在设置里显式勾选，缺省关闭。
+func GetPublicMonitoringGroupModels(c *gin.Context) {
+	cfg := operation_setting.GetGroupMonitoringSetting()
+	if !cfg.Enabled || !cfg.PerfCardEnabled || !cfg.PerfCardPublic {
+		respondPerfCardDisabled(c)
+		return
 	}
+	respondPerfCard(c, cfg, true)
+}
+
+const perfCardWindowHours = 24
+
+func respondPerfCardDisabled(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": false, "enabled_groups": []string{}, "groups": gin.H{}}})
+}
+
+func perfCardEnvelope(cfg operation_setting.GroupMonitoringSetting, visible []string, groups any) gin.H {
+	return gin.H{
+		"enabled":             true,
+		"window_hours":        perfCardWindowHours,
+		"bucket_seconds":      perf_metrics_setting.GetBucketSeconds(),
+		"series_slot_seconds": perfmetrics.GroupModelSeriesSlotSeconds(perfCardWindowHours),
+		"enabled_groups":      visible,
+		"show_all_models":     cfg.PerfCardShowAllModels,
+		"top_n":               cfg.PerfCardTopNOrDefault(),
+		"groups":              groups,
+	}
+}
+
+// respondPerfCard 是两个端点唯一的取数与组装路径。
+// 白名单过滤先于快照、地区过滤后于快照：两者都是分组名集合求交，顺序不影响结果，
+// 但这样快照与访问者地区无关，缓存不会按地区分裂。
+func respondPerfCard(c *gin.Context, cfg operation_setting.GroupMonitoringSetting, public bool) {
+	whitelisted := perfCardWhitelistedGroups(cfg)
+	visible := filterRegionBlockedGroupNames(c, whitelisted)
 	if len(visible) == 0 {
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": true, "window_hours": 24, "bucket_seconds": perf_metrics_setting.GetBucketSeconds(), "series_slot_seconds": perfmetrics.GroupModelSeriesSlotSeconds(24), "enabled_groups": visible, "show_all_models": cfg.PerfCardShowAllModels, "top_n": cfg.PerfCardTopNOrDefault(), "groups": gin.H{}}})
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": perfCardEnvelope(cfg, visible, gin.H{})})
 		return
 	}
-	data, err := perfmetrics.QueryGroupModelSummary(24, visible)
+
+	snapshot, err := perfCardGroupModels(cfg, whitelisted)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "获取模型性能数据失败"})
 		return
 	}
-	for group, models := range data {
-		allowed := cfg.PerfCardModelsForGroup(group)
-		if allowed == nil {
+
+	groups := make(map[string]any, len(visible))
+	for _, group := range visible {
+		items, ok := snapshot[group]
+		if !ok {
 			continue
 		}
-		set := map[string]bool{}
-		for _, name := range allowed {
-			set[name] = true
+		if public {
+			groups[group] = desensitizeGroupModelPerf(items)
+		} else {
+			groups[group] = items
 		}
-		filtered := models[:0]
-		for _, item := range models {
-			if set[item.ModelName] {
-				filtered = append(filtered, item)
-			}
-		}
-		data[group] = filtered
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": true, "window_hours": 24, "bucket_seconds": perf_metrics_setting.GetBucketSeconds(), "series_slot_seconds": perfmetrics.GroupModelSeriesSlotSeconds(24), "enabled_groups": visible, "show_all_models": cfg.PerfCardShowAllModels, "top_n": cfg.PerfCardTopNOrDefault(), "groups": data}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": perfCardEnvelope(cfg, visible, groups)})
 }
 
 func GetAdminMonitoringGroupsHistoryBatch(c *gin.Context) {
