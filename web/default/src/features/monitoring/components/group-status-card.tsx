@@ -10,8 +10,10 @@ import {
 } from '@/components/ui/tooltip'
 import { useStatus } from '@/hooks/use-status'
 
-import type { GroupModelPerf, MonitoringGroupWithHistory } from '../api'
-import GroupModelPerformance from './group-model-performance'
+import type { MonitoringGroupWithHistory } from '../api'
+import GroupModelPerformance, {
+  type GroupModelPerformanceProps,
+} from './group-model-performance'
 import {
   formatFRT,
   formatClock,
@@ -25,7 +27,7 @@ interface GroupStatusCardProps {
   group: MonitoringGroupWithHistory
   onClick?: (group: MonitoringGroupWithHistory) => void
   regionBlockedGroups?: string[]
-  modelPerformance?: { models: GroupModelPerf[]; showAll: boolean; topN: number; windowHours: number }
+  modelPerformance?: GroupModelPerformanceProps
   variant?: 'grid' | 'wide'
 }
 
@@ -91,12 +93,12 @@ const GroupStatusCard = memo(function GroupStatusCard({
     headlineLabel = t('Offline')
   }
 
-  return (
-    <div
-      className={`group border-border bg-card hover:border-primary/40 relative min-w-0 rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${modelPerformance && variant === 'wide' ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:gap-6' : ''}`}
-      style={{ cursor: onClick ? 'pointer' : 'default' }}
-      onClick={() => onClick?.(group)}
-    >
+  const splitLayout = Boolean(modelPerformance) && variant === 'wide'
+
+  // 头部 / 时序条 / 底部统计三段始终是一个整体：四列骨架下它们共同占左两列。
+  // 把它们各自直接挂到 Grid 上会被逐格换行摆放，左右分栏就永远不会生效。
+  const groupBody = (
+    <>
       {/* Header: name + meta on left, big availability on right */}
       <div className='flex items-start justify-between gap-3'>
         <div className='min-w-0 flex-1'>
@@ -210,10 +212,39 @@ const GroupStatusCard = memo(function GroupStatusCard({
           )}
         </div>
       </div>
-      {modelPerformance && (
-        <div className='mt-5 min-w-0 lg:mt-0'>
-          <GroupModelPerformance {...modelPerformance} />
+    </>
+  )
+
+  return (
+    <div
+      className={`group border-border bg-card hover:border-primary/40 relative min-w-0 rounded-2xl border p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${splitLayout ? '@container/perfcard' : ''}`}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
+      onClick={() => onClick?.(group)}
+    >
+      {splitLayout && modelPerformance ? (
+        <div className='grid grid-cols-1 gap-6 @5xl/perfcard:grid-cols-4'>
+          <div
+            data-perf-col='group'
+            className='min-w-0 @5xl/perfcard:col-span-2'
+          >
+            {groupBody}
+          </div>
+          <div
+            data-perf-col='models'
+            className='min-w-0 @5xl/perfcard:col-span-2'
+          >
+            <GroupModelPerformance {...modelPerformance} />
+          </div>
         </div>
+      ) : (
+        <>
+          {groupBody}
+          {modelPerformance && (
+            <div className='mt-5 min-w-0'>
+              <GroupModelPerformance {...modelPerformance} />
+            </div>
+          )}
+        </>
       )}
     </div>
   )

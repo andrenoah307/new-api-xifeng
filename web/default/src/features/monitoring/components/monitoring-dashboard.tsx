@@ -39,6 +39,7 @@ import {
   type SortMode,
 } from '../constants'
 import GroupDetailPanel from './group-detail-panel'
+import { type GroupModelPerformanceProps } from './group-model-performance'
 import GroupStatusCard from './group-status-card'
 
 const POLL_INTERVAL_MS = 60_000
@@ -115,7 +116,11 @@ export default function MonitoringDashboard() {
   const admin = useIsAdmin()
   const queryClient = useQueryClient()
   const { status } = useStatus()
-  const regionBlockedGroups: string[] = status?.region_blocked_groups ?? []
+  // `?? []` 每次渲染都会造出新数组，会让所有卡片的 memo 浅比较必然失败
+  const regionBlockedGroups = useMemo<string[]>(
+    () => status?.region_blocked_groups ?? [],
+    [status?.region_blocked_groups]
+  )
 
   const [keyword, setKeyword] = useState('')
   const [sortMode, setSortMode] = useState<SortMode>(loadSortMode)
@@ -282,10 +287,28 @@ export default function MonitoringDashboard() {
     if (sortMode === 'default') return filtered
     return [...filtered].sort((a, b) => compareGroups(a, b, sortMode))
   }, [groups, keyword, sortMode])
-  const featuredNames = new Set(
-    admin && modelPerformance?.enabled ? modelPerformance.enabled_groups : []
-  )
-  const { featured, rest } = splitFeaturedGroups(visible, featuredNames)
+  const { featured, rest } = useMemo(() => {
+    const names = new Set(
+      admin && modelPerformance?.enabled ? modelPerformance.enabled_groups : []
+    )
+    return splitFeaturedGroups(visible, names)
+  }, [visible, admin, modelPerformance])
+
+  // 倒计时每秒重渲染整个看板；置顶卡片的 props 必须逐组保持引用稳定，
+  // 否则 memo 形同虚设，每秒重算所有模型行与 sparkline。
+  const featuredPerfProps = useMemo(() => {
+    if (!admin || !modelPerformance) return null
+    const map: Record<string, GroupModelPerformanceProps> = {}
+    for (const g of featured) {
+      map[g.group_name] = {
+        models: modelPerformance.groups[g.group_name] ?? [],
+        showAll: modelPerformance.show_all_models,
+        topN: modelPerformance.top_n,
+        windowHours: modelPerformance.window_hours,
+      }
+    }
+    return map
+  }, [featured, admin, modelPerformance])
 
   const onlineCount = groups.filter(isGroupOnline).length
   const noDataCount = groups.filter(
@@ -439,12 +462,7 @@ export default function MonitoringDashboard() {
                 onClick={admin ? handleCardClick : undefined}
                 regionBlockedGroups={regionBlockedGroups}
                 variant='wide'
-                modelPerformance={admin && modelPerformance ? {
-                        models: modelPerformance.groups[g.group_name] ?? [],
-                        showAll: modelPerformance.show_all_models,
-                        topN: modelPerformance.top_n,
-                        windowHours: modelPerformance.window_hours,
-                      } : undefined}
+                modelPerformance={featuredPerfProps?.[g.group_name]}
               />
             ))}
           </div>}

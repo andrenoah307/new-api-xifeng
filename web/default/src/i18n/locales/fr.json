@@ -10,6 +10,8 @@
     "Leave empty to include all models in the group.": "Laisser vide pour inclure tous les modèles du groupe.",
     "Model success rate": "Taux de réussite du modèle",
     "First token latency": "Latence du premier jeton",
+    "First token latency short": "TTFT",
+    "Model success rate short": "Réussite",
     "Group availability": "Disponibilité du groupe",
     "Group first token latency": "Latence du premier jeton du groupe",
     "No model performance data": "Aucune donnée de performance de modèle",

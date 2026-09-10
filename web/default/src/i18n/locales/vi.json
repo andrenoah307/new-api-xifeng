@@ -10,6 +10,8 @@
     "Leave empty to include all models in the group.": "Để trống để hiển thị tất cả mô hình trong nhóm.",
     "Model success rate": "Tỷ lệ thành công của mô hình",
     "First token latency": "Độ trễ token đầu tiên",
+    "First token latency short": "TTFT",
+    "Model success rate short": "Thành công",
     "Group availability": "Khả dụng của nhóm",
     "Group first token latency": "Độ trễ token đầu tiên của nhóm",
     "No model performance data": "Không có dữ liệu hiệu năng mô hình",

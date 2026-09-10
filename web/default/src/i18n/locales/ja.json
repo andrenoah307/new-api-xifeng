@@ -10,6 +10,8 @@
     "Leave empty to include all models in the group.": "空欄の場合はグループ内の全モデルを表示します。",
     "Model success rate": "モデル成功率",
     "First token latency": "初回トークン遅延",
+    "First token latency short": "初回",
+    "Model success rate short": "成功率",
     "Group availability": "グループ可用性",
     "Group first token latency": "グループ初回トークン遅延",
     "No model performance data": "モデル性能データがありません",

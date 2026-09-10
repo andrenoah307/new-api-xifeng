@@ -10,6 +10,8 @@
     "Leave empty to include all models in the group.": "Leave empty to include all models in the group.",
     "Model success rate": "Model success rate",
     "First token latency": "First token latency",
+    "First token latency short": "TTFT",
+    "Model success rate short": "Success",
     "Group availability": "Group availability",
     "Group first token latency": "Group first token latency",
     "No model performance data": "No model performance data",
