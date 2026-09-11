@@ -125,6 +125,39 @@ function containerBreakpoint(className: string): string {
 }
 
 describe('group model performance', () => {
+  test('highlights first-token latency only above the threshold and with samples', async () => {
+    for (const sample of [
+      { avg_ttft_ms: 12000, has_ttft: true, warning: true },
+      { avg_ttft_ms: 10000, has_ttft: true, warning: false },
+      { avg_ttft_ms: 300, has_ttft: true, warning: false },
+      { avg_ttft_ms: 12000, has_ttft: false, warning: false },
+    ]) {
+      const markup = await render({
+        models: [perf({ model_name: 'model', avg_ttft_ms: sample.avg_ttft_ms, has_ttft: sample.has_ttft })],
+        showAll: true,
+        topN: 6,
+      })
+      const tokens = classTokens(bodyCells(markup)[1].attrs)
+      assert.equal(tokens.includes('text-amber-600'), sample.warning)
+      assert.equal(tokens.includes('dark:text-amber-400'), sample.warning)
+    }
+  })
+
+  test('passes slot first-token samples and the sampled window mean into the trend', async () => {
+    for (const hasTtft of [true, false]) {
+      const markup = await render({
+        models: [perf({
+          model_name: 'model', success_rate: 100, avg_ttft_ms: 12000,
+          has_ttft: hasTtft, series: [100, 100, 100], ttft_series: [11000, 300, null],
+        })],
+        showAll: true,
+        topN: 6,
+      })
+      const backgrounds = [...trendCell(markup).inner.matchAll(/background:([^;"]*)/g)].map((match) => match[1].trim())
+      assert.deepEqual(backgrounds, ['#eab308', '#22c55e', hasTtft ? '#eab308' : '#22c55e'])
+    }
+  })
+
   // 契约：窗口内没有任何一次首字采样时后端返回 avg_ttft_ms=0，
   // 必须渲染"—"。若改成直出数值会显示 "0ms"，运营会误判为极快。
   // 延迟/TPS/首字三个指标共用同一条"无数据即 —"规则。

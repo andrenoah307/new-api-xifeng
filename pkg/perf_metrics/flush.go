@@ -23,10 +23,23 @@ func flushLoop() {
 }
 
 func flushCompletedBuckets() {
+	flushBuckets(false)
+}
+
+// FlushHotBuckets 把内存里的热桶全部落库，包含仍在累加中的当前桶。
+// 供进程退出前调用：周期 flush 刻意跳过当前桶，正常运行时这是对的
+// （桶还没封口），但退出时它等于直接丢弃最新一个窗口的最后两槽。
+// 重复调用安全：drain() 原子取走并清零，UpsertPerfMetric 是 `col = col + ?`
+// 的累加式 upsert，多副本并发写同一 bucket_ts 由数据库行锁串行化。
+func FlushHotBuckets() {
+	flushBuckets(true)
+}
+
+func flushBuckets(includeCurrent bool) {
 	currentBucket := bucketStart(time.Now().Unix())
 	hotBuckets.Range(func(key, value any) bool {
 		k := key.(bucketKey)
-		if k.bucketTs >= currentBucket {
+		if !includeCurrent && k.bucketTs >= currentBucket {
 			return true
 		}
 

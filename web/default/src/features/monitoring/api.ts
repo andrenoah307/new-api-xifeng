@@ -100,6 +100,7 @@ export interface GroupModelPerf {
   avg_tps: number
   // 后端只在有窗口数据时下发；组件一律按 `?? []` 读，接口跟着实际契约走
   series?: (number | null)[]
+  ttft_series?: (number | null)[]
 }
 
 export interface GroupModelPerfData {

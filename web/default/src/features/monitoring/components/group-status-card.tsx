@@ -18,6 +18,7 @@ import {
   formatClock,
   isGroupOnline,
   rateAccentColor,
+  slowFrtTextClass,
   computeRateFromHistory,
 } from '../constants'
 import StatusTimeline from './status-timeline'
@@ -208,7 +209,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
           >
             {t('First token latency short')}
           </div>
-          <div className='text-foreground mt-1 font-mono text-base leading-none tabular-nums'>
+          <div className={`mt-1 font-mono text-base leading-none tabular-nums ${slowFrtTextClass(frt) || 'text-foreground'}`}>
             {formatFRT(frt)}
           </div>
         </div>

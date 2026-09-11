@@ -21,7 +21,7 @@ import React, { memo } from 'react';
 import { Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
 import { Database, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import StatusTimeline from './StatusTimeline';
+import StatusTimeline, { SLOW_FRT_THRESHOLD_MS } from './StatusTimeline';
 
 const { Text } = Typography;
 
@@ -179,7 +179,7 @@ const GroupStatusCard = memo(({ group, onClick, regionBlockedGroups = [] }) => {
         <div className='flex items-center gap-3'>
           <span className='inline-flex items-center gap-1'>
             <Zap size={11} className='text-semi-color-text-3' />
-            <span className='font-mono'>{formatFRT(frt)}</span>
+            <span className={`font-mono${frt != null && frt > SLOW_FRT_THRESHOLD_MS ? ' text-semi-color-warning' : ''}`}>{formatFRT(frt)}</span>
           </span>
           <span className='inline-flex items-center gap-1'>
             <Database size={11} className='text-semi-color-text-3' />

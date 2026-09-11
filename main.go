@@ -275,6 +275,8 @@ func main() {
 	if common.DataExportEnabled {
 		model.SaveQuotaDataCache()
 	}
+	// 热桶里还没落库的性能采样在这里强制刷盘，避免重启抹掉最新的两个时间槽
+	perfmetrics.FlushHotBuckets()
 	common.SysLog("server exited")
 }
 

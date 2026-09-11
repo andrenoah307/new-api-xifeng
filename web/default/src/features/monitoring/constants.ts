@@ -148,6 +148,12 @@ export function saveSortMode(mode: SortMode): void {
 // 两处（着色与文案）必须同源，否则会出现「颜色是黄的、文案说正常」。
 export const SLOW_FRT_THRESHOLD_MS = 10_000
 
+// 首字延迟的文本着色与色带同源：同一个阈值只能有一处定义，
+// 否则会出现「色带是黄的、数值是黑的」这种自相矛盾的展示。
+export function slowFrtTextClass(ms: number | null | undefined): string {
+  return ms != null && ms > SLOW_FRT_THRESHOLD_MS ? 'text-amber-600 dark:text-amber-400' : ''
+}
+
 export function segmentColor(
   rate: number | null | undefined,
   avgFrt: number | null | undefined

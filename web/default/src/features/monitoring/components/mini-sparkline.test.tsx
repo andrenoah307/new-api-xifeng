@@ -26,7 +26,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { segmentColor } from '../constants'
 import MiniSparkline from './mini-sparkline'
 
-async function render(series: (number | null)[]): Promise<string> {
+async function render(
+  series: (number | null)[],
+  ttftSeries?: (number | null)[],
+  fallbackTtftMs?: number | null
+): Promise<string> {
   const i18n = createInstance()
   await i18n.init({
     lng: 'en',
@@ -35,7 +39,7 @@ async function render(series: (number | null)[]): Promise<string> {
   })
   return renderToStaticMarkup(
     <I18nextProvider i18n={i18n}>
-      <MiniSparkline series={series} />
+      <MiniSparkline series={series} ttftSeries={ttftSeries} fallbackTtftMs={fallbackTtftMs} />
     </I18nextProvider>
   )
 }
@@ -49,6 +53,42 @@ function segmentBackgrounds(markup: string): string[] {
 }
 
 describe('mini sparkline', () => {
+  test('paints only healthy slots above the first-token threshold yellow', async () => {
+    const markup = await render([100, 100, 100], [10001, 10000, 300])
+
+    assert.deepEqual(segmentBackgrounds(markup), ['#eab308', '#22c55e', '#22c55e'])
+    assert.deepEqual(segmentTitles(markup), [
+      'Slow Response · 100% · 10.00s',
+      'Normal · 100% · 10.00s',
+      'Normal · 100% · 300ms',
+    ])
+  })
+
+  test('falls back to the window mean for missing samples without coloring empty slots', async () => {
+    const markup = await render([100, 100, 100, null], [null, 300], 12000)
+
+    assert.deepEqual(segmentBackgrounds(markup), [
+      '#eab308', '#22c55e', '#eab308', segmentColor(null, null),
+    ])
+    assert.deepEqual(segmentTitles(markup), [
+      'Slow Response · 100% · 12.00s',
+      'Normal · 100% · 300ms',
+      'Slow Response · 100% · 12.00s',
+      'No data available',
+    ])
+  })
+
+  test('preserves rate-only colors and adds status labels for legacy payloads', async () => {
+    const rates = [100, 97, 90, 60, 10, 0, null]
+    const markup = await render(rates)
+
+    assert.deepEqual(segmentBackgrounds(markup), rates.map((rate) => segmentColor(rate, null)))
+    assert.deepEqual(segmentTitles(markup), [
+      'Normal · 100%', 'Minor Jitter · 97%', 'Partial Anomaly · 90%',
+      'Severe Anomaly · 60%', 'Failure · 10%', 'Failure · 0%', 'No data available',
+    ])
+  })
+
   // 契约：后端固定返回 GroupModelSeriesSlots 个槽位，缩略图必须一比一渲染，
   // 不能压缩掉空槽 —— 否则时间轴会失真，两个模型的同一列不再是同一时刻。
   test('renders one segment per slot including the empty ones', async () => {

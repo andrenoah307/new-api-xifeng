@@ -35,6 +35,11 @@ type GroupModelPerf struct {
 	HasTtft      bool       `json:"has_ttft"`
 	AvgTps       float64    `json:"avg_tps"`
 	Series       []*float64 `json:"series"`
+	// TtftSeries 与 Series 逐槽一一对应。走势条与左侧时间轴共用同一条色阶，
+	// 而那条色阶在可用率达标时要再看首字延迟才能判「健康但慢」。
+	// 数据本就随 DB 行与热桶一起到手，只是此前在填充循环里被丢弃，补它不增加查询。
+	// 没有首字样本的槽是 nil 而不是 0——0 会被读成「首字 0ms」，把慢模型涂绿。
+	TtftSeries []*int64 `json:"ttft_series,omitempty"`
 }
 
 // GroupModelSeriesMaxSlots 是走势条点数的上界，不是定长。
@@ -143,6 +148,11 @@ func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModel
 			tps = float64(total.outputTokens) / (float64(total.generationMs) / 1000)
 		}
 		item := GroupModelPerf{ModelName: key.model, RequestCount: total.requestCount, SuccessRate: math.Round(rate*100) / 100, AvgLatencyMs: total.totalLatencyMs / total.requestCount, AvgTps: math.Round(tps*100) / 100, Series: make([]*float64, slots)}
+		if total.ttftCount > 0 {
+			item.HasTtft = true
+			item.AvgTtftMs = total.ttftSumMs / total.ttftCount
+			item.TtftSeries = make([]*int64, slots)
+		}
 		for idx := 0; idx < slots; idx++ {
 			slotKey := key
 			slotKey.bucketTs = int64(idx)
@@ -151,10 +161,10 @@ func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModel
 				rate := math.Round(successRate(value)*100) / 100
 				item.Series[idx] = &rate
 			}
-		}
-		if total.ttftCount > 0 {
-			item.HasTtft = true
-			item.AvgTtftMs = total.ttftSumMs / total.ttftCount
+			if item.TtftSeries != nil && value.ttftCount > 0 {
+				ttft := value.ttftSumMs / value.ttftCount
+				item.TtftSeries[idx] = &ttft
+			}
 		}
 		result[key.group] = append(result[key.group], item)
 	}

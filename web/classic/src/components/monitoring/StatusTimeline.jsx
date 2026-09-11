@@ -26,7 +26,7 @@ import { useTranslation } from 'react-i18next';
  * mode is automatic via `theme-mode=dark` on body.
  */
 // 「健康但慢」的判定门槛，与 Default 的 SLOW_FRT_THRESHOLD_MS 保持一致
-const SLOW_FRT_THRESHOLD_MS = 10000;
+export const SLOW_FRT_THRESHOLD_MS = 10000;
 
 function segmentColor(rate, avgFrt) {
   // 无数据留灰；否则按每区间可用率梯度着色，

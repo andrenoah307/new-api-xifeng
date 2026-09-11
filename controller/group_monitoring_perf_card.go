@@ -109,6 +109,7 @@ type publicGroupModelPerf struct {
 	HasTtft      bool       `json:"has_ttft"`
 	AvgTps       float64    `json:"avg_tps"`
 	Series       []*float64 `json:"series"`
+	TtftSeries   []*int64   `json:"ttft_series,omitempty"`
 }
 
 // desensitizeGroupModelPerf 剥离 request_count：它是唯一直接暴露真实业务量的字段，
@@ -124,6 +125,7 @@ func desensitizeGroupModelPerf(items []perfmetrics.GroupModelPerf) []publicGroup
 			HasTtft:      item.HasTtft,
 			AvgTps:       item.AvgTps,
 			Series:       item.Series,
+			TtftSeries:   item.TtftSeries,
 		})
 	}
 	return projected

@@ -227,3 +227,156 @@ func TestQueryGroupModelSummary_SeriesMergesWithinSlotByWeight(t *testing.T) {
 	// 加权 99/100 = 99；若错误地对两桶成功率取平均则是 (100 + 0) / 2 = 50。
 	assert.Equal(t, 99.0, *series[22])
 }
+
+// 走势条的颜色与左侧时间轴共用同一条色阶：可用率达标时再看首字延迟，
+// 超过阈值降级为「健康但慢」。左侧拿得到逐段 FRT，右侧此前只有成功率，
+// 于是同一时刻左黄右绿。TtftSeries 把逐槽首字补齐——数据在 DB 行与热桶里
+// 本就带着 ttft_sum_ms/ttft_count，此前在填充循环里被丢弃，补它不增加任何查询。
+func TestQueryGroupModelSummary_TtftSeriesCarriesPerSlotLatency(t *testing.T) {
+	setupGroupModelSummaryTest(t)
+	setBucketTime(t, "5min")
+
+	now := time.Now().Unix()
+	newestSlot := now - now%300
+	require.NoError(t, model.DB.Create(&model.PerfMetric{
+		ModelName: "m", Group: "g", BucketTs: newestSlot - 11*300,
+		RequestCount: 10, SuccessCount: 10, TotalLatencyMs: 10000,
+		TtftSumMs: 5000, TtftCount: 10, // 500ms
+	}).Error)
+	require.NoError(t, model.DB.Create(&model.PerfMetric{
+		ModelName: "m", Group: "g", BucketTs: newestSlot,
+		RequestCount: 10, SuccessCount: 10, TotalLatencyMs: 160000,
+		TtftSumMs: 150000, TtftCount: 10, // 15000ms
+	}).Error)
+
+	got, err := QueryGroupModelSummary(1, []string{"g"})
+	require.NoError(t, err)
+	require.Len(t, got["g"], 1)
+
+	item := got["g"][0]
+	require.Len(t, item.TtftSeries, 12)
+	require.NotNil(t, item.TtftSeries[0])
+	assert.Equal(t, int64(500), *item.TtftSeries[0])
+	require.NotNil(t, item.TtftSeries[11])
+	assert.Equal(t, int64(15000), *item.TtftSeries[11])
+	for i := 1; i < 11; i++ {
+		assert.Nil(t, item.TtftSeries[i], "槽位 %d 无样本", i)
+	}
+	// 窗口级均值把尖峰抹平成 7750ms（低于 10s 阈值），这正是只看它无法给出
+	// 逐槽颜色的原因：末槽实际 15s 必须单独可见。
+	assert.Equal(t, int64(7750), item.AvgTtftMs)
+	assert.True(t, item.HasTtft)
+}
+
+// 非流式请求不产生首字样本（hasTtft = IsStream && HasSendResponse），
+// 于是一个槽可以「有请求但 ttft_count == 0」。这种槽必须是 null 而不是 0：
+// 0 会被前端读成「首字 0ms」，把慢模型涂成绿色，正好抵消这次修复。
+func TestQueryGroupModelSummary_SlotWithoutTtftSampleIsNullNotZero(t *testing.T) {
+	setupGroupModelSummaryTest(t)
+	setBucketTime(t, "5min")
+
+	now := time.Now().Unix()
+	newestSlot := now - now%300
+	require.NoError(t, model.DB.Create(&model.PerfMetric{
+		ModelName: "m", Group: "g", BucketTs: newestSlot,
+		RequestCount: 10, SuccessCount: 10, TotalLatencyMs: 10000,
+		TtftSumMs: 0, TtftCount: 0,
+	}).Error)
+	require.NoError(t, model.DB.Create(&model.PerfMetric{
+		ModelName: "m", Group: "g", BucketTs: newestSlot - 300,
+		RequestCount: 1, SuccessCount: 1, TotalLatencyMs: 15000,
+		TtftSumMs: 12000, TtftCount: 1,
+	}).Error)
+
+	got, err := QueryGroupModelSummary(1, []string{"g"})
+	require.NoError(t, err)
+	require.Len(t, got["g"], 1)
+
+	item := got["g"][0]
+	require.Len(t, item.Series, 12)
+	require.NotNil(t, item.Series[11], "有请求的槽仍要有成功率")
+	require.Len(t, item.TtftSeries, 12)
+	assert.Nil(t, item.TtftSeries[11], "没有首字样本的槽必须是 null，不能是 0")
+	require.NotNil(t, item.TtftSeries[10])
+	assert.Equal(t, int64(12000), *item.TtftSeries[10])
+	assert.True(t, item.HasTtft)
+	assert.Equal(t, int64(12000), item.AvgTtftMs)
+}
+
+// 整个窗口都没有流式请求时，逐槽数组整体省略，不在载荷里留 N 个 null。
+func TestQueryGroupModelSummary_TtftSeriesOmittedWhenModelNeverStreamed(t *testing.T) {
+	setupGroupModelSummaryTest(t)
+	setBucketTime(t, "5min")
+
+	now := time.Now().Unix()
+	newestSlot := now - now%300
+	require.NoError(t, model.DB.Create(&model.PerfMetric{
+		ModelName: "m", Group: "g", BucketTs: newestSlot,
+		RequestCount: 10, SuccessCount: 10, TotalLatencyMs: 10000,
+	}).Error)
+
+	got, err := QueryGroupModelSummary(1, []string{"g"})
+	require.NoError(t, err)
+	require.Len(t, got["g"], 1)
+	assert.Nil(t, got["g"][0].TtftSeries, "窗口内零首字样本时整条省略")
+}
+
+// 热桶与 DB 行走同一套归属规则：当前桶的首字必须落进它自己的槽，
+// 否则「刚刚变慢」这件事要等到下一次 flush 才会被染色。
+func TestQueryGroupModelSummary_HotBucketTtftLandsInItsOwnSlot(t *testing.T) {
+	setupGroupModelSummaryTest(t)
+	setBucketTime(t, "5min")
+
+	now := time.Now().Unix()
+	newestSlot := now - now%300
+	require.NoError(t, model.DB.Create(&model.PerfMetric{
+		ModelName: "m", Group: "g", BucketTs: newestSlot - 11*300,
+		RequestCount: 10, SuccessCount: 10, TotalLatencyMs: 10000,
+		TtftSumMs: 5000, TtftCount: 10,
+	}).Error)
+	seedHotBucket("g", "m", newestSlot, counters{
+		requestCount: 4, successCount: 4, totalLatencyMs: 80000,
+		ttftSumMs: 48000, ttftCount: 4, // 12000ms
+	})
+
+	got, err := QueryGroupModelSummary(1, []string{"g"})
+	require.NoError(t, err)
+	require.Len(t, got["g"], 1)
+
+	series := got["g"][0].TtftSeries
+	require.Len(t, series, 12)
+	require.NotNil(t, series[0])
+	assert.Equal(t, int64(500), *series[0])
+	require.NotNil(t, series[11], "热桶的首字必须实时可见")
+	assert.Equal(t, int64(12000), *series[11])
+}
+
+// 同一槽内多个桶按样本数加权求均值，而不是把各桶均值再平均。
+func TestQueryGroupModelSummary_TtftSeriesMergesWithinSlotByWeight(t *testing.T) {
+	setupGroupModelSummaryTest(t)
+	setBucketTime(t, "minute")
+
+	now := time.Now().Unix()
+	// 取次新槽，避免末尾半开槽在每小时前 60 秒把 slot+60 排除到窗口外。
+	slot := now - now%3600 - 3600
+	require.NoError(t, model.DB.Create(&model.PerfMetric{
+		ModelName: "m", Group: "g", BucketTs: slot,
+		RequestCount: 99, SuccessCount: 99, TotalLatencyMs: 99000,
+		TtftSumMs: 99000, TtftCount: 99, // 1000ms
+	}).Error)
+	require.NoError(t, model.DB.Create(&model.PerfMetric{
+		ModelName: "m", Group: "g", BucketTs: slot + 60,
+		RequestCount: 1, SuccessCount: 1, TotalLatencyMs: 21000,
+		TtftSumMs: 21000, TtftCount: 1, // 21000ms
+	}).Error)
+
+	got, err := QueryGroupModelSummary(24, []string{"g"})
+	require.NoError(t, err)
+	require.Len(t, got["g"], 1)
+
+	series := got["g"][0].TtftSeries
+	require.Len(t, series, 24)
+	require.NotNil(t, series[22])
+	// 加权 (99000+21000)/100 = 1200；若对两桶均值取平均则是 (1000+21000)/2 = 11000。
+	assert.Equal(t, int64(1200), *series[22])
+}

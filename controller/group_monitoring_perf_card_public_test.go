@@ -32,6 +32,7 @@ func seedPerfCardMetric(t *testing.T, group, modelName string, requests, success
 	require.NoError(t, model.DB.Create(&model.PerfMetric{
 		ModelName: modelName, Group: group, BucketTs: time.Now().Unix() - 1800,
 		RequestCount: requests, SuccessCount: successes, TotalLatencyMs: 400,
+		TtftSumMs: 200 * requests, TtftCount: requests,
 	}).Error)
 }
 
@@ -83,13 +84,14 @@ func TestGetPublicMonitoringGroupModels_StripsRequestCountKeepsQualityFields(t *
 	assert.NotContains(t, item, "request_count", "真实业务量不得对普通用户暴露")
 	for _, key := range []string{
 		"model_name", "success_rate", "avg_latency_ms",
-		"avg_ttft_ms", "has_ttft", "avg_tps", "series",
+		"avg_ttft_ms", "has_ttft", "avg_tps", "series", "ttft_series",
 	} {
 		assert.Contains(t, item, key, "服务质量字段 %s 必须保留", key)
 	}
-	// 槽数随窗口与 bucket 宽度变化，公开侧同样必须自洽：series 的长度
+	// 槽数随窗口与 bucket 宽度变化，公开侧同样必须自洽：两条序列的长度
 	// 只能对着响应自己下发的槽数断言，不能硬编码。
 	assert.Len(t, item["series"].([]any), int(data["series_slots"].(float64)))
+	assert.Len(t, item["ttft_series"].([]any), int(data["series_slots"].(float64)))
 }
 
 // 回归护栏：脱敏只针对公开端点，管理员仍要看到请求量，否则运营失去容量判断依据。

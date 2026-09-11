@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { GroupModelPerf } from '../api'
+import { slowFrtTextClass } from '../constants'
 import { formatLatency, formatThroughput, formatUptimePct, getSuccessRateTextClass } from '@/features/performance-metrics/lib/format'
 import MiniSparkline from './mini-sparkline'
 
@@ -54,7 +55,7 @@ export default function GroupModelPerformance({
                   独吞整行剩余宽度，留下大片死白而数值列挤在最右。上限只用于兜住
                   异常长名，全名始终留在 title 里。 */}
               <td className='max-w-[260px] truncate px-2 py-1 font-medium' title={model.model_name}>{model.model_name}</td>
-              <td className='px-2 py-1 text-right font-mono tabular-nums whitespace-nowrap'>{formatLatency(model.avg_ttft_ms)}</td>
+              <td className={`px-2 py-1 text-right font-mono tabular-nums whitespace-nowrap ${slowFrtTextClass(model.has_ttft ? model.avg_ttft_ms : null)}`}>{formatLatency(model.avg_ttft_ms)}</td>
               <td className='px-2 py-1 text-right font-mono tabular-nums whitespace-nowrap'>{formatLatency(model.avg_latency_ms)}</td>
               <td className='px-2 py-1 text-right font-mono tabular-nums whitespace-nowrap'>{formatThroughput(model.avg_tps)}</td>
               <td className={`px-2 py-1 text-right font-mono tabular-nums whitespace-nowrap ${getSuccessRateTextClass(model.success_rate)}`}>{formatUptimePct(model.success_rate)}</td>
@@ -63,7 +64,7 @@ export default function GroupModelPerformance({
                   于是名称列让出的剩余宽度全部流进色带（24 段各自变宽）。
                   容器窄于 32rem 时整列让给模型名，成功率数值已承载同一信息。 */}
               <td className='hidden px-2 py-1 align-middle @lg/perfcols:table-cell'>
-                <div className='min-w-32 @xl/perfcols:min-w-44 @3xl/perfcols:min-w-56'><MiniSparkline series={model.series ?? []} /></div>
+                <div className='min-w-32 @xl/perfcols:min-w-44 @3xl/perfcols:min-w-56'><MiniSparkline series={model.series ?? []} ttftSeries={model.ttft_series} fallbackTtftMs={model.has_ttft ? model.avg_ttft_ms : null} /></div>
               </td>
             </tr>
           ))}
