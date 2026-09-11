@@ -42,16 +42,25 @@ async function render(props: {
   models: GroupModelPerf[]
   showAll: boolean
   topN: number
+  windowHours?: number
 }): Promise<string> {
   const i18n = createInstance()
   await i18n.init({
     lng: 'en',
-    resources: { en: { translation: {} } },
+    resources: {
+      en: {
+        translation: {
+          'Last {{hours}} hours': 'Last {{hours}} hours',
+          'Last hour': 'Last hour',
+        },
+      },
+    },
     interpolation: { escapeValue: false },
   })
+  const { windowHours = 24, ...rest } = props
   return renderToStaticMarkup(
     <I18nextProvider i18n={i18n}>
-      <GroupModelPerformance {...props} windowHours={24} />
+      <GroupModelPerformance {...rest} windowHours={windowHours} />
     </I18nextProvider>
   )
 }
@@ -225,6 +234,30 @@ describe('group model performance', () => {
     assert.equal(rowCells(four).length, 4)
   })
 
+  // 仓库没有 i18next 复数基建（_one/_other 零命中），带 {{hours}} 的句式在
+  // hours=1 时会渲染成 "Last 1 hours"（法文 "1 dernières heures"）。
+  // 单数走一条独立的固定文案，而不是为一个标签引入一整套复数基建。
+  test('states a one-hour window without the plural sentence', async () => {
+    const markup = await render({
+      models: [perf({ model_name: 'm' })],
+      showAll: true,
+      topN: 6,
+      windowHours: 1,
+    })
+    assert.match(markup, /Last hour/)
+    assert.doesNotMatch(markup, /Last 1 hours/)
+  })
+
+  test('keeps the plural sentence for multi-hour windows', async () => {
+    const markup = await render({
+      models: [perf({ model_name: 'm' })],
+      showAll: true,
+      topN: 6,
+      windowHours: 24,
+    })
+    assert.match(markup, /Last 24 hours/)
+  })
+
   // 生产里模型名最长 35 字符。截断是 CSS 行为，全名必须始终留在 DOM 里
   // （文本 + title），否则布局改动会静默吞掉管理员唯一的识别依据。
   test('keeps the full model name in the row even when it will be truncated', async () => {
@@ -240,13 +273,27 @@ describe('group model performance', () => {
 })
 
 describe('group model performance trend column', () => {
-  async function renderOne(): Promise<string> {
+  async function renderOne(slots = 24): Promise<string> {
     return render({
-      models: [perf({ model_name: 'gpt-5.6-luna', series: Array(24).fill(99) })],
+      models: [perf({ model_name: 'gpt-5.6-luna', series: Array(slots).fill(99) })],
       showAll: true,
       topN: 6,
     })
   }
+
+  // 槽数不再是定长 24：它由窗口与 bucket 宽度共同推出，随响应下发。
+  // 走势列必须按实际拿到的长度渲染，不能假定 24 段。
+  test('renders exactly as many segments as the payload carries', async () => {
+    for (const slots of [1, 12, 20, 24]) {
+      const inner = trendCell(await renderOne(slots)).inner
+      const segments = [...inner.matchAll(/<span[^>]*>/g)].length
+      assert.equal(
+        segments,
+        slots,
+        `a ${slots}-slot series must render ${slots} segments, got ${segments}`
+      )
+    }
+  })
 
   // 表头与单元格是同一列的两半。只改其中一个的显隐断点，浏览器会渲染出
   // "有表头没数据"或"有数据没表头"的错位表格，而 tsc 与其余测试全绿。

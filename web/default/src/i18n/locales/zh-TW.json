@@ -19,6 +19,7 @@
     "Group first token latency": "分組首字延遲",
     "No model performance data": "暫無模型效能資料",
     "Last {{hours}} hours": "近 {{hours}} 小時",
+    "Last hour": "近 1 小時",
     "Expand all ({{count}})": "展開全部（{{count}}）",
     "360": "360",
     "1000": "1000",

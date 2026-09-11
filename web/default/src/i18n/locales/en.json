@@ -19,6 +19,7 @@
     "Group first token latency": "Group first token latency",
     "No model performance data": "No model performance data",
     "Last {{hours}} hours": "Last {{hours}} hours",
+    "Last hour": "Last hour",
     "Expand all ({{count}})": "Expand all ({{count}})",
     "360": "360",
     "1000": "1000",

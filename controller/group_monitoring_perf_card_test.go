@@ -85,9 +85,10 @@ func TestGetAdminMonitoringGroupModels_EmptyWhitelistReturnsNothing(t *testing.T
 	assert.Empty(t, data["groups"])
 }
 
-// 前端要按固定槽位画缩略图，必须知道每个槽位代表多长时间；
-// 该值由窗口和固定槽位数推导，不能是 bucket 宽度。
-func TestGetAdminMonitoringGroupModels_ExposesSeriesSlotSeconds(t *testing.T) {
+// 前端要按槽位画缩略图，必须同时知道每个槽位代表多长时间、一共有几个槽位。
+// 槽数不再是定长 24：它随窗口与 bucket 宽度一起变化，所以必须随响应下发，
+// 且 series 的实际长度必须与下发的槽数一致——否则前端只能靠猜。
+func TestGetAdminMonitoringGroupModels_ExposesSeriesLayout(t *testing.T) {
 	db := setupMonitoringControllerTestDB(t, false)
 	require.NoError(t, db.AutoMigrate(&model.PerfMetric{}))
 	saveMonitoringSettings(t)
@@ -106,13 +107,16 @@ func TestGetAdminMonitoringGroupModels_ExposesSeriesSlotSeconds(t *testing.T) {
 	})
 
 	data := getPerfCardData(t)
-	assert.Equal(t, float64(24), data["window_hours"])
-	assert.Equal(t, float64(3600), data["series_slot_seconds"], "24 小时窗口 / 24 个槽位 = 3600 秒，与 bucket 宽度无关")
+	assert.Equal(t, float64(1), data["window_hours"])
+	// 1 小时窗口 / 上限 24 槽 = 150 秒，但槽宽必须是 bucket 宽度（60 秒）的整数倍，
+	// 于是向上取整到 180 秒，槽数随之变成 20。
+	assert.Equal(t, float64(180), data["series_slot_seconds"])
+	assert.Equal(t, float64(20), data["series_slots"])
 
 	items := data["groups"].(map[string]any)["picked"].([]any)
 	require.Len(t, items, 1)
 	series := items[0].(map[string]any)["series"].([]any)
-	assert.Len(t, series, 24)
+	assert.Len(t, series, 20, "series 长度必须与下发的槽数一致")
 }
 
 // 前端要靠 enabled_groups 决定哪些分组置顶成单列宽卡片。

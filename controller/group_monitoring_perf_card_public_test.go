@@ -75,7 +75,8 @@ func TestGetPublicMonitoringGroupModels_StripsRequestCountKeepsQualityFields(t *
 		"group_monitoring_setting.perf_card_groups":  `["picked"]`,
 	})
 
-	items := getPublicPerfCardData(t)["groups"].(map[string]any)["picked"].([]any)
+	data := getPublicPerfCardData(t)
+	items := data["groups"].(map[string]any)["picked"].([]any)
 	require.Len(t, items, 1)
 	item := items[0].(map[string]any)
 
@@ -86,7 +87,9 @@ func TestGetPublicMonitoringGroupModels_StripsRequestCountKeepsQualityFields(t *
 	} {
 		assert.Contains(t, item, key, "服务质量字段 %s 必须保留", key)
 	}
-	assert.Len(t, item["series"].([]any), 24)
+	// 槽数随窗口与 bucket 宽度变化，公开侧同样必须自洽：series 的长度
+	// 只能对着响应自己下发的槽数断言，不能硬编码。
+	assert.Len(t, item["series"].([]any), int(data["series_slots"].(float64)))
 }
 
 // 回归护栏：脱敏只针对公开端点，管理员仍要看到请求量，否则运营失去容量判断依据。

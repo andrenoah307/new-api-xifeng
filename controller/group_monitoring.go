@@ -65,18 +65,24 @@ func GetPublicMonitoringGroupModels(c *gin.Context) {
 	respondPerfCard(c, cfg, true)
 }
 
-const perfCardWindowHours = 24
+// perf_card 的统计窗口。1 小时要求底层 bucket 宽度细于 1 小时才有意义——
+// 槽宽与槽数由 GroupModelSeriesLayout 从窗口和 bucket 宽度共同推出。
+const perfCardWindowHours = 1
 
 func respondPerfCardDisabled(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"enabled": false, "enabled_groups": []string{}, "groups": gin.H{}}})
 }
 
 func perfCardEnvelope(cfg operation_setting.GroupMonitoringSetting, visible []string, groups any) gin.H {
+	// 槽数不再是定长 24：它随窗口与 bucket 宽度变化，必须随响应一起下发，
+	// 前端不得再假定 series 的长度。
+	slotSeconds, slots := perfmetrics.GroupModelSeriesLayout(perfCardWindowHours)
 	return gin.H{
 		"enabled":             true,
 		"window_hours":        perfCardWindowHours,
 		"bucket_seconds":      perf_metrics_setting.GetBucketSeconds(),
-		"series_slot_seconds": perfmetrics.GroupModelSeriesSlotSeconds(perfCardWindowHours),
+		"series_slot_seconds": slotSeconds,
+		"series_slots":        slots,
 		"enabled_groups":      visible,
 		"show_all_models":     cfg.PerfCardShowAllModels,
 		"top_n":               cfg.PerfCardTopNOrDefault(),

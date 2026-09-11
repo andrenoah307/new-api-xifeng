@@ -62,3 +62,31 @@ for (const locale of locales) {
     }
   })
 }
+
+// 窗口标签是一行副标题，与「模型性能」并排；写成整句会把这一行挤到换行，
+// 正是本轮要消灭的视觉缺陷。
+const maxWindowLabelLength = 16
+
+for (const locale of locales) {
+  // 「近 1 小时」不能复用带 {{hours}} 的复数句式：英文会渲染成 "Last 1 hours"，
+  // 法文渲染成 "1 dernières heures"。仓库没有 i18next 复数基建
+  // （_one/_other 零命中），所以单数用一条独立的固定文案，而不是再引入一套基建。
+  test(`${locale} states the one-hour window without a plural placeholder`, () => {
+    const document = JSON.parse(
+      readFileSync(new URL(`./${locale}.json`, import.meta.url), 'utf8')
+    ) as { translation?: Record<string, string> }
+
+    const value = document.translation?.['Last hour']
+    assert.equal(typeof value, 'string', `${locale} is missing Last hour`)
+    const text = String(value).trim()
+    assert.notEqual(text, '')
+    assert.ok(
+      !text.includes('{{'),
+      `${locale} Last hour must be a fixed string, got "${text}"`
+    )
+    assert.ok(
+      text.length <= maxWindowLabelLength,
+      `${locale} Last hour is ${text.length} chars ("${text}"), max ${maxWindowLabelLength}`
+    )
+  })
+}

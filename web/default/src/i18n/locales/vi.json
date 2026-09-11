@@ -19,6 +19,7 @@
     "Group first token latency": "Độ trễ token đầu tiên của nhóm",
     "No model performance data": "Không có dữ liệu hiệu năng mô hình",
     "Last {{hours}} hours": "{{hours}} giờ qua",
+    "Last hour": "1 giờ qua",
     "Expand all ({{count}})": "Hiển thị tất cả ({{count}})",
     "360": "360",
     "1000": "1000",

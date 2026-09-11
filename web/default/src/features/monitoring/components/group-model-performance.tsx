@@ -30,7 +30,9 @@ export default function GroupModelPerformance({
   const hidden = models.length - topN
   return (
     <div className='@container/perfcols space-y-2'>
-      <div className='text-muted-foreground text-xs'>{t('Model performance metrics')} · {t('Last {{hours}} hours', { hours: windowHours })}</div>
+      {/* 仓库没有 i18next 复数基建，带 {{hours}} 的句式在 hours=1 时会渲染成
+          "Last 1 hours"（法文 "1 dernières heures"）。单数走独立文案。 */}
+      <div className='text-muted-foreground text-xs'>{t('Model performance metrics')} · {windowHours === 1 ? t('Last hour') : t('Last {{hours}} hours', { hours: windowHours })}</div>
       {/* 指标名只在表头出现一次：模型数达到 20 时，逐卡重复标签既撑不下也读不动 */}
       <table className='w-full border-collapse text-xs'>
         <thead>

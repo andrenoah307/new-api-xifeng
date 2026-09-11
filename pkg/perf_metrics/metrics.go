@@ -1,8 +1,6 @@
 package perfmetrics
 
 import (
-	"context"
-	"fmt"
 	"math"
 	"sort"
 	"sync"
@@ -39,9 +37,18 @@ type GroupModelPerf struct {
 	Series       []*float64 `json:"series"`
 }
 
-const GroupModelSeriesSlots = 24
+// GroupModelSeriesMaxSlots 是走势条点数的上界，不是定长。
+// 按 window/bucket 直接推算的话 bucket_time="minute" 会产出 1440 个点，
+// 单次响应里 73 个模型 × 20 个分组会放大成百万级数组，所以必须封顶。
+const GroupModelSeriesMaxSlots = 24
 
-func GroupModelSeriesSlotSeconds(hours int) int64 {
+// GroupModelSeriesLayout 给出窗口的槽宽与槽数。槽宽同时受两条约束支配：
+//   - 不小于 bucket 宽度——否则一个 bucket 只能落进一个槽，其余槽必然空洞；
+//   - 是 bucket 宽度的整数倍——否则两套网格错位，落槽呈梳齿状。
+//
+// 槽数由 window/槽宽 推出，因而天然不超过 GroupModelSeriesMaxSlots。
+// 全程整数秒运算，不引入浮点。
+func GroupModelSeriesLayout(hours int) (slotSeconds int64, slots int) {
 	if hours <= 0 {
 		hours = 24
 	}
@@ -49,11 +56,20 @@ func GroupModelSeriesSlotSeconds(hours int) int64 {
 		hours = 720
 	}
 	window := int64(hours) * 3600
-	slots := (window + GroupModelSeriesSlots - 1) / GroupModelSeriesSlots
-	if slots < 1 {
-		return 1
+	bucketSeconds := perf_metrics_setting.GetBucketSeconds()
+	if bucketSeconds <= 0 {
+		bucketSeconds = 3600
 	}
-	return slots
+	buckets := ceilDiv(ceilDiv(window, GroupModelSeriesMaxSlots), bucketSeconds)
+	if buckets < 1 {
+		buckets = 1
+	}
+	slotSeconds = bucketSeconds * buckets
+	return slotSeconds, int(ceilDiv(window, slotSeconds))
+}
+
+func ceilDiv(a, b int64) int64 {
+	return (a + b - 1) / b
 }
 
 func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModelPerf, error) {
@@ -63,14 +79,17 @@ func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModel
 	if hours > 720 {
 		hours = 720
 	}
+	slotSeconds, slots := GroupModelSeriesLayout(hours)
 	endTs := time.Now().Unix()
-	startTs := endTs - int64(hours)*3600
+	// 槽位对齐到墙钟网格，而不是从"此刻"往回推。不对齐会同时坏两件事：
+	// 起点落在桶内部时，窗口里最老的那个完整桶被 `bucket_ts >= startTs` 整条排除；
+	// 且 startTs 随请求时刻滑动，同一段数据会在连续刷新之间左右横跳。
+	startTs := endTs - endTs%slotSeconds - int64(slots-1)*slotSeconds
 	allowed := allowedGroupSet(groups)
 	rows, err := model.GetPerfMetricsGroupModelBuckets(startTs, endTs, groups)
 	if err != nil {
 		return nil, err
 	}
-	slotSeconds := GroupModelSeriesSlotSeconds(hours)
 	totals := map[bucketKey]counters{}
 	series := map[bucketKey]counters{}
 	for _, row := range rows {
@@ -81,8 +100,8 @@ func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModel
 		if idx < 0 {
 			idx = 0
 		}
-		if idx >= GroupModelSeriesSlots {
-			idx = GroupModelSeriesSlots - 1
+		if idx >= slots {
+			idx = slots - 1
 		}
 		key.bucketTs = int64(idx)
 		mergeCounters(series, key, value)
@@ -105,8 +124,8 @@ func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModel
 		if idx < 0 {
 			idx = 0
 		}
-		if idx >= GroupModelSeriesSlots {
-			idx = GroupModelSeriesSlots - 1
+		if idx >= slots {
+			idx = slots - 1
 		}
 		slotKey := baseKey
 		slotKey.bucketTs = int64(idx)
@@ -123,8 +142,8 @@ func QueryGroupModelSummary(hours int, groups []string) (map[string][]GroupModel
 		if total.generationMs > 0 {
 			tps = float64(total.outputTokens) / (float64(total.generationMs) / 1000)
 		}
-		item := GroupModelPerf{ModelName: key.model, RequestCount: total.requestCount, SuccessRate: math.Round(rate*100) / 100, AvgLatencyMs: total.totalLatencyMs / total.requestCount, AvgTps: math.Round(tps*100) / 100, Series: make([]*float64, GroupModelSeriesSlots)}
-		for idx := 0; idx < GroupModelSeriesSlots; idx++ {
+		item := GroupModelPerf{ModelName: key.model, RequestCount: total.requestCount, SuccessRate: math.Round(rate*100) / 100, AvgLatencyMs: total.totalLatencyMs / total.requestCount, AvgTps: math.Round(tps*100) / 100, Series: make([]*float64, slots)}
+		for idx := 0; idx < slots; idx++ {
 			slotKey := key
 			slotKey.bucketTs = int64(idx)
 			value := series[slotKey]
@@ -203,7 +222,6 @@ func Record(sample Sample) {
 	}
 	actual, _ := hotBuckets.LoadOrStore(key, &atomicBucket{})
 	actual.(*atomicBucket).add(sample)
-	recordRedis(key, sample)
 }
 
 func Query(params QueryParams) (QueryResult, error) {
@@ -505,36 +523,4 @@ func avgTps(value counters) float64 {
 		return 0
 	}
 	return float64(value.outputTokens) / (float64(value.generationMs) / 1000)
-}
-
-func recordRedis(key bucketKey, sample Sample) {
-	if !common.RedisEnabled || common.RDB == nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	redisKey := redisBucketKey(key)
-	pipe := common.RDB.TxPipeline()
-	pipe.HIncrBy(ctx, redisKey, "req", 1)
-	if sample.Success {
-		pipe.HIncrBy(ctx, redisKey, "ok", 1)
-	}
-	if sample.LatencyMs > 0 {
-		pipe.HIncrBy(ctx, redisKey, "lat", sample.LatencyMs)
-	}
-	if sample.HasTtft && sample.TtftMs >= 0 {
-		pipe.HIncrBy(ctx, redisKey, "ttft", sample.TtftMs)
-		pipe.HIncrBy(ctx, redisKey, "ttft_n", 1)
-	}
-	if sample.OutputTokens > 0 && sample.GenerationMs > 0 {
-		pipe.HIncrBy(ctx, redisKey, "out", sample.OutputTokens)
-		pipe.HIncrBy(ctx, redisKey, "gen_ms", sample.GenerationMs)
-	}
-	pipe.Expire(ctx, redisKey, time.Hour)
-	_, _ = pipe.Exec(ctx)
-}
-
-func redisBucketKey(key bucketKey) string {
-	return fmt.Sprintf("perf:%s:%s:%d", key.model, key.group, key.bucketTs)
 }

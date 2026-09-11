@@ -53,6 +53,9 @@ func setupPerfMetricsControllerTestDB(t *testing.T) *gorm.DB {
 	db := model.DB
 	model.LOG_DB = db
 	require.NoError(t, db.AutoMigrate(&model.PerfMetric{}))
+	// summary 快照是按当前库内容构建的进程内状态，换库必须清掉，
+	// 否则用例之间会互相读到对方的数据（换库不改变缓存签名）。
+	perfMetricsSummaryCache.Store(nil)
 
 	t.Cleanup(func() {
 		if sqlDB, err := db.DB(); err == nil {

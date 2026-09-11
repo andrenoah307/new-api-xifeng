@@ -110,6 +110,8 @@ export interface GroupModelPerfData {
   top_n: number
   groups: Record<string, GroupModelPerf[]>
   series_slot_seconds: number
+  // 槽数不再是定长 24：随窗口与 bucket 宽度变化，由后端下发，前端不得假定长度
+  series_slots: number
   enabled_groups: string[]
 }
 

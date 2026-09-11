@@ -19,6 +19,7 @@
     "Group first token latency": "Latence du premier jeton du groupe",
     "No model performance data": "Aucune donnée de performance de modèle",
     "Last {{hours}} hours": "{{hours}} dernières heures",
+    "Last hour": "Dernière heure",
     "Expand all ({{count}})": "Tout afficher ({{count}})",
     "360": "360",
     "1000": "1000",

@@ -19,6 +19,7 @@
     "Group first token latency": "Задержка первого токена группы",
     "No model performance data": "Нет данных о производительности моделей",
     "Last {{hours}} hours": "Последние {{hours}} ч.",
+    "Last hour": "Последний час",
     "Expand all ({{count}})": "Показать все ({{count}})",
     "360": "360",
     "1000": "1000",
