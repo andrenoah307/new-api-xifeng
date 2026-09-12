@@ -123,9 +123,11 @@ export async function bindEmail(
 
 /**
  * Bind WeChat account
+ * 后端 router/api-router.go:54 注册的是 POST，且 controller.WeChatBind 从请求体读取
+ * `{"code": "..."}`；此前的 GET + query 写法永远走不通。
  */
 export async function bindWeChat(code: string): Promise<ApiResponse> {
-  const res = await api.get(`/api/oauth/wechat/bind?code=${code}`)
+  const res = await api.post('/api/oauth/wechat/bind', { code })
   return res.data
 }
 

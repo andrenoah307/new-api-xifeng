@@ -16,11 +16,18 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { QrCode } from 'lucide-react'
+import { Loader2, QrCode } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { Dialog } from '@/components/dialog'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useStatus } from '@/hooks/use-status'
+
+import { bindWeChat } from '../../api'
 
 // ============================================================================
 // WeChat Bind Dialog Component
@@ -35,41 +42,123 @@ interface WeChatBindDialogProps {
 export function WeChatBindDialog({
   open,
   onOpenChange,
+  onSuccess,
 }: WeChatBindDialogProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const [loading, setLoading] = useState(false)
+  const [code, setCode] = useState('')
+
+  // 与注册页同源的兼容链（sign-up-form.tsx:125-137）：后端不同版本的
+  // /api/status 用过多个字段名承载公众号二维码地址。
+  const qrCodeUrl = useMemo(() => {
+    return (
+      status?.wechat_qrcode ||
+      status?.wechat_qr_code ||
+      status?.wechat_qrcode_image_url ||
+      status?.wechat_qr_code_image_url ||
+      status?.wechat_account_qrcode_image_url ||
+      status?.WeChatAccountQRCodeImageURL ||
+      status?.data?.wechat_qrcode ||
+      status?.data?.WeChatAccountQRCodeImageURL ||
+      ''
+    )
+  }, [status])
+
+  const handleOpenChange = (next: boolean) => {
+    if (loading) return
+    onOpenChange(next)
+    if (!next) {
+      setCode('')
+    }
+  }
+
+  const handleBind = async () => {
+    const verificationCode = code.trim()
+    if (!verificationCode) {
+      toast.error(t('Please enter the verification code'))
+      return
+    }
+
+    try {
+      setLoading(true)
+      const response = await bindWeChat(verificationCode)
+
+      if (response.success) {
+        toast.success(t('WeChat account bound successfully!'))
+        handleOpenChange(false)
+        onSuccess()
+      } else {
+        toast.error(response.message || t('Failed to bind WeChat account'))
+      }
+    } catch (_error) {
+      toast.error(t('Failed to bind WeChat account'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <Dialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title={t('Bind WeChat Account')}
-      description={t('Scan the QR code with WeChat to bind your account')}
+      description={t(
+        'Scan the QR code to follow the official account and reply with “验证码” to receive your verification code.'
+      )}
       contentClassName='sm:max-w-md'
       contentHeight='auto'
       bodyClassName='space-y-4'
+      footer={
+        <>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => handleOpenChange(false)}
+            disabled={loading}
+          >
+            {t('Cancel')}
+          </Button>
+          <Button
+            type='button'
+            onClick={handleBind}
+            disabled={loading || !code.trim()}
+          >
+            {loading && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+            {loading ? t('Binding...') : t('Bind WeChat Account')}
+          </Button>
+        </>
+      }
     >
       <div className='space-y-4 py-4'>
-        <Alert>
-          <QrCode className='h-4 w-4' />
-          <AlertDescription>
-            {t(
-              'Please use WeChat\'s "Scan QR Code" feature to complete the binding process.'
-            )}
-          </AlertDescription>
-        </Alert>
-
-        <div className='flex flex-col items-center justify-center rounded-lg border border-dashed p-8'>
-          <QrCode className='text-muted-foreground mb-3 h-16 w-16' />
-          <p className='text-muted-foreground text-sm'>
-            {t('WeChat QR code will be displayed here')}
-          </p>
-          <p className='text-muted-foreground mt-2 text-xs'>
-            {t('This feature requires server-side WeChat configuration')}
-          </p>
+        <div className='flex flex-col items-center justify-center rounded-lg border border-dashed p-4'>
+          {qrCodeUrl ? (
+            <img
+              src={qrCodeUrl}
+              alt={t('WeChat login QR code')}
+              className='h-40 w-40 object-contain'
+            />
+          ) : (
+            <>
+              <QrCode className='text-muted-foreground mb-3 h-16 w-16' />
+              <p className='text-muted-foreground text-sm'>
+                {t('This feature requires server-side WeChat configuration')}
+              </p>
+            </>
+          )}
         </div>
 
-        <p className='text-muted-foreground text-center text-xs'>
-          {t('After scanning, the binding will complete automatically')}
-        </p>
+        <div className='space-y-2'>
+          <Label htmlFor='wechat-bind-code'>{t('Verification Code')}</Label>
+          <Input
+            id='wechat-bind-code'
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder={t('Enter code')}
+            disabled={loading}
+            autoComplete='one-time-code'
+          />
+        </div>
       </div>
     </Dialog>
   )
