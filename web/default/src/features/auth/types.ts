@@ -134,6 +134,9 @@ export interface SystemStatus {
     register_enabled?: boolean
     password_login_enabled?: boolean
     password_register_enabled?: boolean
+    invitation_code_enabled?: boolean
+    invitation_code_oauth_required?: boolean
+    invitation_code_user_generate_enabled?: boolean
     custom_oauth_providers?: CustomOAuthProviderInfo[]
     rate_limit_capacity_enabled?: boolean
     log_query_timeout?: number
@@ -181,6 +184,9 @@ export interface SystemStatus {
   register_enabled?: boolean
   password_login_enabled?: boolean
   password_register_enabled?: boolean
+  invitation_code_enabled?: boolean
+  invitation_code_oauth_required?: boolean
+  invitation_code_user_generate_enabled?: boolean
   custom_oauth_providers?: CustomOAuthProviderInfo[]
   rate_limit_capacity_enabled?: boolean
   region_blocked_groups?: string[]

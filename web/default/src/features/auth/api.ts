@@ -86,17 +86,29 @@ export async function githubOAuthStart(clientId: string, state: string) {
 }
 
 // Get OAuth state for CSRF protection
-export async function getOAuthState(): Promise<string> {
+// invitationCode 随 state 请求一并写入后端 session（controller/oauth.go:29），
+// OAuth 回调创建新用户时从 session 取用。
+export async function getOAuthState(invitationCode?: string): Promise<string> {
   const aff =
     typeof window !== 'undefined' ? (localStorage.getItem('aff') ?? '') : ''
-  const res = await api.get('/api/oauth/state', { params: { aff } })
+  const params: Record<string, string> = { aff }
+  const trimmed = invitationCode?.trim()
+  if (trimmed) params.invitation_code = trimmed
+  const res = await api.get('/api/oauth/state', { params })
   if (res.data?.success) return res.data.data
   return ''
 }
 
 // WeChat login by authorization code
-export async function wechatLoginByCode(code: string): Promise<ApiResponse> {
-  const res = await api.get('/api/oauth/wechat', { params: { code } })
+// 微信注册走 query 参数而非 session（controller/wechat.go:67）。
+export async function wechatLoginByCode(
+  code: string,
+  invitationCode?: string
+): Promise<ApiResponse> {
+  const params: Record<string, string> = { code }
+  const trimmed = invitationCode?.trim()
+  if (trimmed) params.invitation_code = trimmed
+  const res = await api.get('/api/oauth/wechat', { params })
   return res.data
 }
 

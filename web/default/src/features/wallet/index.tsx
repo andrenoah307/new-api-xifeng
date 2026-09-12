@@ -31,6 +31,7 @@ import { BillingHistoryDialog } from './components/dialogs/billing-history-dialo
 import { CreemConfirmDialog } from './components/dialogs/creem-confirm-dialog'
 import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialog'
 import { TransferDialog } from './components/dialogs/transfer-dialog'
+import { InvitationCodeCard } from './components/invitation-code-card'
 import { RechargeFormCard } from './components/recharge-form-card'
 import { SubscriptionPlansCard } from './components/subscription-plans-card'
 import { WalletStatsCard } from './components/wallet-stats-card'
@@ -290,6 +291,14 @@ export function Wallet(props: WalletProps) {
     []
   )
 
+  // 与 Classic 一致（web/classic/src/components/topup/index.jsx:123-127）：
+  // 三个开关任一开启即展示自助邀请码卡片，卡片内部再按 can_generate 决定能否生成。
+  const showInvitationCodeCard = Boolean(
+    status?.invitation_code_enabled ||
+      status?.invitation_code_oauth_required ||
+      status?.invitation_code_user_generate_enabled
+  )
+
   return (
     <>
       <SectionPageLayout>
@@ -366,6 +375,7 @@ export function Wallet(props: WalletProps) {
               }
               loading={affiliateLoading}
             />
+            {showInvitationCodeCard ? <InvitationCodeCard /> : null}
             <CommissionRecordsTable />
           </div>
         </SectionPageLayout.Content>

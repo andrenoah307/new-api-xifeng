@@ -170,6 +170,10 @@ export type AuthSettings = {
   TurnstileCheckEnabled: boolean
   TurnstileSiteKey: string
   TurnstileSecretKey: string
+  InvitationCodeEnabled: boolean
+  InvitationCodeOAuthRequired: boolean
+  InvitationCodeUserGenerateEnabled: boolean
+  InvitationCodePolicy: string
   'passkey.enabled': boolean
   'passkey.rp_display_name': string
   'passkey.rp_id': string

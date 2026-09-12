@@ -97,10 +97,12 @@ export function SignUpForm({
       email: '',
       password: '',
       confirmPassword: '',
+      invitation_code: '',
     },
   })
 
   const emailValue = form.watch('email')
+  const invitationCodeValue = (form.watch('invitation_code') ?? '').trim()
   const emailVerificationRequired = !!status?.email_verification
   const oauthRegisterEnabled =
     status?.oauth_register_enabled ??
@@ -108,6 +110,17 @@ export function SignUpForm({
     true
   const hasWeChatLogin = Boolean(status?.wechat_login)
   const turnstileReady = !isTurnstileEnabled || Boolean(turnstileToken)
+
+  // 与 Classic 一致：开关只控制「强制」，不控制「可用」——邀请链接带来的码
+  // 在开关关闭时依然可见、可提交，后端 controller/user.go:254 的
+  // `enabled || value != ""` 判断与此完全对称。
+  const invitationCodeRequired = Boolean(status?.invitation_code_enabled)
+  const oauthInvitationCodeRequired = Boolean(
+    status?.invitation_code_oauth_required
+  )
+  const showInvitationCodeInput = Boolean(
+    invitationCodeRequired || oauthInvitationCodeRequired || invitationCodeValue
+  )
 
   const wechatQrCodeUrl = useMemo(() => {
     return (
@@ -124,18 +137,22 @@ export function SignUpForm({
   }, [status])
 
   useEffect(() => {
-    const aff = new URLSearchParams(window.location.search).get('aff')?.trim()
+    const params = new URLSearchParams(window.location.search)
+    const aff = params.get('aff')?.trim()
     if (aff) {
       saveAffiliateCode(aff)
     }
-  }, [])
-
-  useEffect(() => {
-    const aff = new URLSearchParams(window.location.search).get('aff')?.trim()
-    if (aff) {
-      saveAffiliateCode(aff)
+    // 邀请链接同时接受 ?code= 与 ?invitation_code=（与 Classic 一致）。
+    // 只在用户尚未手动输入时回填，避免覆盖手输值。
+    const codeFromUrl = (
+      params.get('code') ||
+      params.get('invitation_code') ||
+      ''
+    ).trim()
+    if (codeFromUrl && !form.getValues('invitation_code')) {
+      form.setValue('invitation_code', codeFromUrl)
     }
-  }, [])
+  }, [form])
 
   const validateLegalConsent = () => {
     if (allLegalAgreed) return true
@@ -147,6 +164,11 @@ export function SignUpForm({
 
   async function onSubmit(data: z.infer<typeof registerFormSchema>) {
     if (!validateLegalConsent()) return
+
+    if (invitationCodeRequired && !invitationCodeValue) {
+      toast.error(t('Please enter your invitation code'))
+      return
+    }
 
     // Validate email verification if required
     if (emailVerificationRequired) {
@@ -170,6 +192,7 @@ export function SignUpForm({
         email: data.email || undefined,
         verification_code: verificationCode || undefined,
         aff_code: getAffiliateCode() || undefined,
+        invitation_code: invitationCodeValue || undefined,
         turnstile: turnstileToken,
       })
 
@@ -190,8 +213,19 @@ export function SignUpForm({
     await sendCode(emailValue || '')
   }
 
+  // OAuth / 微信注册的邀请码门（与 Classic ensureOAuthInvitationCode 一致）
+  const validateOAuthInvitationCode = () => {
+    if (!oauthInvitationCodeRequired || invitationCodeValue) return true
+
+    toast.error(t('Please enter your invitation code'))
+    return false
+  }
+
+  const validateBeforeOAuthAction = () =>
+    validateLegalConsent() && validateOAuthInvitationCode()
+
   const handleOpenWeChatDialog = () => {
-    if (!validateLegalConsent()) return
+    if (!validateBeforeOAuthAction()) return
 
     setIsWeChatDialogOpen(true)
   }
@@ -205,7 +239,7 @@ export function SignUpForm({
   }
 
   async function handleWeChatLogin() {
-    if (!validateLegalConsent()) return
+    if (!validateBeforeOAuthAction()) return
 
     if (!wechatCode.trim()) {
       toast.error(t('Please enter the verification code'))
@@ -214,7 +248,7 @@ export function SignUpForm({
 
     setIsWeChatSubmitting(true)
     try {
-      const res = await wechatLoginByCode(wechatCode)
+      const res = await wechatLoginByCode(wechatCode, invitationCodeValue)
       if (res?.success) {
         await handleLoginSuccess(res.data as { id?: number } | null)
         toast.success(t('Signed in via WeChat'))
@@ -283,6 +317,27 @@ export function SignUpForm({
             </FormItem>
           )}
         />
+
+        {/* Invitation Code Field */}
+        {showInvitationCodeInput && (
+          <FormField
+            control={form.control}
+            name='invitation_code'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Invitation code')}</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder={t('Please enter your invitation code')}
+                    {...field}
+                    value={field.value ?? ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Email Verification Section */}
         {emailVerificationRequired && (
@@ -375,9 +430,10 @@ export function SignUpForm({
           <OAuthProviders
             status={status}
             disabled={isLoading}
-            onBeforeAction={validateLegalConsent}
+            onBeforeAction={validateBeforeOAuthAction}
             onWeChatLogin={hasWeChatLogin ? handleOpenWeChatDialog : undefined}
             isWeChatLoading={isWeChatSubmitting}
+            invitationCode={invitationCodeValue}
             className='pt-2'
           />
         )}

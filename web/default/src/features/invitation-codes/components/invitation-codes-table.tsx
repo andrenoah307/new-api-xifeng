@@ -122,6 +122,7 @@ export function InvitationCodesTable() {
         <DataTableToolbar
           table={table}
           searchPlaceholder={t('Search by code, name or ID...')}
+          searchDebounceMs={500}
         />
         {isMobile ? (
           <MobileCardList table={table} isLoading={isLoading} />

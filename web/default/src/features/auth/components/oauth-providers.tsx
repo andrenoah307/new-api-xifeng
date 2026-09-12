@@ -39,6 +39,8 @@ type OAuthProvidersProps = {
   onWeChatLogin?: () => void
   isWeChatLoading?: boolean
   onBeforeAction?: () => boolean
+  /** 随 OAuth state 一并提交的邀请码，仅注册页传入（与 Classic 一致，登录页不带） */
+  invitationCode?: string
 }
 
 type ProviderButton = {
@@ -56,6 +58,7 @@ export function OAuthProviders({
   onWeChatLogin,
   isWeChatLoading = false,
   onBeforeAction,
+  invitationCode,
 }: OAuthProvidersProps) {
   const { t } = useTranslation()
   const {
@@ -68,7 +71,7 @@ export function OAuthProviders({
     handleLinuxDOLogin,
     handleTelegramLogin,
     handleCustomOAuthLogin,
-  } = useOAuthLogin(status)
+  } = useOAuthLogin(status, invitationCode)
 
   const providerButtons: ProviderButton[] = []
 
