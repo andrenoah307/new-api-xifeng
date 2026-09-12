@@ -39,39 +39,83 @@ export default function SettingsSensitiveWords(props) {
   const refForm = useRef();
   const [inputsRow, setInputsRow] = useState(inputs);
 
-  function onSubmit() {
+  async function onSubmit() {
     const updateArray = compareObjects(inputs, inputsRow);
     if (!updateArray.length) return showWarning(t('你似乎并没有修改什么'));
-    const requestQueue = updateArray.map((item) => {
-      let value = '';
-      if (typeof inputs[item.key] === 'boolean') {
-        value = String(inputs[item.key]);
-      } else {
-        value = inputs[item.key];
-      }
-      return API.put('/api/option/', {
-        key: item.key,
-        value,
-      });
-    });
+
+    const fieldLabels = {
+      CheckSensitiveEnabled: t('启用屏蔽词过滤功能'),
+      CheckSensitiveOnPromptEnabled: t('启用 Prompt 检查'),
+      SensitiveWords: t('屏蔽词列表'),
+    };
+    const savedLabels = [];
+
     setLoading(true);
-    Promise.all(requestQueue)
-      .then((res) => {
-        if (requestQueue.length === 1) {
-          if (res.includes(undefined)) return;
-        } else if (requestQueue.length > 1) {
-          if (res.includes(undefined))
-            return showError(t('部分保存失败，请重试'));
+    try {
+      for (const item of updateArray) {
+        const value =
+          typeof inputs[item.key] === 'boolean'
+            ? String(inputs[item.key])
+            : inputs[item.key];
+        const fieldLabel = fieldLabels[item.key] || item.key;
+        let response;
+
+        try {
+          response = await API.put('/api/option/', {
+            key: item.key,
+            value,
+          });
+        } catch (error) {
+          const message =
+            error?.response?.data?.message ||
+            error?.message ||
+            t('保存失败，请重试');
+          if (savedLabels.length > 0) {
+            await props.refresh();
+            showError(
+              t(
+                '以下设置已生效：{{items}}。保存“{{failed}}”失败：{{message}}',
+                {
+                  items: savedLabels.join('、'),
+                  failed: fieldLabel,
+                  message,
+                },
+              ),
+            );
+          } else {
+            showError(message);
+          }
+          return;
         }
-        showSuccess(t('保存成功'));
-        props.refresh();
-      })
-      .catch(() => {
-        showError(t('保存失败，请重试'));
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+
+        if (!response?.data?.success) {
+          const message = response?.data?.message || t('保存失败，请重试');
+          if (savedLabels.length > 0) {
+            await props.refresh();
+            showError(
+              t(
+                '以下设置已生效：{{items}}。保存“{{failed}}”失败：{{message}}',
+                {
+                  items: savedLabels.join('、'),
+                  failed: fieldLabel,
+                  message,
+                },
+              ),
+            );
+          } else {
+            showError(message);
+          }
+          return;
+        }
+
+        savedLabels.push(fieldLabel);
+      }
+
+      showSuccess(t('保存成功'));
+      await props.refresh();
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {

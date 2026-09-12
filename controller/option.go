@@ -216,6 +216,8 @@ func applyOptionUpdate(c *gin.Context, key string, value any) error {
 		if err != nil {
 			return errors.New(err.Error())
 		}
+	case "RequestBlacklist":
+		err = setting.CheckRequestBlacklist(option.Value.(string))
 		if err != nil {
 			return errors.New(err.Error())
 		}

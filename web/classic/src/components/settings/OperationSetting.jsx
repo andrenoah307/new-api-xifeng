@@ -23,6 +23,7 @@ import SettingsGeneral from '../../pages/Setting/Operation/SettingsGeneral';
 import SettingsHeaderNavModules from '../../pages/Setting/Operation/SettingsHeaderNavModules';
 import SettingsSidebarModulesAdmin from '../../pages/Setting/Operation/SettingsSidebarModulesAdmin';
 import SettingsSensitiveWords from '../../pages/Setting/Operation/SettingsSensitiveWords';
+import SettingsRequestBlacklist from '../../pages/Setting/Operation/SettingsRequestBlacklist';
 import SettingsLog from '../../pages/Setting/Operation/SettingsLog';
 import SettingsMonitoring from '../../pages/Setting/Operation/SettingsMonitoring';
 import SettingsCreditLimit from '../../pages/Setting/Operation/SettingsCreditLimit';
@@ -67,6 +68,7 @@ const OperationSetting = () => {
     CheckSensitiveEnabled: false,
     CheckSensitiveOnPromptEnabled: false,
     SensitiveWords: '',
+    RequestBlacklist: '',
 
     /* 日志设置 */
     LogConsumeEnabled: false,
@@ -161,6 +163,10 @@ const OperationSetting = () => {
         {/* 屏蔽词过滤设置 */}
         <Card style={{ marginTop: '10px' }}>
           <SettingsSensitiveWords options={inputs} refresh={onRefresh} />
+        </Card>
+        {/* 请求内容与域名黑名单 */}
+        <Card style={{ marginTop: '10px' }}>
+          <SettingsRequestBlacklist options={inputs} refresh={onRefresh} />
         </Card>
         {/* 日志设置 */}
         <Card style={{ marginTop: '10px' }}>

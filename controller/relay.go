@@ -133,7 +133,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			if channelSetting, ok := common.GetContextKeyType[dto.ChannelSettings](c, constant.ContextKeyChannelSetting); ok && channelSetting.StripRequestId {
 				errMsg = common.StripLocalRequestId(errMsg)
 			}
-			logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(errMsg)))
+			if newAPIError.GetErrorCode() != types.ErrorCodeRequestContentBlocked {
+				logger.LogError(c, fmt.Sprintf("relay error: %s", common.LocalLogPreview(errMsg)))
+			}
 			newAPIError.SetMessage(common.MessageWithRequestId(errMsg, requestId))
 			// A panic can surface after the response is already committed (SSE
 			// mid-stream). Appending a JSON error body there corrupts the stream
@@ -201,8 +203,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 
 	needSensitiveCheck := setting.ShouldCheckPromptSensitive()
 	needCountToken := constant.CountToken
+	requestBlacklistSnapshot := setting.GetRequestBlacklistSnapshot()
+	needRequestBlacklistCheck := requestBlacklistSnapshot.ShouldInspectGroup(relayInfo.UsingGroup)
 	// Avoid building huge CombineText (strings.Join) when token counting and sensitive check are both disabled.
-	if needSensitiveCheck || needCountToken {
+	if needSensitiveCheck || needCountToken || needRequestBlacklistCheck {
 		meta = request.GetTokenCountMeta()
 	} else {
 		meta = fastTokenCountMetaForPricing(request)
@@ -214,6 +218,21 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			logger.LogWarn(c, fmt.Sprintf("user sensitive words detected: %s", strings.Join(words, ", ")))
 			newAPIError = types.NewError(err, types.ErrorCodeSensitiveWordsDetected)
 			return
+		}
+	}
+	if needRequestBlacklistCheck && meta != nil {
+		decision := service.InspectRequestBlacklist(relayInfo.UsingGroup, meta.CombineText)
+		if decision.Hit {
+			service.AuditRequestBlacklistHit(c, decision)
+			if decision.IsEnforced() {
+				newAPIError = types.NewErrorWithStatusCode(
+					errors.New(decision.BlockMessage()),
+					types.ErrorCodeRequestContentBlocked,
+					decision.BlockStatusCode(),
+					types.ErrOptionWithSkipRetry(),
+				)
+				return
+			}
 		}
 	}
 
@@ -423,6 +442,9 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 // Relay: the success path returns from inside the retry loop, so a
 // tail-position hook would only ever see failures.
 func recordRelayOutcome(relayInfo *relaycommon.RelayInfo, apiErr *types.NewAPIError) {
+	if apiErr != nil && apiErr.GetErrorCode() == types.ErrorCodeRequestContentBlocked {
+		return
+	}
 	// A client that hung up mid-stream is reported separately; it is charged to
 	// errors only when the relay itself also failed.
 	clientGone := relayInfo != nil && relayInfo.StreamStatus != nil &&

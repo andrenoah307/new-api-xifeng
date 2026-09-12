@@ -23,6 +23,7 @@ import { TokenLimitSection } from '../request-limits/token-limit-section'
 import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
 import { GroupModelBlacklistSection } from './group-model-blacklist-section'
+import { RequestBlacklistSection } from './request-blacklist-section'
 
 const SECURITY_SECTIONS = [
   {
@@ -111,6 +112,17 @@ const SECURITY_SECTIONS = [
           'group_model_blacklist.blocked_models':
             settings['group_model_blacklist.blocked_models'],
         }}
+      />
+    ),
+  },
+  {
+    id: 'request-blacklist',
+    titleKey: 'Request Content and Domain Blacklist',
+    descriptionKey:
+      'Inspect request text for configured keywords and domain names before relay.',
+    build: (settings: SecuritySettings) => (
+      <RequestBlacklistSection
+        defaultValues={{ RequestBlacklist: settings.RequestBlacklist }}
       />
     ),
   },
