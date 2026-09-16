@@ -35,6 +35,15 @@ func TestRedactionMessagesAreStaticAcrossLocales(t *testing.T) {
 			},
 		},
 		{
+			name: "channel connection cleared",
+			key:  MsgChannelConnectionCleared,
+			want: map[string]string{
+				LangZhCN: "上游连接已被管理员清理，请稍后重试",
+				LangZhTW: "上游連線已被管理員清理，請稍後重試",
+				LangEn:   "The upstream connection was cleared by an administrator. Please try again.",
+			},
+		},
+		{
 			name: "deprecated group",
 			key:  MsgGroupDeprecated,
 			want: map[string]string{
@@ -58,7 +67,7 @@ func TestRedactionMessagesAreStaticAcrossLocales(t *testing.T) {
 
 func TestRedactionMessageKeysDoNotExposeTemplateData(t *testing.T) {
 	require.NoError(t, Init())
-	for _, key := range []string{MsgChannelRateLimited, MsgChannelNoAvailable, MsgGroupDeprecated} {
+	for _, key := range []string{MsgChannelRateLimited, MsgChannelNoAvailable, MsgChannelConnectionCleared, MsgGroupDeprecated} {
 		for _, language := range []string{LangZhCN, LangZhTW, LangEn} {
 			assert.False(t, strings.Contains(Translate(language, key), "{{"), "%s/%s must be static", language, key)
 		}

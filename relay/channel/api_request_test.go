@@ -2,6 +2,7 @@ package channel
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relay/inflight"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
@@ -795,6 +797,110 @@ func TestAttachResponseCancellationRejectsInvalidResponses(t *testing.T) {
 		assert.Nil(t, resp)
 		assert.Error(t, ctx.Err())
 	})
+}
+
+// inflightTestChannel hands each in-flight test its own channel id, because the
+// registry is a process-wide singleton and tests share one process.
+func inflightTestChannel(t *testing.T) int {
+	t.Helper()
+	return 910000 + len(t.Name())
+}
+
+func TestDoRequestTracksInFlightUntilBodyClose(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service.ResetProxyClientCache()
+	defer service.ResetProxyClientCache()
+	proxyKey := "http://test-proxy-inflight-tracking"
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	client.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("upstream body")),
+			Request:    req,
+		}, nil
+	})
+
+	channelId := inflightTestChannel(t)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		IsStream: true,
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelId:      channelId,
+			ChannelSetting: dto.ChannelSettings{Proxy: proxyKey},
+		},
+	}
+
+	resp, err := doRequestWithTimeouts(c, req, info, 0, time.Second)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	// The upstream call has returned but the body has not been consumed yet, which
+	// is exactly the window an administrator needs to see.
+	snapshot := inflight.Preview(channelId)
+	assert.Equal(t, 1, snapshot.InFlight)
+	assert.Zero(t, snapshot.AwaitingHeaders, "headers already arrived")
+	assert.Equal(t, 1, snapshot.AwaitingFirstChunk)
+	require.NotNil(t, info.InflightEntry)
+
+	require.NoError(t, resp.Body.Close())
+	assert.Zero(t, inflight.Preview(channelId).InFlight,
+		"tracking must end with the response body, not with the call that produced it")
+}
+
+func TestDoRequestReleasesTrackingWhenUpstreamFails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	service.ResetProxyClientCache()
+	defer service.ResetProxyClientCache()
+	proxyKey := "http://test-proxy-inflight-failure"
+	client, err := service.NewProxyHttpClient(proxyKey)
+	require.NoError(t, err)
+	client.Transport = roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("upstream refused the connection")
+	})
+
+	channelId := inflightTestChannel(t)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelId:      channelId,
+			ChannelSetting: dto.ChannelSettings{Proxy: proxyKey},
+		},
+	}
+
+	_, err = doRequestWithTimeouts(c, req, info, time.Second, 0)
+	require.Error(t, err)
+	assert.Zero(t, inflight.Preview(channelId).InFlight,
+		"a request that never produced a body must not stay tracked forever")
+}
+
+func TestDoRequestTracksNothingWhenProxyIsRejected(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	channelId := inflightTestChannel(t)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "http://client", strings.NewReader("request"))
+	req, err := http.NewRequest(http.MethodPost, "http://upstream.invalid/v1", strings.NewReader("request"))
+	require.NoError(t, err)
+	info := &relaycommon.RelayInfo{
+		ChannelMeta: &relaycommon.ChannelMeta{
+			ChannelId:      channelId,
+			ChannelSetting: dto.ChannelSettings{Proxy: "http://%"},
+		},
+	}
+
+	_, err = doRequestWithTimeouts(c, req, info, time.Second, 0)
+	require.Error(t, err)
+	assert.Zero(t, inflight.Preview(channelId).InFlight)
 }
 
 type roundTripperFunc func(*http.Request) (*http.Response, error)

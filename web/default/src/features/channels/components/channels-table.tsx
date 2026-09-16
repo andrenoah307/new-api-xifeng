@@ -48,6 +48,7 @@ import { getLobeIcon } from '@/lib/lobe-icon'
 
 import {
   getChannels,
+  getChannelInflightRuntime,
   getChannelRateLimitStats,
   getPressureCoolingRuntime,
   searchChannels,
@@ -64,9 +65,11 @@ import {
   isTagAggregateRow,
   getChannelTypeIcon,
   getChannelTypeLabel,
+  indexInflightByChannel,
 } from '../lib'
 import type {
   Channel,
+  ChannelInflight,
   ChannelRateLimitStat,
   ChannelSortBy,
   PressureCoolingRuntime,
@@ -82,6 +85,7 @@ const CHANNELS_COLUMN_SIZING_STORAGE_KEY = 'channels:column-sizing'
 const CHANNELS_VIEW_MODE_STORAGE_KEY = 'channels:view-mode'
 const CHANNELS_STATUS_FILTER_STORAGE_KEY = 'channel-status-filter'
 const EMPTY_CHANNEL_RATE_LIMIT_STATS: Record<string, ChannelRateLimitStat> = {}
+const EMPTY_CHANNEL_INFLIGHT: Record<string, ChannelInflight> = {}
 
 const CHANNEL_SORTABLE_COLUMNS = new Set<ChannelSortBy>([
   'id',
@@ -246,6 +250,25 @@ export function ChannelsTable() {
     retry: false,
   })
 
+  // One request per beat covers every visible row. Never poll this per row:
+  // 76 channels × N open consoles would turn an observability panel into load.
+  const { data: channelInflight = EMPTY_CHANNEL_INFLIGHT } = useQuery({
+    queryKey: ['channels', 'inflight-runtime'],
+    queryFn: async () => {
+      try {
+        const response = await getChannelInflightRuntime()
+        if (!response.success) {
+          return EMPTY_CHANNEL_INFLIGHT
+        }
+        return indexInflightByChannel(response.data)
+      } catch {
+        return EMPTY_CHANNEL_INFLIGHT
+      }
+    },
+    refetchInterval: 5000,
+    retry: false,
+  })
+
   // Fetch channels data
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const { data, dataUpdatedAt, isLoading, isFetching } = useQuery({
@@ -368,6 +391,7 @@ export function ChannelsTable() {
     enableSelection: batchMode,
     rateLimitStats,
     pressureCoolingRuntime,
+    channelInflight,
   })
 
   // React Table instance

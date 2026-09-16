@@ -15,6 +15,7 @@ import (
 
 	"github.com/QuantumNous/new-api/constant"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relay/inflight"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -56,6 +57,63 @@ func buildSSEBody(n int) string {
 }
 
 // ---------- Basic correctness ----------
+
+func TestStreamScannerHandler_StampsFirstChunkForInFlightTracking(t *testing.T) {
+	testCases := []struct {
+		name            string
+		body            string
+		wantFirstChunk  bool
+		describeExpects string
+	}{
+		{
+			name: "payload arrives", body: "data: {\"id\":1}\ndata: [DONE]\n",
+			wantFirstChunk: true, describeExpects: "a real payload must clear the waiting-for-first-chunk stage",
+		},
+		{
+			name: "only keepalive comments", body: ": ping\n: ping\n",
+			wantFirstChunk: false, describeExpects: "keepalive noise is not upstream output",
+		},
+		{
+			name: "terminator only", body: "data: [DONE]\n",
+			wantFirstChunk: false, describeExpects: "[DONE] closes the stream, it is not a chunk",
+		},
+	}
+
+	for index, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			channelId := 920000 + index
+			entry := inflight.Register(channelId, true, nil, nil)
+			require.NotNil(t, entry)
+			t.Cleanup(entry.Release)
+			entry.MarkHeadersReceived(io.NopCloser(strings.NewReader("")))
+
+			c, resp, info := setupStreamTest(t, strings.NewReader(testCase.body))
+			info.InflightEntry = entry
+			StreamScannerHandler(c, resp, info, func(data string, sr *StreamResult) {})
+
+			snapshot := inflight.Preview(channelId)
+			require.Equal(t, 1, snapshot.InFlight)
+			if testCase.wantFirstChunk {
+				assert.Zero(t, snapshot.AwaitingFirstChunk, testCase.describeExpects)
+			} else {
+				assert.Equal(t, 1, snapshot.AwaitingFirstChunk, testCase.describeExpects)
+			}
+		})
+	}
+}
+
+func TestStreamScannerHandler_NilInFlightEntryIsHarmless(t *testing.T) {
+	t.Parallel()
+
+	c, resp, info := setupStreamTest(t, strings.NewReader(buildSSEBody(3)))
+	info.InflightEntry = nil
+
+	var count atomic.Int64
+	assert.NotPanics(t, func() {
+		StreamScannerHandler(c, resp, info, func(data string, sr *StreamResult) { count.Add(1) })
+	})
+	assert.Equal(t, int64(3), count.Load())
+}
 
 func TestStreamScannerHandler_NilInputs(t *testing.T) {
 	t.Parallel()

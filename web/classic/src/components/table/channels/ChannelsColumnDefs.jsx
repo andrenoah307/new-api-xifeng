@@ -46,6 +46,10 @@ import {
 } from '../../../constants';
 import { parseUpstreamUpdateMeta } from '../../../hooks/channels/upstreamUpdateUtils';
 import {
+  countAwaitingFirstByte,
+  formatInflightAge,
+} from '../../../helpers/channel-inflight';
+import {
   IconTreeTriangleDown,
   IconMore,
   IconAlertTriangle,
@@ -310,6 +314,50 @@ const toNonNegativeFiniteNumber = (value) => {
   return Number.isFinite(number) && number > 0 ? number : 0;
 };
 
+/**
+ * Live upstream connections of one channel on the instance serving this page.
+ * Grey is the normal state: a connection only becomes clearable after it has
+ * already outlived the gateway's own timeout contract.
+ */
+const renderChannelInflightSegments = (inflight, t) => {
+  const inFlight = Math.max(0, Number(inflight?.in_flight) || 0);
+  if (inFlight <= 0) return [];
+
+  const awaitingFirstByte = countAwaitingFirstByte(inflight);
+  const clearable = Math.max(0, Number(inflight?.cancellable) || 0);
+  const oldestAgeMs = Math.max(0, Number(inflight?.oldest_age_ms) || 0);
+  const muted = { color: 'var(--semi-color-text-2)' };
+  const segments = [
+    <span key='inflight' style={muted}>
+      {t('在途')} {inFlight}
+    </span>,
+  ];
+
+  if (awaitingFirstByte > 0) {
+    segments.push(
+      <span key='awaiting' style={muted}>
+        {t('未收首字')} {awaitingFirstByte}
+      </span>,
+    );
+  }
+  if (oldestAgeMs > 0) {
+    segments.push(
+      <span key='oldest' style={muted}>
+        {t('最老')} {formatInflightAge(oldestAgeMs)}
+      </span>,
+    );
+  }
+  if (clearable > 0) {
+    segments.push(
+      <span key='clearable' style={{ color: 'var(--semi-color-warning)' }}>
+        {t('可清理')} {clearable}
+      </span>,
+    );
+  }
+
+  return segments;
+};
+
 const renderPressureCoolingRuntime = (runtime, t) => {
   if (!runtime || runtime.configured !== true) return null;
 
@@ -426,6 +474,8 @@ export const getChannelsColumns = ({
   detectChannelUpstreamUpdates,
   rateLimitStats = {},
   pressureCoolingRuntime = {},
+  channelInflight = {},
+  openChannelInflightCleanup,
 }) => {
   return [
     {
@@ -483,6 +533,8 @@ export const getChannelsColumns = ({
           );
 
         const rlStat = rateLimitStats[record.id];
+        const inflightStat =
+          channelInflight[record.id] || channelInflight[String(record.id)];
         const topRow =
           !passThroughEnabled && !showUpstreamUpdateTag ? (
             nameNode
@@ -555,10 +607,8 @@ export const getChannelsColumns = ({
             </Space>
           );
 
-        if (!rlStat) return topRow;
-
         const segments = [];
-        if (rlStat.conc_limit > 0) {
+        if (rlStat?.conc_limit > 0) {
           const pct = (rlStat.conc / rlStat.conc_limit) * 100;
           const color =
             pct >= 95
@@ -572,7 +622,7 @@ export const getChannelsColumns = ({
             </span>,
           );
         }
-        if (rlStat.rpm_limit > 0) {
+        if (rlStat?.rpm_limit > 0) {
           const pct = (rlStat.rpm / rlStat.rpm_limit) * 100;
           const color =
             pct >= 95
@@ -586,6 +636,8 @@ export const getChannelsColumns = ({
             </span>,
           );
         }
+
+        segments.push(...renderChannelInflightSegments(inflightStat, t));
 
         if (segments.length === 0) return topRow;
 
@@ -926,6 +978,15 @@ export const getChannelsColumns = ({
               name: t('测活'),
               type: 'tertiary',
               onClick: () => checkOllamaVersion(record),
+            });
+          }
+
+          if (openChannelInflightCleanup) {
+            moreMenuItems.push({
+              node: 'item',
+              name: t('清理卡住的连接'),
+              type: 'tertiary',
+              onClick: () => openChannelInflightCleanup(record),
             });
           }
 

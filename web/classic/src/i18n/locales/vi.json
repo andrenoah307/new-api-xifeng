@@ -5573,6 +5573,20 @@
     "下载选中": "Tải xuống mục đã chọn",
     "请立即保存这些码，关闭本对话框后将无法再次查看。": "Hãy lưu các mã này ngay. Chúng sẽ không được hiển thị lại sau khi bạn đóng hộp thoại.",
     "已显示 {{shown}} / {{count}}": "Đang hiển thị {{shown}} trên {{count}}",
-    "创建中途失败，出错前已生成 {{count}} 个码。": "Việc tạo đã dừng giữa chừng. {{count}} mã đã được tạo trước khi xảy ra lỗi."
+    "创建中途失败，出错前已生成 {{count}} 个码。": "Việc tạo đã dừng giữa chừng. {{count}} mã đã được tạo trước khi xảy ra lỗi.",
+    "清理卡住的连接": "Dọn các kết nối treo",
+    "确认清理": "Xác nhận dọn dẹp",
+    "获取连接状态失败": "Không lấy được trạng thái kết nối",
+    "仅关闭已超过网关超时时限的连接；仍在超时时限内的连接不会被触碰。": "Chỉ đóng các kết nối đã vượt quá thời gian chờ của gateway; các kết nối còn trong thời gian chờ không bị đụng tới.",
+    "在途": "Đang chạy",
+    "未收首字": "Chưa nhận byte đầu",
+    "最老": "Cũ nhất",
+    "可清理": "Có thể dọn",
+    "超时时限": "Thời gian chờ",
+    "没有可清理的连接。可清理为 0 是正常状态。": "Không có kết nối nào để dọn. Số có thể dọn bằng 0 là trạng thái bình thường.",
+    "未配置超时时限的类别没有越界阈值，因此该类别的连接永远不可清理。": "Lớp chưa cấu hình thời gian chờ không có ngưỡng vượt hạn, nên kết nối của lớp đó không bao giờ có thể bị dọn.",
+    "本实例的连接跟踪已降级，计数可能不完整。": "Theo dõi kết nối trên instance này đang suy giảm, số liệu có thể không đầy đủ.",
+    "计数仅覆盖响应本次请求的实例。": "Số liệu chỉ bao gồm instance đang trả lời yêu cầu này.",
+    "已清理 {{total}} 条卡住的连接": "Đã dọn {{total}} kết nối treo"
   }
 }

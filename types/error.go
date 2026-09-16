@@ -56,6 +56,12 @@ const (
 	// always SkipRetry: a payload that crashes the relay crashes every retry too,
 	// so retrying only multiplies the panic.
 	ErrorCodeRelayPanic ErrorCode = "relay_panic"
+	// ErrorCodeConnectionCleared marks an attempt an administrator tore down from
+	// the console. It deliberately carries no "channel:" prefix: that prefix makes
+	// IsChannelError true, which forces a retry in shouldRetry and arms auto-ban in
+	// ShouldDisableChannel, both before SkipRetry is ever consulted. The channel is
+	// not at fault here and the request must not be retried.
+	ErrorCodeConnectionCleared ErrorCode = "connection_cleared"
 
 	// channel error
 	ErrorCodeChannelNoAvailableKey        ErrorCode = "channel:no_available_key"

@@ -203,6 +203,60 @@ export interface GetPressureCoolingRuntimeResponse {
   data?: Record<string, PressureCoolingRuntime>
 }
 
+/** Timeout contracts the gateway enforces, in seconds. 0 means the class is off. */
+export interface ChannelInflightThresholds {
+  stream_response_header_s: number
+  streaming_s: number
+  non_stream_s: number
+}
+
+export interface ChannelInflightThresholdEnabled {
+  stream_response_header: boolean
+  streaming: boolean
+  non_stream: boolean
+}
+
+/** What one channel has in flight on the instance answering the request. */
+export interface ChannelInflight {
+  channel_id: number
+  in_flight: number
+  awaiting_headers: number
+  awaiting_first_chunk: number
+  oldest_age_ms: number
+  /** Connections that already outlived a configured timeout contract. */
+  cancellable: number
+  by_reason: Record<string, number>
+}
+
+export interface ChannelInflightSnapshot extends ChannelInflight {
+  cancelled: number
+  thresholds: ChannelInflightThresholds
+  threshold_enabled: ChannelInflightThresholdEnabled
+  scope: string
+  tracking_degraded: boolean
+  preview_only: boolean
+}
+
+export interface ChannelInflightRuntime {
+  channels: ChannelInflight[]
+  thresholds: ChannelInflightThresholds
+  threshold_enabled: ChannelInflightThresholdEnabled
+  scope: string
+  tracking_degraded: boolean
+}
+
+export interface GetChannelInflightRuntimeResponse {
+  success: boolean
+  message?: string
+  data?: ChannelInflightRuntime
+}
+
+export interface ChannelInflightSnapshotResponse {
+  success: boolean
+  message?: string
+  data?: ChannelInflightSnapshot
+}
+
 export interface ChannelOpsResponse {
   success: boolean
   message?: string

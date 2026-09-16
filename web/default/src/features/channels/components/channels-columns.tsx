@@ -73,11 +73,14 @@ import {
   handleUpdateTagField,
   handleUpdateChannelBalance,
   isTagAggregateRow,
+  countAwaitingFirstByte,
+  formatInflightAge,
   type TagRow,
 } from '../lib'
 import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
 import type {
   Channel,
+  ChannelInflight,
   ChannelRateLimitStat,
   PressureCoolingRuntime,
 } from '../types'
@@ -94,6 +97,7 @@ import { NumericSpinnerInput } from './numeric-spinner-input'
 const EMPTY_CHANNEL_RATE_LIMIT_STATS: Record<string, ChannelRateLimitStat> = {}
 const EMPTY_PRESSURE_COOLING_RUNTIME: Record<string, PressureCoolingRuntime> =
   {}
+const EMPTY_CHANNEL_INFLIGHT: Record<string, ChannelInflight> = {}
 
 function parseIonetMeta(otherInfo: string | null | undefined): null | {
   source?: string
@@ -196,6 +200,44 @@ function PressureCoolingRuntimeProgress({
       {cooldownRemaining > 0 && (
         <span className='text-muted-foreground block text-[10px] leading-3 tabular-nums'>
           {t('Cooling: {{seconds}}s', { seconds: cooldownRemaining })}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Live upstream connections of one channel on the instance serving this page.
+ * Grey is the normal state: a connection only becomes clearable after it has
+ * already outlived the gateway's own timeout contract.
+ */
+function ChannelInflightSummary({ inflight }: { inflight: ChannelInflight }) {
+  const { t } = useTranslation()
+  const inFlight = Math.max(0, inflight.in_flight)
+  if (inFlight <= 0) {
+    return null
+  }
+  const awaitingFirstByte = countAwaitingFirstByte(inflight)
+  const clearable = Math.max(0, inflight.cancellable)
+
+  return (
+    <div className='flex flex-wrap gap-x-2 text-[11px] leading-4'>
+      <span className='text-muted-foreground tabular-nums'>
+        {t('In flight')} {inFlight}
+      </span>
+      {awaitingFirstByte > 0 && (
+        <span className='text-muted-foreground tabular-nums'>
+          {t('Awaiting first byte')} {awaitingFirstByte}
+        </span>
+      )}
+      {inflight.oldest_age_ms > 0 && (
+        <span className='text-muted-foreground tabular-nums'>
+          {t('Oldest')} {formatInflightAge(inflight.oldest_age_ms)}
+        </span>
+      )}
+      {clearable > 0 && (
+        <span className='text-warning tabular-nums'>
+          {t('Clearable')} {clearable}
         </span>
       )}
     </div>
@@ -615,6 +657,7 @@ export function useChannelsColumns(
     enableSelection?: boolean
     rateLimitStats?: Record<string, ChannelRateLimitStat>
     pressureCoolingRuntime?: Record<string, PressureCoolingRuntime>
+    channelInflight?: Record<string, ChannelInflight>
   } = {}
 ): ColumnDef<Channel>[] {
   const { t, i18n } = useTranslation()
@@ -624,6 +667,7 @@ export function useChannelsColumns(
     options.rateLimitStats ?? EMPTY_CHANNEL_RATE_LIMIT_STATS
   const pressureCoolingRuntime =
     options.pressureCoolingRuntime ?? EMPTY_PRESSURE_COOLING_RUNTIME
+  const channelInflight = options.channelInflight ?? EMPTY_CHANNEL_INFLIGHT
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   // Memoizing keeps the array (and every cell renderer reference) stable across
   // unrelated re-renders, so react-table does not invalidate the whole row
@@ -727,6 +771,7 @@ export function useChannelsColumns(
           const isPassThrough = settings.pass_through_body_enabled === true
           const hasParamOverride = Boolean(channel.param_override?.trim())
           const rateLimitStat = rateLimitStats[String(channel.id)]
+          const inflightStat = channelInflight[String(channel.id)]
 
           return (
             <div className='flex max-w-full min-w-0 items-center gap-2'>
@@ -803,6 +848,9 @@ export function useChannelsColumns(
                       )}
                     </div>
                   )}
+                {inflightStat && (
+                  <ChannelInflightSummary inflight={inflightStat} />
+                )}
                 {channel.remark && (
                   <TooltipProvider delay={200}>
                     <Tooltip>
@@ -1313,6 +1361,7 @@ export function useChannelsColumns(
       sensitiveVisible,
       rateLimitStats,
       pressureCoolingRuntime,
+      channelInflight,
     ]
   )
 }

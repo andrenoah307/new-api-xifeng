@@ -364,21 +364,33 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		// limiter being configured: an operator most needs to see load on the
 		// channels that have no limit yet.
 		releaseChannelGauge := realtimemetrics.ChannelAttempt(channel.Id)
-		switch relayFormat {
-		case types.RelayFormatOpenAIRealtime:
-			newAPIError = relayAttempt(c, relayInfo, relay.WssHelper)
-		case types.RelayFormatClaude:
-			newAPIError = relayAttempt(c, relayInfo, relay.ClaudeHelper)
-		case types.RelayFormatGemini:
-			newAPIError = relayAttempt(c, relayInfo, geminiRelayHandler)
-		default:
-			newAPIError = relayAttempt(c, relayInfo, relayHandler)
+		func() {
+			// The gauge must be released per attempt even if the handler panics
+			// past the recover inside relayAttempt, or the channel looks busy
+			// forever on the realtime dashboard.
+			defer releaseChannelGauge()
+			switch relayFormat {
+			case types.RelayFormatOpenAIRealtime:
+				newAPIError = relayAttempt(c, relayInfo, relay.WssHelper)
+			case types.RelayFormatClaude:
+				newAPIError = relayAttempt(c, relayInfo, relay.ClaudeHelper)
+			case types.RelayFormatGemini:
+				newAPIError = relayAttempt(c, relayInfo, geminiRelayHandler)
+			default:
+				newAPIError = relayAttempt(c, relayInfo, relayHandler)
+			}
+		}()
+		// An administrator cleared this connection from the console. The channel did
+		// nothing wrong, so it stays out of both the error counter and the pressure
+		// cooling window; a kill that raced with a completed response changes nothing.
+		if relayInfo.SwapAdminKilled() && newAPIError != nil {
+			newAPIError = newAdminClearedConnectionError(c)
+		} else {
+			if shouldRecordChannelError(newAPIError) {
+				realtimemetrics.RecordChannelError(channel.Id)
+			}
+			service.RecordPressureCoolingAttempt(channel.Id, newAPIError)
 		}
-		releaseChannelGauge()
-		if shouldRecordChannelError(newAPIError) {
-			realtimemetrics.RecordChannelError(channel.Id)
-		}
-		service.RecordPressureCoolingAttempt(channel.Id, newAPIError)
 
 		if newAPIError == nil {
 			relayInfo.LastError = nil
@@ -550,6 +562,15 @@ func newChannelRateLimitError(c *gin.Context, skipRetry bool) *types.NewAPIError
 		return types.NewErrorWithStatusCode(message, types.ErrorCodeChannelRateLimited, http.StatusTooManyRequests, types.ErrOptionWithSkipRetry())
 	}
 	return types.NewErrorWithStatusCode(message, types.ErrorCodeChannelRateLimited, http.StatusTooManyRequests)
+}
+
+// newAdminClearedConnectionError replaces the upstream error of an attempt an
+// administrator tore down from the console. It is SkipRetry because the next
+// attempt would only re-enter the same queue, and 503 so downstream retry logic
+// still applies. The message names neither channel nor group.
+func newAdminClearedConnectionError(c *gin.Context) *types.NewAPIError {
+	message := errors.New(i18n.T(c, i18n.MsgChannelConnectionCleared))
+	return types.NewErrorWithStatusCode(message, types.ErrorCodeConnectionCleared, http.StatusServiceUnavailable, types.ErrOptionWithSkipRetry())
 }
 
 func getErrorFilterMatchInput(apiErr *types.NewAPIError) (statusCode int, errorCode string, message string) {
@@ -960,16 +981,26 @@ func relayTaskSubmitWithRetry(
 		c.Request.Body = io.NopCloser(bodyStorage)
 
 		releaseChannelGauge := realtimemetrics.ChannelAttempt(channel.Id)
-		result, taskErr = dependencies.submit(c, relayInfo)
-		releaseChannelGauge()
-		if shouldRecordTaskChannelError(taskErr) {
+		func() {
+			// submit has no panic recovery of its own, so the release must be a
+			// defer: a panicking adaptor would otherwise leave the gauge raised.
+			defer releaseChannelGauge()
+			result, taskErr = dependencies.submit(c, relayInfo)
+		}()
+		// Same contract as the relay loop: an administrator-cleared attempt is not a
+		// channel fault, and retrying would only re-enter the same queue.
+		adminKilled := relayInfo.SwapAdminKilled() && taskErr != nil
+		if adminKilled {
+			taskErr = service.TaskErrorWrapperLocal(errors.New(i18n.T(c, i18n.MsgChannelConnectionCleared)),
+				string(types.ErrorCodeConnectionCleared), http.StatusServiceUnavailable)
+		} else if shouldRecordTaskChannelError(taskErr) {
 			realtimemetrics.RecordChannelError(channel.Id)
 		}
 		if rateLimitToken != nil {
 			rateLimitToken.Release()
 			rateLimitToken = nil
 		}
-		if taskErr == nil {
+		if taskErr == nil || adminKilled {
 			break
 		}
 

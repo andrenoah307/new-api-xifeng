@@ -5641,6 +5641,18 @@
     "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.": "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.",
     "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.": "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.",
     "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.": "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.",
-    "Thinking Disabled": "無効"
+    "Thinking Disabled": "無効",
+    "In flight": "処理中",
+    "Awaiting first byte": "最初のバイト待ち",
+    "Oldest": "最長経過",
+    "Clearable": "クリア可能",
+    "Timeouts": "タイムアウト",
+    "Clear Stalled Connections": "停滞した接続をクリア",
+    "Only connections that already outlived the gateway timeout are closed. Connections still inside their timeout are never touched.": "ゲートウェイのタイムアウトを既に超えた接続のみを切断します。タイムアウト内の接続には一切手を触れません。",
+    "Nothing to clear. Zero clearable connections is the normal state.": "クリアする対象はありません。クリア可能が 0 なのが正常な状態です。",
+    "A class without a configured timeout has no overdue threshold, so its connections can never be cleared.": "タイムアウトが設定されていない種別には超過のしきい値がないため、その接続は決してクリアできません。",
+    "Connection tracking is degraded on this instance, so the counts may be incomplete.": "このインスタンスでは接続追跡が縮退しているため、件数が不完全な可能性があります。",
+    "Counts cover only the instance answering this request.": "件数はこのリクエストに応答したインスタンスのみを対象とします。",
+    "Cleared {{total}} stalled connections": "停滞した接続を {{total}} 件クリアしました"
   }
 }

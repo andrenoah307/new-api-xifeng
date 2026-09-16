@@ -5641,6 +5641,18 @@
     "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.": "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.",
     "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.": "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.",
     "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.": "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.",
-    "Thinking Disabled": "Đã tắt"
+    "Thinking Disabled": "Đã tắt",
+    "In flight": "Đang xử lý",
+    "Awaiting first byte": "Chờ byte đầu tiên",
+    "Oldest": "Lâu nhất",
+    "Clearable": "Có thể dọn",
+    "Timeouts": "Thời gian chờ",
+    "Clear Stalled Connections": "Dọn kết nối treo",
+    "Only connections that already outlived the gateway timeout are closed. Connections still inside their timeout are never touched.": "Chỉ đóng các kết nối đã vượt quá thời gian chờ của gateway. Các kết nối còn trong thời gian chờ không bao giờ bị động đến.",
+    "Nothing to clear. Zero clearable connections is the normal state.": "Không có gì để dọn. Số kết nối có thể dọn bằng 0 là trạng thái bình thường.",
+    "A class without a configured timeout has no overdue threshold, so its connections can never be cleared.": "Loại không cấu hình thời gian chờ thì không có ngưỡng quá hạn, nên kết nối của loại đó không bao giờ có thể dọn.",
+    "Connection tracking is degraded on this instance, so the counts may be incomplete.": "Việc theo dõi kết nối trên phiên bản này đã suy giảm, nên số liệu có thể không đầy đủ.",
+    "Counts cover only the instance answering this request.": "Số liệu chỉ tính riêng phiên bản đang trả lời yêu cầu này.",
+    "Cleared {{total}} stalled connections": "Đã dọn {{total}} kết nối treo"
   }
 }

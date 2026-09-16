@@ -5641,6 +5641,18 @@
     "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.": "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.",
     "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.": "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.",
     "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.": "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.",
-    "Thinking Disabled": "Отключено"
+    "Thinking Disabled": "Отключено",
+    "In flight": "В процессе",
+    "Awaiting first byte": "Ожидание первого байта",
+    "Oldest": "Самое старое",
+    "Clearable": "Можно очистить",
+    "Timeouts": "Тайм-ауты",
+    "Clear Stalled Connections": "Очистить зависшие соединения",
+    "Only connections that already outlived the gateway timeout are closed. Connections still inside their timeout are never touched.": "Закрываются только соединения, уже превысившие тайм-аут шлюза. Соединения в пределах тайм-аута не затрагиваются.",
+    "Nothing to clear. Zero clearable connections is the normal state.": "Нечего очищать. Ноль соединений для очистки — это нормальное состояние.",
+    "A class without a configured timeout has no overdue threshold, so its connections can never be cleared.": "У категории без настроенного тайм-аута нет порога просрочки, поэтому её соединения никогда нельзя очистить.",
+    "Connection tracking is degraded on this instance, so the counts may be incomplete.": "Отслеживание соединений на этом экземпляре деградировало, счётчики могут быть неполными.",
+    "Counts cover only the instance answering this request.": "Счётчики охватывают только тот экземпляр, который отвечает на этот запрос.",
+    "Cleared {{total}} stalled connections": "Очищено зависших соединений: {{total}}"
   }
 }

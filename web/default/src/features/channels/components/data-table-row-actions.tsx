@@ -33,9 +33,11 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
+  Unplug,
 } from 'lucide-react'
 import { useContext, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -59,9 +61,12 @@ import {
 } from '@/lib/admin-permissions'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { cleanupChannelInflight, getChannelInflight } from '../api'
 import { MODEL_FETCHABLE_TYPES } from '../constants'
 import {
   channelsQueryKeys,
+  countAwaitingFirstByte,
+  formatInflightAge,
   handleDeleteChannel,
   handleTestChannel,
   handleToggleChannelStatus,
@@ -69,7 +74,7 @@ import {
   isMultiKeyChannel,
 } from '../lib'
 import { parseUpstreamUpdateMeta } from '../lib/upstream-update-utils'
-import type { Channel } from '../types'
+import type { Channel, ChannelInflightSnapshot } from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
 import { useChannels } from './channels-provider'
 
@@ -87,6 +92,10 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [isTogglingStatus, setIsTogglingStatus] = useState(false)
+  const [inflightConfirmOpen, setInflightConfirmOpen] = useState(false)
+  const [inflightSnapshot, setInflightSnapshot] =
+    useState<ChannelInflightSnapshot | null>(null)
+  const [isClearingInflight, setIsClearingInflight] = useState(false)
 
   const isEnabled = isChannelEnabled(channel)
   const isMultiKey = isMultiKeyChannel(channel)
@@ -95,6 +104,48 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
     ADMIN_PERMISSION_RESOURCES.CHANNEL,
     ADMIN_PERMISSION_ACTIONS.SENSITIVE_WRITE
   )
+  const canOperate = hasPermission(
+    currentUser,
+    ADMIN_PERMISSION_RESOURCES.CHANNEL,
+    ADMIN_PERMISSION_ACTIONS.OPERATE
+  )
+
+  // The table polls every 5s; the dialog states an exact number the admin is
+  // about to act on, so it reads once more the moment it opens.
+  const openInflightConfirm = async () => {
+    setInflightSnapshot(null)
+    setInflightConfirmOpen(true)
+    try {
+      const response = await getChannelInflight(channel.id)
+      setInflightSnapshot(response.success ? (response.data ?? null) : null)
+    } catch {
+      setInflightSnapshot(null)
+    }
+  }
+
+  const handleCleanupInflight = async () => {
+    if (!canOperate) return
+    setIsClearingInflight(true)
+    try {
+      const response = await cleanupChannelInflight(channel.id)
+      if (!response.success) {
+        toast.error(response.message || t('Cleanup failed'))
+        return
+      }
+      const cleared = response.data?.cancelled ?? 0
+      toast.success(
+        t('Cleared {{total}} stalled connections', { total: cleared })
+      )
+      setInflightConfirmOpen(false)
+      queryClient.invalidateQueries({
+        queryKey: ['channels', 'inflight-runtime'],
+      })
+    } catch {
+      toast.error(t('Cleanup failed'))
+    } finally {
+      setIsClearingInflight(false)
+    }
+  }
 
   const handleEdit = () => {
     setCurrentRow(channel)
@@ -334,6 +385,21 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             </DropdownMenuItem>
           )}
 
+          {/* Clear connections that already outlived the gateway timeout */}
+          <DropdownMenuItem
+            disabled={!canOperate}
+            onSelect={(e) => {
+              e.preventDefault()
+              if (!canOperate) return
+              void openInflightConfirm()
+            }}
+          >
+            {t('Clear Stalled Connections')}
+            <DropdownMenuShortcut>
+              <Unplug size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+
           <DropdownMenuSeparator />
 
           {/* Copy Channel */}
@@ -398,6 +464,99 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           setDeleteConfirmOpen(false)
         }}
       />
+      <ConfirmDialog
+        open={inflightConfirmOpen}
+        onOpenChange={setInflightConfirmOpen}
+        title={t('Clear Stalled Connections')}
+        desc={<InflightConfirmDescription snapshot={inflightSnapshot} />}
+        confirmText={t('Confirm Cleanup')}
+        destructive
+        isLoading={isClearingInflight}
+        disabled={!inflightSnapshot || inflightSnapshot.cancellable <= 0}
+        handleConfirm={() => {
+          void handleCleanupInflight()
+        }}
+      />
+    </div>
+  )
+}
+
+/**
+ * States the exact numbers the administrator is about to act on. "Clearable 0"
+ * is the normal reading: the gateway already ends these connections on its own
+ * timeouts, so this button only exists for the ones that outlived them.
+ */
+function InflightConfirmDescription({
+  snapshot,
+}: {
+  snapshot: ChannelInflightSnapshot | null
+}) {
+  const { t } = useTranslation()
+  if (!snapshot) {
+    return <span>{t('Loading...')}</span>
+  }
+
+  const thresholds = snapshot.thresholds
+  const enabled = snapshot.threshold_enabled
+  const anyDisabled =
+    !enabled.stream_response_header || !enabled.streaming || !enabled.non_stream
+  const formatThreshold = (seconds: number, on: boolean) =>
+    on ? `${seconds}s` : t('Not configured')
+
+  return (
+    <div className='space-y-2 text-sm'>
+      <p>
+        {t(
+          'Only connections that already outlived the gateway timeout are closed. Connections still inside their timeout are never touched.'
+        )}
+      </p>
+      <ul className='space-y-0.5 tabular-nums'>
+        <li>
+          {t('In flight')}: {snapshot.in_flight}
+        </li>
+        <li>
+          {t('Awaiting first byte')}: {countAwaitingFirstByte(snapshot)}
+        </li>
+        <li>
+          {t('Oldest')}: {formatInflightAge(snapshot.oldest_age_ms)}
+        </li>
+        <li className={snapshot.cancellable > 0 ? 'text-warning' : undefined}>
+          {t('Clearable')}: {snapshot.cancellable}
+        </li>
+        <li>
+          {t('Timeouts')}:{' '}
+          {formatThreshold(
+            thresholds.stream_response_header_s,
+            enabled.stream_response_header
+          )}{' '}
+          / {formatThreshold(thresholds.streaming_s, enabled.streaming)} /{' '}
+          {formatThreshold(thresholds.non_stream_s, enabled.non_stream)}
+        </li>
+      </ul>
+      {snapshot.cancellable <= 0 && (
+        <p className='text-muted-foreground'>
+          {t(
+            'Nothing to clear. Zero clearable connections is the normal state.'
+          )}
+        </p>
+      )}
+      {anyDisabled && (
+        <p className='text-muted-foreground'>
+          {t(
+            'A class without a configured timeout has no overdue threshold, so its connections can never be cleared.'
+          )}
+        </p>
+      )}
+      {snapshot.tracking_degraded && (
+        <p className='text-warning'>
+          {t(
+            'Connection tracking is degraded on this instance, so the counts may be incomplete.'
+          )}
+        </p>
+      )}
+      <p className='text-muted-foreground'>
+        {t('Counts cover only the instance answering this request.')}
+      </p>
     </div>
   )
 }

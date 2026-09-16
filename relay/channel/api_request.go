@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relay/helper"
+	"github.com/QuantumNous/new-api/relay/inflight"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -633,6 +634,20 @@ func (body *cancelOnCloseReadCloser) Close() error {
 	return body.ReadCloser.Close()
 }
 
+// releaseOnCloseReadCloser deregisters the request from the in-flight registry when
+// the response body is closed. It deliberately does not touch the request context:
+// when no timeout is configured there is no cancellation to perform, and attaching
+// one would undo the "timeouts default to off" contract.
+type releaseOnCloseReadCloser struct {
+	io.ReadCloser
+	entry *inflight.Entry
+}
+
+func (body *releaseOnCloseReadCloser) Close() error {
+	body.entry.Release()
+	return body.ReadCloser.Close()
+}
+
 // attachResponseCancellation ties a derived request context to the response
 // body lifecycle for both non-stream overall deadlines and stream response-header timers.
 func attachResponseCancellation(resp *http.Response, cancel context.CancelFunc) (*http.Response, error) {
@@ -674,6 +689,20 @@ func doRequestWithTimeouts(c *gin.Context, req *http.Request, info *common.Relay
 		requestContext, cancel = context.WithTimeout(req.Context(), nonStreamTimeout)
 		req = req.WithContext(requestContext)
 	}
+
+	// The registry never builds a cancellation handle of its own: cancel is exactly
+	// the handle the timeout branches above created, and stays nil when the operator
+	// turned that class off. Entries without a handle are structurally uncleanable.
+	inflightEntry := inflight.Register(info.ChannelId, info.IsStream, cancel, info.MarkAdminKilled)
+	info.InflightEntry = inflightEntry
+	// Tracking is owned by this function until the response body takes it over; any
+	// early return before that must release the entry or it leaks.
+	inflightTransferred := false
+	defer func() {
+		if !inflightTransferred {
+			inflightEntry.Release()
+		}
+	}()
 
 	var client *http.Client
 	var err error
@@ -747,6 +776,13 @@ func doRequestWithTimeouts(c *gin.Context, req *http.Request, info *common.Relay
 		}
 	} else if resp == nil {
 		return nil, errors.New("resp is nil")
+	}
+	if resp.Body != nil {
+		// Tracking follows the body from here on: a streamed body outlives this call
+		// by minutes, and after the headers the body is the only kill handle there is.
+		resp.Body = &releaseOnCloseReadCloser{ReadCloser: resp.Body, entry: inflightEntry}
+		inflightEntry.MarkHeadersReceived(resp.Body)
+		inflightTransferred = true
 	}
 
 	// Retries reuse the same *gin.Context. Always overwrite so the log carries

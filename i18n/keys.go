@@ -236,6 +236,9 @@ const (
 	MsgChannelUpstreamSaturated = "channel.upstream_saturated"
 	MsgChannelRateLimited       = "channel.rate_limited"
 	MsgChannelNoAvailable       = "channel.no_available"
+	// MsgChannelConnectionCleared is returned to the downstream caller when an
+	// administrator cleared an overdue upstream connection. It names no channel.
+	MsgChannelConnectionCleared = "channel.connection_cleared"
 )
 
 // Model related messages

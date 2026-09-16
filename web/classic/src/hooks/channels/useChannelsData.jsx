@@ -37,6 +37,12 @@ import { useIsMobile } from '../common/useIsMobile';
 import { useTableCompactMode } from '../common/useTableCompactMode';
 import { useChannelUpstreamUpdates } from './useChannelUpstreamUpdates';
 import { parseUpstreamUpdateMeta } from './upstreamUpdateUtils';
+import {
+  countAwaitingFirstByte,
+  formatInflightAge,
+  formatInflightThreshold,
+  indexInflightByChannel,
+} from '../../helpers/channel-inflight';
 import { Modal, Button } from '@douyinfe/semi-ui';
 import { openCodexUsageModal } from '../../components/table/channels/modals/CodexUsageModal';
 
@@ -48,6 +54,7 @@ export const useChannelsData = () => {
   const [rateLimitStats, setRateLimitStats] = useState({});
   const rateLimitTimerRef = useRef(null);
   const [pressureCoolingRuntime, setPressureCoolingRuntime] = useState({});
+  const [channelInflight, setChannelInflight] = useState({});
 
   const fetchRateLimitStats = useCallback(async () => {
     try {
@@ -58,6 +65,21 @@ export const useChannelsData = () => {
     } catch {
       // ignore
     }
+  }, []);
+
+  // One request per beat covers every visible row. Never poll this per row:
+  // 76 channels × N open consoles would turn an observability panel into load.
+  const fetchChannelInflight = useCallback(async () => {
+    try {
+      const res = await API.get('/api/channel/inflight/runtime');
+      if (res?.data?.success) {
+        setChannelInflight(indexInflightByChannel(res.data.data));
+        return;
+      }
+    } catch {
+      // In-flight counts are supplementary to the channel list.
+    }
+    setChannelInflight({});
   }, []);
 
   const fetchPressureCoolingRuntime = useCallback(async () => {
@@ -201,7 +223,11 @@ export const useChannelsData = () => {
     loadChannelModels().then();
     fetchGlobalPassThroughEnabled().then();
     fetchRateLimitStats();
-    rateLimitTimerRef.current = setInterval(fetchRateLimitStats, 5000);
+    fetchChannelInflight();
+    rateLimitTimerRef.current = setInterval(() => {
+      fetchRateLimitStats();
+      fetchChannelInflight();
+    }, 5000);
   }, []);
 
   // Column visibility management
@@ -523,6 +549,135 @@ export const useChannelsData = () => {
     } else {
       showError(message);
     }
+  };
+
+  /**
+   * Clear connections that already outlived the gateway's own timeout contract.
+   * The gateway ends stalled connections by itself; this only exists for the
+   * ones that survived that, so "可清理 0" is the normal reading. The dialog
+   * reads once more on open so the number the admin confirms is not a stale
+   * poll result.
+   */
+  const openChannelInflightCleanup = async (record) => {
+    let snapshot = null;
+    try {
+      const res = await API.get(`/api/channel/${record.id}/inflight`);
+      if (res?.data?.success) snapshot = res.data.data || null;
+      else if (res?.data?.message) {
+        showError(res.data.message);
+        return;
+      }
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    if (!snapshot) {
+      showError(t('获取连接状态失败'));
+      return;
+    }
+
+    const notConfigured = t('未配置');
+    const thresholds = snapshot.thresholds || {};
+    const enabled = snapshot.threshold_enabled || {};
+    const anyDisabled =
+      !enabled.stream_response_header ||
+      !enabled.streaming ||
+      !enabled.non_stream;
+    const clearable = Math.max(0, Number(snapshot.cancellable) || 0);
+
+    Modal.confirm({
+      centered: true,
+      title: t('清理卡住的连接'),
+      okText: t('确认清理'),
+      okButtonProps: { type: 'danger', disabled: clearable <= 0 },
+      content: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div>
+            {t(
+              '仅关闭已超过网关超时时限的连接；仍在超时时限内的连接不会被触碰。',
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span>
+              {t('在途')}: {Math.max(0, Number(snapshot.in_flight) || 0)}
+            </span>
+            <span>
+              {t('未收首字')}: {countAwaitingFirstByte(snapshot)}
+            </span>
+            <span>
+              {t('最老')}: {formatInflightAge(snapshot.oldest_age_ms)}
+            </span>
+            <span
+              style={
+                clearable > 0 ? { color: 'var(--semi-color-warning)' } : undefined
+              }
+            >
+              {t('可清理')}: {clearable}
+            </span>
+            <span>
+              {t('超时时限')}:{' '}
+              {formatInflightThreshold(
+                thresholds.stream_response_header_s,
+                enabled.stream_response_header,
+                notConfigured,
+              )}{' '}
+              /{' '}
+              {formatInflightThreshold(
+                thresholds.streaming_s,
+                enabled.streaming,
+                notConfigured,
+              )}{' '}
+              /{' '}
+              {formatInflightThreshold(
+                thresholds.non_stream_s,
+                enabled.non_stream,
+                notConfigured,
+              )}
+            </span>
+          </div>
+          {clearable <= 0 && (
+            <div style={{ color: 'var(--semi-color-text-2)' }}>
+              {t('没有可清理的连接。可清理为 0 是正常状态。')}
+            </div>
+          )}
+          {anyDisabled && (
+            <div style={{ color: 'var(--semi-color-text-2)' }}>
+              {t(
+                '未配置超时时限的类别没有越界阈值，因此该类别的连接永远不可清理。',
+              )}
+            </div>
+          )}
+          {snapshot.tracking_degraded && (
+            <div style={{ color: 'var(--semi-color-warning)' }}>
+              {t('本实例的连接跟踪已降级，计数可能不完整。')}
+            </div>
+          )}
+          <div style={{ color: 'var(--semi-color-text-2)' }}>
+            {t('计数仅覆盖响应本次请求的实例。')}
+          </div>
+        </div>
+      ),
+      onOk: async () => {
+        try {
+          const res = await API.post(
+            `/api/channel/${record.id}/inflight/cleanup`,
+          );
+          const { success, message, data } = res.data;
+          if (!success) {
+            showError(message);
+            return;
+          }
+          showSuccess(
+            t('已清理 {{total}} 条卡住的连接', {
+              total: Math.max(0, Number(data?.cancelled) || 0),
+            }),
+          );
+          fetchChannelInflight();
+        } catch (error) {
+          showError(error);
+        }
+      },
+    });
   };
 
   // Tag management
@@ -1179,6 +1334,7 @@ export const useChannelsData = () => {
     searching,
     rateLimitStats,
     pressureCoolingRuntime,
+    channelInflight,
     activePage,
     pageSize,
     channelCount,
@@ -1261,6 +1417,7 @@ export const useChannelsData = () => {
     refresh,
     manageChannel,
     manageTag,
+    openChannelInflightCleanup,
     handlePageChange,
     handlePageSizeChange,
     copySelectedChannel,

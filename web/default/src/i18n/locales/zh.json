@@ -5641,6 +5641,18 @@
     "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.": "无法拦截短链、跳转、编码混淆、OCR，以及上游模型自主生成的目标。",
     "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.": "该文案会连同 request id 一起返回给调用方。不要填写域名、URL、IP 或密钥，否则保存会被拒绝。",
     "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.": "Unicode 域名需填写 punycode。例え.jp 会保存为 xn--r8jz45g.jp；prompt 中的原文 例え.jp 不会命中，punycode 才会命中。",
-    "Thinking Disabled": "已关闭"
+    "Thinking Disabled": "已关闭",
+    "In flight": "在途",
+    "Awaiting first byte": "未收首字",
+    "Oldest": "最老",
+    "Clearable": "可清理",
+    "Timeouts": "超时时限",
+    "Clear Stalled Connections": "清理卡住的连接",
+    "Only connections that already outlived the gateway timeout are closed. Connections still inside their timeout are never touched.": "仅关闭已超过网关超时时限的连接；仍在超时时限内的连接不会被触碰。",
+    "Nothing to clear. Zero clearable connections is the normal state.": "没有可清理的连接。可清理为 0 是正常状态。",
+    "A class without a configured timeout has no overdue threshold, so its connections can never be cleared.": "未配置超时时限的类别没有越界阈值，因此该类别的连接永远不可清理。",
+    "Connection tracking is degraded on this instance, so the counts may be incomplete.": "本实例的连接跟踪已降级，计数可能不完整。",
+    "Counts cover only the instance answering this request.": "计数仅覆盖响应本次请求的实例。",
+    "Cleared {{total}} stalled connections": "已清理 {{total}} 条卡住的连接"
   }
 }

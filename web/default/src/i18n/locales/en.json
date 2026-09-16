@@ -5641,6 +5641,18 @@
     "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.": "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.",
     "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.": "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.",
     "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.": "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.",
-    "Thinking Disabled": "Disabled"
+    "Thinking Disabled": "Disabled",
+    "In flight": "In flight",
+    "Awaiting first byte": "Awaiting first byte",
+    "Oldest": "Oldest",
+    "Clearable": "Clearable",
+    "Timeouts": "Timeouts",
+    "Clear Stalled Connections": "Clear Stalled Connections",
+    "Only connections that already outlived the gateway timeout are closed. Connections still inside their timeout are never touched.": "Only connections that already outlived the gateway timeout are closed. Connections still inside their timeout are never touched.",
+    "Nothing to clear. Zero clearable connections is the normal state.": "Nothing to clear. Zero clearable connections is the normal state.",
+    "A class without a configured timeout has no overdue threshold, so its connections can never be cleared.": "A class without a configured timeout has no overdue threshold, so its connections can never be cleared.",
+    "Connection tracking is degraded on this instance, so the counts may be incomplete.": "Connection tracking is degraded on this instance, so the counts may be incomplete.",
+    "Counts cover only the instance answering this request.": "Counts cover only the instance answering this request.",
+    "Cleared {{total}} stalled connections": "Cleared {{total}} stalled connections"
   }
 }

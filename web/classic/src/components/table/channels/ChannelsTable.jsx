@@ -65,6 +65,8 @@ const ChannelsTable = (channelsData) => {
     detectChannelUpstreamUpdates,
     rateLimitStats,
     pressureCoolingRuntime,
+    channelInflight,
+    openChannelInflightCleanup,
   } = channelsData;
 
   // Get all columns
@@ -94,6 +96,8 @@ const ChannelsTable = (channelsData) => {
       detectChannelUpstreamUpdates,
       rateLimitStats,
       pressureCoolingRuntime,
+      channelInflight,
+      openChannelInflightCleanup,
     });
   }, [
     t,
@@ -120,6 +124,8 @@ const ChannelsTable = (channelsData) => {
     detectChannelUpstreamUpdates,
     rateLimitStats,
     pressureCoolingRuntime,
+    channelInflight,
+    openChannelInflightCleanup,
   ]);
 
   // Filter columns based on visibility settings

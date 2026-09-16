@@ -25,12 +25,14 @@ import type {
   BatchSetTagParams,
   Channel,
   ChannelBalanceResponse,
+  ChannelInflightSnapshotResponse,
   ChannelOpsResponse,
   ChannelTestResponse,
   CopyChannelParams,
   CopyChannelResponse,
   FetchModelsResponse,
   GetChannelResponse,
+  GetChannelInflightRuntimeResponse,
   GetChannelRateLimitStatsResponse,
   GetPressureCoolingRuntimeResponse,
   GetChannelsParams,
@@ -124,6 +126,40 @@ export async function getChannelRateLimitStats(): Promise<GetChannelRateLimitSta
 export async function getPressureCoolingRuntime(): Promise<GetPressureCoolingRuntimeResponse> {
   const res = await api.get(
     '/api/channel/pressure_cooling/runtime',
+    channelActionConfig()
+  )
+  return res.data
+}
+
+/**
+ * Get in-flight upstream connections for every channel on this instance.
+ * One request per refresh covers the whole table; never poll it per row.
+ */
+export async function getChannelInflightRuntime(): Promise<GetChannelInflightRuntimeResponse> {
+  const res = await api.get('/api/channel/inflight/runtime', channelActionConfig())
+  return res.data
+}
+
+/**
+ * Get a fresh in-flight reading for one channel, used by the cleanup dialog.
+ */
+export async function getChannelInflight(
+  id: number
+): Promise<ChannelInflightSnapshotResponse> {
+  const res = await api.get(`/api/channel/${id}/inflight`, channelActionConfig())
+  return res.data
+}
+
+/**
+ * Tear down the connections of one channel that already outlived the gateway's
+ * own timeout contract. Connections still inside their contract are untouched.
+ */
+export async function cleanupChannelInflight(
+  id: number
+): Promise<ChannelInflightSnapshotResponse> {
+  const res = await api.post(
+    `/api/channel/${id}/inflight/cleanup`,
+    {},
     channelActionConfig()
   )
   return res.data

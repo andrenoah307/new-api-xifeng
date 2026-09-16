@@ -5641,6 +5641,18 @@
     "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.": "This cannot stop short links, redirects, encoding obfuscation, OCR, or targets generated autonomously by an upstream model.",
     "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.": "This message is returned with the request ID. Do not include domains, URLs, IP addresses, or keys, or saving will be rejected.",
     "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.": "Unicode domains must be entered as punycode. 例え.jp is saved as xn--r8jz45g.jp; prompt text 例え.jp will not match, while xn--r8jz45g.jp will.",
-    "Thinking Disabled": "Désactivé"
+    "Thinking Disabled": "Désactivé",
+    "In flight": "En cours",
+    "Awaiting first byte": "En attente du premier octet",
+    "Oldest": "Le plus ancien",
+    "Clearable": "Nettoyable",
+    "Timeouts": "Délais d'expiration",
+    "Clear Stalled Connections": "Nettoyer les connexions bloquées",
+    "Only connections that already outlived the gateway timeout are closed. Connections still inside their timeout are never touched.": "Seules les connexions ayant dépassé le délai d'expiration de la passerelle sont fermées. Celles encore dans leur délai ne sont jamais touchées.",
+    "Nothing to clear. Zero clearable connections is the normal state.": "Rien à nettoyer. Zéro connexion nettoyable est l'état normal.",
+    "A class without a configured timeout has no overdue threshold, so its connections can never be cleared.": "Une catégorie sans délai d'expiration configuré n'a aucun seuil de dépassement, ses connexions ne peuvent donc jamais être nettoyées.",
+    "Connection tracking is degraded on this instance, so the counts may be incomplete.": "Le suivi des connexions est dégradé sur cette instance, les comptages peuvent être incomplets.",
+    "Counts cover only the instance answering this request.": "Les comptages ne couvrent que l'instance qui répond à cette requête.",
+    "Cleared {{total}} stalled connections": "{{total}} connexions bloquées nettoyées"
   }
 }

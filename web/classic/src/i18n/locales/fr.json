@@ -5063,6 +5063,20 @@
     "下载选中": "Télécharger la sélection",
     "请立即保存这些码，关闭本对话框后将无法再次查看。": "Enregistrez ces codes maintenant. Ils ne seront plus affichés après la fermeture de cette boîte de dialogue.",
     "已显示 {{shown}} / {{count}}": "Affichage de {{shown}} sur {{count}}",
-    "创建中途失败，出错前已生成 {{count}} 个码。": "Création interrompue. {{count}} code(s) ont été générés avant l'erreur."
+    "创建中途失败，出错前已生成 {{count}} 个码。": "Création interrompue. {{count}} code(s) ont été générés avant l'erreur.",
+    "清理卡住的连接": "Nettoyer les connexions bloquées",
+    "确认清理": "Confirmer le nettoyage",
+    "获取连接状态失败": "Échec de la lecture de l'état des connexions",
+    "仅关闭已超过网关超时时限的连接；仍在超时时限内的连接不会被触碰。": "Seules les connexions ayant dépassé le délai d'expiration de la passerelle sont fermées. Les connexions encore dans leur délai ne sont jamais touchées.",
+    "在途": "En cours",
+    "未收首字": "En attente du premier octet",
+    "最老": "Plus ancienne",
+    "可清理": "Nettoyables",
+    "超时时限": "Délais d'expiration",
+    "没有可清理的连接。可清理为 0 是正常状态。": "Rien à nettoyer. Zéro connexion nettoyable est l'état normal.",
+    "未配置超时时限的类别没有越界阈值，因此该类别的连接永远不可清理。": "Une catégorie sans délai d'expiration configuré n'a pas de seuil de dépassement, ses connexions ne peuvent donc jamais être nettoyées.",
+    "本实例的连接跟踪已降级，计数可能不完整。": "Le suivi des connexions est dégradé sur cette instance, les compteurs peuvent être incomplets.",
+    "计数仅覆盖响应本次请求的实例。": "Les compteurs ne couvrent que l'instance qui répond à cette requête.",
+    "已清理 {{total}} 条卡住的连接": "{{total}} connexions bloquées nettoyées"
   }
 }

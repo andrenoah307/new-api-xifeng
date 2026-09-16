@@ -31,6 +31,13 @@ func TestChannelDeleteRoutesUseSensitiveWritePermission(t *testing.T) {
 	assertChannelRoutePermission(t, http.MethodPost, "/batch/tag", authz.ChannelWrite, controller.BatchSetChannelTag)
 }
 
+func TestChannelInflightRoutesSeparateReadFromOperate(t *testing.T) {
+	// Watching the panel is a read; tearing connections down is an operation.
+	assertChannelRoutePermission(t, http.MethodGet, "/:id/inflight", authz.ChannelRead, controller.GetChannelInflight)
+	assertChannelRoutePermission(t, http.MethodGet, "/inflight/runtime", authz.ChannelRead, controller.GetChannelInflightRuntime)
+	assertChannelRoutePermission(t, http.MethodPost, "/:id/inflight/cleanup", authz.ChannelOperate, controller.CleanupChannelInflight)
+}
+
 func TestChannelStatusRoutesRegisterWithoutConflict(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()

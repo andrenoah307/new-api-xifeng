@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -13,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
+	"github.com/QuantumNous/new-api/relay/inflight"
 	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/QuantumNous/new-api/types"
 
@@ -91,7 +93,15 @@ type TokenCountMeta struct {
 }
 
 type RelayInfo struct {
-	TokenId int
+	// adminKilled is a plain word rather than an atomic.Bool because RelayInfo is
+	// copied by value on existing async paths (service/pre_consume_quota.go), and
+	// atomic.Bool carries noCopy.
+	adminKilled uint32
+	// InflightEntry tracks this request in the per-channel in-flight registry for
+	// the duration of the upstream call. It is nil when tracking is degraded or
+	// when the request does not go through the standard upstream request path.
+	InflightEntry *inflight.Entry
+	TokenId       int
 	// TokenPeriodStartAt is the period bucket that admitted this request. It is
 	// captured once at pre-consume time and reused for reserve/settle/refund.
 	TokenPeriodStartAt int64
@@ -230,6 +240,16 @@ type RelayInfo struct {
 	*ChannelMeta
 	*TaskRelayInfo
 }
+
+// MarkAdminKilled records that an administrator tore this connection down, so the
+// relay loop can tell the resulting upstream failure apart from a channel fault.
+func (info *RelayInfo) MarkAdminKilled() { atomic.StoreUint32(&info.adminKilled, 1) }
+
+// SwapAdminKilled reads and clears the marker. It clears because retries reuse the
+// same RelayInfo, and the flag describes one attempt, not the whole request. It is
+// atomic because the flag is set from the admin's goroutine and read from the
+// request's own.
+func (info *RelayInfo) SwapAdminKilled() bool { return atomic.SwapUint32(&info.adminKilled, 0) == 1 }
 
 func (info *RelayInfo) InitChannelMeta(c *gin.Context) {
 	channelType := common.GetContextKeyInt(c, constant.ContextKeyChannelType)
