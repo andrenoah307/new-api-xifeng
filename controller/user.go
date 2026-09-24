@@ -784,9 +784,10 @@ func UpdateUser(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	// 区分"未传 inviter_id"（保持不变）与"显式传 0"（清空邀请人）。
+	// 区分"未传"（保持不变）与"显式传零值"（清空）：inviter_id 传 0 清空邀请人，email 传 "" 解绑邮箱。
 	var requestData struct {
-		InviterId *int `json:"inviter_id"`
+		InviterId *int    `json:"inviter_id"`
+		Email     *string `json:"email"`
 	}
 	if err := common.Unmarshal(rawBody, &requestData); err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
@@ -823,6 +824,11 @@ func UpdateUser(c *gin.Context) {
 	if updatedUser.Password == "$I_LOVE_U" {
 		updatedUser.Password = "" // rollback to what it should be
 	}
+	if requestData.Email == nil {
+		updatedUser.Email = originUser.Email
+	} else {
+		updatedUser.Email = model.NormalizeEmail(updatedUser.Email)
+	}
 	if !inviterIdProvided {
 		updatedUser.InviterId = originUser.InviterId
 	} else if updatedUser.InviterId != originUser.InviterId {
@@ -838,7 +844,7 @@ func UpdateUser(c *gin.Context) {
 		}
 	}
 	// Check email uniqueness (excluding the user being updated)
-	if updatedUser.Email != "" {
+	if updatedUser.Email != "" && updatedUser.Email != originUser.Email {
 		var emailCount int64
 		model.DB.Model(&model.User{}).Unscoped().
 			Where("email = ? AND id != ?", updatedUser.Email, updatedUser.Id).

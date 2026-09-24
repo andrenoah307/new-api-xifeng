@@ -431,6 +431,20 @@ export function UsersMutateDrawer({
 
                   <FormField
                     control={form.control}
+                    name='email'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('Email')}</FormLabel>
+                        <FormControl>
+                          <Input {...field} type='email' autoComplete='off' />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name='inviter_id'
                     render={({ field }) => (
                       <FormItem>
