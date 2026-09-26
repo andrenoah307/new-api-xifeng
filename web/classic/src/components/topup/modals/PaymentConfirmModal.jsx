@@ -39,6 +39,7 @@ const PaymentConfirmModal = ({
   // 新增：用于显示折扣明细
   amountNumber,
   discountRate,
+  discountCodeMaxAmount = 0,
 }) => {
   const hasDiscount =
     discountRate && discountRate > 0 && discountRate < 1 && amountNumber > 0;
@@ -61,6 +62,15 @@ const PaymentConfirmModal = ({
       confirmLoading={confirmLoading}
     >
       <div className='space-y-4'>
+        {discountCodeMaxAmount > 0 && (
+          <Text
+            type={Number(topUpCount) > discountCodeMaxAmount ? 'danger' : 'secondary'}
+          >
+            {t('此折扣码单笔最多充值 {{amount}}', {
+              amount: discountCodeMaxAmount,
+            })}
+          </Text>
+        )}
         <Card className='!rounded-xl !border-0 bg-slate-50 dark:bg-slate-800'>
           <div className='space-y-3'>
             <div className='flex justify-between items-center'>

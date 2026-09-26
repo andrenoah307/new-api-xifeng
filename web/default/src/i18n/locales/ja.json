@@ -1,5 +1,10 @@
 {
   "translation": {
+    "Enter a non-negative integer": "0以上の整数を入力してください",
+    "Max recharge per order": "1回あたりのチャージ上限",
+    "Max {{amount}} per order with this code": "このコードでは1回あたり最大{{amount}}までチャージ可能",
+    "Same unit as minimum top-up; 0 means unlimited": "最低チャージ数量と同じ単位。0は無制限",
+    "This discount code allows a maximum recharge of {{amount}} per order": "この割引コードでのチャージ上限は1回あたり{{amount}}です",
     "Invitation code": "招待コード",
     "Please enter your invitation code": "招待コードを入力してください",
     "Invitation Codes": "招待コード",

@@ -34,6 +34,7 @@ import { formatLocalCurrencyAmount } from '@/lib/currency'
 
 import { DEFAULT_DISCOUNT_RATE } from '../../constants'
 import { formatCurrency, getPaymentIcon } from '../../lib'
+import { exceedsDiscountCodeLimit } from '../../lib/discount-code'
 import type { PaymentMethod } from '../../types'
 
 interface PaymentConfirmDialogProps {
@@ -46,6 +47,7 @@ interface PaymentConfirmDialogProps {
   calculating: boolean
   processing: boolean
   discountRate?: number
+  discountMaxAmount?: number
   usdExchangeRate?: number
 }
 
@@ -59,9 +61,14 @@ export function PaymentConfirmDialog({
   calculating,
   processing,
   discountRate = DEFAULT_DISCOUNT_RATE,
+  discountMaxAmount = 0,
   usdExchangeRate = 1,
 }: PaymentConfirmDialogProps) {
   const { t } = useTranslation()
+  const discountLimitExceeded = exceedsDiscountCodeLimit(
+    topupAmount,
+    discountMaxAmount
+  )
   const hasDiscount = discountRate > 0 && discountRate < 1 && paymentAmount > 0
   const originalAmount = hasDiscount ? paymentAmount / discountRate : 0
   const discountAmount = hasDiscount ? originalAmount - paymentAmount : 0
@@ -79,6 +86,21 @@ export function PaymentConfirmDialog({
         </AlertDialogHeader>
 
         <div className='space-y-3 py-3 sm:space-y-4 sm:py-4'>
+          {discountMaxAmount > 0 && (
+            <p className='text-muted-foreground text-sm'>
+              {t('Max {{amount}} per order with this code', {
+                amount: discountMaxAmount,
+              })}
+            </p>
+          )}
+          {discountLimitExceeded && (
+            <p role='alert' className='text-destructive text-sm'>
+              {t(
+                'This discount code allows a maximum recharge of {{amount}} per order',
+                { amount: discountMaxAmount }
+              )}
+            </p>
+          )}
           <div className='flex items-center justify-between'>
             <span className='text-muted-foreground text-sm'>
               {t('Topup Amount')}
@@ -145,7 +167,15 @@ export function PaymentConfirmDialog({
           <AlertDialogCancel disabled={processing}>
             {t('Cancel')}
           </AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={processing}>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={
+              processing ||
+              calculating ||
+              paymentAmount <= 0 ||
+              discountLimitExceeded
+            }
+          >
             {processing && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
             {t('Confirm Payment')}
           </AlertDialogAction>

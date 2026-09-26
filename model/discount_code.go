@@ -2,9 +2,12 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/shopspring/decimal"
 
 	"gorm.io/gorm"
 )
@@ -14,6 +17,13 @@ const (
 	DiscountCodeStatusDisabled = 2
 )
 
+// DiscountCodeValidationError carries a business rejection safe to show to users.
+type DiscountCodeValidationError string
+
+func (err DiscountCodeValidationError) Error() string {
+	return string(err)
+}
+
 type DiscountCode struct {
 	Id             int            `json:"id"`
 	Code           string         `json:"code" gorm:"type:varchar(64);uniqueIndex"`
@@ -22,6 +32,7 @@ type DiscountCode struct {
 	StartTime      int64          `json:"start_time" gorm:"bigint"`
 	EndTime        int64          `json:"end_time" gorm:"bigint"`
 	MaxUsesTotal   int            `json:"max_uses_total" gorm:"default:0"`
+	MaxAmount      int64          `json:"max_amount" gorm:"default:0"`
 	MaxUsesPerUser int            `json:"max_uses_per_user" gorm:"default:0"`
 	UsedCount      int            `json:"used_count" gorm:"default:0"`
 	Status         int            `json:"status" gorm:"default:1"`
@@ -124,7 +135,7 @@ func (dc *DiscountCode) Insert() error {
 func (dc *DiscountCode) Update() error {
 	return DB.Model(dc).Select(
 		"code", "name", "status", "discount_rate", "start_time", "end_time",
-		"max_uses_total", "max_uses_per_user",
+		"max_uses_total", "max_uses_per_user", "max_amount",
 	).Updates(dc).Error
 }
 
@@ -157,37 +168,50 @@ func ValidateDiscountCode(code string, userId int) (*DiscountCode, error) {
 		return nil, errors.New("折扣码不存在")
 	}
 
+	if err := dc.validateAvailability(DB, userId); err != nil {
+		var businessErr DiscountCodeValidationError
+		if errors.As(err, &businessErr) {
+			return nil, err
+		}
+		return nil, errors.New("查询使用记录失败")
+	}
+	return dc, nil
+}
+
+func (dc *DiscountCode) validateAvailability(tx *gorm.DB, userId int) error {
 	if dc.Status != DiscountCodeStatusEnabled {
-		return nil, errors.New("该折扣码已禁用")
+		return DiscountCodeValidationError("该折扣码已禁用")
 	}
 
 	now := common.GetTimestamp()
 	if dc.StartTime > 0 && now < dc.StartTime {
-		return nil, errors.New("该折扣码尚未生效")
+		return DiscountCodeValidationError("该折扣码尚未生效")
 	}
 	if dc.EndTime > 0 && now > dc.EndTime {
-		return nil, errors.New("该折扣码已过期")
+		return DiscountCodeValidationError("该折扣码已过期")
 	}
 
 	if dc.MaxUsesTotal > 0 {
-		pendingTotal, _ := GetPendingDiscountCodeTotalCount(dc.Id)
-		if int64(dc.UsedCount)+pendingTotal >= int64(dc.MaxUsesTotal) {
-			return nil, errors.New("该折扣码使用次数已达上限")
+		count, err := GetDiscountCodeTotalCount(tx, dc.Id, now)
+		if err != nil {
+			return err
+		}
+		if count >= int64(dc.MaxUsesTotal) {
+			return DiscountCodeValidationError("该折扣码使用次数已达上限")
 		}
 	}
 
 	if dc.MaxUsesPerUser > 0 {
-		userCount, err := GetDiscountCodeUserUsageCount(dc.Id, userId)
+		userCount, err := GetDiscountCodeUserCount(tx, dc.Id, userId, now)
 		if err != nil {
-			return nil, errors.New("查询使用记录失败")
+			return err
 		}
-		pendingCount, _ := GetPendingDiscountCodeUserCount(dc.Id, userId)
-		if userCount+pendingCount >= int64(dc.MaxUsesPerUser) {
-			return nil, errors.New("您已达到该折扣码的使用次数上限")
+		if userCount >= int64(dc.MaxUsesPerUser) {
+			return DiscountCodeValidationError("您已达到该折扣码的使用次数上限")
 		}
 	}
 
-	return dc, nil
+	return nil
 }
 
 // IncrementDiscountCodeUsedCount atomically increments the used_count within a transaction.
@@ -196,29 +220,72 @@ func IncrementDiscountCodeUsedCount(tx *gorm.DB, discountCodeId int) error {
 		Update("used_count", gorm.Expr("used_count + 1")).Error
 }
 
-func GetPendingDiscountCodeUserCount(discountCodeId int, userId int) (int64, error) {
+func DiscountCodePendingTTLSeconds() int64 {
+	ttl := common.GetEnvOrDefault("DISCOUNT_CODE_PENDING_TTL_SECONDS", 1800)
+	if ttl <= 0 {
+		return 1800
+	}
+	return int64(ttl)
+}
+
+func (dc *DiscountCode) MaxAmountInInputUnits() decimal.Decimal {
+	amount := decimal.NewFromInt(dc.MaxAmount)
+	if operation_setting.GetQuotaDisplayType() == operation_setting.QuotaDisplayTypeTokens {
+		amount = amount.Mul(decimal.NewFromFloat(common.QuotaPerUnit))
+	}
+	return amount
+}
+
+func (dc *DiscountCode) CheckMaxAmount(amount decimal.Decimal) error {
+	if dc.MaxAmount > 0 && amount.GreaterThan(dc.MaxAmountInInputUnits()) {
+		return fmt.Errorf("该折扣码单笔最多充值 %s", dc.MaxAmountInInputUnits().String())
+	}
+	return nil
+}
+
+// ReserveDiscountCodeTopUp serializes availability checks and order creation on the code row.
+func ReserveDiscountCodeTopUp(topUp *TopUp) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var dc DiscountCode
+		if err := lockForUpdate(tx).First(&dc, topUp.DiscountCodeId).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return DiscountCodeValidationError("折扣码不存在")
+			}
+			return err
+		}
+		if err := dc.validateAvailability(tx, topUp.UserId); err != nil {
+			return err
+		}
+		return tx.Create(topUp).Error
+	})
+}
+
+func GetDiscountCodeUserCount(tx *gorm.DB, discountCodeId int, userId int, now int64) (int64, error) {
 	var count int64
-	err := DB.Model(&TopUp{}).
-		Where("discount_code_id = ? AND user_id = ? AND status = ?",
-			discountCodeId, userId, common.TopUpStatusPending).
+	err := tx.Model(&TopUp{}).
+		Where("discount_code_id = ? AND user_id = ?", discountCodeId, userId).
+		Where("(source IS NULL OR source <> ?)", "discount_bonus").
+		Where("(status = ? OR (status = ? AND create_time > ?))", common.TopUpStatusSuccess, common.TopUpStatusPending, now-DiscountCodePendingTTLSeconds()).
 		Count(&count).Error
 	return count, err
 }
 
-func GetPendingDiscountCodeTotalCount(discountCodeId int) (int64, error) {
+func GetDiscountCodeTotalCount(tx *gorm.DB, discountCodeId int, now int64) (int64, error) {
 	var count int64
-	err := DB.Model(&TopUp{}).
-		Where("discount_code_id = ? AND status = ?",
-			discountCodeId, common.TopUpStatusPending).
+	err := tx.Model(&TopUp{}).
+		Where("discount_code_id = ?", discountCodeId).
+		Where("(source IS NULL OR source <> ?)", "discount_bonus").
+		Where("(status = ? OR (status = ? AND create_time > ?))", common.TopUpStatusSuccess, common.TopUpStatusPending, now-DiscountCodePendingTTLSeconds()).
 		Count(&count).Error
 	return count, err
 }
 
-func CleanupPendingOrdersByDiscountCode(discountCodeId int, thresholdSeconds int64) (int64, error) {
-	cutoff := common.GetTimestamp() - thresholdSeconds
+func CleanupPendingOrdersByDiscountCode(discountCodeId int) (int64, error) {
+	cutoff := common.GetTimestamp() - DiscountCodePendingTTLSeconds()
 	result := DB.Model(&TopUp{}).
 		Where("discount_code_id = ? AND status = ? AND create_time < ?",
 			discountCodeId, common.TopUpStatusPending, cutoff).
-		Update("status", common.TopUpStatusFailed)
+		Where("(source IS NULL OR source <> ?)", "discount_bonus").
+		Update("status", common.TopUpStatusExpired)
 	return result.RowsAffected, result.Error
 }

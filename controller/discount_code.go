@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"unicode/utf8"
@@ -62,6 +63,10 @@ func AddDiscountCode(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if dc.MaxAmount < 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "单笔充值上限不能小于 0"})
+		return
+	}
 	if dc.DiscountRate < 1 || dc.DiscountRate > 99 {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "折扣率必须在 1-99 之间"})
 		return
@@ -103,6 +108,7 @@ func AddDiscountCode(c *gin.Context) {
 			StartTime:      dc.StartTime,
 			EndTime:        dc.EndTime,
 			MaxUsesTotal:   dc.MaxUsesTotal,
+			MaxAmount:      dc.MaxAmount,
 			MaxUsesPerUser: dc.MaxUsesPerUser,
 			CreatedTime:    common.GetTimestamp(),
 		}
@@ -146,6 +152,10 @@ func UpdateDiscountCode(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if dc.MaxAmount < 0 {
+		c.JSON(http.StatusOK, gin.H{"success": false, "message": "单笔充值上限不能小于 0"})
+		return
+	}
 	cleanDC, err := model.GetDiscountCodeById(dc.Id)
 	if err != nil {
 		common.ApiError(c, err)
@@ -173,6 +183,7 @@ func UpdateDiscountCode(c *gin.Context) {
 		cleanDC.StartTime = dc.StartTime
 		cleanDC.EndTime = dc.EndTime
 		cleanDC.MaxUsesTotal = dc.MaxUsesTotal
+		cleanDC.MaxAmount = dc.MaxAmount
 		cleanDC.MaxUsesPerUser = dc.MaxUsesPerUser
 	}
 	if statusOnly != "" {
@@ -213,6 +224,7 @@ func ValidateUserDiscountCode(c *gin.Context) {
 		"message": "",
 		"data": gin.H{
 			"discount_rate": dc.DiscountRate,
+			"max_amount":    json.Number(dc.MaxAmountInInputUnits().String()),
 			"code":          dc.Code,
 		},
 	})
@@ -224,7 +236,7 @@ func CleanupDiscountCodePendingOrders(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": false, "message": "无效的折扣码ID"})
 		return
 	}
-	cleaned, err := model.CleanupPendingOrdersByDiscountCode(id, 30)
+	cleaned, err := model.CleanupPendingOrdersByDiscountCode(id)
 	if err != nil {
 		common.ApiError(c, err)
 		return

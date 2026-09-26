@@ -5587,6 +5587,10 @@
     "未配置超时时限的类别没有越界阈值，因此该类别的连接永远不可清理。": "Lớp chưa cấu hình thời gian chờ không có ngưỡng vượt hạn, nên kết nối của lớp đó không bao giờ có thể bị dọn.",
     "本实例的连接跟踪已降级，计数可能不完整。": "Theo dõi kết nối trên instance này đang suy giảm, số liệu có thể không đầy đủ.",
     "计数仅覆盖响应本次请求的实例。": "Số liệu chỉ bao gồm instance đang trả lời yêu cầu này.",
-    "已清理 {{total}} 条卡住的连接": "Đã dọn {{total}} kết nối treo"
+    "已清理 {{total}} 条卡住的连接": "Đã dọn {{total}} kết nối treo",
+    "单笔充值上限": "Giới hạn nạp mỗi giao dịch",
+    "与最低充值同单位，0 为不限": "Cùng đơn vị với mức nạp tối thiểu; 0 là không giới hạn",
+    "此折扣码单笔最多充值 {{amount}}": "Mã giảm giá này cho phép nạp tối đa {{amount}} mỗi giao dịch",
+    "该折扣码单笔最多充值 {{amount}}": "Mức nạp tối đa với mã giảm giá này là {{amount}} mỗi giao dịch"
   }
 }

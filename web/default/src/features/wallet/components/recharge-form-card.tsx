@@ -1,3 +1,14 @@
+import {
+  Gift,
+  ExternalLink,
+  Loader2,
+  Receipt,
+  WalletCards,
+  TicketPercent,
+  Check,
+} from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -17,17 +28,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { toast } from 'sonner'
-import {
-  Gift,
-  ExternalLink,
-  Loader2,
-  Receipt,
-  WalletCards,
-  TicketPercent,
-  Check,
-} from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -46,6 +46,7 @@ import {
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+import type { DiscountInfo } from '../hooks/use-discount-code'
 import {
   formatCurrency,
   getDiscountLabel,
@@ -53,6 +54,7 @@ import {
   getMinTopupAmount,
   calculatePresetPricing,
 } from '../lib'
+import { exceedsDiscountCodeLimit } from '../lib/discount-code'
 import type {
   PaymentMethod,
   PresetAmount,
@@ -60,7 +62,6 @@ import type {
   CreemProduct,
   WaffoPayMethod,
 } from '../types'
-import type { DiscountInfo } from '../hooks/use-discount-code'
 import { CreemProductsSection } from './creem-products-section'
 
 interface RechargeFormCardProps {
@@ -94,6 +95,7 @@ interface RechargeFormCardProps {
   enableWaffoPancakeTopup?: boolean
   discountCode?: string
   onDiscountCodeChange?: (code: string) => void
+  onClearDiscountCode?: () => void
   onValidateDiscountCode?: () => void
   discountValidating?: boolean
   discountInfo?: DiscountInfo | null
@@ -131,6 +133,7 @@ export function RechargeFormCard({
   enableWaffoPancakeTopup,
   discountCode,
   onDiscountCodeChange,
+  onClearDiscountCode,
   onValidateDiscountCode,
   discountValidating,
   discountInfo,
@@ -138,6 +141,10 @@ export function RechargeFormCard({
 }: RechargeFormCardProps) {
   const { t } = useTranslation()
   const [localAmount, setLocalAmount] = useState(topupAmount.toString())
+  const discountLimitExceeded = exceedsDiscountCodeLimit(
+    topupAmount,
+    discountInfo?.max_amount
+  )
 
   useEffect(() => {
     setLocalAmount(topupAmount.toString())
@@ -145,7 +152,7 @@ export function RechargeFormCard({
 
   const handleAmountChange = (value: string) => {
     setLocalAmount(value)
-    const numValue = Number.parseInt(value) || 0
+    const numValue = Number(value) || 0
     if (numValue >= 0) {
       onTopupAmountChange(numValue)
     }
@@ -154,7 +161,8 @@ export function RechargeFormCard({
   const minTopup = getMinTopupAmount(topupInfo)
 
   const handleAmountBlur = useCallback(() => {
-    const numValue = parseInt(localAmount) || 0
+    const numValue = Number(localAmount) || 0
+    if (exceedsDiscountCodeLimit(numValue, discountInfo?.max_amount)) return
     if (numValue < minTopup) {
       toast.error(t('Minimum topup amount: {{amount}}', { amount: minTopup }))
       setLocalAmount(minTopup.toString())
@@ -163,7 +171,14 @@ export function RechargeFormCard({
     } else {
       onTopupAmountBlur?.(numValue)
     }
-  }, [localAmount, minTopup, onTopupAmountChange, onTopupAmountBlur, t])
+  }, [
+    localAmount,
+    minTopup,
+    onTopupAmountChange,
+    onTopupAmountBlur,
+    discountInfo,
+    t,
+  ])
 
   const hasConfigurableTopup =
     topupInfo?.enable_online_topup ||
@@ -325,6 +340,10 @@ export function RechargeFormCard({
                 <div className='grid grid-cols-[minmax(0,1fr)_minmax(110px,0.55fr)] gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center'>
                   <Input
                     id='topup-amount'
+                    aria-invalid={discountLimitExceeded}
+                    aria-describedby={
+                      discountLimitExceeded ? 'discount-limit-error' : undefined
+                    }
                     type='number'
                     value={localAmount}
                     onChange={(e) => handleAmountChange(e.target.value)}
@@ -341,12 +360,27 @@ export function RechargeFormCard({
                       <Skeleton className='h-5 w-16' />
                     ) : (
                       <span className='text-sm font-semibold'>
-                        {paymentAmount > 0 ? formatCurrency(paymentAmount) : '--'}
+                        {!discountLimitExceeded && paymentAmount > 0
+                          ? formatCurrency(paymentAmount)
+                          : '--'}
                       </span>
                     )}
                   </div>
                 </div>
               </div>
+
+              {discountLimitExceeded && (
+                <p
+                  id='discount-limit-error'
+                  role='alert'
+                  className='text-destructive text-sm'
+                >
+                  {t(
+                    'This discount code allows a maximum recharge of {{amount}} per order',
+                    { amount: discountInfo?.max_amount }
+                  )}
+                </p>
+              )}
 
               <div className='space-y-2.5 sm:space-y-3'>
                 <Label className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
@@ -371,7 +405,11 @@ export function RechargeFormCard({
                           key={method.type}
                           variant='outline'
                           onClick={() => onPaymentMethodSelect(method)}
-                          disabled={disabled || !!paymentLoading}
+                          disabled={
+                            disabled ||
+                            discountLimitExceeded ||
+                            !!paymentLoading
+                          }
                           title={disabledReason}
                           aria-label={
                             disabledReason
@@ -469,7 +507,11 @@ export function RechargeFormCard({
                             key={methodKey}
                             variant='outline'
                             onClick={() => onWaffoMethodSelect(method, index)}
-                            disabled={belowMin || !!paymentLoading}
+                            disabled={
+                              belowMin ||
+                              discountLimitExceeded ||
+                              !!paymentLoading
+                            }
                             title={disabledReason}
                             aria-label={
                               disabledReason
@@ -566,9 +608,7 @@ export function RechargeFormCard({
                 />
                 {discountInfo ? (
                   <Button
-                    onClick={() => {
-                      onDiscountCodeChange('')
-                    }}
+                    onClick={onClearDiscountCode}
                     variant='outline'
                     className='h-9 px-4'
                   >
@@ -598,6 +638,13 @@ export function RechargeFormCard({
                     })}
                   </AlertDescription>
                 </Alert>
+              )}
+              {discountInfo && discountInfo.max_amount > 0 && (
+                <p className='text-muted-foreground text-sm'>
+                  {t('Max {{amount}} per order with this code', {
+                    amount: discountInfo.max_amount,
+                  })}
+                </p>
               )}
             </>
           )}

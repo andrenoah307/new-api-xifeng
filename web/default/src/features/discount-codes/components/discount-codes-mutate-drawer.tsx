@@ -1,10 +1,12 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import type { TFunction } from 'i18next'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { z } from 'zod'
+
+import { DateTimePicker } from '@/components/datetime-picker'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -25,18 +27,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { DateTimePicker } from '@/components/datetime-picker'
-import {
-  createDiscountCode,
-  updateDiscountCode,
-  getDiscountCode,
-} from '../api'
+
+import { createDiscountCode, updateDiscountCode, getDiscountCode } from '../api'
 import {
   DISCOUNT_CODE_VALIDATION,
   SUCCESS_MESSAGES,
   getDiscountCodeFormErrorMessages,
 } from '../constants'
-import { type DiscountCode } from '../types'
+import type { DiscountCode } from '../types'
 import { useDiscountCodes } from './discount-codes-provider'
 
 // ============================================================================
@@ -62,6 +60,10 @@ function getFormSchema(t: TFunction) {
       .min(DISCOUNT_CODE_VALIDATION.RATE_MIN, msg.RATE_INVALID)
       .max(DISCOUNT_CODE_VALIDATION.RATE_MAX, msg.RATE_INVALID),
     start_time: z.date().optional(),
+    max_amount: z
+      .number()
+      .int(t('Enter a non-negative integer'))
+      .min(0, t('Enter a non-negative integer')),
     end_time: z.date().optional(),
     max_uses_per_user: z.number().min(0),
     max_uses_total: z.number().min(0),
@@ -77,6 +79,7 @@ type FormValues = {
   name?: string
   code?: string
   discount_rate: number
+  max_amount: number
   start_time?: Date
   end_time?: Date
   max_uses_per_user: number
@@ -88,6 +91,7 @@ const DEFAULT_VALUES: FormValues = {
   name: '',
   code: '',
   discount_rate: 90,
+  max_amount: 0,
   start_time: undefined,
   end_time: undefined,
   max_uses_per_user: 0,
@@ -100,12 +104,11 @@ function transformToPayload(data: FormValues) {
     name: data.name || '',
     code: data.code || '',
     discount_rate: data.discount_rate,
+    max_amount: data.max_amount,
     start_time: data.start_time
       ? Math.floor(data.start_time.getTime() / 1000)
       : 0,
-    end_time: data.end_time
-      ? Math.floor(data.end_time.getTime() / 1000)
-      : 0,
+    end_time: data.end_time ? Math.floor(data.end_time.getTime() / 1000) : 0,
     max_uses_per_user: data.max_uses_per_user,
     max_uses_total: data.max_uses_total,
     count: data.count || 1,
@@ -117,6 +120,7 @@ function transformToFormDefaults(dc: DiscountCode): FormValues {
     name: dc.name,
     code: dc.code,
     discount_rate: dc.discount_rate,
+    max_amount: dc.max_amount ?? 0,
     start_time: dc.start_time > 0 ? new Date(dc.start_time * 1000) : undefined,
     end_time: dc.end_time > 0 ? new Date(dc.end_time * 1000) : undefined,
     max_uses_per_user: dc.max_uses_per_user,
@@ -152,11 +156,15 @@ export function DiscountCodesMutateDrawer({
 
   useEffect(() => {
     if (open && isUpdate && currentRow) {
-      getDiscountCode(currentRow.id).then((result) => {
-        if (result.success && result.data) {
-          form.reset(transformToFormDefaults(result.data))
-        }
-      })
+      getDiscountCode(currentRow.id)
+        .then((result) => {
+          if (result.success && result.data) {
+            form.reset(transformToFormDefaults(result.data))
+          }
+        })
+        .catch(() => {
+          // The API interceptor displays the request error.
+        })
     } else if (open && !isUpdate) {
       form.reset(DEFAULT_VALUES)
     }
@@ -206,9 +214,7 @@ export function DiscountCodesMutateDrawer({
       <SheetContent className='flex h-dvh w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-[600px]'>
         <SheetHeader className='border-b px-4 py-3 text-start sm:px-6 sm:py-4'>
           <SheetTitle>
-            {isUpdate
-              ? t('Edit Discount Code')
-              : t('Create Discount Code')}
+            {isUpdate ? t('Edit Discount Code') : t('Create Discount Code')}
           </SheetTitle>
           <SheetDescription>
             {isUpdate
@@ -230,13 +236,12 @@ export function DiscountCodesMutateDrawer({
                 <FormItem>
                   <FormLabel>{t('Name')}</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      placeholder={t('Enter a name')}
-                    />
+                    <Input {...field} placeholder={t('Enter a name')} />
                   </FormControl>
                   <FormDescription>
-                    {t('Optional name for this discount code (max 100 characters)')}
+                    {t(
+                      'Optional name for this discount code (max 100 characters)'
+                    )}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -252,7 +257,11 @@ export function DiscountCodesMutateDrawer({
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder={isUpdate ? t('Leave blank to keep current') : t('Leave blank to auto-generate')}
+                      placeholder={
+                        isUpdate
+                          ? t('Leave blank to keep current')
+                          : t('Leave blank to auto-generate')
+                      }
                     />
                   </FormControl>
                   <FormDescription>
@@ -285,6 +294,29 @@ export function DiscountCodesMutateDrawer({
                   </FormControl>
                   <FormDescription>
                     {t('90 = 10% off, pay 90%. Range: 1-99')}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='max_amount'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('Max recharge per order')}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type='number'
+                      min={0}
+                      step={1}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {t('Same unit as minimum top-up; 0 means unlimited')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -350,9 +382,7 @@ export function DiscountCodesMutateDrawer({
                       }
                     />
                   </FormControl>
-                  <FormDescription>
-                    {t('0 = unlimited')}
-                  </FormDescription>
+                  <FormDescription>{t('0 = unlimited')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -375,9 +405,7 @@ export function DiscountCodesMutateDrawer({
                       }
                     />
                   </FormControl>
-                  <FormDescription>
-                    {t('0 = unlimited')}
-                  </FormDescription>
+                  <FormDescription>{t('0 = unlimited')}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

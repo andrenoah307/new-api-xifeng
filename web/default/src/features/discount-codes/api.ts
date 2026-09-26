@@ -1,4 +1,5 @@
 import { api } from '@/lib/api'
+
 import type {
   DiscountCode,
   ApiResponse,
@@ -77,7 +78,9 @@ export async function deleteDiscountCode(id: number): Promise<ApiResponse> {
 // Validate a discount code (user-facing)
 export async function validateDiscountCode(
   code: string
-): Promise<ApiResponse<{ discount_rate: number; code: string }>> {
+): Promise<
+  ApiResponse<{ discount_rate: number; max_amount: number; code: string }>
+> {
   const res = await api.post('/api/user/discount_code/validate', { code })
   return res.data
 }

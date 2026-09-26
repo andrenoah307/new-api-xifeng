@@ -101,9 +101,8 @@ const RechargeCard = ({
   allSubscriptions = [],
   reloadSubscriptionSelf,
   enableRedemption = true,
-  discountCodeRef,
-  discountCodeInfoRef,
-  requestAmountByPayment,
+  discountCodeInfo,
+  updateDiscountCodeInfo,
 }) => {
   const onlineFormApiRef = useRef(null);
   const redeemFormApiRef = useRef(null);
@@ -117,34 +116,11 @@ const RechargeCard = ({
 
   // Discount code state
   const [discountCode, setDiscountCode] = useState('');
-  const [discountCodeInfo, setDiscountCodeInfo] = useState(null);
   const [validatingDiscountCode, setValidatingDiscountCode] = useState(false);
-
-  // Reset discount code state when amount or payment method changes
-  useEffect(() => {
-    setDiscountCodeInfo(null);
-    setDiscountCode('');
-    if (discountCodeRef) discountCodeRef.current = '';
-    if (discountCodeInfoRef) discountCodeInfoRef.current = null;
-  }, [topUpCount, payWay]);
-
-  // Sync validated discount code to parent ref and recalculate amount
-  const discountMountedRef = useRef(false);
-  useEffect(() => {
-    if (discountCodeRef) {
-      discountCodeRef.current = discountCodeInfo ? discountCode.trim() : '';
-    }
-    if (discountCodeInfoRef) {
-      discountCodeInfoRef.current = discountCodeInfo;
-    }
-    if (!discountMountedRef.current) {
-      discountMountedRef.current = true;
-      return;
-    }
-    if (requestAmountByPayment) {
-      requestAmountByPayment(payWay);
-    }
-  }, [discountCodeInfo]);
+  const discountValidationRef = useRef(0);
+  const discountCodeMaxAmount = discountCodeInfo?.max_amount || 0;
+  const discountCodeOverLimit =
+    discountCodeMaxAmount > 0 && Number(topUpCount) > discountCodeMaxAmount;
 
   const validateDiscountCode = async () => {
     if (!discountCode.trim()) {
@@ -152,22 +128,28 @@ const RechargeCard = ({
       return;
     }
     setValidatingDiscountCode(true);
+    const validationId = ++discountValidationRef.current;
     try {
       const res = await API.post('/api/user/discount_code/validate', {
         code: discountCode.trim(),
       });
       const { success, message, data } = res.data;
+      if (validationId !== discountValidationRef.current) return;
       if (success) {
-        setDiscountCodeInfo(data);
+        updateDiscountCodeInfo(data);
       } else {
-        setDiscountCodeInfo(null);
+        updateDiscountCodeInfo(null);
         showError(message || t('折扣码无效'));
       }
     } catch (error) {
-      setDiscountCodeInfo(null);
+      if (validationId !== discountValidationRef.current) return;
+      updateDiscountCodeInfo(null);
       showError(error.message || t('验证失败'));
+    } finally {
+      if (validationId === discountValidationRef.current) {
+        setValidatingDiscountCode(false);
+      }
     }
-    setValidatingDiscountCode(false);
   };
 
   useEffect(() => {
@@ -385,6 +367,7 @@ const RechargeCard = ({
                             const isWaffoPancake =
                               payMethod.type === 'waffo_pancake';
                             const disabled =
+                              discountCodeOverLimit ||
                               (!enableOnlineTopUp &&
                                 !isStripe &&
                                 !isWaffo &&
@@ -614,12 +597,19 @@ const RechargeCard = ({
                       <Input
                         placeholder={t('输入折扣码享受折扣')}
                         value={discountCode}
-                        onChange={(val) => setDiscountCode(val)}
+                        onChange={(val) => {
+                          setDiscountCode(val);
+                          discountValidationRef.current += 1;
+                          setValidatingDiscountCode(false);
+                          if (discountCodeInfo) updateDiscountCodeInfo(null);
+                        }}
                         onEnterPress={validateDiscountCode}
                         showClear
                         onClear={() => {
                           setDiscountCode('');
-                          setDiscountCodeInfo(null);
+                          discountValidationRef.current += 1;
+                          setValidatingDiscountCode(false);
+                          updateDiscountCodeInfo(null);
                         }}
                         style={{ flex: 1 }}
                       />
@@ -648,6 +638,21 @@ const RechargeCard = ({
                           '%)'
                         }
                         className='!rounded-lg'
+                        closeIcon={null}
+                      />
+                    )}
+                    {discountCodeMaxAmount > 0 && (
+                      <Banner
+                        type={discountCodeOverLimit ? 'danger' : 'info'}
+                        description={
+                          discountCodeOverLimit
+                            ? t('该折扣码单笔最多充值 {{amount}}', {
+                                amount: discountCodeMaxAmount,
+                              })
+                            : t('此折扣码单笔最多充值 {{amount}}', {
+                                amount: discountCodeMaxAmount,
+                              })
+                        }
                         closeIcon={null}
                       />
                     )}

@@ -1,5 +1,10 @@
 {
   "translation": {
+    "Enter a non-negative integer": "Введите целое неотрицательное число",
+    "Max recharge per order": "Максимальное пополнение за заказ",
+    "Max {{amount}} per order with this code": "С этим кодом — не более {{amount}} за заказ",
+    "Same unit as minimum top-up; 0 means unlimited": "Единица та же, что у минимального пополнения; 0 — без ограничений",
+    "This discount code allows a maximum recharge of {{amount}} per order": "Этот промокод позволяет пополнить счёт максимум на {{amount}} за заказ",
     "Invitation code": "Код приглашения",
     "Please enter your invitation code": "Введите код приглашения",
     "Invitation Codes": "Коды приглашения",

@@ -9,6 +9,7 @@ export const discountCodeSchema = z.object({
   code: z.string(),
   name: z.string(),
   discount_rate: z.number(), // 1-99, e.g. 90 = pay 90%
+  max_amount: z.number().int().min(0),
   start_time: z.number(), // unix timestamp, 0 = no limit
   end_time: z.number(), // unix timestamp, 0 = no limit
   max_uses_total: z.number(), // 0 = unlimited
@@ -57,6 +58,7 @@ export interface DiscountCodeFormData {
   name?: string
   code?: string
   discount_rate: number
+  max_amount: number
   start_time: number
   end_time: number
   max_uses_per_user: number

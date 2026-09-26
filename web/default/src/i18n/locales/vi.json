@@ -1,5 +1,10 @@
 {
   "translation": {
+    "Enter a non-negative integer": "Nhập số nguyên không âm",
+    "Max recharge per order": "Mức nạp tối đa mỗi đơn",
+    "Max {{amount}} per order with this code": "Tối đa {{amount}} mỗi đơn với mã này",
+    "Same unit as minimum top-up; 0 means unlimited": "Cùng đơn vị với mức nạp tối thiểu; 0 là không giới hạn",
+    "This discount code allows a maximum recharge of {{amount}} per order": "Mã giảm giá này cho phép nạp tối đa {{amount}} mỗi đơn",
     "Invitation code": "Mã mời",
     "Please enter your invitation code": "Vui lòng nhập mã mời",
     "Invitation Codes": "Mã mời",

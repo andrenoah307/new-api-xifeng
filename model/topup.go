@@ -26,7 +26,8 @@ type TopUp struct {
 	CompleteTime    int64   `json:"complete_time"`
 	Status          string  `json:"status"`
 	Source          string  `json:"source" gorm:"type:varchar(50);default:''"`
-	DiscountCodeId  int     `json:"discount_code_id" gorm:"default:0"`
+	DiscountCodeId  int     `json:"discount_code_id" gorm:"default:0;index"`
+	DiscountRate    int     `json:"discount_rate" gorm:"default:0"`
 
 	// InvoiceStatus 是列表查询时按发票关联回填的展示字段（不落库）：
 	// 0=未开票，InvoiceStatusPending=开票中，InvoiceStatusIssued=已开票。
@@ -641,7 +642,7 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 		if topUp.Status == common.TopUpStatusSuccess {
 			return nil
 		}
-		if topUp.Status != common.TopUpStatusPending {
+		if topUp.Status != common.TopUpStatusPending && topUp.Status != common.TopUpStatusExpired {
 			return ErrTopUpStatusInvalid
 		}
 
@@ -658,6 +659,9 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 			return errors.New("无效的充值额度")
 		}
 
+		if topUp.Status == common.TopUpStatusExpired {
+			common.SysLog(fmt.Sprintf("late payment for expired topup: trade_no=%s discount_code_id=%d", topUp.TradeNo, topUp.DiscountCodeId))
+		}
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
 		topUp.QuotaGranted = int64(quotaToAdd)
@@ -710,7 +714,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 			return nil // 幂等：已成功直接返回
 		}
 
-		if topUp.Status != common.TopUpStatusPending {
+		if topUp.Status != common.TopUpStatusPending && topUp.Status != common.TopUpStatusExpired {
 			return errors.New("充值订单状态错误")
 		}
 
@@ -724,6 +728,9 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 			return errors.New("无效的充值额度")
 		}
 
+		if topUp.Status == common.TopUpStatusExpired {
+			common.SysLog(fmt.Sprintf("late payment for expired topup: trade_no=%s discount_code_id=%d", topUp.TradeNo, topUp.DiscountCodeId))
+		}
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
 		topUp.QuotaGranted = int64(quotaToAdd)
@@ -784,7 +791,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 			return nil
 		}
 
-		if topUp.Status != common.TopUpStatusPending {
+		if topUp.Status != common.TopUpStatusPending && topUp.Status != common.TopUpStatusExpired {
 			return errors.New("充值订单状态错误")
 		}
 
@@ -797,6 +804,9 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 			return errors.New("无效的充值额度")
 		}
 
+		if topUp.Status == common.TopUpStatusExpired {
+			common.SysLog(fmt.Sprintf("late payment for expired topup: trade_no=%s discount_code_id=%d", topUp.TradeNo, topUp.DiscountCodeId))
+		}
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
 		topUp.QuotaGranted = int64(quotaToAdd)
@@ -874,8 +884,15 @@ func ProcessDiscountCodeBonus(topUp *TopUp) {
 	if topUp.DiscountCodeId <= 0 || topUp.QuotaGranted <= 0 {
 		return
 	}
-	dc, err := GetDiscountCodeById(topUp.DiscountCodeId)
-	if err != nil || dc == nil || dc.DiscountRate <= 0 || dc.DiscountRate >= 100 {
+	rate := topUp.DiscountRate
+	if rate == 0 {
+		var dc DiscountCode
+		if err := DB.Unscoped().First(&dc, topUp.DiscountCodeId).Error; err != nil {
+			return
+		}
+		rate = dc.DiscountRate
+	}
+	if rate <= 0 || rate >= 100 {
 		return
 	}
 
@@ -886,10 +903,9 @@ func ProcessDiscountCodeBonus(topUp *TopUp) {
 	}
 
 	dPaid := decimal.NewFromInt(topUp.QuotaGranted)
-	dRate := decimal.NewFromInt(int64(dc.DiscountRate))
+	dRate := decimal.NewFromInt(int64(rate))
 	dHundred := decimal.NewFromInt(100)
-	originalQuota := dPaid.Mul(dHundred).Div(dRate).IntPart()
-	bonusQuota := originalQuota - topUp.QuotaGranted
+	bonusQuota := common.QuotaFromDecimal(dPaid.Mul(dHundred).Div(dRate).Sub(dPaid))
 	if bonusQuota <= 0 {
 		return
 	}
@@ -898,7 +914,7 @@ func ProcessDiscountCodeBonus(topUp *TopUp) {
 		UserId:          topUp.UserId,
 		Amount:          0,
 		Money:           0,
-		QuotaGranted:    bonusQuota,
+		QuotaGranted:    int64(bonusQuota),
 		TradeNo:         bonusTradeNo,
 		PaymentMethod:   "discount_bonus",
 		PaymentProvider: "discount_code",
@@ -913,14 +929,14 @@ func ProcessDiscountCodeBonus(topUp *TopUp) {
 		return
 	}
 
-	if err := IncreaseUserQuota(topUp.UserId, int(bonusQuota), false); err != nil {
+	if err := IncreaseUserQuota(topUp.UserId, bonusQuota, false); err != nil {
 		common.SysError("failed to increase user quota for discount bonus: " + err.Error())
 		return
 	}
 
 	_ = RecordDiscountCodeUsage(topUp.DiscountCodeId, topUp.UserId, topUp.Id)
-	_ = DB.Model(&DiscountCode{}).Where("id = ?", topUp.DiscountCodeId).
+	_ = DB.Unscoped().Model(&DiscountCode{}).Where("id = ?", topUp.DiscountCodeId).
 		Update("used_count", gorm.Expr("used_count + 1")).Error
 
-	RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("折扣码赠金 %s，折扣码ID %d", logger.FormatQuota(int(bonusQuota)), topUp.DiscountCodeId))
+	RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("折扣码赠金 %s，折扣码ID %d", logger.FormatQuota(bonusQuota), topUp.DiscountCodeId))
 }

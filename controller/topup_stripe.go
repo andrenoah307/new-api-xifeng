@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 	"github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/checkout/session"
 	"github.com/stripe/stripe-go/v81/webhook"
@@ -63,6 +64,9 @@ func (*StripeAdaptor) RequestAmount(c *gin.Context, req *StripePayRequest) {
 			return
 		}
 		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err == nil {
+			err = dc.CheckMaxAmount(decimal.NewFromInt(req.Amount))
+		}
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
 			return
@@ -104,18 +108,22 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 	user, _ := model.GetUserById(id, false)
 	chargedMoney := GetChargedAmount(float64(req.Amount), *user)
 
-	var discountCodeId int
+	var discountCodeId, discountRate int
 	if req.DiscountCode != "" {
 		if !operation_setting.IsDiscountCodeEnabled() {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
 			return
 		}
 		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err == nil {
+			err = dc.CheckMaxAmount(decimal.NewFromInt(req.Amount))
+		}
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
 			return
 		}
 		discountCodeId = dc.Id
+		discountRate = dc.DiscountRate
 		chargedMoney = chargedMoney * float64(dc.DiscountRate) / 100.0
 	}
 
@@ -139,11 +147,21 @@ func (*StripeAdaptor) RequestPay(c *gin.Context, req *StripePayRequest) {
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
 		DiscountCodeId:  discountCodeId,
+		DiscountRate:    discountRate,
 	}
-	err = topUp.Insert()
+	if discountCodeId > 0 {
+		err = model.ReserveDiscountCodeTopUp(topUp)
+	} else {
+		err = topUp.Insert()
+	}
 	if err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Stripe 创建充值订单失败 user_id=%d trade_no=%s amount=%d error=%q", id, referenceId, req.Amount, err.Error()))
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "创建订单失败"})
+		message := "创建订单失败"
+		var businessErr model.DiscountCodeValidationError
+		if errors.As(err, &businessErr) {
+			message = businessErr.Error()
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "error", "data": message})
 		return
 	}
 	logger.LogInfo(c.Request.Context(), fmt.Sprintf("Stripe 充值订单创建成功 user_id=%d trade_no=%s amount=%d money=%.2f", id, referenceId, req.Amount, chargedMoney))

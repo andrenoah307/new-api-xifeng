@@ -239,6 +239,12 @@ const DiscountCode = () => {
           text && text > 0 ? timestamp2string(text) : t('无'),
       },
       {
+        title: t('单笔充值上限'),
+        dataIndex: 'max_amount',
+        width: 150,
+        render: (value) => (value > 0 ? value : t('不限')),
+      },
+      {
         title: t('结束时间'),
         dataIndex: 'end_time',
         width: 170,

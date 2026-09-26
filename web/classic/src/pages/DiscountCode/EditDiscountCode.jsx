@@ -38,6 +38,7 @@ const EditDiscountCode = ({ visible, record, onClose, onSuccess }) => {
     name: '',
     code: '',
     discount_rate: 90,
+    max_amount: 0,
     start_time: null,
     end_time: null,
     max_uses_per_user: 0,
@@ -64,6 +65,7 @@ const EditDiscountCode = ({ visible, record, onClose, onSuccess }) => {
           name: data.name || '',
           code: data.code || '',
           discount_rate: data.discount_rate || 90,
+          max_amount: data.max_amount ?? 0,
           start_time: data.start_time && data.start_time > 0
             ? new Date(data.start_time * 1000)
             : null,
@@ -91,6 +93,7 @@ const EditDiscountCode = ({ visible, record, onClose, onSuccess }) => {
         name: values.name || '',
         code: values.code || '',
         discount_rate: parseInt(values.discount_rate) || 90,
+        max_amount: parseInt(values.max_amount) || 0,
         start_time: values.start_time
           ? Math.floor(values.start_time.getTime() / 1000)
           : 0,
@@ -194,6 +197,16 @@ const EditDiscountCode = ({ visible, record, onClose, onSuccess }) => {
                   },
                 ]}
                 extraText={t('90 = 九折，实付90%')}
+              />
+            </Col>
+            <Col span={24}>
+              <Form.InputNumber
+                field='max_amount'
+                label={t('单笔充值上限')}
+                extraText={t('与最低充值同单位，0 为不限')}
+                min={0}
+                precision={0}
+                style={{ width: '100%' }}
               />
             </Col>
             <Col span={12}>

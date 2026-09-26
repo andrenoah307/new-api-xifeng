@@ -1,11 +1,13 @@
-import { type ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
-import { formatTimestampToDate } from '@/lib/format'
+
 import { DataTableColumnHeader } from '@/components/data-table'
 import { MaskedValueDisplay } from '@/components/masked-value-display'
 import { StatusBadge } from '@/components/status-badge'
+import { formatTimestampToDate } from '@/lib/format'
+
 import { DISCOUNT_CODE_STATUSES } from '../constants'
-import { type DiscountCode } from '../types'
+import type { DiscountCode } from '../types'
 import { DataTableRowActions } from './data-table-row-actions'
 
 export function useDiscountCodesColumns(): ColumnDef<DiscountCode>[] {
@@ -17,9 +19,7 @@ export function useDiscountCodesColumns(): ColumnDef<DiscountCode>[] {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('ID')} />
       ),
-      cell: ({ row }) => (
-        <div className='w-[60px]'>{row.getValue('id')}</div>
-      ),
+      cell: ({ row }) => <div className='w-[60px]'>{row.getValue('id')}</div>,
     },
     {
       id: 'code',
@@ -77,6 +77,20 @@ export function useDiscountCodesColumns(): ColumnDef<DiscountCode>[] {
       },
     },
     {
+      accessorKey: 'max_amount',
+      meta: { label: t('Max recharge per order') },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t('Max recharge per order')}
+        />
+      ),
+      cell: ({ row }) =>
+        row.original.max_amount === 0
+          ? t('Unlimited')
+          : String(row.original.max_amount),
+    },
+    {
       accessorKey: 'start_time',
       meta: { label: t('Start Time'), mobileHidden: true },
       header: ({ column }) => (
@@ -131,10 +145,7 @@ export function useDiscountCodesColumns(): ColumnDef<DiscountCode>[] {
       accessorKey: 'max_uses_per_user',
       meta: { label: t('Max Uses Per User'), mobileHidden: true },
       header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          title={t('Max Uses Per User')}
-        />
+        <DataTableColumnHeader column={column} title={t('Max Uses Per User')} />
       ),
       cell: ({ row }) => {
         const val = row.getValue('max_uses_per_user') as number
@@ -158,9 +169,7 @@ export function useDiscountCodesColumns(): ColumnDef<DiscountCode>[] {
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t('Used Count')} />
       ),
-      cell: ({ row }) => (
-        <div>{row.getValue('used_count')}</div>
-      ),
+      cell: ({ row }) => <div>{row.getValue('used_count')}</div>,
     },
     {
       accessorKey: 'status',

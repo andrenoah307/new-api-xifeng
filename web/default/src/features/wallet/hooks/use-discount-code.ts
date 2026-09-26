@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react'
 import i18next from 'i18next'
+import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
+
 import { validateDiscountCode } from '@/features/discount-codes/api'
 
 export interface DiscountInfo {
   discount_rate: number
+  max_amount: number
   code: string
 }
 
@@ -30,9 +32,7 @@ export function useDiscountCode() {
         )
       } else {
         setDiscountInfo(null)
-        toast.error(
-          result.message || i18next.t('Invalid discount code')
-        )
+        toast.error(result.message || i18next.t('Invalid discount code'))
       }
     } catch {
       setDiscountInfo(null)

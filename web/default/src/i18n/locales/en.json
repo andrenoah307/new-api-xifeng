@@ -1,5 +1,10 @@
 {
   "translation": {
+    "Enter a non-negative integer": "Enter a non-negative integer",
+    "Max recharge per order": "Max recharge per order",
+    "Max {{amount}} per order with this code": "Max {{amount}} per order with this code",
+    "Same unit as minimum top-up; 0 means unlimited": "Same unit as minimum top-up; 0 means unlimited",
+    "This discount code allows a maximum recharge of {{amount}} per order": "This discount code allows a maximum recharge of {{amount}} per order",
     "Invitation code": "Invitation code",
     "Please enter your invitation code": "Please enter your invitation code",
     "Invitation Codes": "Invitation Codes",

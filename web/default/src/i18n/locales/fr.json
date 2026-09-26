@@ -1,5 +1,10 @@
 {
   "translation": {
+    "Enter a non-negative integer": "Saisissez un entier positif ou nul",
+    "Max recharge per order": "Recharge maximale par commande",
+    "Max {{amount}} per order with this code": "Maximum de {{amount}} par commande avec ce code",
+    "Same unit as minimum top-up; 0 means unlimited": "Même unité que la recharge minimale ; 0 signifie sans limite",
+    "This discount code allows a maximum recharge of {{amount}} per order": "Ce code de réduction limite la recharge à {{amount}} par commande",
     "Invitation code": "Code d'invitation",
     "Please enter your invitation code": "Veuillez saisir votre code d'invitation",
     "Invitation Codes": "Codes d'invitation",

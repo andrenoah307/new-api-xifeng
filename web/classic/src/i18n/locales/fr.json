@@ -5077,6 +5077,10 @@
     "未配置超时时限的类别没有越界阈值，因此该类别的连接永远不可清理。": "Une catégorie sans délai d'expiration configuré n'a pas de seuil de dépassement, ses connexions ne peuvent donc jamais être nettoyées.",
     "本实例的连接跟踪已降级，计数可能不完整。": "Le suivi des connexions est dégradé sur cette instance, les compteurs peuvent être incomplets.",
     "计数仅覆盖响应本次请求的实例。": "Les compteurs ne couvrent que l'instance qui répond à cette requête.",
-    "已清理 {{total}} 条卡住的连接": "{{total}} connexions bloquées nettoyées"
+    "已清理 {{total}} 条卡住的连接": "{{total}} connexions bloquées nettoyées",
+    "单笔充值上限": "Plafond par recharge",
+    "与最低充值同单位，0 为不限": "Même unité que la recharge minimale ; 0 signifie illimité",
+    "此折扣码单笔最多充值 {{amount}}": "Ce code de réduction permet une recharge maximale de {{amount}} par transaction",
+    "该折扣码单笔最多充值 {{amount}}": "La recharge maximale avec ce code de réduction est de {{amount}} par transaction"
   }
 }

@@ -51,6 +51,7 @@ import {
   getMinTopupAmount,
   isWaffoPancakePayment,
 } from './lib'
+import { exceedsDiscountCodeLimit } from './lib/discount-code'
 import type {
   UserWalletData,
   PaymentMethod,
@@ -116,6 +117,10 @@ export function Wallet(props: WalletProps) {
     validateDiscountCode: handleValidateDiscount,
     clearDiscountCode,
   } = useDiscountCode()
+  const discountLimitExceeded = exceedsDiscountCodeLimit(
+    topupAmount,
+    discountInfo?.max_amount
+  )
 
   // Fetch and refresh user data
   const fetchUser = useCallback(async () => {
@@ -159,8 +164,15 @@ export function Wallet(props: WalletProps) {
       discountMountedRef.current = true
       return
     }
-    if (topupAmount > 0) {
-      calculatePaymentAmount(topupAmount, getCurrentPaymentType(), discountInfo?.code)
+    if (
+      topupAmount > 0 &&
+      !exceedsDiscountCodeLimit(topupAmount, discountInfo?.max_amount)
+    ) {
+      calculatePaymentAmount(
+        topupAmount,
+        getCurrentPaymentType(),
+        discountInfo?.code
+      )
     }
   }, [discountInfo]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -173,23 +185,36 @@ export function Wallet(props: WalletProps) {
   const handleSelectPreset = (preset: PresetAmount) => {
     setTopupAmount(preset.value)
     setSelectedPreset(preset.value)
-    calculatePaymentAmount(preset.value, getCurrentPaymentType(), discountInfo?.code)
+    if (exceedsDiscountCodeLimit(preset.value, discountInfo?.max_amount)) return
+    calculatePaymentAmount(
+      preset.value,
+      getCurrentPaymentType(),
+      discountInfo?.code
+    )
   }
 
   // Handle topup amount change (state only, no API call — calculation deferred to blur)
   const handleTopupAmountChange = (amount: number) => {
     setTopupAmount(amount)
     setSelectedPreset(null)
-    clearDiscountCode()
   }
 
   // Handle topup amount blur — validate and calculate payment
-  const handleTopupAmountBlur = useCallback((amount: number) => {
-    calculatePaymentAmount(amount, getCurrentPaymentType())
-  }, [calculatePaymentAmount, getCurrentPaymentType])
+  const handleTopupAmountBlur = useCallback(
+    (amount: number) => {
+      if (exceedsDiscountCodeLimit(amount, discountInfo?.max_amount)) return
+      calculatePaymentAmount(
+        amount,
+        getCurrentPaymentType(),
+        discountInfo?.code
+      )
+    },
+    [calculatePaymentAmount, getCurrentPaymentType, discountInfo]
+  )
 
   // Handle payment method selection
   const handlePaymentMethodSelect = async (method: PaymentMethod) => {
+    if (discountLimitExceeded) return
     setSelectedPaymentMethod(method)
     setPaymentLoading(method.type)
 
@@ -202,7 +227,12 @@ export function Wallet(props: WalletProps) {
       }
 
       // Calculate payment amount and show confirmation dialog
-      await calculatePaymentAmount(topupAmount, method.type, discountInfo?.code)
+      const amount = await calculatePaymentAmount(
+        topupAmount,
+        method.type,
+        discountInfo?.code
+      )
+      if (amount <= 0) return
       setConfirmDialogOpen(true)
     } finally {
       setPaymentLoading(null)
@@ -212,12 +242,25 @@ export function Wallet(props: WalletProps) {
   // Handle payment confirmation
   const handlePaymentConfirm = async () => {
     if (!selectedPaymentMethod) return
+    if (exceedsDiscountCodeLimit(topupAmount, discountInfo?.max_amount)) {
+      toast.error(
+        t(
+          'This discount code allows a maximum recharge of {{amount}} per order',
+          { amount: discountInfo?.max_amount }
+        )
+      )
+      return
+    }
 
     const isPancake = isWaffoPancakePayment(selectedPaymentMethod.type)
     const activeDiscountCode = discountInfo?.code
     const success = isPancake
       ? await processWaffoPancakePayment(topupAmount, activeDiscountCode)
-      : await processPayment(topupAmount, selectedPaymentMethod.type, activeDiscountCode)
+      : await processPayment(
+          topupAmount,
+          selectedPaymentMethod.type,
+          activeDiscountCode
+        )
 
     if (success) {
       setConfirmDialogOpen(false)
@@ -265,6 +308,7 @@ export function Wallet(props: WalletProps) {
   }
 
   const handleWaffoMethodSelect = async (_method: unknown, index: number) => {
+    if (discountLimitExceeded) return
     const loadingKey = `waffo-${index}`
     setPaymentLoading(loadingKey)
 
@@ -277,7 +321,8 @@ export function Wallet(props: WalletProps) {
 
   // Get discount rate for current topup amount
   const getDiscountRate = useCallback(() => {
-    const presetDiscount = topupInfo?.discount?.[topupAmount] || DEFAULT_DISCOUNT_RATE
+    const presetDiscount =
+      topupInfo?.discount?.[topupAmount] || DEFAULT_DISCOUNT_RATE
     if (discountInfo) {
       return presetDiscount * (discountInfo.discount_rate / 100)
     }
@@ -295,8 +340,8 @@ export function Wallet(props: WalletProps) {
   // 三个开关任一开启即展示自助邀请码卡片，卡片内部再按 can_generate 决定能否生成。
   const showInvitationCodeCard = Boolean(
     status?.invitation_code_enabled ||
-      status?.invitation_code_oauth_required ||
-      status?.invitation_code_user_generate_enabled
+    status?.invitation_code_oauth_required ||
+    status?.invitation_code_user_generate_enabled
   )
 
   return (
@@ -346,13 +391,16 @@ export function Wallet(props: WalletProps) {
                   enableWaffoPancakeTopup={
                     topupInfo?.enable_waffo_pancake_topup
                   }
-                  {...(status?.discount_code_enabled ? {
-                    discountCode: discountCodeInput,
-                    onDiscountCodeChange: setDiscountCodeInput,
-                    onValidateDiscountCode: handleValidateDiscount,
-                    discountValidating: discountValidating,
-                    discountInfo: discountInfo,
-                  } : {})}
+                  {...(status?.discount_code_enabled
+                    ? {
+                        discountCode: discountCodeInput,
+                        onDiscountCodeChange: setDiscountCodeInput,
+                        onClearDiscountCode: clearDiscountCode,
+                        onValidateDiscountCode: handleValidateDiscount,
+                        discountValidating: discountValidating,
+                        discountInfo: discountInfo,
+                      }
+                    : {})}
                   selectedPaymentMethodType={selectedPaymentMethod?.type}
                 />
               </div>
@@ -391,6 +439,7 @@ export function Wallet(props: WalletProps) {
         calculating={calculating}
         processing={processing || pancakeProcessing}
         discountRate={getDiscountRate()}
+        discountMaxAmount={discountInfo?.max_amount}
         usdExchangeRate={effectiveUsdExchangeRate}
       />
 

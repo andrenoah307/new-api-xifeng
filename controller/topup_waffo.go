@@ -16,6 +16,7 @@ import (
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 	"github.com/thanhpk/randstr"
 	waffo "github.com/waffo-com/waffo-go"
 	"github.com/waffo-com/waffo-go/config"
@@ -139,6 +140,9 @@ func RequestWaffoAmount(c *gin.Context) {
 			return
 		}
 		dc, err := model.ValidateDiscountCode(req.DiscountCode, c.GetInt("id"))
+		if err == nil {
+			err = dc.CheckMaxAmount(decimal.NewFromInt(req.Amount))
+		}
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
 			return
@@ -217,18 +221,22 @@ func RequestWaffoPay(c *gin.Context) {
 		return
 	}
 
-	var discountCodeId int
+	var discountCodeId, discountRate int
 	if req.DiscountCode != "" {
 		if !operation_setting.IsDiscountCodeEnabled() {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣码功能未启用"})
 			return
 		}
 		dc, err := model.ValidateDiscountCode(req.DiscountCode, id)
+		if err == nil {
+			err = dc.CheckMaxAmount(decimal.NewFromInt(req.Amount))
+		}
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": err.Error()})
 			return
 		}
 		discountCodeId = dc.Id
+		discountRate = dc.DiscountRate
 		payMoney = payMoney * float64(dc.DiscountRate) / 100.0
 		if payMoney < 0.01 {
 			c.JSON(http.StatusOK, gin.H{"message": "error", "data": "折扣后充值金额过低"})
@@ -260,10 +268,21 @@ func RequestWaffoPay(c *gin.Context) {
 		CreateTime:      time.Now().Unix(),
 		Status:          common.TopUpStatusPending,
 		DiscountCodeId:  discountCodeId,
+		DiscountRate:    discountRate,
 	}
-	if err := topUp.Insert(); err != nil {
+	if discountCodeId > 0 {
+		err = model.ReserveDiscountCodeTopUp(topUp)
+	} else {
+		err = topUp.Insert()
+	}
+	if err != nil {
 		logger.LogError(c.Request.Context(), fmt.Sprintf("Waffo 创建充值订单失败 user_id=%d trade_no=%s amount=%d error=%q", id, merchantOrderId, req.Amount, err.Error()))
-		c.JSON(http.StatusOK, gin.H{"message": "error", "data": "创建订单失败"})
+		message := "创建订单失败"
+		var businessErr model.DiscountCodeValidationError
+		if errors.As(err, &businessErr) {
+			message = businessErr.Error()
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "error", "data": message})
 		return
 	}
 

@@ -1,5 +1,10 @@
 {
   "translation": {
+    "Enter a non-negative integer": "请输入非负整数",
+    "Max recharge per order": "单笔充值上限",
+    "Max {{amount}} per order with this code": "此折扣码单笔最多充值 {{amount}}",
+    "Same unit as minimum top-up; 0 means unlimited": "单位与最低充值数量相同；0 表示不限",
+    "This discount code allows a maximum recharge of {{amount}} per order": "该折扣码单笔最多充值 {{amount}}",
     "Invitation code": "邀请码",
     "Please enter your invitation code": "请输入邀请码",
     "Invitation Codes": "邀请码",

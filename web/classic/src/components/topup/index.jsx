@@ -107,6 +107,26 @@ const TopUp = () => {
   const affFetchedRef = useRef(false);
   const discountCodeRef = useRef('');
   const discountCodeInfoRef = useRef(null);
+  const [discountCodeInfo, setDiscountCodeInfo] = useState(null);
+
+  const updateDiscountCodeInfo = (info) => {
+    discountCodeRef.current = info?.code || '';
+    discountCodeInfoRef.current = info;
+    setDiscountCodeInfo(info);
+    requestAmountByPayment(payWay);
+  };
+
+  const checkDiscountCodeLimit = (value = topUpCount, { silent } = {}) => {
+    const maxAmount = discountCodeInfoRef.current?.max_amount || 0;
+    if (maxAmount > 0 && Number(value) > maxAmount) {
+      setAmount(0);
+      if (!silent) {
+        showError(t('该折扣码单笔最多充值 {{amount}}', { amount: maxAmount }));
+      }
+      return false;
+    }
+    return true;
+  };
 
   // 邀请相关状态
   const [affLink, setAffLink] = useState('');
@@ -216,6 +236,7 @@ const TopUp = () => {
   };
 
   const preTopUp = async (payment) => {
+    if (!checkDiscountCodeLimit()) return;
     if (payment === 'stripe') {
       if (!enableStripeTopUp) {
         showError(t('管理员未开启Stripe充值！'));
@@ -257,6 +278,7 @@ const TopUp = () => {
   };
 
   const onlineTopUp = async () => {
+    if (!checkDiscountCodeLimit()) return;
     if (payWay === 'waffo_pancake') {
       setConfirmLoading(true);
       try {
@@ -442,6 +464,7 @@ const TopUp = () => {
     if (value === undefined) {
       value = topUpCount;
     }
+    if (!checkDiscountCodeLimit(value, { silent })) return;
     setAmountLoading(true);
     try {
       const res = await API.post('/api/user/waffo/amount', {
@@ -511,6 +534,7 @@ const TopUp = () => {
     if (value === undefined) {
       value = topUpCount;
     }
+    if (!checkDiscountCodeLimit(value, { silent })) return;
     setAmountLoading(true);
     try {
       const res = await API.post('/api/user/waffo-pancake/amount', {
@@ -827,6 +851,7 @@ const TopUp = () => {
     if (value === undefined) {
       value = topUpCount;
     }
+    if (!checkDiscountCodeLimit(value, { silent })) return;
     setAmountLoading(true);
     try {
       const res = await API.post('/api/user/amount', {
@@ -854,6 +879,7 @@ const TopUp = () => {
     if (value === undefined) {
       value = topUpCount;
     }
+    if (!checkDiscountCodeLimit(value, { silent })) return;
     setAmountLoading(true);
     try {
       const res = await API.post('/api/user/stripe/amount', {
@@ -900,6 +926,12 @@ const TopUp = () => {
     setTopUpCount(preset.value);
     setSelectedPreset(preset.value);
 
+    if (!checkDiscountCodeLimit(preset.value)) return;
+    if (discountCodeInfoRef.current) {
+      requestAmountByPayment(payWay, preset.value);
+      return;
+    }
+
     // 计算实际支付金额，考虑折扣
     const discount = preset.discount || topupInfo.discount[preset.value] || 1.0;
     const discountedAmount = preset.value * priceRatio * discount;
@@ -943,6 +975,7 @@ const TopUp = () => {
         handleCancel={handleCancel}
         confirmLoading={confirmLoading}
         topUpCount={topUpCount}
+        discountCodeMaxAmount={discountCodeInfo?.max_amount || 0}
         renderQuotaWithAmount={renderQuotaWithAmount}
         amountLoading={amountLoading}
         renderAmount={renderAmount}
@@ -1036,9 +1069,8 @@ const TopUp = () => {
           allSubscriptions={allSubscriptions}
           reloadSubscriptionSelf={getSubscriptionSelf}
           enableRedemption={topupInfo.enable_redemption !== false}
-          discountCodeRef={discountCodeRef}
-          discountCodeInfoRef={discountCodeInfoRef}
-          requestAmountByPayment={requestAmountByPayment}
+          discountCodeInfo={discountCodeInfo}
+          updateDiscountCodeInfo={updateDiscountCodeInfo}
         />
         <div className='flex flex-col gap-6'>
           <InvitationCard
