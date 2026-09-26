@@ -26,9 +26,6 @@ func rechargeDiscountOrder(order *TopUp) error {
 func TestRechargeDiscountBonusAtomicReplay(t *testing.T) {
 	for _, provider := range []string{PaymentProviderStripe, PaymentProviderEpay, PaymentProviderWaffo, PaymentProviderWaffoPancake} {
 		for _, failure := range []string{"none", "bonus conflict", "quota update", "expired conflict"} {
-			if provider == PaymentProviderStripe && failure == "expired conflict" {
-				continue
-			}
 			t.Run(provider+"/"+failure, func(t *testing.T) {
 				setupDiscountCodeTest(t)
 				oldQPU, oldBatch := common.QuotaPerUnit, common.BatchUpdateEnabled
@@ -112,6 +109,31 @@ func TestRechargeDiscountBonusMissingCode(t *testing.T) {
 	assert.Nil(t, GetTopUpByTradeNo(order.TradeNo+"_bonus"))
 	require.NoError(t, DB.First(user, user.Id).Error)
 	assert.EqualValues(t, 100+common.QuotaPerUnit, user.Quota)
+}
+
+func TestRechargeStripeExpiredAndFailed(t *testing.T) {
+	for _, status := range []string{common.TopUpStatusExpired, common.TopUpStatusFailed} {
+		t.Run(status, func(t *testing.T) {
+			setupDiscountCodeTest(t)
+			user, order := insertEpayRechargeFixture(t, "stripe-"+status, PaymentProviderStripe, status, 1, 1, 0)
+			err := Recharge(order.TradeNo, "customer", "")
+			if status == common.TopUpStatusFailed {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.NoError(t, DB.First(user, user.Id).Error)
+			stored := GetTopUpByTradeNo(order.TradeNo)
+			require.NotNil(t, stored)
+			if status == common.TopUpStatusFailed {
+				assert.Equal(t, status, stored.Status)
+				assert.Equal(t, 100, user.Quota)
+			} else {
+				assert.Equal(t, common.TopUpStatusSuccess, stored.Status)
+				assert.EqualValues(t, 100+common.QuotaPerUnit, user.Quota)
+			}
+		})
+	}
 }
 
 func TestDiscountBonusEligibility(t *testing.T) {

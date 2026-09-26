@@ -13,6 +13,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type discountCodePageResponse struct {
+	*common.PageInfo
+	PendingTTLSeconds int64 `json:"pending_ttl_seconds"`
+}
+
 func GetAllDiscountCodes(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	codes, total, err := model.GetAllDiscountCodes(pageInfo.GetStartIdx(), pageInfo.GetPageSize())
@@ -22,7 +27,7 @@ func GetAllDiscountCodes(c *gin.Context) {
 	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(codes)
-	common.ApiSuccess(c, pageInfo)
+	common.ApiSuccess(c, discountCodePageResponse{pageInfo, model.DiscountCodePendingTTLSeconds()})
 }
 
 func SearchDiscountCodes(c *gin.Context) {
@@ -35,7 +40,7 @@ func SearchDiscountCodes(c *gin.Context) {
 	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(codes)
-	common.ApiSuccess(c, pageInfo)
+	common.ApiSuccess(c, discountCodePageResponse{pageInfo, model.DiscountCodePendingTTLSeconds()})
 }
 
 func GetDiscountCode(c *gin.Context) {

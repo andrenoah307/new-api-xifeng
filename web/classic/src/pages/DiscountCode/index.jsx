@@ -38,6 +38,7 @@ import { IconSearch, IconPlus } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
 import EditDiscountCode from './EditDiscountCode';
+import { formatDiscountCodePendingDuration } from './pending-duration.js';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -49,6 +50,11 @@ const DiscountCode = () => {
   const [activePage, setActivePage] = useState(1);
   const [pageSize, setPageSize] = useState(ITEMS_PER_PAGE);
   const [total, setTotal] = useState(0);
+  const [pendingTTLSeconds, setPendingTTLSeconds] = useState(null);
+  const pendingDuration = formatDiscountCodePendingDuration(
+    pendingTTLSeconds,
+    t,
+  );
   const [searchKeyword, setSearchKeyword] = useState('');
 
   // Modal state
@@ -64,6 +70,7 @@ const DiscountCode = () => {
       const { success, message, data } = res.data;
       if (success) {
         setDiscountCodes(data.items || []);
+        setPendingTTLSeconds(data.pending_ttl_seconds);
         setActivePage(data.page <= 0 ? 1 : data.page);
         setTotal(data.total || 0);
       } else {
@@ -88,6 +95,7 @@ const DiscountCode = () => {
       const { success, message, data } = res.data;
       if (success) {
         setDiscountCodes(data.items || []);
+        setPendingTTLSeconds(data.pending_ttl_seconds);
         setActivePage(data.page || 1);
         setTotal(data.total || 0);
       } else {
@@ -141,12 +149,17 @@ const DiscountCode = () => {
   };
 
   const handleCleanup = async (record) => {
+    if (!pendingDuration || loading) return;
     setLoading(true);
     try {
       const res = await API.post(`/api/discount_code/${record.id}/cleanup`);
       const { success, message, data } = res.data;
       if (success) {
-        showSuccess(t('已清理 {{count}} 笔未付款订单', { count: data || 0 }));
+        showSuccess(
+          t('Marked {{count}} timed-out pending orders as expired', {
+            count: data || 0,
+          }),
+        );
         await refresh();
       } else {
         showError(message);
@@ -235,8 +248,7 @@ const DiscountCode = () => {
         title: t('开始时间'),
         dataIndex: 'start_time',
         width: 170,
-        render: (text) =>
-          text && text > 0 ? timestamp2string(text) : t('无'),
+        render: (text) => (text && text > 0 ? timestamp2string(text) : t('无')),
       },
       {
         title: t('单笔充值上限'),
@@ -248,8 +260,7 @@ const DiscountCode = () => {
         title: t('结束时间'),
         dataIndex: 'end_time',
         width: 170,
-        render: (text) =>
-          text && text > 0 ? timestamp2string(text) : t('无'),
+        render: (text) => (text && text > 0 ? timestamp2string(text) : t('无')),
       },
       {
         title: t('单用户使用次数'),
@@ -289,7 +300,7 @@ const DiscountCode = () => {
         fixed: 'right',
         width: 280,
         render: (_, record) => (
-          <Space>
+          <Space wrap>
             <Button
               type='tertiary'
               size='small'
@@ -306,14 +317,36 @@ const DiscountCode = () => {
               onChange={() => handleToggleStatus(record)}
             />
             <Popconfirm
-              title={t('确认清理该折扣码关联的所有未付款订单？')}
+              title={
+                pendingDuration
+                  ? t(
+                      'Mark pending orders for this discount code created more than {{duration}} ago as expired? This does not cancel payment.',
+                      { duration: pendingDuration },
+                    )
+                  : t(
+                      'Pending order timeout unavailable. Refresh the list to continue.',
+                    )
+              }
               onConfirm={() => handleCleanup(record)}
-              position='left'
+              position='bottom'
+              autoAdjustOverflow
+              style={{ maxWidth: 'calc(100vw - 32px)' }}
             >
-              <Button type='tertiary' size='small'>
-                {t('清理未付款')}
+              <Button
+                type='tertiary'
+                size='small'
+                disabled={!pendingDuration || loading}
+              >
+                {t('Mark timed-out orders')}
               </Button>
             </Popconfirm>
+            {!pendingDuration && (
+              <Typography.Text type='warning' size='small'>
+                {t(
+                  'Pending order timeout unavailable. Refresh the list to continue.',
+                )}
+              </Typography.Text>
+            )}
             <Popconfirm
               title={t('确定是否要删除此折扣码？')}
               onConfirm={() => handleDelete(record.id)}
@@ -327,7 +360,7 @@ const DiscountCode = () => {
         ),
       },
     ],
-    [t, discountCodes],
+    [t, discountCodes, pendingTTLSeconds, pendingDuration, loading],
   );
 
   return (
@@ -386,9 +419,7 @@ const DiscountCode = () => {
                 <IllustrationNoResult style={{ width: 150, height: 150 }} />
               }
               darkModeImage={
-                <IllustrationNoResultDark
-                  style={{ width: 150, height: 150 }}
-                />
+                <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
               }
               description={t('搜索无结果')}
               style={{ padding: 30 }}

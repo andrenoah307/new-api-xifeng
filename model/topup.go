@@ -144,10 +144,13 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 			return ErrPaymentMethodMismatch
 		}
 
-		if topUp.Status != common.TopUpStatusPending {
+		if topUp.Status != common.TopUpStatusPending && topUp.Status != common.TopUpStatusExpired {
 			return errors.New("充值订单状态错误")
 		}
 
+		if topUp.Status == common.TopUpStatusExpired {
+			common.SysLog(fmt.Sprintf("late payment for expired topup: trade_no=%s discount_code_id=%d", topUp.TradeNo, topUp.DiscountCodeId))
+		}
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
 		quotaToAdd = common.QuotaFromDecimal(decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)))

@@ -197,6 +197,13 @@ func (dc *DiscountCode) validateAvailability(tx *gorm.DB, userId int) error {
 			return err
 		}
 		if count >= int64(dc.MaxUsesTotal) {
+			pending, err := getPendingDiscountCodeCount(tx, dc.Id, nil, now)
+			if err != nil {
+				return err
+			}
+			if pending > 0 {
+				return DiscountCodeValidationError("该折扣码名额暂被待支付订单占用，请稍后再试")
+			}
 			return DiscountCodeValidationError("该折扣码使用次数已达上限")
 		}
 	}
@@ -207,11 +214,40 @@ func (dc *DiscountCode) validateAvailability(tx *gorm.DB, userId int) error {
 			return err
 		}
 		if userCount >= int64(dc.MaxUsesPerUser) {
+			pending, err := getPendingDiscountCodeCount(tx, dc.Id, &userId, now)
+			if err != nil {
+				return err
+			}
+			if pending > 0 {
+				return DiscountCodeValidationError(fmt.Sprintf("您有使用该折扣码的待支付订单，请先完成支付；未支付的订单超过 %s后自动释放名额", formatDiscountCodePendingDuration(DiscountCodePendingTTLSeconds())))
+			}
 			return DiscountCodeValidationError("您已达到该折扣码的使用次数上限")
 		}
 	}
 
 	return nil
+}
+
+func getPendingDiscountCodeCount(tx *gorm.DB, discountCodeId int, userId *int, now int64) (int64, error) {
+	query := tx.Model(&TopUp{}).
+		Where("discount_code_id = ? AND status = ? AND create_time > ?", discountCodeId, common.TopUpStatusPending, now-DiscountCodePendingTTLSeconds()).
+		Where("(source IS NULL OR source <> ?)", "discount_bonus")
+	if userId != nil {
+		query = query.Where("user_id = ?", *userId)
+	}
+	var count int64
+	err := query.Count(&count).Error
+	return count, err
+}
+
+func formatDiscountCodePendingDuration(seconds int64) string {
+	if seconds%3600 == 0 {
+		return fmt.Sprintf("%d 小时", seconds/3600)
+	}
+	if seconds%60 == 0 {
+		return fmt.Sprintf("%d 分钟", seconds/60)
+	}
+	return fmt.Sprintf("%d 秒", seconds)
 }
 
 // IncrementDiscountCodeUsedCount atomically increments the used_count within a transaction.

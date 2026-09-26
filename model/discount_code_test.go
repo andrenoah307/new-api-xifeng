@@ -206,7 +206,7 @@ func TestDiscountCodeReservation(t *testing.T) {
 	second.Id = 0
 	second.TradeNo = "second"
 	err = ReserveDiscountCodeTopUp(&second)
-	require.EqualError(t, err, "该折扣码使用次数已达上限")
+	require.EqualError(t, err, "该折扣码名额暂被待支付订单占用，请稍后再试")
 	var businessErr DiscountCodeValidationError
 	require.ErrorAs(t, err, &businessErr)
 	assert.Nil(t, GetTopUpByTradeNo("second"))
@@ -216,7 +216,7 @@ func TestDiscountCodeReservation(t *testing.T) {
 	dc.MaxUsesPerUser = 1
 	require.NoError(t, dc.Update())
 	err = ReserveDiscountCodeTopUp(&second)
-	require.EqualError(t, err, "您已达到该折扣码的使用次数上限")
+	require.EqualError(t, err, "您有使用该折扣码的待支付订单，请先完成支付；未支付的订单超过 30 分钟后自动释放名额")
 	require.ErrorAs(t, err, &businessErr)
 	second.UserId = 2
 	require.NoError(t, ReserveDiscountCodeTopUp(&second))

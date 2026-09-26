@@ -39,7 +39,6 @@ function isDisabledRow(dc: DiscountCode) {
 
 export function DiscountCodesTable() {
   const { t } = useTranslation()
-  const columns = useDiscountCodesColumns()
   const { refreshTrigger } = useDiscountCodes()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const [rowSelection, setRowSelection] = useState({})
@@ -59,9 +58,7 @@ export function DiscountCodesTable() {
     navigate: route.useNavigate(),
     pagination: { defaultPage: 1, defaultPageSize: isMobile ? 10 : 20 },
     globalFilter: { enabled: true, key: 'filter' },
-    columnFilters: [
-      { columnId: 'status', searchKey: 'status', type: 'array' },
-    ],
+    columnFilters: [{ columnId: 'status', searchKey: 'status', type: 'array' }],
   })
 
   const { data, isLoading, isFetching } = useQuery({
@@ -86,12 +83,14 @@ export function DiscountCodesTable() {
       return {
         items: result.data?.items || [],
         total: result.data?.total || 0,
+        pendingTTLSeconds: result.data?.pending_ttl_seconds,
       }
     },
     placeholderData: (previousData) => previousData,
   })
 
   const discountCodes = data?.items || []
+  const columns = useDiscountCodesColumns(data?.pendingTTLSeconds)
 
   const table = useReactTable({
     data: discountCodes,
@@ -158,10 +157,7 @@ export function DiscountCodesTable() {
     ensurePageInRange(pageCount)
   }, [pageCount, ensurePageInRange])
 
-  const statusOptions = useMemo(
-    () => getDiscountCodeStatusOptions(t),
-    [t]
-  )
+  const statusOptions = useMemo(() => getDiscountCodeStatusOptions(t), [t])
 
   return (
     <DataTablePage

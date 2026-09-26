@@ -176,3 +176,25 @@ func TestDiscountCodeCleanup(t *testing.T) {
 	assert.Equal(t, "expired", model.GetTopUpByTradeNo("old").Status)
 	assert.Equal(t, "pending", model.GetTopUpByTradeNo("recent").Status)
 }
+
+func TestDiscountCodeListPendingTTL(t *testing.T) {
+	setupDiscountControllerTest(t)
+	for _, tc := range []struct {
+		env  string
+		want float64
+	}{{"", 1800}, {"3600", 3600}, {"0", 1800}, {"-1", 1800}} {
+		t.Run(tc.env, func(t *testing.T) {
+			t.Setenv("DISCOUNT_CODE_PENDING_TTL_SECONDS", tc.env)
+			for _, handler := range []gin.HandlerFunc{GetAllDiscountCodes, SearchDiscountCodes} {
+				response := discountControllerRequest(t, handler, gin.H{})
+				require.Equal(t, true, response["success"])
+				data := response["data"].(map[string]any)
+				assert.Equal(t, tc.want, data["pending_ttl_seconds"])
+				assert.Contains(t, data, "items")
+				assert.Contains(t, data, "page")
+				assert.Contains(t, data, "page_size")
+				assert.EqualValues(t, 0, data["total"])
+			}
+		})
+	}
+}

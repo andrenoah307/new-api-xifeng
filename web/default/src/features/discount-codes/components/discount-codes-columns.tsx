@@ -10,7 +10,9 @@ import { DISCOUNT_CODE_STATUSES } from '../constants'
 import type { DiscountCode } from '../types'
 import { DataTableRowActions } from './data-table-row-actions'
 
-export function useDiscountCodesColumns(): ColumnDef<DiscountCode>[] {
+export function useDiscountCodesColumns(
+  pendingTTLSeconds?: number
+): ColumnDef<DiscountCode>[] {
   const { t } = useTranslation()
   return [
     {
@@ -197,7 +199,9 @@ export function useDiscountCodesColumns(): ColumnDef<DiscountCode>[] {
     },
     {
       id: 'actions',
-      cell: ({ row }) => <DataTableRowActions row={row} />,
+      cell: ({ row }) => (
+        <DataTableRowActions row={row} pendingTTLSeconds={pendingTTLSeconds} />
+      ),
     },
   ]
 }

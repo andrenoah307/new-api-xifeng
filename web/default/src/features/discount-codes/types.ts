@@ -40,6 +40,7 @@ export interface GetDiscountCodesResponse {
   success: boolean
   message?: string
   data?: {
+    pending_ttl_seconds?: number
     items: DiscountCode[]
     total: number
     page: number
