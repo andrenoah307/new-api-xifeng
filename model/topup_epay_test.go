@@ -12,7 +12,7 @@ func setupEpayRechargeTest(t *testing.T) {
 	t.Helper()
 	truncateTables(t)
 	common.RedisEnabled = false
-	require.NoError(t, DB.AutoMigrate(&User{}, &TopUp{}))
+	require.NoError(t, DB.AutoMigrate(&User{}, &TopUp{}, &DiscountCode{}, &DiscountCodeUsage{}))
 }
 
 func insertEpayRechargeFixture(t *testing.T, tradeNo string, provider string, status string, amount int64, money float64, discountCodeID int) (*User, *TopUp) {

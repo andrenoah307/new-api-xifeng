@@ -430,7 +430,6 @@ func EpayNotify(c *gin.Context) {
 			service.NotifyTopUpSuccess(topUp)
 			service.NotifyAutoGroupEvaluation(topUp.UserId)
 			model.GrantTopUpCommission(topUp, false)
-			model.ProcessDiscountCodeBonus(topUp)
 		}
 	} else {
 		logger.LogInfo(c.Request.Context(), fmt.Sprintf("易支付 webhook 忽略事件 trade_no=%s callback_type=%s trade_status=%s client_ip=%s verify_info=%q", verifyInfo.ServiceTradeNo, verifyInfo.Type, verifyInfo.TradeStatus, c.ClientIP(), common.GetJsonString(verifyInfo)))

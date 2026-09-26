@@ -251,15 +251,18 @@ func TestDiscountCodeBonusSnapshot(t *testing.T) {
 			}
 			user := User{Username: "bonus", Quota: 80}
 			require.NoError(t, DB.Create(&user).Error)
-			order := TopUp{UserId: user.Id, TradeNo: "paid", Status: "success", DiscountCodeId: dc.Id, DiscountRate: tc.snapshot, QuotaGranted: 80}
+			oldQPU := common.QuotaPerUnit
+			common.QuotaPerUnit = 100
+			t.Cleanup(func() { common.QuotaPerUnit = oldQPU })
+			order := TopUp{UserId: user.Id, TradeNo: "paid", Status: "pending", PaymentProvider: PaymentProviderEpay, Money: 0.8, DiscountCodeId: dc.Id, DiscountRate: tc.snapshot}
 			require.NoError(t, DB.Create(&order).Error)
-			ProcessDiscountCodeBonus(&order)
-			ProcessDiscountCodeBonus(&order)
+			require.NoError(t, rechargeDiscountOrder(&order))
+			require.NoError(t, rechargeDiscountOrder(&order))
 			bonus := GetTopUpByTradeNo("paid_bonus")
 			require.NotNil(t, bonus)
 			assert.Equal(t, tc.bonus, bonus.QuotaGranted)
 			require.NoError(t, DB.First(&user, user.Id).Error)
-			assert.EqualValues(t, 80+tc.bonus, user.Quota)
+			assert.EqualValues(t, 160+tc.bonus, user.Quota)
 		})
 	}
 }
@@ -277,11 +280,7 @@ func TestRechargeExpiredDiscountOrder(t *testing.T) {
 			var err error
 			switch provider {
 			case PaymentProviderEpay:
-				var completed *TopUp
-				completed, _, err = RechargeEpay(order.TradeNo, "alipay")
-				if err == nil {
-					ProcessDiscountCodeBonus(completed)
-				}
+				_, _, err = RechargeEpay(order.TradeNo, "alipay")
 			case PaymentProviderWaffo:
 				err = RechargeWaffo(order.TradeNo, "")
 			case PaymentProviderWaffoPancake:

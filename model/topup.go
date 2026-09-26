@@ -126,7 +126,7 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		return errors.New("未提供支付单号")
 	}
 
-	var quota float64
+	var quotaToAdd, bonus int
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
@@ -150,12 +150,16 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
-		quota = topUp.Money * common.QuotaPerUnit
-		topUp.QuotaGranted = int64(quota)
+		quotaToAdd = common.QuotaFromDecimal(decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)))
+		topUp.QuotaGranted = int64(quotaToAdd)
 		if err := tx.Save(topUp).Error; err != nil {
 			return err
 		}
-		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(map[string]interface{}{"stripe_customer": customerId, "quota": gorm.Expr("quota + ?", quota)}).Error
+		bonus, err = grantDiscountCodeBonusTx(tx, topUp)
+		if err != nil {
+			return err
+		}
+		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(map[string]interface{}{"stripe_customer": customerId, "quota": gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus))}).Error
 		if err != nil {
 			return err
 		}
@@ -171,9 +175,9 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		common.SysError("failed to invalidate user cache after Stripe topup: " + err.Error())
 	}
 
-	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(int(quota)), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
+	RecordTopupLog(topUp.UserId, fmt.Sprintf("使用在线充值成功，充值金额: %v，支付金额：%d", logger.FormatQuota(quotaToAdd), topUp.Amount), callerIp, topUp.PaymentMethod, PaymentMethodStripe)
 	GrantTopUpCommission(topUp, false)
-	ProcessDiscountCodeBonus(topUp)
+	recordDiscountCodeBonus(topUp, bonus)
 
 	return nil
 }
@@ -631,6 +635,7 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 
 	topUp := &TopUp{}
 	quotaToAdd := 0
+	bonus := 0
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := lockForUpdate(tx).Where(refCol+" = ?", tradeNo).First(topUp).Error; err != nil {
 			topUp = nil
@@ -668,9 +673,14 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 		if err := tx.Save(topUp).Error; err != nil {
 			return err
 		}
+		var err error
+		bonus, err = grantDiscountCodeBonusTx(tx, topUp)
+		if err != nil {
+			return err
+		}
 		result := tx.Model(&User{}).
 			Where("id = ?", topUp.UserId).
-			Update("quota", gorm.Expr("quota + ?", quotaToAdd))
+			Update("quota", gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus)))
 		if result.Error != nil {
 			return result.Error
 		}
@@ -683,6 +693,7 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 		if cacheErr := invalidateUserCache(topUp.UserId); cacheErr != nil {
 			common.SysError(fmt.Sprintf("epay topup cache invalidation failed: user_id=%d error=%v", topUp.UserId, cacheErr))
 		}
+		recordDiscountCodeBonus(topUp, bonus)
 	}
 	return topUp, quotaToAdd, err
 }
@@ -692,7 +703,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 		return errors.New("未提供支付单号")
 	}
 
-	var quotaToAdd int
+	var quotaToAdd, bonus int
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
@@ -738,7 +749,11 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 			return err
 		}
 
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
+		bonus, err = grantDiscountCodeBonusTx(tx, topUp)
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus))).Error; err != nil {
 			return err
 		}
 
@@ -758,7 +773,7 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 	if quotaToAdd > 0 {
 		RecordTopupLog(topUp.UserId, fmt.Sprintf("Waffo充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money), callerIp, topUp.PaymentMethod, PaymentMethodWaffo)
 		GrantTopUpCommission(topUp, false)
-		ProcessDiscountCodeBonus(topUp)
+		recordDiscountCodeBonus(topUp, bonus)
 	}
 
 	return nil
@@ -769,7 +784,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 		return errors.New("未提供支付单号")
 	}
 
-	var quotaToAdd int
+	var quotaToAdd, bonus int
 	topUp := &TopUp{}
 
 	refCol := "`trade_no`"
@@ -814,7 +829,11 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 			return err
 		}
 
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
+		bonus, err = grantDiscountCodeBonusTx(tx, topUp)
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus))).Error; err != nil {
 			return err
 		}
 
@@ -834,7 +853,7 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 	if quotaToAdd > 0 {
 		RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("Waffo Pancake充值成功，充值额度: %v，支付金额: %.2f", logger.FormatQuota(quotaToAdd), topUp.Money))
 		GrantTopUpCommission(topUp, false)
-		ProcessDiscountCodeBonus(topUp)
+		recordDiscountCodeBonus(topUp, bonus)
 	}
 
 	return nil
@@ -878,36 +897,35 @@ func GetUserBonusTopUpQuota(userId int) (int64, error) {
 	return total, nil
 }
 
-// ProcessDiscountCodeBonus creates a bonus TopUp record for discount code orders.
-// Called after a successful payment recharge. Idempotent: skips if bonus already exists.
-func ProcessDiscountCodeBonus(topUp *TopUp) {
+// grantDiscountCodeBonusTx runs while the main order is locked, before crediting the balance.
+func grantDiscountCodeBonusTx(tx *gorm.DB, topUp *TopUp) (int, error) {
 	if topUp.DiscountCodeId <= 0 || topUp.QuotaGranted <= 0 {
-		return
+		return 0, nil
 	}
 	rate := topUp.DiscountRate
 	if rate == 0 {
 		var dc DiscountCode
-		if err := DB.Unscoped().First(&dc, topUp.DiscountCodeId).Error; err != nil {
-			return
+		if err := tx.Unscoped().First(&dc, topUp.DiscountCodeId).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				common.SysLog(fmt.Sprintf("discount code missing for topup bonus: trade_no=%s discount_code_id=%d", topUp.TradeNo, topUp.DiscountCodeId))
+				return 0, nil
+			}
+			return 0, err
 		}
 		rate = dc.DiscountRate
 	}
 	if rate <= 0 || rate >= 100 {
-		return
+		return 0, nil
 	}
 
 	bonusTradeNo := topUp.TradeNo + "_bonus"
-	existing := GetTopUpByTradeNo(bonusTradeNo)
-	if existing != nil {
-		return
-	}
 
 	dPaid := decimal.NewFromInt(topUp.QuotaGranted)
 	dRate := decimal.NewFromInt(int64(rate))
 	dHundred := decimal.NewFromInt(100)
 	bonusQuota := common.QuotaFromDecimal(dPaid.Mul(dHundred).Div(dRate).Sub(dPaid))
 	if bonusQuota <= 0 {
-		return
+		return 0, nil
 	}
 
 	bonusTopUp := &TopUp{
@@ -920,23 +938,29 @@ func ProcessDiscountCodeBonus(topUp *TopUp) {
 		PaymentProvider: "discount_code",
 		Source:          "discount_bonus",
 		DiscountCodeId:  topUp.DiscountCodeId,
+		DiscountRate:    topUp.DiscountRate,
 		CreateTime:      common.GetTimestamp(),
 		CompleteTime:    common.GetTimestamp(),
 		Status:          common.TopUpStatusSuccess,
 	}
-	if err := bonusTopUp.Insert(); err != nil {
-		common.SysError("failed to insert discount bonus topup: " + err.Error())
+	if err := tx.Create(bonusTopUp).Error; err != nil {
+		return 0, err
+	}
+	return bonusQuota, nil
+}
+
+// recordDiscountCodeBonus records display-only metadata after the credit transaction commits.
+func recordDiscountCodeBonus(topUp *TopUp, bonusQuota int) {
+	if bonusQuota <= 0 {
 		return
 	}
-
-	if err := IncreaseUserQuota(topUp.UserId, bonusQuota, false); err != nil {
-		common.SysError("failed to increase user quota for discount bonus: " + err.Error())
-		return
+	if err := RecordDiscountCodeUsage(topUp.DiscountCodeId, topUp.UserId, topUp.Id); err != nil {
+		common.SysError("failed to record discount code usage: " + err.Error())
 	}
-
-	_ = RecordDiscountCodeUsage(topUp.DiscountCodeId, topUp.UserId, topUp.Id)
-	_ = DB.Unscoped().Model(&DiscountCode{}).Where("id = ?", topUp.DiscountCodeId).
-		Update("used_count", gorm.Expr("used_count + 1")).Error
+	if err := DB.Unscoped().Model(&DiscountCode{}).Where("id = ?", topUp.DiscountCodeId).
+		Update("used_count", gorm.Expr("used_count + 1")).Error; err != nil {
+		common.SysError("failed to update discount code used count: " + err.Error())
+	}
 
 	RecordLog(topUp.UserId, LogTypeTopup, fmt.Sprintf("折扣码赠金 %s，折扣码ID %d", logger.FormatQuota(bonusQuota), topUp.DiscountCodeId))
 }
