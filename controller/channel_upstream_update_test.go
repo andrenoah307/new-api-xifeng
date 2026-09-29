@@ -5,11 +5,59 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestFetchChannelUpstreamModelIDsVolcEngineURL(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		specialBase bool
+		wantPath    string
+	}{
+		{name: "gateway prefix", wantPath: "/gw/bytedance/api/v3/models"},
+		{name: "special base", specialBase: true, wantPath: "/plan/v1/models"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			payload, err := common.Marshal(map[string]any{
+				"data": []map[string]string{{"id": "test-model"}},
+			})
+			require.NoError(t, err)
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tc.wantPath, r.URL.Path)
+				assert.Equal(t, http.MethodGet, r.Method)
+				assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
+				w.Header().Set("Content-Type", "application/json")
+				_, err := w.Write(payload)
+				assert.NoError(t, err)
+			}))
+			t.Cleanup(upstream.Close)
+
+			baseURL := upstream.URL + "/gw/bytedance"
+			if tc.specialBase {
+				baseURL = upstream.URL + "/test-special-base"
+				require.NotContains(t, constant.ChannelSpecialBases, baseURL)
+				constant.ChannelSpecialBases[baseURL] = constant.ChannelSpecialBase{
+					OpenAIBaseURL: upstream.URL + "/plan",
+				}
+				t.Cleanup(func() { delete(constant.ChannelSpecialBases, baseURL) })
+			}
+			channel := &model.Channel{
+				Type:    constant.ChannelTypeVolcEngine,
+				BaseURL: &baseURL,
+				Key:     "test-api-key",
+			}
+			ids, err := fetchChannelUpstreamModelIDs(channel)
+			require.NoError(t, err)
+			assert.Equal(t, []string{"test-model"}, ids)
+		})
+	}
+}
 
 func TestNormalizeModelNames(t *testing.T) {
 	result := normalizeModelNames([]string{
