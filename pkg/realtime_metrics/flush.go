@@ -101,6 +101,7 @@ func flushOnce() {
 		// draining them here would throw away the only data the dashboard has.
 		return
 	}
+	flushChannelCacheUsage()
 	drained := globalDeltas.drain()
 	channelDrained := drainChannelDeltas()
 	if err := writeToRedis(drained, channelDrained); err != nil {

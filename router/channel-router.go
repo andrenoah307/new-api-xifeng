@@ -41,6 +41,7 @@ var channelPermissionRoutes = []permissionRoute{
 	{method: http.MethodGet, path: "/pressure_cooling/runtime", permission: authz.ChannelRead, handler: controller.GetPressureCoolingRuntime},
 	{method: http.MethodGet, path: "/rate-limit-stats", permission: authz.ChannelRead, handler: controller.GetChannelRateLimitStats},
 	{method: http.MethodGet, path: "/inflight/runtime", permission: authz.ChannelRead, handler: controller.GetChannelInflightRuntime},
+	{method: http.MethodGet, path: "/cache-rate", permission: authz.ChannelRead, handler: controller.GetChannelCacheRates},
 	{method: http.MethodGet, path: "/search", permission: authz.ChannelRead, handler: controller.SearchChannels},
 	{method: http.MethodGet, path: "/models", permission: authz.ChannelRead, handler: controller.ChannelListModels},
 	{method: http.MethodGet, path: "/models_enabled", permission: authz.ChannelRead, handler: controller.EnabledListModels},

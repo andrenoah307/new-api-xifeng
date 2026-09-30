@@ -86,6 +86,7 @@ import type {
 } from '../types'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
 import { useChannels } from './channels-provider'
+import { ChannelCacheRate } from './channel-cache-rate'
 import { DataTableRowActions } from './data-table-row-actions'
 import { DataTableTagRowActions } from './data-table-tag-row-actions'
 import {
@@ -658,6 +659,7 @@ export function useChannelsColumns(
     rateLimitStats?: Record<string, ChannelRateLimitStat>
     pressureCoolingRuntime?: Record<string, PressureCoolingRuntime>
     channelInflight?: Record<string, ChannelInflight>
+    channelCacheRates?: Record<string, number>
   } = {}
 ): ColumnDef<Channel>[] {
   const { t, i18n } = useTranslation()
@@ -668,6 +670,7 @@ export function useChannelsColumns(
   const pressureCoolingRuntime =
     options.pressureCoolingRuntime ?? EMPTY_PRESSURE_COOLING_RUNTIME
   const channelInflight = options.channelInflight ?? EMPTY_CHANNEL_INFLIGHT
+  const channelCacheRates = options.channelCacheRates
   const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   // Memoizing keeps the array (and every cell renderer reference) stable across
   // unrelated re-renders, so react-table does not invalidate the whole row
@@ -851,6 +854,10 @@ export function useChannelsColumns(
                 {inflightStat && (
                   <ChannelInflightSummary inflight={inflightStat} />
                 )}
+                <ChannelCacheRate
+                  status={channel.status}
+                  rate={channelCacheRates?.[String(channel.id)]}
+                />
                 {channel.remark && (
                   <TooltipProvider delay={200}>
                     <Tooltip>
@@ -1362,6 +1369,7 @@ export function useChannelsColumns(
       rateLimitStats,
       pressureCoolingRuntime,
       channelInflight,
+      channelCacheRates,
     ]
   )
 }

@@ -75,6 +75,7 @@ import type {
   PressureCoolingRuntime,
 } from '../types'
 import { ChannelCard } from './channel-card'
+import { useChannelCacheRates } from '../hooks/use-channel-cache-rates'
 import { useChannelsColumns } from './channels-columns'
 import { useChannels } from './channels-provider'
 import { DataTableBulkActions } from './data-table-bulk-actions'
@@ -269,6 +270,8 @@ export function ChannelsTable() {
     retry: false,
   })
 
+  const { data: channelCacheRates } = useChannelCacheRates()
+
   // Fetch channels data
   // eslint-disable-next-line @tanstack/query/exhaustive-deps
   const { data, dataUpdatedAt, isLoading, isFetching } = useQuery({
@@ -392,6 +395,7 @@ export function ChannelsTable() {
     rateLimitStats,
     pressureCoolingRuntime,
     channelInflight,
+    channelCacheRates,
   })
 
   // React Table instance

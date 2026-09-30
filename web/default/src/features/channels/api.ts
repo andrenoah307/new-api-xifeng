@@ -109,6 +109,15 @@ export async function getChannel(id: number): Promise<GetChannelResponse> {
   return res.data
 }
 
+export async function getChannelCacheRates(): Promise<Record<string, number>> {
+  try {
+    const res = await api.get('/api/channel/cache-rate', channelActionConfig())
+    return res.data.success ? (res.data.data ?? {}) : {}
+  } catch {
+    return {}
+  }
+}
+
 /**
  * Get live RPM and concurrency usage for rate-limited channels
  */

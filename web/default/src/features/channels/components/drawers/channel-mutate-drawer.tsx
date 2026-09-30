@@ -150,6 +150,8 @@ import {
   hasSensitiveFormChanges,
   useChannelMutateForm,
 } from '../../hooks/use-channel-mutate-form'
+import { useChannelCacheRates } from '../../hooks/use-channel-cache-rates'
+import { ChannelCacheRate } from '../channel-cache-rate'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
   CHANNEL_TYPE_ADVANCED_CUSTOM,
@@ -638,6 +640,7 @@ export function ChannelMutateDrawer({
   const isEditing = Boolean(currentRow)
   const channelId = currentRow?.id ?? null
   const sensitiveLocked = isEditing && !canEditSensitive
+  const { data: channelCacheRates } = useChannelCacheRates(open && isEditing)
 
   // Fetch channel details if editing
   const { data: channelData, isLoading: isChannelLoading } = useQuery({
@@ -1948,6 +1951,14 @@ export function ChannelMutateDrawer({
                         'Add a new channel by providing the necessary information.'
                       )}
                 </SheetDescription>
+                {isEditing && (
+                  <div className='mt-2'>
+                    <ChannelCacheRate
+                      status={channelData?.data?.status ?? currentRow?.status}
+                      rate={channelCacheRates?.[String(channelId)]}
+                    />
+                  </div>
+                )}
               </div>
               {!isEditing && (
                 <Button

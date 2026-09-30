@@ -38,6 +38,10 @@ func TestChannelInflightRoutesSeparateReadFromOperate(t *testing.T) {
 	assertChannelRoutePermission(t, http.MethodPost, "/:id/inflight/cleanup", authz.ChannelOperate, controller.CleanupChannelInflight)
 }
 
+func TestChannelCacheRateRouteUsesReadPermission(t *testing.T) {
+	assertChannelRoutePermission(t, http.MethodGet, "/cache-rate", authz.ChannelRead, controller.GetChannelCacheRates)
+}
+
 func TestChannelStatusRoutesRegisterWithoutConflict(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
