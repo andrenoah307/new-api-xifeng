@@ -1,8 +1,14 @@
 {
   "translation": {
+    "Add routing rule": "Thêm quy tắc định tuyến",
+    "All models": "Tất cả mô hình",
     "Enter a non-negative integer": "Nhập số nguyên không âm",
     "Max recharge per order": "Mức nạp tối đa mỗi đơn",
     "Max {{amount}} per order with this code": "Tối đa {{amount}} mỗi đơn với mã này",
+    "Move down": "Di chuyển xuống",
+    "Move up": "Di chuyển lên",
+    "No routing rules": "Chưa có quy tắc định tuyến",
+    "Original group": "Nhóm gốc",
     "Same unit as minimum top-up; 0 means unlimited": "Cùng đơn vị với mức nạp tối thiểu; 0 là không giới hạn",
     "This discount code allows a maximum recharge of {{amount}} per order": "Mã giảm giá này cho phép nạp tối đa {{amount}} mỗi đơn",
     "Invitation code": "Mã mời",
@@ -20,6 +26,7 @@
     "Invitation code created": "Đã tạo mã mời",
     "Used up": "Đã dùng hết",
     "Require invitation code for password registration": "Yêu cầu mã mời khi đăng ký bằng mật khẩu",
+    "User Routing": "Định tuyến người dùng",
     "Users registering with a username and password must provide a valid invitation code": "Người dùng đăng ký bằng tên đăng nhập và mật khẩu phải cung cấp mã mời hợp lệ",
     "Require invitation code for OAuth / WeChat registration": "Yêu cầu mã mời khi đăng ký qua OAuth / WeChat",
     "Applies only when a third-party sign-in creates a new account": "Chỉ áp dụng khi đăng nhập bên thứ ba tạo tài khoản mới",

@@ -81,6 +81,11 @@ func main() {
 		}
 	}()
 
+	if err := model.RefreshUserRoutingPolicies(); err != nil {
+		common.FatalLog("failed to initialize user routing policies: " + err.Error())
+		return
+	}
+	go model.SyncUserRoutingPolicies()
 	if common.RedisEnabled {
 		// for compatibility with old versions
 		common.MemoryCacheEnabled = true

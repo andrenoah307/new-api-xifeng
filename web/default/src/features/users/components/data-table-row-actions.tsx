@@ -29,6 +29,7 @@ import {
   CreditCard,
   ArrowUp,
   ArrowDown,
+  Route,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -48,6 +49,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { UserSubscriptionsDialog } from '@/features/subscriptions/components/dialogs/user-subscriptions-dialog'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { manageUser, resetUserPasskey, resetUserTwoFA } from '../api'
 import {
@@ -58,8 +60,8 @@ import {
 } from '../constants'
 import { getUserActionMessage } from '../lib'
 import type { User, ManageUserAction } from '../types'
-import { UserBindingDialog } from './dialogs/user-binding-dialog'
 import { RoleManagementDialog } from './dialogs/role-management-dialog'
+import { UserBindingDialog } from './dialogs/user-binding-dialog'
 import { useUsers } from './users-provider'
 
 interface DataTableRowActionsProps {
@@ -69,6 +71,7 @@ interface DataTableRowActionsProps {
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation()
   const user = row.original
+  const myRole = useAuthStore((state) => state.auth.user?.role ?? 1)
   const { setOpen, setCurrentRow, triggerRefresh } = useUsers()
   const [resetPasskeyOpen, setResetPasskeyOpen] = useState(false)
   const [resetTwoFAOpen, setResetTwoFAOpen] = useState(false)
@@ -239,6 +242,21 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
+
+        {myRole >= USER_ROLE.ADMIN && (
+          <DropdownMenuItem
+            disabled={myRole !== USER_ROLE.ROOT && myRole <= user.role}
+            onClick={() => {
+              setCurrentRow(user)
+              setOpen('routing')
+            }}
+          >
+            {t('User Routing')}
+            <DropdownMenuShortcut>
+              <Route size={16} />
+            </DropdownMenuShortcut>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuItem
           onSelect={(event) => {

@@ -30,6 +30,26 @@ import type {
   ApiResponse,
 } from './types'
 
+export interface UserRoutingRule {
+  source_group: string
+  model: string
+  target_group: string
+  enabled: boolean
+}
+
+export async function getUserRouting(
+  id: number
+): Promise<ApiResponse<UserRoutingRule[]>> {
+  return (await api.get(`/api/user/${id}/routing`)).data
+}
+
+export async function saveUserRouting(
+  id: number,
+  rules: UserRoutingRule[]
+): Promise<ApiResponse<null>> {
+  return (await api.put(`/api/user/${id}/routing`, { rules })).data
+}
+
 // ============================================================================
 // User Management APIs
 // ============================================================================

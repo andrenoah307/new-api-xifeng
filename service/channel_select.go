@@ -68,7 +68,8 @@ func ShouldPreFilterChannelRateLimit(cfg *dto.ChannelRateLimit) bool {
 }
 
 func selectRandomSatisfiedChannel(param *RetryParam, group string, retry int) (*model.Channel, error) {
-	candidates, err := model.GetSatisfiedChannelCandidates(group, param.ModelName, retry, param.RequestPath, param.UserGroup)
+	targetGroup := UserRoutingTargetGroup(param.Ctx, group, param.ModelName)
+	candidates, err := model.GetSatisfiedChannelCandidates(targetGroup, param.ModelName, retry, param.RequestPath, param.UserGroup)
 	if err != nil || len(candidates) == 0 {
 		return nil, err
 	}
@@ -105,7 +106,11 @@ func selectRandomSatisfiedChannel(param *RetryParam, group string, retry int) (*
 		}
 	}
 
-	return model.SelectRandomSatisfiedChannel(candidates)
+	channel, err := model.SelectRandomSatisfiedChannel(candidates)
+	if err == nil && channel != nil {
+		SetUserRoutingSelection(param.Ctx, group, param.ModelName)
+	}
+	return channel, err
 }
 
 // CacheGetRandomSatisfiedChannel tries to get a random channel that satisfies the requirements.

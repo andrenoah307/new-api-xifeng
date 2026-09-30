@@ -593,6 +593,7 @@ func GetPreferredChannelByAffinity(c *gin.Context, modelName string, usingGroup 
 			ttlSeconds = setting.DefaultTTLSeconds
 		}
 		cacheKeySuffix := buildChannelAffinityCacheKeySuffix(rule, modelName, usingGroup, affinityValue)
+		cacheKeySuffix += userRoutingAffinityScope(c, modelName, usingGroup)
 		cacheKeyFull := channelAffinityCacheNamespace + ":" + cacheKeySuffix
 		setChannelAffinityContext(c, channelAffinityMeta{
 			CacheKey:       cacheKeyFull,

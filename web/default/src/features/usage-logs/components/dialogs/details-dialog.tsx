@@ -1355,6 +1355,22 @@ export function DetailsDialog(props: DetailsDialogProps) {
           )}
 
         {/* Stream status details (admin only) */}
+        {props.isAdmin && other?.admin_info?.user_routing && (
+          <DetailSection label={t('User Routing')}>
+            <DetailRow
+              label={t('Original group')}
+              value={other.admin_info.user_routing.source_group}
+            />
+            <DetailRow
+              label={t('Target group')}
+              value={other.admin_info.user_routing.target_group}
+            />
+            <DetailRow
+              label={t('Model')}
+              value={other.admin_info.user_routing.model}
+            />
+          </DetailSection>
+        )}
         {props.isAdmin &&
           other?.stream_status &&
           other.stream_status.status !== 'ok' && (

@@ -428,7 +428,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 		useTimeMs := int(time.Since(startTime).Milliseconds())
 		common.GroupMonitoringHook(
-			c.GetString("group"), c.GetInt("channel_id"), false,
+			service.RequestAccountingGroup(c), c.GetInt("channel_id"), false,
 			0, 0, useTimeMs, 0,
 			c.GetString("original_model"), newAPIError.StatusCode,
 			newAPIError.MaskSensitiveErrorWithStatusCode(),
@@ -664,7 +664,7 @@ func processChannelError(c *gin.Context, channelError types.ChannelError, err *t
 		tokenName := c.GetString("token_name")
 		modelName := c.GetString("original_model")
 		tokenId := c.GetInt("token_id")
-		userGroup := c.GetString("group")
+		userGroup := service.RequestAccountingGroup(c)
 		channelId := c.GetInt("channel_id")
 		other := make(map[string]interface{})
 		if c.Request != nil && c.Request.URL != nil {
@@ -841,7 +841,7 @@ func RelayTask(c *gin.Context) {
 		}
 		useTimeMs := int(time.Since(startTime).Milliseconds())
 		common.GroupMonitoringHook(
-			c.GetString("group"), c.GetInt("channel_id"), false,
+			service.RequestAccountingGroup(c), c.GetInt("channel_id"), false,
 			0, 0, useTimeMs, 0,
 			c.GetString("original_model"), taskErr.StatusCode, "",
 		)
@@ -861,6 +861,7 @@ func RelayTask(c *gin.Context) {
 		service.LogTaskConsumption(c, relayInfo)
 
 		task := model.InitTask(result.Platform, relayInfo)
+		task.PrivateData.UserRouting, _ = common.GetContextKeyType[*dto.UserRoutingInfo](c, constant.ContextKeyUserRouting)
 		task.PrivateData.UpstreamTaskID = result.UpstreamTaskID
 		task.PrivateData.BillingSource = relayInfo.BillingSource
 		task.PrivateData.SubscriptionId = relayInfo.SubscriptionId

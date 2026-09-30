@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/logger"
 	realtimemetrics "github.com/QuantumNous/new-api/pkg/realtime_metrics"
 	"github.com/QuantumNous/new-api/pkg/requestip"
@@ -126,6 +128,24 @@ func attachUpstreamRequestIdSource(other map[string]interface{}, source string) 
 		other["admin_info"] = adminInfo
 	}
 	adminInfo["upstream_request_id_source"] = source
+}
+
+func attachUserRouting(c *gin.Context, other map[string]interface{}) map[string]interface{} {
+	value, exists := common.GetContextKey(c, constant.ContextKeyUserRouting)
+	routing, ok := value.(*dto.UserRoutingInfo)
+	if !exists || !ok || routing == nil {
+		return other
+	}
+	if other == nil {
+		other = map[string]interface{}{}
+	}
+	adminInfo, ok := other["admin_info"].(map[string]interface{})
+	if !ok || adminInfo == nil {
+		adminInfo = map[string]interface{}{}
+		other["admin_info"] = adminInfo
+	}
+	adminInfo["user_routing"] = routing
+	return other
 }
 
 func clickHouseLogOrder(prefix string) string {
@@ -348,6 +368,7 @@ func RecordTopupLog(userId int, content string, callerIp string, paymentMethod s
 
 func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string, tokenName string, content string, tokenId int, useTimeSeconds int,
 	isStream bool, group string, other map[string]interface{}) {
+	other = attachUserRouting(c, other)
 	logger.LogInfo(c, fmt.Sprintf("record error log: userId=%d, channelId=%d, modelName=%s, tokenName=%s, content=%s", userId, channelId, modelName, tokenName, common.LocalLogPreview(content)))
 	username := c.GetString("username")
 	requestId := c.GetString(common.RequestIdKey)
@@ -418,6 +439,7 @@ type RecordConsumeLogParams struct {
 }
 
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
+	params.Other = attachUserRouting(c, params.Other)
 	realtimemetrics.RecordUsage(int64(params.PromptTokens), int64(params.CompletionTokens), int64(params.Quota))
 	frtMs := 0
 	if frt, ok := params.Other["frt"]; ok {

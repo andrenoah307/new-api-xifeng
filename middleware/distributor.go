@@ -166,12 +166,12 @@ func Distribute() func(c *gin.Context) {
 						if usingGroup == "auto" {
 							autoGroups := service.GetUserAutoGroup(userGroup)
 							for _, g := range autoGroups {
-								if model.IsChannelAvailableForUserGroup(g, modelRequest.Model, preferred.Id, userGroup) {
+								if model.IsChannelAvailableForUserGroup(service.UserRoutingTargetGroup(c, g, modelRequest.Model), modelRequest.Model, preferred.Id, userGroup) {
 									preferredGroup = g
 									break
 								}
 							}
-						} else if model.IsChannelAvailableForUserGroup(usingGroup, modelRequest.Model, preferred.Id, userGroup) {
+						} else if model.IsChannelAvailableForUserGroup(service.UserRoutingTargetGroup(c, usingGroup, modelRequest.Model), modelRequest.Model, preferred.Id, userGroup) {
 							preferredGroup = usingGroup
 						}
 
@@ -180,6 +180,7 @@ func Distribute() func(c *gin.Context) {
 							if preferredAffinityHasCapacity(c, preferred, hardAffinity, channel_limiter.CheckOnly) {
 								channel = preferred
 								selectGroup = preferredGroup
+								service.SetUserRoutingSelection(c, preferredGroup, modelRequest.Model)
 								affinityUsable = true
 								if usingGroup == "auto" {
 									common.SetContextKey(c, constant.ContextKeyAutoGroup, preferredGroup)

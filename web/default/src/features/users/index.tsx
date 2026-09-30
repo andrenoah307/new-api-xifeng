@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 
+import { UserRoutingDialog } from './components/dialogs/user-routing-dialog'
 import { UsersDeleteDialog } from './components/users-delete-dialog'
 import { UsersMutateDrawer } from './components/users-mutate-drawer'
 import { UsersPrimaryButtons } from './components/users-primary-buttons'
@@ -48,6 +49,12 @@ function UsersContent() {
         currentRow={open === 'update' ? currentRow || undefined : undefined}
       />
       <UsersDeleteDialog />
+      {open === 'routing' && currentRow && (
+        <UserRoutingDialog
+          user={currentRow}
+          onOpenChange={(isOpen) => !isOpen && setOpen(null)}
+        />
+      )}
     </>
   )
 }

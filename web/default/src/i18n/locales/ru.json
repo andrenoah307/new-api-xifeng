@@ -1,8 +1,14 @@
 {
   "translation": {
+    "Add routing rule": "Добавить правило",
+    "All models": "Все модели",
     "Enter a non-negative integer": "Введите целое неотрицательное число",
     "Max recharge per order": "Максимальное пополнение за заказ",
     "Max {{amount}} per order with this code": "С этим кодом — не более {{amount}} за заказ",
+    "Move down": "Переместить вниз",
+    "Move up": "Переместить вверх",
+    "No routing rules": "Нет правил маршрутизации",
+    "Original group": "Исходная группа",
     "Same unit as minimum top-up; 0 means unlimited": "Единица та же, что у минимального пополнения; 0 — без ограничений",
     "This discount code allows a maximum recharge of {{amount}} per order": "Этот промокод позволяет пополнить счёт максимум на {{amount}} за заказ",
     "Invitation code": "Код приглашения",
@@ -20,6 +26,7 @@
     "Invitation code created": "Код приглашения создан",
     "Used up": "Исчерпан",
     "Require invitation code for password registration": "Требовать код приглашения при регистрации по паролю",
+    "User Routing": "Маршрутизация пользователя",
     "Users registering with a username and password must provide a valid invitation code": "Пользователи, регистрирующиеся по имени пользователя и паролю, должны указать действительный код приглашения",
     "Require invitation code for OAuth / WeChat registration": "Требовать код приглашения при регистрации через OAuth / WeChat",
     "Applies only when a third-party sign-in creates a new account": "Применяется только когда вход через стороннего провайдера создаёт новую учётную запись",

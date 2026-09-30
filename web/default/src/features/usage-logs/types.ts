@@ -108,6 +108,11 @@ export type UsageBillingPath =
 
 export interface LogOtherData {
   admin_info?: {
+    user_routing?: {
+      source_group: string
+      target_group: string
+      model: string
+    }
     is_multi_key?: boolean
     multi_key_index?: number
     use_channel?: number[]

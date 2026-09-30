@@ -1,8 +1,14 @@
 {
   "translation": {
+    "Add routing rule": "添加路由规则",
+    "All models": "所有模型",
     "Enter a non-negative integer": "请输入非负整数",
     "Max recharge per order": "单笔充值上限",
     "Max {{amount}} per order with this code": "此折扣码单笔最多充值 {{amount}}",
+    "Move down": "下移",
+    "Move up": "上移",
+    "No routing rules": "暂无路由规则",
+    "Original group": "原分组",
     "Same unit as minimum top-up; 0 means unlimited": "单位与最低充值数量相同；0 表示不限",
     "This discount code allows a maximum recharge of {{amount}} per order": "该折扣码单笔最多充值 {{amount}}",
     "Invitation code": "邀请码",
@@ -20,6 +26,7 @@
     "Invitation code created": "邀请码已生成",
     "Used up": "已用尽",
     "Require invitation code for password registration": "密码注册要求邀请码",
+    "User Routing": "用户路由",
     "Users registering with a username and password must provide a valid invitation code": "使用用户名和密码注册的用户必须填写有效的邀请码",
     "Require invitation code for OAuth / WeChat registration": "OAuth / 微信注册要求邀请码",
     "Applies only when a third-party sign-in creates a new account": "仅在第三方登录创建新账号时生效",

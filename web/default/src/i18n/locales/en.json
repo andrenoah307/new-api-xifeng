@@ -1,8 +1,14 @@
 {
   "translation": {
+    "Add routing rule": "Add routing rule",
+    "All models": "All models",
     "Enter a non-negative integer": "Enter a non-negative integer",
     "Max recharge per order": "Max recharge per order",
     "Max {{amount}} per order with this code": "Max {{amount}} per order with this code",
+    "Move down": "Move down",
+    "Move up": "Move up",
+    "No routing rules": "No routing rules",
+    "Original group": "Original group",
     "Same unit as minimum top-up; 0 means unlimited": "Same unit as minimum top-up; 0 means unlimited",
     "This discount code allows a maximum recharge of {{amount}} per order": "This discount code allows a maximum recharge of {{amount}} per order",
     "Invitation code": "Invitation code",
@@ -20,6 +26,7 @@
     "Invitation code created": "Invitation code created",
     "Used up": "Used up",
     "Require invitation code for password registration": "Require invitation code for password registration",
+    "User Routing": "User Routing",
     "Users registering with a username and password must provide a valid invitation code": "Users registering with a username and password must provide a valid invitation code",
     "Require invitation code for OAuth / WeChat registration": "Require invitation code for OAuth / WeChat registration",
     "Applies only when a third-party sign-in creates a new account": "Applies only when a third-party sign-in creates a new account",
