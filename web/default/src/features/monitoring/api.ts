@@ -7,6 +7,7 @@ export interface MonitoringGroup {
   total_channels: number
   availability_rate: number | null
   cache_hit_rate: number | null
+  cache_hit_rate_1h?: number | null
   avg_frt: number | null
   avg_response_time: number | null
   first_response_time: number | null

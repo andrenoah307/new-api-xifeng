@@ -317,6 +317,7 @@ const GroupMonitoringDashboard = () => {
               <GroupStatusCard
                 key={g.group_name}
                 group={g}
+                admin={admin}
                 onClick={admin ? handleCardClick : undefined}
                 regionBlockedGroups={regionBlockedGroups}
               />

@@ -39,7 +39,7 @@ import {
   type SortMode,
 } from '../constants'
 import GroupDetailPanel from './group-detail-panel'
-import { type GroupModelPerformanceProps } from './group-model-performance'
+import type { GroupModelPerformanceProps } from './group-model-performance'
 import GroupStatusCard from './group-status-card'
 
 const POLL_INTERVAL_MS = 60_000
@@ -462,6 +462,7 @@ export default function MonitoringDashboard() {
               <GroupStatusCard
                 key={g.group_name}
                 group={g}
+                admin={admin}
                 onClick={admin ? handleCardClick : undefined}
                 regionBlockedGroups={regionBlockedGroups}
                 variant='wide'
@@ -470,7 +471,15 @@ export default function MonitoringDashboard() {
             ))}
           </div>}
           <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 2xl:grid-cols-4'>
-            {rest.map((g) => <GroupStatusCard key={g.group_name} group={g} onClick={admin ? handleCardClick : undefined} regionBlockedGroups={regionBlockedGroups} />)}
+            {rest.map((g) => (
+              <GroupStatusCard
+                key={g.group_name}
+                group={g}
+                admin={admin}
+                onClick={admin ? handleCardClick : undefined}
+                regionBlockedGroups={regionBlockedGroups}
+              />
+            ))}
           </div>
           </>
         )}

@@ -60,7 +60,7 @@ function formatClock(unixSec) {
   });
 }
 
-const GroupStatusCard = memo(({ group, onClick, regionBlockedGroups = [] }) => {
+const GroupStatusCard = memo(({ group, onClick, regionBlockedGroups = [], admin = false }) => {
   const { t } = useTranslation();
 
   const noData =
@@ -206,6 +206,16 @@ const GroupStatusCard = memo(({ group, onClick, regionBlockedGroups = [] }) => {
           )}
         </div>
       </div>
+      {admin && (
+        <div className='mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-semi-color-border pt-3 text-[11px] text-semi-color-text-2'>
+          <span>{t('缓存命中率')} · 1 {t('小时')}</span>
+          <span className='font-mono'>
+            {group.cache_hit_rate_1h != null && group.cache_hit_rate_1h >= 0
+              ? `${group.cache_hit_rate_1h.toFixed(1)}%`
+              : '—'}
+          </span>
+        </div>
+      )}
     </div>
   );
 });

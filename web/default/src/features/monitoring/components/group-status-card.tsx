@@ -29,6 +29,7 @@ interface GroupStatusCardProps {
   regionBlockedGroups?: string[]
   modelPerformance?: GroupModelPerformanceProps
   variant?: 'grid' | 'wide'
+  admin?: boolean
 }
 
 const GroupStatusCard = memo(function GroupStatusCard({
@@ -37,6 +38,7 @@ const GroupStatusCard = memo(function GroupStatusCard({
   regionBlockedGroups = [],
   modelPerformance,
   variant = 'grid',
+  admin = false,
 }: GroupStatusCardProps) {
   const { t } = useTranslation()
   const { status } = useStatus()
@@ -180,10 +182,9 @@ const GroupStatusCard = memo(function GroupStatusCard({
         </div>
       </div>
 
-      {/* 三个服务质量指标共享同一条基线与同一种字号，才能横向对照。
-          此前可用率是头部右上的 28px 大字、首字与缓存是左下角的 11px 小字，
-          三者没有可比性。等分三列让每格宽度随卡片自适应。 */}
-      <div className='border-border/60 mt-4 grid grid-cols-3 gap-2 border-t pt-3'>
+      <div
+        className={`border-border/60 mt-4 grid gap-2 border-t pt-3 ${admin ? 'grid-cols-2' : 'grid-cols-3'}`}
+      >
         <div data-perf-stat='availability' className='min-w-0'>
           <div className='text-muted-foreground truncate text-[10px] tracking-wider uppercase'>
             {headlineLabel}
@@ -221,6 +222,18 @@ const GroupStatusCard = memo(function GroupStatusCard({
             {showCache ? `${cacheRate.toFixed(1)}%` : '—'}
           </div>
         </div>
+        {admin && (
+          <div data-perf-stat='cache-1h' className='min-w-0'>
+            <div className='text-muted-foreground text-[10px]'>
+              {t('Cache')} · {t('Last hour')}
+            </div>
+            <div className='text-foreground mt-1 font-mono text-base leading-none tabular-nums'>
+              {group.cache_hit_rate_1h != null && group.cache_hit_rate_1h >= 0
+                ? `${group.cache_hit_rate_1h.toFixed(1)}%`
+                : '—'}
+            </div>
+          </div>
+        )}
       </div>
     </>
   )

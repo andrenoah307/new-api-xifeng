@@ -90,6 +90,9 @@ func RecordMonitoringMetric(group string, channelId int, isSuccess bool, promptT
 	if cfg.CacheHitPeriodMinutes > maxPeriod {
 		maxPeriod = cfg.CacheHitPeriodMinutes
 	}
+	if maxPeriod < 60 {
+		maxPeriod = 60
+	}
 	ttl := time.Duration(maxPeriod*60*2+int(bucketSec)) * time.Second
 
 	ctx := context.Background()

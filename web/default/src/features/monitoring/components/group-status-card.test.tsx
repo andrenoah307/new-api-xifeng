@@ -59,6 +59,8 @@ const models: GroupModelPerf[] = [
 async function renderCard(props: {
   variant?: 'grid' | 'wide'
   withModelPerformance: boolean
+  admin?: boolean
+  hourlyCache?: number | null
 }): Promise<string> {
   const i18n = createInstance()
   await i18n.init({
@@ -73,7 +75,8 @@ async function renderCard(props: {
     <QueryClientProvider client={client}>
       <I18nextProvider i18n={i18n}>
         <GroupStatusCard
-          group={group}
+          group={{ ...group, cache_hit_rate_1h: props.hourlyCache }}
+          admin={props.admin}
           variant={props.variant}
           modelPerformance={
             props.withModelPerformance
@@ -161,6 +164,32 @@ function statCell(markup: string, name: string): string {
 }
 
 describe('group status card metric bar', () => {
+  for (const variant of ['grid', 'wide'] as const) {
+    for (const rate of [0, 1.2, 87.5, null, undefined]) {
+      test(`renders admin hourly cache independently (${variant}, ${rate})`, async () => {
+        const markup = await renderCard({
+          variant,
+          withModelPerformance: true,
+          admin: true,
+          hourlyCache: rate,
+        })
+        const value = statCell(markup, 'cache-1h')
+        assert.ok(value.includes('Last hour'))
+        assert.ok(value.includes(rate == null ? '—' : `${rate.toFixed(1)}%`))
+        assert.match(statCell(markup, 'cache'), /12\.4/)
+      })
+    }
+    test(`hides hourly cache in the public view (${variant})`, async () => {
+      const markup = await renderCard({
+        variant,
+        withModelPerformance: true,
+        admin: false,
+        hourlyCache: 87.5,
+      })
+      assert.equal(occurrences(markup, 'data-perf-stat="cache-1h"'), 0)
+      assert.ok(!markup.includes('87.5%'))
+    })
+  }
   // 可用率、首字、缓存三个指标过去分散在两处（大号数字挂头部右上、
   // 首字与缓存挤在底部左下），彼此没有可比性。收拢成一条等分栏后，
   // 三者共享同一基线，读一眼就能横向对照。

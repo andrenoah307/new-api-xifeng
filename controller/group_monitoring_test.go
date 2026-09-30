@@ -114,6 +114,32 @@ func decodeMonitoringResponse(t *testing.T, recorder *httptest.ResponseRecorder)
 	return payload
 }
 
+func TestMonitoringHourlyCacheRateAdminOnly(t *testing.T) {
+	db := setupMonitoringControllerTestDB(t, true)
+	saveMonitoringSettings(t)
+	configureMonitoringSettings(t, true, []string{"visible"}, false, false, nil)
+	rate := 0.0
+	require.NoError(t, db.Create(&model.GroupMonitoringStat{GroupName: "visible", CacheHitRate1h: &rate}).Error)
+	for _, admin := range []bool{true, false} {
+		c, recorder := monitoringTestContext(http.MethodGet, "/", "", "")
+		if admin {
+			GetAdminMonitoringGroups(c)
+		} else {
+			GetPublicMonitoringGroups(c)
+		}
+		payload := decodeMonitoringResponse(t, recorder)
+		require.Equal(t, true, payload["success"])
+		rows := payload["data"].([]any)
+		require.Len(t, rows, 1)
+		row := rows[0].(map[string]any)
+		if admin {
+			assert.Equal(t, 0.0, row["cache_hit_rate_1h"])
+		} else {
+			assert.NotContains(t, row, "cache_hit_rate_1h")
+		}
+	}
+}
+
 func TestPublicMonitoringHistoryRegionBlockedMatchesUnknownGroup(t *testing.T) {
 	db := setupMonitoringControllerTestDB(t, true)
 	saveMonitoringSettings(t)

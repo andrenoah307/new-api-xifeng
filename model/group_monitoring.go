@@ -24,17 +24,18 @@ type ChannelMonitoringStat struct {
 }
 
 type GroupMonitoringStat struct {
-	Id               int64   `json:"id" gorm:"primaryKey;autoIncrement"`
-	GroupName        string  `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_gms_group"`
-	AvailabilityRate float64 `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
-	CacheHitRate     float64 `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
-	AvgResponseTime  int     `json:"avg_response_time" gorm:"default:0"`
-	AvgFRT           int     `json:"avg_frt" gorm:"default:0"`
-	OnlineChannels   int     `json:"online_channels" gorm:"default:0"`
-	TotalChannels    int     `json:"total_channels" gorm:"default:0"`
-	GroupRatio       float64 `json:"group_ratio" gorm:"type:decimal(10,4);default:1"`
-	LastTestModel    string  `json:"last_test_model" gorm:"type:varchar(255);default:''"`
-	UpdatedAt        int64   `json:"updated_at" gorm:"bigint"`
+	Id               int64    `json:"id" gorm:"primaryKey;autoIncrement"`
+	GroupName        string   `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_gms_group"`
+	AvailabilityRate float64  `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
+	CacheHitRate     float64  `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
+	CacheHitRate1h   *float64 `json:"cache_hit_rate_1h" gorm:"column:cache_hit_rate_1h;type:decimal(8,4)"`
+	AvgResponseTime  int      `json:"avg_response_time" gorm:"default:0"`
+	AvgFRT           int      `json:"avg_frt" gorm:"default:0"`
+	OnlineChannels   int      `json:"online_channels" gorm:"default:0"`
+	TotalChannels    int      `json:"total_channels" gorm:"default:0"`
+	GroupRatio       float64  `json:"group_ratio" gorm:"type:decimal(10,4);default:1"`
+	LastTestModel    string   `json:"last_test_model" gorm:"type:varchar(255);default:''"`
+	UpdatedAt        int64    `json:"updated_at" gorm:"bigint"`
 }
 
 type MonitoringHistory struct {
@@ -157,7 +158,7 @@ func UpsertGroupMonitoringStat(stat *GroupMonitoringStat) error {
 	return DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "group_name"}},
 		DoUpdates: clause.AssignmentColumns([]string{
-			"availability_rate", "cache_hit_rate", "avg_response_time", "avg_frt",
+			"availability_rate", "cache_hit_rate", "cache_hit_rate_1h", "avg_response_time", "avg_frt",
 			"online_channels", "total_channels", "group_ratio", "last_test_model", "updated_at",
 		}),
 	}).Create(stat).Error

@@ -169,6 +169,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 	var cursor uint64
 	channelAvailData := make(map[channelKey]*bucketData)
 	channelCacheData := make(map[channelKey]*bucketData)
+	groupHourlyCache := make(map[string]*bucketData)
 	channelLatestBucket := make(map[channelKey]int64)
 
 	// Per-group per-bucket FRT data for interval-level history points
@@ -202,6 +203,17 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 
 			bd := parseBucketValues(vals)
 			ck := channelKey{Group: group, ChannelId: chId}
+
+			// Fixed 1h token-weighted rate, independent of online status and configured windows.
+			if bucketTs >= now-3600 && bucketTs <= now {
+				agg := groupHourlyCache[group]
+				if agg == nil {
+					agg = &bucketData{}
+					groupHourlyCache[group] = agg
+				}
+				agg.CacheTokens += bd.CacheTokens
+				agg.PromptTokens += bd.PromptTokens
+			}
 
 			if bucketTs >= availStart {
 				agg, ok := channelAvailData[ck]
@@ -361,6 +373,10 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 			OnlineChannels: ga.onlineChannels,
 			TotalChannels:  ga.totalChannels,
 			GroupRatio:     groupRatios[groupName],
+		}
+		if cache := groupHourlyCache[groupName]; cache != nil && cache.PromptTokens > 0 {
+			rate := min(100.0, max(0.0, float64(cache.CacheTokens)/float64(cache.PromptTokens)*100))
+			stat.CacheHitRate1h = &rate
 		}
 
 		if ga.totalRequests > 0 {
