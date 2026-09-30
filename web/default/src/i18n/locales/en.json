@@ -5678,6 +5678,7 @@
     "Marked {{count}} timed-out pending orders as expired_many": "Marked {{count}} timed-out pending orders as expired",
     "Marked {{count}} timed-out pending orders as expired_one": "Marked {{count}} timed-out pending order as expired",
     "Marked {{count}} timed-out pending orders as expired_other": "Marked {{count}} timed-out pending orders as expired",
-    "Pending order timeout unavailable. Refresh the list to continue.": "Pending order timeout unavailable. Refresh the list to continue."
+    "Pending order timeout unavailable. Refresh the list to continue.": "Pending order timeout unavailable. Refresh the list to continue.",
+    "This channel uses Volcengine Ark /api/v3 endpoints. Enter the base URL without /api/v3, /v1, endpoint paths, or #. For traditional /v1 APIs, use an OpenAI channel.": "This channel uses Volcengine Ark /api/v3 endpoints. Enter the base URL without /api/v3, /v1, endpoint paths, or #. For traditional /v1 APIs, use an OpenAI channel."
   }
 }

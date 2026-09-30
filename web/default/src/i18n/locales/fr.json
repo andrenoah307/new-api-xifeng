@@ -5678,6 +5678,7 @@
     "Marked {{count}} timed-out pending orders as expired_many": "{{count}} commandes en attente de paiement ayant dépassé le délai ont été marquées comme expirées",
     "Marked {{count}} timed-out pending orders as expired_one": "{{count}} commande en attente de paiement ayant dépassé le délai a été marquée comme expirée",
     "Marked {{count}} timed-out pending orders as expired_other": "{{count}} commandes en attente de paiement ayant dépassé le délai ont été marquées comme expirées",
-    "Pending order timeout unavailable. Refresh the list to continue.": "Le délai des commandes en attente de paiement est indisponible. Actualisez la liste pour continuer."
+    "Pending order timeout unavailable. Refresh the list to continue.": "Le délai des commandes en attente de paiement est indisponible. Actualisez la liste pour continuer.",
+    "This channel uses Volcengine Ark /api/v3 endpoints. Enter the base URL without /api/v3, /v1, endpoint paths, or #. For traditional /v1 APIs, use an OpenAI channel.": "Ce canal utilise les points de terminaison /api/v3 de Volcengine Ark. Saisissez uniquement l’URL de base, sans /api/v3, /v1, chemin de point de terminaison ni #. Pour les API /v1 classiques, utilisez un canal OpenAI."
   }
 }

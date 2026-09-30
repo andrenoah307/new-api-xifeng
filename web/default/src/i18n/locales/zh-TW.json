@@ -5678,6 +5678,7 @@
     "Marked {{count}} timed-out pending orders as expired_many": "已將 {{count}} 筆逾時待付款訂單標記為已過期",
     "Marked {{count}} timed-out pending orders as expired_one": "已將 {{count}} 筆逾時待付款訂單標記為已過期",
     "Marked {{count}} timed-out pending orders as expired_other": "已將 {{count}} 筆逾時待付款訂單標記為已過期",
-    "Pending order timeout unavailable. Refresh the list to continue.": "無法取得待付款訂單逾時時間，請重新整理列表後再試。"
+    "Pending order timeout unavailable. Refresh the list to continue.": "無法取得待付款訂單逾時時間，請重新整理列表後再試。",
+    "This channel uses Volcengine Ark /api/v3 endpoints. Enter the base URL without /api/v3, /v1, endpoint paths, or #. For traditional /v1 APIs, use an OpenAI channel.": "此渠道使用火山方舟（Ark）的 /api/v3 介面。僅填寫基礎網址，不要包含 /api/v3、/v1、具體介面路徑或 #。如需使用傳統 /v1 介面，請選擇 OpenAI 渠道。"
   }
 }

@@ -5678,6 +5678,7 @@
     "Marked {{count}} timed-out pending orders as expired_many": "Đã đánh dấu {{count}} đơn hàng chờ thanh toán quá hạn là hết hạn",
     "Marked {{count}} timed-out pending orders as expired_one": "Đã đánh dấu {{count}} đơn hàng chờ thanh toán quá hạn là hết hạn",
     "Marked {{count}} timed-out pending orders as expired_other": "Đã đánh dấu {{count}} đơn hàng chờ thanh toán quá hạn là hết hạn",
-    "Pending order timeout unavailable. Refresh the list to continue.": "Không thể lấy thời hạn chờ thanh toán. Vui lòng làm mới danh sách để tiếp tục."
+    "Pending order timeout unavailable. Refresh the list to continue.": "Không thể lấy thời hạn chờ thanh toán. Vui lòng làm mới danh sách để tiếp tục.",
+    "This channel uses Volcengine Ark /api/v3 endpoints. Enter the base URL without /api/v3, /v1, endpoint paths, or #. For traditional /v1 APIs, use an OpenAI channel.": "Kênh này sử dụng các endpoint /api/v3 của Volcengine Ark. Chỉ nhập URL cơ sở, không gồm /api/v3, /v1, đường dẫn endpoint cụ thể hoặc #. Với API /v1 truyền thống, hãy chọn kênh OpenAI."
   }
 }

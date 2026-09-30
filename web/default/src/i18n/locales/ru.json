@@ -5678,6 +5678,7 @@
     "Marked {{count}} timed-out pending orders as expired_many": "{{count}} просроченных заказов, ожидающих оплаты, отмечены как истёкшие",
     "Marked {{count}} timed-out pending orders as expired_one": "{{count}} просроченный заказ, ожидающий оплаты, отмечен как истёкший",
     "Marked {{count}} timed-out pending orders as expired_other": "{{count}} просроченных заказов, ожидающих оплаты, отмечены как истёкшие",
-    "Pending order timeout unavailable. Refresh the list to continue.": "Срок ожидания оплаты недоступен. Обновите список, чтобы продолжить."
+    "Pending order timeout unavailable. Refresh the list to continue.": "Срок ожидания оплаты недоступен. Обновите список, чтобы продолжить.",
+    "This channel uses Volcengine Ark /api/v3 endpoints. Enter the base URL without /api/v3, /v1, endpoint paths, or #. For traditional /v1 APIs, use an OpenAI channel.": "Этот канал использует эндпоинты /api/v3 Volcengine Ark. Укажите только базовый URL без /api/v3, /v1, пути конкретного эндпоинта и #. Для обычных API /v1 выберите канал OpenAI."
   }
 }

@@ -5678,6 +5678,7 @@
     "Marked {{count}} timed-out pending orders as expired_many": "期限を超えた未払い注文 {{count}} 件を期限切れにしました",
     "Marked {{count}} timed-out pending orders as expired_one": "期限を超えた未払い注文 {{count}} 件を期限切れにしました",
     "Marked {{count}} timed-out pending orders as expired_other": "期限を超えた未払い注文 {{count}} 件を期限切れにしました",
-    "Pending order timeout unavailable. Refresh the list to continue.": "未払い注文の有効期間を取得できません。リストを更新してから再試行してください。"
+    "Pending order timeout unavailable. Refresh the list to continue.": "未払い注文の有効期間を取得できません。リストを更新してから再試行してください。",
+    "This channel uses Volcengine Ark /api/v3 endpoints. Enter the base URL without /api/v3, /v1, endpoint paths, or #. For traditional /v1 APIs, use an OpenAI channel.": "このチャネルは Volcengine Ark の /api/v3 エンドポイントを使用します。ベース URL のみを入力し、/api/v3、/v1、個別のエンドポイントパス、# は含めないでください。従来の /v1 API を使用する場合は、OpenAI チャネルを選択してください。"
   }
 }
