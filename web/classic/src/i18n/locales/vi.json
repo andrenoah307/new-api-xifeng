@@ -5615,6 +5615,9 @@
     "{{count}} minute_many": "{{count}} phút",
     "{{count}} second_one": "{{count}} giây",
     "{{count}} second_few": "{{count}} giây",
-    "{{count}} second_many": "{{count}} giây"
+    "{{count}} second_many": "{{count}} giây",
+    "Excluded channels": "Kênh bị loại trừ",
+    "Excluded users": "Người dùng bị loại trừ",
+    "Search by name": "Tìm theo tên"
   }
 }

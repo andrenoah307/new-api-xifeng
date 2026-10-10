@@ -5126,6 +5126,9 @@
     "Marked {{count}} timed-out pending orders as expired_one": "{{count}} просроченный заказ, ожидающий оплаты, отмечен как истёкший",
     "Marked {{count}} timed-out pending orders as expired_few": "{{count}} просроченных заказа, ожидающих оплаты, отмечены как истёкшие",
     "Marked {{count}} timed-out pending orders as expired_many": "{{count}} просроченных заказов, ожидающих оплаты, отмечены как истёкшие",
-    "Marked {{count}} timed-out pending orders as expired_other": "{{count}} просроченных заказов, ожидающих оплаты, отмечены как истёкшие"
+    "Marked {{count}} timed-out pending orders as expired_other": "{{count}} просроченных заказов, ожидающих оплаты, отмечены как истёкшие",
+    "Excluded channels": "Исключённые каналы",
+    "Excluded users": "Исключённые пользователи",
+    "Search by name": "Поиск по имени"
   }
 }

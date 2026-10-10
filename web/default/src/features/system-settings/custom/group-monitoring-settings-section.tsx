@@ -12,6 +12,7 @@ import { TagInput } from '@/components/tag-input'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOptions } from '../hooks/use-update-option'
 import { api } from '@/lib/api'
+import { MonitoringExclusionSelect } from './monitoring-exclusion-select'
 
 const PREFIX = 'group_monitoring_setting.'
 
@@ -313,12 +314,12 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
 
         <div className='grid gap-4 sm:grid-cols-2'>
           <div className='space-y-1'>
-            <Label>{t('Excluded channel IDs')}</Label>
-            <TagInput value={excludedChannelIds} onChange={setExcludedChannelIds} placeholder={t('Excluded channel IDs')} />
+            <Label htmlFor='monitoring-excluded-channels'>{t('Excluded channels')}</Label>
+            <MonitoringExclusionSelect id='monitoring-excluded-channels' kind='channel' value={excludedChannelIds} onChange={setExcludedChannelIds} />
           </div>
           <div className='space-y-1'>
-            <Label>{t('Excluded user IDs')}</Label>
-            <TagInput value={excludedUserIds} onChange={setExcludedUserIds} placeholder={t('Excluded user IDs')} />
+            <Label htmlFor='monitoring-excluded-users'>{t('Excluded users')}</Label>
+            <MonitoringExclusionSelect id='monitoring-excluded-users' kind='user' value={excludedUserIds} onChange={setExcludedUserIds} />
           </div>
         </div>
         <p className='text-muted-foreground text-xs'>

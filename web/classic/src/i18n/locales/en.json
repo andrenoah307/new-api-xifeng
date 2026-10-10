@@ -5332,6 +5332,9 @@
     "{{count}} minute_few": "{{count}} minutes",
     "{{count}} minute_many": "{{count}} minutes",
     "{{count}} second_few": "{{count}} seconds",
-    "{{count}} second_many": "{{count}} seconds"
+    "{{count}} second_many": "{{count}} seconds",
+    "Excluded channels": "Excluded channels",
+    "Excluded users": "Excluded users",
+    "Search by name": "Search by name"
   }
 }

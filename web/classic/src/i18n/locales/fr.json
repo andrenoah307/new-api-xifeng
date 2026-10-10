@@ -5105,6 +5105,9 @@
     "Marked {{count}} timed-out pending orders as expired_other": "{{count}} commandes en attente de paiement ayant dépassé le délai ont été marquées comme expirées",
     "{{count}} hour_few": "{{count}} heures",
     "{{count}} minute_few": "{{count}} minutes",
-    "{{count}} second_few": "{{count}} secondes"
+    "{{count}} second_few": "{{count}} secondes",
+    "Excluded channels": "Canaux exclus",
+    "Excluded users": "Utilisateurs exclus",
+    "Search by name": "Rechercher par nom"
   }
 }

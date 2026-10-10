@@ -5072,6 +5072,9 @@
     "{{count}} minute_many": "{{count}} 分",
     "{{count}} second_one": "{{count}} 秒",
     "{{count}} second_few": "{{count}} 秒",
-    "{{count}} second_many": "{{count}} 秒"
+    "{{count}} second_many": "{{count}} 秒",
+    "Excluded channels": "除外するチャネル",
+    "Excluded users": "除外するユーザー",
+    "Search by name": "名前で検索"
   }
 }

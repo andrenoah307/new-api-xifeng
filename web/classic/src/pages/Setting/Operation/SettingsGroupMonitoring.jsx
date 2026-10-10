@@ -18,6 +18,7 @@ import {
   showWarning,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+import MonitoringExclusionSelect from './MonitoringExclusionSelect';
 
 const { Text } = Typography;
 
@@ -376,23 +377,19 @@ export default function SettingsGroupMonitoring(props) {
           <Row gutter={16}>
             <Col xs={24} sm={12}>
               <div style={{ marginBottom: 16 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>{t('Excluded channel IDs')}</Text>
-                <TagInput
+                <label id='monitoring-excluded-channels-label' htmlFor='monitoring-excluded-channels-input' style={{ display: 'block', marginBottom: 8 }}>{t('Excluded channels')}</label>
+                <MonitoringExclusionSelect kind='channel' id='monitoring-excluded-channels'
                   value={parseArrayField(inputs['group_monitoring_setting.excluded_channel_ids'])}
                   onChange={(value) => setInputs((prev) => ({ ...prev, 'group_monitoring_setting.excluded_channel_ids': JSON.stringify(value) }))}
-                  placeholder={t('Excluded channel IDs')}
-                  style={{ width: '100%' }}
                 />
               </div>
             </Col>
             <Col xs={24} sm={12}>
               <div style={{ marginBottom: 16 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>{t('Excluded user IDs')}</Text>
-                <TagInput
+                <label id='monitoring-excluded-users-label' htmlFor='monitoring-excluded-users-input' style={{ display: 'block', marginBottom: 8 }}>{t('Excluded users')}</label>
+                <MonitoringExclusionSelect kind='user' id='monitoring-excluded-users'
                   value={parseArrayField(inputs['group_monitoring_setting.excluded_user_ids'])}
                   onChange={(value) => setInputs((prev) => ({ ...prev, 'group_monitoring_setting.excluded_user_ids': JSON.stringify(value) }))}
-                  placeholder={t('Excluded user IDs')}
-                  style={{ width: '100%' }}
                 />
               </div>
             </Col>

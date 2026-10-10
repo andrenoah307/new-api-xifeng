@@ -5084,6 +5084,9 @@
     "{{count}} minute_many": "{{count}} 分鐘",
     "{{count}} second_one": "{{count}} 秒",
     "{{count}} second_few": "{{count}} 秒",
-    "{{count}} second_many": "{{count}} 秒"
+    "{{count}} second_many": "{{count}} 秒",
+    "Excluded channels": "排除渠道",
+    "Excluded users": "排除使用者",
+    "Search by name": "依名稱搜尋"
   }
 }
