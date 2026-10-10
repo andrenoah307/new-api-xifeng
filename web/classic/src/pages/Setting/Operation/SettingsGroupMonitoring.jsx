@@ -30,6 +30,8 @@ export default function SettingsGroupMonitoring(props) {
   const [inputs, setInputs] = useState({
     'group_monitoring_setting.enabled': true,
     'group_monitoring_setting.monitoring_groups': '',
+    'group_monitoring_setting.excluded_channel_ids': '[]',
+    'group_monitoring_setting.excluded_user_ids': '[]',
     'group_monitoring_setting.group_display_order': '',
     'group_monitoring_setting.availability_period_minutes': 60,
     'group_monitoring_setting.cache_hit_period_minutes': 60,
@@ -111,6 +113,12 @@ export default function SettingsGroupMonitoring(props) {
   }, [props.options]);
 
   function onSubmit() {
+    for (const key of ['excluded_channel_ids', 'excluded_user_ids']) {
+      const ids = parseArrayField(inputs['group_monitoring_setting.' + key]);
+      if (ids.length > 10000 || ids.some((id) => !/^[1-9]\d*$/.test(id) || Number(id) > 2147483647)) {
+        return showError(t('Use positive IDs up to 2147483647, with at most 10000 IDs per list.'));
+      }
+    }
     const updateArray = compareObjects(inputs, inputsRow);
     if (!updateArray.length) return showWarning(t('你似乎并没有修改什么'));
 
@@ -120,6 +128,9 @@ export default function SettingsGroupMonitoring(props) {
         value = String(inputs[item.key]);
       } else {
         value = inputs[item.key];
+      }
+      if (item.key === 'group_monitoring_setting.excluded_channel_ids' || item.key === 'group_monitoring_setting.excluded_user_ids') {
+        value = JSON.stringify(parseArrayField(value).map(Number));
       }
       return API.put('/api/option/', {
         key: item.key,
@@ -362,6 +373,33 @@ export default function SettingsGroupMonitoring(props) {
           </Row>
 
           {/* Exclude models / keywords */}
+          <Row gutter={16}>
+            <Col xs={24} sm={12}>
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>{t('Excluded channel IDs')}</Text>
+                <TagInput
+                  value={parseArrayField(inputs['group_monitoring_setting.excluded_channel_ids'])}
+                  onChange={(value) => setInputs((prev) => ({ ...prev, 'group_monitoring_setting.excluded_channel_ids': JSON.stringify(value) }))}
+                  placeholder={t('Excluded channel IDs')}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </Col>
+            <Col xs={24} sm={12}>
+              <div style={{ marginBottom: 16 }}>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>{t('Excluded user IDs')}</Text>
+                <TagInput
+                  value={parseArrayField(inputs['group_monitoring_setting.excluded_user_ids'])}
+                  onChange={(value) => setInputs((prev) => ({ ...prev, 'group_monitoring_setting.excluded_user_ids': JSON.stringify(value) }))}
+                  placeholder={t('Excluded user IDs')}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            </Col>
+          </Row>
+          <Text type='tertiary' size='small'>
+            {t('Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.')}
+          </Text>
           <Row gutter={16}>
             <Col xs={24} sm={12}>
               <div style={{ marginBottom: 16 }}>

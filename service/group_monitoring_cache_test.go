@@ -49,7 +49,7 @@ func TestMonitoringBucketsRetainHourlyCacheWithShortWindows(t *testing.T) {
 		"group_monitoring_setting.cache_hit_period_minutes":     "5",
 		"group_monitoring_setting.aggregation_interval_minutes": "5",
 	}))
-	RecordMonitoringMetric("hourly", 1, true, 100, 25, 100, 0, "", 0, "")
+	RecordMonitoringMetric("hourly", 1, 1, true, 100, 25, 100, 0, "", 0, "")
 	keys := server.Keys()
 	require.Len(t, keys, 1)
 	server.FastForward(59 * time.Minute)

@@ -1,5 +1,9 @@
 {
   "translation": {
+    "Excluded channel IDs": "ID исключённых каналов",
+    "Excluded user IDs": "ID исключённых пользователей",
+    "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.": "Исключения применяются к новым данным мониторинга групп и общей статистики производительности моделей. История не изменяется.",
+    "Use positive IDs up to 2147483647, with at most 10000 IDs per list.": "ID должны быть положительными целыми числами не больше 2147483647, не более 10000 ID в списке.",
     "Add routing rule": "Добавить правило",
     "All models": "Все модели",
     "Enter a non-negative integer": "Введите целое неотрицательное число",

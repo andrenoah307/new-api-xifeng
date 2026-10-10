@@ -1,5 +1,9 @@
 {
   "translation": {
+    "Excluded channel IDs": "除外するチャネル ID",
+    "Excluded user IDs": "除外するユーザー ID",
+    "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.": "除外設定は新しいグループ監視と共有モデル性能のサンプルに適用されます。既存の履歴は変更されません。",
+    "Use positive IDs up to 2147483647, with at most 10000 IDs per list.": "ID は 2147483647 以下の正の整数で、各リストに最大 10000 件まで指定できます。",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_one": " + Web検索 {{count}}回 / 1K回 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_one",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other": " + Web検索 {{count}}回 / 1K回 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + 画像生成APIコール {{symbol}}{{price}} / 1回 * {{ratioType}} {{ratio}}",

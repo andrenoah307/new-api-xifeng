@@ -83,6 +83,12 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
   const [excludeModels, setExcludeModels] = useState<string[]>(() =>
     parseArr(getVal(settings, 'availability_exclude_models'))
   )
+  const [excludedChannelIds, setExcludedChannelIds] = useState<string[]>(() =>
+    parseArr(getVal(settings, 'excluded_channel_ids')).map(String)
+  )
+  const [excludedUserIds, setExcludedUserIds] = useState<string[]>(() =>
+    parseArr(getVal(settings, 'excluded_user_ids')).map(String)
+  )
   const [cacheExcludeModels, setCacheExcludeModels] = useState<string[]>(() =>
     parseArr(getVal(settings, 'cache_hit_exclude_models'))
   )
@@ -119,10 +125,18 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
   )
 
   const handleSave = async () => {
+    for (const ids of [excludedChannelIds, excludedUserIds]) {
+      if (ids.length > 10000 || ids.some((id) => !/^[1-9]\d*$/.test(id) || Number(id) > 2147483647)) {
+        toast.error(t('Use positive IDs up to 2147483647, with at most 10000 IDs per list.'))
+        return
+      }
+    }
     setSaving(true)
     try {
       const updates: Array<{ key: string; value: string }> = [
         { key: PREFIX + 'enabled', value: String(enabled) },
+        { key: PREFIX + 'excluded_channel_ids', value: JSON.stringify(excludedChannelIds.map(Number)) },
+        { key: PREFIX + 'excluded_user_ids', value: JSON.stringify(excludedUserIds.map(Number)) },
         {
           key: PREFIX + 'monitoring_groups',
           value: JSON.stringify(monitoringGroups),
@@ -296,6 +310,20 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
           <Label>{t('Exclude Models (Availability)')}</Label>
           <TagInput value={excludeModels} onChange={setExcludeModels} />
         </div>
+
+        <div className='grid gap-4 sm:grid-cols-2'>
+          <div className='space-y-1'>
+            <Label>{t('Excluded channel IDs')}</Label>
+            <TagInput value={excludedChannelIds} onChange={setExcludedChannelIds} placeholder={t('Excluded channel IDs')} />
+          </div>
+          <div className='space-y-1'>
+            <Label>{t('Excluded user IDs')}</Label>
+            <TagInput value={excludedUserIds} onChange={setExcludedUserIds} placeholder={t('Excluded user IDs')} />
+          </div>
+        </div>
+        <p className='text-muted-foreground text-xs'>
+          {t('Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.')}
+        </p>
 
         <div className='space-y-1'>
           <Label>{t('Exclude Models (Cache Hit)')}</Label>

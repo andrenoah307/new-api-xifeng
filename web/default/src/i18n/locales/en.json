@@ -1,5 +1,9 @@
 {
   "translation": {
+    "Excluded channel IDs": "Excluded channel IDs",
+    "Excluded user IDs": "Excluded user IDs",
+    "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.": "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.",
+    "Use positive IDs up to 2147483647, with at most 10000 IDs per list.": "Use positive IDs up to 2147483647, with at most 10000 IDs per list.",
     "Add routing rule": "Add routing rule",
     "All models": "All models",
     "Enter a non-negative integer": "Enter a non-negative integer",

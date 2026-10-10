@@ -1,5 +1,9 @@
 {
   "translation": {
+    "Excluded channel IDs": "排除渠道 ID",
+    "Excluded user IDs": "排除使用者 ID",
+    "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.": "排除規則適用於新的分組監控和共用模型效能樣本，既有歷史保持不變。",
+    "Use positive IDs up to 2147483647, with at most 10000 IDs per list.": "ID 必須為不超過 2147483647 的正整數，每個清單最多 10000 個。",
     "Add routing rule": "新增路由規則",
     "All models": "所有模型",
     "Enter a non-negative integer": "請輸入非負整數",

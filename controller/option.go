@@ -141,6 +141,16 @@ func applyOptionUpdate(c *gin.Context, key string, value any) error {
 		}
 	}
 	switch option.Key {
+	case "group_monitoring_setting.excluded_channel_ids", "group_monitoring_setting.excluded_user_ids":
+		var ids []int
+		if common.UnmarshalJsonStr(option.Value.(string), &ids) != nil || len(ids) > 10000 {
+			return errors.New("无效的参数")
+		}
+		for _, id := range ids {
+			if id <= 0 || int64(id) > 2147483647 {
+				return errors.New("无效的参数")
+			}
+		}
 	case "GitHubOAuthEnabled":
 		if option.Value == "true" && common.GitHubClientId == "" {
 			return errors.New("无法启用 GitHub OAuth，请先填入 GitHub Client Id 以及 GitHub Client Secret！")

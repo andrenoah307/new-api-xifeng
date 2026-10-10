@@ -36,11 +36,14 @@ func isGroupMonitored(group string) bool {
 	return ok
 }
 
-func RecordMonitoringMetric(group string, channelId int, isSuccess bool, promptTokens, cacheTokens, useTimeMs, frtMs int, modelName string, statusCode int, content string) {
+func RecordMonitoringMetric(group string, channelId, userId int, isSuccess bool, promptTokens, cacheTokens, useTimeMs, frtMs int, modelName string, statusCode int, content string) {
 	if !common.RedisEnabled || group == "" || group == "auto" {
 		return
 	}
 	if !isGroupMonitored(group) {
+		return
+	}
+	if operation_setting.IsMonitoringExcluded(channelId, userId) {
 		return
 	}
 

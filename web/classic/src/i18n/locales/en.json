@@ -1,5 +1,9 @@
 {
   "translation": {
+    "Excluded channel IDs": "Excluded channel IDs",
+    "Excluded user IDs": "Excluded user IDs",
+    "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.": "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.",
+    "Use positive IDs up to 2147483647, with at most 10000 IDs per list.": "Use positive IDs up to 2147483647, with at most 10000 IDs per list.",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_one": " + Web search {{count}} time / 1K times * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other": " + Web search {{count}} times / 1K times * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + Image generation call {{symbol}}{{price}} / 1 time * {{ratioType}} {{ratio}}",

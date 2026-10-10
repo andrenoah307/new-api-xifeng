@@ -1,5 +1,9 @@
 {
   "translation": {
+    "Excluded channel IDs": "ID des canaux exclus",
+    "Excluded user IDs": "ID des utilisateurs exclus",
+    "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.": "Les exclusions concernent les nouveaux échantillons de surveillance des groupes et de performance partagée des modèles. L’historique reste inchangé.",
+    "Use positive IDs up to 2147483647, with at most 10000 IDs per list.": "Les ID doivent être des entiers positifs ne dépassant pas 2147483647, avec au plus 10000 ID par liste.",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_many": " + Recherche Web {{count}} fois / 1K fois * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_one": " + Recherche Web {{count}} fois / 1K fois * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other": " + Recherche Web {{count}} fois / 1K fois * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",

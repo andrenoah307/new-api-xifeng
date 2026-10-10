@@ -1,5 +1,9 @@
 {
   "translation": {
+    "Excluded channel IDs": "ID kênh bị loại trừ",
+    "Excluded user IDs": "ID người dùng bị loại trừ",
+    "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.": "Quy tắc loại trừ áp dụng cho mẫu giám sát nhóm và hiệu suất mô hình dùng chung mới. Lịch sử không thay đổi.",
+    "Use positive IDs up to 2147483647, with at most 10000 IDs per list.": "ID phải là số nguyên dương không quá 2147483647, tối đa 10000 ID mỗi danh sách.",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_one": " + Tìm kiếm Web {{count}} lần / 1K lần * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other": " + Tìm kiếm Web {{count}} lần / 1K lần * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + Gọi tạo hình ảnh {{symbol}}{{price}} / 1 lần * {{ratioType}} {{ratio}}",

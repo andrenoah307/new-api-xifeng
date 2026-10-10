@@ -428,7 +428,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 		useTimeMs := int(time.Since(startTime).Milliseconds())
 		common.GroupMonitoringHook(
-			service.RequestAccountingGroup(c), c.GetInt("channel_id"), false,
+			service.RequestAccountingGroup(c), c.GetInt("channel_id"), relayInfo.UserId, false,
 			0, 0, useTimeMs, 0,
 			c.GetString("original_model"), newAPIError.StatusCode,
 			newAPIError.MaskSensitiveErrorWithStatusCode(),
@@ -841,7 +841,7 @@ func RelayTask(c *gin.Context) {
 		}
 		useTimeMs := int(time.Since(startTime).Milliseconds())
 		common.GroupMonitoringHook(
-			service.RequestAccountingGroup(c), c.GetInt("channel_id"), false,
+			service.RequestAccountingGroup(c), c.GetInt("channel_id"), relayInfo.UserId, false,
 			0, 0, useTimeMs, 0,
 			c.GetString("original_model"), taskErr.StatusCode, "",
 		)

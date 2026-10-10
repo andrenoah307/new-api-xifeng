@@ -27,9 +27,7 @@ func StartGroupMonitoringAggregation() {
 	if !common.IsMasterNode {
 		return
 	}
-	common.GroupMonitoringHook = func(group string, channelId int, isSuccess bool, promptTokens, cacheTokens, useTimeMs, frtMs int, modelName string, statusCode int, content string) {
-		RecordMonitoringMetric(group, channelId, isSuccess, promptTokens, cacheTokens, useTimeMs, frtMs, modelName, statusCode, content)
-	}
+	common.GroupMonitoringHook = RecordMonitoringMetric
 	refreshMonitoredGroupsCache()
 	go monitoringLoop()
 }
@@ -528,7 +526,7 @@ func runDBFallbackAggregation(cfg operation_setting.GroupMonitoringSetting, rebu
 		RespMs  int64
 	}
 
-	rows, err := model.AggregateLogsForMonitoring(availStart)
+	rows, err := model.AggregateLogsForMonitoring(availStart, cfg.ExcludedChannelIDs, cfg.ExcludedUserIDs)
 	if err != nil {
 		common.SysError("group monitoring: db fallback query error: " + err.Error())
 		return

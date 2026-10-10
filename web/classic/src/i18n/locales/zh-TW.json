@@ -1,5 +1,9 @@
 {
   "translation": {
+    "Excluded channel IDs": "排除渠道 ID",
+    "Excluded user IDs": "排除使用者 ID",
+    "Exclusions apply to new group monitoring and shared model performance samples. Existing history is unchanged.": "排除規則適用於新的分組監控和共用模型效能樣本，既有歷史保持不變。",
+    "Use positive IDs up to 2147483647, with at most 10000 IDs per list.": "ID 必須為不超過 2147483647 的正整數，每個清單最多 10000 個。",
     " + Web搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other": " + Web搜尋 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",
     " + 图片生成调用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}": " + 圖片生成調用 {{symbol}}{{price}} / 1次 * {{ratioType}} {{ratio}}",
     " + 文件搜索 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}_other": " + 檔案搜尋 {{count}}次 / 1K 次 * {{symbol}}{{price}} * {{ratioType}} {{ratio}}",

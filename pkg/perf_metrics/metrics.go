@@ -182,6 +182,13 @@ func RecordRelaySample(info *relaycommon.RelayInfo, success bool, outputTokens i
 	if info == nil {
 		return
 	}
+	channelID := 0
+	if info.ChannelMeta != nil {
+		channelID = info.ChannelMeta.ChannelId
+	}
+	if operation_setting.IsMonitoringExcluded(channelID, info.UserId) {
+		return
+	}
 	// 复用「分组监控设置」的排除关键词/状态码：命中的失败视为用户参数问题，整条不入桶，
 	// 既不拉低成功率也不进分母（与分组监控口径一致）。仅对失败样本判定。
 	if !success && operation_setting.GetGroupMonitoringSetting().IsUserParamFailure(statusCode, errContent) {

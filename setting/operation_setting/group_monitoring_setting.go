@@ -2,6 +2,7 @@ package operation_setting
 
 import (
 	"strings"
+	"sync/atomic"
 
 	"github.com/QuantumNous/new-api/setting/config"
 )
@@ -9,6 +10,8 @@ import (
 type GroupMonitoringSetting struct {
 	Enabled                        bool                `json:"enabled"`
 	MonitoringGroups               []string            `json:"monitoring_groups"`
+	ExcludedChannelIDs             []int               `json:"excluded_channel_ids"`
+	ExcludedUserIDs                []int               `json:"excluded_user_ids"`
 	AvailabilityPeriodMinutes      int                 `json:"availability_period_minutes"`
 	CacheHitPeriodMinutes          int                 `json:"cache_hit_period_minutes"`
 	AvailabilityExcludeModels      []string            `json:"availability_exclude_models"`
@@ -30,6 +33,8 @@ type GroupMonitoringSetting struct {
 var groupMonitoringSetting = GroupMonitoringSetting{
 	Enabled:                        true,
 	MonitoringGroups:               []string{},
+	ExcludedChannelIDs:             []int{},
+	ExcludedUserIDs:                []int{},
 	AvailabilityPeriodMinutes:      60,
 	CacheHitPeriodMinutes:          60,
 	AvailabilityExcludeModels:      []string{},
@@ -80,6 +85,42 @@ func init() {
 
 func GetGroupMonitoringSetting() GroupMonitoringSetting {
 	return groupMonitoringSetting
+}
+
+type monitoringExclusions struct {
+	channels map[int]struct{}
+	users    map[int]struct{}
+}
+
+var monitoringExclusionIndex atomic.Pointer[monitoringExclusions]
+
+// Rebuild on option updates, never on the request path. Published maps are immutable.
+func RebuildMonitoringExclusionIndex() {
+	index := &monitoringExclusions{
+		channels: make(map[int]struct{}, len(groupMonitoringSetting.ExcludedChannelIDs)),
+		users:    make(map[int]struct{}, len(groupMonitoringSetting.ExcludedUserIDs)),
+	}
+	for _, id := range groupMonitoringSetting.ExcludedChannelIDs {
+		if id > 0 {
+			index.channels[id] = struct{}{}
+		}
+	}
+	for _, id := range groupMonitoringSetting.ExcludedUserIDs {
+		if id > 0 {
+			index.users[id] = struct{}{}
+		}
+	}
+	monitoringExclusionIndex.Store(index)
+}
+
+func IsMonitoringExcluded(channelID, userID int) bool {
+	index := monitoringExclusionIndex.Load()
+	if index == nil {
+		return false
+	}
+	_, channelExcluded := index.channels[channelID]
+	_, userExcluded := index.users[userID]
+	return channelExcluded || userExcluded
 }
 
 // IsUserParamFailure 判断一次失败请求是否命中"排除状态码/关键词"（视为用户参数问题，

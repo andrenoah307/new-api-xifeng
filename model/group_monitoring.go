@@ -233,11 +233,17 @@ type MonitoringLogAggRow struct {
 	SumTime   int64
 }
 
-func AggregateLogsForMonitoring(sinceTimestamp int64) ([]MonitoringLogAggRow, error) {
+func AggregateLogsForMonitoring(sinceTimestamp int64, excludedChannelIDs, excludedUserIDs []int) ([]MonitoringLogAggRow, error) {
 	var rows []MonitoringLogAggRow
-	query := "SELECT " + logGroupCol + " as grp, channel as channel_id, type as log_type, COUNT(*) as cnt, COALESCE(SUM(use_time),0) as sum_time " +
-		"FROM logs WHERE created_at >= ? AND type IN (2, 5) " +
-		"GROUP BY " + logGroupCol + ", channel, type"
+	query := LOG_DB.Model(&Log{}).
+		Select(logGroupCol+" as grp, channel_id, type as log_type, COUNT(*) as cnt, COALESCE(SUM(use_time),0) as sum_time").
+		Where("created_at >= ? AND type IN (2, 5)", sinceTimestamp)
+	if len(excludedChannelIDs) > 0 {
+		query = query.Where("channel_id NOT IN ?", excludedChannelIDs)
+	}
+	if len(excludedUserIDs) > 0 {
+		query = query.Where("user_id NOT IN ?", excludedUserIDs)
+	}
 	type rawRow struct {
 		Grp       string `gorm:"column:grp"`
 		ChannelId int    `gorm:"column:channel_id"`
@@ -246,7 +252,7 @@ func AggregateLogsForMonitoring(sinceTimestamp int64) ([]MonitoringLogAggRow, er
 		SumTime   int64  `gorm:"column:sum_time"`
 	}
 	var raw []rawRow
-	err := LOG_DB.Raw(query, sinceTimestamp).Scan(&raw).Error
+	err := query.Group(logGroupCol + ", channel_id, type").Scan(&raw).Error
 	if err != nil {
 		return nil, err
 	}

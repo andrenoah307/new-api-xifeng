@@ -780,6 +780,8 @@ func handleConfigUpdate(key, value string) bool {
 		operation_setting.RebuildRegionRestrictionIndex()
 	} else if configName == "group_model_blacklist" {
 		operation_setting.RebuildGroupModelBlacklistIndex()
+	} else if configName == "group_monitoring_setting" && (configKey == "excluded_channel_ids" || configKey == "excluded_user_ids") {
+		operation_setting.RebuildMonitoringExclusionIndex()
 	}
 
 	return true // 已处理
