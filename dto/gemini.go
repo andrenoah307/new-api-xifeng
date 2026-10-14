@@ -238,8 +238,21 @@ func (g *GeminiInlineData) UnmarshalJSON(data []byte) error {
 }
 
 type FunctionCall struct {
-	FunctionName string `json:"name"`
-	Arguments    any    `json:"args"`
+	// ID is optional in the Gemini protocol and identifies the matching function response.
+	ID           string             `json:"id,omitempty"`
+	FunctionName string             `json:"name"`
+	Arguments    any                `json:"args"`
+	PartialArgs  []GeminiPartialArg `json:"partialArgs,omitempty"`
+	WillContinue *bool              `json:"willContinue,omitempty"`
+}
+
+type GeminiPartialArg struct {
+	JSONPath     string          `json:"jsonPath"`
+	NumberValue  *float64        `json:"numberValue,omitempty"`
+	StringValue  *string         `json:"stringValue,omitempty"`
+	BoolValue    *bool           `json:"boolValue,omitempty"`
+	NullValue    json.RawMessage `json:"nullValue,omitempty"`
+	WillContinue *bool           `json:"willContinue,omitempty"`
 }
 
 type GeminiFunctionResponse struct {
@@ -287,7 +300,10 @@ func (p *GeminiPart) UnmarshalJSON(data []byte) error {
 	type Alias GeminiPart
 	var aux struct {
 		Alias
-		InlineDataSnake *GeminiInlineData `json:"inline_data,omitempty"` // snake_case variant
+		InlineDataSnake       *GeminiInlineData       `json:"inline_data,omitempty"` // snake_case variant
+		FunctionCallSnake     *FunctionCall           `json:"function_call,omitempty"`
+		FunctionResponseSnake *GeminiFunctionResponse `json:"function_response,omitempty"`
+		ThoughtSignatureSnake json.RawMessage         `json:"thought_signature,omitempty"`
 	}
 
 	if err := common.Unmarshal(data, &aux); err != nil {
@@ -303,7 +319,15 @@ func (p *GeminiPart) UnmarshalJSON(data []byte) error {
 	} else if aux.InlineData != nil { // Fallback to camelCase from Alias
 		p.InlineData = aux.InlineData
 	}
-	// Other fields like Text, FunctionCall etc. are already populated via aux.Alias
+	if p.FunctionCall == nil {
+		p.FunctionCall = aux.FunctionCallSnake
+	}
+	if p.FunctionResponse == nil {
+		p.FunctionResponse = aux.FunctionResponseSnake
+	}
+	if len(p.ThoughtSignature) == 0 {
+		p.ThoughtSignature = aux.ThoughtSignatureSnake
+	}
 
 	return nil
 }
