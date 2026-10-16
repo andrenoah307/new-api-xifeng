@@ -52,7 +52,11 @@ function collectSelectItemLabels(
   return acc
 }
 
-function Select({ items, children, ...props }: SelectPrimitive.Root.Props) {
+function Select<Value = string, Multiple extends boolean | undefined = false>({
+  items,
+  children,
+  ...props
+}: SelectPrimitive.Root.Props<Value, Multiple>) {
   const derivedItems = React.useMemo(
     () => (items ? undefined : collectSelectItemLabels(children, [])),
     [items, children]
