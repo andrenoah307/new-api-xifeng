@@ -1,13 +1,14 @@
 package attachment
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // 测试辅助：临时改 setting 包级变量，测试结束自动回滚。
@@ -33,6 +34,31 @@ func withAttachmentSettings(t *testing.T, enable bool, maxSize int64, exts, mime
 		setting.TicketAttachmentAllowedExts = prevExts
 		setting.TicketAttachmentAllowedMimes = prevMimes
 	})
+}
+
+func TestValidateServerDetectedMime(t *testing.T) {
+	withAttachmentSettings(t, true, 1024*1024, "png,jpg,txt,json,xml,pdf", "image/*,text/*,application/json,application/xml,application/pdf")
+	for _, tc := range []struct {
+		name, file, declared, body, want string
+		reject                           bool
+	}{
+		{"ignore HTML declaration", "image.png", "text/html", "\x89PNG\r\n\x1a\n", "image/png", false},
+		{"ignore binary declaration", "data.json", "application/octet-stream", "{\"a\":1}", "text/plain", false},
+		{"reject HTML text", "report.txt", "text/html", "<!DOCTYPE html><html>untrusted</html>", "", true},
+		{"reject undeclared HTML", "report.txt", "", "<!DOCTYPE html><html>untrusted</html>", "", true},
+		{"reject image disguise", "image.png", "image/png", "plain text", "", true},
+		{"reject wrong image extension", "image.jpg", "image/jpeg", "\x89PNG\r\n\x1a\n", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := Validate(tc.file, tc.declared, int64(len(tc.body)), []byte(tc.body))
+			if tc.reject {
+				require.ErrorIs(t, err, ErrAttachmentMimeMismatch)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got.DetectedMime)
+		})
+	}
 }
 
 func TestSanitizeFileName(t *testing.T) {
@@ -223,28 +249,4 @@ func TestReadSniff_ShortStream(t *testing.T) {
 	if string(b) != "abc" {
 		t.Fatalf("combined mismatch: %q", b)
 	}
-}
-
-// 额外一道保险：sameMimeFamily 应识别 application/json ↔ text/plain。
-func TestSameMimeFamily(t *testing.T) {
-	cases := []struct {
-		a, b string
-		want bool
-	}{
-		{"application/json", "text/plain", true},
-		{"image/png", "image/jpeg", true},
-		{"image/png", "text/plain", false},
-		{"application/pdf", "application/json", false},
-		{"text/xml", "application/xml", true},
-	}
-	for _, c := range cases {
-		if got := sameMimeFamily(c.a, c.b); got != c.want {
-			t.Errorf("sameMimeFamily(%q,%q)=%v, want %v", c.a, c.b, got, c.want)
-		}
-	}
-	// 防御性：零字节 head 不 panic
-	if got := DetectMime(nil); got == "" {
-		t.Errorf("DetectMime(nil) returned empty; expected fallback type")
-	}
-	_ = bytes.NewReader // keep import
 }
