@@ -51,8 +51,7 @@ const ERROR_MESSAGES: Record<ModelNameRPMRuleErrorCode, string> = {
   'unlimited-without-sublimit':
     'When the global RPM is 0 (unlimited), configure at least one per-user or per-group limit; otherwise delete this model rule',
   'user-rpm-range': 'Per-user RPM must be a positive integer when set',
-  'user-rpm-exceeds-global':
-    'Per-user RPM must not exceed the global RPM',
+  'user-rpm-exceeds-global': 'Per-user RPM must not exceed the global RPM',
   'group-name-required': 'Select a group',
   'group-name-too-long': 'Group name must not exceed 64 characters',
   'group-name-whitespace':
@@ -92,8 +91,9 @@ export function ModelNameRPMDialog({
   const [globalRpm, setGlobalRpm] = useState(60)
   const [userRpm, setUserRpm] = useState(0)
   const [groups, setGroups] = useState<EditableGroupLimit[]>([])
-  const [errorCode, setErrorCode] =
-    useState<ModelNameRPMRuleErrorCode | null>(null)
+  const [errorCode, setErrorCode] = useState<ModelNameRPMRuleErrorCode | null>(
+    null
+  )
   const [errorGroupIndex, setErrorGroupIndex] = useState<number | null>(null)
   const nextGroupRowKey = useRef(0)
 
@@ -158,9 +158,7 @@ export function ModelNameRPMDialog({
     if (groupIndex !== undefined && errorGroupIndex !== groupIndex) return null
     if (groupIndex === undefined && errorGroupIndex !== null) return null
     return (
-      <p className='text-destructive text-sm'>
-        {t(ERROR_MESSAGES[errorCode])}
-      </p>
+      <p className='text-destructive text-sm'>{t(ERROR_MESSAGES[errorCode])}</p>
     )
   }
 
@@ -292,9 +290,11 @@ export function ModelNameRPMDialog({
                 <div className='flex items-center gap-2'>
                   <Select
                     value={group.groupName}
-                    onValueChange={(value: string) =>
-                      updateGroup(index, { groupName: value })
-                    }
+                    onValueChange={(value) => {
+                      if (value !== null) {
+                        updateGroup(index, { groupName: value })
+                      }
+                    }}
                   >
                     <SelectTrigger className='flex-1'>
                       <SelectValue placeholder={t('Select a group')} />

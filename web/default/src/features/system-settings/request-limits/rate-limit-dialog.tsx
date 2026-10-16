@@ -157,7 +157,9 @@ export function RateLimitDialog({
           <Label>{t('Group Name')}</Label>
           <Select
             value={form.watch('groupName')}
-            onValueChange={(value: string) => form.setValue('groupName', value)}
+            onValueChange={(value) => {
+              if (value !== null) form.setValue('groupName', value)
+            }}
           >
             <SelectTrigger className='w-full'>
               <SelectValue placeholder={t('Select a group')} />
@@ -174,7 +176,9 @@ export function RateLimitDialog({
           <p className='text-muted-foreground text-xs'>
             {isEditMode
               ? t('Existing groups can be renamed or removed.')
-              : t('Only groups currently present in the group catalog can be added.')}
+              : t(
+                  'Only groups currently present in the group catalog can be added.'
+                )}
           </p>
           {form.formState.errors.groupName ? (
             <p className='text-destructive text-sm'>
@@ -184,7 +188,9 @@ export function RateLimitDialog({
         </div>
 
         <div className='space-y-2'>
-          <Label htmlFor='rate-limit-total'>{t('Max Requests (including failures)')}</Label>
+          <Label htmlFor='rate-limit-total'>
+            {t('Max Requests (including failures)')}
+          </Label>
           <div className='flex items-center gap-2'>
             <Input
               id='rate-limit-total'
@@ -207,7 +213,9 @@ export function RateLimitDialog({
         </div>
 
         <div className='space-y-2'>
-          <Label htmlFor='rate-limit-success'>{t('Max Successful Requests')}</Label>
+          <Label htmlFor='rate-limit-success'>
+            {t('Max Successful Requests')}
+          </Label>
           <div className='flex items-center gap-2'>
             <Input
               id='rate-limit-success'
