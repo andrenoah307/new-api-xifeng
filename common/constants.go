@@ -241,13 +241,14 @@ const (
 const (
 	RoleGuestUser           = 0
 	RoleCommonUser          = 1
+	RoleFinanceUser         = 3 // Finance has read/export access without ticket staff privileges.
 	RoleCustomerServiceUser = 5 // 客服：只能访问工单相关管理功能
 	RoleAdminUser           = 10
 	RoleRootUser            = 100
 )
 
 func IsValidateRole(role int) bool {
-	return role == RoleGuestUser || role == RoleCommonUser || role == RoleCustomerServiceUser || role == RoleAdminUser || role == RoleRootUser
+	return role == RoleGuestUser || role == RoleCommonUser || role == RoleFinanceUser || role == RoleCustomerServiceUser || role == RoleAdminUser || role == RoleRootUser
 }
 
 // RoleLabel 返回角色的中文可读名称，主要用于日志/通知场景。
@@ -259,6 +260,8 @@ func RoleLabel(role int) string {
 		return "普通用户"
 	case RoleCustomerServiceUser:
 		return "客服"
+	case RoleFinanceUser:
+		return "财务"
 	case RoleAdminUser:
 		return "管理员"
 	case RoleRootUser:

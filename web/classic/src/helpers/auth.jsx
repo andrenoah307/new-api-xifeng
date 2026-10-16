@@ -20,6 +20,8 @@ For commercial licensing, please contact support@quantumnous.com
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { history } from './history';
+import { API } from './api';
+import Loading from '../components/common/ui/Loading';
 
 export function authHeader() {
   // return authorization header with jwt token
@@ -84,3 +86,31 @@ export function TicketStaffRoute({ children }) {
 }
 
 export { PrivateRoute };
+
+export function FinanceRoute({ children }) {
+  const [access, setAccess] = React.useState(null);
+  React.useEffect(() => {
+    let active = true;
+    API.get('/api/user/self')
+      .then(({ data }) => {
+        if (!active) return;
+        if (!data.success) {
+          setAccess(false);
+          return;
+        }
+        localStorage.setItem('user', JSON.stringify(data.data));
+        setAccess(
+          data.data.role === 100 ||
+            data.data.permissions?.admin_permissions?.finance?.read === true,
+        );
+      })
+      .catch(() => {
+        if (active) setAccess(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  if (access === null) return <Loading />;
+  return access ? children : <Navigate to='/forbidden' replace />;
+}
