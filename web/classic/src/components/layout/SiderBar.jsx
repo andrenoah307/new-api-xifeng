@@ -39,6 +39,7 @@ const routerMap = {
   invitation_code: '/console/invitation_code',
   topup: '/console/topup',
   topup_history: '/console/topup_history',
+  finance: '/console/finance',
   ticket: '/console/ticket',
   user: '/console/user',
   risk: '/console/risk',
@@ -159,9 +160,14 @@ const SiderBar = ({ onNavigate = () => { } }) => {
       },
     ];
 
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (user?.role === 100 || user?.permissions?.admin_permissions?.finance?.read === true) {
+      items.push({ text: t('Finance'), itemKey: 'finance', to: '/finance' });
+    }
+
     // 根据配置过滤项目
     const filteredItems = items.filter((item) => {
-      const configVisible = isModuleVisible('personal', item.itemKey);
+      const configVisible = item.itemKey === 'finance' || isModuleVisible('personal', item.itemKey);
       return configVisible;
     });
 

@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import {
   Shield,
   Activity,
@@ -7,7 +8,7 @@ import {
   History,
   HeadsetIcon,
 } from 'lucide-react'
-import type { TFunction } from 'i18next'
+
 import type { NavItem } from '@/components/layout/types'
 import { ROLE } from '@/lib/roles'
 
@@ -38,7 +39,8 @@ export function getCustomAdminItems(t: TFunction): NavItem[] {
 
 export function getCustomGeneralItems(
   t: TFunction,
-  role: number
+  role: number,
+  canReadFinance: boolean
 ): NavItem[] {
   const items: NavItem[] = [
     {
@@ -52,6 +54,10 @@ export function getCustomGeneralItems(
       icon: History,
     },
   ]
+
+  if (canReadFinance) {
+    items.push({ title: t('Finance'), url: '/finance', icon: History })
+  }
 
   if (role >= ROLE.TICKET_STAFF) {
     items.push({

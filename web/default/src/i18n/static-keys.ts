@@ -573,6 +573,9 @@ export const STATIC_I18N_KEYS = [
   'The upstream channel that served the requests',
 
   // Misc
+  'View financial records',
+  'Export financial records',
+  'View and export authorized financial records',
   'Cancel',
   'Status',
   'Upgrade Group',
