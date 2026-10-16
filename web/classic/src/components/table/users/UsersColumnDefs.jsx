@@ -43,6 +43,8 @@ const renderTimestamp = (text) => (text ? timestamp2string(text) : '-');
  */
 const renderRole = (role, t) => {
   switch (role) {
+    case 3:
+      return <Tag color='green' shape='circle'>{t('Finance')}</Tag>;
     case 1:
       return (
         <Tag color='blue' shape='circle'>

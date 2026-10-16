@@ -131,16 +131,23 @@ export const useSidebar = () => {
           const raw = localStorage.getItem('user');
           if (raw) {
             const cached = JSON.parse(raw);
-            const nextRole = typeof fresh.role === 'number' ? fresh.role : cached.role;
+            const nextRole =
+              typeof fresh.role === 'number' ? fresh.role : cached.role;
             const nextStatus =
               typeof fresh.status === 'number' ? fresh.status : cached.status;
-            if (cached.role !== nextRole || cached.status !== nextStatus) {
+            if (
+              cached.role !== nextRole ||
+              cached.status !== nextStatus ||
+              JSON.stringify(cached.permissions) !==
+                JSON.stringify(fresh.permissions)
+            ) {
               localStorage.setItem(
                 'user',
                 JSON.stringify({
                   ...cached,
                   role: nextRole,
                   status: nextStatus,
+                  permissions: fresh.permissions,
                 }),
               );
             }
