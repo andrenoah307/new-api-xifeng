@@ -140,6 +140,9 @@ export default function TicketAdminDetailPage({
       updateTicketStatus(ticketId, Number(statusValue), Number(priorityValue)),
     onSuccess: () => {
       toast.success(t('Status updated'))
+      queryClient.invalidateQueries({ queryKey: ticketQueryKeys.adminInvoice(ticketId) })
+      queryClient.invalidateQueries({ queryKey: ticketQueryKeys.eligibleOrders() })
+      queryClient.invalidateQueries({ queryKey: ['topup-history'] })
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
       })

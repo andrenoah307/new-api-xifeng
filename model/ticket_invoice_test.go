@@ -392,3 +392,64 @@ func TestCreateInvoiceTicketReturnsDatabaseError(t *testing.T) {
 	assert.Nil(t, message)
 	assert.Nil(t, orders)
 }
+
+func TestClosedInvoiceReleasesUnissuedOrders(t *testing.T) {
+	for _, byAdmin := range []bool{false, true} {
+		t.Run(fmt.Sprintf("admin=%t", byAdmin), func(t *testing.T) {
+			truncateTables(t)
+			user := insertInvoiceTicketUser(t, 910030)
+			id := seedInvoiceTicketTopUp(t, user.Id, "close-invoice", 1000)
+			params := createInvoiceTicketParams(user, []int{id})
+			ticket, _, _, _, err := CreateInvoiceTicket(params)
+			require.NoError(t, err)
+			if byAdmin {
+				status := TicketStatusClosed
+				_, _, err = UpdateTicketStatus(ticket.Id, user.Id, &status, nil)
+			} else {
+				_, err = CloseUserTicket(ticket.Id, user.Id)
+			}
+			require.NoError(t, err)
+			orders, err := GetEligibleInvoiceOrders(user.Id)
+			require.NoError(t, err)
+			require.Len(t, orders, 1)
+			assert.Equal(t, id, orders[0].Id)
+			_, _, _, _, err = CreateInvoiceTicket(params)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestHistoricalClosedInvoiceEligibility(t *testing.T) {
+	for _, issued := range []bool{false, true} {
+		t.Run(fmt.Sprintf("issued=%t", issued), func(t *testing.T) {
+			truncateTables(t)
+			user := insertInvoiceTicketUser(t, 910031)
+			id := seedInvoiceTicketTopUp(t, user.Id, "historical-close-invoice", 1000)
+			params := createInvoiceTicketParams(user, []int{id})
+			ticket, invoice, _, _, err := CreateInvoiceTicket(params)
+			require.NoError(t, err)
+			if issued {
+				require.NoError(t, DB.Model(invoice).Update("invoice_status", InvoiceStatusIssued).Error)
+			}
+			require.NoError(t, DB.Model(ticket).Update("status", TicketStatusClosed).Error)
+			orders, err := GetEligibleInvoiceOrders(user.Id)
+			require.NoError(t, err)
+			var topups []*TopUp
+			require.NoError(t, DB.Where("user_id = ?", user.Id).Find(&topups).Error)
+			require.NoError(t, attachTopUpInvoiceStatus(DB, topups))
+			if issued {
+				assert.Equal(t, InvoiceStatusIssued, topups[0].InvoiceStatus)
+				assert.Empty(t, orders)
+				_, _, _, _, err = CreateInvoiceTicket(params)
+				assert.ErrorIs(t, err, ErrTicketInvoiceOrderDuplicate)
+			} else {
+				assert.Zero(t, topups[0].InvoiceStatus)
+				require.Len(t, orders, 1)
+				_, _, _, _, err = CreateInvoiceTicket(params)
+				require.NoError(t, err)
+				_, _, _, err = UpdateInvoiceStatus(ticket.Id, user.Id, InvoiceStatusIssued)
+				assert.ErrorIs(t, err, ErrTicketInvoiceOrderDuplicate)
+			}
+		})
+	}
+}
