@@ -219,7 +219,7 @@ func attachTopUpInvoiceStatus(tx *gorm.DB, topups []*TopUp) error {
 	}
 
 	var invoices []*TicketInvoice
-	if err := tx.Model(&TicketInvoice{}).
+	if err := activeInvoiceOrders(tx).Model(&TicketInvoice{}).
 		Select("user_id, top_up_order_ids, invoice_status").
 		Where("user_id IN ? AND invoice_status IN ?", userIds,
 			[]int{InvoiceStatusPending, InvoiceStatusIssued}).
