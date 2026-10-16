@@ -48,7 +48,9 @@ import {
   checkInvoiceRefundConflict,
   type TicketInvoiceOrder,
 } from '../../api'
+import type { InvoiceTaxSelection } from '../../invoice-tax'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
+import { InvoiceTaxFields } from '../invoice-tax-fields'
 
 const TAX_NUMBER_REGEX = /^[A-Z0-9]{18}$/
 
@@ -91,6 +93,12 @@ export function CreateInvoiceTicketDialog({
   const schema = useMemo(() => createSchema(t), [t])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [refundConflictAcked, setRefundConflictAcked] = useState(false)
+  const [tax, setTax] = useState<InvoiceTaxSelection>({
+    ready: false,
+    invoice_type: 'ordinary',
+    tax_payment_method: 'balance',
+    tax_quote: '',
+  })
   const minInvoiceAmount = Number(status?.min_invoice_amount) || 0
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
@@ -149,6 +157,7 @@ export function CreateInvoiceTicketDialog({
     mutationFn: createInvoiceTicket,
     onSuccess: (data) => {
       toast.success(t('Invoice ticket submitted'))
+      queryClient.invalidateQueries({ queryKey: ['user'] })
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.userLists(),
       })
@@ -163,6 +172,7 @@ export function CreateInvoiceTicketDialog({
 
   const onSubmit = useCallback(
     (values: FormValues) => {
+      if (!tax.ready) return
       if (selectedIds.size === 0) {
         toast.error(t('Please select at least one order'))
         return
@@ -178,6 +188,9 @@ export function CreateInvoiceTicketDialog({
       }
 
       mutation.mutate({
+        invoice_type: tax.invoice_type,
+        tax_payment_method: tax.tax_payment_method,
+        tax_quote: tax.tax_quote,
         subject: t('Invoice Application'),
         company_name: values.company_name,
         tax_number: values.tax_number,
@@ -194,10 +207,12 @@ export function CreateInvoiceTicketDialog({
       mutation,
       t,
       refundConflictAcked,
+      tax,
     ]
   )
 
   const isSubmitDisabled =
+    !tax.ready ||
     mutation.isPending ||
     selectedIds.size === 0 ||
     (minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount) ||
@@ -254,7 +269,7 @@ export function CreateInvoiceTicketDialog({
           <DialogTitle>{t('Apply for Invoice')}</DialogTitle>
         </DialogHeader>
 
-        <div className='space-y-5'>
+        <div className='min-w-0 space-y-5'>
           {refundConflict?.has_refunds && (
             <Alert variant='warning'>
               <AlertDescription className='space-y-2'>
@@ -311,7 +326,7 @@ export function CreateInvoiceTicketDialog({
                 <TableBody>{orderRows}</TableBody>
               </Table>
             </div>
-            <div className='bg-muted mt-2 flex items-center justify-between rounded-md px-3 py-2 text-sm'>
+            <div className='bg-muted mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2 text-sm'>
               <span className='text-muted-foreground'>
                 {t('Selected')}: {selectedIds.size}/{orders.length}{' '}
                 {t('orders_unit')}
@@ -333,6 +348,11 @@ export function CreateInvoiceTicketDialog({
           </div>
 
           {/* Step 2: Invoice details form */}
+          <InvoiceTaxFields
+            ids={[...selectedIds]}
+            open={open}
+            onChange={setTax}
+          />
           <div>
             <h4 className='mb-2 text-sm font-medium'>
               2. {t('Fill in Invoice Header')}
@@ -343,7 +363,7 @@ export function CreateInvoiceTicketDialog({
                 onSubmit={form.handleSubmit(onSubmit)}
                 className='space-y-3'
               >
-                <div className='grid grid-cols-2 gap-3'>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                   <FormField
                     control={form.control}
                     name='company_name'
@@ -377,7 +397,7 @@ export function CreateInvoiceTicketDialog({
                     )}
                   />
                 </div>
-                <div className='grid grid-cols-2 gap-3'>
+                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
                   <FormItem>
                     <FormLabel>{t('Invoice Content')}</FormLabel>
                     <Input

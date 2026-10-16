@@ -48,6 +48,7 @@ export default function TopupHistoryPage() {
       <CreateInvoiceTicketDialog
         open={invoiceOpen}
         onOpenChange={setInvoiceOpen}
+        onCreated={(id) => navigate({ to: '/tickets/$ticketId', params: { ticketId: String(id) } })}
       />
     </>
   )
