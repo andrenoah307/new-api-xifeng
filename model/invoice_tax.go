@@ -168,28 +168,22 @@ func SettleInvoiceTax(tradeNo, method string, paidCents int64) error {
 			return ErrInvoiceTaxInvalid
 		}
 		now := common.GetTimestamp()
-		status := "paid"
-		updates := map[string]interface{}{"status": status, "paid_time": now}
-		if invoice.InvoiceStatus == InvoiceStatusRejected {
-			if user.Quota > common.MaxQuota-charge.Quota {
-				return ErrInvoiceTaxInvalid
-			}
-			if err := tx.Model(&User{}).Where("id = ?", user.Id).Update("quota", gorm.Expr("quota + ?", charge.Quota)).Error; err != nil {
-				return err
-			}
-			updates["status"] = "refunded"
-			updates["refunded_time"] = now
-			refunded = true
-		}
-		result := tx.Model(&InvoiceTaxCharge{}).Where("id = ? AND status = ?", charge.Id, "pending").Updates(updates)
+		result := tx.Model(&InvoiceTaxCharge{}).Where("id = ? AND status = ?", charge.Id, "pending").Updates(map[string]interface{}{"status": "paid", "paid_time": now})
 		if result.Error != nil {
 			return result.Error
 		}
 		if result.RowsAffected != 1 {
 			return ErrInvoiceTaxInvalid
 		}
+		charge.Status = "paid"
+		if invoice.InvoiceStatus == InvoiceStatusRejected {
+			if err := refundPaidInvoiceTax(tx, &charge); err != nil {
+				return err
+			}
+			refunded = true
+		}
 		settled = true
-		return tx.Create(&TicketMessage{TicketId: charge.TicketId, UserId: charge.UserId, Role: common.RoleCommonUser, Content: fmt.Sprintf("Invoice tax payment: CNY %.2f; %s; order %s", float64(charge.FeeCents)/100, updates["status"], charge.TradeNo), CreatedTime: now}).Error
+		return tx.Create(&TicketMessage{TicketId: charge.TicketId, UserId: charge.UserId, Role: common.RoleCommonUser, Content: fmt.Sprintf("Invoice tax payment: CNY %.2f; %s; order %s", float64(charge.FeeCents)/100, charge.Status, charge.TradeNo), CreatedTime: now}).Error
 	})
 	if err == nil && refunded {
 		syncInvoiceTaxQuotaCache(known.UserId, known.Quota)
@@ -198,6 +192,34 @@ func SettleInvoiceTax(tradeNo, method string, paidCents int64) error {
 		RecordLog(known.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax online payment: ticket %d, CNY %.2f, refunded to balance: %t", known.TicketId, float64(known.FeeCents)/100, refunded))
 	}
 	return err
+}
+
+// The caller holds user, invoice and charge locks in that order. Both the
+// ledger CAS and bounded wallet credit must commit in the same transaction.
+func refundPaidInvoiceTax(tx *gorm.DB, charge *InvoiceTaxCharge) error {
+	if charge.Status != "paid" || charge.Quota < 0 || charge.Quota > common.MaxQuota {
+		return ErrInvoiceTaxInvalid
+	}
+	now := common.GetTimestamp()
+	result := tx.Model(&InvoiceTaxCharge{}).Where("id = ? AND status = ?", charge.Id, "paid").Updates(map[string]interface{}{"status": "refunded", "refunded_time": now})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return ErrInvoiceTaxInvalid
+	}
+	if charge.Quota > 0 {
+		result = tx.Model(&User{}).Where("id = ? AND quota <= ?", charge.UserId, common.MaxQuota-charge.Quota).Update("quota", gorm.Expr("quota + ?", charge.Quota))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrInvoiceTaxInvalid
+		}
+	}
+	charge.Status = "refunded"
+	charge.RefundedTime = now
+	return nil
 }
 
 func syncInvoiceTaxQuotaCache(userID, delta int) {
