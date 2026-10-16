@@ -5748,6 +5748,10 @@
     "Invoice Settings": "Paramètres de facturation",
     "Taxable Service Name": "Nom du service taxable",
     "*Production and Living Services*Technical Service Fee": "*Services de production et de vie quotidienne*Frais de services techniques",
-    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "Affiché comme contenu de la facture dans le formulaire de demande et utilisé comme nom du service taxable par défaut lors de l’exportation. Laissez vide pour utiliser la valeur par défaut."
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "Affiché comme contenu de la facture dans le formulaire de demande et utilisé comme nom du service taxable par défaut lors de l’exportation. Laissez vide pour utiliser la valeur par défaut.",
+    "Tickets": "Tickets",
+    "Top-up History": "Historique des recharges",
+    "Ticket Admin": "Gestion des tickets",
+    "Ticket Settings": "Paramètres des tickets"
   }
 }

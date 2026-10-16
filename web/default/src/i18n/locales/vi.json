@@ -5748,6 +5748,10 @@
     "Invoice Settings": "Cài đặt hóa đơn",
     "Taxable Service Name": "Tên dịch vụ chịu thuế",
     "*Production and Living Services*Technical Service Fee": "*Dịch vụ sản xuất và đời sống*Phí dịch vụ kỹ thuật",
-    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "Hiển thị làm nội dung hóa đơn trong biểu mẫu yêu cầu và dùng làm tên dịch vụ chịu thuế mặc định khi xuất dữ liệu. Để trống để dùng giá trị mặc định."
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "Hiển thị làm nội dung hóa đơn trong biểu mẫu yêu cầu và dùng làm tên dịch vụ chịu thuế mặc định khi xuất dữ liệu. Để trống để dùng giá trị mặc định.",
+    "Tickets": "Phiếu hỗ trợ",
+    "Top-up History": "Lịch sử nạp tiền",
+    "Ticket Admin": "Quản lý phiếu hỗ trợ",
+    "Ticket Settings": "Cài đặt phiếu hỗ trợ"
   }
 }

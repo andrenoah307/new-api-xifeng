@@ -5748,6 +5748,10 @@
     "Invoice Settings": "Invoice Settings",
     "Taxable Service Name": "Taxable Service Name",
     "*Production and Living Services*Technical Service Fee": "*Production and Living Services*Technical Service Fee",
-    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default."
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.",
+    "Tickets": "Tickets",
+    "Top-up History": "Top-up History",
+    "Ticket Admin": "Ticket Admin",
+    "Ticket Settings": "Ticket Settings"
   }
 }

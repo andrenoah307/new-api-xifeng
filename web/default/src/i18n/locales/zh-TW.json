@@ -5748,6 +5748,10 @@
     "Invoice Settings": "開票設定",
     "Taxable Service Name": "應稅服務名稱",
     "*Production and Living Services*Technical Service Fee": "*生產生活服務*技術服務費",
-    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "在使用者開票表單中顯示為發票內容，並作為匯出時的預設應稅服務名稱。留空則使用預設值。"
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "在使用者開票表單中顯示為發票內容，並作為匯出時的預設應稅服務名稱。留空則使用預設值。",
+    "Tickets": "工單",
+    "Top-up History": "儲值記錄",
+    "Ticket Admin": "工單管理",
+    "Ticket Settings": "工單設定"
   }
 }
