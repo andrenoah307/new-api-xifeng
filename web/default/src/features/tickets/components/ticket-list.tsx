@@ -99,6 +99,10 @@ export default function TicketListPage() {
       toast.success(t('Ticket closed'))
       setCloseTicketId(null)
       queryClient.invalidateQueries({ queryKey: ticketQueryKeys.userLists() })
+      queryClient.invalidateQueries({ queryKey: ticketQueryKeys.eligibleOrders() })
+      queryClient.invalidateQueries({ queryKey: ['topup-history'] })
+      queryClient.invalidateQueries({ queryKey: ['invoice-tax-payment'] })
+      queryClient.invalidateQueries({ queryKey: ['user'] })
     },
   })
 

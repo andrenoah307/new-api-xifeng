@@ -87,6 +87,10 @@ export default function TicketDetailPage({
     mutationFn: () => closeUserTicket(ticketId),
     onSuccess: () => {
       toast.success(t('Ticket closed'))
+      queryClient.invalidateQueries({ queryKey: ticketQueryKeys.eligibleOrders() })
+      queryClient.invalidateQueries({ queryKey: ['topup-history'] })
+      queryClient.invalidateQueries({ queryKey: ['invoice-tax-payment', ticketId] })
+      queryClient.invalidateQueries({ queryKey: ['user'] })
       setCloseOpen(false)
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.userDetail(ticketId),

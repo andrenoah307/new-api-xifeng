@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -498,6 +499,7 @@ func AddTicketMessage(ticketId int, userId int, username string, role int, conte
 
 func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 	var ticket Ticket
+	var refundedQuota int
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -507,6 +509,13 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 		}
 		if ticket.UserId != userId {
 			return ErrTicketForbidden
+		}
+		if ticket.Type == TicketTypeInvoice {
+			var err error
+			refundedQuota, err = cancelPendingInvoice(tx, &ticket, userId)
+			if err != nil {
+				return err
+			}
 		}
 		if ticket.Status == TicketStatusClosed {
 			return nil
@@ -535,12 +544,17 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 	if err != nil {
 		return nil, err
 	}
+	if refundedQuota > 0 {
+		syncInvoiceTaxQuotaCache(ticket.UserId, refundedQuota)
+		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, refundedQuota))
+	}
 	return &ticket, nil
 }
 
 // UpdateTicketStatus 管理员调整工单状态/优先级。
 // 第二个返回值是修改前的主状态，便于调用方仅在状态真正变化时触发通知。
 func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (*Ticket, int, error) {
+	var refundedQuota int
 	var (
 		ticket     Ticket
 		prevStatus int
@@ -566,9 +580,23 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 			if !IsValidTicketStatus(*status) {
 				return ErrTicketInvalidStatus
 			}
+			if ticket.Type == TicketTypeInvoice && prevStatus == TicketStatusClosed && *status != TicketStatusClosed {
+				var err error
+				refundedQuota, err = cancelPendingInvoice(tx, &ticket, adminId)
+				if err != nil {
+					return err
+				}
+			}
 			updates["status"] = *status
 			ticket.Status = *status
 			if *status == TicketStatusClosed {
+				if ticket.Type == TicketTypeInvoice {
+					var err error
+					refundedQuota, err = cancelPendingInvoice(tx, &ticket, adminId)
+					if err != nil {
+						return err
+					}
+				}
 				updates["closed_time"] = now
 				ticket.ClosedTime = now
 
@@ -595,6 +623,10 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 	})
 	if err != nil {
 		return nil, 0, err
+	}
+	if refundedQuota > 0 {
+		syncInvoiceTaxQuotaCache(ticket.UserId, refundedQuota)
+		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, refundedQuota))
 	}
 	return &ticket, prevStatus, nil
 }

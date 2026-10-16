@@ -139,7 +139,7 @@ func GetTicketInvoiceByTicketId(ticketId int) (*TicketInvoice, error) {
 
 func GetUserInvoiceSummaries(userId int) ([]*TicketInvoice, error) {
 	var invoices []*TicketInvoice
-	if err := DB.Where("user_id = ?", userId).Order("created_time DESC").Find(&invoices).Error; err != nil {
+	if err := activeInvoiceOrders(DB).Where("user_id = ?", userId).Order("created_time DESC").Find(&invoices).Error; err != nil {
 		return nil, err
 	}
 	return invoices, nil
@@ -147,7 +147,7 @@ func GetUserInvoiceSummaries(userId int) ([]*TicketInvoice, error) {
 
 func getProtectedInvoiceOrderSet(tx *gorm.DB, userId int) (map[int]struct{}, error) {
 	var invoices []*TicketInvoice
-	if err := tx.Where("user_id = ? AND invoice_status <> ?", userId, InvoiceStatusRejected).Find(&invoices).Error; err != nil {
+	if err := activeInvoiceOrders(tx).Where("user_id = ? AND invoice_status <> ?", userId, InvoiceStatusRejected).Find(&invoices).Error; err != nil {
 		return nil, err
 	}
 
@@ -162,6 +162,54 @@ func getProtectedInvoiceOrderSet(tx *gorm.DB, userId int) (map[int]struct{}, err
 		}
 	}
 	return used, nil
+}
+
+// Closed, unissued applications no longer reserve orders. Reapplying settles
+// any legacy tax ledger in the same transaction as the new application.
+func activeInvoiceOrders(tx *gorm.DB) *gorm.DB {
+	closed := tx.Session(&gorm.Session{NewDB: true}).Model(&Ticket{}).Select("id").Where("status = ?", TicketStatusClosed)
+	return tx.Where("invoice_status <> ? OR ticket_id NOT IN (?)", InvoiceStatusPending, closed)
+}
+
+// Called inside the ticket-closing transaction; quota cache changes must wait
+// until the caller commits. Issued invoices must never be cancelled by closing.
+func cancelPendingInvoice(tx *gorm.DB, ticket *Ticket, actorID int) (int, error) {
+	var owner User
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, ticket.UserId).Error; err != nil {
+		return 0, err
+	}
+	var invoice TicketInvoice
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("ticket_id = ?", ticket.Id).Take(&invoice).Error; err != nil {
+		return 0, err
+	}
+	if invoice.InvoiceStatus != InvoiceStatusPending {
+		return 0, nil
+	}
+	var charge InvoiceTaxCharge
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("ticket_id = ?", ticket.Id).Take(&charge).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, err
+	}
+	refund := 0
+	if err == nil && charge.Status == "paid" {
+		if err := refundPaidInvoiceTax(tx, &charge); err != nil {
+			return 0, err
+		}
+		refund = charge.Quota
+	}
+	result := tx.Model(&TicketInvoice{}).Where("id = ? AND invoice_status = ?", invoice.Id, InvoiceStatusPending).Update("invoice_status", InvoiceStatusRejected)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	if result.RowsAffected != 1 {
+		return 0, ErrTicketInvoiceStatusInvalid
+	}
+	role := common.RoleAdminUser
+	if actorID == ticket.UserId {
+		role = common.RoleCommonUser
+	}
+	err = tx.Create(&TicketMessage{TicketId: ticket.Id, UserId: actorID, Role: role, Content: fmt.Sprintf("Invoice application cancelled on ticket closure; tax refunded to balance: %d quota", refund), CreatedTime: common.GetTimestamp()}).Error
+	return refund, err
 }
 
 func fetchSuccessTopUpsByIds(tx *gorm.DB, userId int, orderIds []int) ([]*TopUp, error) {
@@ -296,10 +344,38 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 		invoice       *TicketInvoice
 		orderedTopUps []*TopUp
 	)
+	var refundedQuota int
 	err = DB.Transaction(func(tx *gorm.DB) error {
 		var owner User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, params.UserId).Error; err != nil {
 			return err
+		}
+		// Old versions closed only the ticket. Settle overlapping applications
+		// before reuse, without performing financial writes in the listing API.
+		var closedInvoices []*TicketInvoice
+		closedTickets := tx.Model(&Ticket{}).Select("id").Where("user_id = ? AND status = ?", params.UserId, TicketStatusClosed)
+		if err := tx.Where("user_id = ? AND invoice_status = ? AND ticket_id IN (?)", params.UserId, InvoiceStatusPending, closedTickets).Find(&closedInvoices).Error; err != nil {
+			return err
+		}
+		selected := make(map[int]bool, len(orderIds))
+		for _, id := range orderIds {
+			selected[id] = true
+		}
+		for _, previous := range closedInvoices {
+			ids, err := previous.GetTopUpOrderIDs()
+			if err != nil {
+				return err
+			}
+			for _, id := range ids {
+				if selected[id] {
+					refund, err := cancelPendingInvoice(tx, &Ticket{Id: previous.TicketId, UserId: params.UserId}, params.UserId)
+					if err != nil {
+						return err
+					}
+					refundedQuota += refund
+					break
+				}
+			}
 		}
 		usedSet, err := getProtectedInvoiceOrderSet(tx, params.UserId)
 		if err != nil {
@@ -427,9 +503,16 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	quotaDelta := refundedQuota
 	if invoice.TaxCharge != nil && invoice.TaxCharge.PaymentMethod == "balance" {
-		syncInvoiceTaxQuotaCache(params.UserId, -invoice.TaxCharge.Quota)
+		quotaDelta -= invoice.TaxCharge.Quota
 		RecordLog(params.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax balance payment: ticket %d, CNY %.2f, quota %d", ticket.Id, float64(invoice.TaxCharge.FeeCents)/100, invoice.TaxCharge.Quota))
+	}
+	if quotaDelta != 0 {
+		syncInvoiceTaxQuotaCache(params.UserId, quotaDelta)
+	}
+	if refundedQuota > 0 {
+		RecordLog(params.UserId, LogTypeSystem, fmt.Sprintf("Closed invoice tax refunded before reapplication: quota %d", refundedQuota))
 	}
 	return ticket, invoice, message, orderedTopUps, nil
 }
@@ -475,7 +558,7 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, known.UserId).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("ticket_id = ?", ticketId).First(&invoice).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("ticket_id = ?", ticketId).First(&invoice).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketInvoiceNotFound
 			}
@@ -488,6 +571,31 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 			return err
 		}
 		prevStatus = ticket.Status
+		if invoiceStatus != InvoiceStatusRejected {
+			var others []*TicketInvoice
+			if err := activeInvoiceOrders(tx).Where("user_id = ? AND id <> ? AND invoice_status <> ?", invoice.UserId, invoice.Id, InvoiceStatusRejected).Find(&others).Error; err != nil {
+				return err
+			}
+			ids, err := invoice.GetTopUpOrderIDs()
+			if err != nil {
+				return err
+			}
+			selected := make(map[int]bool, len(ids))
+			for _, id := range ids {
+				selected[id] = true
+			}
+			for _, other := range others {
+				otherIDs, err := other.GetTopUpOrderIDs()
+				if err != nil {
+					return err
+				}
+				for _, id := range otherIDs {
+					if selected[id] {
+						return ErrTicketInvoiceOrderDuplicate
+					}
+				}
+			}
+		}
 		var charge InvoiceTaxCharge
 		taxErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("ticket_id = ?", ticketId).Take(&charge).Error
 		if taxErr != nil && !errors.Is(taxErr, gorm.ErrRecordNotFound) {
@@ -501,17 +609,10 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 				return ErrInvoiceTaxUnpaid
 			}
 			if invoiceStatus == InvoiceStatusRejected && charge.Status == "paid" {
-				if owner.Quota > common.MaxQuota-charge.Quota {
-					return ErrInvoiceTaxInvalid
-				}
-				if err := tx.Model(&User{}).Where("id = ?", owner.Id).Update("quota", gorm.Expr("quota + ?", charge.Quota)).Error; err != nil {
-					return err
-				}
-				if err := tx.Model(&charge).Updates(map[string]interface{}{"status": "refunded", "refunded_time": common.GetTimestamp()}).Error; err != nil {
+				if err := refundPaidInvoiceTax(tx, &charge); err != nil {
 					return err
 				}
 				refundedQuota = charge.Quota
-				charge.Status = "refunded"
 				if err := tx.Create(&TicketMessage{TicketId: ticketId, UserId: adminId, Role: common.RoleAdminUser, Content: fmt.Sprintf("Invoice tax refunded to balance: CNY %.2f; quota %d; order %s", float64(charge.FeeCents)/100, charge.Quota, charge.TradeNo), CreatedTime: common.GetTimestamp()}).Error; err != nil {
 					return err
 				}
@@ -595,6 +696,8 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time, tc.invoice_type, tc.mode AS tax_mode, tc.rate_bps AS tax_rate_bps, tc.fee_cents AS tax_fee_cents").
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
 		Joins("LEFT JOIN invoice_tax_charges tc ON tc.ticket_id = t.id").
+		Where("ti.invoice_status <> ?", InvoiceStatusRejected).
+		Where("ti.invoice_status <> ? OR t.status <> ?", InvoiceStatusPending, TicketStatusClosed).
 		Where("tc.id IS NULL OR tc.status = ?", "paid").
 		Where("t.type = ? AND t.deleted_at IS NULL", TicketTypeInvoice)
 

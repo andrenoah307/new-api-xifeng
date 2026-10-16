@@ -1,12 +1,15 @@
 package model
 
 import (
+	"errors"
 	"math"
+	"sync"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestInvoiceTaxPaymentLifecycle(t *testing.T) {
@@ -186,6 +189,215 @@ func TestInvoiceTaxModesAndAccounting(t *testing.T) {
 			assert.Equal(t, int64(0), legacy.FeeCents)
 		})
 	}
+}
+
+func TestInvoiceTaxTicketClosure(t *testing.T) {
+	for _, method := range []string{"balance", "online", "issued", "historical"} {
+		t.Run(method, func(t *testing.T) {
+			truncateTables(t)
+			user := insertInvoiceTicketUser(t, 980110)
+			const startingQuota = 100000000
+			require.NoError(t, DB.Model(user).Update("quota", startingQuota).Error)
+			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+			t.Cleanup(func() {
+				DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
+				DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
+			})
+			id := seedInvoiceTicketTopUp(t, user.Id, "tax-close-order", 1000)
+			require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", id).Update("payment_provider", PaymentProviderEpay).Error)
+			quote, err := QuoteInvoiceTax(DB, user.Id, []int{id}, "ordinary")
+			require.NoError(t, err)
+			params := createInvoiceTicketParams(user, []int{id})
+			params.InvoiceType, params.TaxQuote, params.TaxPaymentMethod = "ordinary", quote.Token, "balance"
+			if method == "online" {
+				params.TaxPaymentMethod = "online"
+			}
+			ticket, invoice, _, _, err := CreateInvoiceTicket(params)
+			require.NoError(t, err)
+			if method == "issued" {
+				_, _, _, err = UpdateInvoiceStatus(ticket.Id, user.Id, InvoiceStatusIssued)
+				require.NoError(t, err)
+			}
+			if method == "historical" {
+				require.NoError(t, DB.Model(ticket).Update("status", TicketStatusClosed).Error)
+				eligible, err := GetEligibleInvoiceOrders(user.Id)
+				require.NoError(t, err)
+				require.Len(t, eligible, 1)
+				replacement, nextInvoice, _, _, err := CreateInvoiceTicket(params)
+				require.NoError(t, err)
+				assert.NotEqual(t, ticket.Id, replacement.Id)
+				assert.Equal(t, "paid", nextInvoice.TaxCharge.Status)
+				previous, err := GetInvoiceTaxCharge(ticket.Id)
+				require.NoError(t, err)
+				assert.Equal(t, "refunded", previous.Status)
+			}
+			for range 2 {
+				_, err = CloseUserTicket(ticket.Id, user.Id)
+				require.NoError(t, err)
+			}
+			if method == "online" {
+				require.NoError(t, DB.Model(invoice.TaxCharge).Update("payment_method", "alipay").Error)
+				for range 2 {
+					require.NoError(t, SettleInvoiceTax(invoice.TaxCharge.TradeNo, "alipay", quote.FeeCents))
+				}
+			}
+			var current User
+			require.NoError(t, DB.First(&current, user.Id).Error)
+			orders, err := GetEligibleInvoiceOrders(user.Id)
+			require.NoError(t, err)
+			switch method {
+			case "issued", "historical":
+				assert.Equal(t, startingQuota-quote.Quota, current.Quota)
+				assert.Empty(t, orders)
+			case "online":
+				assert.Equal(t, startingQuota+quote.Quota, current.Quota)
+				require.Len(t, orders, 1)
+			default:
+				assert.Equal(t, startingQuota, current.Quota)
+				require.Len(t, orders, 1)
+			}
+		})
+	}
+}
+
+func TestInvoiceTaxWriteFailureRollsBackMoneyAndState(t *testing.T) {
+	for _, action := range []string{"create", "close", "callback", "overflow", "reapply"} {
+		t.Run(action, func(t *testing.T) {
+			truncateTables(t)
+			user := insertInvoiceTicketUser(t, 980111)
+			const startingQuota = 100000000
+			require.NoError(t, DB.Model(user).Update("quota", startingQuota).Error)
+			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+			t.Cleanup(func() {
+				DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
+				DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
+			})
+			id := seedInvoiceTicketTopUp(t, user.Id, "tax-atomic-order", 1000)
+			require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", id).Update("payment_provider", PaymentProviderEpay).Error)
+			quote, err := QuoteInvoiceTax(DB, user.Id, []int{id}, "ordinary")
+			require.NoError(t, err)
+			params := createInvoiceTicketParams(user, []int{id})
+			params.InvoiceType, params.TaxQuote, params.TaxPaymentMethod = "ordinary", quote.Token, "balance"
+			if action == "callback" {
+				params.TaxPaymentMethod = "online"
+			}
+			var ticket *Ticket
+			var invoice *TicketInvoice
+			if action != "create" {
+				ticket, invoice, _, _, err = CreateInvoiceTicket(params)
+				require.NoError(t, err)
+			}
+			if action == "reapply" {
+				require.NoError(t, DB.Model(ticket).Update("status", TicketStatusClosed).Error)
+			}
+			writeFailure := errors.New("injected invoice message write failure")
+			require.NoError(t, DB.Callback().Create().Before("gorm:create").Register("test:invoice_message_failure", func(tx *gorm.DB) {
+				if tx.Statement.Schema != nil && tx.Statement.Schema.Name == "TicketMessage" {
+					if message, ok := tx.Statement.Dest.(*TicketMessage); action == "reapply" && ok && message.TicketId == ticket.Id {
+						return
+					}
+					tx.AddError(writeFailure)
+				}
+			}))
+			t.Cleanup(func() { require.NoError(t, DB.Callback().Create().Remove("test:invoice_message_failure")) })
+			expectedQuota := startingQuota
+			expectedError := writeFailure
+			switch action {
+			case "create":
+				_, _, _, _, err = CreateInvoiceTicket(params)
+			case "close":
+				expectedQuota -= quote.Quota
+				_, err = CloseUserTicket(ticket.Id, user.Id)
+			case "callback":
+				require.NoError(t, DB.Model(invoice.TaxCharge).Update("payment_method", "alipay").Error)
+				err = SettleInvoiceTax(invoice.TaxCharge.TradeNo, "alipay", quote.FeeCents)
+			case "overflow":
+				expectedQuota, expectedError = common.MaxQuota, ErrInvoiceTaxInvalid
+				require.NoError(t, DB.Model(user).Update("quota", expectedQuota).Error)
+				_, err = CloseUserTicket(ticket.Id, user.Id)
+			case "reapply":
+				expectedQuota -= quote.Quota
+				_, _, _, _, err = CreateInvoiceTicket(params)
+			}
+			require.ErrorIs(t, err, expectedError)
+			var current User
+			require.NoError(t, DB.First(&current, user.Id).Error)
+			assert.Equal(t, expectedQuota, current.Quota)
+			if action == "create" {
+				for _, table := range []any{&Ticket{}, &TicketInvoice{}, &InvoiceTaxCharge{}} {
+					var count int64
+					require.NoError(t, DB.Model(table).Where("user_id = ?", user.Id).Count(&count).Error)
+					assert.Zero(t, count)
+				}
+			} else {
+				require.NoError(t, DB.First(ticket, ticket.Id).Error)
+				if action == "reapply" {
+					assert.Equal(t, TicketStatusClosed, ticket.Status)
+					for _, table := range []any{&Ticket{}, &TicketInvoice{}, &InvoiceTaxCharge{}} {
+						var count int64
+						require.NoError(t, DB.Model(table).Where("user_id = ?", user.Id).Count(&count).Error)
+						assert.Equal(t, int64(1), count)
+					}
+				} else {
+					assert.Equal(t, TicketStatusOpen, ticket.Status)
+				}
+				require.NoError(t, DB.First(invoice, invoice.Id).Error)
+				assert.Equal(t, InvoiceStatusPending, invoice.InvoiceStatus)
+				charge, err := GetInvoiceTaxCharge(ticket.Id)
+				require.NoError(t, err)
+				assert.Equal(t, invoice.TaxCharge.Status, charge.Status)
+			}
+		})
+	}
+}
+
+func TestInvoiceTaxConcurrentCallbackAndClosure(t *testing.T) {
+	truncateTables(t)
+	user := insertInvoiceTicketUser(t, 980112)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+	t.Cleanup(func() {
+		DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
+		DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
+	})
+	id := seedInvoiceTicketTopUp(t, user.Id, "tax-concurrent-order", 1000)
+	require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", id).Update("payment_provider", PaymentProviderEpay).Error)
+	quote, err := QuoteInvoiceTax(DB, user.Id, []int{id}, "ordinary")
+	require.NoError(t, err)
+	params := createInvoiceTicketParams(user, []int{id})
+	params.InvoiceType, params.TaxQuote, params.TaxPaymentMethod = "ordinary", quote.Token, "online"
+	ticket, invoice, _, _, err := CreateInvoiceTicket(params)
+	require.NoError(t, err)
+	require.NoError(t, DB.Model(invoice.TaxCharge).Update("payment_method", "alipay").Error)
+	start := make(chan struct{})
+	results := make(chan error, 4)
+	var wg sync.WaitGroup
+	for _, operation := range []string{"callback", "close", "callback", "close"} {
+		wg.Add(1)
+		go func(operation string) {
+			defer wg.Done()
+			<-start
+			if operation == "callback" {
+				results <- SettleInvoiceTax(invoice.TaxCharge.TradeNo, "alipay", quote.FeeCents)
+			} else {
+				_, err := CloseUserTicket(ticket.Id, user.Id)
+				results <- err
+			}
+		}(operation)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	for err := range results {
+		require.NoError(t, err)
+	}
+	var current User
+	require.NoError(t, DB.First(&current, user.Id).Error)
+	assert.Equal(t, quote.Quota, current.Quota)
+	charge, err := GetInvoiceTaxCharge(ticket.Id)
+	require.NoError(t, err)
+	assert.Equal(t, "refunded", charge.Status)
+	require.NoError(t, DB.First(ticket, ticket.Id).Error)
+	assert.Equal(t, TicketStatusClosed, ticket.Status)
 }
 
 func TestInvoiceTaxRejectsInvalidRatesAndAmounts(t *testing.T) {
