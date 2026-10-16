@@ -35,7 +35,6 @@ import { CompactDateTimeRangePicker } from '@/features/usage-logs/components/com
 import { useStatus } from '@/hooks/use-status'
 import { formatTimestampToDate } from '@/lib/format'
 
-import { generateInvoiceCSV } from '../../../../../../shared/invoice-csv.js'
 import { getInvoiceExportList, type InvoiceExportItem } from '../../api'
 import { TICKET_STATUS_CONFIG } from '../../constants'
 
@@ -48,6 +47,57 @@ const TICKET_STATUS_OPTIONS = [
 ]
 
 const PAGE_SIZE = 20
+
+function csvField(value: string | number): string {
+  const s = String(value ?? '')
+  if (
+    s.includes(',') ||
+    s.includes('"') ||
+    s.includes('\n') ||
+    s.includes('\r')
+  ) {
+    return `"${s.replaceAll('"', '""')}"`
+  }
+  return s
+}
+
+function generateInvoiceCSV(
+  items: InvoiceExportItem[],
+  serviceName: string
+): string {
+  const BOM = '﻿'
+  const headers = [
+    '工单ID',
+    '电子邮箱',
+    '数量',
+    '单价',
+    '金额合计',
+    '公司信息',
+    '应税服务名称',
+    '发票类型', '税点模式', '税点率(%)', '补缴金额(元)',
+  ]
+  const lines = [headers.map(csvField).join(',')]
+  for (const item of items) {
+    const companyInfo = item.tax_number
+      ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
+      : item.company_name
+    const row = [
+      item.ticket_id,
+      item.email,
+      '',
+      '',
+      item.total_money.toFixed(2),
+      companyInfo,
+      serviceName,
+      ({ special: '增值税专用发票', ordinary: '增值税普通发票' } as Record<string, string>)[item.invoice_type ?? ''] ?? '',
+      item.tax_mode ?? '',
+      item.tax_rate_bps == null ? '' : item.tax_rate_bps / 100,
+      item.tax_fee_cents == null ? '' : (item.tax_fee_cents / 100).toFixed(2),
+    ]
+    lines.push(row.map(csvField).join(','))
+  }
+  return `${BOM}${lines.join('\r\n')}`
+}
 
 function downloadCSV(csv: string, filename: string) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })

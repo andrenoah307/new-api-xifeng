@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { InvoiceTaxSettings } from '../ticket/InvoiceTax';
 import {
   Banner,
   Button,
@@ -364,6 +365,9 @@ const TicketSetting = () => {
             <label htmlFor='ticket-quick-replies'>{t('Quick replies (one per line)')}</label>
             <TextArea id='ticket-quick-replies' rows={8} maxLength={200000} value={inputs.TicketQuickReplies || ''} onChange={(value) => setInputs((previous) => ({ ...previous, TicketQuickReplies: value }))} />
             <Button className='mt-4' onClick={() => updateOptions([{ key: 'TicketQuickReplies', value: inputs.TicketQuickReplies || '' }])}>{t('保存设置')}</Button>
+          </Tabs.TabPane>
+          <Tabs.TabPane itemKey='invoice-tax' tab={t('Invoice tax charges')}>
+            <InvoiceTaxSettings />
           </Tabs.TabPane>
           {/* ============ 分配规则 Tab ============ */}
           <Tabs.TabPane

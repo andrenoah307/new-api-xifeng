@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Button,
@@ -13,7 +31,6 @@ import { IconDownload } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess } from '../../helpers';
 import { timestamp2string } from '../../helpers';
-import { generateInvoiceCSV } from '../../../../shared/invoice-csv.js';
 
 const PAGE_SIZE = 20;
 
@@ -24,6 +41,40 @@ const TICKET_STATUS_OPTIONS = [
   { value: 3, label: '已解决' },
   { value: 4, label: '已关闭' },
 ];
+
+function csvField(value) {
+  const s = String(value ?? '');
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function generateInvoiceCSV(items, serviceName) {
+  const BOM = '﻿';
+  const headers = ['工单ID', '电子邮箱', '数量', '单价', '金额合计', '公司信息', '应税服务名称', '发票类型', '税点模式', '税点率(%)', '补缴金额(元)'];
+  const lines = [headers.map(csvField).join(',')];
+  for (const item of items) {
+    const companyInfo = item.tax_number
+      ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
+      : item.company_name;
+    const row = [
+      item.ticket_id,
+      item.email,
+      '',
+      '',
+      item.total_money.toFixed(2),
+      companyInfo,
+      serviceName,
+      item.invoice_type === 'special' ? '增值税专用发票' : item.invoice_type === 'ordinary' ? '增值税普通发票' : '',
+      item.tax_mode || '',
+      item.tax_rate_bps == null ? '' : item.tax_rate_bps / 100,
+      item.tax_fee_cents == null ? '' : (item.tax_fee_cents / 100).toFixed(2),
+    ];
+    lines.push(row.map(csvField).join(','));
+  }
+  return BOM + lines.join('\r\n');
+}
 
 function downloadCSV(csv, filename) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
