@@ -573,6 +573,9 @@ export const STATIC_I18N_KEYS = [
   'The upstream channel that served the requests',
 
   // Misc
+  'VAT added to net amount',
+  'Markup followed by VAT',
+  'Gross-up by total invoice amount',
   'View financial records',
   'Export financial records',
   'View and export authorized financial records',

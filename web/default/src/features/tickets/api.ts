@@ -40,6 +40,7 @@ export interface TicketAttachment {
 }
 
 export interface TicketInvoice {
+	 tax_charge?: import('./invoice-tax').InvoiceTaxCharge
   id: number
   ticket_id: number
   company_name: string
@@ -240,6 +241,9 @@ export async function createRefundTicket(data: {
 }
 
 export async function createInvoiceTicket(data: {
+	invoice_type?: string
+	tax_payment_method?: string
+	tax_quote?: string
   subject: string
   company_name: string
   tax_number: string
@@ -249,7 +253,8 @@ export async function createInvoiceTicket(data: {
   refund_conflict_acknowledged?: boolean
 }): Promise<{ id: number } | null> {
   const res = await api.post('/api/ticket/invoice/', data)
-  return res.data?.data ?? null
+  if (!res.data.success) throw new Error(res.data.message)
+  return res.data?.data?.ticket ?? null
 }
 
 export async function getEligibleInvoiceOrders(): Promise<
@@ -445,6 +450,10 @@ export function getAttachmentUrl(id: number, inline = false): string {
 }
 
 export interface InvoiceExportItem {
+	invoice_type?: string
+	tax_mode?: string
+	tax_rate_bps?: number
+	tax_fee_cents?: number
   ticket_id: number
   company_name: string
   tax_number: string
