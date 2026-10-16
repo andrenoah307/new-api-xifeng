@@ -89,14 +89,13 @@ func UploadTicketAttachment(c *gin.Context) {
 	}
 	defer src.Close()
 
-	// 先嗅探前 512 字节做魔数/白名单三重校验，再把流拼回去写盘。
+	// Sniff content before checking extension/MIME allowlists, then rebuild the stream.
 	head, combined, err := attachment.ReadSniff(src)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	declaredMime := fileHeader.Header.Get("Content-Type")
-	result, err := attachment.Validate(fileHeader.Filename, declaredMime, fileHeader.Size, head)
+	result, err := attachment.Validate(fileHeader.Filename, "", fileHeader.Size, head)
 	if err != nil {
 		common.ApiErrorMsg(c, err.Error())
 		return
@@ -230,28 +229,7 @@ func DownloadTicketAttachment(c *gin.Context) {
 		return
 	}
 
-	inline := c.Query("inline") == "1" && isPreviewableMime(record.MimeType)
-	disposition := "attachment"
-	if inline {
-		disposition = "inline"
-	}
-	dispHeader := fmt.Sprintf(`%s; filename*=UTF-8''%s`, disposition, url.PathEscape(record.FileName))
-
-	// 云存储优先走签名 URL（省带宽、便于 CDN 回源）。
-	ttl := time.Duration(setting.TicketAttachmentSignedURLTTL) * time.Second
-	if ttl <= 0 {
-		ttl = 15 * time.Minute
-	}
-	if record.StorageType != "local" {
-		signed, err := storage.SignedURL(c.Request.Context(), record.StorageKey, ttl, record.FileName)
-		if err == nil && signed != "" {
-			c.Redirect(http.StatusFound, signed)
-			return
-		}
-		// 某些云存储异常时退化为后端代理。
-	}
-
-	// 本地 / 云回源流式返回。
+	// Proxy every backend so legacy object metadata cannot bypass response safety.
 	reader, err := storage.Get(c.Request.Context(), record.StorageKey)
 	if err != nil {
 		if errors.Is(err, attachment.ErrNotFound) {
@@ -263,15 +241,30 @@ func DownloadTicketAttachment(c *gin.Context) {
 	}
 	defer reader.Close()
 
-	c.Writer.Header().Set("Content-Type", record.MimeType)
+	head, combined, err := attachment.ReadSniff(reader)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	contentType := strings.Split(attachment.DetectMime(head), ";")[0]
+	previewable := isPreviewableMime(contentType)
+	if !previewable {
+		contentType = "application/octet-stream"
+	}
+	disposition := "attachment"
+	if c.Query("inline") == "1" && previewable {
+		disposition = "inline"
+	}
+	dispHeader := fmt.Sprintf(`%s; filename*=UTF-8''%s`, disposition, url.PathEscape(record.FileName))
+	c.Writer.Header().Set("Content-Type", contentType)
 	c.Writer.Header().Set("Content-Disposition", dispHeader)
 	c.Writer.Header().Set("Content-Length", strconv.FormatInt(record.Size, 10))
 	// 显式关闭嗅探，杜绝浏览器把 txt 当成 HTML 执行。
 	c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
-	// 预览缓存：附件一旦创建不可变，直接 immutable，一周。
-	c.Writer.Header().Set("Cache-Control", "private, max-age=604800, immutable")
+	c.Writer.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'")
+	c.Writer.Header().Set("Cache-Control", "private, no-store")
 	c.Status(http.StatusOK)
-	if _, err := io.Copy(c.Writer, reader); err != nil {
+	if _, err := io.Copy(c.Writer, combined); err != nil {
 		// 已经写了响应头，这里只能记录；客户端会看到截断的连接。
 		common.SysLog("ticket attachment download: copy failed: " + err.Error())
 	}
@@ -301,8 +294,7 @@ func canAccessAttachment(c *gin.Context, a *model.TicketAttachment) bool {
 	return true
 }
 
-// isPreviewableMime 返回该 MIME 是否适合浏览器 inline 预览。
-// 仅图片 + 纯文本类，避免把 PDF/二进制放 inline 触发不可控的浏览器行为。
+// isPreviewableMime allows only known raster image types, never active documents.
 func isPreviewableMime(mime string) bool {
 	mime = strings.ToLower(strings.TrimSpace(mime))
 	if mime == "" {
@@ -311,13 +303,9 @@ func isPreviewableMime(mime string) bool {
 	if idx := strings.Index(mime, ";"); idx >= 0 {
 		mime = strings.TrimSpace(mime[:idx])
 	}
-	if strings.HasPrefix(mime, "image/") {
-		// SVG 已在上传层禁用，这里再保底一次。
-		return mime != "image/svg+xml"
-	}
 	switch mime {
-	case "application/json", "application/xml":
+	case "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp":
 		return true
 	}
-	return strings.HasPrefix(mime, "text/")
+	return false
 }
