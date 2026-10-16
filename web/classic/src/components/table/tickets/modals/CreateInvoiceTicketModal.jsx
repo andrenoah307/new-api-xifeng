@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Banner,
@@ -14,11 +32,15 @@ import {
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess, timestamp2string } from '../../../../helpers';
 import { StatusContext } from '../../../../context/Status';
+import { InvoiceTaxFields } from '../../../ticket/InvoiceTax';
+import { useNavigate } from 'react-router-dom';
 
 const { Text, Title } = Typography;
 
 const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const [tax, setTax] = useState({ ready: false });
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orders, setOrders] = useState([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
@@ -122,11 +144,13 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   );
 
   const canSubmit =
+    tax.ready &&
     selectedOrderIds.length > 0 &&
     (minInvoiceAmount <= 0 || invoiceAmount >= minInvoiceAmount) &&
     !(refundConflict?.has_refunds && !refundConflictAcked);
 
   const handleSubmit = async (values) => {
+    if (!tax.ready) return;
     if (!selectedOrderIds.length) {
       showError(t('请选择至少一个充值订单'));
       return;
@@ -141,6 +165,9 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
     setLoading(true);
     try {
       const res = await API.post('/api/ticket/invoice/', {
+        invoice_type: tax.invoice_type,
+        tax_payment_method: tax.tax_payment_method,
+        tax_quote: tax.tax_quote,
         subject: t('发票申请'),
         company_name: values.company_name,
         tax_number: values.tax_number,
@@ -153,6 +180,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
         showSuccess(t('发票申请已提交'));
         onSuccess?.(res.data?.data);
         onClose?.();
+        if (res.data.data?.invoice?.tax_charge?.status === 'pending') navigate(`/console/ticket/${res.data.data.ticket.id}`);
       } else {
         showError(res.data?.message || t('发票申请提交失败'));
       }
@@ -169,7 +197,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       visible={visible}
       onCancel={onClose}
       maskClosable={false}
-      width={860}
+      width='min(860px, calc(100vw - 32px))'
       centered
       bodyStyle={{ overflowX: 'hidden', overflowY: 'auto', maxHeight: 'calc(90vh - 120px)' }}
       footer={
@@ -199,6 +227,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       }
     >
       <div className='flex flex-col gap-4'>
+        <InvoiceTaxFields ids={selectedOrderIds} open={visible} onChange={setTax} />
         {refundConflict?.has_refunds && (
           <Banner
             type='warning'
@@ -230,7 +259,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
             rowSelection={rowSelection}
             pagination={false}
             size='small'
-            scroll={{ y: 150 }}
+            scroll={{ y: 150, x: 600 }}
             empty={
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -239,7 +268,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
             }
           />
           <div
-            className='flex items-center justify-between mt-3 px-3 py-2 rounded-lg'
+            className='flex flex-wrap gap-2 items-center justify-between mt-3 px-3 py-2 rounded-lg'
             style={{ background: 'var(--semi-color-fill-0)' }}
           >
             <Text type='secondary'>

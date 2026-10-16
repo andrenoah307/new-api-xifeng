@@ -17,6 +17,7 @@ import {
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { api } from '@/lib/api'
+import { InvoiceTaxSettings } from './invoice-tax-settings'
 
 interface StaffMember {
   id: number
@@ -493,6 +494,7 @@ export function TicketSettingsSection({ settings }: Props) {
         </TabsContent>
 
         <TabsContent value='invoice' className='space-y-4 pt-4'>
+          <InvoiceTaxSettings />
           <div className='space-y-1 rounded-lg border p-4'>
             <Label>{t('Taxable Service Name')}</Label>
             <Input

@@ -17,6 +17,7 @@ import { formatTimestampToDate } from '@/lib/format'
 
 import type { TicketInvoice, TicketInvoiceOrder } from '../api'
 import { INVOICE_STATUS_CONFIG } from '../constants'
+import { InvoiceTaxPayment } from './invoice-tax-payment'
 
 interface InvoiceDetailProps {
   invoice: TicketInvoice
@@ -53,6 +54,12 @@ export function InvoiceDetail({
         )}
       </CardHeader>
       <CardContent className='space-y-4'>
+        {invoice.tax_charge && (
+          <InvoiceTaxPayment
+            charge={invoice.tax_charge}
+            rejected={invoice.invoice_status === 3}
+          />
+        )}
         <dl className='grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2'>
           <div>
             <dt className='text-muted-foreground'>{t('Company Name')}</dt>
@@ -146,7 +153,10 @@ export function InvoiceDetail({
           <div className='flex gap-2 pt-2'>
             <Button
               size='sm'
-              disabled={loading}
+              disabled={
+                loading ||
+                (!!invoice.tax_charge && invoice.tax_charge.status !== 'paid')
+              }
               onClick={() => onStatusChange?.(2)}
             >
               {t('Mark as Issued')}
