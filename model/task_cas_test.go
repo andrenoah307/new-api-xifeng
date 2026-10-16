@@ -55,6 +55,8 @@ func TestMain(m *testing.M) {
 		&TicketMessage{},
 		&TicketAttachment{},
 		&TicketInvoice{},
+		&InvoiceTaxCharge{},
+		&Option{},
 		&TicketRefund{},
 		&CommissionRecord{},
 	); err != nil {

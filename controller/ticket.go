@@ -59,6 +59,9 @@ type UpdateTicketStatusRequest struct {
 }
 
 type CreateInvoiceTicketRequest struct {
+	InvoiceType                string `json:"invoice_type"`
+	TaxPaymentMethod           string `json:"tax_payment_method"`
+	TaxQuote                   string `json:"tax_quote"`
 	Subject                    string `json:"subject"`
 	Priority                   int    `json:"priority"`
 	Content                    string `json:"content"`
@@ -168,6 +171,10 @@ func normalizeTicketTypeOrError(c *gin.Context, rawType string) (string, bool) {
 
 func handleTicketError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, model.ErrInvoiceTaxQuoteChanged):
+		common.ApiErrorI18n(c, i18n.MsgRetryLater)
+	case errors.Is(err, model.ErrInvoiceTaxInvalid), errors.Is(err, model.ErrInvoiceTaxUnpaid), errors.Is(err, model.ErrInvoiceTaxCurrency):
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 	case errors.Is(err, model.ErrTicketSubjectEmpty):
 		common.ApiErrorI18n(c, i18n.MsgTicketSubjectEmpty)
 	case errors.Is(err, model.ErrTicketContentEmpty):
@@ -768,19 +775,22 @@ func CreateInvoiceTicket(c *gin.Context) {
 	}
 
 	ticket, invoice, message, orders, err := model.CreateInvoiceTicket(model.CreateInvoiceTicketParams{
-		UserId:         currentUser.Id,
-		Username:       currentUser.Username,
-		Subject:        subject,
-		Priority:       req.Priority,
-		Content:        req.Content,
-		CompanyName:    req.CompanyName,
-		TaxNumber:      req.TaxNumber,
-		BankName:       req.BankName,
-		BankAccount:    req.BankAccount,
-		CompanyAddress: req.CompanyAddress,
-		CompanyPhone:   req.CompanyPhone,
-		Email:          req.Email,
-		TopUpOrderIds:  req.TopUpOrderIds,
+		InvoiceType:      req.InvoiceType,
+		TaxPaymentMethod: req.TaxPaymentMethod,
+		TaxQuote:         req.TaxQuote,
+		UserId:           currentUser.Id,
+		Username:         currentUser.Username,
+		Subject:          subject,
+		Priority:         req.Priority,
+		Content:          req.Content,
+		CompanyName:      req.CompanyName,
+		TaxNumber:        req.TaxNumber,
+		BankName:         req.BankName,
+		BankAccount:      req.BankAccount,
+		CompanyAddress:   req.CompanyAddress,
+		CompanyPhone:     req.CompanyPhone,
+		Email:            req.Email,
+		TopUpOrderIds:    req.TopUpOrderIds,
 	})
 	if err != nil {
 		handleTicketError(c, err)

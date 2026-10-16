@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
+
 import { StatusBadge } from '@/components/status-badge'
-import { formatTimestampToDate } from '@/lib/format'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -10,9 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
+import { formatTimestampToDate } from '@/lib/format'
+
 import type { TicketInvoice, TicketInvoiceOrder } from '../api'
 import { INVOICE_STATUS_CONFIG } from '../constants'
+import { InvoiceTaxPayment } from './invoice-tax-payment'
 
 interface InvoiceDetailProps {
   invoice: TicketInvoice
@@ -37,8 +40,8 @@ export function InvoiceDetail({
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">{t('Invoice Detail')}</CardTitle>
+      <CardHeader className='flex flex-row items-center justify-between'>
+        <CardTitle className='text-base'>{t('Invoice Detail')}</CardTitle>
         {statusCfg && (
           <StatusBadge
             label={t(statusCfg.labelKey)}
@@ -47,60 +50,66 @@ export function InvoiceDetail({
           />
         )}
       </CardHeader>
-      <CardContent className="space-y-4">
-        <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+      <CardContent className='space-y-4'>
+        {invoice.tax_charge && (
+          <InvoiceTaxPayment
+            charge={invoice.tax_charge}
+            rejected={invoice.invoice_status === 3}
+          />
+        )}
+        <dl className='grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2'>
           <div>
-            <dt className="text-muted-foreground">{t('Company Name')}</dt>
-            <dd className="font-medium">{invoice.company_name}</dd>
+            <dt className='text-muted-foreground'>{t('Company Name')}</dt>
+            <dd className='font-medium'>{invoice.company_name}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Tax Number')}</dt>
-            <dd className="font-mono text-xs">{invoice.tax_number}</dd>
+            <dt className='text-muted-foreground'>{t('Tax Number')}</dt>
+            <dd className='font-mono text-xs'>{invoice.tax_number}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Receiving Email')}</dt>
+            <dt className='text-muted-foreground'>{t('Receiving Email')}</dt>
             <dd>{invoice.email || '-'}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Bank Name')}</dt>
+            <dt className='text-muted-foreground'>{t('Bank Name')}</dt>
             <dd>{invoice.bank_name || '-'}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Bank Account')}</dt>
-            <dd className="font-mono text-xs">{invoice.bank_account || '-'}</dd>
+            <dt className='text-muted-foreground'>{t('Bank Account')}</dt>
+            <dd className='font-mono text-xs'>{invoice.bank_account || '-'}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Company Address')}</dt>
+            <dt className='text-muted-foreground'>{t('Company Address')}</dt>
             <dd>{invoice.company_address || '-'}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Company Phone')}</dt>
+            <dt className='text-muted-foreground'>{t('Company Phone')}</dt>
             <dd>{invoice.company_phone || '-'}</dd>
           </div>
-          <div className="sm:col-span-2">
-            <dt className="text-muted-foreground">{t('Remark')}</dt>
-            <dd className="whitespace-pre-wrap break-words">{remark || '-'}</dd>
+          <div className='sm:col-span-2'>
+            <dt className='text-muted-foreground'>{t('Remark')}</dt>
+            <dd className='break-words whitespace-pre-wrap'>{remark || '-'}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">{t('Applied Amount')}</dt>
-            <dd className="font-mono font-medium text-red-600 dark:text-red-400">
+            <dt className='text-muted-foreground'>{t('Applied Amount')}</dt>
+            <dd className='font-mono font-medium text-red-600 dark:text-red-400'>
               ¥{invoice.total_money.toFixed(2)}
             </dd>
           </div>
           {invoice.issued_time > 0 && (
             <div>
-              <dt className="text-muted-foreground">{t('Issued At')}</dt>
+              <dt className='text-muted-foreground'>{t('Issued At')}</dt>
               <dd>{formatTimestampToDate(invoice.issued_time)}</dd>
             </div>
           )}
         </dl>
 
         <div>
-          <h4 className="text-muted-foreground mb-2 text-xs font-medium uppercase">
+          <h4 className='text-muted-foreground mb-2 text-xs font-medium uppercase'>
             {t('Related Orders')}
           </h4>
           {orders.length > 0 ? (
-            <div className="rounded-md border">
+            <div className='rounded-md border'>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -113,16 +122,16 @@ export function InvoiceDetail({
                 <TableBody>
                   {orders.map((o) => (
                     <TableRow key={o.id}>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className='font-mono text-xs'>
                         {o.trade_no}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
+                      <TableCell className='text-muted-foreground text-xs'>
                         {formatTimestampToDate(o.create_time)}
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className='font-mono text-xs'>
                         ¥{o.money.toFixed(2)}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
+                      <TableCell className='text-muted-foreground text-xs'>
                         {formatTimestampToDate(o.complete_time)}
                       </TableCell>
                     </TableRow>
@@ -131,24 +140,27 @@ export function InvoiceDetail({
               </Table>
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm">
+            <p className='text-muted-foreground text-sm'>
               {t('No associated orders')}
             </p>
           )}
         </div>
 
         {!readonly && invoice.invoice_status === 1 && (
-          <div className="flex gap-2 pt-2">
+          <div className='flex gap-2 pt-2'>
             <Button
-              size="sm"
-              disabled={loading}
+              size='sm'
+              disabled={
+                loading ||
+                (!!invoice.tax_charge && invoice.tax_charge.status !== 'paid')
+              }
               onClick={() => onStatusChange?.(2)}
             >
               {t('Mark as Issued')}
             </Button>
             <Button
-              variant="destructive"
-              size="sm"
+              variant='destructive'
+              size='sm'
               disabled={loading}
               onClick={() => onStatusChange?.(3)}
             >

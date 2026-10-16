@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var taxNumberRegex = regexp.MustCompile(`^[A-Z0-9]{18}$`)
@@ -23,38 +24,42 @@ const (
 )
 
 type TicketInvoice struct {
-	Id             int     `json:"id"`
-	TicketId       int     `json:"ticket_id" gorm:"uniqueIndex;not null"`
-	UserId         int     `json:"user_id" gorm:"index;not null"`
-	CompanyName    string  `json:"company_name" gorm:"type:varchar(255);not null"`
-	TaxNumber      string  `json:"tax_number" gorm:"type:varchar(64);not null"`
-	BankName       string  `json:"bank_name" gorm:"type:varchar(255)"`
-	BankAccount    string  `json:"bank_account" gorm:"type:varchar(128)"`
-	CompanyAddress string  `json:"company_address" gorm:"type:varchar(512)"`
-	CompanyPhone   string  `json:"company_phone" gorm:"type:varchar(32)"`
-	Remark         string  `json:"remark" gorm:"type:varchar(255)"`
-	Email          string  `json:"email" gorm:"type:varchar(128);not null"`
-	TopUpOrderIds  string  `json:"topup_order_ids" gorm:"type:text;not null"`
-	TotalMoney     float64 `json:"total_money"`
-	InvoiceStatus  int     `json:"invoice_status" gorm:"type:int;default:1"`
-	IssuedTime     int64   `json:"issued_time" gorm:"bigint;default:0"`
-	CreatedTime    int64   `json:"created_time" gorm:"bigint"`
+	TaxCharge      *InvoiceTaxCharge `json:"tax_charge,omitempty" gorm:"-"`
+	Id             int               `json:"id"`
+	TicketId       int               `json:"ticket_id" gorm:"uniqueIndex;not null"`
+	UserId         int               `json:"user_id" gorm:"index;not null"`
+	CompanyName    string            `json:"company_name" gorm:"type:varchar(255);not null"`
+	TaxNumber      string            `json:"tax_number" gorm:"type:varchar(64);not null"`
+	BankName       string            `json:"bank_name" gorm:"type:varchar(255)"`
+	BankAccount    string            `json:"bank_account" gorm:"type:varchar(128)"`
+	CompanyAddress string            `json:"company_address" gorm:"type:varchar(512)"`
+	CompanyPhone   string            `json:"company_phone" gorm:"type:varchar(32)"`
+	Remark         string            `json:"remark" gorm:"type:varchar(255)"`
+	Email          string            `json:"email" gorm:"type:varchar(128);not null"`
+	TopUpOrderIds  string            `json:"topup_order_ids" gorm:"type:text;not null"`
+	TotalMoney     float64           `json:"total_money"`
+	InvoiceStatus  int               `json:"invoice_status" gorm:"type:int;default:1"`
+	IssuedTime     int64             `json:"issued_time" gorm:"bigint;default:0"`
+	CreatedTime    int64             `json:"created_time" gorm:"bigint"`
 }
 
 type CreateInvoiceTicketParams struct {
-	UserId         int
-	Username       string
-	Subject        string
-	Priority       int
-	Content        string
-	CompanyName    string
-	TaxNumber      string
-	BankName       string
-	BankAccount    string
-	CompanyAddress string
-	CompanyPhone   string
-	Email          string
-	TopUpOrderIds  []int
+	InvoiceType      string
+	TaxPaymentMethod string
+	TaxQuote         string
+	UserId           int
+	Username         string
+	Subject          string
+	Priority         int
+	Content          string
+	CompanyName      string
+	TaxNumber        string
+	BankName         string
+	BankAccount      string
+	CompanyAddress   string
+	CompanyPhone     string
+	Email            string
+	TopUpOrderIds    []int
 }
 
 func (invoice *TicketInvoice) BeforeCreate(tx *gorm.DB) error {
@@ -124,6 +129,11 @@ func GetTicketInvoiceByTicketId(ticketId int) (*TicketInvoice, error) {
 		}
 		return nil, err
 	}
+	charge, err := GetInvoiceTaxCharge(ticketId)
+	if err != nil {
+		return nil, err
+	}
+	invoice.TaxCharge = charge
 	return &invoice, nil
 }
 
@@ -179,6 +189,10 @@ func orderTopUps(orderIds []int, topUps []*TopUp) []*TopUp {
 }
 
 func GetEligibleInvoiceOrders(userId int) ([]*TopUp, error) {
+	config, err := GetInvoiceTaxConfig(DB)
+	if err != nil {
+		return nil, err
+	}
 	tx := DB.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -211,6 +225,15 @@ func GetEligibleInvoiceOrders(userId int) ([]*TopUp, error) {
 	}
 	if err = tx.Commit().Error; err != nil {
 		return nil, err
+	}
+	if config.Enabled {
+		eligible := make([]*TopUp, 0, len(topUps))
+		for _, order := range topUps {
+			if IsCNYInvoiceTopUp(order) {
+				eligible = append(eligible, order)
+			}
+		}
+		topUps = eligible
 	}
 	return topUps, nil
 }
@@ -274,6 +297,10 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 		orderedTopUps []*TopUp
 	)
 	err = DB.Transaction(func(tx *gorm.DB) error {
+		var owner User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, params.UserId).Error; err != nil {
+			return err
+		}
 		usedSet, err := getProtectedInvoiceOrderSet(tx, params.UserId)
 		if err != nil {
 			return err
@@ -300,6 +327,40 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			return ErrTicketInvoiceAmountBelowMin
 		}
 		orderedTopUps = orderTopUps(orderIds, topUps)
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
+			return err
+		}
+		var charge *InvoiceTaxCharge
+		if config.Enabled {
+			quote, err := QuoteInvoiceTax(tx, params.UserId, orderIds, params.InvoiceType)
+			if err != nil {
+				return err
+			}
+			if quote.Token != params.TaxQuote {
+				return ErrInvoiceTaxQuoteChanged
+			}
+			if params.TaxPaymentMethod != "balance" && params.TaxPaymentMethod != "online" {
+				return ErrInvoiceTaxInvalid
+			}
+			charge = &InvoiceTaxCharge{UserId: params.UserId, TradeNo: "ITAX" + common.GetRandomString(32), InvoiceType: quote.InvoiceType, Mode: quote.Mode, RateBps: quote.RateBps, BaseCents: quote.BaseCents, FeeCents: quote.FeeCents, TotalCents: quote.TotalCents, Quota: quote.Quota, Status: "pending", CreatedTime: common.GetTimestamp()}
+			if quote.FeeCents == 0 {
+				charge.Status = "paid"
+				charge.PaidTime = common.GetTimestamp()
+			}
+			if quote.FeeCents > 0 && params.TaxPaymentMethod == "balance" && quote.CanBalance {
+				result := tx.Model(&User{}).Where("id = ? AND quota >= ?", params.UserId, quote.Quota).Update("quota", gorm.Expr("quota - ?", quote.Quota))
+				if result.Error != nil {
+					return result.Error
+				}
+				if result.RowsAffected == 1 {
+					charge.Status = "paid"
+					charge.PaymentMethod = "balance"
+					charge.PaidTime = common.GetTimestamp()
+				}
+			}
+			totalMoney = float64(quote.TotalCents) / 100
+		}
 
 		subject := strings.TrimSpace(params.Subject)
 		if subject == "" {
@@ -342,6 +403,13 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 		if err := tx.Create(invoice).Error; err != nil {
 			return err
 		}
+		if charge != nil {
+			charge.TicketId = ticket.Id
+			if err := tx.Create(charge).Error; err != nil {
+				return err
+			}
+			invoice.TaxCharge = charge
+		}
 
 		message = &TicketMessage{
 			TicketId:    ticket.Id,
@@ -358,6 +426,10 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 	})
 	if err != nil {
 		return nil, nil, nil, nil, err
+	}
+	if invoice.TaxCharge != nil && invoice.TaxCharge.PaymentMethod == "balance" {
+		syncInvoiceTaxQuotaCache(params.UserId, -invoice.TaxCharge.Quota)
+		RecordLog(params.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax balance payment: ticket %d, CNY %.2f, quota %d", ticket.Id, float64(invoice.TaxCharge.FeeCents)/100, invoice.TaxCharge.Quota))
 	}
 	return ticket, invoice, message, orderedTopUps, nil
 }
@@ -390,7 +462,19 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 		ticket     Ticket
 		prevStatus int
 	)
+	var refundedQuota int
+	var known TicketInvoice
+	if err := DB.Where("ticket_id = ?", ticketId).Take(&known).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil, 0, ErrTicketInvoiceNotFound
+		}
+		return nil, nil, 0, err
+	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		var owner User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, known.UserId).Error; err != nil {
+			return err
+		}
 		if err := tx.Where("ticket_id = ?", ticketId).First(&invoice).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketInvoiceNotFound
@@ -404,6 +488,36 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 			return err
 		}
 		prevStatus = ticket.Status
+		var charge InvoiceTaxCharge
+		taxErr := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("ticket_id = ?", ticketId).Take(&charge).Error
+		if taxErr != nil && !errors.Is(taxErr, gorm.ErrRecordNotFound) {
+			return taxErr
+		}
+		if taxErr == nil {
+			if invoiceStatus == InvoiceStatusIssued && charge.Status != "paid" {
+				return ErrInvoiceTaxUnpaid
+			}
+			if invoiceStatus != InvoiceStatusRejected && charge.Status == "refunded" {
+				return ErrInvoiceTaxUnpaid
+			}
+			if invoiceStatus == InvoiceStatusRejected && charge.Status == "paid" {
+				if owner.Quota > common.MaxQuota-charge.Quota {
+					return ErrInvoiceTaxInvalid
+				}
+				if err := tx.Model(&User{}).Where("id = ?", owner.Id).Update("quota", gorm.Expr("quota + ?", charge.Quota)).Error; err != nil {
+					return err
+				}
+				if err := tx.Model(&charge).Updates(map[string]interface{}{"status": "refunded", "refunded_time": common.GetTimestamp()}).Error; err != nil {
+					return err
+				}
+				refundedQuota = charge.Quota
+				charge.Status = "refunded"
+				if err := tx.Create(&TicketMessage{TicketId: ticketId, UserId: adminId, Role: common.RoleAdminUser, Content: fmt.Sprintf("Invoice tax refunded to balance: CNY %.2f; quota %d; order %s", float64(charge.FeeCents)/100, charge.Quota, charge.TradeNo), CreatedTime: common.GetTimestamp()}).Error; err != nil {
+					return err
+				}
+			}
+			invoice.TaxCharge = &charge
+		}
 
 		now := common.GetTimestamp()
 		invoiceUpdates := map[string]interface{}{
@@ -443,10 +557,18 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 	if err != nil {
 		return nil, nil, 0, err
 	}
+	if refundedQuota > 0 {
+		syncInvoiceTaxQuotaCache(invoice.UserId, refundedQuota)
+		RecordLog(invoice.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded to balance: ticket %d, quota %d", ticketId, refundedQuota))
+	}
 	return &invoice, &ticket, prevStatus, nil
 }
 
 type InvoiceExportItem struct {
+	InvoiceType   string  `json:"invoice_type"`
+	TaxMode       string  `json:"tax_mode"`
+	TaxRateBps    int     `json:"tax_rate_bps"`
+	TaxFeeCents   int64   `json:"tax_fee_cents"`
 	TicketId      int     `json:"ticket_id" gorm:"column:ticket_id"`
 	CompanyName   string  `json:"company_name" gorm:"column:company_name"`
 	TaxNumber     string  `json:"tax_number" gorm:"column:tax_number"`
@@ -470,8 +592,10 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	items := make([]*InvoiceExportItem, 0)
 
 	query := DB.Table("tickets t").
-		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time").
+		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time, tc.invoice_type, tc.mode AS tax_mode, tc.rate_bps AS tax_rate_bps, tc.fee_cents AS tax_fee_cents").
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
+		Joins("LEFT JOIN invoice_tax_charges tc ON tc.ticket_id = t.id").
+		Where("tc.id IS NULL OR tc.status = ?", "paid").
 		Where("t.type = ? AND t.deleted_at IS NULL", TicketTypeInvoice)
 
 	if filter.TicketStatus > 0 {

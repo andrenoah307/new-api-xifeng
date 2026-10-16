@@ -194,6 +194,8 @@ func SetApiRouter(router *gin.Engine) {
 
 		// Subscription payment callbacks (no auth)
 		apiRouter.POST("/subscription/epay/notify", anonymousRequestBodyLimit, controller.SubscriptionEpayNotify)
+		apiRouter.POST("/invoice-tax/epay/notify", anonymousRequestBodyLimit, controller.InvoiceTaxEpayNotify)
+		apiRouter.GET("/invoice-tax/epay/notify", controller.InvoiceTaxEpayNotify)
 		apiRouter.GET("/subscription/epay/notify", controller.SubscriptionEpayNotify)
 		apiRouter.GET("/subscription/epay/return", controller.SubscriptionEpayReturn)
 		apiRouter.POST("/subscription/epay/return", anonymousRequestBodyLimit, controller.SubscriptionEpayReturn)
@@ -208,6 +210,10 @@ func SetApiRouter(router *gin.Engine) {
 			ticketRoute.POST("/self/:id/message", controller.CreateUserTicketMessage)
 			ticketRoute.PUT("/self/:id/close", controller.CloseUserTicket)
 			ticketRoute.GET("/invoice/eligible_orders", controller.GetEligibleInvoiceOrders)
+			ticketRoute.GET("/invoice/tax-config", controller.GetInvoiceTaxConfig)
+			ticketRoute.POST("/invoice/tax-quote", controller.QuoteInvoiceTax)
+			ticketRoute.GET("/invoice/:id/tax", controller.GetInvoiceTaxPayment)
+			ticketRoute.POST("/invoice/:id/tax/pay", middleware.CriticalRateLimit(), controller.RequestInvoiceTaxPayment)
 			ticketRoute.POST("/invoice/", controller.CreateInvoiceTicket)
 			ticketRoute.GET("/refund/invoice-check", controller.CheckRefundInvoiceConflict)
 			ticketRoute.GET("/invoice/refund-check", controller.CheckInvoiceRefundConflict)
@@ -249,6 +255,7 @@ func SetApiRouter(router *gin.Engine) {
 		optionRoute.Use(middleware.RootAuth())
 		{
 			optionRoute.GET("/", controller.GetOptions)
+			optionRoute.PUT("/invoice-tax", controller.UpdateInvoiceTaxConfig)
 			optionRoute.PUT("/", controller.UpdateOption)
 			optionRoute.PUT("/batch", controller.UpdateOptions)
 			optionRoute.POST("/payment_compliance", controller.ConfirmPaymentCompliance)

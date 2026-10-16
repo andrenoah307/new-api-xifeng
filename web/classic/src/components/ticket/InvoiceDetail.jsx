@@ -1,6 +1,25 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import React, { useMemo } from 'react';
 import { Button, Card, Descriptions, Empty, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import CardTable from '../common/ui/CardTable';
+import { InvoiceTaxPayment } from './InvoiceTax';
 import { timestamp2string } from '../../helpers';
 import {
   getInvoiceStatusColor,
@@ -116,6 +135,7 @@ const InvoiceDetail = ({
                 theme='solid'
                 type='primary'
                 loading={loading}
+                disabled={!!invoice.tax_charge && invoice.tax_charge.status !== 'paid'}
                 onClick={() => onStatusChange(2)}
               >
                 {t('标记已开具')}
@@ -127,6 +147,7 @@ const InvoiceDetail = ({
         {invoice ? (
           <>
             <Descriptions data={descriptionRows} />
+            {invoice.tax_charge && <InvoiceTaxPayment charge={invoice.tax_charge} rejected={invoice.invoice_status === 3} />}
             <div className='flex flex-col gap-2'>
               <Text strong>{t('关联订单')}</Text>
               <CardTable
