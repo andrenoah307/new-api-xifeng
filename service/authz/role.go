@@ -1,8 +1,9 @@
 package authz
 
 const (
-	BuiltInRoleRoot  = "root"
-	BuiltInRoleAdmin = "admin"
+	BuiltInRoleRoot    = "root"
+	BuiltInRoleAdmin   = "admin"
+	BuiltInRoleFinance = "finance"
 )
 
 // RoleSpec describes a role. A superuser role is allowed every permission
@@ -32,6 +33,13 @@ var builtInRoles = []RoleSpec{
 		BuiltIn:     true,
 		Superuser:   false,
 		Sort:        10,
+	},
+	{
+		Key:         BuiltInRoleFinance,
+		Name:        "Finance",
+		Description: "Read and export financial records within the configured scope",
+		BuiltIn:     true,
+		Sort:        20,
 	},
 }
 

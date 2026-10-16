@@ -1,0 +1,9 @@
+{
+  "AppSecretKey": "AppSecretKey",
+  "CAM SecretId": "CAM SecretId",
+  "CAM SecretKey": "CAM SecretKey",
+  "CaptchaAppId": "CaptchaAppId",
+  "example.com": "example.com",
+  "Turnstile Secret Key": "Turnstile Secret Key",
+  "Turnstile Site Key": "Turnstile Site Key"
+}

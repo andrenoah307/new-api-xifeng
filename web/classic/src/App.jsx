@@ -44,6 +44,7 @@ import DiscountCode from './pages/DiscountCode';
 import InvitationCode from './pages/InvitationCode';
 import TopUp from './pages/TopUp';
 import TopupHistory from './pages/TopupHistory';
+import { FinanceRoute } from './helpers/auth';
 import Log from './pages/Log';
 import Ticket from './pages/Ticket';
 import TicketDetail from './pages/TicketDetail';
@@ -68,6 +69,7 @@ import SetupCheck from './components/layout/SetupCheck';
 
 const Home = lazy(() => import('./pages/Home'));
 const ChannelFinance = lazy(() => import('./pages/ChannelFinance'));
+const Finance = lazy(() => import('./pages/Finance'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
@@ -351,6 +353,10 @@ function App() {
               </Suspense>
             </PrivateRoute>
           }
+        />
+        <Route
+          path='/console/finance'
+          element={<FinanceRoute><Suspense fallback={<Loading />}><Finance /></Suspense></FinanceRoute>}
         />
         <Route
           path='/console/ticket'
