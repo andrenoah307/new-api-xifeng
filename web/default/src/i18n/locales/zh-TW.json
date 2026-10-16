@@ -5744,6 +5744,10 @@
     "Tax payment pending": "待補繳稅費",
     "Tax paid": "稅費已付",
     "Tax refunded to balance": "稅費已退回餘額",
-    "Online tax payment is currently unavailable. Contact the administrator.": "暫未開放線上補稅，請聯絡管理員。"
+    "Online tax payment is currently unavailable. Contact the administrator.": "暫未開放線上補稅，請聯絡管理員。",
+    "Invoice Settings": "開票設定",
+    "Taxable Service Name": "應稅服務名稱",
+    "*Production and Living Services*Technical Service Fee": "*生產生活服務*技術服務費",
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "在使用者開票表單中顯示為發票內容，並作為匯出時的預設應稅服務名稱。留空則使用預設值。"
   }
 }

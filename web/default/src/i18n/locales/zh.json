@@ -5744,6 +5744,10 @@
     "Tax payment pending": "待补缴税费",
     "Tax paid": "税费已付",
     "Tax refunded to balance": "税费已退回余额",
-    "Online tax payment is currently unavailable. Contact the administrator.": "暂未开放在线补税，请联系管理员。"
+    "Online tax payment is currently unavailable. Contact the administrator.": "暂未开放在线补税，请联系管理员。",
+    "Invoice Settings": "开票设置",
+    "Taxable Service Name": "应税服务名称",
+    "*Production and Living Services*Technical Service Fee": "*生产生活服务*技术服务费",
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "在用户开票表单中显示为发票内容，并作为导出时的默认应税服务名称。留空则使用默认值。"
   }
 }

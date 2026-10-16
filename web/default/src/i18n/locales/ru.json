@@ -5744,6 +5744,10 @@
     "Tax payment pending": "Сбор ожидает оплаты",
     "Tax paid": "Сбор оплачен",
     "Tax refunded to balance": "Сбор возвращён на баланс",
-    "Online tax payment is currently unavailable. Contact the administrator.": "Онлайн-оплата сбора недоступна. Обратитесь к администратору."
+    "Online tax payment is currently unavailable. Contact the administrator.": "Онлайн-оплата сбора недоступна. Обратитесь к администратору.",
+    "Invoice Settings": "Настройки счетов",
+    "Taxable Service Name": "Название облагаемой услуги",
+    "*Production and Living Services*Technical Service Fee": "*Производственные и бытовые услуги*Технические услуги",
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "Отображается как содержание счёта в форме заявки и используется как название облагаемой услуги по умолчанию при экспорте. Оставьте пустым, чтобы использовать значение по умолчанию."
   }
 }

@@ -5744,6 +5744,10 @@
     "Tax payment pending": "Tax payment pending",
     "Tax paid": "Tax paid",
     "Tax refunded to balance": "Tax refunded to balance",
-    "Online tax payment is currently unavailable. Contact the administrator.": "Online tax payment is currently unavailable. Contact the administrator."
+    "Online tax payment is currently unavailable. Contact the administrator.": "Online tax payment is currently unavailable. Contact the administrator.",
+    "Invoice Settings": "Invoice Settings",
+    "Taxable Service Name": "Taxable Service Name",
+    "*Production and Living Services*Technical Service Fee": "*Production and Living Services*Technical Service Fee",
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default."
   }
 }

@@ -5744,6 +5744,10 @@
     "Tax payment pending": "税費用の支払い待ち",
     "Tax paid": "税費用支払済み",
     "Tax refunded to balance": "税費用を残高へ返金済み",
-    "Online tax payment is currently unavailable. Contact the administrator.": "税費用のオンライン決済は現在利用できません。管理者にお問い合わせください。"
+    "Online tax payment is currently unavailable. Contact the administrator.": "税費用のオンライン決済は現在利用できません。管理者にお問い合わせください。",
+    "Invoice Settings": "請求書設定",
+    "Taxable Service Name": "課税サービス名",
+    "*Production and Living Services*Technical Service Fee": "*生産・生活サービス*技術サービス料",
+    "Shown as the invoice content in the user invoice form and used as the default taxable service name when exporting. Leave empty to use the default.": "請求書申請フォームの請求内容として表示され、エクスポート時の既定の課税サービス名として使用されます。空欄の場合は既定値を使用します。"
   }
 }
