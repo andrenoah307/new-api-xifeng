@@ -34,17 +34,18 @@ func TestInitSeedsBuiltInRolesAndPoliciesOnce(t *testing.T) {
 	require.NoError(t, Init(db))
 
 	// root is a superuser role and is granted everything implicitly, so only the
-	// admin and bot baselines are written as explicit policy rows.
+	// admin, bot and finance baselines are written as explicit policy rows.
 	var count int64
 	require.NoError(t, db.Model(&model.CasbinRule{}).Count(&count).Error)
-	assert.Equal(t, int64(len(PermissionsForRole(BuiltInRoleAdmin))+len(PermissionsForRole(BuiltInRoleBot))), count)
+	assert.Equal(t, int64(len(PermissionsForRole(BuiltInRoleAdmin))+len(PermissionsForRole(BuiltInRoleBot))+len(PermissionsForRole(BuiltInRoleFinance))), count)
 
 	var roles []model.AuthzRole
 	require.NoError(t, db.Order("sort asc").Find(&roles).Error)
-	require.Len(t, roles, 3)
+	require.Len(t, roles, 4)
 	assert.Equal(t, BuiltInRoleRoot, roles[0].Key)
 	assert.Equal(t, BuiltInRoleAdmin, roles[1].Key)
-	assert.Equal(t, BuiltInRoleBot, roles[2].Key)
+	assert.Equal(t, BuiltInRoleFinance, roles[2].Key)
+	assert.Equal(t, BuiltInRoleBot, roles[3].Key)
 	assert.True(t, Can(4, common.RoleBotUser, LogsReadRedacted))
 	assert.False(t, Can(4, common.RoleBotUser, ChannelRead))
 	assert.False(t, Can(3, common.RoleCommonUser, LogsReadRedacted))
@@ -112,6 +113,7 @@ func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 	assert.True(t, Can(42, common.RoleAdminUser, ChannelSensitiveWrite))
 	assert.False(t, Can(42, common.RoleAdminUser, ChannelWrite))
 	assert.Equal(t, PermissionsMap{
+		ResourceFinance: {ActionRead: true, "export": true},
 		ResourceChannel: {
 			ActionRead:           true,
 			ActionOperate:        true,
@@ -141,6 +143,7 @@ func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 	}}))
 	assert.False(t, Can(42, common.RoleAdminUser, ChannelSensitiveWrite))
 	assert.Equal(t, PermissionsMap{
+		ResourceFinance: {ActionRead: true, "export": true},
 		ResourceChannel: {
 			ActionRead:           true,
 			ActionOperate:        true,

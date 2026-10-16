@@ -43,6 +43,7 @@ import {
   parseCustomNavigationLinks,
   customNavigationHref,
 } from '@/lib/custom-navigation'
+import { hasPermission } from '@/lib/admin-permissions'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -62,6 +63,9 @@ export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
   const userRole = useAuthStore((s) => s.auth.user?.role ?? 0)
   const { status } = useStatus()
+  const canReadFinance = useAuthStore((s) =>
+    hasPermission(s.auth.user, 'finance', 'read')
+  )
 
   return {
     navGroups: [
@@ -112,7 +116,7 @@ export function useSidebarData(): SidebarData {
             configUrls: ['/usage-logs/drawing', '/usage-logs/task'],
             icon: ListTodo,
           },
-          ...getCustomGeneralItems(t, userRole),
+          ...getCustomGeneralItems(t, userRole, canReadFinance),
           ...parseCustomNavigationLinks(status?.CustomNavigationLinks)
             .filter((link) => link.sidebar)
             .map((link) => ({

@@ -49,6 +49,8 @@ const renderRole = (role, t) => {
           {t('Bot')}
         </Tag>
       );
+    case 3:
+      return <Tag color='green' shape='circle'>{t('Finance')}</Tag>;
     case 1:
       return (
         <Tag color='blue' shape='circle'>

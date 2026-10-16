@@ -31,6 +31,7 @@ const { Text } = Typography;
 
 const ROLE_META = {
   2: { labelKey: 'Bot', color: 'green', desc: 'Read redacted usage logs via system access token' },
+  3: { labelKey: 'Finance', color: 'green', desc: 'View and export authorized financial records' },
   1: { labelKey: '普通用户', color: 'blue', desc: '仅能使用个人中心与普通功能，无任何后台权限。' },
   5: { labelKey: '客服', color: 'cyan', desc: '仅能访问工单后台，根据分配规则处理指派给自己的工单。' },
   10: { labelKey: '管理员', color: 'yellow', desc: '可访问除系统设置外的全部后台功能。' },
@@ -52,7 +53,7 @@ const RoleManagementModal = ({ visible, onCancel, onConfirm, user, t, currentUse
   const myRole = Number(currentUserRole) || 1;
 
   const options = useMemo(() => {
-    const all = [1, 2, 5, 10, 100];
+    const all = [1, 2, 3, 5, 10, 100];
     return all
       .filter((r) => (myRole === 100 ? true : r < myRole))
       .map((r) => ({
