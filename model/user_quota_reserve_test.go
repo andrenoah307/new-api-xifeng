@@ -89,7 +89,7 @@ func TestReserveUserQuotaDatabaseErrorIsNotInsufficientBalance(t *testing.T) {
 	assert.False(t, errors.Is(err, ErrUserQuotaInsufficient))
 }
 
-func TestReserveUserQuotaBatchUpdateDegradesWithoutNewReject(t *testing.T) {
+func TestReserveUserQuotaBatchUpdatePreservesBalanceGuard(t *testing.T) {
 	oldBatchUpdate := common.BatchUpdateEnabled
 	common.BatchUpdateEnabled = true
 	t.Cleanup(func() {
@@ -100,7 +100,13 @@ func TestReserveUserQuotaBatchUpdateDegradesWithoutNewReject(t *testing.T) {
 	user := seedQuotaCacheUser(t, "reserve-batch", 1)
 	reserved, err := ReserveUserQuota(user.Id, 100)
 	require.NoError(t, err)
+	assert.False(t, reserved)
+	reserved, err = ReserveUserQuota(user.Id, 1)
+	require.NoError(t, err)
 	assert.True(t, reserved)
+	var current User
+	require.NoError(t, DB.First(&current, user.Id).Error)
+	assert.Zero(t, current.Quota)
 }
 
 func TestDecreaseUserQuotaStillAllowsSettlementBelowZero(t *testing.T) {

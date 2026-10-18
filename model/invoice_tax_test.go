@@ -125,7 +125,60 @@ func TestInvoiceTaxQuoteCannotBypassCurrencyOrChangedConfig(t *testing.T) {
 	require.NoError(t, DB.Model(user).Update("quota", common.MaxQuota).Error)
 	quote, err = QuoteInvoiceTax(DB, user.Id, []int{orderID}, "ordinary")
 	require.NoError(t, err)
+	assert.True(t, quote.CanBalance)
+}
+
+func TestInvoiceTaxBalancePaymentWithBatchUpdates(t *testing.T) {
+	truncateTables(t)
+	batch := common.BatchUpdateEnabled
+	common.BatchUpdateEnabled = true
+	t.Cleanup(func() {
+		common.BatchUpdateEnabled = batch
+		DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
+		DB.Where("user_id = ?", 980120).Delete(&InvoiceTaxCharge{})
+	})
+	user := insertInvoiceTicketUser(t, 980120)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+	id := seedInvoiceTicketTopUp(t, user.Id, "batch-tax-balance", 1000)
+	require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", id).Update("payment_provider", PaymentProviderEpay).Error)
+	quote, err := QuoteInvoiceTax(DB, user.Id, []int{id}, "ordinary")
+	require.NoError(t, err)
 	assert.False(t, quote.CanBalance)
+	// Same balance-credit path used by the administrator; no batch flush needed.
+	require.NoError(t, IncreaseUserQuota(user.Id, quote.Quota, true))
+	quote, err = QuoteInvoiceTax(DB, user.Id, []int{id}, "ordinary")
+	require.NoError(t, err)
+	require.True(t, quote.CanBalance)
+	// A deferred-mode consumption must already be visible to invoice checkout.
+	require.NoError(t, DecreaseUserQuota(user.Id, 1, false))
+	quote, err = QuoteInvoiceTax(DB, user.Id, []int{id}, "ordinary")
+	require.NoError(t, err)
+	assert.False(t, quote.CanBalance)
+	require.NoError(t, IncreaseUserQuota(user.Id, 1, false))
+	params := createInvoiceTicketParams(user, []int{id})
+	params.InvoiceType, params.TaxQuote, params.TaxPaymentMethod = "ordinary", quote.Token, "balance"
+	ticket, invoice, _, _, err := CreateInvoiceTicket(params)
+	require.NoError(t, err)
+	require.Equal(t, "paid", invoice.TaxCharge.Status)
+	assert.Equal(t, "balance", invoice.TaxCharge.PaymentMethod)
+	var current User
+	require.NoError(t, DB.First(&current, user.Id).Error)
+	assert.Zero(t, current.Quota)
+	UpdateUserUsedQuotaAndRequestCount(user.Id, 1)
+	require.NoError(t, DB.First(&current, user.Id).Error)
+	assert.Zero(t, current.UsedQuota)
+	assert.Zero(t, current.RequestCount)
+	batchUpdate()
+	require.NoError(t, DB.First(&current, user.Id).Error)
+	assert.Zero(t, current.Quota)
+	assert.Equal(t, 1, current.UsedQuota)
+	assert.Equal(t, 1, current.RequestCount)
+	for range 2 {
+		_, err = CloseUserTicket(ticket.Id, user.Id)
+		require.NoError(t, err)
+	}
+	require.NoError(t, DB.First(&current, user.Id).Error)
+	assert.Equal(t, quote.Quota, current.Quota)
 }
 
 func TestInvoiceTaxLatePaymentAfterRejectionRefundsOnce(t *testing.T) {

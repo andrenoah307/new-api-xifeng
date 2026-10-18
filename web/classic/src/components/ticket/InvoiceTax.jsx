@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { RefreshCw } from 'lucide-react';
 import {
   Banner,
   Button,
@@ -82,6 +83,13 @@ export function InvoiceTaxFields({ ids, open, onChange }) {
   const [payment, setPayment] = useState('balance');
   const [quote, setQuote] = useState(null);
   const [failed, setFailed] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    const refreshQuote = () => setRefresh((value) => value + 1);
+    window.addEventListener('focus', refreshQuote);
+    return () => window.removeEventListener('focus', refreshQuote);
+  }, [open]);
   const key = JSON.stringify(ids);
   useEffect(() => {
     let active = true;
@@ -105,7 +113,7 @@ export function InvoiceTaxFields({ ids, open, onChange }) {
     return () => {
       active = false;
     };
-  }, [key, type, config, open]);
+  }, [key, type, config, open, refresh]);
   const current =
     quote?.requestKey === key && quote?.requestType === type ? quote : null;
   const method = current?.can_balance ? payment : 'online';
@@ -127,16 +135,27 @@ export function InvoiceTaxFields({ ids, open, onChange }) {
           'Only verified CNY recharge records are eligible. Foreign-currency records are not supported yet.',
         )}
       </p>
-      <Select
-        className='w-full'
-        aria-label={t('Invoice type')}
-        value={type}
-        onChange={setType}
-        optionList={[
-          { value: 'ordinary', label: t('Ordinary VAT invoice') },
-          { value: 'special', label: t('Special VAT invoice') },
-        ]}
-      />
+      <div className='flex items-center gap-2'>
+        <Select
+          className='flex-1 min-w-0'
+          aria-label={t('Invoice type')}
+          value={type}
+          onChange={setType}
+          optionList={[
+            { value: 'ordinary', label: t('Ordinary VAT invoice') },
+            { value: 'special', label: t('Special VAT invoice') },
+          ]}
+        />
+        <Button
+          type='tertiary'
+          theme='borderless'
+          icon={<RefreshCw size={16} />}
+          aria-label={t('刷新')}
+          title={t('刷新')}
+          disabled={!ids.length}
+          onClick={() => setRefresh((value) => value + 1)}
+        />
+      </div>
       {failed && (
         <Banner
           type='danger'
@@ -264,7 +283,12 @@ export function InvoiceTaxPayment({ charge, rejected }) {
           )}
         </dd>
         <dt>{t('Tax calculation mode')}</dt>
-        <dd>{t(modes.find((mode) => mode.value === current.mode)?.label ?? current.mode)}</dd>
+        <dd>
+          {t(
+            modes.find((mode) => mode.value === current.mode)?.label ??
+              current.mode,
+          )}
+        </dd>
         <dt>{t('Rate (%)')}</dt>
         <dd>{current.rate_bps / 100}%</dd>
         <dt>{t('Net amount (CNY)')}</dt>

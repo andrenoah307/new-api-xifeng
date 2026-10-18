@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
+import { RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -55,6 +57,7 @@ export function InvoiceTaxFields({
     queryKey: ['invoice-tax-quote', ids, type, config.data],
     queryFn: () => getInvoiceTaxQuote(ids, type),
     enabled: open && !!config.data?.enabled && ids.length > 0,
+    refetchOnWindowFocus: 'always',
     retry: false,
   })
   const method = quote.data?.can_balance ? payment : 'online'
@@ -92,7 +95,20 @@ export function InvoiceTaxFields({
           'Only verified CNY recharge records are eligible. Foreign-currency records are not supported yet.'
         )}
       </p>
-      <Label>{t('Invoice type')}</Label>
+      <div className='flex items-center justify-between gap-2'>
+        <Label>{t('Invoice type')}</Label>
+        <Button
+          type='button'
+          variant='ghost'
+          size='icon'
+          aria-label={t('Refresh')}
+          title={t('Refresh')}
+          disabled={!ids.length || quote.isFetching}
+          onClick={() => quote.refetch()}
+        >
+          <RefreshCw className='size-4' />
+        </Button>
+      </div>
       <Select
         value={type}
         onValueChange={(value) => {

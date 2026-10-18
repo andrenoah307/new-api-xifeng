@@ -21,14 +21,6 @@ func ReserveUserQuota(userId int, amount int) (reserved bool, err error) {
 		return false, ErrInvalidQuotaReserve
 	}
 
-	if common.BatchUpdateEnabled {
-		// Compatibility fallback: batch updates retain today's unconditional
-		// deduction semantics, so enabling the performance switch does not turn
-		// the reserve path into a site-wide rejection gate.
-		err := DecreaseUserQuota(userId, amount, false)
-		return true, err
-	}
-
 	result := DB.Model(&User{}).
 		Where("id = ? AND quota >= ?", userId, amount).
 		Update("quota", gorm.Expr("quota - ?", amount))
