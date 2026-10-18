@@ -121,9 +121,7 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	if err = db.Select("quota").First(&user, userID).Error; err != nil {
 		return empty, err
 	}
-	// Deferred quota writes cannot establish a durable available balance here.
-	// Use the independent online charge in that mode rather than overspending.
-	quote.CanBalance = !common.BatchUpdateEnabled && user.Quota >= quota
+	quote.CanBalance = user.Quota >= quota
 	return quote, nil
 }
 
