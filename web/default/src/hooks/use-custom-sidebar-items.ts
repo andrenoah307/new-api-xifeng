@@ -51,13 +51,10 @@ export function getCustomGeneralItems(
     {
       title: t('Top-up History'),
       url: '/topup-history',
+      configUrls: canReadFinance ? ['/topup-history', '/finance'] : undefined,
       icon: History,
     },
   ]
-
-  if (canReadFinance) {
-    items.push({ title: t('Finance'), url: '/finance', icon: History })
-  }
 
   if (role >= ROLE.TICKET_STAFF) {
     items.push({
