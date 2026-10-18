@@ -1,5 +1,3 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import {
@@ -8,17 +6,11 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { useMediaQuery, useDebounce } from '@/hooks'
-import { useTableUrlState } from '@/hooks/use-table-url-state'
-import { useIsAdmin } from '@/hooks/use-admin'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   DataTableToolbar,
   TableSkeleton,
@@ -35,9 +27,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ConfirmDialog } from '@/components/confirm-dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { CompactDateTimeRangePicker } from '@/features/usage-logs/components/compact-date-time-range-picker'
-import { toast } from 'sonner'
+import { useMediaQuery, useDebounce } from '@/hooks'
+import { useIsAdmin } from '@/hooks/use-admin'
+import { useTableUrlState } from '@/hooks/use-table-url-state'
+import { useAuthStore } from '@/stores/auth-store'
+
 import { getTopups, completeTopupOrder } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
@@ -51,6 +54,7 @@ const route = getRouteApi('/_authenticated/topup-history/')
 export function TopupTable() {
   const { t } = useTranslation()
   const admin = useIsAdmin()
+  const userId = useAuthStore((state) => state.auth.user?.id)
   const queryClient = useQueryClient()
   const isMobile = useMediaQuery('(max-width: 640px)')
 
@@ -90,17 +94,16 @@ export function TopupTable() {
       start_time: dateStart
         ? Math.floor(dateStart.getTime() / 1000)
         : undefined,
-      end_time: dateEnd
-        ? Math.floor(dateEnd.getTime() / 1000)
-        : undefined,
+      end_time: dateEnd ? Math.floor(dateEnd.getTime() / 1000) : undefined,
     }),
     [pagination, debouncedKeyword, statusFilter, dateStart, dateEnd]
   )
 
   const { data, isLoading } = useQuery({
-    queryKey: topupQueryKeys.list({ ...queryParams, admin }),
-    queryFn: () => getTopups(queryParams as Parameters<typeof getTopups>[0], admin),
-    placeholderData: (prev) => prev,
+    queryKey: topupQueryKeys.list({ ...queryParams, admin, userId }),
+    queryFn: () =>
+      getTopups(queryParams as Parameters<typeof getTopups>[0], admin),
+    gcTime: 0,
   })
 
   const items = useMemo(() => data?.items ?? [], [data])
@@ -124,12 +127,16 @@ export function TopupTable() {
     return {
       id: 'actions',
       header: t('Actions'),
-      cell: ({ row }: { row: { original: { status: string; trade_no: string } } }) => {
+      cell: ({
+        row,
+      }: {
+        row: { original: { status: string; trade_no: string } }
+      }) => {
         if (row.original.status !== 'pending') return null
         return (
           <Button
-            variant="outline"
-            size="sm"
+            variant='outline'
+            size='sm'
             onClick={() => setConfirmTradeNo(row.original.trade_no)}
           >
             {t('Complete Order')}
@@ -180,19 +187,23 @@ export function TopupTable() {
 
   return (
     <>
-      <div className="space-y-3 sm:space-y-4">
+      <div className='space-y-3 sm:space-y-4'>
         <DataTableToolbar
           table={table}
-          searchPlaceholder={t(admin ? 'Search by order number, username or user ID...' : 'Search by order number...')}
+          searchPlaceholder={t(
+            admin
+              ? 'Search by order number, username or user ID...'
+              : 'Search by order number...'
+          )}
           additionalSearch={
-            <div className="flex flex-wrap items-center gap-2">
+            <div className='flex flex-wrap items-center gap-2'>
               <Select
                 value={statusFilter}
                 onValueChange={(value) => {
                   if (value != null) setStatusFilter(value)
                 }}
               >
-                <SelectTrigger className="h-8 w-[120px]">
+                <SelectTrigger className='h-8 w-[120px]'>
                   <SelectValue placeholder={t('Status')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -207,31 +218,32 @@ export function TopupTable() {
                 start={dateStart}
                 end={dateEnd}
                 onChange={handleDateChange}
-                className="w-auto"
+                className='w-auto'
               />
             </div>
           }
         />
-        {isMobile ? (
-          <MobileCardList table={table} isLoading={isLoading} />
-        ) : isLoading && items.length === 0 ? (
-          <div className="rounded-md border">
+        {isMobile && <MobileCardList table={table} isLoading={isLoading} />}
+        {!isMobile && isLoading && items.length === 0 && (
+          <div className='rounded-md border'>
             <Table>
               <TableBody>
                 <TableSkeleton table={table} rowCount={10} />
               </TableBody>
             </Table>
           </div>
-        ) : items.length === 0 ? (
-          <div className="rounded-md border">
+        )}
+        {!isMobile && !isLoading && items.length === 0 && (
+          <div className='rounded-md border'>
             <Table>
               <TableBody>
                 <TableEmpty colSpan={allColumns.length} />
               </TableBody>
             </Table>
           </div>
-        ) : (
-          <div className="rounded-md border">
+        )}
+        {!isMobile && items.length > 0 && (
+          <div className='rounded-md border'>
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((hg) => (

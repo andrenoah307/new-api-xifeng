@@ -318,7 +318,7 @@ const TopupHistoryPage = () => {
   }, [t, userIsAdmin]);
 
   return (
-    <div className='mt-[60px] px-2'>
+    <div>
       <div className='mb-3 flex flex-wrap items-center gap-2'>
         <Button
           icon={<BadgeDollarSign size={14} />}
