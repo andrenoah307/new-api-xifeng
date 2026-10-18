@@ -1187,17 +1187,18 @@ func IncreaseUserQuota(id int, quota int, db bool) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
+	// Wallet mutations are always durable before returning, even when usage
+	// counters are batched. Keep db in the signature for existing callers.
+	if err = increaseUserQuota(id, quota); err != nil {
+		return err
+	}
 	gopool.Go(func() {
 		err := cacheIncrUserQuota(id, int64(quota))
 		if err != nil {
 			common.SysLog("failed to increase user quota: " + err.Error())
 		}
 	})
-	if !db && common.BatchUpdateEnabled {
-		addNewRecord(BatchUpdateTypeUserQuota, id, quota)
-		return nil
-	}
-	return increaseUserQuota(id, quota)
+	return nil
 }
 
 func increaseUserQuota(id int, quota int) (err error) {
@@ -1212,17 +1213,18 @@ func DecreaseUserQuota(id int, quota int, db bool) (err error) {
 	if quota < 0 {
 		return errors.New("quota 不能为负数！")
 	}
+	// Delaying wallet writes would let transactional purchases spend quota
+	// already consumed by relay requests. Only usage statistics may be batched.
+	if err = decreaseUserQuota(id, quota); err != nil {
+		return err
+	}
 	gopool.Go(func() {
 		err := cacheDecrUserQuota(id, int64(quota))
 		if err != nil {
 			common.SysLog("failed to decrease user quota: " + err.Error())
 		}
 	})
-	if !db && common.BatchUpdateEnabled {
-		addNewRecord(BatchUpdateTypeUserQuota, id, -quota)
-		return nil
-	}
-	return decreaseUserQuota(id, quota)
+	return nil
 }
 
 func decreaseUserQuota(id int, quota int) (err error) {
