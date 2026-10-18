@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { lazy, Suspense, useContext, useMemo } from 'react';
-import { Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Loading from './components/common/ui/Loading';
 import User from './pages/User';
 import { AuthRedirect, PrivateRoute, AdminRoute, TicketStaffRoute } from './helpers';
@@ -63,7 +63,6 @@ import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
 
 const Home = lazy(() => import('./pages/Home'));
-const Finance = lazy(() => import('./pages/Finance'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
@@ -350,7 +349,7 @@ function App() {
         />
         <Route
           path='/console/finance'
-          element={<FinanceRoute><Suspense fallback={<Loading />}><Finance /></Suspense></FinanceRoute>}
+          element={<FinanceRoute><Navigate to='/console/topup_history?view=finance' replace /></FinanceRoute>}
         />
         <Route
           path='/console/ticket'

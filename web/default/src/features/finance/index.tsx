@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, Download, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -29,12 +28,12 @@ import {
 import { FinancePolicyDialog } from './policy-dialog'
 import { FinanceRecordsTable } from './records-table'
 
-export default function FinancePage() {
+export default function FinanceRecords() {
   const { t } = useTranslation()
   const admin = useIsAdmin()
-  const canExport = useAuthStore((state) =>
-    hasPermission(state.auth.user, 'finance', 'export')
-  )
+  const user = useAuthStore((state) => state.auth.user)
+  const canRead = hasPermission(user, 'finance', 'read')
+  const canExport = canRead && hasPermission(user, 'finance', 'export')
   const [requestedView, setView] = useState<'invoices' | 'topups'>('invoices')
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('all')
@@ -44,8 +43,9 @@ export default function FinancePage() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const search = useDebounce(keyword, 350)
   const policy = useQuery({
-    queryKey: ['finance', 'policy'],
+    queryKey: ['finance', 'policy', user?.id],
     queryFn: getFinancePolicy,
+    enabled: canRead,
   })
   const hasInvoices = (policy.data?.invoice_statuses.length ?? 0) > 0
   const hasTopups = (policy.data?.topup_statuses.length ?? 0) > 0
@@ -75,10 +75,20 @@ export default function FinancePage() {
     end_time: range.end ? Math.floor(range.end.getTime() / 1000) : undefined,
   }
   const records = useQuery({
-    queryKey: ['finance', 'records', filter, page, pageSize, policy.data],
+    queryKey: [
+      'finance',
+      'records',
+      user?.id,
+      user?.permissions,
+      filter,
+      page,
+      pageSize,
+      policy.data,
+    ],
     queryFn: () =>
       getFinanceRecords({ ...filter, p: page, page_size: pageSize }),
-    enabled: !!policy.data,
+    enabled: canRead && !!policy.data,
+    gcTime: 0,
   })
   const download = useMutation({
     mutationFn: () => exportFinanceRecords(filter),
@@ -105,11 +115,11 @@ export default function FinancePage() {
           label: topupLabels[value],
         }))
   const total = records.data?.total ?? 0
+  if (!canRead) return null
   return (
     <>
-      <SectionPageLayout>
-        <SectionPageLayout.Title>{t('Finance')}</SectionPageLayout.Title>
-        <SectionPageLayout.Actions>
+      <div className='space-y-4'>
+        <div className='flex flex-wrap justify-end gap-2'>
           {admin && (
             <Button
               variant='outline'
@@ -147,137 +157,132 @@ export default function FinancePage() {
               </span>
             </Button>
           )}
-        </SectionPageLayout.Actions>
-        <SectionPageLayout.Content>
-          <div className='space-y-4'>
-            <Tabs
-              value={view}
-              onValueChange={(value) => {
-                setView(value as 'invoices' | 'topups')
+        </div>
+        <div className='space-y-4'>
+          <Tabs
+            value={view}
+            onValueChange={(value) => {
+              setView(value as 'invoices' | 'topups')
+              setPage(1)
+              setStatus('all')
+            }}
+          >
+            <TabsList>
+              {hasInvoices && (
+                <TabsTrigger value='invoices'>
+                  {t('Invoice applications')}
+                </TabsTrigger>
+              )}
+              {hasTopups && (
+                <TabsTrigger value='topups'>
+                  {t('All-user top-up records')}
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </Tabs>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Input
+              className='w-full sm:w-72'
+              aria-label={t('Search')}
+              placeholder={t('Search')}
+              value={keyword}
+              onChange={(event) => {
+                setKeyword(event.target.value)
                 setPage(1)
-                setStatus('all')
+              }}
+            />
+            <Select
+              value={activeStatus}
+              onValueChange={(value) => {
+                if (value) {
+                  setStatus(value)
+                  setPage(1)
+                }
               }}
             >
-              <TabsList>
-                {hasInvoices && (
-                  <TabsTrigger value='invoices'>
-                    {t('Invoice applications')}
-                  </TabsTrigger>
-                )}
-                {hasTopups && (
-                  <TabsTrigger value='topups'>
-                    {t('All-user top-up records')}
-                  </TabsTrigger>
-                )}
-              </TabsList>
-            </Tabs>
-            <div className='flex flex-wrap items-center gap-2'>
-              <Input
-                className='w-full sm:w-72'
-                aria-label={t('Search')}
-                placeholder={t('Search')}
-                value={keyword}
-                onChange={(event) => {
-                  setKeyword(event.target.value)
-                  setPage(1)
-                }}
-              />
+              <SelectTrigger className='w-40' aria-label={t('Status')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>{t('All')}</SelectItem>
+                {statuses.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <CompactDateTimeRangePicker
+              start={range.start}
+              end={range.end}
+              onChange={(value) => {
+                setRange(value)
+                setPage(1)
+              }}
+            />
+          </div>
+          {(policy.isError || records.isError) && (
+            <p role='alert' className='text-destructive text-sm'>
+              {t('Failed to load data')}
+            </p>
+          )}
+          <FinanceRecordsTable
+            key={`${view}-${page}-${search}`}
+            items={records.isError ? [] : (records.data?.items ?? [])}
+            invoices={view === 'invoices'}
+            loading={policy.isLoading || records.isLoading}
+          />
+          <div className='flex flex-wrap items-center justify-between gap-3 text-sm'>
+            <span>
+              {t('Total')}: {total}
+            </span>
+            <div className='flex items-center gap-2'>
               <Select
-                value={activeStatus}
+                value={String(pageSize)}
                 onValueChange={(value) => {
                   if (value) {
-                    setStatus(value)
+                    setPageSize(Number(value))
                     setPage(1)
                   }
                 }}
               >
-                <SelectTrigger className='w-40' aria-label={t('Status')}>
+                <SelectTrigger className='w-20' aria-label={t('Rows per page')}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='all'>{t('All')}</SelectItem>
-                  {statuses.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
+                  {[20, 50, 100].map((size) => (
+                    <SelectItem key={size} value={String(size)}>
+                      {size}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <CompactDateTimeRangePicker
-                start={range.start}
-                end={range.end}
-                onChange={(value) => {
-                  setRange(value)
-                  setPage(1)
-                }}
-              />
-            </div>
-            {(policy.isError || records.isError) && (
-              <p role='alert' className='text-destructive text-sm'>
-                {t('Failed to load data')}
-              </p>
-            )}
-            <FinanceRecordsTable
-              key={`${view}-${page}-${search}`}
-              items={records.isError ? [] : (records.data?.items ?? [])}
-              invoices={view === 'invoices'}
-              loading={policy.isLoading || records.isLoading}
-            />
-            <div className='flex flex-wrap items-center justify-between gap-3 text-sm'>
-              <span>
-                {t('Total')}: {total}
+              <Button
+                variant='outline'
+                size='icon'
+                aria-label={t('Previous page')}
+                disabled={page === 1 || records.isFetching}
+                onClick={() => setPage((prev) => prev - 1)}
+              >
+                <ChevronLeft className='size-4' />
+              </Button>
+              <span className='min-w-12 text-center tabular-nums'>
+                {page} / {Math.max(1, Math.ceil(total / pageSize))}
               </span>
-              <div className='flex items-center gap-2'>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(value) => {
-                    if (value) {
-                      setPageSize(Number(value))
-                      setPage(1)
-                    }
-                  }}
-                >
-                  <SelectTrigger
-                    className='w-20'
-                    aria-label={t('Rows per page')}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[20, 50, 100].map((size) => (
-                      <SelectItem key={size} value={String(size)}>
-                        {size}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant='outline'
-                  size='icon'
-                  aria-label={t('Previous page')}
-                  disabled={page === 1 || records.isFetching}
-                  onClick={() => setPage((prev) => prev - 1)}
-                >
-                  <ChevronLeft className='size-4' />
-                </Button>
-                <span className='min-w-12 text-center tabular-nums'>
-                  {page} / {Math.max(1, Math.ceil(total / pageSize))}
-                </span>
-                <Button
-                  variant='outline'
-                  size='icon'
-                  aria-label={t('Next page')}
-                  disabled={page * pageSize >= total || records.isFetching}
-                  onClick={() => setPage((prev) => prev + 1)}
-                >
-                  <ChevronRight className='size-4' />
-                </Button>
-              </div>
+              <Button
+                variant='outline'
+                size='icon'
+                aria-label={t('Next page')}
+                disabled={page * pageSize >= total || records.isFetching}
+                onClick={() => setPage((prev) => prev + 1)}
+              >
+                <ChevronRight className='size-4' />
+              </Button>
             </div>
           </div>
-        </SectionPageLayout.Content>
-      </SectionPageLayout>
-      {settingsOpen && policy.data && (
+        </div>
+      </div>
+      {admin && settingsOpen && policy.data && (
         <FinancePolicyDialog
           policy={policy.data}
           onClose={() => {

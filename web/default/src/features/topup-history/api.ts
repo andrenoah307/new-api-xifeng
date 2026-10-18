@@ -34,6 +34,7 @@ export async function getTopups(
 ): Promise<TopupListResponse> {
   const url = admin ? '/api/user/topup' : '/api/user/topup/self'
   const res = await api.get(url, { params })
+  if (!res.data?.success) throw new Error(res.data?.message)
   return res.data?.data ?? { items: [], total: 0 }
 }
 
@@ -41,5 +42,6 @@ export async function completeTopupOrder(tradeNo: string): Promise<boolean> {
   const res = await api.post('/api/user/topup/complete', {
     trade_no: tradeNo,
   })
+  if (!res.data?.success) throw new Error(res.data?.message)
   return res.data?.success ?? false
 }
