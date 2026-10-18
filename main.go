@@ -188,7 +188,7 @@ func main() {
 	if os.Getenv("BATCH_UPDATE_ENABLED") == "true" {
 		common.BatchUpdateEnabled = true
 		common.SysLog("batch update enabled with interval " + strconv.Itoa(common.BatchUpdateInterval) + "s")
-		common.SysError("用户余额批量更新已开启，预扣下限保护（ReserveUserQuota 条件扣减）不可用，将退化为无谓词扣减")
+		common.SysLog("统计批量更新已开启；钱包余额同步落库，预扣下限保护保持启用")
 		model.InitBatchUpdater()
 	}
 
