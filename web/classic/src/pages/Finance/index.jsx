@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -32,10 +32,15 @@ import {
 } from '@douyinfe/semi-ui';
 import { IconDownload, IconSetting } from '@douyinfe/semi-icons';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
+import { UserContext } from '../../context/User';
 
 export default function Finance() {
   const { t } = useTranslation();
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const [state] = useContext(UserContext);
+  const user = state.user;
+  const canRead =
+    user?.role === 100 ||
+    user?.permissions?.admin_permissions?.finance?.read === true;
   const [policy, setPolicy] = useState(null);
   const [requestedView, setView] = useState('invoices');
   const [keyword, setKeyword] = useState('');
@@ -55,6 +60,7 @@ export default function Finance() {
       ? 'invoices'
       : 'topups';
   useEffect(() => {
+    if (!canRead) return;
     let active = true;
     API.get('/api/finance/policy')
       .then(({ data }) => {
@@ -67,7 +73,7 @@ export default function Finance() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [canRead, user?.id]);
   const params = useMemo(
     () => ({
       view,
@@ -84,7 +90,7 @@ export default function Finance() {
     [view, search, status, dates],
   );
   useEffect(() => {
-    if (!policy) return;
+    if (!canRead || !policy) return;
     const controller = new AbortController();
     setLoading(true);
     setResult({ items: [], total: 0 });
@@ -103,7 +109,7 @@ export default function Finance() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [params, page, policy]);
+  }, [params, page, policy, canRead, user?.id]);
   const invoiceLabels = {
     1: t('Pending Issuance'),
     2: t('Issued'),
@@ -197,10 +203,10 @@ export default function Finance() {
       setSaving(false);
     }
   };
+  if (!canRead) return null;
   return (
-    <div className='mt-[60px] p-4 md:p-6 space-y-4'>
+    <div className='space-y-4'>
       <div className='flex flex-wrap justify-between gap-3'>
-        <Typography.Title heading={3}>{t('Finance')}</Typography.Title>
         <Space wrap>
           {user?.role >= 10 && (
             <Button
@@ -328,7 +334,7 @@ export default function Finance() {
       />
       <Modal
         title={t('Financial record visibility')}
-        visible={!!draft}
+        visible={user?.role >= 10 && !!draft}
         centered
         bodyStyle={{ maxHeight: '70vh', overflowY: 'auto' }}
         getPopupContainer={() => document.body}

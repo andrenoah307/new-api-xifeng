@@ -478,6 +478,7 @@ func RequestAmount(c *gin.Context) {
 }
 
 func GetUserTopUps(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	userId := c.GetInt("id")
 	pageInfo := common.GetPageQuery(c)
 	filter := parseTopUpFilter(c)
@@ -495,6 +496,7 @@ func GetUserTopUps(c *gin.Context) {
 
 // GetAllTopUps 管理员获取全平台充值记录
 func GetAllTopUps(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	pageInfo := common.GetPageQuery(c)
 	filter := parseTopUpFilter(c)
 

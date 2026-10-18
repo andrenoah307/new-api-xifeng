@@ -37,6 +37,8 @@ func TestFinanceRoutesEnforceScopeAndExportOneRowPerInvoice(t *testing.T) {
 	owner := users[common.RoleCommonUser]
 	orders := []model.TopUp{{UserId: owner.Id, TradeNo: "order-a", Money: 10, Status: "success"}, {UserId: owner.Id, TradeNo: "order-b", Money: 20, Status: "success"}}
 	require.NoError(t, db.Create(&orders).Error)
+	otherOrder := model.TopUp{UserId: users[common.RoleFinanceUser].Id, TradeNo: "private-finance-order", Money: 40, Status: "success"}
+	require.NoError(t, db.Create(&otherOrder).Error)
 	ticket := model.Ticket{UserId: owner.Id, Username: owner.Username, Type: model.TicketTypeInvoice}
 	require.NoError(t, db.Create(&ticket).Error)
 	invoice := model.TicketInvoice{TicketId: ticket.Id, UserId: owner.Id, CompanyName: "=SUM(1,2)", TotalMoney: 30, InvoiceStatus: model.InvoiceStatusPending}
@@ -60,6 +62,17 @@ func TestFinanceRoutesEnforceScopeAndExportOneRowPerInvoice(t *testing.T) {
 			assert.Equal(t, http.StatusForbidden, request(role, "GET", path, "").Code, path)
 		}
 	}
+	// Client-supplied owner/role flags cannot widen the authenticated self scope.
+	w := request(common.RoleCommonUser, "GET", fmt.Sprintf("/api/user/topup/self?user_id=%d&admin=true&view=finance", otherOrder.UserId), "")
+	require.Contains(t, w.Body.String(), `"success":true`)
+	assert.Contains(t, w.Body.String(), "order-a")
+	assert.NotContains(t, w.Body.String(), "private-finance-order")
+	assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+	w = request(common.RoleFinanceUser, "GET", fmt.Sprintf("/api/user/topup/self?user_id=%d", owner.Id), "")
+	require.Contains(t, w.Body.String(), `"success":true`)
+	assert.Contains(t, w.Body.String(), "private-finance-order")
+	assert.NotContains(t, w.Body.String(), "order-a")
+	assert.NotContains(t, request(common.RoleCommonUser, "GET", "/api/user/topup?admin=true", "").Body.String(), `"success":true`)
 	for _, path := range []string{"/api/user/topup", "/api/ticket/admin/", "/api/channel/"} {
 		w := request(common.RoleFinanceUser, "GET", path, "")
 		assert.NotContains(t, w.Body.String(), `"success":true`, path)
@@ -71,7 +84,7 @@ func TestFinanceRoutesEnforceScopeAndExportOneRowPerInvoice(t *testing.T) {
 		}
 		assert.NotContains(t, request(common.RoleFinanceUser, method, path, `{}`).Body.String(), `"success":true`)
 	}
-	w := request(common.RoleFinanceUser, "GET", "/api/finance/export?view=invoices", "")
+	w = request(common.RoleFinanceUser, "GET", "/api/finance/export?view=invoices", "")
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Contains(t, w.Header().Get("Content-Type"), "text/csv")
 	rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(w.Body.String(), "\xef\xbb\xbf"))).ReadAll()
@@ -91,7 +104,13 @@ func TestFinanceRoutesEnforceScopeAndExportOneRowPerInvoice(t *testing.T) {
 	w = request(common.RoleFinanceUser, "GET", "/api/finance/records?view=invoices", "")
 	assert.Contains(t, w.Body.String(), `"items":[]`)
 	w = request(common.RoleFinanceUser, "GET", "/api/finance/records?view=topups", "")
-	assert.Contains(t, w.Body.String(), `"total":2`)
+	assert.Contains(t, w.Body.String(), `"total":3`)
+	require.NoError(t, authz.SetUserPermissions(users[common.RoleFinanceUser].Id, authz.PermissionsMap{authz.ResourceFinance: {"read": true, "export": false}}))
+	assert.Contains(t, request(common.RoleFinanceUser, "GET", "/api/finance/records", "").Body.String(), `"success":true`)
+	assert.Equal(t, http.StatusForbidden, request(common.RoleFinanceUser, "GET", "/api/finance/export", "").Code)
+	require.NoError(t, authz.SetUserPermissions(users[common.RoleFinanceUser].Id, authz.PermissionsMap{authz.ResourceFinance: {"read": false, "export": true}}))
+	assert.Equal(t, http.StatusForbidden, request(common.RoleFinanceUser, "GET", "/api/finance/records", "").Code)
+	assert.Equal(t, http.StatusForbidden, request(common.RoleFinanceUser, "GET", "/api/finance/export", "").Code)
 	require.NoError(t, authz.SetUserPermissions(users[common.RoleAdminUser].Id, authz.PermissionsMap{authz.ResourceFinance: {"export": false}}))
 	w = request(common.RoleAdminUser, "GET", "/api/finance/export", "")
 	assert.Equal(t, http.StatusForbidden, w.Code)
