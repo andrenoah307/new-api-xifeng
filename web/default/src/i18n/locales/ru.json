@@ -1,5 +1,10 @@
 {
   "translation": {
+    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "До оплаты укажите, нужен ли счёт-фактура для этого пополнения. Если нужен, выберите соответствующий вариант и затем тип документа. Налоговый сбор включён в сумму платежа и вычитается при расчёте зачисления на баланс. При выборе варианта без счёта-фактуры сбор не взимается, а заказ впоследствии нельзя сделать доступным для выставления счёта-фактуры.",
+    "Confirm payment": "Подтвердить оплату",
+    "Invoice confirmation": "Подтверждение счёта-фактуры",
+    "Invoice required": "Нужен счёт-фактура",
+    "No payment methods are available for this invoice choice.": "Для выбранного варианта счёта-фактуры нет доступных способов оплаты.",
     "Balance credited": "Зачисление на баланс",
     "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Возможность выставления и тип счёта определяются при оплате. Налог включён в сумму платежа.",
     "No invoice": "Без счёта",

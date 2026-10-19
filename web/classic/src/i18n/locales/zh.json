@@ -1,5 +1,15 @@
 {
   "translation": {
+    "Alipay": "支付宝",
+    "Back": "返回",
+    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "请在支付前确认本次充值是否需要开票。如需开票，请现在选择“需要开票”，并在下一步选择发票类型。税费包含在您输入的实付金额中，计算到账余额时会扣除相应税费。选择“不开票”将生成不可开票订单，不收取税费；该订单之后无法改为可开票订单。",
+    "Confirm payment": "确认支付",
+    "Continue": "继续",
+    "Invoice confirmation": "开票确认",
+    "Invoice required": "需要开票",
+    "No payment methods are available for this invoice choice.": "当前开票选择暂无可用支付方式。",
+    "Retry": "重试",
+    "WeChat Pay": "微信支付",
     "Balance credited": "到账额度",
     "Discount Code": "折扣码",
     "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "开票资格和票种在充值时确定，实付金额已包含税费。",

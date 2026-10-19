@@ -24,6 +24,8 @@ import (
 
 func GetTopUpInfo(c *gin.Context) {
 	complianceConfirmed := operation_setting.IsPaymentComplianceConfirmed()
+	regularMethods, _ := model.GetEpayCheckoutMethods(model.DB.WithContext(c.Request.Context()), "none")
+	invoiceMethods, _ := model.GetEpayCheckoutMethods(model.DB.WithContext(c.Request.Context()), "ordinary")
 
 	// 获取支付方式
 	payMethods := operation_setting.PayMethods
@@ -98,6 +100,7 @@ func GetTopUpInfo(c *gin.Context) {
 
 	data := gin.H{
 		"enable_online_topup":              isEpayTopUpEnabled(),
+		"enable_epay_checkout":             len(regularMethods) > 0 || len(invoiceMethods) > 0,
 		"enable_stripe_topup":              isStripeTopUpEnabled(),
 		"enable_creem_topup":               isCreemTopUpEnabled(),
 		"enable_waffo_topup":               enableWaffo,

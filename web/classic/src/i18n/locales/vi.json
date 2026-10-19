@@ -1,5 +1,15 @@
 {
   "translation": {
+    "Alipay": "Alipay",
+    "Back": "Quay lại",
+    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "Vui lòng xác nhận nhu cầu xuất hóa đơn trước khi thanh toán. Nếu cần, chọn Cần hóa đơn rồi chọn loại hóa đơn ở bước tiếp theo. Phí thuế nằm trong tổng tiền thanh toán và được trừ khi tính số dư ghi có. Nếu chọn không xuất hóa đơn, đơn hàng không thu phí thuế và không thể chuyển thành đơn được xuất hóa đơn sau này.",
+    "Confirm payment": "Xác nhận thanh toán",
+    "Continue": "Tiếp tục",
+    "Invoice confirmation": "Xác nhận hóa đơn",
+    "Invoice required": "Cần hóa đơn",
+    "No payment methods are available for this invoice choice.": "Không có phương thức thanh toán cho lựa chọn hóa đơn này.",
+    "Retry": "Thử lại",
+    "WeChat Pay": "WeChat Pay",
     "Balance credited": "Số dư được cộng",
     "Discount Code": "Mã giảm giá",
     "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Quyền xuất hóa đơn và loại hóa đơn được xác định khi nạp tiền. Số tiền thanh toán đã bao gồm thuế.",

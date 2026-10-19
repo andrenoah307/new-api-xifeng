@@ -1,5 +1,15 @@
 {
   "translation": {
+    "Alipay": "Alipay",
+    "Back": "戻る",
+    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "支払い前に、今回のチャージで請求書が必要か確認してください。必要な場合は「請求書が必要」を選び、次の画面で種類を選択してください。税費用は入力した支払総額に含まれ、残高への反映額から差し引かれます。請求書なしを選ぶと税費用は発生せず、後から請求書発行対象に変更することはできません。",
+    "Confirm payment": "支払いを確認",
+    "Continue": "続行",
+    "Invoice confirmation": "請求書の確認",
+    "Invoice required": "請求書が必要",
+    "No payment methods are available for this invoice choice.": "この請求書の選択に対応する支払い方法はありません。",
+    "Retry": "再試行",
+    "WeChat Pay": "WeChat Pay",
     "Balance credited": "残高への加算額",
     "Discount Code": "割引コード",
     "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "請求書の発行可否と種類はチャージ時に確定します。支払金額には税金が含まれます。",

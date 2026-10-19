@@ -56,7 +56,7 @@ export default function InvoiceEpaySettings() {
           />
         </label>
         <label>
-          {t('商户 ID')}
+          {t('易支付商户ID')}
           <Input
             value={config.partner_id}
             onChange={(partner_id) => setConfig({ ...config, partner_id })}
@@ -72,6 +72,28 @@ export default function InvoiceEpaySettings() {
           />
         </label>
       </div>
+      <fieldset className='space-y-2 mb-4' disabled={saving}>
+        <legend className='mb-2'>{t('Payment Method')}</legend>
+        {['alipay', 'wxpay'].map((method) => (
+          <label key={method} className='flex items-center gap-2'>
+            <input
+              type='checkbox'
+              checked={config.payment_methods.includes(method)}
+              onChange={(event) =>
+                setConfig({
+                  ...config,
+                  payment_methods: event.target.checked
+                    ? [...config.payment_methods, method]
+                    : config.payment_methods.filter(
+                        (value) => value !== method,
+                      ),
+                })
+              }
+            />
+            {method === 'alipay' ? t('Alipay') : t('WeChat Pay')}
+          </label>
+        ))}
+      </fieldset>
       <Button
         loading={saving}
         disabled={

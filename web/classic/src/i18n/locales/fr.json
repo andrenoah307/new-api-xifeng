@@ -1,5 +1,15 @@
 {
   "translation": {
+    "Alipay": "Alipay",
+    "Back": "Retour",
+    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "Confirmez avant de payer si vous souhaitez une facture. Si oui, choisissez Facture requise, puis le type de facture. Les frais fiscaux sont inclus dans le montant payé et déduits du solde crédité. Sans facture, la commande ne comporte pas de frais fiscaux et ne pourra pas devenir facturable ultérieurement.",
+    "Confirm payment": "Confirmer le paiement",
+    "Continue": "Continuer",
+    "Invoice confirmation": "Confirmation de facturation",
+    "Invoice required": "Facture requise",
+    "No payment methods are available for this invoice choice.": "Aucun moyen de paiement disponible pour ce choix de facturation.",
+    "Retry": "Réessayer",
+    "WeChat Pay": "WeChat Pay",
     "Balance credited": "Solde crédité",
     "Discount Code": "Code de réduction",
     "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Le droit à facturation et le type de facture sont fixés au paiement. Les frais de taxe sont inclus.",
