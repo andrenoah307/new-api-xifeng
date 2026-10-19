@@ -30,9 +30,11 @@ export default function EpayCheckout({ methods, minimum, discountsEnabled }) {
     const controller = new AbortController();
     setQuote(null);
     setFailed(false);
-    if (cents > 0 && cents >= minimum * 100) {
+    const timer = setTimeout(() => {
+      if (cents <= 0 || cents < minimum * 100) return;
       API.post('/api/user/epay/checkout/quote', JSON.parse(key), {
         signal: controller.signal,
+        skipErrorHandler: true,
       })
         .then(({ data }) => {
           if (!data.success) throw new Error(data.message);
@@ -42,8 +44,11 @@ export default function EpayCheckout({ methods, minimum, discountsEnabled }) {
         .catch(() => {
           if (!controller.signal.aborted) setFailed(true);
         });
-    }
-    return () => controller.abort();
+    }, 500);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [key, minimum, refresh]);
   const current = quote?.requestKey === key ? quote : null;
   const pay = async () => {
@@ -114,7 +119,13 @@ export default function EpayCheckout({ methods, minimum, discountsEnabled }) {
         {discountsEnabled && (
           <label className='space-y-2'>
             <span>{t('Discount Code')}</span>
-            <Input id='epay-checkout-discount' value={discountInput} onChange={setDiscountInput} onBlur={() => setDiscount(discountInput.trim())} disabled={paying} />
+            <Input
+              id='epay-checkout-discount'
+              value={discountInput}
+              onChange={setDiscountInput}
+              onBlur={() => setDiscount(discountInput.trim())}
+              disabled={paying}
+            />
           </label>
         )}
         <label className='space-y-2'>
@@ -162,7 +173,9 @@ export default function EpayCheckout({ methods, minimum, discountsEnabled }) {
         htmlType='button'
         icon={<CreditCard size={16} />}
         loading={paying}
-        disabled={!current || failed || paying || discountInput.trim() !== discount}
+        disabled={
+          !current || failed || paying || discountInput.trim() !== discount
+        }
         onClick={pay}
       >
         {t('Pay')}
