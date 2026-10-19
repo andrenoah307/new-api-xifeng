@@ -12,6 +12,16 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+func GetEpayCheckoutMethods(c *gin.Context) {
+	methods, err := model.GetEpayCheckoutMethods(model.DB.WithContext(c.Request.Context()), c.Query("invoice_type"))
+	if err != nil {
+		handleTicketError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	common.ApiSuccess(c, methods)
+}
+
 func QuoteEpayCheckout(c *gin.Context) {
 	var req model.EpayCheckoutRequest
 	if c.ShouldBindJSON(&req) != nil {

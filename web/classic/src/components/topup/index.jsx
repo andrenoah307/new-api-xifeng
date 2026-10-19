@@ -720,6 +720,8 @@ const TopUp = () => {
           setTopupInfo((prev) => ({
             ...prev,
             enable_redemption: data.enable_redemption !== false,
+            enable_epay_checkout: data.enable_epay_checkout,
+            epay_min_topup: data.min_topup,
             payment_compliance_confirmed:
               data.payment_compliance_confirmed !== false,
             payment_compliance_terms_version:

@@ -111,6 +111,7 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/pay", middleware.CriticalRateLimit(), middleware.CaptchaCheck("discount_code"), controller.RequestEpay)
 				selfRoute.POST("/amount", middleware.CaptchaCheck("discount_code"), controller.RequestAmount)
 				selfRoute.POST("/epay/checkout/quote", middleware.CaptchaCheck("discount_code"), controller.QuoteEpayCheckout)
+				selfRoute.GET("/epay/checkout/methods", controller.GetEpayCheckoutMethods)
 				selfRoute.POST("/epay/checkout/pay", middleware.CriticalRateLimit(), middleware.CaptchaCheck("discount_code"), controller.RequestEpayCheckout)
 				selfRoute.POST("/stripe/pay", middleware.CriticalRateLimit(), middleware.CaptchaCheck("discount_code"), controller.RequestStripePay)
 				selfRoute.POST("/stripe/amount", middleware.CaptchaCheck("discount_code"), controller.RequestStripeAmount)

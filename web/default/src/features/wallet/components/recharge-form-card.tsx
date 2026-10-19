@@ -191,7 +191,10 @@ export function RechargeFormCard({
     enableWaffoTopup ||
     enableWaffoPancakeTopup
   const hasAnyTopup =
-    hasConfigurableTopup || enableCreemTopup || epayMethods.length > 0
+    hasConfigurableTopup ||
+    enableCreemTopup ||
+    topupInfo?.enable_epay_checkout ||
+    epayMethods.length > 0
   const hasStandardPaymentMethods =
     Array.isArray(topupInfo?.pay_methods) && topupInfo.pay_methods.length > 0
   const hasWaffoPaymentMethods =
@@ -274,9 +277,8 @@ export function RechargeFormCard({
       {/* Online Topup Section */}
       {hasAnyTopup ? (
         <div className='space-y-4 sm:space-y-6'>
-          {epayMethods.length > 0 && (
+          {(topupInfo?.enable_epay_checkout || epayMethods.length > 0) && (
             <EpayCheckout
-              methods={epayMethods}
               minimum={topupInfo?.min_topup ?? 1}
               discountsEnabled={!!onDiscountCodeChange}
             />

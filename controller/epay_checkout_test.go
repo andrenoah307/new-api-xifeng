@@ -16,6 +16,30 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestEpayCheckoutMethodsExposeOnlyConfiguredMethods(t *testing.T) {
+	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Option{}))
+	confirmPaymentComplianceForTest(t)
+	require.NoError(t, model.SaveInvoiceEpayConfig(model.InvoiceEpayConfig{
+		Address: "https://payment.example.test", PartnerID: "invoice-merchant", Key: "invoice-secret", PaymentMethods: []string{"wxpay"},
+	}))
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("GET", "/api/user/epay/checkout/methods?invoice_type=ordinary", nil)
+	GetEpayCheckoutMethods(c)
+	var response struct {
+		Success bool     `json:"success"`
+		Data    []string `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(w.Body.Bytes(), &response))
+	assert.True(t, response.Success)
+	assert.Equal(t, []string{"wxpay"}, response.Data)
+	assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+	assert.NotContains(t, w.Body.String(), "invoice-secret")
+	assert.NotContains(t, w.Body.String(), "invoice-merchant")
+	assert.NotContains(t, w.Body.String(), "payment.example.test")
+}
+
 func TestEpayCheckoutCallbackPinsMerchantAndAcknowledgesCommit(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
 	require.NoError(t, db.AutoMigrate(&model.TopUp{}, &model.Log{}))
