@@ -3,9 +3,11 @@ package model
 import (
 	"errors"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	gormlogger "gorm.io/gorm/logger"
@@ -15,9 +17,47 @@ import (
 const InvoiceEpayConfigKey = "InvoiceEpayConfigSecret"
 
 type InvoiceEpayConfig struct {
-	Address   string `json:"address"`
-	PartnerID string `json:"partner_id"`
-	Key       string `json:"key,omitempty"`
+	Address        string   `json:"address"`
+	PartnerID      string   `json:"partner_id"`
+	Key            string   `json:"key,omitempty"`
+	PaymentMethods []string `json:"payment_methods"`
+}
+
+// A missing list preserves legacy configuration; an explicit empty list disables checkout.
+func (config InvoiceEpayConfig) CheckoutMethods() []string {
+	methods := config.PaymentMethods
+	if methods == nil {
+		methods = []string{}
+		for _, method := range operation_setting.PayMethods {
+			if method["type"] == "alipay" || method["type"] == "wxpay" {
+				if !slices.Contains(methods, method["type"]) {
+					methods = append(methods, method["type"])
+				}
+			}
+		}
+	}
+	return methods
+}
+
+func GetEpayCheckoutGateway(db *gorm.DB, invoiceType string) (InvoiceEpayConfig, error) {
+	if invoiceType == "none" {
+		return InvoiceEpayConfig{Address: operation_setting.PayAddress, PartnerID: operation_setting.EpayId, Key: operation_setting.EpayKey}, nil
+	}
+	if invoiceType != "ordinary" && invoiceType != "special" {
+		return InvoiceEpayConfig{}, ErrInvoiceTaxInvalid
+	}
+	return GetInvoiceEpayConfig(db)
+}
+
+func GetEpayCheckoutMethods(db *gorm.DB, invoiceType string) ([]string, error) {
+	config, err := GetEpayCheckoutGateway(db, invoiceType)
+	if err != nil {
+		return nil, err
+	}
+	if !operation_setting.IsPaymentComplianceConfirmed() || config.Address == "" || config.PartnerID == "" || config.Key == "" {
+		return []string{}, nil
+	}
+	return config.CheckoutMethods(), nil
 }
 
 func GetInvoiceEpayConfig(db *gorm.DB) (InvoiceEpayConfig, error) {
@@ -35,6 +75,11 @@ func GetInvoiceEpayConfig(db *gorm.DB) (InvoiceEpayConfig, error) {
 }
 
 func SaveInvoiceEpayConfig(config InvoiceEpayConfig) error {
+	for _, method := range config.PaymentMethods {
+		if method != "alipay" && method != "wxpay" {
+			return ErrInvoiceTaxInvalid
+		}
+	}
 	config.Address = strings.TrimRight(strings.TrimSpace(config.Address), "/")
 	config.PartnerID = strings.TrimSpace(config.PartnerID)
 	config.Key = strings.TrimSpace(config.Key)
@@ -60,6 +105,9 @@ func SaveInvoiceEpayConfig(config InvoiceEpayConfig) error {
 				return ErrInvoiceTaxInvalid
 			}
 			config.Key = previous.Key
+		}
+		if config.PaymentMethods == nil {
+			config.PaymentMethods = previous.PaymentMethods
 		}
 		if config.Key == "" {
 			return ErrInvoiceTaxInvalid

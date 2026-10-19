@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"regexp"
+	"slices"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
@@ -67,7 +68,7 @@ func CalculateEpayCheckout(totalCents int64, invoiceType string, config InvoiceT
 // Creation calls this while holding the user and optional discount-code locks.
 func QuoteEpayCheckout(db *gorm.DB, userID int, req EpayCheckoutRequest, reserve bool) (EpayCheckoutQuote, error) {
 	var empty EpayCheckoutQuote
-	if !operation_setting.IsPaymentComplianceConfirmed() || (req.PaymentMethod != "alipay" && req.PaymentMethod != "wxpay") || !operation_setting.ContainsPayMethod(req.PaymentMethod) || req.TotalCents < int64(operation_setting.MinTopUp)*100 {
+	if !operation_setting.IsPaymentComplianceConfirmed() || (req.PaymentMethod != "alipay" && req.PaymentMethod != "wxpay") || req.TotalCents < int64(operation_setting.MinTopUp)*100 {
 		return empty, ErrInvoiceTaxInvalid
 	}
 	var user User
@@ -78,14 +79,11 @@ func QuoteEpayCheckout(db *gorm.DB, userID int, req EpayCheckoutRequest, reserve
 	if err != nil {
 		return empty, err
 	}
-	credentials := InvoiceEpayConfig{Address: operation_setting.PayAddress, PartnerID: operation_setting.EpayId, Key: operation_setting.EpayKey}
-	if req.InvoiceType != "none" {
-		credentials, err = GetInvoiceEpayConfig(db)
-		if err != nil {
-			return empty, err
-		}
+	credentials, err := GetEpayCheckoutGateway(db, req.InvoiceType)
+	if err != nil {
+		return empty, err
 	}
-	if credentials.Address == "" || credentials.PartnerID == "" || credentials.Key == "" {
+	if credentials.Address == "" || credentials.PartnerID == "" || credentials.Key == "" || !slices.Contains(credentials.CheckoutMethods(), req.PaymentMethod) {
 		return empty, ErrInvoiceTaxInvalid
 	}
 	groupRatio := common.GetTopupGroupRatio(user.Group)
