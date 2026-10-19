@@ -52,6 +52,7 @@ import { useActualTheme } from '../../context/Theme';
 import { getCurrencyConfig } from '../../helpers/render';
 import { API, showError } from '../../helpers';
 import SubscriptionPlansCard from './SubscriptionPlansCard';
+import EpayCheckout from './EpayCheckout';
 
 const { Text } = Typography;
 
@@ -112,7 +113,14 @@ const RechargeCard = ({
   const [activeTab, setActiveTab] = useState('topup');
   const shouldShowSubscription =
     !subscriptionLoading && subscriptionPlans.length > 0;
-  const regularPayMethods = payMethods || [];
+  const epayMethods = enableOnlineTopUp
+    ? (payMethods || []).filter(
+        (method) => method.type === 'alipay' || method.type === 'wxpay',
+      )
+    : [];
+  const regularPayMethods = (payMethods || []).filter(
+    (method) => method.type !== 'alipay' && method.type !== 'wxpay',
+  );
 
   // Discount code state
   const [discountCode, setDiscountCode] = useState('');
@@ -283,8 +291,14 @@ const RechargeCard = ({
             initValues={{ topUpCount: topUpCount }}
           >
             <div className='space-y-6'>
-              {(enableOnlineTopUp ||
-                enableStripeTopUp ||
+              {epayMethods.length > 0 && (
+                <EpayCheckout
+                  methods={epayMethods}
+                  minimum={minTopUp || 1}
+                  discountsEnabled={discountCodeEnabled}
+                />
+              )}
+              {(enableStripeTopUp ||
                 enableWaffoTopUp ||
                 enableWaffoPancakeTopUp) && (
                 <Row gutter={12}>
@@ -318,7 +332,10 @@ const RechargeCard = ({
                           setTopUpCount(minTopUp);
                           getAmount(minTopUp);
                           if (value && value < minTopUp) {
-                            showError(t('充值数量不能小于') + renderQuotaWithAmount(minTopUp));
+                            showError(
+                              t('充值数量不能小于') +
+                                renderQuotaWithAmount(minTopUp),
+                            );
                           }
                         } else {
                           getAmount(value);
@@ -459,7 +476,7 @@ const RechargeCard = ({
                 </Row>
               )}
 
-              {(enableOnlineTopUp || enableStripeTopUp || enableWaffoTopUp) && (
+              {(enableStripeTopUp || enableWaffoTopUp) && (
                 <Form.Slot
                   label={
                     <div className='flex items-center gap-2'>
@@ -587,86 +604,85 @@ const RechargeCard = ({
 
               {/* 折扣码输入区域 */}
               {discountCodeEnabled &&
-                (enableOnlineTopUp ||
-                enableStripeTopUp ||
-                enableWaffoTopUp ||
-                enableWaffoPancakeTopUp) && (
-                <Form.Slot label={t('折扣码')}>
-                  <div className='space-y-2'>
-                    <div className='flex items-center gap-2'>
-                      <Input
-                        placeholder={t('输入折扣码享受折扣')}
-                        value={discountCode}
-                        onChange={(val) => {
-                          setDiscountCode(val);
-                          discountValidationRef.current += 1;
-                          setValidatingDiscountCode(false);
-                          if (discountCodeInfo) updateDiscountCodeInfo(null);
-                        }}
-                        onEnterPress={validateDiscountCode}
-                        showClear
-                        onClear={() => {
-                          setDiscountCode('');
-                          discountValidationRef.current += 1;
-                          setValidatingDiscountCode(false);
-                          updateDiscountCodeInfo(null);
-                        }}
-                        style={{ flex: 1 }}
-                      />
-                      <Button
-                        onClick={validateDiscountCode}
-                        loading={validatingDiscountCode}
-                        disabled={!discountCode.trim()}
-                      >
-                        {t('验证')}
-                      </Button>
+                (enableStripeTopUp ||
+                  enableWaffoTopUp ||
+                  enableWaffoPancakeTopUp) && (
+                  <Form.Slot label={t('折扣码')}>
+                    <div className='space-y-2'>
+                      <div className='flex items-center gap-2'>
+                        <Input
+                          placeholder={t('输入折扣码享受折扣')}
+                          value={discountCode}
+                          onChange={(val) => {
+                            setDiscountCode(val);
+                            discountValidationRef.current += 1;
+                            setValidatingDiscountCode(false);
+                            if (discountCodeInfo) updateDiscountCodeInfo(null);
+                          }}
+                          onEnterPress={validateDiscountCode}
+                          showClear
+                          onClear={() => {
+                            setDiscountCode('');
+                            discountValidationRef.current += 1;
+                            setValidatingDiscountCode(false);
+                            updateDiscountCodeInfo(null);
+                          }}
+                          style={{ flex: 1 }}
+                        />
+                        <Button
+                          onClick={validateDiscountCode}
+                          loading={validatingDiscountCode}
+                          disabled={!discountCode.trim()}
+                        >
+                          {t('验证')}
+                        </Button>
+                      </div>
+                      {discountCodeInfo && (
+                        <Banner
+                          type='success'
+                          description={
+                            t('折扣码有效') +
+                            ', ' +
+                            t('折扣率') +
+                            ': ' +
+                            discountCodeInfo.discount_rate +
+                            '%' +
+                            ' (' +
+                            t('实付') +
+                            ' ' +
+                            discountCodeInfo.discount_rate +
+                            '%)'
+                          }
+                          className='!rounded-lg'
+                          closeIcon={null}
+                        />
+                      )}
+                      {discountCodeMaxAmount > 0 && (
+                        <Banner
+                          type={discountCodeOverLimit ? 'danger' : 'info'}
+                          description={
+                            discountCodeOverLimit
+                              ? t('该折扣码单笔最多充值 {{amount}}', {
+                                  amount: discountCodeMaxAmount,
+                                })
+                              : t('此折扣码单笔最多充值 {{amount}}', {
+                                  amount: discountCodeMaxAmount,
+                                })
+                          }
+                          closeIcon={null}
+                        />
+                      )}
+                      {enableCreemTopUp && (
+                        <Banner
+                          type='info'
+                          description={t('该支付方式不支持折扣码')}
+                          className='!rounded-lg'
+                          closeIcon={null}
+                        />
+                      )}
                     </div>
-                    {discountCodeInfo && (
-                      <Banner
-                        type='success'
-                        description={
-                          t('折扣码有效') +
-                          ', ' +
-                          t('折扣率') +
-                          ': ' +
-                          discountCodeInfo.discount_rate +
-                          '%' +
-                          ' (' +
-                          t('实付') +
-                          ' ' +
-                          discountCodeInfo.discount_rate +
-                          '%)'
-                        }
-                        className='!rounded-lg'
-                        closeIcon={null}
-                      />
-                    )}
-                    {discountCodeMaxAmount > 0 && (
-                      <Banner
-                        type={discountCodeOverLimit ? 'danger' : 'info'}
-                        description={
-                          discountCodeOverLimit
-                            ? t('该折扣码单笔最多充值 {{amount}}', {
-                                amount: discountCodeMaxAmount,
-                              })
-                            : t('此折扣码单笔最多充值 {{amount}}', {
-                                amount: discountCodeMaxAmount,
-                              })
-                        }
-                        closeIcon={null}
-                      />
-                    )}
-                    {enableCreemTopUp && (
-                      <Banner
-                        type='info'
-                        description={t('该支付方式不支持折扣码')}
-                        className='!rounded-lg'
-                        closeIcon={null}
-                      />
-                    )}
-                  </div>
-                </Form.Slot>
-              )}
+                  </Form.Slot>
+                )}
 
               {/* Creem 充值区域 */}
               {enableCreemTopUp && creemProducts.length > 0 && (

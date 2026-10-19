@@ -33,7 +33,6 @@ import { PaymentConfirmDialog } from './components/dialogs/payment-confirm-dialo
 import { TransferDialog } from './components/dialogs/transfer-dialog'
 import { InvitationCodeCard } from './components/invitation-code-card'
 import { RechargeFormCard } from './components/recharge-form-card'
-import { InvoiceTaxNotice } from '@/features/tickets/components/invoice-tax-fields'
 import { SubscriptionPlansCard } from './components/subscription-plans-card'
 import { WalletStatsCard } from './components/wallet-stats-card'
 import { DEFAULT_DISCOUNT_RATE } from './constants'
@@ -352,7 +351,6 @@ export function Wallet(props: WalletProps) {
         <SectionPageLayout.Content>
           <div className='mx-auto flex w-full max-w-7xl flex-col gap-4 sm:gap-5'>
             <WalletStatsCard user={user} loading={userLoading} />
-            <InvoiceTaxNotice />
 
             <div
               className={

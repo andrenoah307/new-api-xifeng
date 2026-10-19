@@ -27,7 +27,7 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         cell: ({ row }) => {
           const { username, user_id } = row.original
           return (
-            <span className="font-mono text-xs">
+            <span className='font-mono text-xs'>
               {username ? `${username} (${user_id})` : String(user_id ?? '-')}
             </span>
           )
@@ -43,8 +43,8 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         header: t('Order Number'),
         cell: ({ row }) => (
           <button
-            type="button"
-            className="text-foreground cursor-pointer truncate font-mono text-xs hover:underline"
+            type='button'
+            className='text-foreground cursor-pointer truncate font-mono text-xs hover:underline'
             onClick={() => copyToClipboard(row.original.trade_no)}
             title={row.original.trade_no}
           >
@@ -59,11 +59,7 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         cell: ({ row }) => {
           const pm = row.original.payment_method
           const label = PAYMENT_METHOD_MAP[pm]
-          return (
-            <span className="text-xs">
-              {label ? t(label) : pm || '-'}
-            </span>
-          )
+          return <span className='text-xs'>{label ? t(label) : pm || '-'}</span>
         },
         meta: { label: t('Payment Method') },
       },
@@ -72,12 +68,10 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         header: t('Top-up Amount'),
         cell: ({ row }) => {
           if (isSubscriptionTopup(row.original)) {
-            return (
-              <Badge variant="secondary">{t('Subscription')}</Badge>
-            )
+            return <Badge variant='secondary'>{t('Subscription')}</Badge>
           }
           return (
-            <span className="font-mono text-xs">{row.original.amount}</span>
+            <span className='font-mono text-xs'>{row.original.checkout_credit_amount || row.original.amount}</span>
           )
         },
         meta: { label: t('Top-up Amount') },
@@ -86,7 +80,7 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         accessorKey: 'money',
         header: t('Payment Amount'),
         cell: ({ row }) => (
-          <span className="font-mono text-xs text-red-600 dark:text-red-400">
+          <span className='font-mono text-xs text-red-600 dark:text-red-400'>
             ¥{row.original.money.toFixed(2)}
           </span>
         ),
@@ -98,7 +92,7 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         cell: ({ row }) => {
           const s = row.original.status
           const cfg = STATUS_CONFIG[s]
-          if (!cfg) return <span className="text-xs">{s}</span>
+          if (!cfg) return <span className='text-xs'>{s}</span>
           return (
             <StatusBadge
               label={t(cfg.labelKey)}
@@ -114,11 +108,21 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         header: t('Invoice Status'),
         cell: ({ row }) => {
           if (row.original.status !== 'success') {
-            return <span className="text-muted-foreground text-xs">-</span>
+            return <span className='text-muted-foreground text-xs'>-</span>
+          }
+          if (
+            !row.original.invoice_status &&
+            row.original.invoice_type === 'none'
+          ) {
+            return (
+              <span className='text-muted-foreground text-xs'>
+                {t('No invoice')}
+              </span>
+            )
           }
           const cfg = INVOICE_STATUS_CONFIG[row.original.invoice_status ?? 0]
           if (!cfg) {
-            return <span className="text-muted-foreground text-xs">-</span>
+            return <span className='text-muted-foreground text-xs'>-</span>
           }
           return (
             <StatusBadge
@@ -134,7 +138,7 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
         accessorKey: 'create_time',
         header: t('Created'),
         cell: ({ row }) => (
-          <span className="text-muted-foreground text-xs">
+          <span className='text-muted-foreground text-xs'>
             {formatTimestampToDate(row.original.create_time)}
           </span>
         ),

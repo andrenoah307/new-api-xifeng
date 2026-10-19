@@ -5622,6 +5622,17 @@
     "Tax payments rejected with the invoice are refunded to your account balance. CNY 1 equals one balance unit.": "Tax payments rejected with the invoice are refunded to your account balance. CNY 1 equals one balance unit.",
     "Tax quote unavailable. Refresh the selected orders and try again.": "Tax quote unavailable. Refresh the selected orders and try again.",
     "Tax refunded to balance": "Tax refunded to balance",
-    "VAT added to net amount": "VAT added to net amount"
+    "VAT added to net amount": "VAT added to net amount",
+    "Allow tax payments for historical recharge orders": "Allow tax payments for historical recharge orders",
+    "Balance credited": "Balance credited",
+    "Discount Code": "Discount Code",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.",
+    "Invoice-eligible recharge gateway": "Invoice-eligible recharge gateway",
+    "No invoice": "No invoice",
+    "Pay": "Pay",
+    "Payment amount (CNY)": "Payment amount (CNY)",
+    "Payment request failed": "Payment request failed",
+    "Tax charge (CNY)": "Tax charge (CNY)",
+    "Tax paid at checkout (CNY)": "Tax paid at checkout (CNY)"
   }
 }

@@ -5396,6 +5396,17 @@
     "Tax payments rejected with the invoice are refunded to your account balance. CNY 1 equals one balance unit.": "Si la facture est refusée, les frais sont remboursés sur le solde. 1 CNY correspond à une unité de solde.",
     "Tax quote unavailable. Refresh the selected orders and try again.": "Calcul indisponible. Actualisez les commandes sélectionnées et réessayez.",
     "Tax refunded to balance": "Frais remboursés sur le solde",
-    "VAT added to net amount": "TVA ajoutée au montant net"
+    "VAT added to net amount": "TVA ajoutée au montant net",
+    "Allow tax payments for historical recharge orders": "Autoriser les frais de facturation des anciennes recharges",
+    "Balance credited": "Solde crédité",
+    "Discount Code": "Code de réduction",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Le droit à facturation et le type de facture sont fixés au paiement. Les frais de taxe sont inclus.",
+    "Invoice-eligible recharge gateway": "Passerelle des recharges facturables",
+    "No invoice": "Sans facture",
+    "Pay": "Pay",
+    "Payment amount (CNY)": "Montant à payer (CNY)",
+    "Payment request failed": "Requête de paiement échouée",
+    "Tax charge (CNY)": "Frais de taxe (CNY)",
+    "Tax paid at checkout (CNY)": "Taxe payée à la recharge (CNY)"
   }
 }

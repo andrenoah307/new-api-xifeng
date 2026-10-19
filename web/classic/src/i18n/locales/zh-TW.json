@@ -5375,6 +5375,17 @@
     "Tax payments rejected with the invoice are refunded to your account balance. CNY 1 equals one balance unit.": "開票申請被拒絕時，已付稅費退回站內餘額。人民幣 1 元抵扣 1 個餘額金額單位。",
     "Tax quote unavailable. Refresh the selected orders and try again.": "稅費試算失敗，請重新整理所選訂單後重試。",
     "Tax refunded to balance": "稅費已退回餘額",
-    "VAT added to net amount": "未稅金額直接加稅"
+    "VAT added to net amount": "未稅金額直接加稅",
+    "Allow tax payments for historical recharge orders": "允許歷史儲值訂單補稅開票",
+    "Balance credited": "到帳額度",
+    "Discount Code": "Discount Code",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "開票資格和票種在儲值時確定，實付金額已包含稅費。",
+    "Invoice-eligible recharge gateway": "可開票儲值支付渠道",
+    "No invoice": "不開票",
+    "Pay": "支付",
+    "Payment amount (CNY)": "實付金額（元）",
+    "Payment request failed": "支付請求失敗",
+    "Tax charge (CNY)": "稅費（元）",
+    "Tax paid at checkout (CNY)": "儲值時已付稅費（元）"
   }
 }
