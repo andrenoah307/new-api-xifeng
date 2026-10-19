@@ -721,7 +721,7 @@ func UpdateTicketStatus(c *gin.Context) {
 }
 
 func GetEligibleInvoiceOrders(c *gin.Context) {
-	topUps, err := model.GetEligibleInvoiceOrders(c.GetInt("id"))
+	topUps, err := model.GetEligibleInvoiceOrders(c.GetInt("id"), c.DefaultQuery("invoice_type", "ordinary"))
 	if err != nil {
 		common.ApiError(c, err)
 		return

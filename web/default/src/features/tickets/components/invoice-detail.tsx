@@ -51,6 +51,22 @@ export function InvoiceDetail({
         )}
       </CardHeader>
       <CardContent className='space-y-4'>
+        {invoice.invoice_type && (
+          <dl className='grid grid-cols-2 gap-2 text-sm'>
+            <dt>{t('Invoice type')}</dt>
+            <dd>
+              {t(
+                invoice.invoice_type === 'special'
+                  ? 'Special VAT invoice'
+                  : 'Ordinary VAT invoice'
+              )}
+            </dd>
+            <dt>{t('Net amount (CNY)')}</dt>
+            <dd>{((invoice.invoice_net_cents ?? 0) / 100).toFixed(2)}</dd>
+            <dt>{t('Tax charge (CNY)')}</dt>
+            <dd>{((invoice.invoice_tax_cents ?? 0) / 100).toFixed(2)}</dd>
+          </dl>
+        )}
         {invoice.tax_charge && (
           <InvoiceTaxPayment
             charge={invoice.tax_charge}

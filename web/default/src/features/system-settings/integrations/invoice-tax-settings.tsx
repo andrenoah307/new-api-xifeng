@@ -64,6 +64,18 @@ export function InvoiceTaxSettings() {
           {t('Collect invoice tax charges')}
         </Label>
       </div>
+      <div className='flex items-center gap-2'>
+        <Switch
+          id='invoice-legacy-enabled'
+          checked={!!config.legacy_topups_enabled}
+          onCheckedChange={(legacy_topups_enabled) =>
+            setDraft({ ...config, legacy_topups_enabled })
+          }
+        />
+        <Label htmlFor='invoice-legacy-enabled'>
+          {t('Allow tax payments for historical recharge orders')}
+        </Label>
+      </div>
       <div className='grid gap-4 sm:grid-cols-2'>
         {(['ordinary', 'special'] as const).map((type) => (
           <div key={type} className='space-y-2'>
@@ -165,6 +177,7 @@ export function InvoiceTaxSettings() {
         </Table>
       </div>
       <Button
+        type='button'
         disabled={!valid || save.isPending}
         onClick={() => save.mutate(config)}
       >

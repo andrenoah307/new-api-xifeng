@@ -24,23 +24,26 @@ const (
 )
 
 type TicketInvoice struct {
-	TaxCharge      *InvoiceTaxCharge `json:"tax_charge,omitempty" gorm:"-"`
-	Id             int               `json:"id"`
-	TicketId       int               `json:"ticket_id" gorm:"uniqueIndex;not null"`
-	UserId         int               `json:"user_id" gorm:"index;not null"`
-	CompanyName    string            `json:"company_name" gorm:"type:varchar(255);not null"`
-	TaxNumber      string            `json:"tax_number" gorm:"type:varchar(64);not null"`
-	BankName       string            `json:"bank_name" gorm:"type:varchar(255)"`
-	BankAccount    string            `json:"bank_account" gorm:"type:varchar(128)"`
-	CompanyAddress string            `json:"company_address" gorm:"type:varchar(512)"`
-	CompanyPhone   string            `json:"company_phone" gorm:"type:varchar(32)"`
-	Remark         string            `json:"remark" gorm:"type:varchar(255)"`
-	Email          string            `json:"email" gorm:"type:varchar(128);not null"`
-	TopUpOrderIds  string            `json:"topup_order_ids" gorm:"type:text;not null"`
-	TotalMoney     float64           `json:"total_money"`
-	InvoiceStatus  int               `json:"invoice_status" gorm:"type:int;default:1"`
-	IssuedTime     int64             `json:"issued_time" gorm:"bigint;default:0"`
-	CreatedTime    int64             `json:"created_time" gorm:"bigint"`
+	InvoiceType     string            `json:"invoice_type" gorm:"size:16"`
+	InvoiceNetCents int64             `json:"invoice_net_cents"`
+	InvoiceTaxCents int64             `json:"invoice_tax_cents"`
+	TaxCharge       *InvoiceTaxCharge `json:"tax_charge,omitempty" gorm:"-"`
+	Id              int               `json:"id"`
+	TicketId        int               `json:"ticket_id" gorm:"uniqueIndex;not null"`
+	UserId          int               `json:"user_id" gorm:"index;not null"`
+	CompanyName     string            `json:"company_name" gorm:"type:varchar(255);not null"`
+	TaxNumber       string            `json:"tax_number" gorm:"type:varchar(64);not null"`
+	BankName        string            `json:"bank_name" gorm:"type:varchar(255)"`
+	BankAccount     string            `json:"bank_account" gorm:"type:varchar(128)"`
+	CompanyAddress  string            `json:"company_address" gorm:"type:varchar(512)"`
+	CompanyPhone    string            `json:"company_phone" gorm:"type:varchar(32)"`
+	Remark          string            `json:"remark" gorm:"type:varchar(255)"`
+	Email           string            `json:"email" gorm:"type:varchar(128);not null"`
+	TopUpOrderIds   string            `json:"topup_order_ids" gorm:"type:text;not null"`
+	TotalMoney      float64           `json:"total_money"`
+	InvoiceStatus   int               `json:"invoice_status" gorm:"type:int;default:1"`
+	IssuedTime      int64             `json:"issued_time" gorm:"bigint;default:0"`
+	CreatedTime     int64             `json:"created_time" gorm:"bigint"`
 }
 
 type CreateInvoiceTicketParams struct {
@@ -236,10 +239,16 @@ func orderTopUps(orderIds []int, topUps []*TopUp) []*TopUp {
 	return ordered
 }
 
-func GetEligibleInvoiceOrders(userId int) ([]*TopUp, error) {
+func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) {
 	config, err := GetInvoiceTaxConfig(DB)
 	if err != nil {
 		return nil, err
+	}
+	if invoiceType == "" {
+		invoiceType = "ordinary"
+	}
+	if invoiceType != "ordinary" && invoiceType != "special" {
+		return nil, ErrInvoiceTaxInvalid
 	}
 	tx := DB.Begin()
 	if tx.Error != nil {
@@ -274,16 +283,17 @@ func GetEligibleInvoiceOrders(userId int) ([]*TopUp, error) {
 	if err = tx.Commit().Error; err != nil {
 		return nil, err
 	}
-	if config.Enabled {
-		eligible := make([]*TopUp, 0, len(topUps))
-		for _, order := range topUps {
-			if IsCNYInvoiceTopUp(order) {
+	eligible := make([]*TopUp, 0, len(topUps))
+	for _, order := range topUps {
+		if order.InvoiceType == "" {
+			if config.LegacyTopUpsEnabled && IsCNYInvoiceTopUp(order) {
 				eligible = append(eligible, order)
 			}
+		} else if order.CheckoutVersion == 1 && order.InvoiceType == invoiceType {
+			eligible = append(eligible, order)
 		}
-		topUps = eligible
 	}
-	return topUps, nil
+	return eligible, nil
 }
 
 func buildInvoiceSummaryMessage(params CreateInvoiceTicketParams, orderIds []int, totalMoney float64) string {
@@ -346,6 +356,10 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 	)
 	var refundedQuota int
 	err = DB.Transaction(func(tx *gorm.DB) error {
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
+			return err
+		}
 		var owner User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, params.UserId).Error; err != nil {
 			return err
@@ -403,23 +417,20 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			return ErrTicketInvoiceAmountBelowMin
 		}
 		orderedTopUps = orderTopUps(orderIds, topUps)
-		config, err := GetInvoiceTaxConfig(tx)
+		quote, err := QuoteInvoiceTax(tx, params.UserId, orderIds, params.InvoiceType)
 		if err != nil {
 			return err
 		}
+		totalMoney = float64(quote.TotalCents) / 100
 		var charge *InvoiceTaxCharge
-		if config.Enabled {
-			quote, err := QuoteInvoiceTax(tx, params.UserId, orderIds, params.InvoiceType)
-			if err != nil {
-				return err
-			}
+		if config.Enabled && !quote.PrepaidOnly {
 			if quote.Token != params.TaxQuote {
 				return ErrInvoiceTaxQuoteChanged
 			}
 			if params.TaxPaymentMethod != "balance" && params.TaxPaymentMethod != "online" {
 				return ErrInvoiceTaxInvalid
 			}
-			charge = &InvoiceTaxCharge{UserId: params.UserId, TradeNo: "ITAX" + common.GetRandomString(32), InvoiceType: quote.InvoiceType, Mode: quote.Mode, RateBps: quote.RateBps, BaseCents: quote.BaseCents, FeeCents: quote.FeeCents, TotalCents: quote.TotalCents, Quota: quote.Quota, Status: "pending", CreatedTime: common.GetTimestamp()}
+			charge = &InvoiceTaxCharge{UserId: params.UserId, TradeNo: "ITAX" + common.GetRandomString(32), InvoiceType: quote.InvoiceType, Mode: quote.Mode, RateBps: quote.RateBps, BaseCents: quote.BaseCents, FeeCents: quote.FeeCents, TotalCents: quote.BaseCents + quote.FeeCents, Quota: quote.Quota, Status: "pending", CreatedTime: common.GetTimestamp()}
 			if quote.FeeCents == 0 {
 				charge.Status = "paid"
 				charge.PaidTime = common.GetTimestamp()
@@ -459,19 +470,22 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 		}
 
 		invoice = &TicketInvoice{
-			TicketId:       ticket.Id,
-			UserId:         params.UserId,
-			CompanyName:    strings.TrimSpace(params.CompanyName),
-			TaxNumber:      strings.TrimSpace(params.TaxNumber),
-			BankName:       strings.TrimSpace(params.BankName),
-			BankAccount:    strings.TrimSpace(params.BankAccount),
-			CompanyAddress: strings.TrimSpace(params.CompanyAddress),
-			CompanyPhone:   strings.TrimSpace(params.CompanyPhone),
-			Remark:         strings.TrimSpace(params.Content),
-			Email:          strings.TrimSpace(params.Email),
-			TotalMoney:     totalMoney,
-			InvoiceStatus:  InvoiceStatusPending,
-			CreatedTime:    now,
+			InvoiceType:     quote.InvoiceType,
+			InvoiceNetCents: quote.BaseCents + quote.PrepaidNetCents,
+			InvoiceTaxCents: quote.FeeCents + quote.PrepaidTaxCents,
+			TicketId:        ticket.Id,
+			UserId:          params.UserId,
+			CompanyName:     strings.TrimSpace(params.CompanyName),
+			TaxNumber:       strings.TrimSpace(params.TaxNumber),
+			BankName:        strings.TrimSpace(params.BankName),
+			BankAccount:     strings.TrimSpace(params.BankAccount),
+			CompanyAddress:  strings.TrimSpace(params.CompanyAddress),
+			CompanyPhone:    strings.TrimSpace(params.CompanyPhone),
+			Remark:          strings.TrimSpace(params.Content),
+			Email:           strings.TrimSpace(params.Email),
+			TotalMoney:      totalMoney,
+			InvoiceStatus:   InvoiceStatusPending,
+			CreatedTime:     now,
 		}
 		if err := invoice.SetTopUpOrderIDs(orderIds); err != nil {
 			return err
@@ -693,7 +707,7 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	items := make([]*InvoiceExportItem, 0)
 
 	query := DB.Table("tickets t").
-		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time, tc.invoice_type, tc.mode AS tax_mode, tc.rate_bps AS tax_rate_bps, tc.fee_cents AS tax_fee_cents").
+		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time, COALESCE(NULLIF(ti.invoice_type, ''), tc.invoice_type) AS invoice_type, tc.mode AS tax_mode, tc.rate_bps AS tax_rate_bps, CASE WHEN ti.invoice_type IS NOT NULL AND ti.invoice_type <> '' THEN ti.invoice_tax_cents ELSE tc.fee_cents END AS tax_fee_cents").
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
 		Joins("LEFT JOIN invoice_tax_charges tc ON tc.ticket_id = t.id").
 		Where("ti.invoice_status <> ?", InvoiceStatusRejected).
