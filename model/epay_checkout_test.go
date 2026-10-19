@@ -44,6 +44,50 @@ func TestEpayCheckoutFixedPayment(t *testing.T) {
 	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
 }
 
+func TestEpayCheckoutMerchantMethodsAreEnforced(t *testing.T) {
+	setupEpayRechargeTest(t)
+	oldPayment := *operation_setting.GetPaymentSetting()
+	oldPrice, oldMin, oldMethods := operation_setting.Price, operation_setting.MinTopUp, operation_setting.PayMethods
+	operation_setting.GetPaymentSetting().ComplianceConfirmed = true
+	operation_setting.GetPaymentSetting().ComplianceTermsVersion = operation_setting.CurrentComplianceTermsVersion
+	operation_setting.GetPaymentSetting().AmountDiscount = map[int]float64{}
+	operation_setting.Price, operation_setting.MinTopUp = 1, 1
+	operation_setting.PayMethods = []map[string]string{{"type": "alipay"}}
+	t.Cleanup(func() {
+		*operation_setting.GetPaymentSetting() = oldPayment
+		operation_setting.Price, operation_setting.MinTopUp, operation_setting.PayMethods = oldPrice, oldMin, oldMethods
+		require.NoError(t, DB.Where("key IN ?", []string{InvoiceTaxConfigKey, InvoiceEpayConfigKey}).Delete(&Option{}).Error)
+	})
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+	config := InvoiceEpayConfig{Address: "https://payment.example.test", PartnerID: "invoice", Key: "secret", PaymentMethods: []string{"wxpay"}}
+	require.NoError(t, SaveInvoiceEpayConfig(config))
+	methods, err := GetEpayCheckoutMethods(DB, "ordinary")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"wxpay"}, methods)
+	user := insertInvoiceTicketUser(t, 980509)
+	req := EpayCheckoutRequest{TotalCents: 10000, InvoiceType: "ordinary", PaymentMethod: "alipay", RequestID: "method-check-request-001"}
+	_, err = QuoteEpayCheckout(DB, user.Id, req, false)
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
+	req.PaymentMethod = "wxpay"
+	quote, err := QuoteEpayCheckout(DB, user.Id, req, false)
+	require.NoError(t, err)
+	req.Token = quote.Token
+	config.PaymentMethods = []string{}
+	require.NoError(t, SaveInvoiceEpayConfig(config))
+	_, err = CreateEpayCheckout(user.Id, req)
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
+	var count int64
+	require.NoError(t, DB.Model(&TopUp{}).Where("user_id = ?", user.Id).Count(&count).Error)
+	assert.Zero(t, count)
+	methods, err = GetEpayCheckoutMethods(DB, "ordinary")
+	require.NoError(t, err)
+	assert.Empty(t, methods)
+	config.PaymentMethods = []string{"stripe"}
+	assert.ErrorIs(t, SaveInvoiceEpayConfig(config), ErrInvoiceTaxInvalid)
+	_, err = GetEpayCheckoutMethods(DB, "invalid")
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
+}
+
 func TestEpayCheckoutQuoteReservationPinsRatesAndMerchant(t *testing.T) {
 	setupEpayRechargeTest(t)
 	oldPayment := *operation_setting.GetPaymentSetting()

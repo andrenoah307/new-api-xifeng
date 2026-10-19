@@ -12,6 +12,7 @@ interface InvoiceEpayConfig {
   address: string
   partner_id: string
   key_configured: boolean
+  payment_methods: string[]
 }
 
 export function InvoiceEpaySettings() {
@@ -84,6 +85,28 @@ export function InvoiceEpaySettings() {
           />
         </div>
       </div>
+      <fieldset className='space-y-2' disabled={save.isPending}>
+        <legend className='mb-2 font-medium'>{t('Payment Method')}</legend>
+        {['alipay', 'wxpay'].map((method) => (
+          <label key={method} className='flex items-center gap-2'>
+            <input
+              type='checkbox'
+              checked={config.payment_methods.includes(method)}
+              onChange={(event) =>
+                setDraft({
+                  ...config,
+                  payment_methods: event.target.checked
+                    ? [...config.payment_methods, method]
+                    : config.payment_methods.filter(
+                        (value) => value !== method
+                      ),
+                })
+              }
+            />
+            {method === 'alipay' ? t('Alipay') : t('WeChat Pay')}
+          </label>
+        ))}
+      </fieldset>
       <Button
         type='button'
         disabled={

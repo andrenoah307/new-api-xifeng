@@ -281,7 +281,8 @@ const RechargeCard = ({
           <div className='py-8 flex justify-center'>
             <Spin size='large' />
           </div>
-        ) : enableOnlineTopUp ||
+        ) : topupInfo?.enable_epay_checkout ||
+          enableOnlineTopUp ||
           enableStripeTopUp ||
           enableCreemTopUp ||
           enableWaffoTopUp ||
@@ -291,10 +292,9 @@ const RechargeCard = ({
             initValues={{ topUpCount: topUpCount }}
           >
             <div className='space-y-6'>
-              {epayMethods.length > 0 && (
+              {(topupInfo?.enable_epay_checkout || epayMethods.length > 0) && (
                 <EpayCheckout
-                  methods={epayMethods}
-                  minimum={minTopUp || 1}
+                  minimum={topupInfo?.epay_min_topup ?? (minTopUp || 1)}
                   discountsEnabled={discountCodeEnabled}
                 />
               )}
