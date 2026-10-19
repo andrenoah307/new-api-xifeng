@@ -59,6 +59,8 @@ import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { safeNumberFieldProps } from '../utils/numeric-field'
 import { AmountDiscountVisualEditor } from './amount-discount-visual-editor'
+import { InvoiceTaxSettings } from './invoice-tax-settings'
+import { InvoiceEpaySettings } from './invoice-epay-settings'
 import { AmountOptionsVisualEditor } from './amount-options-visual-editor'
 import { CreemProductsVisualEditor } from './creem-products-visual-editor'
 import { PaymentMethodsVisualEditor } from './payment-methods-visual-editor'
@@ -887,9 +889,12 @@ export function PaymentSettingsSection({
           />
           <Tabs defaultValue='general' className='min-w-0'>
             <div className='overflow-x-auto pb-1'>
-              <TabsList className='grid min-w-[44rem] grid-cols-6'>
+              <TabsList className='grid min-w-[52rem] grid-cols-7'>
                 <TabsTrigger value='general'>{t('General')}</TabsTrigger>
                 <TabsTrigger value='epay'>Epay</TabsTrigger>
+                <TabsTrigger value='invoice'>
+                  {t('Invoice Settings')}
+                </TabsTrigger>
                 <TabsTrigger value='stripe'>{t('Stripe')}</TabsTrigger>
                 <TabsTrigger value='creem'>Creem</TabsTrigger>
                 <TabsTrigger value='waffo-pancake'>Waffo Pancake</TabsTrigger>
@@ -1275,6 +1280,11 @@ export function PaymentSettingsSection({
                   />
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value='invoice' className={paymentTabContentClassName}>
+              <InvoiceEpaySettings />
+              <InvoiceTaxSettings />
             </TabsContent>
 
             <TabsContent value='stripe' className={paymentTabContentClassName}>

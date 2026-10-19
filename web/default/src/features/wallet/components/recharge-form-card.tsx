@@ -63,6 +63,7 @@ import type {
   WaffoPayMethod,
 } from '../types'
 import { CreemProductsSection } from './creem-products-section'
+import { EpayCheckout } from './epay-checkout'
 
 interface RechargeFormCardProps {
   topupInfo: TopupInfo | null
@@ -180,12 +181,17 @@ export function RechargeFormCard({
     t,
   ])
 
+  const epayMethods = topupInfo?.enable_online_topup
+    ? (topupInfo.pay_methods ?? []).filter(
+        (method) => method.type === 'alipay' || method.type === 'wxpay'
+      )
+    : []
   const hasConfigurableTopup =
-    topupInfo?.enable_online_topup ||
     topupInfo?.enable_stripe_topup ||
     enableWaffoTopup ||
     enableWaffoPancakeTopup
-  const hasAnyTopup = hasConfigurableTopup || enableCreemTopup
+  const hasAnyTopup =
+    hasConfigurableTopup || enableCreemTopup || epayMethods.length > 0
   const hasStandardPaymentMethods =
     Array.isArray(topupInfo?.pay_methods) && topupInfo.pay_methods.length > 0
   const hasWaffoPaymentMethods =
@@ -268,6 +274,13 @@ export function RechargeFormCard({
       {/* Online Topup Section */}
       {hasAnyTopup ? (
         <div className='space-y-4 sm:space-y-6'>
+          {epayMethods.length > 0 && (
+            <EpayCheckout
+              methods={epayMethods}
+              minimum={topupInfo?.min_topup ?? 1}
+              discountsEnabled={!!onDiscountCodeChange}
+            />
+          )}
           {hasConfigurableTopup && (
             <>
               {presetAmounts.length > 0 && (
@@ -388,70 +401,75 @@ export function RechargeFormCard({
                 </Label>
                 {hasStandardPaymentMethods ? (
                   <div className='grid grid-cols-2 gap-1.5 sm:gap-3 lg:grid-cols-3'>
-                    {topupInfo?.pay_methods?.map((method) => {
-                      const minTopup = method.min_topup || 0
-                      const disabled = minTopup > topupAmount
-                      const disabledReason = disabled
-                        ? t('Minimum topup amount: {{amount}}', {
-                            amount: minTopup,
-                          })
-                        : undefined
-                      const disabledLabel = disabled
-                        ? `${t('Minimum:')} ${minTopup}`
-                        : undefined
+                    {topupInfo?.pay_methods
+                      ?.filter(
+                        (method) =>
+                          method.type !== 'alipay' && method.type !== 'wxpay'
+                      )
+                      .map((method) => {
+                        const minTopup = method.min_topup || 0
+                        const disabled = minTopup > topupAmount
+                        const disabledReason = disabled
+                          ? t('Minimum topup amount: {{amount}}', {
+                              amount: minTopup,
+                            })
+                          : undefined
+                        const disabledLabel = disabled
+                          ? `${t('Minimum:')} ${minTopup}`
+                          : undefined
 
-                      const button = (
-                        <Button
-                          key={method.type}
-                          variant='outline'
-                          onClick={() => onPaymentMethodSelect(method)}
-                          disabled={
-                            disabled ||
-                            discountLimitExceeded ||
-                            !!paymentLoading
-                          }
-                          title={disabledReason}
-                          aria-label={
-                            disabledReason
-                              ? `${method.name}. ${disabledReason}`
-                              : method.name
-                          }
-                          className='min-h-14 min-w-0 justify-start gap-2 rounded-lg px-3 py-2 text-left'
-                        >
-                          {paymentLoading === method.type ? (
-                            <Loader2 className='h-4 w-4 animate-spin' />
-                          ) : (
-                            getPaymentIcon(
-                              method.type,
-                              'h-4 w-4',
-                              method.icon,
-                              method.name
-                            )
-                          )}
-                          <span className='flex min-w-0 flex-col items-start gap-0.5'>
-                            <span className='max-w-full truncate'>
-                              {method.name}
-                            </span>
-                            {disabledLabel && (
-                              <span className='text-muted-foreground max-w-full truncate text-[11px] leading-4 font-normal'>
-                                {disabledLabel}
-                              </span>
+                        const button = (
+                          <Button
+                            key={method.type}
+                            variant='outline'
+                            onClick={() => onPaymentMethodSelect(method)}
+                            disabled={
+                              disabled ||
+                              discountLimitExceeded ||
+                              !!paymentLoading
+                            }
+                            title={disabledReason}
+                            aria-label={
+                              disabledReason
+                                ? `${method.name}. ${disabledReason}`
+                                : method.name
+                            }
+                            className='min-h-14 min-w-0 justify-start gap-2 rounded-lg px-3 py-2 text-left'
+                          >
+                            {paymentLoading === method.type ? (
+                              <Loader2 className='h-4 w-4 animate-spin' />
+                            ) : (
+                              getPaymentIcon(
+                                method.type,
+                                'h-4 w-4',
+                                method.icon,
+                                method.name
+                              )
                             )}
-                          </span>
-                        </Button>
-                      )
+                            <span className='flex min-w-0 flex-col items-start gap-0.5'>
+                              <span className='max-w-full truncate'>
+                                {method.name}
+                              </span>
+                              {disabledLabel && (
+                                <span className='text-muted-foreground max-w-full truncate text-[11px] leading-4 font-normal'>
+                                  {disabledLabel}
+                                </span>
+                              )}
+                            </span>
+                          </Button>
+                        )
 
-                      return disabled ? (
-                        <TooltipProvider key={method.type}>
-                          <Tooltip>
-                            <TooltipTrigger render={button} />
-                            <TooltipContent>{disabledReason}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        button
-                      )
-                    })}
+                        return disabled ? (
+                          <TooltipProvider key={method.type}>
+                            <Tooltip>
+                              <TooltipTrigger render={button} />
+                              <TooltipContent>{disabledReason}</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          button
+                        )
+                      })}
                   </div>
                 ) : null}
                 {!hasStandardPaymentMethods && !hasWaffoPaymentMethods && (
@@ -578,7 +596,7 @@ export function RechargeFormCard({
         )}
 
       {/* Discount Code Section */}
-      {onDiscountCodeChange && onValidateDiscountCode && (
+      {hasConfigurableTopup && onDiscountCodeChange && onValidateDiscountCode && (
         <div className='space-y-2.5 border-t pt-4 sm:space-y-3 sm:pt-6'>
           <div className='flex items-center gap-2'>
             <TicketPercent className='text-muted-foreground h-4 w-4' />

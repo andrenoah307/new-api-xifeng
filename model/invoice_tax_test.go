@@ -17,7 +17,7 @@ func TestInvoiceTaxPaymentLifecycle(t *testing.T) {
 	user := insertInvoiceTicketUser(t, 980101)
 	const startingQuota = 100000000
 	require.NoError(t, DB.Model(user).Update("quota", startingQuota).Error)
-	config := InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300}
+	config := InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300}
 	require.NoError(t, SaveInvoiceTaxConfig(config))
 	t.Cleanup(func() {
 		DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
@@ -55,7 +55,7 @@ func TestInvoiceTaxPaymentLifecycle(t *testing.T) {
 func TestInvoiceTaxOnlineCannotCreditRechargeAndRejectsWrongAmount(t *testing.T) {
 	truncateTables(t)
 	user := insertInvoiceTicketUser(t, 980102)
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "gross_up", OrdinaryRateBps: 600}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "gross_up", OrdinaryRateBps: 600}))
 	t.Cleanup(func() {
 		DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
 		DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
@@ -96,13 +96,14 @@ func TestInvoiceTaxOnlineCannotCreditRechargeAndRejectsWrongAmount(t *testing.T)
 func TestInvoiceTaxQuoteCannotBypassCurrencyOrChangedConfig(t *testing.T) {
 	truncateTables(t)
 	user := insertInvoiceTicketUser(t, 980103)
-	config := InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}
+	config := InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}
 	require.NoError(t, SaveInvoiceTaxConfig(config))
 	t.Cleanup(func() {
 		DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
 		DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
 	})
 	orderID := seedInvoiceTicketTopUp(t, user.Id, "tax-currency", 1000)
+	require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", orderID).Update("payment_provider", "").Error)
 	_, err := QuoteInvoiceTax(DB, user.Id, []int{orderID}, "ordinary")
 	assert.ErrorIs(t, err, ErrInvoiceTaxCurrency)
 	require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", orderID).Update("payment_provider", PaymentProviderEpay).Error)
@@ -138,7 +139,7 @@ func TestInvoiceTaxBalancePaymentWithBatchUpdates(t *testing.T) {
 		DB.Where("user_id = ?", 980120).Delete(&InvoiceTaxCharge{})
 	})
 	user := insertInvoiceTicketUser(t, 980120)
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
 	id := seedInvoiceTicketTopUp(t, user.Id, "batch-tax-balance", 1000)
 	require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", id).Update("payment_provider", PaymentProviderEpay).Error)
 	quote, err := QuoteInvoiceTax(DB, user.Id, []int{id}, "ordinary")
@@ -184,7 +185,7 @@ func TestInvoiceTaxBalancePaymentWithBatchUpdates(t *testing.T) {
 func TestInvoiceTaxLatePaymentAfterRejectionRefundsOnce(t *testing.T) {
 	truncateTables(t)
 	user := insertInvoiceTicketUser(t, 980104)
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
 	t.Cleanup(func() {
 		DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
 		DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
@@ -226,7 +227,7 @@ func TestInvoiceTaxModesAndAccounting(t *testing.T) {
 		{"vat", 60000, 1060000}, {"compound", 123600, 1123600}, {"gross_up", 63830, 1063830},
 	} {
 		t.Run(tc.mode, func(t *testing.T) {
-			config := InvoiceTaxConfig{Enabled: true, Mode: tc.mode, OrdinaryRateBps: 600, SpecialRateBps: 1300}
+			config := InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: tc.mode, OrdinaryRateBps: 600, SpecialRateBps: 1300}
 			quote, err := CalculateInvoiceTax(1000000, "ordinary", config)
 			require.NoError(t, err)
 			assert.Equal(t, tc.fee, quote.FeeCents)
@@ -251,7 +252,7 @@ func TestInvoiceTaxTicketClosure(t *testing.T) {
 			user := insertInvoiceTicketUser(t, 980110)
 			const startingQuota = 100000000
 			require.NoError(t, DB.Model(user).Update("quota", startingQuota).Error)
-			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
 			t.Cleanup(func() {
 				DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
 				DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
@@ -273,7 +274,7 @@ func TestInvoiceTaxTicketClosure(t *testing.T) {
 			}
 			if method == "historical" {
 				require.NoError(t, DB.Model(ticket).Update("status", TicketStatusClosed).Error)
-				eligible, err := GetEligibleInvoiceOrders(user.Id)
+				eligible, err := GetEligibleInvoiceOrders(user.Id, "")
 				require.NoError(t, err)
 				require.Len(t, eligible, 1)
 				replacement, nextInvoice, _, _, err := CreateInvoiceTicket(params)
@@ -296,7 +297,7 @@ func TestInvoiceTaxTicketClosure(t *testing.T) {
 			}
 			var current User
 			require.NoError(t, DB.First(&current, user.Id).Error)
-			orders, err := GetEligibleInvoiceOrders(user.Id)
+			orders, err := GetEligibleInvoiceOrders(user.Id, "")
 			require.NoError(t, err)
 			switch method {
 			case "issued", "historical":
@@ -320,7 +321,7 @@ func TestInvoiceTaxWriteFailureRollsBackMoneyAndState(t *testing.T) {
 			user := insertInvoiceTicketUser(t, 980111)
 			const startingQuota = 100000000
 			require.NoError(t, DB.Model(user).Update("quota", startingQuota).Error)
-			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
 			t.Cleanup(func() {
 				DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
 				DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
@@ -407,7 +408,7 @@ func TestInvoiceTaxWriteFailureRollsBackMoneyAndState(t *testing.T) {
 func TestInvoiceTaxConcurrentCallbackAndClosure(t *testing.T) {
 	truncateTables(t)
 	user := insertInvoiceTicketUser(t, 980112)
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
 	t.Cleanup(func() {
 		DB.Where("user_id = ?", user.Id).Delete(&InvoiceTaxCharge{})
 		DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{})
@@ -454,7 +455,7 @@ func TestInvoiceTaxConcurrentCallbackAndClosure(t *testing.T) {
 }
 
 func TestInvoiceTaxRejectsInvalidRatesAndAmounts(t *testing.T) {
-	config := InvoiceTaxConfig{Enabled: true, Mode: "gross_up", OrdinaryRateBps: 600}
+	config := InvoiceTaxConfig{LegacyTopUpsEnabled: true, Enabled: true, Mode: "gross_up", OrdinaryRateBps: 600}
 	for _, amount := range []int64{-1, 0, 100000000001, math.MaxInt64} {
 		_, err := CalculateInvoiceTax(amount, "ordinary", config)
 		assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)

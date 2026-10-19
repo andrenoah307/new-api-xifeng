@@ -263,7 +263,7 @@ const TopupHistoryPage = () => {
           return (
             <span className='flex items-center gap-1'>
               <Coins size={16} />
-              <Text>{amount}</Text>
+              <Text>{record.checkout_credit_amount || amount}</Text>
             </span>
           );
         },
@@ -279,6 +279,12 @@ const TopupHistoryPage = () => {
         dataIndex: 'status',
         key: 'status',
         render: renderStatusBadge,
+      },
+      {
+        title: t('Invoice type'),
+        dataIndex: 'invoice_type',
+        key: 'invoice_type',
+        render: (type) => type === 'ordinary' ? t('Ordinary VAT invoice') : type === 'special' ? t('Special VAT invoice') : type === 'none' ? t('No invoice') : '-',
       }
     );
 

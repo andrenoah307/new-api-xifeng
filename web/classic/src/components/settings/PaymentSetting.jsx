@@ -27,6 +27,8 @@ import SettingsPaymentGatewayWaffo from '../../pages/Setting/Payment/SettingsPay
 import { API, showError, showSuccess, toBoolean } from '../../helpers';
 import { useTranslation } from 'react-i18next';
 import RiskAcknowledgementModal from '../common/modals/RiskAcknowledgementModal';
+import { InvoiceTaxSettings } from '../ticket/InvoiceTax';
+import InvoiceEpaySettings from '../../pages/Setting/Payment/InvoiceEpaySettings';
 
 const CURRENT_COMPLIANCE_TERMS_VERSION = 'v1';
 
@@ -283,6 +285,10 @@ const PaymentSetting = () => {
                   refresh={onRefresh}
                   hideSectionTitle
                 />
+              </Tabs.TabPane>
+              <Tabs.TabPane tab={t('Invoice tax charges')} itemKey='invoice'>
+                <InvoiceEpaySettings />
+                <InvoiceTaxSettings />
               </Tabs.TabPane>
               <Tabs.TabPane tab={t('Stripe 设置')} itemKey='stripe'>
                 <SettingsPaymentGatewayStripe
