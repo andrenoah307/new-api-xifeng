@@ -70,16 +70,15 @@ export function InvoiceTaxNotice() {
     <Banner
       type='warning'
       description={t(
-        'Recharge amounts exclude invoice tax charges. An invoice application requires a separate tax payment at the configured rate.',
+        'Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.',
       )}
     />
   ) : null;
 }
 
-export function InvoiceTaxFields({ ids, open, onChange }) {
+export function InvoiceTaxFields({ ids, open, onChange, type, onTypeChange }) {
   const { t } = useTranslation();
   const [config] = useInvoiceTaxConfig();
-  const [type, setType] = useState('ordinary');
   const [payment, setPayment] = useState('balance');
   const [quote, setQuote] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -96,7 +95,7 @@ export function InvoiceTaxFields({ ids, open, onChange }) {
     setQuote(null);
     setFailed(false);
     const selected = JSON.parse(key);
-    if (open && config?.enabled && selected.length) {
+    if (open && config && selected.length) {
       API.post('/api/ticket/invoice/tax-quote', {
         topup_order_ids: selected,
         invoice_type: type,
@@ -119,14 +118,13 @@ export function InvoiceTaxFields({ ids, open, onChange }) {
   const method = current?.can_balance ? payment : 'online';
   useEffect(() => {
     onChange({
-      ready: !!config && (!config.enabled || !!current),
+      ready: !!config && !!current,
       invoice_type: type,
       tax_payment_method: method,
       tax_quote: current?.token || '',
     });
   }, [config, current, type, method, onChange]);
   if (!config) return <p>{t('Loading...')}</p>;
-  if (!config.enabled) return null;
   return (
     <div className='space-y-3 my-4'>
       <InvoiceTaxNotice />
@@ -140,7 +138,7 @@ export function InvoiceTaxFields({ ids, open, onChange }) {
           className='flex-1 min-w-0'
           aria-label={t('Invoice type')}
           value={type}
-          onChange={setType}
+          onChange={onTypeChange}
           optionList={[
             { value: 'ordinary', label: t('Ordinary VAT invoice') },
             { value: 'special', label: t('Special VAT invoice') },
@@ -167,14 +165,24 @@ export function InvoiceTaxFields({ ids, open, onChange }) {
       {current && (
         <>
           <dl className='grid grid-cols-2 gap-2'>
-            <dt>{t('Tax calculation mode')}</dt>
-            <dd>
-              {t(modes.find((mode) => mode.value === current.mode)?.label)}
-            </dd>
-            <dt>{t('Rate (%)')}</dt>
-            <dd>{current.rate_bps / 100}%</dd>
+            {!current.prepaid_only && (
+              <>
+                <dt>{t('Tax calculation mode')}</dt>
+                <dd>
+                  {t(modes.find((mode) => mode.value === current.mode)?.label)}
+                </dd>
+                <dt>{t('Rate (%)')}</dt>
+                <dd>{current.rate_bps / 100}%</dd>
+              </>
+            )}
             <dt>{t('Net amount (CNY)')}</dt>
-            <dd>{(current.base_cents / 100).toFixed(2)}</dd>
+            <dd>
+              {((current.base_cents + current.prepaid_net_cents) / 100).toFixed(
+                2,
+              )}
+            </dd>
+            <dt>{t('Tax paid at checkout (CNY)')}</dt>
+            <dd>{(current.prepaid_tax_cents / 100).toFixed(2)}</dd>
             <dt>{t('Additional payment (CNY)')}</dt>
             <dd>{(current.fee_cents / 100).toFixed(2)}</dd>
             <dt>{t('Invoice total (CNY)')}</dt>
@@ -377,6 +385,16 @@ export function InvoiceTaxSettings() {
           aria-label={t('Collect invoice tax charges')}
         />
         <span>{t('Collect invoice tax charges')}</span>
+      </Space>
+      <Space>
+        <Switch
+          checked={!!config.legacy_topups_enabled}
+          onChange={(legacy_topups_enabled) =>
+            setConfig({ ...config, legacy_topups_enabled })
+          }
+          aria-label={t('Allow tax payments for historical recharge orders')}
+        />
+        <span>{t('Allow tax payments for historical recharge orders')}</span>
       </Space>
       {['ordinary', 'special'].map((type) => (
         <div key={type}>

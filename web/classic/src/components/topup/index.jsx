@@ -19,7 +19,6 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { InvoiceTaxNotice } from '../ticket/InvoiceTax';
 import {
   API,
   showError,
@@ -1023,7 +1022,6 @@ const TopUp = () => {
       </Modal>
 
       {/* 主布局区域 */}
-      <InvoiceTaxNotice />
       <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
         <RechargeCard
           t={t}

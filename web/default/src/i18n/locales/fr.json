@@ -1,5 +1,13 @@
 {
   "translation": {
+    "Balance credited": "Solde crédité",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Le droit à facturation et le type de facture sont fixés au paiement. Les frais de taxe sont inclus.",
+    "No invoice": "Sans facture",
+    "Payment amount (CNY)": "Montant à payer (CNY)",
+    "Tax charge (CNY)": "Frais de taxe (CNY)",
+    "Tax paid at checkout (CNY)": "Taxe payée à la recharge (CNY)",
+    "Allow tax payments for historical recharge orders": "Autoriser les frais de facturation des anciennes recharges",
+    "Invoice-eligible recharge gateway": "Passerelle des recharges facturables",
     "All payment methods": "Tous les moyens de paiement",
     "All top-up sources": "Toutes les sources de recharge",
     "All-user top-up records": "Recharges de tous les utilisateurs",

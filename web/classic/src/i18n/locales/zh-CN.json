@@ -1,5 +1,16 @@
 {
   "translation": {
+    "Balance credited": "到账额度",
+    "Discount Code": "折扣码",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "开票资格和票种在充值时确定，实付金额已包含税费。",
+    "No invoice": "不开票",
+    "Pay": "支付",
+    "Payment amount (CNY)": "实付金额（元）",
+    "Payment request failed": "支付请求失败",
+    "Tax charge (CNY)": "税费（元）",
+    "Tax paid at checkout (CNY)": "充值时已付税费（元）",
+    "Allow tax payments for historical recharge orders": "允许历史充值订单补税开票",
+    "Invoice-eligible recharge gateway": "可开票充值支付渠道",
     "All": "全部",
     "All payment methods": "全部支付方式",
     "All top-up sources": "全部充值来源",

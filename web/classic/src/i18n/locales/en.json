@@ -1,5 +1,16 @@
 {
   "translation": {
+    "Balance credited": "Balance credited",
+    "Discount Code": "Discount Code",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.",
+    "No invoice": "No invoice",
+    "Pay": "Pay",
+    "Payment amount (CNY)": "Payment amount (CNY)",
+    "Payment request failed": "Payment request failed",
+    "Tax charge (CNY)": "Tax charge (CNY)",
+    "Tax paid at checkout (CNY)": "Tax paid at checkout (CNY)",
+    "Allow tax payments for historical recharge orders": "Allow tax payments for historical recharge orders",
+    "Invoice-eligible recharge gateway": "Invoice-eligible recharge gateway",
     "All": "All",
     "All payment methods": "All payment methods",
     "All top-up sources": "All top-up sources",

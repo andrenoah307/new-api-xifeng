@@ -80,6 +80,8 @@ func SetApiRouter(router *gin.Engine) {
 			userRoute.GET("/logout", controller.Logout)
 			userRoute.POST("/epay/notify", anonymousRequestBodyLimit, controller.EpayNotify)
 			userRoute.GET("/epay/notify", controller.EpayNotify)
+			userRoute.POST("/epay/checkout/notify", anonymousRequestBodyLimit, controller.EpayCheckoutNotify)
+			userRoute.GET("/epay/checkout/notify", controller.EpayCheckoutNotify)
 			userRoute.GET("/groups", controller.GetUserGroups)
 
 			selfRoute := userRoute.Group("/")
@@ -107,6 +109,8 @@ func SetApiRouter(router *gin.Engine) {
 				selfRoute.POST("/topup", middleware.CriticalRateLimit(), controller.TopUp)
 				selfRoute.POST("/pay", middleware.CriticalRateLimit(), controller.RequestEpay)
 				selfRoute.POST("/amount", controller.RequestAmount)
+				selfRoute.POST("/epay/checkout/quote", controller.QuoteEpayCheckout)
+				selfRoute.POST("/epay/checkout/pay", middleware.CriticalRateLimit(), controller.RequestEpayCheckout)
 				selfRoute.POST("/stripe/pay", middleware.CriticalRateLimit(), controller.RequestStripePay)
 				selfRoute.POST("/stripe/amount", controller.RequestStripeAmount)
 				selfRoute.POST("/creem/pay", middleware.CriticalRateLimit(), controller.RequestCreemPay)
@@ -256,6 +260,8 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.PUT("/invoice-tax", controller.UpdateInvoiceTaxConfig)
+			optionRoute.GET("/invoice-epay", controller.GetInvoiceEpayConfig)
+			optionRoute.PUT("/invoice-epay", controller.UpdateInvoiceEpayConfig)
 			optionRoute.PUT("/", controller.UpdateOption)
 			optionRoute.PUT("/batch", controller.UpdateOptions)
 			optionRoute.POST("/payment_compliance", controller.ConfirmPaymentCompliance)

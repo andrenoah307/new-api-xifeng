@@ -18,7 +18,6 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { InvoiceTaxSettings } from '../ticket/InvoiceTax';
 import {
   Banner,
   Button,
@@ -360,9 +359,6 @@ const TicketSetting = () => {
     <Spin spinning={loading} size='large'>
       <Card style={{ marginTop: '10px' }}>
         <Tabs type='card' defaultActiveKey='assignment' contentStyle={{ paddingTop: 24 }}>
-          <Tabs.TabPane itemKey='invoice-tax' tab={t('Invoice tax charges')}>
-            <InvoiceTaxSettings />
-          </Tabs.TabPane>
           {/* ============ 分配规则 Tab ============ */}
           <Tabs.TabPane
             itemKey='assignment'

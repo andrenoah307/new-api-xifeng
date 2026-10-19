@@ -102,8 +102,8 @@ export function CreateInvoiceTicketDialog({
   const minInvoiceAmount = Number(status?.min_invoice_amount) || 0
 
   const { data: orders = [], isLoading: ordersLoading } = useQuery({
-    queryKey: ticketQueryKeys.eligibleOrders(),
-    queryFn: getEligibleInvoiceOrders,
+    queryKey: [...ticketQueryKeys.eligibleOrders(), tax.invoice_type],
+    queryFn: () => getEligibleInvoiceOrders(tax.invoice_type),
     enabled: open,
   })
 
@@ -293,6 +293,16 @@ export function CreateInvoiceTicketDialog({
             </Alert>
           )}
 
+          <InvoiceTaxFields
+            ids={[...selectedIds]}
+            open={open}
+            onChange={setTax}
+            type={tax.invoice_type}
+            onTypeChange={(invoice_type) => {
+              setSelectedIds(new Set())
+              setTax((current) => ({ ...current, invoice_type, ready: false }))
+            }}
+          />
           {/* Step 1: Order selection */}
           <div>
             <h4 className='mb-2 text-sm font-medium'>
@@ -348,11 +358,6 @@ export function CreateInvoiceTicketDialog({
           </div>
 
           {/* Step 2: Invoice details form */}
-          <InvoiceTaxFields
-            ids={[...selectedIds]}
-            open={open}
-            onChange={setTax}
-          />
           <div>
             <h4 className='mb-2 text-sm font-medium'>
               2. {t('Fill in Invoice Header')}

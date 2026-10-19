@@ -56,7 +56,11 @@ func GrantTopUpCommission(topUp *TopUp, isManual bool) {
 	}
 
 	rate := common.TopUpCommissionRate
-	commissionMoney := topUp.Money * (rate / 100)
+	commissionBase := topUp.Money
+	if topUp.CheckoutVersion == 1 {
+		commissionBase = float64(topUp.InvoiceNetCents) / 100
+	}
+	commissionMoney := commissionBase * (rate / 100)
 	commissionQuota, err := common.QuotaRoundStrict(commissionMoney * common.QuotaPerUnit)
 	if err != nil {
 		common.SysError("grant commission quota invalid: topup_id=" +
@@ -71,7 +75,7 @@ func GrantTopUpCommission(topUp *TopUp, isManual bool) {
 		UserId:          topUp.UserId,
 		InviterId:       user.InviterId,
 		TopUpId:         topUp.Id,
-		TopUpMoney:      topUp.Money,
+		TopUpMoney:      commissionBase,
 		CommissionRate:  rate,
 		CommissionQuota: commissionQuota,
 		IsManual:        isManual,

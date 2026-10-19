@@ -1,5 +1,13 @@
 {
   "translation": {
+    "Balance credited": "Số dư được cộng",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Quyền xuất hóa đơn và loại hóa đơn được xác định khi nạp tiền. Số tiền thanh toán đã bao gồm thuế.",
+    "No invoice": "Không xuất hóa đơn",
+    "Payment amount (CNY)": "Số tiền thanh toán (CNY)",
+    "Tax charge (CNY)": "Tiền thuế (CNY)",
+    "Tax paid at checkout (CNY)": "Thuế đã trả khi nạp tiền (CNY)",
+    "Allow tax payments for historical recharge orders": "Cho phép nộp bổ sung thuế cho các lần nạp trước đây",
+    "Invoice-eligible recharge gateway": "Cổng thanh toán nạp tiền có xuất hóa đơn",
     "All payment methods": "Tất cả phương thức thanh toán",
     "All top-up sources": "Tất cả nguồn nạp tiền",
     "All-user top-up records": "Lịch sử nạp tiền của tất cả người dùng",

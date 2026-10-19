@@ -1,5 +1,13 @@
 {
   "translation": {
+    "Balance credited": "Зачисление на баланс",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Возможность выставления и тип счёта определяются при оплате. Налог включён в сумму платежа.",
+    "No invoice": "Без счёта",
+    "Payment amount (CNY)": "Сумма платежа (CNY)",
+    "Tax charge (CNY)": "Налог (CNY)",
+    "Tax paid at checkout (CNY)": "Налог, уплаченный при пополнении (CNY)",
+    "Allow tax payments for historical recharge orders": "Разрешить доплату налога по прежним пополнениям",
+    "Invoice-eligible recharge gateway": "Платёжный шлюз пополнений с выставлением счёта",
     "All payment methods": "Все способы оплаты",
     "All top-up sources": "Все источники пополнения",
     "All-user top-up records": "Пополнения всех пользователей",

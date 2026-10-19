@@ -1,5 +1,13 @@
 {
   "translation": {
+    "Balance credited": "残高への加算額",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "請求書の発行可否と種類はチャージ時に確定します。支払金額には税金が含まれます。",
+    "No invoice": "請求書なし",
+    "Payment amount (CNY)": "支払金額（CNY）",
+    "Tax charge (CNY)": "税額（CNY）",
+    "Tax paid at checkout (CNY)": "チャージ時に支払済みの税額（CNY）",
+    "Allow tax payments for historical recharge orders": "過去のチャージ注文の追加税支払いを許可",
+    "Invoice-eligible recharge gateway": "請求書発行対象チャージの決済ゲートウェイ",
     "All payment methods": "すべての支払い方法",
     "All top-up sources": "すべてのチャージ元",
     "All-user top-up records": "全ユーザーのチャージ履歴",
