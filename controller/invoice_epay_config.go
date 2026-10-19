@@ -16,7 +16,7 @@ func GetInvoiceEpayConfig(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	common.ApiSuccess(c, gin.H{"address": config.Address, "partner_id": config.PartnerID, "key_configured": config.Key != ""})
+	common.ApiSuccess(c, gin.H{"address": config.Address, "partner_id": config.PartnerID, "key_configured": config.Key != "", "payment_methods": config.CheckoutMethods()})
 }
 
 func UpdateInvoiceEpayConfig(c *gin.Context) {
