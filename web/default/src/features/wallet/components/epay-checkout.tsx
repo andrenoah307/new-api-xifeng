@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
@@ -36,6 +36,12 @@ export function EpayCheckout({
 }) {
   const { t } = useTranslation()
   const [amount, setAmount] = useState(String(minimum))
+  const [settledAmount, setSettledAmount] = useState<string | null>(null)
+  useEffect(() => {
+    const timer = setTimeout(() => setSettledAmount(amount), 500)
+    return () => clearTimeout(timer)
+  }, [amount])
+  const isTyping = amount !== settledAmount
   const [invoiceType, setInvoiceType] = useState('none')
   const [method, setMethod] = useState(methods[0]?.type ?? 'alipay')
   const [discount, setDiscount] = useState('')
@@ -56,18 +62,18 @@ export function EpayCheckout({
       const { data } = await api.post(
         '/api/user/epay/checkout/quote',
         request,
-        { signal }
+        { signal, skipErrorHandler: true }
       )
       if (!data.success) throw new Error(data.message)
       return data.data as Quote
     },
-    enabled: cents >= minimum * 100 && cents > 0,
+    enabled: !isTyping && cents >= minimum * 100 && cents > 0,
     retry: false,
     gcTime: 0,
   })
   const pay = useMutation({
     mutationFn: async () => {
-      if (!quote.data || quote.isFetching || quote.isError || discountInput.trim() !== discount) return
+      if (isTyping || cents <= 0 || cents < minimum * 100 || !quote.data || quote.isFetching || quote.isError || discountInput.trim() !== discount) return
       if (attempt.current.token !== quote.data.token) {
         attempt.current = { token: quote.data.token, id: crypto.randomUUID() }
       }
@@ -97,7 +103,10 @@ export function EpayCheckout({
             min={minimum}
             step='0.01'
             value={amount}
-            onChange={(event) => setAmount(event.target.value)}
+            onChange={(event) => {
+              setSettledAmount(null)
+              setAmount(event.target.value)
+            }}
             disabled={pay.isPending}
           />
         </div>
@@ -159,15 +168,15 @@ export function EpayCheckout({
           'Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.'
         )}
       </p>
-      {quote.isFetching && <p>{t('Loading...')}</p>}
-      {!quote.isFetching && quote.isError && (
+      {(isTyping || quote.isFetching) && <p>{t('Loading...')}</p>}
+      {!isTyping && !quote.isFetching && quote.isError && (
         <p role='alert' className='text-destructive text-sm'>
           {t(
             'Tax quote unavailable. Refresh the selected orders and try again.'
           )}
         </p>
       )}
-      {!quote.isFetching && !quote.isError && quote.data && cents > 0 && (
+      {!isTyping && !quote.isFetching && !quote.isError && quote.data && cents > 0 && (
         <dl className='grid grid-cols-2 gap-x-4 gap-y-2 text-sm'>
           <dt>{t('Balance credited')}</dt>
           <dd className='text-right font-medium'>{quote.data.credit_amount}</dd>
@@ -188,6 +197,7 @@ export function EpayCheckout({
       <Button
         type='button'
         disabled={
+          isTyping ||
           !quote.data ||
           quote.isFetching ||
           quote.isError ||
