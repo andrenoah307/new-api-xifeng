@@ -2,12 +2,16 @@ import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
   enabled: boolean
+  legacy_topups_enabled?: boolean
   mode: 'vat' | 'compound' | 'gross_up'
   ordinary_rate_bps: number
   special_rate_bps: number
 }
 
 export interface InvoiceTaxQuote {
+  prepaid_only: boolean
+  prepaid_net_cents: number
+  prepaid_tax_cents: number
   invoice_type: string
   mode: string
   rate_bps: number
@@ -21,7 +25,7 @@ export interface InvoiceTaxQuote {
 
 export interface InvoiceTaxCharge extends Omit<
   InvoiceTaxQuote,
-  'can_balance' | 'token'
+  'can_balance' | 'token' | 'prepaid_only' | 'prepaid_net_cents' | 'prepaid_tax_cents'
 > {
   ticket_id: number
   user_id: number

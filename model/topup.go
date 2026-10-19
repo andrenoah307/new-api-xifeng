@@ -14,24 +14,44 @@ import (
 )
 
 type TopUp struct {
-	Id              int     `json:"id"`
-	UserId          int     `json:"user_id" gorm:"index"`
-	Amount          int64   `json:"amount"`
-	Money           float64 `json:"money"`
-	QuotaGranted    int64   `json:"quota_granted" gorm:"default:0"`
-	TradeNo         string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
-	PaymentMethod   string  `json:"payment_method" gorm:"type:varchar(50)"`
-	PaymentProvider string  `json:"payment_provider" gorm:"type:varchar(50);default:''"`
-	CreateTime      int64   `json:"create_time"`
-	CompleteTime    int64   `json:"complete_time"`
-	Status          string  `json:"status"`
-	Source          string  `json:"source" gorm:"type:varchar(50);default:''"`
-	DiscountCodeId  int     `json:"discount_code_id" gorm:"default:0;index"`
-	DiscountRate    int     `json:"discount_rate" gorm:"default:0"`
+	CheckoutVersion      int     `json:"checkout_version"`
+	InvoiceType          string  `json:"invoice_type" gorm:"size:16"`
+	InvoiceTaxMode       string  `json:"invoice_tax_mode" gorm:"size:16"`
+	InvoiceRateBps       int     `json:"invoice_rate_bps"`
+	InvoiceNetCents      int64   `json:"invoice_net_cents"`
+	InvoiceTaxCents      int64   `json:"invoice_tax_cents"`
+	PaymentTotalCents    int64   `json:"payment_total_cents"`
+	CheckoutBaseQuota    int     `json:"checkout_base_quota"`
+	CheckoutQuota        int     `json:"checkout_quota"`
+	EpayCredentials      string  `json:"-" gorm:"type:text;<-:create"`
+	CheckoutToken        string  `json:"-" gorm:"size:40"`
+	CheckoutCreditAmount string  `json:"checkout_credit_amount" gorm:"size:32"`
+	Id                   int     `json:"id"`
+	UserId               int     `json:"user_id" gorm:"index"`
+	Amount               int64   `json:"amount"`
+	Money                float64 `json:"money"`
+	QuotaGranted         int64   `json:"quota_granted" gorm:"default:0"`
+	TradeNo              string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
+	PaymentMethod        string  `json:"payment_method" gorm:"type:varchar(50)"`
+	PaymentProvider      string  `json:"payment_provider" gorm:"type:varchar(50);default:''"`
+	CreateTime           int64   `json:"create_time"`
+	CompleteTime         int64   `json:"complete_time"`
+	Status               string  `json:"status"`
+	Source               string  `json:"source" gorm:"type:varchar(50);default:''"`
+	DiscountCodeId       int     `json:"discount_code_id" gorm:"default:0;index"`
+	DiscountRate         int     `json:"discount_rate" gorm:"default:0"`
 
 	// InvoiceStatus 是列表查询时按发票关联回填的展示字段（不落库）：
 	// 0=未开票，InvoiceStatusPending=开票中，InvoiceStatusIssued=已开票。
 	InvoiceStatus int `json:"invoice_status" gorm:"-"`
+}
+
+func (topUp *TopUp) BeforeCreate(tx *gorm.DB) error {
+	// Empty is reserved for rows created before invoice eligibility was recorded.
+	if topUp.InvoiceType == "" {
+		topUp.InvoiceType = "none"
+	}
+	return nil
 }
 
 type TopUpWithUsername struct {
@@ -463,6 +483,18 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 	if tradeNo == "" {
 		return errors.New("未提供订单号")
 	}
+	var checkout TopUp
+	if err := DB.Where("trade_no = ?", tradeNo).Take(&checkout).Error; err != nil {
+		return err
+	}
+	if checkout.CheckoutVersion == 1 {
+		order, credited, err := CompleteEpayCheckout(tradeNo, checkout.PaymentMethod, checkout.PaymentTotalCents)
+		if err == nil && credited > 0 {
+			RecordTopupLog(order.UserId, fmt.Sprintf("管理员补单成功，充值金额: %v，支付金额：%f", logger.FormatQuota(credited), order.Money), callerIp, order.PaymentMethod, "admin")
+			GrantTopUpCommission(order, true)
+		}
+		return err
+	}
 
 	refCol := "`trade_no`"
 	if common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
@@ -494,15 +526,16 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		// 计算应充值额度：
 		// - Stripe 订单：Money 代表经分组倍率换算后的美元数量，直接 * QuotaPerUnit
 		// - 其他订单（如易支付）：Amount 为美元数量，* QuotaPerUnit
+		var clamp *common.QuotaClamp
 		if topUp.PaymentProvider == PaymentProviderStripe {
 			dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
-			quotaToAdd = int(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).IntPart())
+			quotaToAdd, clamp = common.QuotaFromDecimalChecked(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).Truncate(0))
 		} else {
 			dAmount := decimal.NewFromInt(topUp.Amount)
 			dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
-			quotaToAdd = int(dAmount.Mul(dQuotaPerUnit).IntPart())
+			quotaToAdd, clamp = common.QuotaFromDecimalChecked(dAmount.Mul(dQuotaPerUnit).Truncate(0))
 		}
-		if quotaToAdd <= 0 {
+		if clamp != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
 
@@ -515,8 +548,12 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		}
 
 		// 增加用户额度（立即写库，保持一致性）
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", quotaToAdd)).Error; err != nil {
-			return err
+		result := tx.Model(&User{}).Where("id = ? AND quota <= ?", topUp.UserId, common.MaxQuota-quotaToAdd).Update("quota", gorm.Expr("quota + ?", quotaToAdd))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrInvoiceTaxInvalid
 		}
 
 		userId = topUp.UserId
@@ -647,6 +684,9 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 		if topUp.PaymentProvider != PaymentProviderEpay {
 			return ErrPaymentMethodMismatch
 		}
+		if topUp.CheckoutVersion != 0 {
+			return ErrPaymentMethodMismatch
+		}
 		if topUp.Status == common.TopUpStatusSuccess {
 			return nil
 		}
@@ -658,12 +698,13 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 			topUp.PaymentMethod = paymentMethod
 		}
 		dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
+		var clamp *common.QuotaClamp
 		if topUp.DiscountCodeId > 0 {
-			quotaToAdd = int(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).IntPart())
+			quotaToAdd, clamp = common.QuotaFromDecimalChecked(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).Truncate(0))
 		} else {
-			quotaToAdd = int(decimal.NewFromInt(topUp.Amount).Mul(dQuotaPerUnit).IntPart())
+			quotaToAdd, clamp = common.QuotaFromDecimalChecked(decimal.NewFromInt(topUp.Amount).Mul(dQuotaPerUnit).Truncate(0))
 		}
-		if quotaToAdd <= 0 {
+		if clamp != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
 
@@ -682,7 +723,7 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 			return err
 		}
 		result := tx.Model(&User{}).
-			Where("id = ?", topUp.UserId).
+			Where("id = ? AND quota <= ?", topUp.UserId, int64(common.MaxQuota)-int64(quotaToAdd)-int64(bonus)).
 			Update("quota", gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus)))
 		if result.Error != nil {
 			return result.Error
@@ -927,6 +968,9 @@ func grantDiscountCodeBonusTx(tx *gorm.DB, topUp *TopUp) (int, error) {
 	dRate := decimal.NewFromInt(int64(rate))
 	dHundred := decimal.NewFromInt(100)
 	bonusQuota := common.QuotaFromDecimal(dPaid.Mul(dHundred).Div(dRate).Sub(dPaid))
+	if topUp.CheckoutVersion == 1 {
+		bonusQuota = topUp.CheckoutQuota - topUp.CheckoutBaseQuota
+	}
 	if bonusQuota <= 0 {
 		return 0, nil
 	}

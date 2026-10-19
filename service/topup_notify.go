@@ -55,6 +55,9 @@ func buildTopUpVars(topUp *model.TopUp, user *model.User, forAdmin bool) map[str
 	methodEsc := html.EscapeString(paymentMethodLabel(topUp.PaymentMethod))
 	moneyStr := fmt.Sprintf("%.2f", topUp.Money)
 	amountStr := fmt.Sprintf("%d", topUp.Amount)
+	if topUp.CheckoutVersion == 1 {
+		amountStr = topUp.CheckoutCreditAmount
+	}
 	completedEsc := html.EscapeString(completedAt)
 	usernameEsc := html.EscapeString(username)
 

@@ -30,7 +30,7 @@ export function InvoiceTaxNotice() {
   return (
     <p className='text-sm text-amber-700 dark:text-amber-400'>
       {t(
-        'Recharge amounts exclude invoice tax charges. An invoice application requires a separate tax payment at the configured rate.'
+        'Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.'
       )}
     </p>
   )
@@ -40,13 +40,16 @@ export function InvoiceTaxFields({
   ids,
   open,
   onChange,
+  type,
+  onTypeChange,
 }: {
   ids: number[]
   open: boolean
   onChange: (value: InvoiceTaxSelection) => void
+  type: string
+  onTypeChange: (value: string) => void
 }) {
   const { t } = useTranslation()
-  const [type, setType] = useState('ordinary')
   const [payment, setPayment] = useState('balance')
   const config = useQuery({
     queryKey: ['invoice-tax-config'],
@@ -56,7 +59,7 @@ export function InvoiceTaxFields({
   const quote = useQuery({
     queryKey: ['invoice-tax-quote', ids, type, config.data],
     queryFn: () => getInvoiceTaxQuote(ids, type),
-    enabled: open && !!config.data?.enabled && ids.length > 0,
+    enabled: open && !!config.data && ids.length > 0,
     refetchOnWindowFocus: 'always',
     retry: false,
   })
@@ -65,7 +68,7 @@ export function InvoiceTaxFields({
     onChange({
       ready:
         !!config.data &&
-        (!config.data.enabled || !!quote.data) &&
+        !!quote.data &&
         !quote.isFetching &&
         !quote.isError &&
         !config.isError,
@@ -86,7 +89,6 @@ export function InvoiceTaxFields({
   if (!config.data) {
     return <p>{config.isError ? t('Failed to load') : t('Loading...')}</p>
   }
-  if (!config.data.enabled) return null
   return (
     <section className='space-y-3 border-y py-3'>
       <InvoiceTaxNotice />
@@ -112,7 +114,7 @@ export function InvoiceTaxFields({
       <Select
         value={type}
         onValueChange={(value) => {
-          if (value) setType(value)
+          if (value) onTypeChange(value)
         }}
       >
         <SelectTrigger className='w-full'>
@@ -133,17 +135,29 @@ export function InvoiceTaxFields({
       {quote.data && !quote.isFetching && (
         <>
           <dl className='grid grid-cols-2 gap-2 text-sm'>
-            <dt>{t('Tax calculation mode')}</dt>
-            <dd>
-              {t(
-                invoiceTaxModes.find((mode) => mode.value === quote.data.mode)
-                  ?.label ?? quote.data.mode
-              )}
-            </dd>
-            <dt>{t('Rate (%)')}</dt>
-            <dd>{quote.data.rate_bps / 100}%</dd>
+            {!quote.data.prepaid_only && (
+              <>
+                <dt>{t('Tax calculation mode')}</dt>
+                <dd>
+                  {t(
+                    invoiceTaxModes.find(
+                      (mode) => mode.value === quote.data.mode
+                    )?.label ?? quote.data.mode
+                  )}
+                </dd>
+                <dt>{t('Rate (%)')}</dt>
+                <dd>{quote.data.rate_bps / 100}%</dd>
+              </>
+            )}
             <dt>{t('Net amount (CNY)')}</dt>
-            <dd>{(quote.data.base_cents / 100).toFixed(2)}</dd>
+            <dd>
+              {(
+                (quote.data.base_cents + quote.data.prepaid_net_cents) /
+                100
+              ).toFixed(2)}
+            </dd>
+            <dt>{t('Tax paid at checkout (CNY)')}</dt>
+            <dd>{(quote.data.prepaid_tax_cents / 100).toFixed(2)}</dd>
             <dt>{t('Additional payment (CNY)')}</dt>
             <dd>{(quote.data.fee_cents / 100).toFixed(2)}</dd>
             <dt>{t('Invoice total (CNY)')}</dt>

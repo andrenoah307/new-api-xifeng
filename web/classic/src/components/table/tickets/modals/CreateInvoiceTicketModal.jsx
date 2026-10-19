@@ -30,7 +30,12 @@ import {
   Table,
   Typography,
 } from '@douyinfe/semi-ui';
-import { API, showError, showSuccess, timestamp2string } from '../../../../helpers';
+import {
+  API,
+  showError,
+  showSuccess,
+  timestamp2string,
+} from '../../../../helpers';
 import { StatusContext } from '../../../../context/Status';
 import { InvoiceTaxFields } from '../../../ticket/InvoiceTax';
 import { useNavigate } from 'react-router-dom';
@@ -40,7 +45,7 @@ const { Text, Title } = Typography;
 const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const [tax, setTax] = useState({ ready: false });
+  const [tax, setTax] = useState({ ready: false, invoice_type: 'ordinary' });
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orders, setOrders] = useState([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
@@ -51,19 +56,24 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const minInvoiceAmount = Number(statusState?.status?.min_invoice_amount) || 0;
   const formApiRef = useRef(null);
 
-  const loadOrders = async () => {
+  const loadOrders = async (signal) => {
     setOrdersLoading(true);
     try {
-      const res = await API.get('/api/ticket/invoice/eligible_orders');
+      const res = await API.get('/api/ticket/invoice/eligible_orders', {
+        params: { invoice_type: tax.invoice_type },
+        signal,
+      });
+      if (signal?.aborted) return;
       if (res.data?.success) {
         setOrders(res.data?.data || []);
       } else {
         showError(res.data?.message || t('加载订单失败'));
       }
     } catch (error) {
+      if (signal?.aborted) return;
       showError(t('请求失败'));
     } finally {
-      setOrdersLoading(false);
+      if (!signal?.aborted) setOrdersLoading(false);
     }
   };
 
@@ -80,8 +90,12 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       });
       return;
     }
-    loadOrders();
-  }, [visible]);
+    setSelectedOrderIds([]);
+    setOrders([]);
+    const controller = new AbortController();
+    loadOrders(controller.signal);
+    return () => controller.abort();
+  }, [visible, tax.invoice_type]);
 
   useEffect(() => {
     if (visible) {
@@ -180,7 +194,8 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
         showSuccess(t('发票申请已提交'));
         onSuccess?.(res.data?.data);
         onClose?.();
-        if (res.data.data?.invoice?.tax_charge?.status === 'pending') navigate(`/console/ticket/${res.data.data.ticket.id}`);
+        if (res.data.data?.invoice?.tax_charge?.status === 'pending')
+          navigate(`/console/ticket/${res.data.data.ticket.id}`);
       } else {
         showError(res.data?.message || t('发票申请提交失败'));
       }
@@ -199,7 +214,11 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       maskClosable={false}
       width='min(860px, calc(100vw - 32px))'
       centered
-      bodyStyle={{ overflowX: 'hidden', overflowY: 'auto', maxHeight: 'calc(90vh - 120px)' }}
+      bodyStyle={{
+        overflowX: 'hidden',
+        overflowY: 'auto',
+        maxHeight: 'calc(90vh - 120px)',
+      }}
       footer={
         <div className='flex items-center justify-between'>
           <div>
@@ -227,7 +246,16 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
       }
     >
       <div className='flex flex-col gap-4'>
-        <InvoiceTaxFields ids={selectedOrderIds} open={visible} onChange={setTax} />
+        <InvoiceTaxFields
+          ids={selectedOrderIds}
+          open={visible}
+          onChange={setTax}
+          type={tax.invoice_type}
+          onTypeChange={(invoice_type) => {
+            setSelectedOrderIds([]);
+            setTax((current) => ({ ...current, invoice_type, ready: false }));
+          }}
+        />
         {refundConflict?.has_refunds && (
           <Banner
             type='warning'
@@ -307,9 +335,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
                   label={t('单位名称')}
                   placeholder={t('请输入单位全称')}
                   showClear
-                  rules={[
-                    { required: true, message: t('单位名称不能为空') },
-                  ]}
+                  rules={[{ required: true, message: t('单位名称不能为空') }]}
                 />
               </Col>
               <Col span={12}>

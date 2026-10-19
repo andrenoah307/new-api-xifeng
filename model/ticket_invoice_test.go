@@ -34,14 +34,17 @@ func seedInvoiceTicketTopUp(t *testing.T, userId int, tradeNo string, money floa
 	t.Helper()
 	now := common.GetTimestamp()
 	topUp := &TopUp{
-		UserId:       userId,
-		Money:        money,
-		TradeNo:      tradeNo,
-		Status:       "success",
-		CreateTime:   now,
-		CompleteTime: now,
+		PaymentProvider: PaymentProviderEpay,
+		UserId:          userId,
+		Money:           money,
+		TradeNo:         tradeNo,
+		Status:          "success",
+		CreateTime:      now,
+		CompleteTime:    now,
 	}
 	require.NoError(t, DB.Create(topUp).Error)
+	// These fixtures represent recharge rows created before eligibility snapshots.
+	require.NoError(t, DB.Model(topUp).Update("invoice_type", "").Error)
 	return topUp.Id
 }
 
@@ -65,8 +68,17 @@ func createInvoiceTicketParams(user *User, topUpOrderIds []int) CreateInvoiceTic
 	}
 }
 
+func enableLegacyInvoiceTopUps(t *testing.T) {
+	t.Helper()
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat", LegacyTopUpsEnabled: true}))
+	t.Cleanup(func() {
+		require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error)
+	})
+}
+
 func TestCreateInvoiceTicketMinInvoiceAmountDisabled(t *testing.T) {
 	truncateTables(t)
+	enableLegacyInvoiceTopUps(t)
 	oldMinInvoiceAmount := operation_setting.MinInvoiceAmount
 	operation_setting.MinInvoiceAmount = 0
 	defer func() { operation_setting.MinInvoiceAmount = oldMinInvoiceAmount }()
@@ -90,6 +102,7 @@ func TestCreateInvoiceTicketMinInvoiceAmountDisabled(t *testing.T) {
 
 func TestCreateInvoiceTicketMinInvoiceAmountBoundary(t *testing.T) {
 	truncateTables(t)
+	enableLegacyInvoiceTopUps(t)
 	oldMinInvoiceAmount := operation_setting.MinInvoiceAmount
 	operation_setting.MinInvoiceAmount = 50
 	defer func() { operation_setting.MinInvoiceAmount = oldMinInvoiceAmount }()
@@ -113,6 +126,7 @@ func TestCreateInvoiceTicketMinInvoiceAmountBoundary(t *testing.T) {
 
 func TestCreateInvoiceTicketMinInvoiceAmountBelow(t *testing.T) {
 	truncateTables(t)
+	enableLegacyInvoiceTopUps(t)
 	oldMinInvoiceAmount := operation_setting.MinInvoiceAmount
 	operation_setting.MinInvoiceAmount = 50
 	defer func() { operation_setting.MinInvoiceAmount = oldMinInvoiceAmount }()
@@ -140,6 +154,7 @@ func TestCreateInvoiceTicketMinInvoiceAmountBelow(t *testing.T) {
 
 func TestCreateInvoiceTicketRemark(t *testing.T) {
 	truncateTables(t)
+	enableLegacyInvoiceTopUps(t)
 	oldMinInvoiceAmount := operation_setting.MinInvoiceAmount
 	operation_setting.MinInvoiceAmount = 0
 	defer func() { operation_setting.MinInvoiceAmount = oldMinInvoiceAmount }()
@@ -210,6 +225,7 @@ func TestCreateInvoiceTicketRemark(t *testing.T) {
 
 func TestCreateInvoiceTicketRejectsRemarkOverOneHundredCharacters(t *testing.T) {
 	truncateTables(t)
+	enableLegacyInvoiceTopUps(t)
 	oldMinInvoiceAmount := operation_setting.MinInvoiceAmount
 	operation_setting.MinInvoiceAmount = 0
 	defer func() { operation_setting.MinInvoiceAmount = oldMinInvoiceAmount }()
@@ -326,6 +342,7 @@ func TestCreateInvoiceTicketValidation(t *testing.T) {
 
 func TestCreateInvoiceTicketRejectsInvalidAndDuplicateOrders(t *testing.T) {
 	truncateTables(t)
+	enableLegacyInvoiceTopUps(t)
 	oldMinInvoiceAmount := operation_setting.MinInvoiceAmount
 	operation_setting.MinInvoiceAmount = 0
 	defer func() { operation_setting.MinInvoiceAmount = oldMinInvoiceAmount }()
@@ -397,6 +414,7 @@ func TestClosedInvoiceReleasesUnissuedOrders(t *testing.T) {
 	for _, byAdmin := range []bool{false, true} {
 		t.Run(fmt.Sprintf("admin=%t", byAdmin), func(t *testing.T) {
 			truncateTables(t)
+			enableLegacyInvoiceTopUps(t)
 			user := insertInvoiceTicketUser(t, 910030)
 			id := seedInvoiceTicketTopUp(t, user.Id, "close-invoice", 1000)
 			params := createInvoiceTicketParams(user, []int{id})
@@ -409,7 +427,7 @@ func TestClosedInvoiceReleasesUnissuedOrders(t *testing.T) {
 				_, err = CloseUserTicket(ticket.Id, user.Id)
 			}
 			require.NoError(t, err)
-			orders, err := GetEligibleInvoiceOrders(user.Id)
+			orders, err := GetEligibleInvoiceOrders(user.Id, "")
 			require.NoError(t, err)
 			require.Len(t, orders, 1)
 			assert.Equal(t, id, orders[0].Id)
@@ -423,6 +441,7 @@ func TestHistoricalClosedInvoiceEligibility(t *testing.T) {
 	for _, issued := range []bool{false, true} {
 		t.Run(fmt.Sprintf("issued=%t", issued), func(t *testing.T) {
 			truncateTables(t)
+			enableLegacyInvoiceTopUps(t)
 			user := insertInvoiceTicketUser(t, 910031)
 			id := seedInvoiceTicketTopUp(t, user.Id, "historical-close-invoice", 1000)
 			params := createInvoiceTicketParams(user, []int{id})
@@ -432,7 +451,7 @@ func TestHistoricalClosedInvoiceEligibility(t *testing.T) {
 				require.NoError(t, DB.Model(invoice).Update("invoice_status", InvoiceStatusIssued).Error)
 			}
 			require.NoError(t, DB.Model(ticket).Update("status", TicketStatusClosed).Error)
-			orders, err := GetEligibleInvoiceOrders(user.Id)
+			orders, err := GetEligibleInvoiceOrders(user.Id, "")
 			require.NoError(t, err)
 			var topups []*TopUp
 			require.NoError(t, DB.Where("user_id = ?", user.Id).Find(&topups).Error)

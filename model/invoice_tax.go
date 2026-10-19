@@ -15,22 +15,26 @@ const InvoiceTaxConfigKey = "InvoiceTaxConfig"
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
-	Enabled         bool   `json:"enabled"`
-	Mode            string `json:"mode"`
-	OrdinaryRateBps int    `json:"ordinary_rate_bps"`
-	SpecialRateBps  int    `json:"special_rate_bps"`
+	LegacyTopUpsEnabled bool   `json:"legacy_topups_enabled"`
+	Enabled             bool   `json:"enabled"`
+	Mode                string `json:"mode"`
+	OrdinaryRateBps     int    `json:"ordinary_rate_bps"`
+	SpecialRateBps      int    `json:"special_rate_bps"`
 }
 
 type InvoiceTaxQuote struct {
-	InvoiceType string `json:"invoice_type"`
-	Mode        string `json:"mode"`
-	RateBps     int    `json:"rate_bps"`
-	BaseCents   int64  `json:"base_cents"`
-	FeeCents    int64  `json:"fee_cents"`
-	TotalCents  int64  `json:"total_cents"`
-	Quota       int    `json:"quota"`
-	CanBalance  bool   `json:"can_balance"`
-	Token       string `json:"token"`
+	PrepaidOnly     bool   `json:"prepaid_only"`
+	PrepaidNetCents int64  `json:"prepaid_net_cents"`
+	PrepaidTaxCents int64  `json:"prepaid_tax_cents"`
+	InvoiceType     string `json:"invoice_type"`
+	Mode            string `json:"mode"`
+	RateBps         int    `json:"rate_bps"`
+	BaseCents       int64  `json:"base_cents"`
+	FeeCents        int64  `json:"fee_cents"`
+	TotalCents      int64  `json:"total_cents"`
+	Quota           int    `json:"quota"`
+	CanBalance      bool   `json:"can_balance"`
+	Token           string `json:"token"`
 }
 
 var ErrInvoiceTaxInvalid = errors.New("invalid invoice tax parameters")
@@ -77,6 +81,12 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	if err != nil {
 		return empty, err
 	}
+	if invoiceType == "" && !config.Enabled {
+		invoiceType = "ordinary"
+	}
+	if invoiceType != "ordinary" && invoiceType != "special" {
+		return empty, ErrInvoiceTaxInvalid
+	}
 	orders, err := fetchSuccessTopUpsByIds(db, userID, ids)
 	if err != nil {
 		return empty, err
@@ -84,9 +94,20 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	if len(orders) != len(ids) {
 		return empty, ErrTicketInvoiceOrderInvalid
 	}
-	var cents int64
+	var cents, prepaidNet, prepaidTax int64
 	for _, order := range orders {
-		if config.Enabled && !IsCNYInvoiceTopUp(order) {
+		if order.InvoiceType != "" {
+			if order.InvoiceType != invoiceType || order.CheckoutVersion != 1 || order.InvoiceNetCents <= 0 || order.InvoiceTaxCents < 0 || order.InvoiceNetCents+order.InvoiceTaxCents != order.PaymentTotalCents {
+				return empty, ErrTicketInvoiceOrderInvalid
+			}
+			prepaidNet += order.InvoiceNetCents
+			prepaidTax += order.InvoiceTaxCents
+			continue
+		}
+		if !config.LegacyTopUpsEnabled {
+			return empty, ErrTicketInvoiceOrderInvalid
+		}
+		if !IsCNYInvoiceTopUp(order) {
 			return empty, ErrInvoiceTaxCurrency
 		}
 		amount, err := invoiceMoneyCents(order.Money)
@@ -95,10 +116,15 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 		}
 		cents += amount
 	}
-	quote, err := CalculateInvoiceTax(cents, invoiceType, config)
-	if err != nil {
-		return quote, err
+	quote := InvoiceTaxQuote{InvoiceType: invoiceType, PrepaidOnly: cents == 0}
+	if cents > 0 {
+		quote, err = CalculateInvoiceTax(cents, invoiceType, config)
+		if err != nil {
+			return quote, err
+		}
 	}
+	quote.PrepaidNetCents, quote.PrepaidTaxCents = prepaidNet, prepaidTax
+	quote.TotalCents += prepaidNet + prepaidTax
 	// The configured business convention is CNY 1 = one USD quota unit.
 	// Store the converted quota on the charge so later settings cannot alter refunds.
 	if math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
@@ -294,6 +320,35 @@ func CalculateInvoiceTax(baseCents int64, invoiceType string, config InvoiceTaxC
 	}
 	quote.TotalCents = total.IntPart()
 	quote.FeeCents = quote.TotalCents - baseCents
+	return quote, nil
+}
+
+// CalculateInvoiceTaxFromTotal keeps the user's final payment fixed. The net
+// amount is rounded to cents, and the remainder is the invoice charge.
+func CalculateInvoiceTaxFromTotal(totalCents int64, invoiceType string, config InvoiceTaxConfig) (InvoiceTaxQuote, error) {
+	quote, err := CalculateInvoiceTax(1, invoiceType, config)
+	if err != nil || totalCents <= 0 || totalCents > 100000000000 {
+		return InvoiceTaxQuote{}, ErrInvoiceTaxInvalid
+	}
+	total := decimal.NewFromInt(totalCents)
+	rate := decimal.NewFromInt(int64(quote.RateBps)).Div(decimal.NewFromInt(10000))
+	one := decimal.NewFromInt(1)
+	var base decimal.Decimal
+	switch config.Mode {
+	case "vat":
+		base = total.DivRound(one.Add(rate), 16)
+	case "compound":
+		base = total.DivRound(one.Add(rate).Mul(one.Add(rate)), 16)
+	case "gross_up":
+		base = total.Mul(one.Sub(rate))
+	}
+	base = base.Round(0)
+	if base.LessThanOrEqual(decimal.Zero) || base.GreaterThan(total) {
+		return InvoiceTaxQuote{}, ErrInvoiceTaxInvalid
+	}
+	quote.BaseCents = base.IntPart()
+	quote.TotalCents = totalCents
+	quote.FeeCents = totalCents - quote.BaseCents
 	return quote, nil
 }
 

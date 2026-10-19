@@ -166,7 +166,9 @@ const InvoiceDetail = ({
                 theme='solid'
                 type='primary'
                 loading={loading}
-                disabled={!!invoice.tax_charge && invoice.tax_charge.status !== 'paid'}
+                disabled={
+                  !!invoice.tax_charge && invoice.tax_charge.status !== 'paid'
+                }
                 onClick={() => onStatusChange(2)}
               >
                 {t('标记已开具')}
@@ -178,7 +180,28 @@ const InvoiceDetail = ({
         {invoice ? (
           <>
             <Descriptions data={descriptionRows} />
-            {invoice.tax_charge && <InvoiceTaxPayment charge={invoice.tax_charge} rejected={invoice.invoice_status === 3} />}
+            {invoice.invoice_type && (
+              <dl className='grid grid-cols-2 gap-2'>
+                <dt>{t('Invoice type')}</dt>
+                <dd>
+                  {t(
+                    invoice.invoice_type === 'special'
+                      ? 'Special VAT invoice'
+                      : 'Ordinary VAT invoice',
+                  )}
+                </dd>
+                <dt>{t('Net amount (CNY)')}</dt>
+                <dd>{((invoice.invoice_net_cents || 0) / 100).toFixed(2)}</dd>
+                <dt>{t('Tax charge (CNY)')}</dt>
+                <dd>{((invoice.invoice_tax_cents || 0) / 100).toFixed(2)}</dd>
+              </dl>
+            )}
+            {invoice.tax_charge && (
+              <InvoiceTaxPayment
+                charge={invoice.tax_charge}
+                rejected={invoice.invoice_status === 3}
+              />
+            )}
             <div className='flex flex-col gap-2'>
               <Text strong>{t('关联订单')}</Text>
               <CardTable

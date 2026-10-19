@@ -41,7 +41,10 @@ export interface TicketAttachment {
 }
 
 export interface TicketInvoice {
-	 tax_charge?: import('./invoice-tax').InvoiceTaxCharge
+  invoice_type?: string
+  invoice_net_cents?: number
+  invoice_tax_cents?: number
+  tax_charge?: import('./invoice-tax').InvoiceTaxCharge
   id: number
   ticket_id: number
   company_name: string
@@ -243,9 +246,9 @@ export async function createRefundTicket(data: {
 }
 
 export async function createInvoiceTicket(data: {
-	invoice_type?: string
-	tax_payment_method?: string
-	tax_quote?: string
+  invoice_type?: string
+  tax_payment_method?: string
+  tax_quote?: string
   subject: string
   company_name: string
   tax_number: string
@@ -259,10 +262,13 @@ export async function createInvoiceTicket(data: {
   return res.data?.data?.ticket ?? null
 }
 
-export async function getEligibleInvoiceOrders(): Promise<
-  TicketInvoiceOrder[]
-> {
-  const res = await api.get('/api/ticket/invoice/eligible_orders')
+export async function getEligibleInvoiceOrders(
+  invoiceType: string
+): Promise<TicketInvoiceOrder[]> {
+  const res = await api.get('/api/ticket/invoice/eligible_orders', {
+    params: { invoice_type: invoiceType },
+  })
+  if (!res.data.success) throw new Error(res.data.message)
   return Array.isArray(res.data?.data) ? res.data.data : []
 }
 
@@ -462,10 +468,10 @@ export function getAttachmentUrl(id: number, inline = false): string {
 
 export interface InvoiceExportItem {
   remark?: string
-	invoice_type?: string
-	tax_mode?: string
-	tax_rate_bps?: number
-	tax_fee_cents?: number
+  invoice_type?: string
+  tax_mode?: string
+  tax_rate_bps?: number
+  tax_fee_cents?: number
   ticket_id: number
   company_name: string
   tax_number: string
@@ -505,7 +511,9 @@ export interface InvoiceExportListParams {
 export async function getInvoiceExportList(
   params: InvoiceExportListParams
 ): Promise<{ items: InvoiceExportItem[]; total: number }> {
-  const res = await api.get('/api/ticket/admin/invoice/export-list', { params })
+  const res = await api.get('/api/ticket/admin/invoice/export-list', {
+    params,
+  })
   return res.data?.data ?? { items: [], total: 0 }
 }
 
