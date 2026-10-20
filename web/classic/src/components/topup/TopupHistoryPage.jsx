@@ -34,7 +34,7 @@ import {
   IllustrationNoResult,
   IllustrationNoResultDark,
 } from '@douyinfe/semi-illustrations';
-import { Coins, BadgeDollarSign } from 'lucide-react';
+import { Coins, BadgeDollarSign, Pencil } from 'lucide-react';
 import { IconSearch } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 import { API, timestamp2string } from '../../helpers';
@@ -70,6 +70,10 @@ const TopupHistoryPage = () => {
   const [keyword, setKeyword] = useState('');
   const [debouncedKeyword, setDebouncedKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [invoiceTypeFilter, setInvoiceTypeFilter] = useState('');
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [invoiceType, setInvoiceType] = useState('none');
+  const [savingInvoice, setSavingInvoice] = useState(false);
   const [dateRange, setDateRange] = useState([null, null]);
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const isMobile = useIsMobile();
@@ -84,7 +88,10 @@ const TopupHistoryPage = () => {
       });
       if (debouncedKeyword) params.set('keyword', debouncedKeyword);
       if (statusFilter) params.set('status', statusFilter);
-      if (dateRange[0]) params.set('start_time', Math.floor(dateRange[0] / 1000));
+      if (isAdmin() && invoiceTypeFilter)
+        params.set('invoice_type', invoiceTypeFilter);
+      if (dateRange[0])
+        params.set('start_time', Math.floor(dateRange[0] / 1000));
       if (dateRange[1]) params.set('end_time', Math.floor(dateRange[1] / 1000));
       const endpoint = `${base}?${params.toString()}`;
       const res = await API.get(endpoint);
@@ -109,7 +116,14 @@ const TopupHistoryPage = () => {
 
   useEffect(() => {
     loadTopups(page, pageSize);
-  }, [page, pageSize, debouncedKeyword, statusFilter, dateRange]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [
+    page,
+    pageSize,
+    debouncedKeyword,
+    statusFilter,
+    invoiceTypeFilter,
+    dateRange,
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePageChange = (currentPage) => {
     setPage(currentPage);
@@ -145,27 +159,51 @@ const TopupHistoryPage = () => {
   const datePresets = [
     {
       text: t('今天'),
-      start: (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })(),
+      start: (() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })(),
       end: new Date(),
     },
     {
       text: t('近 7 天'),
-      start: (() => { const d = new Date(); d.setDate(d.getDate() - 6); d.setHours(0,0,0,0); return d; })(),
+      start: (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 6);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })(),
       end: new Date(),
     },
     {
       text: t('本周'),
-      start: (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d; })(),
+      start: (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - d.getDay());
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })(),
       end: new Date(),
     },
     {
       text: t('近 30 天'),
-      start: (() => { const d = new Date(); d.setDate(d.getDate() - 29); d.setHours(0,0,0,0); return d; })(),
+      start: (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 29);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })(),
       end: new Date(),
     },
     {
       text: t('本月'),
-      start: (() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; })(),
+      start: (() => {
+        const d = new Date();
+        d.setDate(1);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      })(),
       end: new Date(),
     },
   ];
@@ -194,6 +232,25 @@ const TopupHistoryPage = () => {
       content: t('是否将该订单标记为成功并为用户入账？'),
       onOk: () => handleAdminComplete(tradeNo),
     });
+  };
+
+  const saveInvoiceType = async () => {
+    if (!isAdmin() || !editingInvoice || savingInvoice) return;
+    setSavingInvoice(true);
+    try {
+      const { data } = await API.put('/api/user/topup/invoice-type', {
+        id: editingInvoice.id,
+        invoice_type: invoiceType,
+        expected_invoice_type: editingInvoice.invoice_type || '',
+      });
+      if (!data.success) throw new Error(data.message);
+      setEditingInvoice(null);
+      await loadTopups(page, pageSize);
+    } catch (error) {
+      Toast.error({ content: error.message || t('操作失败') });
+    } finally {
+      setSavingInvoice(false);
+    }
   };
 
   // 渲染状态徽章
@@ -230,7 +287,11 @@ const TopupHistoryPage = () => {
         dataIndex: 'username',
         key: 'user',
         render: (username, record) => (
-          <Text>{username ? `${username} (${record.user_id})` : String(record.user_id ?? '-')}</Text>
+          <Text>
+            {username
+              ? `${username} (${record.user_id})`
+              : String(record.user_id ?? '-')}
+          </Text>
         ),
       });
     }
@@ -284,8 +345,13 @@ const TopupHistoryPage = () => {
         title: t('Invoice type'),
         dataIndex: 'invoice_type',
         key: 'invoice_type',
-        render: (type) => type === 'ordinary' ? t('Ordinary VAT invoice') : type === 'special' ? t('Special VAT invoice') : type === 'none' ? t('No invoice') : '-',
-      }
+        render: (type) =>
+          type === 'ordinary'
+            ? t('Ordinary VAT invoice')
+            : type === 'special'
+              ? t('Special VAT invoice')
+              : '-',
+      },
     );
 
     // 管理员才显示操作列
@@ -295,17 +361,33 @@ const TopupHistoryPage = () => {
         key: 'action',
         render: (_, record) => {
           const actions = [];
+          if (record.status === 'success' && !record.invoice_status) {
+            actions.push(
+              <Button
+                key='invoice'
+                size='small'
+                theme='borderless'
+                title={t('Invoice type')}
+                aria-label={t('Invoice type')}
+                icon={<Pencil size={16} />}
+                onClick={() => {
+                  setEditingInvoice(record);
+                  setInvoiceType(record.invoice_type || 'none');
+                }}
+              />,
+            );
+          }
           if (record.status === 'pending') {
             actions.push(
               <Button
-                key="complete"
+                key='complete'
                 size='small'
                 type='primary'
                 theme='outline'
                 onClick={() => confirmAdminComplete(record.trade_no)}
               >
                 {t('补单')}
-              </Button>
+              </Button>,
             );
           }
           return actions.length > 0 ? <>{actions}</> : null;
@@ -340,6 +422,23 @@ const TopupHistoryPage = () => {
           onChange={handleStatusChange}
           style={{ width: 130 }}
         />
+        {userIsAdmin && (
+          <Select
+            value={invoiceTypeFilter}
+            aria-label={t('Invoice type')}
+            style={{ width: 200 }}
+            onChange={(value) => {
+              setInvoiceTypeFilter(value);
+              setPage(1);
+            }}
+            optionList={[
+              { value: '', label: t('All') },
+              { value: 'ordinary', label: t('Ordinary VAT invoice') },
+              { value: 'special', label: t('Special VAT invoice') },
+              { value: 'none', label: '-' },
+            ]}
+          />
+        )}
         <DatePicker
           type='dateTimeRange'
           value={dateRange}
@@ -351,7 +450,9 @@ const TopupHistoryPage = () => {
         />
         <Input
           prefix={<IconSearch />}
-          placeholder={t(userIsAdmin ? '搜索订单号/用户名/用户ID' : '搜索订单号')}
+          placeholder={t(
+            userIsAdmin ? '搜索订单号/用户名/用户ID' : '搜索订单号',
+          )}
           value={keyword}
           onChange={handleKeywordChange}
           showClear
@@ -384,6 +485,43 @@ const TopupHistoryPage = () => {
           />
         }
       />
+      {userIsAdmin && (
+        <Modal
+          visible={!!editingInvoice}
+          title={t('Invoice type')}
+          centered
+          bodyStyle={{ maxHeight: '70dvh', overflowY: 'auto' }}
+          getPopupContainer={() => document.body}
+          okText={t('Save')}
+          cancelText={t('Cancel')}
+          confirmLoading={savingInvoice}
+          maskClosable={!savingInvoice}
+          closeOnEsc={!savingInvoice}
+          closable={!savingInvoice}
+          onCancel={() => {
+            if (!savingInvoice) setEditingInvoice(null);
+          }}
+          onOk={saveInvoiceType}
+        >
+          <p className='mb-4 break-all'>{editingInvoice?.trade_no}</p>
+          <fieldset disabled={savingInvoice} className='space-y-2'>
+            {['ordinary', 'special', 'none'].map((type) => (
+              <label key={type} className='flex items-center gap-2'>
+                <input
+                  type='radio'
+                  name='topup-invoice-type'
+                  value={type}
+                  checked={invoiceType === type}
+                  onChange={() => setInvoiceType(type)}
+                />
+                {type === 'ordinary' && t('Ordinary VAT invoice')}
+                {type === 'special' && t('Special VAT invoice')}
+                {type === 'none' && '-'}
+              </label>
+            ))}
+          </fieldset>
+        </Modal>
+      )}
       <CreateInvoiceTicketModal
         visible={invoiceModalVisible}
         onClose={() => setInvoiceModalVisible(false)}

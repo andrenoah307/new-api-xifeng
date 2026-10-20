@@ -26,6 +26,7 @@ export interface TopupListParams {
   page_size: number
   keyword?: string
   status?: string
+  invoice_type?: string
   start_time?: number
   end_time?: number
 }
@@ -46,4 +47,17 @@ export async function completeTopupOrder(tradeNo: string): Promise<boolean> {
   })
   if (!res.data?.success) throw new Error(res.data?.message)
   return res.data?.success ?? false
+}
+
+export async function updateTopupInvoiceType(
+  id: number,
+  invoiceType: string,
+  expectedInvoiceType: string
+): Promise<void> {
+  const res = await api.put('/api/user/topup/invoice-type', {
+    id,
+    invoice_type: invoiceType,
+    expected_invoice_type: expectedInvoiceType,
+  })
+  if (!res.data?.success) throw new Error(res.data?.message)
 }
