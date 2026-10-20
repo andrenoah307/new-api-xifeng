@@ -6,6 +6,7 @@ import {
   useReactTable,
   type VisibilityState,
 } from '@tanstack/react-table'
+import { Pencil } from 'lucide-react'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -35,13 +36,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { ticketQueryKeys } from '@/features/tickets/lib/ticket-actions'
 import { CompactDateTimeRangePicker } from '@/features/usage-logs/components/compact-date-time-range-picker'
 import { useMediaQuery, useDebounce } from '@/hooks'
 import { useIsAdmin } from '@/hooks/use-admin'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { useAuthStore } from '@/stores/auth-store'
 
-import { getTopups, completeTopupOrder } from '../api'
+import {
+  getTopups,
+  completeTopupOrder,
+  updateTopupInvoiceType,
+  type TopupRecord,
+} from '../api'
 import {
   DEFAULT_PAGE_SIZE,
   TOPUP_STATUS_OPTIONS,
@@ -60,6 +67,9 @@ export function TopupTable() {
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [statusFilter, setStatusFilter] = useState('__all__')
+  const [invoiceTypeFilter, setInvoiceTypeFilter] = useState('__all__')
+  const [editingInvoice, setEditingInvoice] = useState<TopupRecord | null>(null)
+  const [invoiceType, setInvoiceType] = useState('none')
   const [dateStart, setDateStart] = useState<Date | undefined>()
   const [dateEnd, setDateEnd] = useState<Date | undefined>()
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
@@ -91,12 +101,24 @@ export function TopupTable() {
       page_size: pagination.pageSize,
       keyword: debouncedKeyword || undefined,
       status: statusFilter === '__all__' ? undefined : statusFilter,
+      invoice_type:
+        admin && invoiceTypeFilter !== '__all__'
+          ? invoiceTypeFilter
+          : undefined,
       start_time: dateStart
         ? Math.floor(dateStart.getTime() / 1000)
         : undefined,
       end_time: dateEnd ? Math.floor(dateEnd.getTime() / 1000) : undefined,
     }),
-    [pagination, debouncedKeyword, statusFilter, dateStart, dateEnd]
+    [
+      pagination,
+      debouncedKeyword,
+      statusFilter,
+      dateStart,
+      dateEnd,
+      admin,
+      invoiceTypeFilter,
+    ]
   )
 
   const { data, isLoading } = useQuery({
@@ -122,16 +144,47 @@ export function TopupTable() {
 
   const columns = useTopupColumns(admin)
 
+  const invoiceMutation = useMutation({
+    mutationFn: async () => {
+      if (!admin || !editingInvoice) return
+      await updateTopupInvoiceType(
+        editingInvoice.id,
+        invoiceType,
+        editingInvoice.invoice_type ?? ''
+      )
+    },
+    onSuccess: () => {
+      setEditingInvoice(null)
+      toast.success(t('Operation successful'))
+      queryClient.invalidateQueries({ queryKey: topupQueryKeys.lists() })
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.eligibleOrders(),
+      })
+    },
+  })
+
   const actionsColumn = useMemo(() => {
     if (!admin) return null
     return {
       id: 'actions',
       header: t('Actions'),
-      cell: ({
-        row,
-      }: {
-        row: { original: { status: string; trade_no: string } }
-      }) => {
+      cell: ({ row }: { row: { original: TopupRecord } }) => {
+        if (row.original.status === 'success' && !row.original.invoice_status) {
+          return (
+            <Button
+              variant='ghost'
+              size='icon'
+              title={t('Invoice type')}
+              aria-label={t('Invoice type')}
+              onClick={() => {
+                setEditingInvoice(row.original)
+                setInvoiceType(row.original.invoice_type || 'none')
+              }}
+            >
+              <Pencil className='size-4' />
+            </Button>
+          )
+        }
         if (row.original.status !== 'pending') return null
         return (
           <Button
@@ -197,6 +250,34 @@ export function TopupTable() {
           )}
           additionalSearch={
             <div className='flex flex-wrap items-center gap-2'>
+              {admin && (
+                <Select
+                  value={invoiceTypeFilter}
+                  onValueChange={(value) => {
+                    if (value != null) {
+                      setInvoiceTypeFilter(value)
+                      onPaginationChange({ ...pagination, pageIndex: 0 })
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    className='h-8 w-[190px]'
+                    aria-label={t('Invoice type')}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='__all__'>{t('All')}</SelectItem>
+                    <SelectItem value='ordinary'>
+                      {t('Ordinary VAT invoice')}
+                    </SelectItem>
+                    <SelectItem value='special'>
+                      {t('Special VAT invoice')}
+                    </SelectItem>
+                    <SelectItem value='none'>-</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
               <Select
                 value={statusFilter}
                 onValueChange={(value) => {
@@ -294,6 +375,36 @@ export function TopupTable() {
         }
         isLoading={completeMutation.isPending}
       />
+      {admin && (
+        <ConfirmDialog
+          open={!!editingInvoice}
+          onOpenChange={(open) => {
+            if (!open && !invoiceMutation.isPending) setEditingInvoice(null)
+          }}
+          title={t('Invoice type')}
+          desc={editingInvoice?.trade_no ?? ''}
+          confirmText={t('Save')}
+          isLoading={invoiceMutation.isPending}
+          handleConfirm={() => invoiceMutation.mutate()}
+        >
+          <fieldset className='space-y-2' disabled={invoiceMutation.isPending}>
+            {['ordinary', 'special', 'none'].map((type) => (
+              <label key={type} className='flex items-center gap-2'>
+                <input
+                  type='radio'
+                  name='topup-invoice-type'
+                  value={type}
+                  checked={invoiceType === type}
+                  onChange={() => setInvoiceType(type)}
+                />
+                {type === 'ordinary' && t('Ordinary VAT invoice')}
+                {type === 'special' && t('Special VAT invoice')}
+                {type === 'none' && '-'}
+              </label>
+            ))}
+          </fieldset>
+        </ConfirmDialog>
+      )}
     </>
   )
 }
