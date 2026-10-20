@@ -5226,6 +5226,23 @@
     "Tax paid": "Сбор оплачен",
     "Tax refunded to balance": "Сбор возвращён на баланс",
     "Online tax payment is currently unavailable. Contact the administrator.": "Онлайн-оплата сбора недоступна. Обратитесь к администратору.",
-    "Failed to load": "Ошибка загрузки"
+    "Failed to load": "Ошибка загрузки",
+    "Time range": "Период",
+    "Custom": "Пользовательский",
+    "Refresh": "Обновить",
+    "Start time": "Начало",
+    "End time": "Окончание",
+    "Apply": "Применить",
+    "Funding overview": "Пополнения и расходы",
+    "Consumption amount": "Сумма расходов",
+    "Successful online top-ups": "Успешные онлайн-пополнения",
+    "Administrator manual credits": "Ручные начисления администратора",
+    "Top-ups + manual credits": "Пополнения + ручные начисления",
+    "Consumption share": "Доля расходов",
+    "Last {{days}} days": "За {{days}} дн.",
+    "Select whole hours within a past 31-day range.": "Выберите целые часы: период до 31 дня, без будущих дат.",
+    "Funding data unavailable. Check data collection and payment currencies.": "Данные недоступны. Проверьте сбор статистики и валюты платежей.",
+    "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Расходы по часам; поступления до возвратов. Ручные начисления включают пополнения баланса с записью аудита и зачисления ручных платежей.",
+    "Calculated at {{time}}": "Рассчитано: {{time}}"
   }
 }

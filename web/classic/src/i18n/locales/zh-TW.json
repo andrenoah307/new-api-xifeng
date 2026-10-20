@@ -5184,6 +5184,23 @@
     "Tax paid": "稅費已付",
     "Tax refunded to balance": "稅費已退回餘額",
     "Online tax payment is currently unavailable. Contact the administrator.": "暫未開放線上補稅，請聯絡管理員。",
-    "Failed to load": "載入失敗"
+    "Failed to load": "載入失敗",
+    "Time range": "時間範圍",
+    "Custom": "自訂",
+    "Refresh": "重新整理",
+    "Start time": "開始時間",
+    "End time": "結束時間",
+    "Apply": "套用",
+    "Funding overview": "額度收支",
+    "Consumption amount": "消費金額",
+    "Successful online top-ups": "線上成功儲值",
+    "Administrator manual credits": "管理員手動加額",
+    "Top-ups + manual credits": "儲值＋手動加額",
+    "Consumption share": "消費占比",
+    "Last {{days}} days": "近 {{days}} 天",
+    "Select whole hours within a past 31-day range.": "請選擇整點起訖時間，跨度不超過31天，結束時間不可晚於目前時間。",
+    "Funding data unavailable. Check data collection and payment currencies.": "收支資料暫不可用，請檢查資料收集和支付幣別。",
+    "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "消費按小時彙總；入帳為退款前總額。手動加額包含有稽核紀錄的餘額增加及手動儲值入帳額度。",
+    "Calculated at {{time}}": "統計更新時間：{{time}}"
   }
 }

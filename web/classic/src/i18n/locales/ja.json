@@ -5172,6 +5172,23 @@
     "Tax paid": "税費用支払済み",
     "Tax refunded to balance": "税費用を残高へ返金済み",
     "Online tax payment is currently unavailable. Contact the administrator.": "税費用のオンライン決済は現在利用できません。管理者にお問い合わせください。",
-    "Failed to load": "読み込み失敗"
+    "Failed to load": "読み込み失敗",
+    "Time range": "期間",
+    "Custom": "カスタム",
+    "Refresh": "更新",
+    "Start time": "開始時刻",
+    "End time": "終了時刻",
+    "Apply": "適用",
+    "Funding overview": "入金と利用額",
+    "Consumption amount": "利用額",
+    "Successful online top-ups": "オンライン入金成功額",
+    "Administrator manual credits": "管理者による手動加算",
+    "Top-ups + manual credits": "入金＋手動加算",
+    "Consumption share": "利用割合",
+    "Last {{days}} days": "過去 {{days}} 日間",
+    "Select whole hours within a past 31-day range.": "正時を指定し、過去の31日以内の期間を選択してください。",
+    "Funding data unavailable. Check data collection and payment currencies.": "データを取得できません。データ収集と決済通貨を確認してください。",
+    "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "利用額は時間単位、入金額は返金前の総額です。手動加算には監査記録のある残高加算と手動入金の反映額を含みます。",
+    "Calculated at {{time}}": "集計日時：{{time}}"
   }
 }

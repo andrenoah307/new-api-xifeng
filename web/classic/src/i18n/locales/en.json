@@ -5432,6 +5432,23 @@
     "Tax paid": "Tax paid",
     "Tax refunded to balance": "Tax refunded to balance",
     "Online tax payment is currently unavailable. Contact the administrator.": "Online tax payment is currently unavailable. Contact the administrator.",
-    "Failed to load": "Failed to load"
+    "Failed to load": "Failed to load",
+    "Time range": "Time range",
+    "Custom": "Custom",
+    "Refresh": "Refresh",
+    "Start time": "Start time",
+    "End time": "End time",
+    "Apply": "Apply",
+    "Funding overview": "Funding overview",
+    "Consumption amount": "Consumption amount",
+    "Successful online top-ups": "Successful online top-ups",
+    "Administrator manual credits": "Administrator manual credits",
+    "Top-ups + manual credits": "Top-ups + manual credits",
+    "Consumption share": "Consumption share",
+    "Last {{days}} days": "Last {{days}} days",
+    "Select whole hours within a past 31-day range.": "Select whole hours within a past 31-day range.",
+    "Funding data unavailable. Check data collection and payment currencies.": "Funding data unavailable. Check data collection and payment currencies.",
+    "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.",
+    "Calculated at {{time}}": "Calculated at {{time}}"
   }
 }

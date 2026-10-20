@@ -5715,6 +5715,23 @@
     "Tax paid": "Đã thanh toán phí thuế",
     "Tax refunded to balance": "Phí thuế đã hoàn vào số dư",
     "Online tax payment is currently unavailable. Contact the administrator.": "Thanh toán phí thuế trực tuyến hiện không khả dụng. Hãy liên hệ quản trị viên.",
-    "Failed to load": "Tải thất bại"
+    "Failed to load": "Tải thất bại",
+    "Time range": "Khoảng thời gian",
+    "Custom": "Tùy chỉnh",
+    "Refresh": "Làm mới",
+    "Start time": "Thời gian bắt đầu",
+    "End time": "Thời gian kết thúc",
+    "Apply": "Áp dụng",
+    "Funding overview": "Nạp tiền và chi tiêu",
+    "Consumption amount": "Số tiền sử dụng",
+    "Successful online top-ups": "Nạp trực tuyến thành công",
+    "Administrator manual credits": "Cộng số dư thủ công",
+    "Top-ups + manual credits": "Nạp tiền + cộng thủ công",
+    "Consumption share": "Tỷ lệ sử dụng",
+    "Last {{days}} days": "{{days}} ngày qua",
+    "Select whole hours within a past 31-day range.": "Chọn giờ tròn, khoảng không quá 31 ngày và không ở tương lai.",
+    "Funding data unavailable. Check data collection and payment currencies.": "Dữ liệu chưa khả dụng. Kiểm tra thu thập dữ liệu và tiền tệ thanh toán.",
+    "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Chi tiêu tổng hợp theo giờ; tiền nạp trước hoàn tiền. Cộng thủ công gồm tăng số dư có nhật ký kiểm toán và số dư từ nạp thủ công.",
+    "Calculated at {{time}}": "Thời điểm thống kê: {{time}}"
   }
 }

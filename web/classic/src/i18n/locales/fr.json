@@ -5205,6 +5205,23 @@
     "Tax paid": "Frais payés",
     "Tax refunded to balance": "Frais remboursés sur le solde",
     "Online tax payment is currently unavailable. Contact the administrator.": "Le paiement des frais en ligne est indisponible. Contactez l’administrateur.",
-    "Failed to load": "Échec du chargement"
+    "Failed to load": "Échec du chargement",
+    "Time range": "Période",
+    "Custom": "Personnalisé",
+    "Refresh": "Actualiser",
+    "Start time": "Début",
+    "End time": "Fin",
+    "Apply": "Appliquer",
+    "Funding overview": "Recettes et consommation",
+    "Consumption amount": "Montant consommé",
+    "Successful online top-ups": "Recharges en ligne réussies",
+    "Administrator manual credits": "Crédits manuels administrateur",
+    "Top-ups + manual credits": "Recharges + crédits manuels",
+    "Consumption share": "Part consommée",
+    "Last {{days}} days": "{{days}} derniers jours",
+    "Select whole hours within a past 31-day range.": "Choisissez des heures entières, sur 31 jours maximum, sans date future.",
+    "Funding data unavailable. Check data collection and payment currencies.": "Données indisponibles. Vérifiez la collecte et les devises des paiements.",
+    "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Consommation horaire ; apports avant remboursements. Les crédits manuels incluent les ajouts de solde audités et les recharges manuelles créditées.",
+    "Calculated at {{time}}": "Calculé le {{time}}"
   }
 }
