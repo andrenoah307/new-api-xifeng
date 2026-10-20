@@ -5437,6 +5437,8 @@
     "Invoice confirmation": "Подтверждение выставления счёта",
     "Invoice required": "Нужен счёт-фактура",
     "No payment methods are available for this invoice choice.": "Для выбранного варианта счёта-фактуры нет доступных способов оплаты.",
-    "WeChat Pay": "WeChat Pay"
+    "WeChat Pay": "WeChat Pay",
+    "Manual top-up": "Ручное пополнение",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Зарегистрируйте уже полученный платёж. Налоговые сборы вычитаются из суммы платежа; остаток зачисляется на баланс без акций."
   }
 }

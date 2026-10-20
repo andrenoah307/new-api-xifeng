@@ -5383,6 +5383,8 @@
     "Invoice confirmation": "請求書発行の確認",
     "Invoice required": "請求書が必要",
     "No payment methods are available for this invoice choice.": "この請求書の選択に対応する支払い方法はありません。",
-    "WeChat Pay": "WeChat Pay"
+    "WeChat Pay": "WeChat Pay",
+    "Manual top-up": "手動チャージ",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "受領済みの入金を登録してください。支払金額から税金相当額を差し引いた残額が、割引なしでユーザー残高に加算されます。"
   }
 }

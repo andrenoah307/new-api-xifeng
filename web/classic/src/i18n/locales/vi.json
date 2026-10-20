@@ -5926,6 +5926,8 @@
     "Invoice confirmation": "Xác nhận xuất hóa đơn",
     "Invoice required": "Cần hóa đơn",
     "No payment methods are available for this invoice choice.": "Không có phương thức thanh toán cho lựa chọn hóa đơn này.",
-    "WeChat Pay": "WeChat Pay"
+    "WeChat Pay": "WeChat Pay",
+    "Manual top-up": "Nạp tiền thủ công",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Ghi nhận khoản thanh toán đã nhận. Thuế được trừ khỏi số tiền thanh toán; phần còn lại được cộng vào số dư mà không áp dụng ưu đãi."
   }
 }

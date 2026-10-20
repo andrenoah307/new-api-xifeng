@@ -5395,6 +5395,8 @@
     "Invoice confirmation": "開票事項確認",
     "Invoice required": "需要開票",
     "No payment methods are available for this invoice choice.": "目前的開票選擇沒有可用付款方式。",
-    "WeChat Pay": "微信支付"
+    "WeChat Pay": "微信支付",
+    "Manual top-up": "手動儲值",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "請登記已實際收取的款項。系統從實付金額中扣除相關稅費，剩餘金額計入使用者餘額，不參與儲值優惠。"
   }
 }

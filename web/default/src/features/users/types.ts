@@ -138,4 +138,9 @@ export interface ManageUserQuotaPayload {
 // Dialog Types
 // ============================================================================
 
-export type UsersDialogType = 'create' | 'update' | 'delete' | 'routing'
+export type UsersDialogType =
+  | 'create'
+  | 'update'
+  | 'delete'
+  | 'routing'
+  | 'manual-topup'

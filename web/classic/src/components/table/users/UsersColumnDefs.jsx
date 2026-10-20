@@ -44,7 +44,11 @@ const renderTimestamp = (text) => (text ? timestamp2string(text) : '-');
 const renderRole = (role, t) => {
   switch (role) {
     case 3:
-      return <Tag color='green' shape='circle'>{t('Finance')}</Tag>;
+      return (
+        <Tag color='green' shape='circle'>
+          {t('Finance')}
+        </Tag>
+      );
     case 1:
       return (
         <Tag color='blue' shape='circle'>
@@ -224,6 +228,8 @@ const renderOperations = (
     showResetPasskeyModal,
     showResetTwoFAModal,
     showUserSubscriptionsModal,
+    showManualTopup,
+    currentUserRole,
     t,
   },
 ) => {
@@ -232,6 +238,16 @@ const renderOperations = (
   }
 
   const moreMenu = [
+    ...(currentUserRole >= 10 &&
+    (currentUserRole === 100 || currentUserRole > record.role)
+      ? [
+          {
+            node: 'item',
+            name: t('Manual top-up'),
+            onClick: () => showManualTopup(record),
+          },
+        ]
+      : []),
     {
       node: 'item',
       name: t('订阅管理'),
@@ -317,6 +333,8 @@ export const getUsersColumns = ({
   showResetPasskeyModal,
   showResetTwoFAModal,
   showUserSubscriptionsModal,
+  showManualTopup,
+  currentUserRole,
 }) => {
   return [
     {
@@ -408,6 +426,8 @@ export const getUsersColumns = ({
           showResetPasskeyModal,
           showResetTwoFAModal,
           showUserSubscriptionsModal,
+          showManualTopup,
+          currentUserRole,
           t,
         }),
     },

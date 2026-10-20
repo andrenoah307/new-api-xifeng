@@ -5416,6 +5416,8 @@
     "Invoice confirmation": "Confirmation de facturation",
     "Invoice required": "Facture requise",
     "No payment methods are available for this invoice choice.": "Aucun moyen de paiement disponible pour ce choix de facturation.",
-    "WeChat Pay": "WeChat Pay"
+    "WeChat Pay": "WeChat Pay",
+    "Manual top-up": "Recharge manuelle",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Enregistrez un paiement déjà reçu. Les frais fiscaux sont déduits du montant payé ; le solde restant est crédité sans promotion."
   }
 }
