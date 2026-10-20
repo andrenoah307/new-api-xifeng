@@ -1,5 +1,7 @@
 {
   "translation": {
+    "Manual top-up": "手動チャージ",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "受領済みの入金を登録してください。支払金額から税金相当額を差し引いた残額が、割引なしでユーザー残高に加算されます。",
     "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "お支払い前に、今回のチャージに請求書が必要かどうかをご確認ください。必要な場合は、次の手順で請求書の種類を選択してください。税金相当額は支払金額に含まれ、残高への反映額を計算する際に差し引かれます。\n\n請求書が不要な場合、税金相当額は加算されず、この注文は請求書の発行申請対象外となります。",
     "Confirm payment": "支払いを確認",
     "Invoice confirmation": "請求書発行の確認",

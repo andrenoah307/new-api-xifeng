@@ -1,5 +1,7 @@
 {
   "translation": {
+    "Manual top-up": "Manual top-up",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.",
     "Alipay": "Alipay",
     "Back": "Back",
     "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "Please confirm whether an invoice is required for this recharge before proceeding to payment. If required, select the invoice type in the next step. Applicable tax charges are included in the payment amount and are deducted when calculating the credited balance.\n\nIf no invoice is required, no tax charges apply and the order will not be eligible for an invoice application.",

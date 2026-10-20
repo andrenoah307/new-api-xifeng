@@ -1,5 +1,7 @@
 {
   "translation": {
+    "Manual top-up": "手动充值",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "请登记已实际收取的款项。系统从实付金额中扣除相应税费，剩余金额计入用户余额，不参与充值优惠。",
     "Alipay": "支付宝",
     "Back": "返回",
     "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "请在付款前确认本次充值是否需要开具发票。如需开票，请在下一步选择发票类型。相应税费计入本次实付金额，计算到账额度时将扣除该部分税费。\n\n如选择不开票，本次充值不收取税费，生成的订单不具备开票申请资格。",

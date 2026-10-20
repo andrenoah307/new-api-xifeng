@@ -1,5 +1,7 @@
 {
   "translation": {
+    "Manual top-up": "Ручное пополнение",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Зарегистрируйте уже полученный платёж. Налоговые сборы вычитаются из суммы платежа; остаток зачисляется на баланс без акций.",
     "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "До оплаты укажите, требуется ли счёт для этого пополнения. Если требуется, выберите тип счёта на следующем шаге. Применимые налоговые сборы включены в сумму платежа и вычитаются при расчёте зачисляемого баланса.\n\nЕсли счёт не требуется, налоговые сборы не взимаются и заказ не будет доступен для запроса счёта.",
     "Confirm payment": "Подтвердить оплату",
     "Invoice confirmation": "Подтверждение выставления счёта",

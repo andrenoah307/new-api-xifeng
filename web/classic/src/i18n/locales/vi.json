@@ -1,5 +1,7 @@
 {
   "translation": {
+    "Manual top-up": "Nạp tiền thủ công",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Ghi nhận khoản thanh toán đã nhận. Thuế được trừ khỏi số tiền thanh toán; phần còn lại được cộng vào số dư mà không áp dụng ưu đãi.",
     "Alipay": "Alipay",
     "Back": "Quay lại",
     "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "Vui lòng xác nhận có cần xuất hóa đơn cho lần nạp tiền này trước khi thanh toán. Nếu có, hãy chọn loại hóa đơn ở bước tiếp theo. Khoản thuế áp dụng được tính trong số tiền thanh toán và được trừ khi tính số dư ghi có.\n\nNếu không cần hóa đơn, giao dịch không tính thuế và đơn hàng sẽ không đủ điều kiện yêu cầu xuất hóa đơn.",

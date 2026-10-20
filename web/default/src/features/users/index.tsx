@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 
+import { ManualTopupDialog } from './components/dialogs/manual-topup-dialog'
 import { UserRoutingDialog } from './components/dialogs/user-routing-dialog'
 import { UsersDeleteDialog } from './components/users-delete-dialog'
 import { UsersMutateDrawer } from './components/users-mutate-drawer'
@@ -49,6 +50,9 @@ function UsersContent() {
         currentRow={open === 'update' ? currentRow || undefined : undefined}
       />
       <UsersDeleteDialog />
+      {open === 'manual-topup' && currentRow && (
+        <ManualTopupDialog user={currentRow} onClose={() => setOpen(null)} />
+      )}
       {open === 'routing' && currentRow && (
         <UserRoutingDialog
           user={currentRow}

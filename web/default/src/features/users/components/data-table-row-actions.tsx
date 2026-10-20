@@ -243,6 +243,21 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
         <DropdownMenuSeparator />
 
+        {myRole >= USER_ROLE.ADMIN &&
+          (myRole === USER_ROLE.ROOT || myRole > user.role) && (
+            <DropdownMenuItem
+              onClick={() => {
+                setCurrentRow(user)
+                setOpen('manual-topup')
+              }}
+            >
+              {t('Manual top-up')}
+              <DropdownMenuShortcut>
+                <CreditCard size={16} />
+              </DropdownMenuShortcut>
+            </DropdownMenuItem>
+          )}
+
         {myRole >= USER_ROLE.ADMIN && (
           <DropdownMenuItem
             disabled={myRole !== USER_ROLE.ROOT && myRole <= user.role}
