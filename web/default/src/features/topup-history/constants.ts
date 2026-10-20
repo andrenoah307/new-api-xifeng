@@ -25,7 +25,7 @@ export const INVOICE_STATUS_CONFIG: Record<
   number,
   { labelKey: string; variant: StatusVariant }
 > = {
-  0: { labelKey: 'Not Invoiced', variant: 'neutral' },
+  0: { labelKey: 'Pending Issuance', variant: 'warning' },
   1: { labelKey: 'Pending Issuance', variant: 'warning' },
   2: { labelKey: 'Issued', variant: 'success' },
 }
