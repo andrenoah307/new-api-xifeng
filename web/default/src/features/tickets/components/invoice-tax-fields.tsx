@@ -92,11 +92,6 @@ export function InvoiceTaxFields({
   return (
     <section className='space-y-3 border-y py-3'>
       <InvoiceTaxNotice />
-      <p className='text-muted-foreground text-xs'>
-        {t(
-          'Only verified CNY recharge records are eligible. Foreign-currency records are not supported yet.'
-        )}
-      </p>
       <div className='flex items-center justify-between gap-2'>
         <Label>{t('Invoice type')}</Label>
         <Button
