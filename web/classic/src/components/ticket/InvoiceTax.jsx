@@ -128,11 +128,6 @@ export function InvoiceTaxFields({ ids, open, onChange, type, onTypeChange }) {
   return (
     <div className='space-y-3 my-4'>
       <InvoiceTaxNotice />
-      <p>
-        {t(
-          'Only verified CNY recharge records are eligible. Foreign-currency records are not supported yet.',
-        )}
-      </p>
       <div className='flex items-center gap-2'>
         <Select
           className='flex-1 min-w-0'
