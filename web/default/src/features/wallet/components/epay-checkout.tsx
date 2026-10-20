@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 
-import { submitPaymentForm } from '../lib'
+import { getPaymentIcon, submitPaymentForm } from '../lib'
 
 interface Quote {
   total_cents: number
@@ -271,6 +271,9 @@ export function EpayCheckout({
                         checked={selectedMethod === value}
                         onChange={() => setMethod(value)}
                       />
+                      <span aria-hidden='true' className='shrink-0'>
+                        {getPaymentIcon(value, 'size-6')}
+                      </span>
                       {value === 'alipay' ? t('Alipay') : t('WeChat Pay')}
                     </label>
                   ))
