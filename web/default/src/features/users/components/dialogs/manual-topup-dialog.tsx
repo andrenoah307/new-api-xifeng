@@ -164,11 +164,18 @@ export function ManualTopupDialog({
             onChange={(event) => setAmount(event.target.value)}
           />
         </div>
-        <fieldset disabled={!!quote || busy} className='space-y-2'>
-          <legend>{t('Invoice type')}</legend>
+        <fieldset
+          disabled={!!quote || busy}
+          className='grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3'
+        >
+          <legend className='mb-2 font-medium'>{t('Invoice type')}</legend>
           {['none', 'ordinary', 'special'].map((kind) => (
-            <label key={kind} className='flex items-center gap-2'>
+            <label
+              key={kind}
+              className='border-input hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-primary has-[:focus-visible]:ring-ring flex min-h-16 min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[:focus-visible]:ring-2'
+            >
               <input
+                className='accent-primary size-4 shrink-0'
                 type='radio'
                 name='manual-invoice-type'
                 value={kind}
