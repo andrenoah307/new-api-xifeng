@@ -97,11 +97,30 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	var cents, prepaidNet, prepaidTax int64
 	for _, order := range orders {
 		if order.InvoiceType != "" {
-			if order.InvoiceType != invoiceType || order.CheckoutVersion != 1 || order.InvoiceNetCents <= 0 || order.InvoiceTaxCents < 0 || order.InvoiceNetCents+order.InvoiceTaxCents != order.PaymentTotalCents {
+			if order.InvoiceType != invoiceType {
 				return empty, ErrTicketInvoiceOrderInvalid
 			}
-			prepaidNet += order.InvoiceNetCents
-			prepaidTax += order.InvoiceTaxCents
+			switch order.CheckoutVersion {
+			case 1:
+				if order.InvoiceNetCents <= 0 || order.InvoiceTaxCents < 0 || order.InvoiceNetCents+order.InvoiceTaxCents != order.PaymentTotalCents {
+					return empty, ErrTicketInvoiceOrderInvalid
+				}
+				prepaidNet += order.InvoiceNetCents
+				prepaidTax += order.InvoiceTaxCents
+			case 0:
+				// An explicit type on a legacy recharge is an administrator's eligibility grant.
+				// Keep the original payment amount; do not synthesize tax or debit the wallet.
+				if !IsCNYInvoiceTopUp(order) {
+					return empty, ErrInvoiceTaxCurrency
+				}
+				amount, err := invoiceMoneyCents(order.Money)
+				if err != nil {
+					return empty, err
+				}
+				prepaidNet += amount
+			default:
+				return empty, ErrTicketInvoiceOrderInvalid
+			}
 			continue
 		}
 		if !config.LegacyTopUpsEnabled {

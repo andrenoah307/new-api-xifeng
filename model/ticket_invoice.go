@@ -289,8 +289,10 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 			if config.LegacyTopUpsEnabled && IsCNYInvoiceTopUp(order) {
 				eligible = append(eligible, order)
 			}
-		} else if order.CheckoutVersion == 1 && order.InvoiceType == invoiceType {
-			eligible = append(eligible, order)
+		} else if order.InvoiceType == invoiceType {
+			if order.CheckoutVersion == 1 || (order.CheckoutVersion == 0 && IsCNYInvoiceTopUp(order)) {
+				eligible = append(eligible, order)
+			}
 		}
 	}
 	return eligible, nil
@@ -356,12 +358,13 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 	)
 	var refundedQuota int
 	err = DB.Transaction(func(tx *gorm.DB) error {
-		config, err := GetInvoiceTaxConfig(tx)
-		if err != nil {
-			return err
-		}
 		var owner User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, params.UserId).Error; err != nil {
+			return err
+		}
+		// Start consistent reads only after locking, including on MySQL REPEATABLE READ.
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
 			return err
 		}
 		// Old versions closed only the ticket. Settle overlapping applications
@@ -585,6 +588,24 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 			return err
 		}
 		prevStatus = ticket.Status
+		if invoice.InvoiceStatus == InvoiceStatusRejected && invoiceStatus != InvoiceStatusRejected {
+			ids, err := invoice.GetTopUpOrderIDs()
+			if err != nil {
+				return err
+			}
+			orders, err := fetchSuccessTopUpsByIds(tx, invoice.UserId, ids)
+			if err != nil {
+				return err
+			}
+			if len(orders) != len(ids) {
+				return ErrTicketInvoiceOrderInvalid
+			}
+			for _, order := range orders {
+				if order.InvoiceType == "none" || (order.InvoiceType != "" && invoice.InvoiceType != "" && order.InvoiceType != invoice.InvoiceType) {
+					return ErrTicketInvoiceOrderInvalid
+				}
+			}
+		}
 		if invoiceStatus != InvoiceStatusRejected {
 			var others []*TicketInvoice
 			if err := activeInvoiceOrders(tx).Where("user_id = ? AND id <> ? AND invoice_status <> ?", invoice.UserId, invoice.Id, InvoiceStatusRejected).Find(&others).Error; err != nil {

@@ -1,10 +1,12 @@
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ColumnDef } from '@tanstack/react-table'
-import { Badge } from '@/components/ui/badge'
+
 import { StatusBadge } from '@/components/status-badge'
+import { Badge } from '@/components/ui/badge'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatTimestampToDate } from '@/lib/format'
+
 import type { TopupRecord } from '../api'
 import {
   STATUS_CONFIG,
@@ -71,7 +73,9 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
             return <Badge variant='secondary'>{t('Subscription')}</Badge>
           }
           return (
-            <span className='font-mono text-xs'>{row.original.checkout_credit_amount || row.original.amount}</span>
+            <span className='font-mono text-xs'>
+              {row.original.checkout_credit_amount || row.original.amount}
+            </span>
           )
         },
         meta: { label: t('Top-up Amount') },
@@ -102,6 +106,20 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
           )
         },
         meta: { label: t('Status'), mobileBadge: true },
+      },
+      {
+        accessorKey: 'invoice_type',
+        header: t('Invoice type'),
+        cell: ({ row }) => {
+          if (row.original.invoice_type === 'ordinary') {
+            return t('Ordinary VAT invoice')
+          }
+          if (row.original.invoice_type === 'special') {
+            return t('Special VAT invoice')
+          }
+          return '-'
+        },
+        meta: { label: t('Invoice type') },
       },
       {
         accessorKey: 'invoice_status',
