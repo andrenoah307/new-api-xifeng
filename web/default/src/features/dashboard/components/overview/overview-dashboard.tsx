@@ -63,6 +63,7 @@ import {
 import { AnnouncementsPanel } from './announcements-panel'
 import { ApiInfoPanel } from './api-info-panel'
 import { FAQPanel } from './faq-panel'
+import { FundingOverview } from './funding-overview'
 import { PerformanceHealthPanel } from './performance-health-panel'
 import { RateLimitCapacityPanel } from './rate-limit-capacity-panel'
 import { SummaryCards } from './summary-cards'
@@ -752,6 +753,7 @@ export function OverviewDashboard() {
       )}
 
       <SummaryCards />
+      <FundingOverview />
 
       {showRateLimitCapacityPanel && <RateLimitCapacityPanel />}
 
