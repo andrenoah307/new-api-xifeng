@@ -174,13 +174,19 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
       >
         {step === 1 ? (
           <div className='space-y-4'>
-            <p>
+            <p className='whitespace-pre-line leading-relaxed'>
               {t(
                 'Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.',
               )}
             </p>
-            <div className='flex flex-wrap justify-end gap-2'>
+            <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
               <Button
+                style={{
+                  height: 'auto',
+                  minHeight: 48,
+                  padding: '12px',
+                  whiteSpace: 'normal',
+                }}
                 onClick={() => {
                   setInvoiceType('none');
                   setMethod('');
@@ -190,6 +196,12 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
                 {t('No invoice')}
               </Button>
               <Button
+                style={{
+                  height: 'auto',
+                  minHeight: 48,
+                  padding: '12px',
+                  whiteSpace: 'normal',
+                }}
                 theme='solid'
                 onClick={() => {
                   setInvoiceType('ordinary');
@@ -209,13 +221,20 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
               )}
             </p>
             {invoiceType !== 'none' && (
-              <fieldset disabled={paying} className='space-y-2'>
+              <fieldset
+                disabled={paying}
+                className='grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3'
+              >
                 <legend className='mb-2 font-medium'>
                   {t('Invoice type')}
                 </legend>
                 {['ordinary', 'special'].map((kind) => (
-                  <label key={kind} className='flex items-center gap-2'>
+                  <label
+                    key={kind}
+                    className='flex min-h-16 min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-[var(--semi-color-border)] p-4 transition-colors hover:bg-[var(--semi-color-fill-0)] has-[:checked]:border-[var(--semi-color-primary)] has-[:checked]:bg-[var(--semi-color-primary-light-default)] has-[:checked]:text-[var(--semi-color-primary)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--semi-color-primary)] has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50'
+                  >
                     <input
+                      className='h-4 w-4 shrink-0 accent-[var(--semi-color-primary)]'
                       type='radio'
                       name='checkout-invoice-type'
                       value={kind}
@@ -232,14 +251,21 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
                 ))}
               </fieldset>
             )}
-            <fieldset disabled={paying} className='space-y-2'>
+            <fieldset
+              disabled={paying}
+              className='grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3'
+            >
               <legend className='mb-2 font-medium'>
                 {t('Payment Method')}
               </legend>
               {!channels && !methodsFailed && <p>{t('Loading...')}</p>}
               {available.map((value) => (
-                <label key={value} className='flex items-center gap-2'>
+                <label
+                  key={value}
+                  className='flex min-h-16 min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-[var(--semi-color-border)] p-4 transition-colors hover:bg-[var(--semi-color-fill-0)] has-[:checked]:border-[var(--semi-color-primary)] has-[:checked]:bg-[var(--semi-color-primary-light-default)] has-[:checked]:text-[var(--semi-color-primary)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--semi-color-primary)] has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50'
+                >
                   <input
+                    className='h-4 w-4 shrink-0 accent-[var(--semi-color-primary)]'
                     type='radio'
                     name='checkout-payment-method'
                     value={value}

@@ -181,7 +181,7 @@ export function EpayCheckout({
             <DialogTitle>
               {step === 1 ? t('Invoice confirmation') : t('Confirm payment')}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className='leading-relaxed whitespace-pre-line'>
               {step === 1
                 ? t(
                     'Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.'
@@ -192,9 +192,10 @@ export function EpayCheckout({
             </DialogDescription>
           </DialogHeader>
           {step === 1 ? (
-            <DialogFooter>
+            <DialogFooter className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
               <Button
                 variant='outline'
+                className='h-auto min-h-12 py-3 whitespace-normal'
                 onClick={() => {
                   setInvoiceType('none')
                   setMethod('')
@@ -204,6 +205,7 @@ export function EpayCheckout({
                 {t('No invoice')}
               </Button>
               <Button
+                className='h-auto min-h-12 py-3 whitespace-normal'
                 onClick={() => {
                   setInvoiceType('ordinary')
                   setMethod('')
@@ -216,13 +218,20 @@ export function EpayCheckout({
           ) : (
             <>
               {invoiceType !== 'none' && (
-                <fieldset className='space-y-2' disabled={pay.isPending}>
+                <fieldset
+                  className='grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3'
+                  disabled={pay.isPending}
+                >
                   <legend className='mb-2 font-medium'>
                     {t('Invoice type')}
                   </legend>
                   {['ordinary', 'special'].map((kind) => (
-                    <label key={kind} className='flex items-center gap-2'>
+                    <label
+                      key={kind}
+                      className='border-input hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-primary has-[:focus-visible]:ring-ring flex min-h-16 min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[:focus-visible]:ring-2'
+                    >
                       <input
+                        className='accent-primary size-4 shrink-0'
                         type='radio'
                         name='checkout-invoice-type'
                         value={kind}
@@ -240,7 +249,7 @@ export function EpayCheckout({
                 </fieldset>
               )}
               <fieldset
-                className='space-y-2'
+                className='grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3'
                 disabled={pay.isPending || methods.isFetching}
               >
                 <legend className='mb-2 font-medium'>
@@ -250,8 +259,12 @@ export function EpayCheckout({
                   <p>{t('Loading...')}</p>
                 ) : (
                   available.map((value) => (
-                    <label key={value} className='flex items-center gap-2'>
+                    <label
+                      key={value}
+                      className='border-input hover:bg-accent has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-primary has-[:focus-visible]:ring-ring flex min-h-16 min-w-0 cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[:focus-visible]:ring-2'
+                    >
                       <input
+                        className='accent-primary size-4 shrink-0'
                         type='radio'
                         name='checkout-payment-method'
                         value={value}
