@@ -496,6 +496,7 @@ func SetApiRouter(router *gin.Engine) {
 		}
 
 		dataRoute := apiRouter.Group("/data")
+		dataRoute.GET("/funding", middleware.RootAuth(), middleware.DashboardDataRateLimit(), controller.GetFundingOverview)
 		dataRoute.GET("/", middleware.AdminAuth(), controller.GetAllQuotaDates)
 		dataRoute.GET("/users", middleware.AdminAuth(), controller.GetQuotaDatesByUser)
 		dataRoute.GET("/self", middleware.UserAuth(), middleware.DashboardDataRateLimit(), controller.GetUserQuotaDates)
