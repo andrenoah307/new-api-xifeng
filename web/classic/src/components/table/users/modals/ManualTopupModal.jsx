@@ -112,11 +112,18 @@ export default function ManualTopupModal({
             onChange={setAmount}
           />
         </label>
-        <fieldset disabled={!!quote || busy} className='space-y-2'>
-          <legend>{t('Invoice type')}</legend>
+        <fieldset
+          disabled={!!quote || busy}
+          className='grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-3'
+        >
+          <legend className='mb-2 font-medium'>{t('Invoice type')}</legend>
           {['none', 'ordinary', 'special'].map((kind) => (
-            <label key={kind} className='flex items-center gap-2'>
+            <label
+              key={kind}
+              className='flex min-h-16 min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-[var(--semi-color-border)] p-4 transition-colors hover:bg-[var(--semi-color-fill-0)] has-[:checked]:border-[var(--semi-color-primary)] has-[:checked]:bg-[var(--semi-color-primary-light-default)] has-[:checked]:text-[var(--semi-color-primary)] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[var(--semi-color-primary)] has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50'
+            >
               <input
+                className='h-4 w-4 shrink-0 accent-[var(--semi-color-primary)]'
                 type='radio'
                 name='manual-invoice-type'
                 value={kind}
