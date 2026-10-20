@@ -1,12 +1,12 @@
 {
   "translation": {
-    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.",
+    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "Please confirm whether an invoice is required for this recharge before proceeding to payment. If required, select the invoice type in the next step. Applicable tax charges are included in the payment amount and are deducted when calculating the credited balance.\n\nIf no invoice is required, no tax charges apply and the order will not be eligible for an invoice application.",
     "Confirm payment": "Confirm payment",
     "Invoice confirmation": "Invoice confirmation",
     "Invoice required": "Invoice required",
     "No payment methods are available for this invoice choice.": "No payment methods are available for this invoice choice.",
     "Balance credited": "Balance credited",
-    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "Please verify the invoice type, payment method and amount breakdown before submitting payment. Applicable tax charges are included in the payment amount.",
     "No invoice": "No invoice",
     "Payment amount (CNY)": "Payment amount (CNY)",
     "Tax charge (CNY)": "Tax charge (CNY)",

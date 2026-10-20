@@ -1,12 +1,12 @@
 {
   "translation": {
-    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "请在支付前确认本次充值是否需要开票。如需开票，请现在选择“需要开票”，并在下一步选择发票类型。税费包含在您输入的实付金额中，计算到账余额时会扣除相应税费。选择“不开票”将生成不可开票订单，不收取税费；该订单之后无法改为可开票订单。",
+    "Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.": "请在付款前确认本次充值是否需要开具发票。如需开票，请在下一步选择发票类型。相应税费计入本次实付金额，计算到账额度时将扣除该部分税费。\n\n如选择不开票，本次充值不收取税费，生成的订单不具备开票申请资格。",
     "Confirm payment": "确认支付",
-    "Invoice confirmation": "开票确认",
+    "Invoice confirmation": "开票事项确认",
     "Invoice required": "需要开票",
     "No payment methods are available for this invoice choice.": "当前开票选择暂无可用支付方式。",
     "Balance credited": "到账额度",
-    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "开票资格和票种在充值时确定，实付金额已包含税费。",
+    "Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.": "请核对发票类型、支付方式及金额明细后提交支付。选择开票时，相应税费已包含在实付金额中。",
     "No invoice": "不开票",
     "Payment amount (CNY)": "实付金额（元）",
     "Tax charge (CNY)": "税费（元）",
