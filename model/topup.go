@@ -14,6 +14,7 @@ import (
 )
 
 type TopUp struct {
+	CreatedBy            int     `json:"-"`
 	CheckoutVersion      int     `json:"checkout_version"`
 	InvoiceType          string  `json:"invoice_type" gorm:"size:16"`
 	InvoiceTaxMode       string  `json:"invoice_tax_mode" gorm:"size:16"`

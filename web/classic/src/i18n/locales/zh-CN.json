@@ -5570,6 +5570,8 @@
     "Invoice required": "需要开票",
     "No payment methods are available for this invoice choice.": "当前开票选择暂无可用支付方式。",
     "WeChat Pay": "微信支付",
+    "Manual top-up": "手动充值",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "请登记已实际收取的款项。系统从实付金额中扣除相应税费，剩余金额计入用户余额，不参与充值优惠。",
     "Top navigation style": "顶部导航样式",
     "Default style": "默认样式",
     "Packy style": "Packy 风格",

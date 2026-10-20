@@ -31,6 +31,7 @@ export const INVOICE_STATUS_CONFIG: Record<
 }
 
 export const PAYMENT_METHOD_MAP: Record<string, string> = {
+  manual: 'Manual top-up',
   stripe: 'Stripe',
   creem: 'Creem',
   waffo: 'Waffo',
