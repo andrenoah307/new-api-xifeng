@@ -159,7 +159,12 @@ export function EpayCheckout({
           </div>
         )}
       </div>
-      <Button type='button' disabled={!validAmount} onClick={() => setStep(1)}>
+      <Button
+        type='button'
+        className='w-full'
+        disabled={!validAmount}
+        onClick={() => setStep(1)}
+      >
         {t('Continue')}
       </Button>
       <Dialog
