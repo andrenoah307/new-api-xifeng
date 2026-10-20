@@ -65,6 +65,9 @@ type InvoiceTaxCharge struct {
 }
 
 func IsCNYInvoiceTopUp(order *TopUp) bool {
+	if order.PaymentProvider == "manual" && order.CheckoutVersion == 1 && order.CreatedBy > 0 {
+		return true
+	}
 	return order.PaymentProvider == PaymentProviderEpay || (order.PaymentProvider == "" && (order.PaymentMethod == "alipay" || order.PaymentMethod == "wxpay"))
 }
 

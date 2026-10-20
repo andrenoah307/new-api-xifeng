@@ -5654,6 +5654,8 @@
     "Invoice required": "Invoice required",
     "No payment methods are available for this invoice choice.": "No payment methods are available for this invoice choice.",
     "WeChat Pay": "WeChat Pay",
+    "Manual top-up": "Manual top-up",
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.",
     "Top navigation style": "Top navigation style",
     "Default style": "Default style",
     "Packy style": "Packy style",
