@@ -53,6 +53,7 @@ const STATUS_CONFIG = {
 
 // 支付方式映射
 const PAYMENT_METHOD_MAP = {
+  manual: 'Manual top-up',
   stripe: 'Stripe',
   creem: 'Creem',
   waffo: 'Waffo',
