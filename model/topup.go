@@ -211,10 +211,11 @@ const searchTopUpCountHardLimit = 10000
 
 // TopUpFilter holds optional filter conditions for topup queries.
 type TopUpFilter struct {
-	Keyword   string
-	Status    string
-	StartTime int64
-	EndTime   int64
+	Keyword     string
+	Status      string
+	InvoiceType string
+	StartTime   int64
+	EndTime     int64
 
 	ExcludeSources []string
 }
@@ -428,6 +429,12 @@ func isNumericString(s string) bool {
 
 // applyTopUpAdminFilters 管理员查询：keyword 搜索 trade_no / user_id / username
 func applyTopUpAdminFilters(query *gorm.DB, filter TopUpFilter) (*gorm.DB, error) {
+	if filter.InvoiceType != "" {
+		if filter.InvoiceType != "ordinary" && filter.InvoiceType != "special" && filter.InvoiceType != "none" {
+			return query, ErrInvoiceTaxInvalid
+		}
+		query = query.Where("top_ups.invoice_type = ?", filter.InvoiceType)
+	}
 	if filter.Keyword != "" {
 		pattern, err := sanitizeLikePattern(filter.Keyword)
 		if err != nil {

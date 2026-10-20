@@ -541,8 +541,9 @@ func GetAllTopUps(c *gin.Context) {
 // parseTopUpFilter extracts keyword / status / time-range query params.
 func parseTopUpFilter(c *gin.Context) model.TopUpFilter {
 	filter := model.TopUpFilter{
-		Keyword: c.Query("keyword"),
-		Status:  c.Query("status"),
+		Keyword:     c.Query("keyword"),
+		Status:      c.Query("status"),
+		InvoiceType: c.Query("invoice_type"),
 	}
 	if v, err := strconv.ParseInt(c.Query("start_time"), 10, 64); err == nil {
 		filter.StartTime = v
@@ -555,6 +556,28 @@ func parseTopUpFilter(c *gin.Context) model.TopUpFilter {
 
 type AdminCompleteTopupRequest struct {
 	TradeNo string `json:"trade_no"`
+}
+
+func AdminUpdateTopUpInvoiceType(c *gin.Context) {
+	var req struct {
+		ID                  int     `json:"id"`
+		InvoiceType         string  `json:"invoice_type"`
+		ExpectedInvoiceType *string `json:"expected_invoice_type"`
+	}
+	if c.ShouldBindJSON(&req) != nil || req.ExpectedInvoiceType == nil {
+		handleTicketError(c, model.ErrInvoiceTaxInvalid)
+		return
+	}
+	order, err := model.UpdateTopUpInvoiceType(req.ID, *req.ExpectedInvoiceType, req.InvoiceType)
+	if err != nil {
+		handleTicketError(c, err)
+		return
+	}
+	recordManageAudit(c, "topup.invoice_type.update", map[string]interface{}{
+		"topup_id": order.Id, "user_id": order.UserId,
+		"previous_invoice_type": *req.ExpectedInvoiceType, "invoice_type": order.InvoiceType,
+	})
+	common.ApiSuccess(c, nil)
 }
 
 // AdminCompleteTopUp 管理员补单接口
