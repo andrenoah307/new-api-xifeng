@@ -148,7 +148,13 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
           </label>
         )}
       </div>
-      <Button disabled={!validAmount} onClick={() => setStep(1)}>
+      <Button
+        theme='solid'
+        type='primary'
+        block
+        disabled={!validAmount}
+        onClick={() => setStep(1)}
+      >
         {t('Continue')}
       </Button>
       <Modal
