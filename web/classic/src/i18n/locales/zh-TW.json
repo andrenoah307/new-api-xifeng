@@ -5193,7 +5193,7 @@
     "View": "查看",
     "Previous": "上一步",
     "Next": "下一步",
-    "Time range": "統計期間",
+    "Time range": "時間範圍",
     "Page size": "每頁筆數",
     "Loading": "載入中",
     "Revenue": "收入",
@@ -5397,6 +5397,19 @@
     "No payment methods are available for this invoice choice.": "目前的開票選擇沒有可用付款方式。",
     "WeChat Pay": "微信支付",
     "Manual top-up": "手動儲值",
-    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "請登記已實際收取的款項。系統從實付金額中扣除相關稅費，剩餘金額計入使用者餘額，不參與儲值優惠。"
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "請登記已實際收取的款項。系統從實付金額中扣除相關稅費，剩餘金額計入使用者餘額，不參與儲值優惠。",
+    "Administrator manual credits": "管理員手動加額",
+    "Apply": "套用",
+    "Calculated at {{time}}": "統計更新時間：{{time}}",
+    "Consumption amount": "消費金額",
+    "Consumption share": "消費占比",
+    "Custom": "自訂",
+    "Funding data unavailable. Check data collection and payment currencies.": "收支資料暫不可用，請檢查資料收集和支付幣別。",
+    "Funding overview": "額度收支",
+    "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "消費按小時彙總；入帳為退款前總額。手動加額包含有稽核紀錄的餘額增加及手動儲值入帳額度。",
+    "Last {{days}} days": "近 {{days}} 天",
+    "Select whole hours within a past 31-day range.": "請選擇整點起訖時間，跨度不超過31天，結束時間不可晚於目前時間。",
+    "Successful online top-ups": "線上成功儲值",
+    "Top-ups + manual credits": "儲值＋手動加額"
   }
 }

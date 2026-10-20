@@ -5418,6 +5418,19 @@
     "No payment methods are available for this invoice choice.": "Aucun moyen de paiement disponible pour ce choix de facturation.",
     "WeChat Pay": "WeChat Pay",
     "Manual top-up": "Recharge manuelle",
-    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Enregistrez un paiement déjà reçu. Les frais fiscaux sont déduits du montant payé ; le solde restant est crédité sans promotion."
+    "Record a payment already received. Tax is deducted from the payment amount; the remainder is credited without promotions.": "Enregistrez un paiement déjà reçu. Les frais fiscaux sont déduits du montant payé ; le solde restant est crédité sans promotion.",
+    "Administrator manual credits": "Crédits manuels administrateur",
+    "Apply": "Appliquer",
+    "Calculated at {{time}}": "Calculé le {{time}}",
+    "Consumption amount": "Montant consommé",
+    "Consumption share": "Part consommée",
+    "Custom": "Personnalisé",
+    "Funding data unavailable. Check data collection and payment currencies.": "Données indisponibles. Vérifiez la collecte et les devises des paiements.",
+    "Funding overview": "Recettes et consommation",
+    "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Consommation horaire ; apports avant remboursements. Les crédits manuels incluent les ajouts de solde audités et les recharges manuelles créditées.",
+    "Last {{days}} days": "{{days}} derniers jours",
+    "Select whole hours within a past 31-day range.": "Choisissez des heures entières, sur 31 jours maximum, sans date future.",
+    "Successful online top-ups": "Recharges en ligne réussies",
+    "Top-ups + manual credits": "Recharges + crédits manuels"
   }
 }
