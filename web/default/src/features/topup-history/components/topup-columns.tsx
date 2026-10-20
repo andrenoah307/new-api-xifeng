@@ -130,13 +130,10 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
           }
           if (
             !row.original.invoice_status &&
-            row.original.invoice_type === 'none'
+            row.original.invoice_type !== 'ordinary' &&
+            row.original.invoice_type !== 'special'
           ) {
-            return (
-              <span className='text-muted-foreground text-xs'>
-                {t('No invoice')}
-              </span>
-            )
+            return <span className='text-muted-foreground text-xs'>-</span>
           }
           const cfg = INVOICE_STATUS_CONFIG[row.original.invoice_status ?? 0]
           if (!cfg) {
