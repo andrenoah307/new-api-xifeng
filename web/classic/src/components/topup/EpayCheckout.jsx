@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Input, Modal } from '@douyinfe/semi-ui';
 import { CreditCard } from 'lucide-react';
+import { SiAlipay, SiWechat } from 'react-icons/si';
 import { useTranslation } from 'react-i18next';
 import { API, showError } from '../../helpers';
 
@@ -272,6 +273,13 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
                     checked={selectedMethod === value}
                     onChange={() => setMethod(value)}
                   />
+                  <span aria-hidden='true' className='shrink-0'>
+                    {value === 'alipay' ? (
+                      <SiAlipay size={24} color='#1677FF' />
+                    ) : (
+                      <SiWechat size={24} color='#07C160' />
+                    )}
+                  </span>
                   {value === 'alipay' ? t('Alipay') : t('WeChat Pay')}
                 </label>
               ))}
