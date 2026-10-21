@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { toIntlLocale } from '@/i18n/languages'
 import { api } from '@/lib/api'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
@@ -113,7 +114,8 @@ function FundingOverviewContent(props: { userId: number }) {
     setRange({ start: from, end: until })
   }
   const data = query.isError ? undefined : query.data
-  const formatter = new Intl.NumberFormat(i18n.language, {
+  const locale = toIntlLocale(i18n.language)
+  const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'CNY',
     maximumFractionDigits: 2,
@@ -226,7 +228,7 @@ function FundingOverviewContent(props: { userId: number }) {
           <dd className='mt-1 text-lg font-semibold tabular-nums'>
             {data?.consumption_ratio == null
               ? '--'
-              : new Intl.NumberFormat(i18n.language, {
+              : new Intl.NumberFormat(locale, {
                   style: 'percent',
                   maximumFractionDigits: 2,
                 }).format(data.consumption_ratio)}
