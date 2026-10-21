@@ -78,6 +78,9 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
   const [cacheHitPeriod, setCacheHitPeriod] = useState(
     getVal(settings, 'cache_hit_period_minutes') || '60'
   )
+  const [cacheExcludeNonStream, setCacheExcludeNonStream] = useState(
+    getVal(settings, 'cache_hit_exclude_non_stream') === 'true'
+  )
   const [aggregationInterval, setAggregationInterval] = useState(
     getVal(settings, 'aggregation_interval_minutes') || '5'
   )
@@ -151,6 +154,7 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
           value: availabilityPeriod,
         },
         { key: PREFIX + 'cache_hit_period_minutes', value: cacheHitPeriod },
+        { key: PREFIX + 'cache_hit_exclude_non_stream', value: String(cacheExcludeNonStream) },
         {
           key: PREFIX + 'aggregation_interval_minutes',
           value: aggregationInterval,
@@ -329,6 +333,10 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
         <div className='space-y-1'>
           <Label>{t('Exclude Models (Cache Hit)')}</Label>
           <TagInput value={cacheExcludeModels} onChange={setCacheExcludeModels} />
+        </div>
+        <div className='flex items-center justify-between gap-4'>
+          <Label htmlFor='cache-exclude-non-stream'>{t('Exclude non-streaming requests from cache hit rate')}</Label>
+          <Switch id='cache-exclude-non-stream' checked={cacheExcludeNonStream} onCheckedChange={setCacheExcludeNonStream} />
         </div>
 
         <div className='space-y-1'>

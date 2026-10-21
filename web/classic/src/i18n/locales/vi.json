@@ -5618,6 +5618,7 @@
     "{{count}} second_many": "{{count}} giây",
     "Excluded channels": "Kênh bị loại trừ",
     "Excluded users": "Người dùng bị loại trừ",
-    "Search by name": "Tìm theo tên"
+    "Search by name": "Tìm theo tên",
+    "Exclude non-streaming requests from cache hit rate": "Loại yêu cầu không streaming khỏi tỷ lệ trúng bộ nhớ đệm"
   }
 }

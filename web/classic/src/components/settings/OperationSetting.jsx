@@ -101,6 +101,7 @@ const OperationSetting = () => {
     'group_monitoring_setting.group_display_order': '',
     'group_monitoring_setting.availability_period_minutes': 60,
     'group_monitoring_setting.cache_hit_period_minutes': 60,
+    'group_monitoring_setting.cache_hit_exclude_non_stream': false,
     'group_monitoring_setting.aggregation_interval_minutes': 5,
     'group_monitoring_setting.availability_exclude_models': '',
     'group_monitoring_setting.cache_hit_exclude_models': '',

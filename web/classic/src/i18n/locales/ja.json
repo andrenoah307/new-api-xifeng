@@ -5075,6 +5075,7 @@
     "{{count}} second_many": "{{count}} 秒",
     "Excluded channels": "除外するチャネル",
     "Excluded users": "除外するユーザー",
-    "Search by name": "名前で検索"
+    "Search by name": "名前で検索",
+    "Exclude non-streaming requests from cache hit rate": "キャッシュヒット率から非ストリーミングリクエストを除外"
   }
 }

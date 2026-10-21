@@ -45,12 +45,12 @@ func TestMonitoringExclusionsBeforeRedis(t *testing.T) {
 	}))
 	operation_setting.RebuildMonitoringExclusionIndex()
 	for _, success := range []bool{true, false} {
-		RecordMonitoringMetric("test", 7, 1, success, 100, 25, 200, 50, "model", 503, "")
-		RecordMonitoringMetric("test", 1, 8, success, 100, 25, 200, 50, "model", 503, "")
+		RecordMonitoringMetric("test", 7, 1, success, 100, 25, 200, 50, "model", 503, "", true)
+		RecordMonitoringMetric("test", 1, 8, success, 100, 25, 200, 50, "model", 503, "", true)
 	}
 	assert.Empty(t, server.Keys(), "excluded samples must not write any Redis fields")
-	RecordMonitoringMetric("test", 1, 1, true, 100, 25, 200, 50, "model", 0, "")
-	RecordMonitoringMetric("test", 1, 1, false, 0, 0, 300, 0, "model", 503, "")
+	RecordMonitoringMetric("test", 1, 1, true, 100, 25, 200, 50, "model", 0, "", true)
+	RecordMonitoringMetric("test", 1, 1, false, 0, 0, 300, 0, "model", 503, "", true)
 	keys := server.Keys()
 	require.Len(t, keys, 1)
 	for field, want := range map[string]string{"t": "2", "s": "1", "e": "1", "pt": "100", "ct": "25", "rt": "500", "fs": "50", "fc": "1"} {
@@ -61,6 +61,6 @@ func TestMonitoringExclusionsBeforeRedis(t *testing.T) {
 		"group_monitoring_setting.excluded_user_ids":    "[]",
 	}))
 	operation_setting.RebuildMonitoringExclusionIndex()
-	RecordMonitoringMetric("test", 7, 8, true, 100, 25, 200, 50, "model", 0, "")
+	RecordMonitoringMetric("test", 7, 8, true, 100, 25, 200, 50, "model", 0, "", true)
 	assert.Len(t, server.Keys(), 2, "clearing exclusions resumes collection")
 }

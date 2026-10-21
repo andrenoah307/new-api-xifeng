@@ -5250,6 +5250,7 @@
     "{{count}} second_many": "{{count}} 秒",
     "Excluded channels": "排除渠道",
     "Excluded users": "排除用户",
-    "Search by name": "按名称搜索"
+    "Search by name": "按名称搜索",
+    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求"
   }
 }

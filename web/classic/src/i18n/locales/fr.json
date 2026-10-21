@@ -5108,6 +5108,7 @@
     "{{count}} second_few": "{{count}} secondes",
     "Excluded channels": "Canaux exclus",
     "Excluded users": "Utilisateurs exclus",
-    "Search by name": "Rechercher par nom"
+    "Search by name": "Rechercher par nom",
+    "Exclude non-streaming requests from cache hit rate": "Exclure les requêtes non streamées du taux de cache"
   }
 }

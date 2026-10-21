@@ -2991,6 +2991,7 @@
     "{{count}} minute_many": "{{count}} 分钟",
     "{{count}} second_one": "{{count}} 秒",
     "{{count}} second_few": "{{count}} 秒",
-    "{{count}} second_many": "{{count}} 秒"
+    "{{count}} second_many": "{{count}} 秒",
+    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求"
   }
 }

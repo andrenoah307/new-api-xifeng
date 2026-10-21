@@ -5335,6 +5335,7 @@
     "{{count}} second_many": "{{count}} seconds",
     "Excluded channels": "Excluded channels",
     "Excluded users": "Excluded users",
-    "Search by name": "Search by name"
+    "Search by name": "Search by name",
+    "Exclude non-streaming requests from cache hit rate": "Exclude non-streaming requests from cache hit rate"
   }
 }

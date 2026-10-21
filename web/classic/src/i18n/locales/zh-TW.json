@@ -5087,6 +5087,7 @@
     "{{count}} second_many": "{{count}} 秒",
     "Excluded channels": "排除渠道",
     "Excluded users": "排除使用者",
-    "Search by name": "依名稱搜尋"
+    "Search by name": "依名稱搜尋",
+    "Exclude non-streaming requests from cache hit rate": "快取命中率排除非串流請求"
   }
 }

@@ -465,7 +465,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 	}
 	realtimemetrics.RecordChannelCacheUsage(params.ChannelId, monitorPromptTokens, cacheTokens)
 	if common.GroupMonitoringHook != nil {
-		common.GroupMonitoringHook(params.Group, params.ChannelId, userId, true, monitorPromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "")
+		common.GroupMonitoringHook(params.Group, params.ChannelId, userId, true, monitorPromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "", params.IsStream)
 	}
 	if !common.LogConsumeEnabled {
 		return

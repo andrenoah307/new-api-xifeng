@@ -36,7 +36,7 @@ func isGroupMonitored(group string) bool {
 	return ok
 }
 
-func RecordMonitoringMetric(group string, channelId, userId int, isSuccess bool, promptTokens, cacheTokens, useTimeMs, frtMs int, modelName string, statusCode int, content string) {
+func RecordMonitoringMetric(group string, channelId, userId int, isSuccess bool, promptTokens, cacheTokens, useTimeMs, frtMs int, modelName string, statusCode int, content string, isStream bool) {
 	if !common.RedisEnabled || group == "" || group == "auto" {
 		return
 	}
@@ -113,6 +113,11 @@ func RecordMonitoringMetric(group string, channelId, userId int, isSuccess bool,
 	if !excludeCache {
 		pipe.HIncrBy(ctx, key, "ct", int64(cacheTokens))
 		pipe.HIncrBy(ctx, key, "pt", int64(promptTokens))
+		// Keep both populations so toggling the setting never mixes cache denominators.
+		if isStream {
+			pipe.HIncrBy(ctx, key, "sct", int64(cacheTokens))
+			pipe.HIncrBy(ctx, key, "spt", int64(promptTokens))
+		}
 	}
 
 	pipe.HIncrBy(ctx, key, "rt", int64(useTimeMs))
