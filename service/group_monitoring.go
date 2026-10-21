@@ -200,6 +200,11 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 			}
 
 			bd := parseBucketValues(vals)
+			if cfg.CacheHitExcludeNonStream {
+				// Missing streaming counters in pre-upgrade buckets mean no sample.
+				bd.CacheTokens, _ = strconv.ParseInt(vals["sct"], 10, 64)
+				bd.PromptTokens, _ = strconv.ParseInt(vals["spt"], 10, 64)
+			}
 			ck := channelKey{Group: group, ChannelId: chId}
 
 			// Fixed 1h token-weighted rate, independent of online status and configured windows.

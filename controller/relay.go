@@ -431,7 +431,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			service.RequestAccountingGroup(c), c.GetInt("channel_id"), relayInfo.UserId, false,
 			0, 0, useTimeMs, 0,
 			c.GetString("original_model"), newAPIError.StatusCode,
-			newAPIError.MaskSensitiveErrorWithStatusCode(),
+			newAPIError.MaskSensitiveErrorWithStatusCode(), relayInfo.IsStream,
 		)
 	}
 
@@ -843,7 +843,7 @@ func RelayTask(c *gin.Context) {
 		common.GroupMonitoringHook(
 			service.RequestAccountingGroup(c), c.GetInt("channel_id"), relayInfo.UserId, false,
 			0, 0, useTimeMs, 0,
-			c.GetString("original_model"), taskErr.StatusCode, "",
+			c.GetString("original_model"), taskErr.StatusCode, "", relayInfo.IsStream,
 		)
 	}
 

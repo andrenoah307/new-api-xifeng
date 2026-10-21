@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import React, { useEffect, useState, useRef } from 'react';
 import {
   Button,
@@ -36,6 +54,7 @@ export default function SettingsGroupMonitoring(props) {
     'group_monitoring_setting.group_display_order': '',
     'group_monitoring_setting.availability_period_minutes': 60,
     'group_monitoring_setting.cache_hit_period_minutes': 60,
+    'group_monitoring_setting.cache_hit_exclude_non_stream': false,
     'group_monitoring_setting.aggregation_interval_minutes': 5,
     'group_monitoring_setting.availability_exclude_models': '',
     'group_monitoring_setting.cache_hit_exclude_models': '',
@@ -96,7 +115,7 @@ export default function SettingsGroupMonitoring(props) {
     for (let key in inputs) {
       if (props.options && props.options[key] !== undefined) {
         const raw = props.options[key];
-        if (key === 'group_monitoring_setting.enabled') {
+        if (key === 'group_monitoring_setting.enabled' || key === 'group_monitoring_setting.cache_hit_exclude_non_stream') {
           currentInputs[key] =
             raw === true || raw === 'true' || raw === '1' || raw === 1;
         } else {
@@ -302,6 +321,11 @@ export default function SettingsGroupMonitoring(props) {
           </Row>
 
           {/* Numeric inputs */}
+          <Form.Switch
+            field='group_monitoring_setting.cache_hit_exclude_non_stream'
+            label={t('Exclude non-streaming requests from cache hit rate')}
+            onChange={(value) => setInputs({ ...inputs, 'group_monitoring_setting.cache_hit_exclude_non_stream': value })}
+          />
           <Row gutter={16}>
             <Col xs={24} sm={12} md={8}>
               <Form.InputNumber

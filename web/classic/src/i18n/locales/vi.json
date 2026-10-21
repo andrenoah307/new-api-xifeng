@@ -5732,6 +5732,7 @@
     "Select whole hours within a past 31-day range.": "Chọn giờ tròn, khoảng không quá 31 ngày và không ở tương lai.",
     "Funding data unavailable. Check data collection and payment currencies.": "Dữ liệu chưa khả dụng. Kiểm tra thu thập dữ liệu và tiền tệ thanh toán.",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Chi tiêu tổng hợp theo giờ; tiền nạp trước hoàn tiền. Cộng thủ công gồm tăng số dư có nhật ký kiểm toán và số dư từ nạp thủ công.",
-    "Calculated at {{time}}": "Thời điểm thống kê: {{time}}"
+    "Calculated at {{time}}": "Thời điểm thống kê: {{time}}",
+    "Exclude non-streaming requests from cache hit rate": "Loại yêu cầu không streaming khỏi tỷ lệ trúng bộ nhớ đệm"
   }
 }

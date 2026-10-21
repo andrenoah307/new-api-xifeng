@@ -5201,6 +5201,7 @@
     "Select whole hours within a past 31-day range.": "請選擇整點起訖時間，跨度不超過31天，結束時間不可晚於目前時間。",
     "Funding data unavailable. Check data collection and payment currencies.": "收支資料暫不可用，請檢查資料收集和支付幣別。",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "消費按小時彙總；入帳為退款前總額。手動加額包含有稽核紀錄的餘額增加及手動儲值入帳額度。",
-    "Calculated at {{time}}": "統計更新時間：{{time}}"
+    "Calculated at {{time}}": "統計更新時間：{{time}}",
+    "Exclude non-streaming requests from cache hit rate": "快取命中率排除非串流請求"
   }
 }

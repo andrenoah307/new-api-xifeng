@@ -49,13 +49,83 @@ func TestMonitoringBucketsRetainHourlyCacheWithShortWindows(t *testing.T) {
 		"group_monitoring_setting.cache_hit_period_minutes":     "5",
 		"group_monitoring_setting.aggregation_interval_minutes": "5",
 	}))
-	RecordMonitoringMetric("hourly", 1, 1, true, 100, 25, 100, 0, "", 0, "")
+	RecordMonitoringMetric("hourly", 1, 1, true, 100, 25, 100, 0, "", 0, "", true)
 	keys := server.Keys()
 	require.Len(t, keys, 1)
 	server.FastForward(59 * time.Minute)
 	assert.True(t, server.Exists(keys[0]), "a short configured window must not expire hourly samples")
 	assert.Equal(t, "100", server.HGet(keys[0], "pt"))
 	assert.Equal(t, "25", server.HGet(keys[0], "ct"))
+}
+
+func TestGroupMonitoringCacheStreamToggle(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	oldDB, oldRedis, oldEnabled := model.DB, common.RDB, common.RedisEnabled
+	saved := make(map[string]string)
+	require.NoError(t, config.GlobalConfig.SaveToDB(func(key, value string) error {
+		if strings.HasPrefix(key, "group_monitoring_setting.") {
+			saved[key] = value
+		}
+		return nil
+	}))
+	monitoredGroupsMu.Lock()
+	oldGroups := monitoredGroupsCache
+	monitoredGroupsCache = map[string]struct{}{"mixed": {}, "nonstream": {}, "legacy": {}}
+	monitoredGroupsMu.Unlock()
+	model.DB, common.RDB, common.RedisEnabled = db, client, true
+	t.Cleanup(func() {
+		model.DB, common.RDB, common.RedisEnabled = oldDB, oldRedis, oldEnabled
+		monitoredGroupsMu.Lock()
+		monitoredGroupsCache = oldGroups
+		monitoredGroupsMu.Unlock()
+		require.NoError(t, config.GlobalConfig.LoadFromDB(saved))
+		_ = client.Close()
+		_ = sqlDB.Close()
+	})
+	require.NoError(t, db.AutoMigrate(&model.GroupMonitoringStat{}, &model.ChannelMonitoringStat{}, &model.MonitoringHistory{}))
+	require.NoError(t, config.GlobalConfig.LoadFromDB(map[string]string{
+		"group_monitoring_setting.enabled":                       "true",
+		"group_monitoring_setting.cache_hit_exclude_models":      `["excluded"]`,
+		"group_monitoring_setting.frt_exclude_threshold_seconds": "0",
+	}))
+	RecordMonitoringMetric("mixed", 1, 1, true, 100, 80, 100, 50, "model", 0, "", true)
+	RecordMonitoringMetric("mixed", 1, 1, true, 900, 450, 100, 50, "model", 0, "", false)
+	RecordMonitoringMetric("mixed", 1, 1, true, 1000, 0, 100, 50, "excluded", 0, "", true)
+	RecordMonitoringMetric("nonstream", 1, 1, true, 100, 20, 100, 50, "model", 0, "", false)
+	key := fmt.Sprintf("gm:b:%d:legacy:1", time.Now().Unix()-60)
+	require.NoError(t, client.HSet(context.Background(), key, "pt", 100, "ct", 50, "t", 1, "s", 1).Err())
+	cfg := operation_setting.GetGroupMonitoringSetting()
+	cfg.MonitoringGroups = []string{"mixed", "nonstream", "legacy"}
+	for _, enabled := range []bool{false, true, false} {
+		cfg.CacheHitExcludeNonStream = enabled
+		runRedisAggregation(cfg, false)
+		stat, err := model.GetGroupMonitoringStatByName("mixed")
+		require.NoError(t, err)
+		require.NotNil(t, stat.CacheHitRate1h)
+		expected := 53.0
+		if enabled {
+			expected = 80
+		}
+		assert.InDelta(t, expected, *stat.CacheHitRate1h, 0.001)
+		assert.InDelta(t, expected, stat.CacheHitRate, 0.001)
+		assert.InDelta(t, 100, stat.AvailabilityRate, 0.001)
+		assert.Equal(t, 100, stat.AvgResponseTime)
+		assert.Equal(t, 50, stat.AvgFRT)
+		for _, group := range []string{"nonstream", "legacy"} {
+			stat, err = model.GetGroupMonitoringStatByName(group)
+			require.NoError(t, err)
+			if enabled {
+				assert.Nil(t, stat.CacheHitRate1h)
+			} else {
+				assert.NotNil(t, stat.CacheHitRate1h)
+			}
+		}
+	}
 }
 
 func TestGroupMonitoringHourlyCacheRate(t *testing.T) {

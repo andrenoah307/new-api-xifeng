@@ -1912,6 +1912,7 @@
     "Excellent": "Excellent",
     "Exchange rate is required": "Le taux de change est requis",
     "Exchange rate must be greater than 0": "Le taux de change doit être supérieur à 0",
+    "Exclude non-streaming requests from cache hit rate": "Exclure les requêtes non streamées du taux de cache",
     "Excluded channel IDs": "ID des canaux exclus",
     "Excluded channels": "Canaux exclus",
     "Excluded User Groups": "Groupes d'utilisateurs exclus",

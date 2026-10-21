@@ -5222,6 +5222,7 @@
     "Select whole hours within a past 31-day range.": "Choisissez des heures entières, sur 31 jours maximum, sans date future.",
     "Funding data unavailable. Check data collection and payment currencies.": "Données indisponibles. Vérifiez la collecte et les devises des paiements.",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Consommation horaire ; apports avant remboursements. Les crédits manuels incluent les ajouts de solde audités et les recharges manuelles créditées.",
-    "Calculated at {{time}}": "Calculé le {{time}}"
+    "Calculated at {{time}}": "Calculé le {{time}}",
+    "Exclude non-streaming requests from cache hit rate": "Exclure les requêtes non streamées du taux de cache"
   }
 }

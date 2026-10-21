@@ -5243,6 +5243,7 @@
     "Select whole hours within a past 31-day range.": "Выберите целые часы: период до 31 дня, без будущих дат.",
     "Funding data unavailable. Check data collection and payment currencies.": "Данные недоступны. Проверьте сбор статистики и валюты платежей.",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Расходы по часам; поступления до возвратов. Ручные начисления включают пополнения баланса с записью аудита и зачисления ручных платежей.",
-    "Calculated at {{time}}": "Рассчитано: {{time}}"
+    "Calculated at {{time}}": "Рассчитано: {{time}}",
+    "Exclude non-streaming requests from cache hit rate": "Исключать непотоковые запросы из доли попаданий в кэш"
   }
 }

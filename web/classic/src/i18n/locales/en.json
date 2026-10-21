@@ -5449,6 +5449,7 @@
     "Select whole hours within a past 31-day range.": "Select whole hours within a past 31-day range.",
     "Funding data unavailable. Check data collection and payment currencies.": "Funding data unavailable. Check data collection and payment currencies.",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.",
-    "Calculated at {{time}}": "Calculated at {{time}}"
+    "Calculated at {{time}}": "Calculated at {{time}}",
+    "Exclude non-streaming requests from cache hit rate": "Exclude non-streaming requests from cache hit rate"
   }
 }

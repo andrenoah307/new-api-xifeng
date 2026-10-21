@@ -1912,6 +1912,7 @@
     "Excellent": "Tuyệt vời",
     "Exchange rate is required": "Cần có tỷ giá",
     "Exchange rate must be greater than 0": "Tỷ giá phải lớn hơn 0",
+    "Exclude non-streaming requests from cache hit rate": "Loại yêu cầu không streaming khỏi tỷ lệ trúng bộ nhớ đệm",
     "Excluded channel IDs": "ID kênh bị loại trừ",
     "Excluded channels": "Kênh bị loại trừ",
     "Excluded User Groups": "Nhóm người dùng bị loại trừ",

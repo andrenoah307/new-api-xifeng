@@ -5189,6 +5189,7 @@
     "Select whole hours within a past 31-day range.": "正時を指定し、過去の31日以内の期間を選択してください。",
     "Funding data unavailable. Check data collection and payment currencies.": "データを取得できません。データ収集と決済通貨を確認してください。",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "利用額は時間単位、入金額は返金前の総額です。手動加算には監査記録のある残高加算と手動入金の反映額を含みます。",
-    "Calculated at {{time}}": "集計日時：{{time}}"
+    "Calculated at {{time}}": "集計日時：{{time}}",
+    "Exclude non-streaming requests from cache hit rate": "キャッシュヒット率から非ストリーミングリクエストを除外"
   }
 }

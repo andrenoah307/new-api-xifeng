@@ -1912,6 +1912,7 @@
     "Excellent": "優秀",
     "Exchange rate is required": "為替レートは必須です",
     "Exchange rate must be greater than 0": "為替レートは 0 より大きくする必要があります",
+    "Exclude non-streaming requests from cache hit rate": "キャッシュヒット率から非ストリーミングリクエストを除外",
     "Excluded channel IDs": "除外するチャネル ID",
     "Excluded channels": "除外するチャネル",
     "Excluded User Groups": "除外ユーザグループ",

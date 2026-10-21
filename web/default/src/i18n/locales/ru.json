@@ -1912,6 +1912,7 @@
     "Excellent": "Отлично",
     "Exchange rate is required": "Требуется курс обмена",
     "Exchange rate must be greater than 0": "Курс обмена должен быть больше 0",
+    "Exclude non-streaming requests from cache hit rate": "Исключать непотоковые запросы из доли попаданий в кэш",
     "Excluded channel IDs": "ID исключённых каналов",
     "Excluded channels": "Исключённые каналы",
     "Excluded User Groups": "Исключённые группы пользователей",

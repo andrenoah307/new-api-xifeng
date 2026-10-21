@@ -3088,6 +3088,7 @@
     "Tax paid": "税费已付",
     "Tax refunded to balance": "税费已退回余额",
     "Online tax payment is currently unavailable. Contact the administrator.": "暂未开放在线补税，请联系管理员。",
-    "Failed to load": "加载失败"
+    "Failed to load": "加载失败",
+    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求"
   }
 }

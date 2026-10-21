@@ -1912,6 +1912,7 @@
     "Excellent": "優秀",
     "Exchange rate is required": "匯率為必填項",
     "Exchange rate must be greater than 0": "匯率必須大於 0",
+    "Exclude non-streaming requests from cache hit rate": "快取命中率排除非串流請求",
     "Excluded channel IDs": "排除渠道 ID",
     "Excluded channels": "排除渠道",
     "Excluded User Groups": "排除分組",
