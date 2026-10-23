@@ -5452,6 +5452,21 @@
     "Last {{days}} days": "За {{days}} дн.",
     "Select whole hours within a past 31-day range.": "Выберите целые часы: период до 31 дня, без будущих дат.",
     "Successful online top-ups": "Успешные онлайн-пополнения",
-    "Top-ups + manual credits": "Пополнения + ручные начисления"
+    "Top-ups + manual credits": "Пополнения + ручные начисления",
+    "Add corporate gateway": "Добавить корпоративный шлюз",
+    "Corporate account name": "Название корпоративного счёта",
+    "Corporate gateway": "Корпоративный шлюз",
+    "Corporate gateway threshold (CNY)": "Порог корпоративного шлюза (CNY)",
+    "Delete": "Удалить",
+    "Enter new key to update": "Введите новый ключ для обновления",
+    "Invoice payment routing": "Маршрутизация платежей со счётом",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Платежи со счётом ниже порога проходят через частный шлюз с уплатой налога. При достижении порога используются корпоративные шлюзы.",
+    "Move down": "Переместить вниз",
+    "Move up": "Переместить вверх",
+    "Payment gateway name": "Название платёжного шлюза",
+    "Private payment gateway name": "Название частного платёжного шлюза",
+    "Random": "Случайный",
+    "Round robin": "По очереди",
+    "Routing strategy": "Стратегия маршрутизации"
   }
 }

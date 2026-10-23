@@ -5398,6 +5398,21 @@
     "Last {{days}} days": "過去 {{days}} 日間",
     "Select whole hours within a past 31-day range.": "正時を指定し、過去の31日以内の期間を選択してください。",
     "Successful online top-ups": "オンライン入金成功額",
-    "Top-ups + manual credits": "入金＋手動加算"
+    "Top-ups + manual credits": "入金＋手動加算",
+    "Add corporate gateway": "法人ゲートウェイを追加",
+    "Corporate account name": "法人口座名義",
+    "Corporate gateway": "法人ゲートウェイ",
+    "Corporate gateway threshold (CNY)": "法人ゲートウェイのしきい値（人民元）",
+    "Delete": "削除",
+    "Enter new key to update": "更新する新しいキーを入力",
+    "Invoice payment routing": "請求書付き決済のルーティング",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "請求書付き決済は支払総額がしきい値未満の場合、個人向けゲートウェイを使用し、税金も徴収します。しきい値以上では法人ゲートウェイを使用します。",
+    "Move down": "下へ移動",
+    "Move up": "上へ移動",
+    "Payment gateway name": "決済ゲートウェイ名",
+    "Private payment gateway name": "個人向け決済ゲートウェイ名",
+    "Random": "ランダム",
+    "Round robin": "ラウンドロビン",
+    "Routing strategy": "ルーティング方式"
   }
 }

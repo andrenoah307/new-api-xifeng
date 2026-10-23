@@ -5657,6 +5657,21 @@
     "Last {{days}} days": "Last {{days}} days",
     "Select whole hours within a past 31-day range.": "Select whole hours within a past 31-day range.",
     "Successful online top-ups": "Successful online top-ups",
-    "Top-ups + manual credits": "Top-ups + manual credits"
+    "Top-ups + manual credits": "Top-ups + manual credits",
+    "Add corporate gateway": "Add corporate gateway",
+    "Corporate account name": "Corporate account name",
+    "Corporate gateway": "Corporate gateway",
+    "Corporate gateway threshold (CNY)": "Corporate gateway threshold (CNY)",
+    "Delete": "Delete",
+    "Enter new key to update": "Enter new key to update",
+    "Invoice payment routing": "Invoice payment routing",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.",
+    "Move down": "Move down",
+    "Move up": "Move up",
+    "Payment gateway name": "Payment gateway name",
+    "Private payment gateway name": "Private payment gateway name",
+    "Random": "Random",
+    "Round robin": "Round robin",
+    "Routing strategy": "Routing strategy"
   }
 }

@@ -5941,6 +5941,21 @@
     "Last {{days}} days": "{{days}} ngày qua",
     "Select whole hours within a past 31-day range.": "Chọn giờ tròn, khoảng không quá 31 ngày và không ở tương lai.",
     "Successful online top-ups": "Nạp trực tuyến thành công",
-    "Top-ups + manual credits": "Nạp tiền + cộng thủ công"
+    "Top-ups + manual credits": "Nạp tiền + cộng thủ công",
+    "Add corporate gateway": "Thêm cổng doanh nghiệp",
+    "Corporate account name": "Tên tài khoản doanh nghiệp",
+    "Corporate gateway": "Cổng doanh nghiệp",
+    "Corporate gateway threshold (CNY)": "Ngưỡng cổng doanh nghiệp (CNY)",
+    "Delete": "Xóa",
+    "Enter new key to update": "Nhập khóa mới để cập nhật",
+    "Invoice payment routing": "Định tuyến thanh toán có hóa đơn",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Thanh toán có hóa đơn dưới ngưỡng dùng cổng cá nhân và vẫn thu thuế. Từ ngưỡng trở lên dùng cổng doanh nghiệp.",
+    "Move down": "Di chuyển xuống",
+    "Move up": "Di chuyển lên",
+    "Payment gateway name": "Tên cổng thanh toán",
+    "Private payment gateway name": "Tên cổng thanh toán cá nhân",
+    "Random": "Ngẫu nhiên",
+    "Round robin": "Luân phiên theo thứ tự",
+    "Routing strategy": "Chiến lược định tuyến"
   }
 }
