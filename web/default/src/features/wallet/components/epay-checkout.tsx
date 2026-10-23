@@ -53,10 +53,10 @@ export function EpayCheckout({
   const validAmount =
     amount === settledAmount && cents > 0 && cents >= minimum * 100
   const methods = useQuery({
-    queryKey: ['epay-checkout-methods', invoiceType],
+    queryKey: ['epay-checkout-methods', invoiceType, cents],
     queryFn: async ({ signal }) => {
       const { data } = await api.get('/api/user/epay/checkout/methods', {
-        params: { invoice_type: invoiceType },
+        params: { invoice_type: invoiceType, total_cents: cents },
         signal,
         disableDuplicate: true,
         skipErrorHandler: true,
@@ -64,7 +64,7 @@ export function EpayCheckout({
       if (!data.success) throw new Error(data.message)
       return data.data as string[]
     },
-    enabled: step === 2,
+    enabled: step === 2 && validAmount,
     retry: false,
     gcTime: 0,
     staleTime: 0,

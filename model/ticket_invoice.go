@@ -701,19 +701,21 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 }
 
 type InvoiceExportItem struct {
-	InvoiceType   string  `json:"invoice_type"`
-	TaxMode       string  `json:"tax_mode"`
-	TaxRateBps    int     `json:"tax_rate_bps"`
-	TaxFeeCents   int64   `json:"tax_fee_cents"`
-	TicketId      int     `json:"ticket_id" gorm:"column:ticket_id"`
-	CompanyName   string  `json:"company_name" gorm:"column:company_name"`
-	TaxNumber     string  `json:"tax_number" gorm:"column:tax_number"`
-	Email         string  `json:"email" gorm:"column:email"`
-	TotalMoney    float64 `json:"total_money" gorm:"column:total_money"`
-	TopUpOrderIds string  `json:"-" gorm:"column:top_up_order_ids"`
-	OrderCount    int     `json:"order_count" gorm:"-"`
-	Status        int     `json:"status" gorm:"column:status"`
-	CreatedTime   int64   `json:"created_time" gorm:"column:created_time"`
+	UserId              int     `json:"-"`
+	PaymentRoutingNotes string  `json:"payment_routing_notes" gorm:"-"`
+	InvoiceType         string  `json:"invoice_type"`
+	TaxMode             string  `json:"tax_mode"`
+	TaxRateBps          int     `json:"tax_rate_bps"`
+	TaxFeeCents         int64   `json:"tax_fee_cents"`
+	TicketId            int     `json:"ticket_id" gorm:"column:ticket_id"`
+	CompanyName         string  `json:"company_name" gorm:"column:company_name"`
+	TaxNumber           string  `json:"tax_number" gorm:"column:tax_number"`
+	Email               string  `json:"email" gorm:"column:email"`
+	TotalMoney          float64 `json:"total_money" gorm:"column:total_money"`
+	TopUpOrderIds       string  `json:"-" gorm:"column:top_up_order_ids"`
+	OrderCount          int     `json:"order_count" gorm:"-"`
+	Status              int     `json:"status" gorm:"column:status"`
+	CreatedTime         int64   `json:"created_time" gorm:"column:created_time"`
 }
 
 type InvoiceExportFilter struct {
@@ -728,7 +730,7 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	items := make([]*InvoiceExportItem, 0)
 
 	query := DB.Table("tickets t").
-		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time, COALESCE(NULLIF(ti.invoice_type, ''), tc.invoice_type) AS invoice_type, tc.mode AS tax_mode, tc.rate_bps AS tax_rate_bps, CASE WHEN ti.invoice_type IS NOT NULL AND ti.invoice_type <> '' THEN ti.invoice_tax_cents ELSE tc.fee_cents END AS tax_fee_cents").
+		Select("t.user_id, t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time, COALESCE(NULLIF(ti.invoice_type, ''), tc.invoice_type) AS invoice_type, tc.mode AS tax_mode, tc.rate_bps AS tax_rate_bps, CASE WHEN ti.invoice_type IS NOT NULL AND ti.invoice_type <> '' THEN ti.invoice_tax_cents ELSE tc.fee_cents END AS tax_fee_cents").
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
 		Joins("LEFT JOIN invoice_tax_charges tc ON tc.ticket_id = t.id").
 		Where("ti.invoice_status <> ?", InvoiceStatusRejected).
@@ -769,12 +771,31 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 		return nil, 0, err
 	}
 
-	for _, item := range items {
+	owners := map[int]int{}
+	itemOrderIDs := make([][]int, len(items))
+	for index, item := range items {
 		var orderIds []int
 		if strings.TrimSpace(item.TopUpOrderIds) != "" {
 			_ = common.UnmarshalJsonStr(item.TopUpOrderIds, &orderIds)
 		}
 		item.OrderCount = len(orderIds)
+		itemOrderIDs[index] = orderIds
+		for _, id := range orderIds {
+			owners[id] = item.UserId
+		}
+	}
+	notes, err := LoadEpayRoutingExportNotes(DB, owners)
+	if err != nil {
+		return nil, 0, err
+	}
+	for index, item := range items {
+		var rows []string
+		for _, id := range itemOrderIDs[index] {
+			if owners[id] == item.UserId && notes[id] != "" {
+				rows = append(rows, notes[id])
+			}
+		}
+		item.PaymentRoutingNotes = strings.Join(rows, "\n")
 	}
 
 	return items, total, nil
