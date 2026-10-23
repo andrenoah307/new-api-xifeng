@@ -23,19 +23,20 @@ type EpayCheckoutRequest struct {
 }
 
 type EpayCheckoutQuote struct {
-	InvoiceType    string            `json:"invoice_type"`
-	Mode           string            `json:"mode"`
-	RateBps        int               `json:"rate_bps"`
-	TotalCents     int64             `json:"total_cents"`
-	NetCents       int64             `json:"net_cents"`
-	TaxCents       int64             `json:"tax_cents"`
-	BaseQuota      int               `json:"base_quota"`
-	Quota          int               `json:"quota"`
-	CreditAmount   string            `json:"credit_amount"`
-	DiscountCodeID int               `json:"discount_code_id"`
-	DiscountRate   int               `json:"discount_rate"`
-	Token          string            `json:"token"`
-	Credentials    InvoiceEpayConfig `json:"-"`
+	InvoiceType    string              `json:"invoice_type"`
+	Mode           string              `json:"mode"`
+	RateBps        int                 `json:"rate_bps"`
+	TotalCents     int64               `json:"total_cents"`
+	NetCents       int64               `json:"net_cents"`
+	TaxCents       int64               `json:"tax_cents"`
+	BaseQuota      int                 `json:"base_quota"`
+	Quota          int                 `json:"quota"`
+	CreditAmount   string              `json:"credit_amount"`
+	DiscountCodeID int                 `json:"discount_code_id"`
+	DiscountRate   int                 `json:"discount_rate"`
+	Token          string              `json:"token"`
+	Routes         []InvoiceEpayConfig `json:"-"`
+	Strategy       string              `json:"-"`
 }
 
 func CalculateEpayCheckout(totalCents int64, invoiceType string, config InvoiceTaxConfig, price decimal.Decimal, discountRate int) (EpayCheckoutQuote, error) {
@@ -79,11 +80,21 @@ func QuoteEpayCheckout(db *gorm.DB, userID int, req EpayCheckoutRequest, reserve
 	if err != nil {
 		return empty, err
 	}
-	credentials, err := GetEpayCheckoutGateway(db, req.InvoiceType)
+	routingDB := db
+	if reserve {
+		routingDB = lockForUpdate(db)
+	}
+	routes, strategy, err := GetEpayCheckoutCandidates(routingDB, req.InvoiceType, req.TotalCents)
 	if err != nil {
 		return empty, err
 	}
-	if credentials.Address == "" || credentials.PartnerID == "" || credentials.Key == "" || !slices.Contains(credentials.CheckoutMethods(), req.PaymentMethod) {
+	eligible := []InvoiceEpayConfig{}
+	for _, route := range routes {
+		if slices.Contains(route.CheckoutMethods(), req.PaymentMethod) {
+			eligible = append(eligible, route)
+		}
+	}
+	if len(eligible) == 0 {
 		return empty, ErrInvoiceTaxInvalid
 	}
 	groupRatio := common.GetTopupGroupRatio(user.Group)
@@ -128,13 +139,14 @@ func QuoteEpayCheckout(db *gorm.DB, userID int, req EpayCheckoutRequest, reserve
 		return empty, ErrInvoiceTaxInvalid
 	}
 	quote.DiscountCodeID = dc.Id
-	quote.Credentials = credentials
+	quote.Routes, quote.Strategy = eligible, strategy
 	raw, err := common.Marshal(struct {
 		Quote    EpayCheckoutQuote
 		UserID   int
 		Method   string
-		Merchant InvoiceEpayConfig
-	}{quote, userID, req.PaymentMethod, credentials})
+		Routes   []InvoiceEpayConfig
+		Strategy string
+	}{quote, userID, req.PaymentMethod, eligible, strategy})
 	if err != nil {
 		return empty, err
 	}
@@ -172,7 +184,11 @@ func CreateEpayCheckout(userID int, req EpayCheckoutRequest) (*TopUp, error) {
 		if req.Token == "" || quote.Token != req.Token {
 			return ErrInvoiceTaxQuoteChanged
 		}
-		credentials, err := common.Marshal(quote.Credentials)
+		selected, err := selectEpayCheckoutGateway(tx, quote.Routes, quote.Strategy, req.PaymentMethod)
+		if err != nil {
+			return err
+		}
+		credentials, err := common.Marshal(selected)
 		if err != nil {
 			return err
 		}
@@ -188,7 +204,14 @@ func CreateEpayCheckout(userID int, req EpayCheckoutRequest) (*TopUp, error) {
 			CheckoutBaseQuota: quote.BaseQuota, CheckoutQuota: quote.Quota, EpayCredentials: string(credentials),
 		}
 		// Credential-bearing SQL must not be interpolated into the ORM error log.
-		return tx.Session(&gorm.Session{Logger: gormlogger.Discard}).Create(&order).Error
+		result := tx.Session(&gorm.Session{Logger: gormlogger.Discard}).Create(&order)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrInvoiceTaxInvalid
+		}
+		return nil
 	})
 	return &order, err
 }
