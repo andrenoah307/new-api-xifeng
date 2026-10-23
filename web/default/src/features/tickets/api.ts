@@ -456,6 +456,7 @@ export function getAttachmentUrl(id: number, inline = false): string {
 }
 
 export interface InvoiceExportItem {
+  payment_routing_notes?: string
   invoice_type?: string
   tax_mode?: string
   tax_rate_bps?: number

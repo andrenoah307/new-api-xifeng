@@ -5733,6 +5733,21 @@
     "Funding data unavailable. Check data collection and payment currencies.": "Dữ liệu chưa khả dụng. Kiểm tra thu thập dữ liệu và tiền tệ thanh toán.",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Chi tiêu tổng hợp theo giờ; tiền nạp trước hoàn tiền. Cộng thủ công gồm tăng số dư có nhật ký kiểm toán và số dư từ nạp thủ công.",
     "Calculated at {{time}}": "Thời điểm thống kê: {{time}}",
-    "Exclude non-streaming requests from cache hit rate": "Loại yêu cầu không streaming khỏi tỷ lệ trúng bộ nhớ đệm"
+    "Exclude non-streaming requests from cache hit rate": "Loại yêu cầu không streaming khỏi tỷ lệ trúng bộ nhớ đệm",
+    "Invoice payment routing": "Định tuyến thanh toán có hóa đơn",
+    "Corporate gateway threshold (CNY)": "Ngưỡng cổng doanh nghiệp (CNY)",
+    "Routing strategy": "Chiến lược định tuyến",
+    "Round robin": "Luân phiên theo thứ tự",
+    "Corporate gateway": "Cổng doanh nghiệp",
+    "Corporate account name": "Tên tài khoản doanh nghiệp",
+    "Add corporate gateway": "Thêm cổng doanh nghiệp",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Thanh toán có hóa đơn dưới ngưỡng dùng cổng cá nhân và vẫn thu thuế. Từ ngưỡng trở lên dùng cổng doanh nghiệp.",
+    "Move up": "Di chuyển lên",
+    "Move down": "Di chuyển xuống",
+    "Random": "Ngẫu nhiên",
+    "Delete": "Xóa",
+    "Enter new key to update": "Nhập khóa mới để cập nhật",
+    "Payment gateway name": "Tên cổng thanh toán",
+    "Private payment gateway name": "Tên cổng thanh toán cá nhân"
   }
 }

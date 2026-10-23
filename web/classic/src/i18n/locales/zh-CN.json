@@ -5365,6 +5365,21 @@
     "Funding data unavailable. Check data collection and payment currencies.": "收支数据暂不可用，请检查数据采集和支付币种。",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "消费按小时汇总；入账为退款前总额。手工加额包含有审计记录的余额增加及手动充值到账额度。",
     "Calculated at {{time}}": "统计更新时间：{{time}}",
-    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求"
+    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求",
+    "Invoice payment routing": "开票支付路由",
+    "Corporate gateway threshold (CNY)": "对公网关金额门槛（元）",
+    "Routing strategy": "路由策略",
+    "Round robin": "顺序轮询",
+    "Corporate gateway": "对公网关",
+    "Corporate account name": "公帐名称",
+    "Add corporate gateway": "添加对公网关",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "开票订单实付金额低于门槛时使用对私网关，仍收取税费；达到或超过门槛时使用对公网关。",
+    "Move up": "上移",
+    "Move down": "下移",
+    "Random": "随机",
+    "Delete": "删除",
+    "Enter new key to update": "输入新密钥以更新",
+    "Payment gateway name": "支付网关名称",
+    "Private payment gateway name": "对私支付网关名称"
   }
 }

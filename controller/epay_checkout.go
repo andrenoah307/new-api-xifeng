@@ -2,6 +2,7 @@ package controller
 
 import (
 	"net/url"
+	"strconv"
 
 	"github.com/Calcium-Ion/go-epay/epay"
 	"github.com/QuantumNous/new-api/common"
@@ -13,7 +14,16 @@ import (
 )
 
 func GetEpayCheckoutMethods(c *gin.Context) {
-	methods, err := model.GetEpayCheckoutMethods(model.DB.WithContext(c.Request.Context()), c.Query("invoice_type"))
+	amount := int64(100000000000)
+	if raw, ok := c.GetQuery("total_cents"); ok {
+		var err error
+		amount, err = strconv.ParseInt(raw, 10, 64)
+		if err != nil || amount <= 0 || amount > 100000000000 {
+			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
+	}
+	methods, err := model.GetEpayCheckoutMethods(model.DB.WithContext(c.Request.Context()), c.Query("invoice_type"), amount)
 	if err != nil {
 		handleTicketError(c, err)
 		return

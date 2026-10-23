@@ -27,7 +27,7 @@ func TestInvoiceEpayConfigurationIsRootOnlyAndNeverReturnsSecret(t *testing.T) {
 		user := model.User{Username: token, Password: "password", Role: role, Status: common.UserStatusEnabled, AffCode: token, AccessToken: &token}
 		require.NoError(t, db.Create(&user).Error)
 		for _, method := range []string{"PUT", "GET"} {
-			req := httptest.NewRequest(method, "/api/option/invoice-epay", strings.NewReader(`{"address":"https://pay.example.test","partner_id":"invoice-merchant","key":"hidden-invoice-key"}`))
+			req := httptest.NewRequest(method, "/api/option/invoice-epay", strings.NewReader(`{"strategy":"round_robin","private_below_cents":50000,"private_gateway_name":"Gateway P","gateways":[{"id":"corporate-a","name":"Gateway A","account_name":"Issuer A","address":"https://pay.example.test","partner_id":"invoice-merchant","key":"hidden-invoice-key","payment_methods":["wxpay"]}]}`))
 			req.Header.Set("Authorization", "Bearer "+token)
 			req.Header.Set("New-Api-User", strconv.Itoa(user.Id))
 			req.Header.Set("Content-Type", "application/json")
@@ -39,6 +39,7 @@ func TestInvoiceEpayConfigurationIsRootOnlyAndNeverReturnsSecret(t *testing.T) {
 				assert.Contains(t, w.Body.String(), `"key_configured":true`)
 			} else {
 				assert.NotContains(t, w.Body.String(), `"success":true`)
+				assert.NotContains(t, w.Body.String(), "Issuer A")
 			}
 		}
 	}

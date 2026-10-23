@@ -5223,6 +5223,21 @@
     "Funding data unavailable. Check data collection and payment currencies.": "Données indisponibles. Vérifiez la collecte et les devises des paiements.",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Consommation horaire ; apports avant remboursements. Les crédits manuels incluent les ajouts de solde audités et les recharges manuelles créditées.",
     "Calculated at {{time}}": "Calculé le {{time}}",
-    "Exclude non-streaming requests from cache hit rate": "Exclure les requêtes non streamées du taux de cache"
+    "Exclude non-streaming requests from cache hit rate": "Exclure les requêtes non streamées du taux de cache",
+    "Invoice payment routing": "Routage des paiements avec facture",
+    "Corporate gateway threshold (CNY)": "Seuil du prestataire professionnel (CNY)",
+    "Routing strategy": "Stratégie de routage",
+    "Round robin": "À tour de rôle",
+    "Corporate gateway": "Prestataire professionnel",
+    "Corporate account name": "Nom du compte professionnel",
+    "Add corporate gateway": "Ajouter un prestataire professionnel",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Les paiements facturés sous le seuil utilisent le prestataire privé, avec taxe. À partir du seuil, ils utilisent les prestataires professionnels.",
+    "Move up": "Monter",
+    "Move down": "Descendre",
+    "Random": "Aléatoire",
+    "Delete": "Supprimer",
+    "Enter new key to update": "Saisir la nouvelle clé à mettre à jour",
+    "Payment gateway name": "Nom du prestataire de paiement",
+    "Private payment gateway name": "Nom du prestataire de paiement privé"
   }
 }

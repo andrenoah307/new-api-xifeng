@@ -5190,6 +5190,21 @@
     "Funding data unavailable. Check data collection and payment currencies.": "データを取得できません。データ収集と決済通貨を確認してください。",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "利用額は時間単位、入金額は返金前の総額です。手動加算には監査記録のある残高加算と手動入金の反映額を含みます。",
     "Calculated at {{time}}": "集計日時：{{time}}",
-    "Exclude non-streaming requests from cache hit rate": "キャッシュヒット率から非ストリーミングリクエストを除外"
+    "Exclude non-streaming requests from cache hit rate": "キャッシュヒット率から非ストリーミングリクエストを除外",
+    "Invoice payment routing": "請求書付き決済のルーティング",
+    "Corporate gateway threshold (CNY)": "法人ゲートウェイのしきい値（人民元）",
+    "Routing strategy": "ルーティング方式",
+    "Round robin": "ラウンドロビン",
+    "Corporate gateway": "法人ゲートウェイ",
+    "Corporate account name": "法人口座名義",
+    "Add corporate gateway": "法人ゲートウェイを追加",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "請求書付き決済は支払総額がしきい値未満の場合、個人向けゲートウェイを使用し、税金も徴収します。しきい値以上では法人ゲートウェイを使用します。",
+    "Move up": "上へ移動",
+    "Move down": "下へ移動",
+    "Random": "ランダム",
+    "Delete": "削除",
+    "Enter new key to update": "更新する新しいキーを入力",
+    "Payment gateway name": "決済ゲートウェイ名",
+    "Private payment gateway name": "個人向け決済ゲートウェイ名"
   }
 }

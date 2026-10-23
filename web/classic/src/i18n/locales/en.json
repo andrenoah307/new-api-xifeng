@@ -5450,6 +5450,21 @@
     "Funding data unavailable. Check data collection and payment currencies.": "Funding data unavailable. Check data collection and payment currencies.",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.",
     "Calculated at {{time}}": "Calculated at {{time}}",
-    "Exclude non-streaming requests from cache hit rate": "Exclude non-streaming requests from cache hit rate"
+    "Exclude non-streaming requests from cache hit rate": "Exclude non-streaming requests from cache hit rate",
+    "Invoice payment routing": "Invoice payment routing",
+    "Corporate gateway threshold (CNY)": "Corporate gateway threshold (CNY)",
+    "Routing strategy": "Routing strategy",
+    "Round robin": "Round robin",
+    "Corporate gateway": "Corporate gateway",
+    "Corporate account name": "Corporate account name",
+    "Add corporate gateway": "Add corporate gateway",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.",
+    "Move up": "Move up",
+    "Move down": "Move down",
+    "Random": "Random",
+    "Delete": "Delete",
+    "Enter new key to update": "Enter new key to update",
+    "Payment gateway name": "Payment gateway name",
+    "Private payment gateway name": "Private payment gateway name"
   }
 }

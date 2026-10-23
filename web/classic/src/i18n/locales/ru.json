@@ -5244,6 +5244,21 @@
     "Funding data unavailable. Check data collection and payment currencies.": "Данные недоступны. Проверьте сбор статистики и валюты платежей.",
     "Hourly consumption; gross funding before refunds. Manual credits include audited balance additions and manual top-up credits.": "Расходы по часам; поступления до возвратов. Ручные начисления включают пополнения баланса с записью аудита и зачисления ручных платежей.",
     "Calculated at {{time}}": "Рассчитано: {{time}}",
-    "Exclude non-streaming requests from cache hit rate": "Исключать непотоковые запросы из доли попаданий в кэш"
+    "Exclude non-streaming requests from cache hit rate": "Исключать непотоковые запросы из доли попаданий в кэш",
+    "Invoice payment routing": "Маршрутизация платежей со счётом",
+    "Corporate gateway threshold (CNY)": "Порог корпоративного шлюза (CNY)",
+    "Routing strategy": "Стратегия маршрутизации",
+    "Round robin": "По очереди",
+    "Corporate gateway": "Корпоративный шлюз",
+    "Corporate account name": "Название корпоративного счёта",
+    "Add corporate gateway": "Добавить корпоративный шлюз",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Платежи со счётом ниже порога проходят через частный шлюз с уплатой налога. При достижении порога используются корпоративные шлюзы.",
+    "Move up": "Переместить вверх",
+    "Move down": "Переместить вниз",
+    "Random": "Случайный",
+    "Delete": "Удалить",
+    "Enter new key to update": "Введите новый ключ для обновления",
+    "Payment gateway name": "Название платёжного шлюза",
+    "Private payment gateway name": "Название частного платёжного шлюза"
   }
 }

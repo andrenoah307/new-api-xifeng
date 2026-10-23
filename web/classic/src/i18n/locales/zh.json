@@ -3089,6 +3089,21 @@
     "Tax refunded to balance": "税费已退回余额",
     "Online tax payment is currently unavailable. Contact the administrator.": "暂未开放在线补税，请联系管理员。",
     "Failed to load": "加载失败",
-    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求"
+    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求",
+    "Invoice payment routing": "开票支付路由",
+    "Corporate gateway threshold (CNY)": "对公网关金额门槛（元）",
+    "Routing strategy": "路由策略",
+    "Round robin": "顺序轮询",
+    "Corporate gateway": "对公网关",
+    "Corporate account name": "公帐名称",
+    "Add corporate gateway": "添加对公网关",
+    "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "开票订单实付金额低于门槛时使用对私网关，仍收取税费；达到或超过门槛时使用对公网关。",
+    "Move up": "上移",
+    "Move down": "下移",
+    "Random": "随机",
+    "Delete": "删除",
+    "Enter new key to update": "输入新密钥以更新",
+    "Payment gateway name": "支付网关名称",
+    "Private payment gateway name": "对私支付网关名称"
   }
 }
