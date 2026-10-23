@@ -16,7 +16,14 @@ func GetInvoiceEpayConfig(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	common.ApiSuccess(c, gin.H{"address": config.Address, "partner_id": config.PartnerID, "key_configured": config.Key != "", "payment_methods": config.CheckoutMethods()})
+	var gateways []gin.H
+	if config.Gateways != nil {
+		gateways = []gin.H{}
+	}
+	for _, gateway := range config.Gateways {
+		gateways = append(gateways, gin.H{"id": gateway.ID, "name": gateway.Name, "account_name": gateway.AccountName, "address": gateway.Address, "partner_id": gateway.PartnerID, "key_configured": gateway.Key != "", "payment_methods": gateway.PaymentMethods})
+	}
+	common.ApiSuccess(c, gin.H{"address": config.Address, "partner_id": config.PartnerID, "key_configured": config.Key != "", "payment_methods": config.CheckoutMethods(), "gateways": gateways, "strategy": config.Strategy, "private_below_cents": config.PrivateBelowCents, "private_gateway_name": config.PrivateGatewayName})
 }
 
 func UpdateInvoiceEpayConfig(c *gin.Context) {

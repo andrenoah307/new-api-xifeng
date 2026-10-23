@@ -137,7 +137,7 @@ func ExportFinanceRecords(c *gin.Context) {
 		return
 	}
 	writer := csv.NewWriter(file)
-	err = writer.Write([]string{"Record type", "Record ID", "User ID", "Username", "Ticket ID", "Invoice title", "Amount", "Invoice status", "Top-up status", "Created at (UTC)", "Related top-up IDs", "Related trade numbers", "Related amounts", "Payment methods", "Sources", "Incomplete associations"})
+	err = writer.Write([]string{"Record type", "Record ID", "User ID", "Username", "Ticket ID", "Invoice title", "Amount", "Invoice status", "Top-up status", "Created at (UTC)", "Related top-up IDs", "Related trade numbers", "Related amounts", "Payment methods", "Sources", "Incomplete associations", "Payment routing / invoice issuer"})
 	count := 0
 	for err == nil {
 		if c.Request.Context().Err() != nil {
@@ -148,9 +148,23 @@ func ExportFinanceRecords(c *gin.Context) {
 		if err != nil || len(items) == 0 {
 			break
 		}
+		owners := map[int]int{}
 		for _, item := range items {
-			var ids, trades, amounts, methods, sources []string
 			for _, order := range item.TopUps {
+				owners[order.Id] = item.UserId
+			}
+		}
+		var notes map[int]string
+		notes, err = model.LoadEpayRoutingExportNotes(model.DB.WithContext(c.Request.Context()), owners)
+		if err != nil {
+			break
+		}
+		for _, item := range items {
+			var ids, trades, amounts, methods, sources, routing []string
+			for _, order := range item.TopUps {
+				if notes[order.Id] != "" {
+					routing = append(routing, notes[order.Id])
+				}
 				ids = append(ids, strconv.Itoa(order.Id))
 				trades = append(trades, order.TradeNo)
 				amounts = append(amounts, strconv.FormatFloat(order.Money, 'f', 2, 64))
@@ -158,6 +172,7 @@ func ExportFinanceRecords(c *gin.Context) {
 				sources = append(sources, order.Source)
 			}
 			row := []string{filter.View, strconv.Itoa(item.Id), strconv.Itoa(item.UserId), item.Username, strconv.Itoa(item.TicketId), item.CompanyName, strconv.FormatFloat(item.Money, 'f', 2, 64), strconv.Itoa(item.InvoiceStatus), item.Status, time.Unix(item.CreatedTime, 0).UTC().Format(time.RFC3339), strings.Join(ids, " | "), strings.Join(trades, " | "), strings.Join(amounts, " | "), strings.Join(methods, " | "), strings.Join(sources, " | "), strconv.FormatBool(item.IncompleteOrders)}
+			row = append(row, strings.Join(routing, "\n"))
 			for i := range row {
 				row[i] = financeCSVCell(row[i])
 			}

@@ -17,6 +17,23 @@ import (
 const InvoiceEpayConfigKey = "InvoiceEpayConfigSecret"
 
 type InvoiceEpayConfig struct {
+	Address            string               `json:"address"`
+	PartnerID          string               `json:"partner_id"`
+	Key                string               `json:"key,omitempty"`
+	PaymentMethods     []string             `json:"payment_methods"`
+	GatewayID          string               `json:"gateway_id,omitempty"`
+	GatewayName        string               `json:"gateway_name,omitempty"`
+	AccountName        string               `json:"account_name,omitempty"`
+	Gateways           []InvoiceEpayGateway `json:"gateways"`
+	Strategy           string               `json:"strategy,omitempty"`
+	PrivateBelowCents  int64                `json:"private_below_cents"`
+	PrivateGatewayName string               `json:"private_gateway_name"`
+}
+
+type InvoiceEpayGateway struct {
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	AccountName    string   `json:"account_name"`
 	Address        string   `json:"address"`
 	PartnerID      string   `json:"partner_id"`
 	Key            string   `json:"key,omitempty"`
@@ -39,25 +56,27 @@ func (config InvoiceEpayConfig) CheckoutMethods() []string {
 	return methods
 }
 
-func GetEpayCheckoutGateway(db *gorm.DB, invoiceType string) (InvoiceEpayConfig, error) {
-	if invoiceType == "none" {
-		return InvoiceEpayConfig{Address: operation_setting.PayAddress, PartnerID: operation_setting.EpayId, Key: operation_setting.EpayKey}, nil
+func GetEpayCheckoutMethods(db *gorm.DB, invoiceType string, amounts ...int64) ([]string, error) {
+	amount := int64(100000000000)
+	if len(amounts) > 0 {
+		amount = amounts[0]
 	}
-	if invoiceType != "ordinary" && invoiceType != "special" {
-		return InvoiceEpayConfig{}, ErrInvoiceTaxInvalid
-	}
-	return GetInvoiceEpayConfig(db)
-}
-
-func GetEpayCheckoutMethods(db *gorm.DB, invoiceType string) ([]string, error) {
-	config, err := GetEpayCheckoutGateway(db, invoiceType)
+	configs, _, err := GetEpayCheckoutCandidates(db, invoiceType, amount)
 	if err != nil {
 		return nil, err
 	}
-	if !operation_setting.IsPaymentComplianceConfirmed() || config.Address == "" || config.PartnerID == "" || config.Key == "" {
+	if !operation_setting.IsPaymentComplianceConfirmed() {
 		return []string{}, nil
 	}
-	return config.CheckoutMethods(), nil
+	methods := []string{}
+	for _, config := range configs {
+		for _, method := range config.CheckoutMethods() {
+			if !slices.Contains(methods, method) {
+				methods = append(methods, method)
+			}
+		}
+	}
+	return methods, nil
 }
 
 func GetInvoiceEpayConfig(db *gorm.DB) (InvoiceEpayConfig, error) {
@@ -75,6 +94,9 @@ func GetInvoiceEpayConfig(db *gorm.DB) (InvoiceEpayConfig, error) {
 }
 
 func SaveInvoiceEpayConfig(config InvoiceEpayConfig) error {
+	if config.Gateways != nil {
+		return saveInvoiceEpayRouting(config)
+	}
 	for _, method := range config.PaymentMethods {
 		if method != "alipay" && method != "wxpay" {
 			return ErrInvoiceTaxInvalid
@@ -99,6 +121,9 @@ func SaveInvoiceEpayConfig(config InvoiceEpayConfig) error {
 		var previous InvoiceEpayConfig
 		if err := common.UnmarshalJsonStr(option.Value, &previous); err != nil {
 			return err
+		}
+		if previous.Gateways != nil {
+			return ErrInvoiceTaxInvalid
 		}
 		if config.Key == "" {
 			if config.PartnerID != previous.PartnerID || config.Address != previous.Address {

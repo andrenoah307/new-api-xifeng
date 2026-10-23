@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Input, Modal } from '@douyinfe/semi-ui';
 import { CreditCard } from 'lucide-react';
@@ -28,9 +46,9 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
     const controller = new AbortController();
     setChannels(null);
     setMethodsFailed(false);
-    if (step === 2) {
+    if (step === 2 && validAmount) {
       API.get('/api/user/epay/checkout/methods', {
-        params: { invoice_type: invoiceType },
+        params: { invoice_type: invoiceType, total_cents: cents },
         signal: controller.signal,
         disableDuplicate: true,
         skipErrorHandler: true,
@@ -38,15 +56,18 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
         .then(({ data }) => {
           if (!data.success) throw new Error(data.message);
           if (!controller.signal.aborted)
-            setChannels({ type: invoiceType, methods: data.data });
+            setChannels({ type: invoiceType, cents, methods: data.data });
         })
         .catch(() => {
           if (!controller.signal.aborted) setMethodsFailed(true);
         });
     }
     return () => controller.abort();
-  }, [invoiceType, step, refresh]);
-  const available = channels?.type === invoiceType ? channels.methods : [];
+  }, [invoiceType, step, refresh, cents, validAmount]);
+  const available =
+    channels?.type === invoiceType && channels?.cents === cents
+      ? channels.methods
+      : [];
   const selectedMethod = available.includes(method)
     ? method
     : available[0] || '';
