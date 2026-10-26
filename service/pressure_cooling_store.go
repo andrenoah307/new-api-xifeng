@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/QuantumNous/new-api/common"
 )
 
 type PressureCoolingState struct {
+	revision      string
 	State         string // "obs" | "cool" | "susp"
 	Scope         string // "channel" | "groups"
 	CooledGroups  []string
@@ -25,6 +25,7 @@ type PressureCoolingState struct {
 }
 
 var pressureCoolingMemStore sync.Map
+var pressureCoolingMemMu sync.Mutex
 
 var errPressureCoolingStateCorrupt = errors.New("pressure cooling state corrupt")
 
@@ -48,18 +49,35 @@ func loadPressureCoolingStateResult(channelId int) (*PressureCoolingState, error
 }
 
 func savePressureCoolingState(channelId int, state *PressureCoolingState, ttlSeconds int) {
+	persistPressureCoolingState(channelId, state, ttlSeconds, false)
+}
+
+// Observation snapshots must not erase a newer cooldown, suspension or recovery.
+func savePressureCoolingObservation(channelId int, state *PressureCoolingState, ttlSeconds int) bool {
+	return persistPressureCoolingState(channelId, state, ttlSeconds, true)
+}
+
+func persistPressureCoolingState(channelId int, state *PressureCoolingState, ttlSeconds int, compareRevision bool) bool {
 	if common.RedisEnabled {
-		savePressureCoolingStateRedis(channelId, state, ttlSeconds)
-	} else {
-		savePressureCoolingStateMemory(channelId, state)
+		return savePressureCoolingStateRedis(channelId, state, ttlSeconds, compareRevision)
 	}
+	pressureCoolingMemMu.Lock()
+	defer pressureCoolingMemMu.Unlock()
+	if compareRevision && loadPressureCoolingStateMemory(channelId).revision != state.revision {
+		return false
+	}
+	state.revision = common.GetRandomString(32)
+	savePressureCoolingStateMemory(channelId, state)
+	return true
 }
 
 func deletePressureCoolingState(channelId int) {
 	if common.RedisEnabled && common.RDB != nil {
 		common.RDB.Del(context.Background(), pressureCoolingRedisKey(channelId))
 	}
+	pressureCoolingMemMu.Lock()
 	pressureCoolingMemStore.Delete(channelId)
+	pressureCoolingMemMu.Unlock()
 }
 
 func loadPressureCoolingStateRedis(channelId int) (*PressureCoolingState, error) {
@@ -105,21 +123,42 @@ func parsePressureCoolingStateFields(channelId int, vals map[string]string) (*Pr
 	return s, nil
 }
 
-func savePressureCoolingStateRedis(channelId int, state *PressureCoolingState, ttlSeconds int) {
+const savePressureCoolingStateScript = `
+if ARGV[1] == 'true' and (redis.call('HGET', KEYS[1], 'rv') or '') ~= ARGV[2] then
+  return 0
+end
+for i = 5, #ARGV, 2 do
+  redis.call('HSET', KEYS[1], ARGV[i], ARGV[i + 1])
+end
+redis.call('HSET', KEYS[1], 'rv', ARGV[3])
+if tonumber(ARGV[4]) > 0 then
+  redis.call('EXPIRE', KEYS[1], ARGV[4])
+end
+return 1
+`
+
+func savePressureCoolingStateRedis(channelId int, state *PressureCoolingState, ttlSeconds int, compareRevision bool) bool {
 	if common.RDB == nil {
-		return
+		return false
 	}
 	ctx := context.Background()
 	key := pressureCoolingRedisKey(channelId)
+	revision := common.GetRandomString(32)
+	args := []interface{}{strconv.FormatBool(compareRevision), state.revision, revision, ttlSeconds}
 	encoded := pressureCoolingStateFields(state)
-	fields := make(map[string]interface{}, len(encoded))
 	for field, value := range encoded {
-		fields[field] = value
+		args = append(args, field, value)
 	}
-	common.RDB.HSet(ctx, key, fields)
-	if ttlSeconds > 0 {
-		common.RDB.Expire(ctx, key, time.Duration(ttlSeconds)*time.Second)
+	written, err := common.RDB.Eval(ctx, savePressureCoolingStateScript, []string{key}, args...).Int()
+	if err != nil {
+		common.SysError(fmt.Sprintf("pressure cooling state write failed for channel %d: %v", channelId, err))
+		return false
 	}
+	if written != 1 {
+		return false
+	}
+	state.revision = revision
+	return true
 }
 
 func loadPressureCoolingStateMemory(channelId int) *PressureCoolingState {
@@ -161,7 +200,7 @@ func pressureCoolingStateFields(state *PressureCoolingState) map[string]string {
 }
 
 func pressureCoolingStateFromFields(vals map[string]string) *PressureCoolingState {
-	state := &PressureCoolingState{State: vals["st"], Scope: "channel"}
+	state := &PressureCoolingState{State: vals["st"], Scope: "channel", revision: vals["rv"]}
 	if state.State == "" {
 		state.State = "obs"
 	}

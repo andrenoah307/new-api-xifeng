@@ -291,7 +291,7 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 			state.Violations = 0
 			state.TotalRequests = 0
 			state.WindowStart = now
-			savePressureCoolingState(channelId, state, stateTTL)
+			savePressureCoolingObservation(channelId, state, stateTTL)
 		}
 		return
 	case "susp":
@@ -324,7 +324,7 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 	if pressureCoolingErrorConditionConfigured(cfg) {
 		mode := normalizePressureCoolingConditionMode(cfg.ConditionMode)
 		if mode == "all" && !frtMet {
-			savePressureCoolingState(channelId, state, stateTTL)
+			savePressureCoolingObservation(channelId, state, stateTTL)
 			return
 		}
 		if !frtMet || mode == "all" {
@@ -338,7 +338,7 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 	if pressureCoolingConditionsMet(cfg, frtMet, errorMet) {
 		executePressureCooling(ch, state, cfg, now, stateTTL, reason)
 	} else {
-		savePressureCoolingState(channelId, state, stateTTL)
+		savePressureCoolingObservation(channelId, state, stateTTL)
 	}
 }
 
@@ -363,14 +363,14 @@ func executePressureCoolingDecision(ch *model.Channel, state *PressureCoolingSta
 			common.SysLog(fmt.Sprintf("pressure cooling: skip channel #%d (%s) — no configured cooling groups belong to channel", ch.Id, ch.Name))
 			state.Violations = 0
 			state.WindowStart = now
-			savePressureCoolingState(ch.Id, state, stateTTL)
+			savePressureCoolingObservation(ch.Id, state, stateTTL)
 			return nil
 		}
 		if !canCoolChannelGroups(ch, targetGroups, cfg.MinActiveChannelsPerGroup) {
 			common.SysLog(fmt.Sprintf("pressure cooling: skip channel #%d (%s) — would leave target group/model below minimum active", ch.Id, ch.Name))
 			state.Violations = 0
 			state.WindowStart = now
-			savePressureCoolingState(ch.Id, state, stateTTL)
+			savePressureCoolingObservation(ch.Id, state, stateTTL)
 			return nil
 		}
 
@@ -409,14 +409,14 @@ func executePressureCoolingDecision(ch *model.Channel, state *PressureCoolingSta
 		common.SysLog(fmt.Sprintf("压力冷却：渠道当前状态非启用，压力冷却放弃冷却（渠道 #%d，%s）", ch.Id, ch.Name))
 		state.Violations = 0
 		state.WindowStart = now
-		savePressureCoolingState(ch.Id, state, stateTTL)
+		savePressureCoolingObservation(ch.Id, state, stateTTL)
 		return nil
 	}
 	if !canCoolChannel(ch.Id, cfg.MinActiveChannelsPerGroup) {
 		common.SysLog(fmt.Sprintf("pressure cooling: skip channel #%d (%s) — would leave (group, model) below minimum active", ch.Id, ch.Name))
 		state.Violations = 0
 		state.WindowStart = now
-		savePressureCoolingState(ch.Id, state, stateTTL)
+		savePressureCoolingObservation(ch.Id, state, stateTTL)
 		return nil
 	}
 
