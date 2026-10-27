@@ -4,6 +4,15 @@ ClickHouse is supported only for `LOG_SQL_DSN`; the primary database remains
 SQLite, MySQL or PostgreSQL. The optional services in `docker-compose.yml` use
 internal service names and bind mounts. Change example passwords before use.
 Use ClickHouse 26.3.19.3 or a version verified against the integration tests.
+Startup selects the lightweight user projection on ClickHouse 25.5 and later;
+older servers use a user bloom-filter index (verified on 25.3.14.14). The offline
+`-print-schema` output targets 25.5+; it does not detect a server version.
+
+With an empty `LOG_SQL_DSN`, logs reuse the primary database and no ClickHouse
+migration runs. Startup loads `.env` from its working directory (`/data` in the
+image), so an omitted environment variable can still be supplied by that file.
+An explicitly empty `LOG_SQL_DSN` prevents this dotenv fallback. Check effective
+container configuration and mounted files without publishing credentials.
 
 ## Schema and queries
 
@@ -40,8 +49,18 @@ The queue is opt-in. Without it, logs are written directly and failed writes are
 not retained. With it, the application acknowledges enqueue after Redis accepts
 the complete log; a worker writes ClickHouse in batches of at most 1,000 rows or
 4 MiB, normally once per second. Each event is limited to 4 MiB. Accepted pending
-and in-flight events count against both limits. There is no age-based deletion.
+and in-flight events count against both limits. Each event expires 86,400 seconds
+after its first enqueue, using Redis time. New traffic and retries do not renew
+older events. Undelivered events are discarded after this retention window;
+this does not delete logs already stored in ClickHouse.
 The byte limit measures JSON payload, not total Redis RSS or AOF disk use.
+
+Cleanup is bounded to 1,000 pending events plus the in-flight batch per pass and
+runs even when ClickHouse is unavailable. An active delivery lease defers batch
+changes until it ends; cleanup can therefore lag the deadline. Shared keys also
+expire at the latest event deadline, releasing an idle queue without a worker.
+Pre-upgrade events receive a one-time 24-hour grace period on first access by
+the new version. Upgrade all writers together.
 
 `LOG_QUEUE_REDIS_URL` defaults to `REDIS_CONN_STRING`. A dedicated instance is
 recommended to isolate queue memory/AOF I/O from sessions, billing and rate
@@ -91,11 +110,15 @@ existing event IDs and complete stored values before insertion: a fully matching
 batch is acknowledged without reinsertion, including after dedup-window eviction.
 Partial publication, changed contents, duplicate identities or corrupt payloads
 stop that batch for operator reconciliation rather than risking double counting
-or silently discarding records. Later events remain pending behind it.
+or silently discarding records before their retention deadline. Later events
+remain pending behind it. Expiration can remove blocked events; when it changes
+a batch, the remaining events receive a new deduplication token after the lease
+ends.
 
 Redis stores the destination table UUID. Dropping/recreating the table requires
 explicit reconciliation and rebinding; it must not silently replay a queue into
-a different table. TTL must be disabled in both configuration and table schema.
+a different table. ClickHouse table TTL must be disabled in both configuration
+and table schema; this is separate from Redis queue retention.
 Do not mutate/delete live queued events, disable deduplication, erase queue keys,
 restore Redis and ClickHouse to unrelated snapshots, or clear an in-flight batch
 without reconciling its full contents. The event column alone is not a UNIQUE
@@ -103,8 +126,10 @@ constraint. Native deduplication is finite; arbitrary competing writers and
 manual mutations are outside this recovery protocol.
 
 Once per minute, application logs report pending/in-flight row count, payload
-bytes, delivered count and capacity rejections. Keys use `logqueue:{hash}:` with
-`pending`, `inflight`, `payload`, `state`, and `lease`. State counters can be read
+bytes, delivered count, capacity rejections and worker-cleaned expired count.
+Counters are not a durable audit: native key expiration also removes state and
+does not increment the expired counter. Keys use `logqueue:{hash}:` with
+`pending`, `inflight`, `payload`, `expires`, `state`, and `lease`. State counters can be read
 with HGETALL; payloads contain sensitive logs and must not be exposed publicly.
 For a blocked batch, stop consumers, preserve a Redis backup, compare the exact
 event identities and fields with ClickHouse, then repair the cause. Never use

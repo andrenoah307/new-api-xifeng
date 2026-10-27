@@ -54,7 +54,8 @@ func logWriteQueueEnabled() bool {
 	return os.Getenv("LOG_QUEUE_ENABLED") == "true"
 }
 
-// Queue keys share a hash tag. No pending or in-flight data has a TTL.
+// Per-event deadlines are fixed at enqueue time. Shared keys also expire at the
+// latest event deadline so abandoned queues disappear without a running worker.
 var enqueueLogScript = redis.NewScript(`
 local target = redis.call('HGET', KEYS[3], 'target')
 if target and target ~= ARGV[5] then return redis.error_reply('queue target mismatch') end
@@ -72,10 +73,18 @@ end
 redis.call('HSET', KEYS[2], ARGV[1], ARGV[2])
 redis.call('RPUSH', KEYS[1], ARGV[1])
 redis.call('HSET', KEYS[3], 'target', ARGV[5], 'rows', rows + 1, 'bytes', bytes + string.len(ARGV[2]))
+local now = redis.call('TIME')
+local deadline = tonumber(now[1]) * 1000 + math.floor(tonumber(now[2]) / 1000) + 86400000
+redis.call('HSET', KEYS[4], ARGV[1], deadline)
+redis.call('HSET', KEYS[3], 'expires_at', deadline)
+for _, key in ipairs(KEYS) do redis.call('PEXPIREAT', key, deadline) end
 return 1
 `)
 
 func (q *logWriteQueue) enqueue(ctx context.Context, row *Log) error {
+	if _, err := q.expire(ctx); err != nil {
+		return err
+	}
 	if row.CreatedAt == 0 {
 		row.CreatedAt = time.Now().Unix()
 	}
@@ -86,7 +95,7 @@ func (q *logWriteQueue) enqueue(ctx context.Context, row *Log) error {
 	if len(payload) > logQueueBatchBytes || row.EventID == "" {
 		return errors.New("log queue event missing identity or exceeds 4 MiB")
 	}
-	accepted, err := enqueueLogScript.Run(ctx, q.redis, []string{q.prefix + "pending", q.prefix + "payload", q.prefix + "state"}, row.EventID, payload, q.maxRows, q.maxBytes, q.target).Int()
+	accepted, err := enqueueLogScript.Run(ctx, q.redis, []string{q.prefix + "pending", q.prefix + "payload", q.prefix + "state", q.prefix + "expires", q.prefix + "inflight"}, row.EventID, payload, q.maxRows, q.maxBytes, q.target).Int()
 	if err != nil {
 		return fmt.Errorf("log queue enqueue failed: %w", err)
 	}
@@ -94,6 +103,74 @@ func (q *logWriteQueue) enqueue(ctx context.Context, row *Log) error {
 		return errLogQueueFull
 	}
 	return nil
+}
+
+var expireLogScript = redis.NewScript(`
+local now = redis.call('TIME')
+local ms = tonumber(now[1]) * 1000 + math.floor(tonumber(now[2]) / 1000)
+local deadline = tonumber(redis.call('HGET', KEYS[4], 'expires_at') or '0')
+if deadline == 0 and redis.call('HLEN', KEYS[2]) > 0 then
+  deadline = ms + 86400000
+  redis.call('HSET', KEYS[4], 'expires_at', deadline, 'legacy_expires_at', deadline)
+end
+local legacy = tonumber(redis.call('HGET', KEYS[4], 'legacy_expires_at') or '0')
+if redis.call('EXISTS', KEYS[5]) == 1 then
+  if deadline > 0 then
+    for i, key in ipairs(KEYS) do
+      if i ~= 5 then redis.call('PEXPIREAT', key, deadline) end
+    end
+  end
+  return 0
+end
+local expired = {}
+local retained = {}
+local inflight = redis.call('LRANGE', KEYS[3], 0, -1)
+for _, id in ipairs(inflight) do
+  local expires = tonumber(redis.call('HGET', KEYS[6], id) or legacy)
+  if expires <= ms then table.insert(expired, id) else table.insert(retained, id) end
+end
+local changed = #expired > 0
+local pendingCount = 0
+for _, id in ipairs(redis.call('LRANGE', KEYS[1], 0, 999)) do
+  local expires = tonumber(redis.call('HGET', KEYS[6], id) or legacy)
+  if expires > ms then break end
+  table.insert(expired, id)
+  pendingCount = pendingCount + 1
+end
+local bytes = 0
+for _, id in ipairs(expired) do
+  local payload = redis.call('HGET', KEYS[2], id)
+  if not payload then return redis.error_reply('queue payload missing during expiry') end
+  bytes = bytes + string.len(payload)
+end
+for _, id in ipairs(expired) do
+  redis.call('HDEL', KEYS[2], id)
+  redis.call('HDEL', KEYS[6], id)
+end
+if pendingCount > 0 then redis.call('LTRIM', KEYS[1], pendingCount, -1) end
+if changed then
+  redis.call('DEL', KEYS[3])
+  redis.call('HDEL', KEYS[4], 'token')
+  if #retained > 0 then
+    redis.call('RPUSH', KEYS[3], unpack(retained))
+    redis.call('HSET', KEYS[4], 'token', ARGV[1])
+  end
+end
+if #expired > 0 then
+  redis.call('HINCRBY', KEYS[4], 'rows', -#expired)
+  redis.call('HINCRBY', KEYS[4], 'bytes', -bytes)
+  redis.call('HINCRBY', KEYS[4], 'expired', #expired)
+end
+if deadline > 0 then
+  for i, key in ipairs(KEYS) do
+    if i ~= 5 then redis.call('PEXPIREAT', key, deadline) end
+  end
+end
+return #expired
+`)
+
+func (q *logWriteQueue) expire(ctx context.Context) (int, error) {
+	return expireLogScript.Run(ctx, q.redis, []string{q.prefix + "pending", q.prefix + "payload", q.prefix + "inflight", q.prefix + "state", q.prefix + "lease", q.prefix + "expires"}, uuid.NewString()).Int()
 }
 
 var claimLogScript = redis.NewScript(`
@@ -117,6 +194,8 @@ if fresh then
   redis.call('RPUSH', KEYS[3], unpack(selected))
   redis.call('LTRIM', KEYS[1], #selected, -1)
   redis.call('HSET', KEYS[4], 'token', ARGV[4])
+  local deadline = redis.call('HGET', KEYS[4], 'expires_at')
+  if deadline then redis.call('PEXPIREAT', KEYS[3], deadline) end
 end
 local token = redis.call('HGET', KEYS[4], 'token')
 if not token then return redis.error_reply('queue batch token missing') end
@@ -125,6 +204,9 @@ return payloads
 `)
 
 func (q *logWriteQueue) claim(ctx context.Context, owner string) (*logWriteBatch, error) {
+	if expired, err := q.expire(ctx); err != nil || expired > 0 {
+		return nil, err
+	}
 	values, err := claimLogScript.Run(ctx, q.redis, []string{q.prefix + "pending", q.prefix + "payload", q.prefix + "inflight", q.prefix + "state", q.prefix + "lease"}, owner, q.batchRows, logQueueBatchBytes, uuid.NewString()).StringSlice()
 	if err != nil || len(values) == 0 {
 		return nil, err
@@ -151,7 +233,10 @@ for _, id in ipairs(ids) do
   if not payload then return redis.error_reply('queue payload missing; retained for repair') end
   bytes = bytes + string.len(payload)
 end
-for _, id in ipairs(ids) do redis.call('HDEL', KEYS[2], id) end
+for _, id in ipairs(ids) do
+  redis.call('HDEL', KEYS[2], id)
+  redis.call('HDEL', KEYS[5], id)
+end
 redis.call('HINCRBY', KEYS[3], 'rows', -#ids)
 redis.call('HINCRBY', KEYS[3], 'bytes', -bytes)
 redis.call('HINCRBY', KEYS[3], 'delivered', #ids)
@@ -161,7 +246,7 @@ return 1
 `)
 
 func (q *logWriteQueue) ack(ctx context.Context, owner, token string) error {
-	ok, err := ackLogScript.Run(ctx, q.redis, []string{q.prefix + "inflight", q.prefix + "payload", q.prefix + "state", q.prefix + "lease"}, owner, token).Int()
+	ok, err := ackLogScript.Run(ctx, q.redis, []string{q.prefix + "inflight", q.prefix + "payload", q.prefix + "state", q.prefix + "lease", q.prefix + "expires"}, owner, token).Int()
 	if err != nil {
 		return err
 	}
@@ -174,7 +259,7 @@ func (q *logWriteQueue) ack(ctx context.Context, owner, token string) error {
 // Check schema/settings before claiming. Never discard a batch on sink failure.
 func (q *logWriteQueue) prepare(ctx context.Context) error {
 	db := q.db.WithContext(ctx)
-	if err := db.Exec(ClickHouseLogCreateTableSQL(0)).Error; err != nil {
+	if err := CreateClickHouseLogTable(db, 0); err != nil {
 		return err
 	}
 	if err := validateClickHouseLogSchema(db); err != nil {
@@ -271,8 +356,8 @@ func (q *logWriteQueue) run(ctx context.Context) {
 		case <-time.After(delay):
 		}
 		attempt, cancel := context.WithTimeout(ctx, 20*time.Second)
-		var err error
-		if !ready {
+		_, err := q.expire(attempt)
+		if err == nil && !ready {
 			err = q.prepare(attempt)
 			ready = err == nil
 		}
@@ -285,15 +370,15 @@ func (q *logWriteQueue) run(ctx context.Context) {
 			}
 		}
 		if time.Now().After(nextReport) {
-			stats, statsErr := q.redis.HMGet(attempt, q.prefix+"state", "rows", "bytes", "delivered", "rejected").Result()
+			stats, statsErr := q.redis.HMGet(attempt, q.prefix+"state", "rows", "bytes", "delivered", "rejected", "expired").Result()
 			if statsErr == nil {
-				common.SysLog(fmt.Sprintf("log queue status: rows=%v payload_bytes=%v delivered=%v rejected=%v", stats[0], stats[1], stats[2], stats[3]))
+				common.SysLog(fmt.Sprintf("log queue status: rows=%v payload_bytes=%v delivered=%v rejected=%v expired=%v", stats[0], stats[1], stats[2], stats[3], stats[4]))
 			}
 			nextReport = time.Now().Add(time.Minute)
 		}
 		cancel()
 		if err != nil {
-			common.SysError("log queue delivery failed; retained pending data: " + err.Error())
+			common.SysError("log queue delivery failed; retrying within the 86400-second retention window: " + err.Error())
 			delay = min(delay*2, 30*time.Second)
 			ready = false
 		} else {

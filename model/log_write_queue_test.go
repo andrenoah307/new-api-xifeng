@@ -45,6 +45,98 @@ func TestLogQueueCapacityPreservesAcceptedRecords(t *testing.T) {
 	assert.Equal(t, "0", q.redis.HGet(ctx, q.prefix+"state", "rows").Val())
 }
 
+func TestLogQueueExpiresEachEventWithoutRenewingOlderLogs(t *testing.T) {
+	q, s := setupLogWriteQueueTest(t)
+	ctx := context.Background()
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	s.SetTime(start)
+	require.NoError(t, q.enqueue(ctx, &Log{EventID: "old"}))
+	assert.Equal(t, 24*time.Hour, q.redis.TTL(ctx, q.prefix+"payload").Val())
+	s.SetTime(start.Add(12 * time.Hour))
+	require.NoError(t, q.enqueue(ctx, &Log{EventID: "new"}))
+	s.SetTime(start.Add(24 * time.Hour))
+	n, err := q.expire(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.False(t, q.redis.HExists(ctx, q.prefix+"payload", "old").Val())
+	assert.True(t, q.redis.HExists(ctx, q.prefix+"payload", "new").Val())
+	assert.Equal(t, "1", q.redis.HGet(ctx, q.prefix+"state", "rows").Val())
+	assert.Equal(t, "1", q.redis.HGet(ctx, q.prefix+"state", "expired").Val())
+	batch, err := q.claim(ctx, "owner")
+	require.NoError(t, err)
+	require.Len(t, batch.rows, 1)
+	assert.Equal(t, "new", batch.rows[0].EventID)
+	assert.Equal(t, 12*time.Hour, q.redis.TTL(ctx, q.prefix+"inflight").Val())
+}
+
+func TestLogQueueExpiryPreservesActiveLeaseAndChangesBatchToken(t *testing.T) {
+	q, s := setupLogWriteQueueTest(t)
+	ctx := context.Background()
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	s.SetTime(start)
+	require.NoError(t, q.enqueue(ctx, &Log{EventID: "old"}))
+	s.SetTime(start.Add(12 * time.Hour))
+	require.NoError(t, q.enqueue(ctx, &Log{EventID: "new"}))
+	batch, err := q.claim(ctx, "old-owner")
+	require.NoError(t, err)
+	require.Len(t, batch.rows, 2)
+	s.SetTime(start.Add(24 * time.Hour))
+	n, err := q.expire(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, n, "active batches must not be changed underneath their owner")
+	s.FastForward(time.Minute)
+	n, err = q.expire(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	recovered, err := q.claim(ctx, "new-owner")
+	require.NoError(t, err)
+	require.Len(t, recovered.rows, 1)
+	assert.NotEqual(t, batch.token, recovered.token, "a smaller batch must not reuse an insert dedup token")
+	assert.Error(t, q.ack(ctx, "old-owner", batch.token))
+	require.NoError(t, q.ack(ctx, "new-owner", recovered.token))
+	assert.Equal(t, "0", q.redis.HGet(ctx, q.prefix+"state", "bytes").Val())
+}
+
+func TestLogQueueExpiresWithoutRunningWorker(t *testing.T) {
+	q, s := setupLogWriteQueueTest(t)
+	ctx := context.Background()
+	require.NoError(t, q.enqueue(ctx, &Log{EventID: "a"}))
+	_, err := q.claim(ctx, "owner")
+	require.NoError(t, err)
+	s.FastForward(24 * time.Hour)
+	keys, err := q.redis.Keys(ctx, q.prefix+"*").Result()
+	require.NoError(t, err)
+	assert.Empty(t, keys)
+	require.NoError(t, q.enqueue(ctx, &Log{EventID: "b"}))
+	assert.Equal(t, "1", q.redis.HGet(ctx, q.prefix+"state", "rows").Val())
+}
+
+func TestLogQueueLegacyBacklogGetsOneDayGraceEvenWithActiveLease(t *testing.T) {
+	q, s := setupLogWriteQueueTest(t)
+	ctx := context.Background()
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	s.SetTime(start)
+	require.NoError(t, q.enqueue(ctx, &Log{EventID: "legacy"}))
+	_, err := q.claim(ctx, "old-worker")
+	require.NoError(t, err)
+	// Reproduce the previous release's keys, which had no expiry metadata/TTL.
+	require.NoError(t, q.redis.Del(ctx, q.prefix+"expires").Err())
+	require.NoError(t, q.redis.HDel(ctx, q.prefix+"state", "expires_at", "legacy_expires_at").Err())
+	for _, suffix := range []string{"payload", "inflight", "state"} {
+		require.NoError(t, q.redis.Persist(ctx, q.prefix+suffix).Err())
+	}
+	require.NoError(t, q.enqueue(ctx, &Log{EventID: "new"}))
+	deadline, err := q.redis.HGet(ctx, q.prefix+"state", "legacy_expires_at").Int64()
+	require.NoError(t, err)
+	assert.Equal(t, start.Add(24*time.Hour).UnixMilli(), deadline)
+	s.FastForward(time.Minute)
+	s.SetTime(start.Add(time.Hour))
+	n, err := q.expire(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, n)
+	assert.Equal(t, 23*time.Hour, q.redis.TTL(ctx, q.prefix+"payload").Val())
+}
+
 func TestLogQueueRecoveryAndStaleAcknowledgement(t *testing.T) {
 	q, s := setupLogWriteQueueTest(t)
 	ctx := context.Background()

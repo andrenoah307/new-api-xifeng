@@ -7,10 +7,49 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/glebarez/sqlite"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestInitLogDBWithoutDSNReusesRelationalDatabase(t *testing.T) {
+	oldDB, oldLogDB := DB, LOG_DB
+	oldMain, oldLog := common.MainDatabaseType(), common.LogDatabaseType()
+	t.Cleanup(func() {
+		DB, LOG_DB = oldDB, oldLogDB
+		common.SetDatabaseTypes(oldMain, oldLog)
+		initCol()
+	})
+	t.Setenv("LOG_SQL_DSN", "")
+	t.Setenv("LOG_QUEUE_ENABLED", "false")
+	for _, tc := range []struct {
+		kind    common.DatabaseType
+		dialect gorm.Dialector
+	}{
+		{common.DatabaseTypeSQLite, sqlite.Open(":memory:")},
+		{common.DatabaseTypeMySQL, mysql.New(mysql.Config{DSN: "root@tcp(127.0.0.1:1)/unused", SkipInitializeWithVersion: true})},
+		{common.DatabaseTypePostgreSQL, postgres.New(postgres.Config{DSN: "postgres://test@127.0.0.1:1/unused", PreferSimpleProtocol: true})},
+	} {
+		t.Run(string(tc.kind), func(t *testing.T) {
+			db, err := gorm.Open(tc.dialect, &gorm.Config{DisableAutomaticPing: true})
+			require.NoError(t, err)
+			conn, err := db.DB()
+			require.NoError(t, err)
+			defer conn.Close()
+			DB = db
+			// Even stale ClickHouse type state must be reset without any log DDL.
+			common.SetDatabaseTypes(tc.kind, common.DatabaseTypeClickHouse)
+			require.NoError(t, InitLogDB())
+			assert.Same(t, DB, LOG_DB)
+			assert.Equal(t, tc.kind, common.LogDatabaseType())
+			assert.Equal(t, string(tc.kind), LOG_DB.Dialector.Name())
+		})
+	}
+}
 
 func TestIsClickHouseDSN(t *testing.T) {
 	cases := []struct {

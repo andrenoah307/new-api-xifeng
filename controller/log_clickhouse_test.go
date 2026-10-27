@@ -32,7 +32,6 @@ func TestClickHouseUserCursorHTTP(t *testing.T) {
 	u.Path = "/" + name
 	db, err := gorm.Open(clickhouse.Open(u.String()), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.Exec(model.ClickHouseLogCreateTableSQL(0)).Error)
 	oldDB, oldType := model.LOG_DB, common.LogDatabaseType()
 	model.LOG_DB = db
 	common.SetLogDatabaseType(common.DatabaseTypeClickHouse)
@@ -47,6 +46,7 @@ func TestClickHouseUserCursorHTTP(t *testing.T) {
 			}
 		}
 	})
+	require.NoError(t, model.CreateClickHouseLogTable(db, 0))
 	require.NoError(t, db.Exec(`INSERT INTO logs (user_id,created_at,event_id,content,other) VALUES
 		(4,1700000000,'b','first','{"admin_info":{"secret":"hidden"}}'),
 		(4,1700000000,'a','second','{}'),(5,1700000000,'z','private','{}')`).Error)

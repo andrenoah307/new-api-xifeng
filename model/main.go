@@ -246,6 +246,7 @@ func InitLogDB() (err error) {
 		LOG_DB = DB
 		common.SetLogDatabaseType(common.MainDatabaseType())
 		initCol()
+		common.SysLog(fmt.Sprintf("LOG_SQL_DSN is empty; log database reuses primary database (%s)", common.MainDatabaseType()))
 		return
 	}
 	db, dbType, err := chooseDB("LOG_SQL_DSN", true)
@@ -478,7 +479,7 @@ func migrateLOGDB() error {
 
 func migrateClickHouseLogDB() error {
 	ttlDays := clickHouseLogTTLDays()
-	if err := LOG_DB.Exec(ClickHouseLogCreateTableSQL(ttlDays)).Error; err != nil {
+	if err := CreateClickHouseLogTable(LOG_DB, ttlDays); err != nil {
 		return err
 	}
 	if err := validateClickHouseLogSchema(LOG_DB); err != nil {
@@ -513,6 +514,10 @@ func clickHouseLogTTLClause(ttlDays int) string {
 // ClickHouseLogCreateTableSQL returns the schema shared by deployment and
 // isolated capacity probes. Existing tables are validated, never rewritten.
 func ClickHouseLogCreateTableSQL(ttlDays int) string {
+	return clickHouseLogCreateTableSQL(ttlDays, true)
+}
+
+func clickHouseLogCreateTableSQL(ttlDays int, lightweightProjection bool) string {
 	columns := make([]string, 0, len(clickHouseLogColumns)+5)
 	for _, column := range clickHouseLogColumns {
 		columns = append(columns, fmt.Sprintf("`%s` %s DEFAULT %s CODEC(ZSTD(3))", column.name, column.dataType, column.defaultSQL))
@@ -522,8 +527,12 @@ func ClickHouseLogCreateTableSQL(ttlDays int) string {
 		"INDEX logs_upstream_request_id upstream_request_id TYPE bloom_filter(0.01) GRANULARITY 1",
 		"INDEX logs_token_id token_id TYPE bloom_filter(0.01) GRANULARITY 1",
 		"INDEX logs_source_id id TYPE minmax GRANULARITY 1",
-		"PROJECTION logs_by_user (SELECT user_id, _part_offset ORDER BY user_id)",
 	)
+	if lightweightProjection {
+		columns = append(columns, "PROJECTION logs_by_user (SELECT user_id, _part_offset ORDER BY user_id)")
+	} else {
+		columns = append(columns, "INDEX logs_user_id user_id TYPE bloom_filter(0.01) GRANULARITY 1")
+	}
 	return "CREATE TABLE IF NOT EXISTS logs (\n" + strings.Join(columns, ",\n") + `
 )
 ENGINE = MergeTree()

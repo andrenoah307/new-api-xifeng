@@ -36,6 +36,21 @@ var clickHouseLogColumns = []struct{ name, dataType, defaultSQL string }{
 	{"migration_source", "String", "''"},
 }
 
+// CreateClickHouseLogTable chooses indexes supported by the connected server.
+func CreateClickHouseLogTable(db *gorm.DB, ttlDays int) error {
+	var version string
+	if err := db.Raw("SELECT version()").Scan(&version).Error; err != nil {
+		return err
+	}
+	var major, minor int
+	if _, err := fmt.Sscanf(version, "%d.%d", &major, &minor); err != nil {
+		return fmt.Errorf("cannot determine ClickHouse projection support: %w", err)
+	}
+	// _part_offset is a ClickHouse 25.5 feature, not a portable SQL column.
+	lightweight := major > 25 || major == 25 && minor >= 5
+	return db.Exec(clickHouseLogCreateTableSQL(ttlDays, lightweight)).Error
+}
+
 func validateClickHouseLogSchema(db *gorm.DB) error {
 	var columns []struct{ Name, Type string }
 	if err := db.Raw("DESCRIBE TABLE logs").Scan(&columns).Error; err != nil {
