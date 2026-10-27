@@ -17,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -69,6 +70,7 @@ func sanitizeClickHouseLikePattern(input string) (string, error) {
 }
 
 type Log struct {
+	EventID           string `json:"-" gorm:"->;-:migration"`
 	Id                int    `json:"id" gorm:"index:idx_user_id_id,priority:2;index:idx_logs_channel_id_created_at,priority:3;index:idx_logs_model_name_created_at,priority:3;index:idx_logs_username_created_at,priority:3;index:idx_logs_token_name_created_at,priority:3;index:idx_logs_type_created_at_quota,priority:3"`
 	UserId            int    `json:"user_id" gorm:"index:idx_user_id_id,priority:1;index:idx_logs_user_id_created_at,priority:1"`
 	CreatedAt         int64  `json:"created_at" gorm:"bigint;index:idx_created_at_type;index:idx_logs_user_id_created_at,priority:2;index:idx_logs_group_created_at,priority:2;index:idx_logs_channel_id_created_at,priority:2;index:idx_logs_model_name_created_at,priority:2;index:idx_logs_username_created_at,priority:2;index:idx_logs_token_name_created_at,priority:2;index:idx_logs_type_created_at_quota,priority:2"`
@@ -112,6 +114,25 @@ func ensureLogRequestId(log *Log) {
 
 func createLog(log *Log) error {
 	ensureLogRequestId(log)
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		if log.EventID == "" {
+			log.EventID = uuid.NewString()
+		}
+		if logWriteQueueEnabled() {
+			if activeLogWriteQueue == nil {
+				return errors.New("log write queue is not initialized")
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			return activeLogWriteQueue.enqueue(ctx, log)
+		}
+		// The event key is ClickHouse-only; relational schemas are unchanged.
+		row := struct {
+			Log
+			EventID string `gorm:"column:event_id"`
+		}{Log: *log, EventID: log.EventID}
+		return LOG_DB.Table("logs").Create(&row).Error
+	}
 	return LOG_DB.Create(log).Error
 }
 
@@ -149,7 +170,7 @@ func attachUserRouting(c *gin.Context, other map[string]interface{}) map[string]
 }
 
 func clickHouseLogOrder(prefix string) string {
-	return prefix + "created_at desc, " + prefix + "request_id desc"
+	return "ifNull(" + prefix + "created_at, 0) desc, " + prefix + "event_id desc"
 }
 
 type logOrderFilters struct {
@@ -180,12 +201,10 @@ func getAllLogsOrder(filters logOrderFilters, usingClickHouse bool) string {
 	return "logs.id desc"
 }
 
-// clickHouseExportOrder 返回 ClickHouse 导出用的升序排序子句。
-// 与表的 ORDER BY (created_at, request_id) 同序，使 ClickHouse 走
-// read-in-order 免全排序；升序单条游标流式读取，避免分页边界在
-// 相同排序键（历史行 request_id 多为空）下跳行/重复。
+// Stream in physical key order; the event key distinguishes retries and logs
+// sharing a timestamp and request ID.
 func clickHouseExportOrder() string {
-	return "logs.created_at asc, logs.request_id asc"
+	return "ifNull(logs.created_at, 0) asc, logs.event_id asc"
 }
 
 func assignDisplayLogIds(logs []*Log, startIdx int) {

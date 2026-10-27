@@ -81,6 +81,25 @@ func GetAllLogs(c *gin.Context) {
 	cachedTotal := parseCachedLogTotal(c.Query("total_count"))
 	ctx, cancel := newLogQueryContext(c.Request.Context())
 	defer cancel()
+	if c.Query("pagination") == "cursor" || c.Query("cursor") != "" || (root && c.Query("count") == "false" && common.UsingLogDatabase(common.DatabaseTypeClickHouse)) {
+		if pageInfo.Page != 1 || c.Query("before_id") != "" || !common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+			logRootUnavailable(c, i18n.MsgInvalidParams)
+			return
+		}
+		page, err := model.GetAllLogsCursor(ctx, logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.PageSize, channel, group, requestId, upstreamRequestId, c.Query("cursor"))
+		if err != nil {
+			if errors.Is(err, model.ErrInvalidLogCursor) {
+				logRootUnavailable(c, i18n.MsgInvalidParams)
+			} else if ctx.Err() != nil {
+				handleLogQueryError(c, ctx.Err())
+			} else {
+				logRootUnavailable(c, i18n.MsgDatabaseError)
+			}
+			return
+		}
+		common.ApiSuccess(c, gin.H{"page": 1, "page_size": pageInfo.PageSize, "total": -1, "items": page.Items, "has_more": page.HasMore, "next_cursor": page.NextCursor})
+		return
+	}
 	if root && (c.Query("count") == "false" || c.Query("before_id") != "") {
 		beforeID, parseErr := strconv.ParseInt(c.DefaultQuery("before_id", "0"), 10, 64)
 		if parseErr != nil || beforeID < 0 || pageInfo.Page != 1 || common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
@@ -127,6 +146,25 @@ func GetUserLogs(c *gin.Context) {
 	cachedTotal := parseCachedLogTotal(c.Query("total_count"))
 	ctx, cancel := newLogQueryContext(c.Request.Context())
 	defer cancel()
+	if c.Query("pagination") == "cursor" || c.Query("cursor") != "" {
+		if pageInfo.Page != 1 || c.Query("before_id") != "" || !common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+			logRootUnavailable(c, i18n.MsgInvalidParams)
+			return
+		}
+		page, err := model.GetUserLogsCursor(ctx, userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.PageSize, group, requestId, upstreamRequestId, c.Query("cursor"))
+		if err != nil {
+			if errors.Is(err, model.ErrInvalidLogCursor) {
+				logRootUnavailable(c, i18n.MsgInvalidParams)
+			} else if ctx.Err() != nil {
+				handleLogQueryError(c, ctx.Err())
+			} else {
+				logRootUnavailable(c, i18n.MsgDatabaseError)
+			}
+			return
+		}
+		common.ApiSuccess(c, gin.H{"page": 1, "page_size": pageInfo.PageSize, "total": -1, "items": page.Items, "has_more": page.HasMore, "next_cursor": page.NextCursor})
+		return
+	}
 	logs, total, err := model.GetUserLogs(ctx, userId, logType, startTimestamp, endTimestamp, modelName, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), group, requestId, upstreamRequestId, cachedTotal)
 	if err != nil {
 		handleLogQueryError(c, err)

@@ -67,7 +67,7 @@ func TestLogListOrderSelection(t *testing.T) {
 		{name: "request id", filters: logOrderFilters{requestId: "req-1"}, want: "logs.id desc"},
 		{name: "request id short-circuits exact model", filters: logOrderFilters{requestId: "req-1", modelName: "gpt-5"}, want: "logs.id desc"},
 		{name: "upstream request id", filters: logOrderFilters{upstreamRequestId: "up-1"}, want: "logs.id desc"},
-		{name: "clickhouse keeps native order", usingClickHouse: true, filters: logOrderFilters{group: "default", requestId: "req-1"}, want: "logs.created_at desc, logs.request_id desc"},
+		{name: "clickhouse keeps native order", usingClickHouse: true, filters: logOrderFilters{group: "default", requestId: "req-1"}, want: "ifNull(logs.created_at, 0) desc, logs.event_id desc"},
 	}
 
 	for _, tt := range tests {
@@ -96,7 +96,6 @@ func TestUserLogOrderUsesUserTimeIndex(t *testing.T) {
 		want         []string
 	}{
 		{name: "relational database", databaseType: common.DatabaseTypeSQLite, want: []string{"req-a", "req-z", "req-old"}},
-		{name: "ClickHouse", databaseType: common.DatabaseTypeClickHouse, want: []string{"req-z", "req-a", "req-old"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

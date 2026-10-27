@@ -75,6 +75,7 @@ func main() {
 	}
 
 	defer func() {
+		model.StopLogWriteQueue()
 		err := model.CloseDB()
 		if err != nil {
 			common.FatalLog("failed to close database: " + err.Error())
@@ -389,6 +390,9 @@ func InitResources() error {
 	// Initialize Redis
 	err = common.InitRedisClient()
 	if err != nil {
+		return err
+	}
+	if err = model.InitLogWriteQueue(); err != nil {
 		return err
 	}
 	model_name_limiter.InitModelNameLimiter()

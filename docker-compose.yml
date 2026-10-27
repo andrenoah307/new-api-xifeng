@@ -31,6 +31,10 @@ services:
 #      - LOG_SQL_DSN=postgresql://root:123456@postgres:5432/new-api-log # OPTIONAL: If you want a separate database for logging, uncomment and set this
 #      - LOG_SQL_DSN=clickhouse://default:123456@clickhouse:9000/new_api_logs # OPTIONAL: Use ClickHouse for logs only; also uncomment clickhouse in depends_on and the clickhouse service below
 #      - LOG_SQL_CLICKHOUSE_TTL_DAYS=0 # OPTIONAL: ClickHouse log retention days. Unset or 0 disables automatic deletion; set to e.g. 30 to keep 30 days
+#      - LOG_QUEUE_ENABLED=true # OPTIONAL: Durable ClickHouse write queue; requires AOF Redis with noeviction and TTL disabled
+#      - LOG_QUEUE_REDIS_URL=redis://:change-me@log-redis:6379 # Use the optional dedicated service below
+#      - LOG_QUEUE_MAX_ROWS=1000000
+#      - LOG_QUEUE_MAX_BYTES=1073741824 # Payload bytes; Redis overhead and AOF need additional capacity
       - REDIS_CONN_STRING=redis://:123456@redis:6379 # ⚠️ IMPORTANT: Change the password in production!
       - TZ=Asia/Shanghai
       - ERROR_LOG_ENABLED=true # 是否启用错误日志记录 (Whether to enable error log recording)
@@ -96,8 +100,19 @@ services:
 #    ports:
 #      - "3306:3306"  # Uncomment if you need to access MySQL from outside Docker
 
+#  log-redis:
+#    image: redis:7-alpine
+#    restart: always
+#    command: ["redis-server", "--requirepass", "change-me", "--appendonly", "yes", "--appendfsync", "always", "--maxmemory", "2gb", "--maxmemory-policy", "noeviction"]
+#    mem_limit: 3g
+#    volumes:
+#      - ./log-redis:/data
+#    networks:
+#      - new-api-network
+#    # No host port. See deployment/README.clickhouse.md before enabling.
+
 #  clickhouse:
-#    image: clickhouse/clickhouse-server:24.8
+#    image: clickhouse/clickhouse-server:26.3.19.3
 #    container_name: clickhouse
 #    restart: always
 #    environment:
@@ -105,18 +120,25 @@ services:
 #      CLICKHOUSE_USER: default
 #      CLICKHOUSE_PASSWORD: 123456  # ⚠️ IMPORTANT: Change this password in production!
 #      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+#    mem_limit: 8g
+#    cpus: 4
 #    volumes:
-#      - clickhouse_data:/var/lib/clickhouse
+#      - ./clickhouse:/var/lib/clickhouse
+#      - ./clickhouse-server-logs:/var/log/clickhouse-server
+#      - ./deployment/clickhouse-log.xml:/etc/clickhouse-server/config.d/logging.xml:ro
 #    networks:
 #      - new-api-network
-#    ports:
-#      - "8123:8123"  # HTTP interface, uncomment if you need external access
-#      - "9000:9000"  # Native interface used by the LOG_SQL_DSN example above
+#    logging:
+#      driver: local
+#      options:
+#        max-size: "10m"
+#        max-file: "3"
+#    # The app reaches clickhouse:9000 through the internal service alias.
+#    # No host ports are needed for log ingestion or application queries.
 
 volumes:
   pg_data:
 #  mysql_data:
-#  clickhouse_data:
 
 networks:
   new-api-network:

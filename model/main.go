@@ -135,7 +135,7 @@ func normalizeClickHouseDSN(dsn string) string {
 		changed = true
 	}
 	if _, ok := query["wait_for_async_insert"]; !ok {
-		query.Set("wait_for_async_insert", "0")
+		query.Set("wait_for_async_insert", "1")
 		changed = true
 	}
 	if changed {
@@ -152,8 +152,10 @@ func chooseDB(envName string, isLog bool) (*gorm.DB, common.DatabaseType, error)
 				return nil, "", fmt.Errorf("%s does not support ClickHouse; use SQLite, MySQL, or PostgreSQL for the primary database and LOG_SQL_DSN for ClickHouse logs", envName)
 			}
 			common.SysLog("using ClickHouse as log database")
-			db, err := gorm.Open(clickhouse.Open(normalizeClickHouseDSN(dsn)), &gorm.Config{
-				PrepareStmt: false,
+			db, err := gorm.Open(clickhouse.New(clickhouse.Config{
+				DSN: normalizeClickHouseDSN(dsn), SkipInitializeWithVersion: logWriteQueueEnabled(),
+			}), &gorm.Config{
+				PrepareStmt: false, DisableAutomaticPing: logWriteQueueEnabled(),
 			})
 			return db, common.DatabaseTypeClickHouse, err
 		}
@@ -268,6 +270,10 @@ func InitLogDB() (err error) {
 		sqlDB.SetMaxOpenConns(common.GetEnvOrDefault("SQL_MAX_OPEN_CONNS", 1000))
 		sqlDB.SetConnMaxLifetime(time.Second * time.Duration(common.GetEnvOrDefault("SQL_MAX_LIFETIME", 60)))
 
+		if common.UsingLogDatabase(common.DatabaseTypeClickHouse) && logWriteQueueEnabled() {
+			// The queue worker initializes/verifies the sink after it reconnects.
+			return nil
+		}
 		if !common.IsMasterNode {
 			return nil
 		}
@@ -472,7 +478,10 @@ func migrateLOGDB() error {
 
 func migrateClickHouseLogDB() error {
 	ttlDays := clickHouseLogTTLDays()
-	if err := LOG_DB.Exec(clickHouseLogCreateTableSQL(ttlDays)).Error; err != nil {
+	if err := LOG_DB.Exec(ClickHouseLogCreateTableSQL(ttlDays)).Error; err != nil {
+		return err
+	}
+	if err := validateClickHouseLogSchema(LOG_DB); err != nil {
 		return err
 	}
 	return syncClickHouseLogTTL(ttlDays)
@@ -490,7 +499,7 @@ func clickHouseLogTTLExpression(ttlDays int) string {
 	if ttlDays <= 0 {
 		return ""
 	}
-	return fmt.Sprintf("toDateTime(created_at) + INTERVAL %d DAY DELETE", ttlDays)
+	return fmt.Sprintf("toDateTime(ifNull(created_at, 0), 'UTC') + INTERVAL %d DAY DELETE", ttlDays)
 }
 
 func clickHouseLogTTLClause(ttlDays int) string {
@@ -501,33 +510,26 @@ func clickHouseLogTTLClause(ttlDays int) string {
 	return "\nTTL " + expression
 }
 
-func clickHouseLogCreateTableSQL(ttlDays int) string {
-	return fmt.Sprintf(`
-CREATE TABLE IF NOT EXISTS logs (
-	id Int64 DEFAULT 0,
-	user_id Int32 DEFAULT 0,
-	created_at Int64 DEFAULT 0,
-	type Int32 DEFAULT 0,
-	content String DEFAULT '',
-	username String DEFAULT '',
-	token_name String DEFAULT '',
-	model_name String DEFAULT '',
-	quota Int32 DEFAULT 0,
-	prompt_tokens Int32 DEFAULT 0,
-	completion_tokens Int32 DEFAULT 0,
-	use_time Int32 DEFAULT 0,
-	is_stream UInt8 DEFAULT 0,
-	channel_id Int32 DEFAULT 0,
-	token_id Int32 DEFAULT 0,
-	`+"`group`"+` String DEFAULT '',
-	ip String DEFAULT '',
-	request_id String DEFAULT '',
-	upstream_request_id String DEFAULT '',
-	other String DEFAULT ''
+// ClickHouseLogCreateTableSQL returns the schema shared by deployment and
+// isolated capacity probes. Existing tables are validated, never rewritten.
+func ClickHouseLogCreateTableSQL(ttlDays int) string {
+	columns := make([]string, 0, len(clickHouseLogColumns)+5)
+	for _, column := range clickHouseLogColumns {
+		columns = append(columns, fmt.Sprintf("`%s` %s DEFAULT %s CODEC(ZSTD(3))", column.name, column.dataType, column.defaultSQL))
+	}
+	columns = append(columns,
+		"INDEX logs_request_id request_id TYPE bloom_filter(0.01) GRANULARITY 1",
+		"INDEX logs_upstream_request_id upstream_request_id TYPE bloom_filter(0.01) GRANULARITY 1",
+		"INDEX logs_token_id token_id TYPE bloom_filter(0.01) GRANULARITY 1",
+		"INDEX logs_source_id id TYPE minmax GRANULARITY 1",
+		"PROJECTION logs_by_user (SELECT user_id, _part_offset ORDER BY user_id)",
+	)
+	return "CREATE TABLE IF NOT EXISTS logs (\n" + strings.Join(columns, ",\n") + `
 )
 ENGINE = MergeTree()
-PARTITION BY toYYYYMM(toDateTime(created_at))
-ORDER BY (created_at, request_id)%s`, clickHouseLogTTLClause(ttlDays))
+PARTITION BY (toYYYYMM(toDateTime(ifNull(created_at, 0), 'UTC')), migration_batch)
+ORDER BY (ifNull(created_at, 0), event_id)` + clickHouseLogTTLClause(ttlDays) + `
+SETTINGS allow_nullable_key = 1`
 }
 
 func syncClickHouseLogTTL(ttlDays int) error {

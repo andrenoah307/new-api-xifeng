@@ -1,6 +1,7 @@
 package model
 
 import (
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -36,7 +37,7 @@ func TestNormalizeClickHouseDSN(t *testing.T) {
 	normalized := normalizeClickHouseDSN("https://default:pass@localhost:8443/logs")
 	assert.Contains(t, normalized, "secure=true")
 	assert.Contains(t, normalized, "async_insert=1")
-	assert.Contains(t, normalized, "wait_for_async_insert=0")
+	assert.Contains(t, normalized, "wait_for_async_insert=1")
 	assert.True(t, strings.HasPrefix(normalized, "https://"))
 
 	// https that already specifies secure keeps the explicit value
@@ -48,17 +49,20 @@ func TestNormalizeClickHouseDSN(t *testing.T) {
 	normalized = normalizeClickHouseDSN("clickhouse://localhost:9000/logs")
 	assert.True(t, strings.HasPrefix(normalized, "clickhouse://"))
 	assert.Contains(t, normalized, "async_insert=1")
-	assert.Contains(t, normalized, "wait_for_async_insert=0")
+	assert.Contains(t, normalized, "wait_for_async_insert=1")
 
 	normalized = normalizeClickHouseDSN("tcp://localhost:9000/logs")
 	assert.True(t, strings.HasPrefix(normalized, "tcp://"))
 	assert.Contains(t, normalized, "async_insert=1")
-	assert.Contains(t, normalized, "wait_for_async_insert=0")
+	assert.Contains(t, normalized, "wait_for_async_insert=1")
 
 	// explicit async insert settings take precedence
 	normalized = normalizeClickHouseDSN("clickhouse://localhost:9000/logs?async_insert=0")
-	assert.Contains(t, normalized, "async_insert=0")
-	assert.NotContains(t, normalized, "async_insert=1")
+	parsed, err := url.Parse(normalized)
+	require.NoError(t, err)
+	assert.Equal(t, "0", parsed.Query().Get("async_insert"))
+	normalized = normalizeClickHouseDSN("clickhouse://localhost:9000/logs?wait_for_async_insert=0")
+	assert.Contains(t, normalized, "wait_for_async_insert=0")
 }
 
 func TestChooseDBRejectsClickHouseForMainDatabase(t *testing.T) {
@@ -82,25 +86,25 @@ func TestChooseDBRejectsClickHouseForMainDatabase(t *testing.T) {
 func TestClickHouseLogTTLExpression(t *testing.T) {
 	assert.Equal(t, "", clickHouseLogTTLExpression(0))
 	assert.Equal(t, "", clickHouseLogTTLExpression(-5))
-	assert.Equal(t, "toDateTime(created_at) + INTERVAL 30 DAY DELETE", clickHouseLogTTLExpression(30))
+	assert.Equal(t, "toDateTime(ifNull(created_at, 0), 'UTC') + INTERVAL 30 DAY DELETE", clickHouseLogTTLExpression(30))
 }
 
 func TestClickHouseLogTTLClause(t *testing.T) {
 	assert.Equal(t, "", clickHouseLogTTLClause(0))
-	assert.Equal(t, "\nTTL toDateTime(created_at) + INTERVAL 7 DAY DELETE", clickHouseLogTTLClause(7))
+	assert.Equal(t, "\nTTL toDateTime(ifNull(created_at, 0), 'UTC') + INTERVAL 7 DAY DELETE", clickHouseLogTTLClause(7))
 }
 
 func TestClickHouseLogCreateTableSQL(t *testing.T) {
-	withoutTTL := clickHouseLogCreateTableSQL(0)
+	withoutTTL := ClickHouseLogCreateTableSQL(0)
 	assert.Contains(t, withoutTTL, "CREATE TABLE IF NOT EXISTS logs")
 	assert.Contains(t, withoutTTL, "ENGINE = MergeTree()")
-	assert.Contains(t, withoutTTL, "PARTITION BY toYYYYMM(toDateTime(created_at))")
-	assert.Contains(t, withoutTTL, "ORDER BY (created_at, request_id)")
+	assert.Contains(t, withoutTTL, "PARTITION BY (toYYYYMM(toDateTime(ifNull(created_at, 0), 'UTC')), migration_batch)")
+	assert.Contains(t, withoutTTL, "ORDER BY (ifNull(created_at, 0), event_id)")
 	assert.NotContains(t, withoutTTL, "TTL ")
 
-	withTTL := clickHouseLogCreateTableSQL(30)
-	assert.Contains(t, withTTL, "ORDER BY (created_at, request_id)")
-	assert.Contains(t, withTTL, "TTL toDateTime(created_at) + INTERVAL 30 DAY DELETE")
+	withTTL := ClickHouseLogCreateTableSQL(30)
+	assert.Contains(t, withTTL, "ORDER BY (ifNull(created_at, 0), event_id)")
+	assert.Contains(t, withTTL, "TTL toDateTime(ifNull(created_at, 0), 'UTC') + INTERVAL 30 DAY DELETE")
 }
 
 func TestClickHouseCreateTableHasTTL(t *testing.T) {
@@ -110,12 +114,12 @@ func TestClickHouseCreateTableHasTTL(t *testing.T) {
 }
 
 func TestClickHouseLogOrder(t *testing.T) {
-	assert.Equal(t, "created_at desc, request_id desc", clickHouseLogOrder(""))
-	assert.Equal(t, "logs.created_at desc, logs.request_id desc", clickHouseLogOrder("logs."))
+	assert.Equal(t, "ifNull(created_at, 0) desc, event_id desc", clickHouseLogOrder(""))
+	assert.Equal(t, "ifNull(logs.created_at, 0) desc, logs.event_id desc", clickHouseLogOrder("logs."))
 }
 
 func TestClickHouseExportOrder(t *testing.T) {
-	assert.Equal(t, "logs.created_at asc, logs.request_id asc", clickHouseExportOrder())
+	assert.Equal(t, "ifNull(logs.created_at, 0) asc, logs.event_id asc", clickHouseExportOrder())
 }
 
 func TestBuildLogLikeConditionUsesStandardEscape(t *testing.T) {
