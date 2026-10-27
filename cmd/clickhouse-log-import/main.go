@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/internal/logmigration"
 	"github.com/QuantumNous/new-api/model"
 	"gorm.io/driver/clickhouse"
 	"gorm.io/gorm"
@@ -27,6 +28,9 @@ func run() error {
 	printSchema := flag.Bool("print-schema", false, "print the current ClickHouse schema with TTL disabled")
 	archivePath := flag.String("archive", "", "immutable JSONEachRow archive, all 22 columns, ascending source ID")
 	manifestPath := flag.String("manifest", "", "verified source manifest JSON")
+	insertRows := flag.Int("insert-rows", 1000, "maximum rows per INSERT (1..100000)")
+	insertBytes := flag.Int("insert-bytes", 4*1024*1024, "maximum payload bytes per INSERT (1024..67108864)")
+	pauseFile := flag.String("pause-file", "", "pause reading while this file exists")
 	timeout := flag.Duration("timeout", 30*time.Minute, "maximum batch execution time")
 	flag.Parse()
 	if *printSchema {
@@ -64,7 +68,8 @@ func run() error {
 	defer stop()
 	ctx, cancel := context.WithTimeout(ctx, *timeout)
 	defer cancel()
-	result, err := model.ImportClickHouseLogs(ctx, db, manifest, archive)
+	input := logmigration.Reader{Context: ctx, Path: *pauseFile, Input: archive}
+	result, err := model.ImportClickHouseLogsWithOptions(ctx, db, manifest, input, model.ClickHouseLogImportOptions{InsertRows: *insertRows, InsertBytes: *insertBytes})
 	if err != nil {
 		return err
 	}
