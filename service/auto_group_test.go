@@ -231,21 +231,21 @@ func TestCurrentRules(t *testing.T) {
 }
 
 func TestNotifyAutoGroupEvaluation(t *testing.T) {
-	t.Parallel()
+	// These cases replace the process-wide engine and must not run in parallel.
 
 	t.Run("not started does nothing", func(t *testing.T) {
-		t.Parallel()
 		saved := globalAutoGroupEngine
 		defer func() { globalAutoGroupEngine = saved }()
 
 		engine := &autoGroupEngine{}
 		engine.enrolledUsers.Store(map[int]struct{}{1: {}})
+		engine.evalCh = make(chan int, 1)
 		globalAutoGroupEngine = engine
 		NotifyAutoGroupEvaluation(1)
+		require.Empty(t, engine.evalCh)
 	})
 
 	t.Run("started but not enrolled does nothing", func(t *testing.T) {
-		t.Parallel()
 		engine := &autoGroupEngine{}
 		engine.started.Store(true)
 		engine.enrolledUsers.Store(map[int]struct{}{})
@@ -260,7 +260,6 @@ func TestNotifyAutoGroupEvaluation(t *testing.T) {
 	})
 
 	t.Run("started and enrolled sends to channel", func(t *testing.T) {
-		t.Parallel()
 		engine := &autoGroupEngine{}
 		engine.started.Store(true)
 		engine.enrolledUsers.Store(map[int]struct{}{42: {}})
@@ -277,7 +276,6 @@ func TestNotifyAutoGroupEvaluation(t *testing.T) {
 	})
 
 	t.Run("full channel does not block", func(t *testing.T) {
-		t.Parallel()
 		engine := &autoGroupEngine{}
 		engine.started.Store(true)
 		engine.enrolledUsers.Store(map[int]struct{}{1: {}})
@@ -290,6 +288,7 @@ func TestNotifyAutoGroupEvaluation(t *testing.T) {
 
 		NotifyAutoGroupEvaluation(1)
 		require.Len(t, engine.evalCh, 1)
+		require.Equal(t, 999, <-engine.evalCh, "the pending notification must not be replaced")
 	})
 }
 
