@@ -254,6 +254,13 @@ func ImportClickHouseLogsWithOptions(ctx context.Context, db *gorm.DB, manifest 
 	if err := db.WithContext(ctx).Exec("ALTER TABLE logs REPLACE PARTITION (?, ?) FROM "+stage, manifest.Month, result.BatchID).Error; err != nil {
 		return result, err
 	}
+	// The batch gate protects this partition during verification. Other batches
+	// can publish once these rows are visible to their overlap check.
+	// Do not retry an ambiguous DROP: another publisher may already own the gate.
+	publicationLocked = false
+	if err := db.WithContext(ctx).Exec("DROP TABLE logs_import_lock SYNC").Error; err != nil {
+		return result, err
+	}
 	count, hash, err = hashClickHouseLogArchive(ctx, target, manifest.Source, result.BatchID)
 	if err != nil {
 		return result, err
