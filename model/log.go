@@ -787,6 +787,28 @@ func GetUserLogs(ctx context.Context, userId int, logType int, startTimestamp in
 	return logs, total, err
 }
 
+// GetAllLogsBatch uses a real SQL primary-key cursor and never counts or offsets.
+// ClickHouse display IDs must not be passed to this query.
+func GetAllLogsBatch(ctx context.Context, logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, num, channel int, group, requestID, upstreamRequestID string, beforeID int64) ([]*Log, bool, error) {
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) || num < 1 || num > 10000 || beforeID < 0 {
+		return nil, false, errors.New("invalid log batch query")
+	}
+	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestID, upstreamRequestID)
+	if beforeID > 0 {
+		tx = tx.Where("logs.id < ?", beforeID)
+	}
+	var logs []*Log
+	if err := tx.WithContext(ctx).Order("logs.id DESC").Limit(num + 1).Find(&logs).Error; err != nil {
+		return nil, false, err
+	}
+	hasMore := len(logs) > num
+	if hasMore {
+		logs = logs[:num]
+	}
+	resolveChannelNames(logs)
+	return logs, hasMore, nil
+}
+
 func ExportAllLogs(ctx context.Context, logType int, startTimestamp, endTimestamp int64, modelName, username, tokenName string, channel int, group, requestId, upstreamRequestId string, callback func([]*Log) error) error {
 	tx := buildAllLogsQuery(logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, upstreamRequestId)
 	return streamLogs(ctx, tx, true, callback)

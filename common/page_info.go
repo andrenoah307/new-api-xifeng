@@ -39,6 +39,14 @@ func (p *PageInfo) SetItems(items any) {
 }
 
 func GetPageQuery(c *gin.Context) *PageInfo {
+	return GetPageQueryWithLimit(c, 100)
+}
+
+// GetPageQueryWithLimit accepts a trusted, server-selected page limit.
+func GetPageQueryWithLimit(c *gin.Context, limit int) *PageInfo {
+	if limit < 1 {
+		limit = 100
+	}
 	pageInfo := &PageInfo{}
 	// 手动获取并处理每个参数
 	if page, err := strconv.Atoi(c.Query("p")); err == nil {
@@ -76,8 +84,8 @@ func GetPageQuery(c *gin.Context) *PageInfo {
 
 	if pageInfo.PageSize < 1 {
 		pageInfo.PageSize = ItemsPerPage
-	} else if pageInfo.PageSize > 100 {
-		pageInfo.PageSize = 100
+	} else if pageInfo.PageSize > limit {
+		pageInfo.PageSize = limit
 	}
 
 	return pageInfo

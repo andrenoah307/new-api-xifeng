@@ -54,6 +54,17 @@ func handleLogQueryError(c *gin.Context, err error) {
 
 func GetAllLogs(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
+	root := c.GetInt("role") == common.RoleRootUser
+	if root {
+		if !authorizeLogRoot(c) {
+			return
+		}
+		pageInfo = common.GetPageQueryWithLimit(c, rootLogPageSize())
+		if pageInfo.Page < 1 || pageInfo.Page > math.MaxInt/pageInfo.PageSize {
+			logRootUnavailable(c, i18n.MsgInvalidParams)
+			return
+		}
+	}
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
@@ -70,6 +81,24 @@ func GetAllLogs(c *gin.Context) {
 	cachedTotal := parseCachedLogTotal(c.Query("total_count"))
 	ctx, cancel := newLogQueryContext(c.Request.Context())
 	defer cancel()
+	if root && (c.Query("count") == "false" || c.Query("before_id") != "") {
+		beforeID, parseErr := strconv.ParseInt(c.DefaultQuery("before_id", "0"), 10, 64)
+		if parseErr != nil || beforeID < 0 || pageInfo.Page != 1 || common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+			logRootUnavailable(c, i18n.MsgInvalidParams)
+			return
+		}
+		logs, hasMore, err := model.GetAllLogsBatch(ctx, logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.PageSize, channel, group, requestId, upstreamRequestId, beforeID)
+		if err != nil {
+			handleLogQueryError(c, err)
+			return
+		}
+		nextID := int64(0)
+		if hasMore && len(logs) > 0 {
+			nextID = int64(logs[len(logs)-1].Id)
+		}
+		common.ApiSuccess(c, gin.H{"page": 1, "page_size": pageInfo.PageSize, "total": -1, "items": logs, "has_more": hasMore, "next_before_id": strconv.FormatInt(nextID, 10)})
+		return
+	}
 	logs, total, err := model.GetAllLogs(ctx, logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), channel, group, requestId, upstreamRequestId, cachedTotal)
 	if err != nil {
 		handleLogQueryError(c, err)
