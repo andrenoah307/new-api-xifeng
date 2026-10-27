@@ -204,6 +204,38 @@ func TestClickHouseLogImportPublicationAndRetry(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestClickHouseLogImportOversizedRecord(t *testing.T) {
+	db := setupClickHouseLogTest(t)
+	stamp := int64(1700000000)
+	content := strings.Repeat("x", 44*1024*1024)
+	var input bytes.Buffer
+	for _, row := range []ClickHouseLogArchiveRow{
+		{ID: 1, CreatedAt: &stamp},
+		{ID: 2, CreatedAt: &stamp, Content: &content},
+		{ID: 3, CreatedAt: &stamp},
+	} {
+		encoded, err := common.Marshal(row)
+		require.NoError(t, err)
+		input.Write(encoded)
+		input.WriteByte('\n')
+	}
+	digest := sha256.Sum256(input.Bytes())
+	manifest := ClickHouseLogImportManifest{Source: "large-record", ThroughID: 3, Month: 202311, Rows: 3, SHA256: hex.EncodeToString(digest[:])}
+	options := ClickHouseLogImportOptions{InsertRows: 20000, InsertBytes: 32 * 1024 * 1024}
+	result, err := ImportClickHouseLogsWithOptions(context.Background(), db, manifest, bytes.NewReader(input.Bytes()), options)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), result.Rows)
+	var stored string
+	require.NoError(t, db.Raw("SELECT content FROM logs WHERE id = 2").Scan(&stored).Error)
+	assert.True(t, stored == content, "oversized content must survive without truncation")
+	again, err := ImportClickHouseLogsWithOptions(context.Background(), db, manifest, bytes.NewReader(input.Bytes()), options)
+	require.NoError(t, err)
+	assert.True(t, again.AlreadyPublished)
+	var count int64
+	require.NoError(t, db.Table("logs").Count(&count).Error)
+	assert.Equal(t, int64(3), count)
+}
+
 func TestClickHouseLegacySchemaRequiresExplicitMigration(t *testing.T) {
 	db := setupClickHouseLogTest(t)
 	require.NoError(t, db.Exec("ALTER TABLE logs MODIFY COLUMN quota Nullable(Int32)").Error)

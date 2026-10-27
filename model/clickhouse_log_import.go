@@ -82,7 +82,8 @@ func ImportClickHouseLogsWithOptions(ctx context.Context, db *gorm.DB, manifest 
 	}
 	ctx = chdriver.Context(ctx, chdriver.WithSettings(chdriver.Settings{
 		"async_insert": 0, "wait_for_async_insert": 1, "max_threads": 2,
-		"max_memory_usage": 2147483648, "max_bytes_before_external_sort": 536870912,
+		"max_memory_usage": 4294967296, "max_bytes_before_external_sort": 134217728,
+		"max_block_size": 8192,
 	}))
 	digest, decodeErr := hex.DecodeString(manifest.SHA256)
 	if manifest.Source == "" || len(manifest.Source) > 128 || manifest.AfterID < 0 || manifest.ThroughID <= manifest.AfterID || manifest.Rows < 1 || manifest.Rows > 1000000 || decodeErr != nil || len(digest) != sha256.Size || manifest.Month < 197001 || manifest.Month > 210602 || manifest.Month%100 < 1 || manifest.Month%100 > 12 {
@@ -140,7 +141,9 @@ func ImportClickHouseLogsWithOptions(ctx context.Context, db *gorm.DB, manifest 
 	}
 	fileHash, sourceHash := sha256.New(), sha256.New()
 	scanner := bufio.NewScanner(io.TeeReader(input, fileHash))
-	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+	// Historical error payloads can exceed the INSERT batch budget. Bound each
+	// record independently and flush oversized records without adjacent rows.
+	scanner.Buffer(make([]byte, 64*1024), 256*1024*1024)
 	batch := make([]importedRow, 0, options.InsertRows)
 	batchBytes := 0
 	lastID := manifest.AfterID
@@ -149,6 +152,14 @@ func ImportClickHouseLogsWithOptions(ctx context.Context, db *gorm.DB, manifest 
 			return result, err
 		}
 		line := scanner.Bytes()
+		if len(batch) > 0 && batchBytes+len(line) > options.InsertBytes {
+			if err := db.WithContext(ctx).Table(stage).Create(&batch).Error; err != nil {
+				return result, err
+			}
+			clear(batch)
+			batch = batch[:0]
+			batchBytes = 0
+		}
 		var fields map[string]json.RawMessage
 		if err := common.Unmarshal(line, &fields); err != nil {
 			return result, fmt.Errorf("invalid archive JSON: %w", err)
@@ -192,12 +203,13 @@ func ImportClickHouseLogsWithOptions(ctx context.Context, db *gorm.DB, manifest 
 			if err := db.WithContext(ctx).Table(stage).Create(&batch).Error; err != nil {
 				return result, err
 			}
+			clear(batch)
 			batch = batch[:0]
 			batchBytes = 0
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return result, err
+		return result, fmt.Errorf("read archive after source ID %d (maximum JSONL record 256 MiB): %w", lastID, err)
 	}
 	if result.Rows != manifest.Rows || hex.EncodeToString(fileHash.Sum(nil)) != strings.ToLower(manifest.SHA256) {
 		return result, errors.New("archive count or SHA256 does not match manifest")
