@@ -86,6 +86,49 @@ func TestClickHouseLogHistoricalValues(t *testing.T) {
 	require.NoError(t, syncClickHouseLogTTL(0))
 }
 
+func TestClickHouseLogExportsApplyFiltersAcrossBatches(t *testing.T) {
+	db := setupClickHouseLogTest(t)
+	require.NoError(t, db.Exec(`INSERT INTO logs
+		(user_id,username,created_at,type,model_name,token_name,"group",request_id,upstream_request_id,event_id,content)
+		SELECT 42,'owner',1700000000 + number % 2,2,'export-model','export-token','export-group','shared-request','upstream',
+		concat('event-',leftPad(toString(number),4,'0')),toString(number) FROM numbers(1001)`).Error)
+	require.NoError(t, db.Exec(`INSERT INTO logs (user_id,username,created_at,type,model_name,token_name,"group",request_id,upstream_request_id,event_id) VALUES
+		(43,'other',1700000000,2,'export-model','export-token','export-group','shared-request','upstream','other-user'),
+		(42,'owner',1699999999,2,'export-model','export-token','export-group','shared-request','upstream','before'),
+		(42,'owner',1700000002,2,'export-model','export-token','export-group','shared-request','upstream','after'),
+		(42,'owner',NULL,2,'export-model','export-token','export-group','shared-request','upstream','null-time'),
+		(42,'owner',1700000000,5,'export-model','export-token','export-group','shared-request','upstream','wrong-type'),
+		(42,'owner',1700000000,2,'other-model','export-token','export-group','shared-request','upstream','wrong-model')`).Error)
+	for _, scope := range []string{"admin", "user"} {
+		t.Run(scope, func(t *testing.T) {
+			var exported []*Log
+			var sizes []int
+			collect := func(batch []*Log) error {
+				sizes = append(sizes, len(batch))
+				exported = append(exported, batch...)
+				return nil
+			}
+			var err error
+			if scope == "admin" {
+				err = ExportAllLogs(context.Background(), LogTypeConsume, 1700000000, 1700000001, "export-model", "owner", "export-token", 0, "export-group", "shared-request", "upstream", collect)
+			} else {
+				err = ExportUserLogs(context.Background(), 42, LogTypeConsume, 1700000000, 1700000001, "export-model", "export-token", "export-group", "shared-request", "upstream", collect)
+			}
+			require.NoError(t, err)
+			require.Len(t, exported, 1001)
+			assert.Equal(t, []int{1000, 1}, sizes)
+			seen := make(map[string]bool)
+			for _, row := range exported {
+				assert.Equal(t, 42, row.UserId)
+				assert.False(t, seen[row.Content], "each event must be exported once")
+				seen[row.Content] = true
+			}
+			assert.Equal(t, int64(1700000000), exported[0].CreatedAt)
+			assert.Equal(t, int64(1700000001), exported[len(exported)-1].CreatedAt)
+		})
+	}
+}
+
 func TestClickHouseLogWriteVisibleOnAcknowledgment(t *testing.T) {
 	db := setupClickHouseLogTest(t)
 	row := &Log{UserId: 4, CreatedAt: time.Now().Unix(), Type: LogTypeConsume, RequestId: "same-request", Quota: 4294967296}

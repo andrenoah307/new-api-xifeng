@@ -868,7 +868,8 @@ func streamLogs(ctx context.Context, tx *gorm.DB, includeChannelName bool, callb
 }
 
 func streamLogsClickHouse(ctx context.Context, tx *gorm.DB, includeChannelName bool, batchSize int, callback func([]*Log) error) error {
-	rows, err := tx.Session(&gorm.Session{}).WithContext(ctx).Order(clickHouseExportOrder()).Rows()
+	// Rows has no destination from which GORM can infer the logs table.
+	rows, err := tx.Session(&gorm.Session{}).WithContext(ctx).Model(&Log{}).Order(clickHouseExportOrder()).Rows()
 	if err != nil {
 		return err
 	}

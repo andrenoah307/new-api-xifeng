@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"net/url"
 	"os"
 	"strings"
@@ -15,6 +16,28 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestClickHouseExportStreamPreservesQueryFilters(t *testing.T) {
+	// SQLite supports this stream's IFNULL/order expressions, so this regression
+	// also runs in CI without an external ClickHouse server.
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	conn, err := db.DB()
+	require.NoError(t, err)
+	t.Cleanup(func() { assert.NoError(t, conn.Close()) })
+	require.NoError(t, db.Exec(`CREATE TABLE logs (created_at INTEGER, event_id TEXT, user_id INTEGER, content TEXT)`).Error)
+	require.NoError(t, db.Exec(`INSERT INTO logs VALUES
+		(100,'b',42,'start'),(200,'a',42,'end'),(150,'c',43,'other-user'),(201,'d',42,'outside')`).Error)
+	query := db.Where("logs.user_id = ? AND logs.created_at >= ? AND logs.created_at <= ?", 42, 100, 200)
+	var contents []string
+	err = streamLogsClickHouse(context.Background(), query, false, 1, func(batch []*Log) error {
+		require.Len(t, batch, 1)
+		contents = append(contents, batch[0].Content)
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"start", "end"}, contents)
+}
 
 func TestInitLogDBWithoutDSNReusesRelationalDatabase(t *testing.T) {
 	oldDB, oldLogDB := DB, LOG_DB

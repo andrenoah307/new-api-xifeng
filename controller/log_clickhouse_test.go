@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"encoding/csv"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -17,7 +19,8 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestClickHouseUserCursorHTTP(t *testing.T) {
+func setupClickHouseHTTPLogTest(t *testing.T) *gorm.DB {
+	t.Helper()
 	dsn := os.Getenv("TEST_CLICKHOUSE_DSN")
 	if dsn == "" {
 		t.Skip("TEST_CLICKHOUSE_DSN is required")
@@ -47,6 +50,40 @@ func TestClickHouseUserCursorHTTP(t *testing.T) {
 		}
 	})
 	require.NoError(t, model.CreateClickHouseLogTable(db, 0))
+	return db
+}
+
+func TestClickHouseOnlineLogExports(t *testing.T) {
+	db := setupClickHouseHTTPLogTest(t)
+	require.NoError(t, db.Exec(`INSERT INTO logs (user_id,created_at,type,event_id,content) VALUES
+		(42,1700000000,2,'a','start'),(42,1700000001,2,'b','end'),
+		(43,1700000000,2,'c','other-user'),(42,1700000002,2,'d','outside'),
+		(42,1700000000,5,'e','other-type')`).Error)
+	for _, tc := range []struct {
+		name    string
+		handler gin.HandlerFunc
+		want    []string
+	}{
+		{"admin", ExportAllLogsCsv, []string{"start", "other-user", "end"}},
+		{"user", ExportUserLogsCsv, []string{"start", "end"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := performLogExportRequest(t, tc.handler, "/?type=2&start_timestamp=1700000000&end_timestamp=1700000001")
+			require.Equal(t, http.StatusOK, recorder.Code)
+			rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(recorder.Body.String(), "\uFEFF"))).ReadAll()
+			require.NoError(t, err)
+			require.Len(t, rows, len(tc.want)+1)
+			var contents []string
+			for _, row := range rows[1:] {
+				contents = append(contents, row[len(row)-1])
+			}
+			assert.Equal(t, tc.want, contents)
+		})
+	}
+}
+
+func TestClickHouseUserCursorHTTP(t *testing.T) {
+	db := setupClickHouseHTTPLogTest(t)
 	require.NoError(t, db.Exec(`INSERT INTO logs (user_id,created_at,event_id,content,other) VALUES
 		(4,1700000000,'b','first','{"admin_info":{"secret":"hidden"}}'),
 		(4,1700000000,'a','second','{}'),(5,1700000000,'z','private','{}')`).Error)

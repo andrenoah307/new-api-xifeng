@@ -1,6 +1,10 @@
 package controller
 
 import (
+	"bytes"
+	"context"
+	"encoding/csv"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +19,27 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
+
+func TestOnlineLogExportRecordsQueryFailure(t *testing.T) {
+	var output bytes.Buffer
+	common.LogWriterMu.Lock()
+	previous := gin.DefaultErrorWriter
+	gin.DefaultErrorWriter = &output
+	common.LogWriterMu.Unlock()
+	t.Cleanup(func() {
+		common.LogWriterMu.Lock()
+		gin.DefaultErrorWriter = previous
+		common.LogWriterMu.Unlock()
+	})
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+	exportCsvWithHeartbeat(ctx, []string{"time"}, func(context.Context, *csv.Writer) error {
+		return errors.New("export-query-failed")
+	})
+	assert.Contains(t, output.String(), "export-query-failed")
+	assert.NotContains(t, recorder.Body.String(), "export-query-failed", "internal database errors must not enter the CSV")
+}
 
 type logExportValidationResponse struct {
 	Success bool   `json:"success"`

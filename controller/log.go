@@ -460,7 +460,7 @@ func exportCsvWithHeartbeat(c *gin.Context, headers []string, writeFn func(ctx c
 	c.Writer.Flush()
 	mu.Unlock()
 
-	if err != nil && ctx.Err() == nil {
+	if err != nil && c.Request.Context().Err() == nil {
 		common.SysError("export logs failed: " + err.Error())
 	}
 }
