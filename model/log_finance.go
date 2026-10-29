@@ -25,11 +25,21 @@ type ChannelFinanceStat struct {
 }
 
 func GetChannelFinanceStats(ctx context.Context, start, end int64, channel int) ([]ChannelFinanceStat, error) {
-	if start < 1 || end <= start || channel < 0 {
-		return nil, errors.New("invalid finance range")
-	}
+	return getFinanceStats(ctx, start, end, channel, 0)
+}
+
+type financeGroup struct {
+	ChannelID  int
+	Type       int
+	RatioValue string
+	Saturated  int
+	Records    int64
+	QuotaSum   string
+	MinQuota   int64
+}
+
+func financePricingExpressions() (ratio, saturated string) {
 	// Extract only pricing provenance, never group on or return the full other blob.
-	var ratio, saturated string
 	switch common.LogDatabaseType() {
 	case common.DatabaseTypeMySQL:
 		doc := "IF(JSON_VALID(other), other, '{}')"
@@ -50,33 +60,46 @@ func GetChannelFinanceStats(ctx context.Context, start, end int64, channel int) 
 		ratio = "CASE WHEN json_type(" + doc + ", '$.group_ratio') IN ('integer', 'real', 'text') THEN CAST(json_extract(" + doc + ", '$.group_ratio') AS TEXT) ELSE '' END"
 		saturated = "CASE WHEN COALESCE(json_type(" + doc + ", '$.admin_info.quota_saturation'), 'null') <> 'null' OR json_extract(" + doc + ", '$.quota_saturated') = 1 THEN 1 ELSE 0 END"
 	}
+	return ratio, saturated
+}
+
+func getFinanceStats(ctx context.Context, start, end int64, channel, userID int) ([]ChannelFinanceStat, error) {
+	if start < 1 || end <= start || channel < 0 || userID < 0 {
+		return nil, errors.New("invalid finance range")
+	}
+	ratio, saturated := financePricingExpressions()
 	query := LOG_DB.WithContext(ctx).Table("logs")
 	// An existing covering type/time index avoids MySQL choosing the entire
 	// channel index merely to satisfy GROUP BY. Never create indexes here.
-	if channel == 0 && common.UsingLogDatabase(common.DatabaseTypeMySQL) && LOG_DB.WithContext(ctx).Migrator().HasIndex(&Log{}, "idx_logs_type_created_at_quota") {
+	if channel == 0 && userID == 0 && common.UsingLogDatabase(common.DatabaseTypeMySQL) && LOG_DB.WithContext(ctx).Migrator().HasIndex(&Log{}, "idx_logs_type_created_at_quota") {
 		query = query.Table("logs FORCE INDEX (idx_logs_type_created_at_quota)")
 	}
 	if channel > 0 {
 		query = query.Where("channel_id = ?", channel)
 	}
-	query = query.Where("type IN ? AND created_at >= ? AND created_at < ?", []int{LogTypeConsume, LogTypeRefund}, start, end).
-		Select(fmt.Sprintf("channel_id, type, %s AS ratio_value, %s AS saturated, COUNT(*) AS records, SUM(quota) AS quota_sum, MIN(quota) AS min_quota", ratio, saturated)).
-		Group("channel_id, type, ratio_value, saturated").Limit(10001)
-	var groups []struct {
-		ChannelID  int
-		Type       int
-		RatioValue string
-		Saturated  int
-		Records    int64
-		QuotaSum   string
-		MinQuota   int64
+	channelColumn := "channel_id"
+	if userID > 0 {
+		query = query.Where("user_id = ?", userID)
+		channelColumn, ratio, saturated = "0", "'1'", "0"
 	}
+	sum := "SUM(quota)"
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		sum = "toString(sum(toInt128(ifNull(quota, 0))))"
+	}
+	query = query.Where("type IN ? AND created_at >= ? AND created_at < ?", []int{LogTypeConsume, LogTypeRefund}, start, end).
+		Select(fmt.Sprintf("%s AS channel_id, type, %s AS ratio_value, %s AS saturated, COUNT(*) AS records, %s AS quota_sum, MIN(quota) AS min_quota", channelColumn, ratio, saturated, sum)).
+		Group("channel_id, type, ratio_value, saturated").Limit(10001)
+	var groups []financeGroup
 	if err := query.Scan(&groups).Error; err != nil {
 		return nil, err
 	}
 	if len(groups) > 10000 {
 		return nil, errors.New("finance aggregation has too many groups")
 	}
+	return reduceFinanceGroups(groups)
+}
+
+func reduceFinanceGroups(groups []financeGroup) ([]ChannelFinanceStat, error) {
 	totals := map[int]*ChannelFinanceStat{}
 	for _, group := range groups {
 		if group.MinQuota < 0 {

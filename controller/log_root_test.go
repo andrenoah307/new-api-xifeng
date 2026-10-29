@@ -118,7 +118,7 @@ func TestRootFinanceStatsAuthenticationRangesAndCache(t *testing.T) {
 		return rec
 	}
 	path := "/api/log/finance/stat?start_timestamp=1&end_timestamp=200"
-	denied := call(common.RoleAdminUser, path)
+	denied := call(common.RoleCommonUser, path)
 	assert.Equal(t, http.StatusServiceUnavailable, denied.Code)
 	result := call(common.RoleRootUser, path)
 	require.Equal(t, http.StatusOK, result.Code, result.Body.String())
@@ -157,4 +157,45 @@ func TestRootFinanceStatsAuthenticationRangesAndCache(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, call(common.RoleRootUser, "/api/log/finance/stat?start_timestamp=0&end_timestamp=1").Code)
 	require.NoError(t, db.Model(&root).Update("status", common.UserStatusDisabled).Error)
 	assert.Equal(t, http.StatusServiceUnavailable, call(common.RoleRootUser, path).Code, "cached statistics must not bypass current role/status checks")
+}
+
+func TestPersonalFinanceScopeAndMonthlyContinuation(t *testing.T) {
+	db := setupLogExportValidationDB(t)
+	require.NoError(t, db.AutoMigrate(&model.User{}))
+	user := model.User{Username: "personal-finance", Role: common.RoleCommonUser, Status: common.UserStatusEnabled}
+	require.NoError(t, db.Create(&user).Error)
+	require.NoError(t, db.Create(&[]model.Log{
+		{UserId: user.Id, CreatedAt: 86401, Type: 2, ChannelId: 1, Quota: 200, Other: `{"group_ratio":2}`},
+		{UserId: user.Id, CreatedAt: 86402, Type: 2, ChannelId: 2, Quota: 100, Other: `{"group_ratio":3}`},
+		{UserId: user.Id, CreatedAt: 86403, Type: 6, ChannelId: 1, Quota: 40},
+		{UserId: user.Id + 1, CreatedAt: 86404, Type: 2, ChannelId: 1, Quota: 999},
+	}).Error)
+	call := func(path string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodGet, path, nil)
+		c.Set("id", user.Id)
+		c.Set("role", common.RoleCommonUser)
+		GetPersonalFinanceStats(c)
+		return rec
+	}
+	path := "/api/log/self/finance/stat?start_timestamp=86400&end_timestamp=259200&granularity=month&user_id=999"
+	result := call(path)
+	require.Equal(t, http.StatusOK, result.Code, result.Body.String())
+	var response struct {
+		Success bool
+		Data    channelFinanceSnapshot
+	}
+	require.NoError(t, common.Unmarshal(result.Body.Bytes(), &response))
+	require.True(t, response.Success)
+	require.NotNil(t, response.Data.Personal)
+	assert.Equal(t, "300", response.Data.Personal.ConsumeQuota)
+	assert.Equal(t, "260", response.Data.Personal.NetQuota)
+	assert.EqualValues(t, 172800, response.Data.NextStart)
+	assert.NotContains(t, result.Body.String(), "channel")
+	assert.NotContains(t, result.Body.String(), "known_model")
+	assert.NotContains(t, result.Body.String(), "refund_cost")
+	assert.Equal(t, http.StatusServiceUnavailable, call(path+"&channel=1").Code)
+	require.NoError(t, db.Model(&user).Update("status", common.UserStatusDisabled).Error)
+	assert.Equal(t, http.StatusServiceUnavailable, call(path).Code)
 }
