@@ -12,6 +12,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func rootLogPageSize() int {
@@ -83,7 +84,6 @@ var channelFinanceCache = struct {
 	snapshot channelFinanceSnapshot
 	expires  time.Time
 }{}
-var channelFinanceQuery sync.Mutex
 
 // GetChannelFinanceStats returns bounded aggregate output, not paged ledger rows.
 func GetChannelFinanceStats(c *gin.Context) {
@@ -94,23 +94,39 @@ func GetPersonalFinanceStats(c *gin.Context) {
 	getFinanceStats(c, true)
 }
 
-func getFinanceStats(c *gin.Context, personal bool) {
+func authorizeFinance(c *gin.Context, personal bool) (model.User, bool) {
 	c.Header("Cache-Control", "no-store")
+	var user model.User
 	minimumRole := common.RoleAdminUser
 	if personal {
 		minimumRole = common.RoleCommonUser
 	}
 	if c.GetInt("id") <= 0 || c.GetInt("role") < minimumRole {
 		logRootUnavailable(c, i18n.MsgAuthInsufficientPrivilege)
-		return
+		return user, false
 	}
-	var user model.User
 	if err := model.DB.WithContext(c.Request.Context()).Select("id, role, status").First(&user, c.GetInt("id")).Error; err != nil {
 		logRootUnavailable(c, i18n.MsgDatabaseError)
-		return
+		return user, false
 	}
 	if user.Role < minimumRole || user.Status != common.UserStatusEnabled {
 		logRootUnavailable(c, i18n.MsgAuthInsufficientPrivilege)
+		return user, false
+	}
+	return user, true
+}
+
+func getFinanceStats(c *gin.Context, personal bool) {
+	user, ok := authorizeFinance(c, personal)
+	if !ok {
+		return
+	}
+	taskID := c.Query("task_id")
+	if taskID == "" {
+		taskID = uuid.NewString()
+	}
+	if _, err := uuid.Parse(taskID); err != nil {
+		logRootUnavailable(c, i18n.MsgInvalidParams)
 		return
 	}
 	start, err := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
@@ -149,12 +165,6 @@ func getFinanceStats(c *gin.Context, personal bool) {
 		common.ApiSuccess(c, financeSnapshotResponse(cached))
 		return
 	}
-	if !channelFinanceQuery.TryLock() {
-		c.Header("Retry-After", "3")
-		logRootUnavailable(c, i18n.MsgLogQueryTimeout)
-		return
-	}
-	defer channelFinanceQuery.Unlock()
 	seconds := common.GetEnvOrDefault("ROOT_LOG_STAT_TIMEOUT", 180)
 	if seconds < 1 {
 		seconds = 180
@@ -164,14 +174,40 @@ func getFinanceStats(c *gin.Context, personal bool) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), time.Duration(seconds)*time.Second)
 	defer cancel()
+	task, queueErr := channelFinanceQueue.enqueue(ctx, taskID, user.Id, personal, cancel)
+	if queueErr != nil {
+		c.Header("Retry-After", "3")
+		logRootUnavailable(c, i18n.MsgLogQueryTimeout)
+		return
+	}
+	defer channelFinanceQueue.finish(task)
+	select {
+	case <-ctx.Done():
+		financeQueryStopped(c, ctx, taskID)
+		return
+	case <-task.ready:
+	}
+	if ctx.Err() != nil {
+		financeQueryStopped(c, ctx, taskID)
+		return
+	}
+	// Permissions may change while waiting. Never start a queued query under a
+	// role or account status that has since been revoked.
+	if _, ok := authorizeFinance(c, personal); !ok {
+		return
+	}
 	windowResult, err := model.GetFinanceWindow(ctx, start, end, channel, userID)
 	if err != nil {
 		// Database errors may contain raw metadata or SQL: never return them here.
 		if ctx.Err() != nil {
-			handleLogQueryError(c, ctx.Err())
+			financeQueryStopped(c, ctx, taskID)
 		} else {
 			logRootUnavailable(c, i18n.MsgDatabaseError)
 		}
+		return
+	}
+	if ctx.Err() != nil {
+		financeQueryStopped(c, ctx, taskID)
 		return
 	}
 	end = windowResult.End
@@ -199,5 +235,17 @@ func getFinanceStats(c *gin.Context, personal bool) {
 	channelFinanceCache.snapshot = snapshot
 	channelFinanceCache.expires = time.Now().Add(time.Minute)
 	channelFinanceCache.Unlock()
+	if _, ok := authorizeFinance(c, personal); !ok {
+		return
+	}
 	common.ApiSuccess(c, financeSnapshotResponse(snapshot))
+}
+
+func financeQueryStopped(c *gin.Context, ctx context.Context, taskID string) {
+	if ctx.Err() == context.Canceled && c.Request.Context().Err() == nil {
+		// An explicit task cancellation is terminal, not a retryable database error.
+		common.ApiSuccess(c, gin.H{"cancelled": true, "task_id": taskID})
+		return
+	}
+	handleLogQueryError(c, ctx.Err())
 }

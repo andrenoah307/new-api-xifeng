@@ -157,12 +157,48 @@ tool publishes a progress line only after each daily partition is committed.
 
 ## Performance and Compatibility
 
+### Query Queue and Cancellation
+
+Statistics requests enter a process-local FIFO queue: one running query, at most
+32 active requests including waiters, and at most two per authenticated user.
+Supply a unique UUID `task_id` on each aggregate request to observe it while the
+original HTTP request waits. Existing synchronous aggregate responses are retained.
+
+- `GET /api/log/finance/tasks?task_id=<uuid>` returns the caller's active tasks
+  (`id`, `state`, `ahead`, `created_at`). Omit the ID to list that caller's tasks.
+  States are `queued`, `running`, and `cancelling`; `ahead` includes the running
+  task. No other user's IDs or query details are exposed, even to administrators.
+- `POST /api/log/finance/tasks/cancel?task_id=<uuid>` cancels only a task owned by
+  the caller. The response contains `cancelled`; false also covers missing or
+  already completed tasks. Current account status is checked for both endpoints.
+- Cancelling a waiter removes it immediately. Cancelling a running query signals
+  its database context but retains the execution slot until the query returns.
+  The original statistics request returns `data: {cancelled: true, task_id: ...}`
+  on explicit cancellation. Treat this as terminal, never retry or commit a window.
+- Disconnecting or aborting the original request cancels its work. Tasks and
+  results are not persisted; finished tasks disappear from the active list.
+  Continue from the client's last committed window after a restart or disconnect.
+- `ROOT_LOG_STAT_TIMEOUT` includes waiting and execution. A full queue or timeout
+  still returns a bounded failure; increasing queue size is not a throughput fix.
+- Multiple source replicas need sticky routing for status/cancel requests to reach
+  the same process. This is not a durable or cluster-wide job scheduler. Backend
+  proxies must propagate request cancellation. Permission is rechecked after
+  queue admission and before returning a completed result.
+
+### Validation
+
+Dev CI starts `clickhouse/clickhouse-server:26.3.19.3`, verifies its reported
+version and sets `TEST_CLICKHOUSE_DSN` for actual integration tests. Fixtures use
+unique temporary databases and clean them up. Finance/queue tests also run with
+the Go race detector; CI does not use production databases or credentials.
+
 - Aggregation runs on the source database and returns channel totals, not logs.
   It works with SQL log stores and ClickHouse without relying on display IDs.
 - `ROOT_LOG_STAT_TIMEOUT` defaults to 180 seconds and is capped at 600 seconds.
   Client/proxy timeouts must accommodate this, or clients should use smaller windows.
-- One aggregation runs per application process; competing requests receive 503
-  with `Retry-After: 3`. The last identical SQL result is reused for one minute,
+- One aggregation runs per application process; competing requests queue within
+  the bounds above. Rejected admission receives 503 with `Retry-After: 3`.
+  The last identical SQL result is reused for one minute,
   scoped by user ID. ClickHouse results bypass this cache to validate snapshot
   freshness each time. The online query gate is per-process, not cluster-wide.
 - MySQL all-channel queries use an existing type/time index when present. Channel

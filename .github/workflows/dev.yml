@@ -26,6 +26,21 @@ jobs:
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}-lint-and-test
       cancel-in-progress: true
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:26.3.19.3
+        env:
+          CLICKHOUSE_PASSWORD: ci-test-only
+          CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+        ports:
+          - 9000:9000
+          - 8123:8123
+        options: >-
+          --health-cmd "wget --quiet --tries=1 --spider http://localhost:8123/ping"
+          --health-interval 5s --health-timeout 3s --health-retries 30
+          --cpus 2 --memory 4g
+    env:
+      TEST_CLICKHOUSE_DSN: clickhouse://default:ci-test-only@127.0.0.1:9000/default
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,6 +65,11 @@ jobs:
       - name: go test (focused risk control suite)
         run: |
           go test ./service/... ./model/... ./controller/... -count=1
+
+      - name: Verify pinned ClickHouse and finance concurrency
+        run: |
+          test "$(curl --fail --silent --show-error -u default:ci-test-only 'http://127.0.0.1:8123/?query=SELECT%20version()')" = '26.3.19.3'
+          go test -race ./model ./controller -run 'Finance|RootLog' -count=1 -timeout=5m
 
   build-and-push:
     name: Build And Push Image
