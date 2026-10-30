@@ -21,7 +21,12 @@ import React, { lazy, Suspense, useContext, useMemo } from 'react';
 import { Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Loading from './components/common/ui/Loading';
 import User from './pages/User';
-import { AuthRedirect, PrivateRoute, AdminRoute, TicketStaffRoute } from './helpers';
+import {
+  AuthRedirect,
+  PrivateRoute,
+  AdminRoute,
+  TicketStaffRoute,
+} from './helpers';
 import RegisterForm from './components/auth/RegisterForm';
 import LoginForm from './components/auth/LoginForm';
 import CnDisclaimerGate from './components/CnDisclaimerGate';
@@ -62,6 +67,7 @@ import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
 
 const Home = lazy(() => import('./pages/Home'));
+const ChannelFinance = lazy(() => import('./pages/ChannelFinance'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
@@ -387,6 +393,16 @@ function App() {
           }
         />
         <Route
+          path='/console/channel-finance'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading />}>
+                <ChannelFinance />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
           path='/console/log'
           element={
             <PrivateRoute>
@@ -447,10 +463,7 @@ function App() {
           path='/rankings'
           element={
             <AdminRoute>
-              <Suspense
-                fallback={<Loading></Loading>}
-                key={location.pathname}
-              >
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
                 <Rankings />
               </Suspense>
             </AdminRoute>

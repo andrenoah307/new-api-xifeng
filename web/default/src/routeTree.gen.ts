@@ -56,6 +56,7 @@ import { Route as AuthenticatedInvitationCodesIndexRouteImport } from './routes/
 import { Route as AuthenticatedDiscountCodesIndexRouteImport } from './routes/_authenticated/discount-codes/index'
 import { Route as AuthenticatedDashboardIndexRouteImport } from './routes/_authenticated/dashboard/index'
 import { Route as AuthenticatedChannelsIndexRouteImport } from './routes/_authenticated/channels/index'
+import { Route as AuthenticatedChannelFinanceIndexRouteImport } from './routes/_authenticated/channel-finance/index'
 import { Route as AuthenticatedAutoGroupIndexRouteImport } from './routes/_authenticated/auto-group/index'
 import { Route as AuthenticatedUsageLogsSectionRouteImport } from './routes/_authenticated/usage-logs/$section'
 import { Route as AuthenticatedTicketsTicketIdRouteImport } from './routes/_authenticated/tickets/$ticketId'
@@ -332,6 +333,12 @@ const AuthenticatedChannelsIndexRoute =
     path: '/channels/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedChannelFinanceIndexRoute =
+  AuthenticatedChannelFinanceIndexRouteImport.update({
+    id: '/channel-finance/',
+    path: '/channel-finance/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAutoGroupIndexRoute =
   AuthenticatedAutoGroupIndexRouteImport.update({
     id: '/auto-group/',
@@ -516,6 +523,7 @@ export interface FileRoutesByFullPath {
   '/tickets/$ticketId': typeof AuthenticatedTicketsTicketIdRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/auto-group/': typeof AuthenticatedAutoGroupIndexRoute
+  '/channel-finance/': typeof AuthenticatedChannelFinanceIndexRoute
   '/channels/': typeof AuthenticatedChannelsIndexRoute
   '/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/discount-codes/': typeof AuthenticatedDiscountCodesIndexRoute
@@ -587,6 +595,7 @@ export interface FileRoutesByTo {
   '/tickets/$ticketId': typeof AuthenticatedTicketsTicketIdRoute
   '/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/auto-group': typeof AuthenticatedAutoGroupIndexRoute
+  '/channel-finance': typeof AuthenticatedChannelFinanceIndexRoute
   '/channels': typeof AuthenticatedChannelsIndexRoute
   '/dashboard': typeof AuthenticatedDashboardIndexRoute
   '/discount-codes': typeof AuthenticatedDiscountCodesIndexRoute
@@ -662,6 +671,7 @@ export interface FileRoutesById {
   '/_authenticated/tickets/$ticketId': typeof AuthenticatedTicketsTicketIdRoute
   '/_authenticated/usage-logs/$section': typeof AuthenticatedUsageLogsSectionRoute
   '/_authenticated/auto-group/': typeof AuthenticatedAutoGroupIndexRoute
+  '/_authenticated/channel-finance/': typeof AuthenticatedChannelFinanceIndexRoute
   '/_authenticated/channels/': typeof AuthenticatedChannelsIndexRoute
   '/_authenticated/dashboard/': typeof AuthenticatedDashboardIndexRoute
   '/_authenticated/discount-codes/': typeof AuthenticatedDiscountCodesIndexRoute
@@ -736,6 +746,7 @@ export interface FileRouteTypes {
     | '/tickets/$ticketId'
     | '/usage-logs/$section'
     | '/auto-group/'
+    | '/channel-finance/'
     | '/channels/'
     | '/dashboard/'
     | '/discount-codes/'
@@ -807,6 +818,7 @@ export interface FileRouteTypes {
     | '/tickets/$ticketId'
     | '/usage-logs/$section'
     | '/auto-group'
+    | '/channel-finance'
     | '/channels'
     | '/dashboard'
     | '/discount-codes'
@@ -881,6 +893,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tickets/$ticketId'
     | '/_authenticated/usage-logs/$section'
     | '/_authenticated/auto-group/'
+    | '/_authenticated/channel-finance/'
     | '/_authenticated/channels/'
     | '/_authenticated/dashboard/'
     | '/_authenticated/discount-codes/'
@@ -1272,6 +1285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChannelsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/channel-finance/': {
+      id: '/_authenticated/channel-finance/'
+      path: '/channel-finance'
+      fullPath: '/channel-finance/'
+      preLoaderRoute: typeof AuthenticatedChannelFinanceIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/auto-group/': {
       id: '/_authenticated/auto-group/'
       path: '/auto-group'
@@ -1550,6 +1570,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTicketsTicketIdRoute: typeof AuthenticatedTicketsTicketIdRoute
   AuthenticatedUsageLogsSectionRoute: typeof AuthenticatedUsageLogsSectionRoute
   AuthenticatedAutoGroupIndexRoute: typeof AuthenticatedAutoGroupIndexRoute
+  AuthenticatedChannelFinanceIndexRoute: typeof AuthenticatedChannelFinanceIndexRoute
   AuthenticatedChannelsIndexRoute: typeof AuthenticatedChannelsIndexRoute
   AuthenticatedDashboardIndexRoute: typeof AuthenticatedDashboardIndexRoute
   AuthenticatedDiscountCodesIndexRoute: typeof AuthenticatedDiscountCodesIndexRoute
@@ -1582,6 +1603,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTicketsTicketIdRoute: AuthenticatedTicketsTicketIdRoute,
   AuthenticatedUsageLogsSectionRoute: AuthenticatedUsageLogsSectionRoute,
   AuthenticatedAutoGroupIndexRoute: AuthenticatedAutoGroupIndexRoute,
+  AuthenticatedChannelFinanceIndexRoute: AuthenticatedChannelFinanceIndexRoute,
   AuthenticatedChannelsIndexRoute: AuthenticatedChannelsIndexRoute,
   AuthenticatedDashboardIndexRoute: AuthenticatedDashboardIndexRoute,
   AuthenticatedDiscountCodesIndexRoute: AuthenticatedDiscountCodesIndexRoute,

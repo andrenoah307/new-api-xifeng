@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"errors"
 
 	"github.com/QuantumNous/new-api/common"
@@ -381,12 +382,16 @@ func ReleaseSystemTaskLock(taskID string, lockedBy string) error {
 }
 
 func FinishSystemTask(taskID string, lockedBy string, status SystemTaskStatus, resultPayload any, errorMessage string) error {
+	return FinishSystemTaskWithContext(context.Background(), taskID, lockedBy, status, resultPayload, errorMessage)
+}
+
+func FinishSystemTaskWithContext(ctx context.Context, taskID string, lockedBy string, status SystemTaskStatus, resultPayload any, errorMessage string) error {
 	resultText, err := marshalSystemTaskJSON(resultPayload)
 	if err != nil {
 		return err
 	}
 	now := common.GetTimestamp()
-	result := DB.Model(&SystemTask{}).
+	result := DB.WithContext(ctx).Model(&SystemTask{}).
 		Where("task_id = ? AND status = ? AND locked_by = ?", taskID, SystemTaskStatusRunning, lockedBy).
 		Where("EXISTS (SELECT 1 FROM system_task_locks WHERE system_task_locks.task_id = system_tasks.task_id AND system_task_locks.locked_by = ? AND system_task_locks.locked_until >= ?)", lockedBy, now).
 		Updates(map[string]any{
@@ -402,7 +407,7 @@ func FinishSystemTask(taskID string, lockedBy string, status SystemTaskStatus, r
 	if result.RowsAffected == 0 {
 		return ErrSystemTaskLockLost
 	}
-	return ReleaseSystemTaskLock(taskID, lockedBy)
+	return DB.WithContext(ctx).Where("task_id = ? AND locked_by = ?", taskID, lockedBy).Delete(&SystemTaskLock{}).Error
 }
 
 func (task *SystemTask) DecodePayload(v any) error {

@@ -293,6 +293,14 @@ func SetApiRouter(router *gin.Engine) {
 		channelCostRoute.GET("/:id", controller.GetChannelCost)
 		channelCostRoute.PUT("/:id", controller.UpdateChannelCost)
 
+		channelFinanceRoute := apiRouter.Group("/channel-finance")
+		channelFinanceRoute.Use(middleware.RootAuth())
+		channelFinanceRoute.GET("/jobs", controller.ListChannelCostReportJobs)
+		channelFinanceRoute.POST("/jobs", controller.CreateChannelCostReportJob)
+		channelFinanceRoute.GET("/jobs/:id", controller.GetChannelCostReportJob)
+		channelFinanceRoute.GET("/jobs/:id/report", controller.GetChannelCostReport)
+		channelFinanceRoute.POST("/jobs/:id/:action", controller.ControlChannelCostReportJob)
+
 		ratioSyncRoute := apiRouter.Group("/ratio_sync")
 		ratioSyncRoute.Use(middleware.RootAuth())
 		{

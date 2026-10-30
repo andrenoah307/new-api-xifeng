@@ -38,9 +38,12 @@ import {
 import { useTranslation } from 'react-i18next'
 
 import { useAuthStore } from '@/stores/auth-store'
-import { type SidebarData } from '@/components/layout/types'
+import type { SidebarData } from '@/components/layout/types'
 import { ROLE } from '@/lib/roles'
-import { getCustomAdminItems, getCustomGeneralItems } from './use-custom-sidebar-items'
+import {
+  getCustomAdminItems,
+  getCustomGeneralItems,
+} from './use-custom-sidebar-items'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -124,6 +127,16 @@ export function useSidebarData(): SidebarData {
         id: 'admin',
         title: t('Admin'),
         items: [
+          ...(userRole === ROLE.SUPER_ADMIN
+            ? [
+                {
+                  title: t('Channel finance'),
+                  url: '/channel-finance' as const,
+                  icon: CreditCard,
+                  requiredRole: ROLE.SUPER_ADMIN,
+                },
+              ]
+            : []),
           {
             title: t('Channels'),
             url: '/channels',

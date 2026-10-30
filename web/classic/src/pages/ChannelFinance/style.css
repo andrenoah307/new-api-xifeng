@@ -1,0 +1,180 @@
+/*
+Copyright (C) 2023-2026 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+.channel-finance {
+  margin-top: 64px;
+  padding: 24px;
+  min-width: 0;
+  color: var(--semi-color-text-0);
+}
+.channel-finance h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+.channel-finance form {
+  border-bottom: 1px solid var(--semi-color-border);
+  padding-bottom: 20px;
+}
+.finance-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.channel-finance label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  min-width: 0;
+}
+.channel-finance input,
+.channel-finance select {
+  min-width: 0;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--semi-color-border);
+  border-radius: 6px;
+  background: var(--semi-color-bg-0);
+  color: inherit;
+}
+.finance-estimate {
+  margin: 16px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: end;
+}
+.finance-rates {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+}
+.finance-rate-row {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+.finance-rate-row label {
+  flex: 1;
+  max-width: 320px;
+}
+.channel-finance .finance-check {
+  flex-direction: row;
+  align-items: center;
+}
+.finance-check input {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.finance-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin: 20px 0;
+}
+.finance-job {
+  flex: 1;
+}
+.finance-progress {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 14px;
+}
+.finance-progress progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--semi-color-primary);
+}
+.finance-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--semi-color-border);
+}
+.finance-summary dt {
+  color: var(--semi-color-text-2);
+  font-size: 14px;
+}
+.finance-summary dd {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.finance-filter {
+  max-width: 320px;
+  margin: 16px 0;
+}
+.finance-table {
+  overflow-x: auto;
+  border: 1px solid var(--semi-color-border);
+  border-radius: 6px;
+}
+.finance-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.finance-table th,
+.finance-table td {
+  padding: 12px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--semi-color-border);
+  font-variant-numeric: tabular-nums;
+}
+.finance-table th:first-child {
+  text-align: left;
+  white-space: normal;
+  min-width: 150px;
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+.finance-table thead {
+  background: var(--semi-color-fill-0);
+}
+.finance-error {
+  color: var(--semi-color-danger);
+  overflow-wrap: anywhere;
+  margin: 12px 0;
+}
+@media (max-width: 900px) {
+  .finance-fields,
+  .finance-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .channel-finance {
+    padding: 16px;
+  }
+  .finance-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .finance-job {
+    flex-basis: 100%;
+  }
+}

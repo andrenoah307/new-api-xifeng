@@ -17,7 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { UserContext } from '../../context/User';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getLucideIcon } from '../../helpers/render';
@@ -33,6 +34,7 @@ import { Nav, Divider, Button } from '@douyinfe/semi-ui';
 const routerMap = {
   home: '/',
   channel: '/console/channel',
+  channel_finance: '/console/channel-finance',
   token: '/console/token',
   redemption: '/console/redemption',
   discount_code: '/console/discount_code',
@@ -59,8 +61,10 @@ const routerMap = {
   personal: '/console/personal',
 };
 
-const SiderBar = ({ onNavigate = () => { } }) => {
+const SiderBar = ({ onNavigate = () => {} }) => {
   const { t } = useTranslation();
+  const [userState] = useContext(UserContext);
+  const isFinanceRoot = userState.user?.role === 100;
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const {
     isModuleVisible,
@@ -170,6 +174,15 @@ const SiderBar = ({ onNavigate = () => { } }) => {
 
   const adminItems = useMemo(() => {
     const items = [
+      ...(isFinanceRoot
+        ? [
+            {
+              text: t('Channel finance'),
+              itemKey: 'channel_finance',
+              to: '/console/channel-finance',
+            },
+          ]
+        : []),
       {
         text: t('渠道管理'),
         itemKey: 'channel',
@@ -247,12 +260,15 @@ const SiderBar = ({ onNavigate = () => { } }) => {
 
     // 根据配置过滤项目
     const filteredItems = items.filter((item) => {
-      const configVisible = isModuleVisible('admin', item.itemKey);
+      const configVisible =
+        item.itemKey === 'channel_finance'
+          ? isFinanceRoot
+          : isModuleVisible('admin', item.itemKey);
       return configVisible;
     });
 
     return filteredItems;
-  }, [isAdmin(), isRoot(), isTicketStaff(), t, isModuleVisible]);
+  }, [isAdmin(), isRoot(), isTicketStaff(), isFinanceRoot, t, isModuleVisible]);
 
   const chatMenuItems = useMemo(() => {
     const items = [

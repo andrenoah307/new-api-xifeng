@@ -69,7 +69,7 @@ jobs:
       - name: Verify pinned ClickHouse and finance concurrency
         run: |
           test "$(curl --fail --silent --show-error -u default:ci-test-only 'http://127.0.0.1:8123/?query=SELECT%20version()')" = '26.3.19.3'
-          go test -race ./model ./controller -run 'Finance|RootLog' -count=1 -timeout=5m
+          go test -race ./model ./controller ./service -run 'Finance|RootLog|ChannelCostReport|CostReport' -count=1 -timeout=5m
 
   build-and-push:
     name: Build And Push Image
