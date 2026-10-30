@@ -81,6 +81,8 @@ type UpdateInvoiceStatusRequest struct {
 }
 
 type CreateRefundTicketRequest struct {
+	FinanceQuote                string `json:"finance_quote"`
+	RequestKey                  string `json:"request_key"`
 	Subject                     string `json:"subject"`
 	Priority                    int    `json:"priority"`
 	RefundQuota                 int    `json:"refund_quota"`
@@ -876,17 +878,14 @@ func CreateRefundTicket(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	if enforceWeeklyTicketLimit(c, currentUser) {
-		return
+	var replay int64
+	if req.RequestKey != "" {
+		if err := model.DB.Model(&model.TicketRefund{}).Where("user_id = ? AND finance_request_key = ?", currentUser.Id, fmt.Sprintf("%d:%s", currentUser.Id, req.RequestKey)).Count(&replay).Error; err != nil {
+			common.ApiError(c, err)
+			return
+		}
 	}
-
-	maxRefundable, err := model.GetUserMaxRefundableQuota(currentUser.Id)
-	if err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	if req.RefundQuota > maxRefundable {
-		common.ApiErrorI18n(c, i18n.MsgTicketRefundQuotaExceed)
+	if replay == 0 && enforceWeeklyTicketLimit(c, currentUser) {
 		return
 	}
 
@@ -908,6 +907,8 @@ func CreateRefundTicket(c *gin.Context) {
 	}
 
 	ticket, refund, message, err := model.CreateRefundTicket(model.CreateRefundTicketParams{
+		FinanceQuote: req.FinanceQuote,
+		RequestKey:   req.RequestKey,
 		UserId:       currentUser.Id,
 		Username:     currentUser.Username,
 		Subject:      req.Subject,
@@ -925,12 +926,14 @@ func CreateRefundTicket(c *gin.Context) {
 		return
 	}
 
-	service.AutoAssignTicketOnCreate(ticket.Id, ticket.Type, service.NotifyTicketAssigned)
-	if refreshed, refreshErr := model.GetTicketById(ticket.Id); refreshErr == nil {
-		ticket = refreshed
+	if !refund.CreationReplayed {
+		service.AutoAssignTicketOnCreate(ticket.Id, ticket.Type, service.NotifyTicketAssigned)
+		if refreshed, refreshErr := model.GetTicketById(ticket.Id); refreshErr == nil {
+			ticket = refreshed
+		}
+		service.NotifyTicketCreatedToAdmin(ticket, message)
+		service.NotifyAutoGroupEvaluation(currentUser.Id)
 	}
-	service.NotifyTicketCreatedToAdmin(ticket, message)
-	service.NotifyAutoGroupEvaluation(currentUser.Id)
 	common.ApiSuccess(c, gin.H{
 		"ticket":  ticket,
 		"refund":  refund,

@@ -1,4 +1,5 @@
 import { api } from '@/lib/api'
+import type { RefundFinanceDetail } from './refund-finance-api'
 
 // ============================================================================
 // Types
@@ -70,6 +71,9 @@ export interface TicketInvoiceOrder {
 }
 
 export interface TicketRefund {
+  finance_version?: number
+  refund_cash_cents?: number
+  finance?: RefundFinanceDetail | null
   id: number
   ticket_id: number
   user_id: number
@@ -227,6 +231,8 @@ export async function createGeneralTicket(data: {
 }
 
 export async function createRefundTicket(data: {
+  request_key?: string
+  finance_quote?: string
   subject: string
   priority: number
   refund_quota: number
@@ -239,7 +245,8 @@ export async function createRefundTicket(data: {
   attachment_ids: number[]
   invoice_conflict_acknowledged?: boolean
 }): Promise<{ id: number } | null> {
-  const res = await api.post('/api/ticket/refund/', data)
+  const res = await api.post('/api/ticket/refund/', data, { skipBusinessError: true })
+  if (!res.data?.success) throw new Error(res.data?.message || 'Operation failed')
   return res.data?.data ?? null
 }
 
