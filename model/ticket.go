@@ -501,6 +501,10 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 	var ticket Ticket
 	var refundedQuota int
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		var owner User
+		if err := lockForUpdate(tx).Select("id").First(&owner, userId).Error; err != nil {
+			return err
+		}
 		if err := tx.First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketNotFound
@@ -548,18 +552,29 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 		syncInvoiceTaxQuotaCache(ticket.UserId, refundedQuota)
 		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, refundedQuota))
 	}
+	if ticket.Type == TicketTypeRefund {
+		_ = InvalidateUserCache(ticket.UserId)
+	}
 	return &ticket, nil
 }
 
 // UpdateTicketStatus 管理员调整工单状态/优先级。
 // 第二个返回值是修改前的主状态，便于调用方仅在状态真正变化时触发通知。
 func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (*Ticket, int, error) {
+	var ownerTicket Ticket
+	if err := DB.Select("id, user_id").First(&ownerTicket, ticketId).Error; err != nil {
+		return nil, 0, err
+	}
 	var refundedQuota int
 	var (
 		ticket     Ticket
 		prevStatus int
 	)
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		var owner User
+		if err := lockForUpdate(tx).Select("id").First(&owner, ownerTicket.UserId).Error; err != nil {
+			return err
+		}
 		if err := tx.First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketNotFound
@@ -627,6 +642,9 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 	if refundedQuota > 0 {
 		syncInvoiceTaxQuotaCache(ticket.UserId, refundedQuota)
 		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, refundedQuota))
+	}
+	if ticket.Type == TicketTypeRefund {
+		_ = InvalidateUserCache(ticket.UserId)
 	}
 	return &ticket, prevStatus, nil
 }

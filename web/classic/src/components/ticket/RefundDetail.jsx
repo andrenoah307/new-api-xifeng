@@ -65,6 +65,8 @@ const CopyableText = ({ value, t }) => {
   );
 };
 
+import RefundFinanceDetail from './RefundFinanceDetail';
+
 const RefundDetail = ({
   refund,
   ticket,
@@ -81,6 +83,8 @@ const RefundDetail = ({
   const [rejectReason, setRejectReason] = useState('');
   const [rejectLoading, setRejectLoading] = useState(false);
   const [invoicesExpanded, setInvoicesExpanded] = useState(false);
+  const [registeredCorrections, setRegisteredCorrections] = useState([]);
+  const correctionsPending = refund?.finance_version === 1 && (!refund.finance || refund.finance.invoice_corrections.some((item) => item.status !== 'completed' && !registeredCorrections.includes(item.id)));
 
   const [quotaMode, setQuotaMode] = useState(QUOTA_MODE_WRITE_OFF);
   const [customAmountInput, setCustomAmountInput] = useState('');
@@ -207,8 +211,11 @@ const RefundDetail = ({
   })();
 
   const handleResolveConfirm = async () => {
+    if (correctionsPending) return;
     let extra;
-    if (quotaMode === QUOTA_MODE_SUBTRACT) {
+    if (refund.finance_version === 1) {
+      extra = { quota_mode: QUOTA_MODE_WRITE_OFF };
+    } else if (quotaMode === QUOTA_MODE_SUBTRACT) {
       const quota = customQuotaFromInput();
       if (!quota || quota <= 0) return;
       extra = { quota_mode: QUOTA_MODE_SUBTRACT, actual_refund_quota: quota };
@@ -392,7 +399,7 @@ const RefundDetail = ({
                 theme='solid'
                 type='primary'
                 loading={loading}
-                disabled={!isPending}
+                disabled={!isPending || correctionsPending}
                 onClick={() => setResolveVisible(true)}
               >
                 {t('完成退款')}
@@ -401,6 +408,7 @@ const RefundDetail = ({
           )}
         </div>
 
+        {refund.finance && <RefundFinanceDetail finance={refund.finance} ticketId={refund.ticket_id} onUpdated={(id, status) => { if (status === 'completed') setRegisteredCorrections((items) => [...items, id]); }} />}
         {/* 金额高亮区 */}
         <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
           <div
@@ -555,7 +563,7 @@ const RefundDetail = ({
         onCancel={() => setResolveVisible(false)}
         confirmLoading={resolveLoading}
         okText={t('确认完成退款')}
-        okButtonProps={{ disabled: !isResolveConfirmEnabled }}
+        okButtonProps={{ disabled: !isResolveConfirmEnabled || correctionsPending }}
         cancelText={t('取消')}
         title={t('完成退款')}
         bodyStyle={{
@@ -622,18 +630,18 @@ const RefundDetail = ({
                   {t('核销，用户余额不变')}
                 </Text>
               </Radio>
-              <Radio value={QUOTA_MODE_SUBTRACT}>
+              {refund.finance_version !== 1 && <Radio value={QUOTA_MODE_SUBTRACT}>
                 <Text>{t('自定义扣减额度')}</Text>
                 <Text type='tertiary' size='small' className='ml-2'>
                   {t('先解冻回用户余额，再按下方金额扣减')}
                 </Text>
-              </Radio>
-              <Radio value={QUOTA_MODE_OVERRIDE}>
+              </Radio>}
+              {refund.finance_version !== 1 && <Radio value={QUOTA_MODE_OVERRIDE}>
                 <Text>{t('覆盖最终余额')}</Text>
                 <Text type='tertiary' size='small' className='ml-2'>
                   {t('先解冻回用户余额，再把余额设为下方金额')}
                 </Text>
-              </Radio>
+              </Radio>}
             </RadioGroup>
           </div>
 
