@@ -5115,12 +5115,13 @@
     "Cost multiplier": "Multiplicateur de coût",
     "Cost ratio is stale": "Multiplicateur de coût périmé",
     "Cost source": "Source du coût",
-    "Estimated model cost (USD)": "Coût estimé du modèle (USD)",
+    "Estimated model cost": "Coût estimé du modèle",
     "Failed to load": "Échec du chargement",
     "Loading...": "Chargement...",
     "Manual": "Manuel",
     "Save cost settings": "Enregistrer les coûts",
     "Saved successfully": "Enregistré",
-    "Upstream declared multiplier": "Multiplicateur déclaré en amont"
+    "Upstream declared multiplier": "Multiplicateur déclaré en amont",
+    "Profit": "Bénéfice"
   }
 }

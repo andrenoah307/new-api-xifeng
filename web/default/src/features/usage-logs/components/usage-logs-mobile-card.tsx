@@ -312,6 +312,7 @@ function CommonLogsCard<TData>({
       </div>
 
       <div className='grid grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] gap-1.5'>
+        <SummaryField label={t('Profit')} cell={cells.get('profit')} />
         <div className='bg-muted/20 min-w-0 rounded-md px-2 py-1.5'>
           <MobileLogTimeStatus
             createdAt={rowData?.created_at}

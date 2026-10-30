@@ -26,6 +26,7 @@ import {
   getTodayEndTimestamp,
   isAdmin,
   isRoot,
+  getCurrentUserRole,
   showError,
   showSuccess,
   timestamp2string,
@@ -72,6 +73,7 @@ export const useLogsData = () => {
     PROMPT: 'prompt',
     COMPLETION: 'completion',
     COST: 'cost',
+    PROFIT: 'profit',
     RETRY: 'retry',
     IP: 'ip',
     DETAILS: 'details',
@@ -91,9 +93,12 @@ export const useLogsData = () => {
   // User and admin
   const isAdminUser = isAdmin();
   // Role-specific storage key to prevent different roles from overwriting each other
-  const STORAGE_KEY = isAdminUser
-    ? 'logs-table-columns-admin'
-    : 'logs-table-columns-user';
+  const STORAGE_KEY =
+    getCurrentUserRole() === 100
+      ? 'logs-table-columns-root'
+      : isAdminUser
+        ? 'logs-table-columns-admin'
+        : 'logs-table-columns-user';
   const BILLING_DISPLAY_MODE_STORAGE_KEY = isAdminUser
     ? 'logs-billing-display-mode-admin'
     : 'logs-billing-display-mode-user';
@@ -136,6 +141,7 @@ export const useLogsData = () => {
       [COLUMN_KEYS.PROMPT]: true,
       [COLUMN_KEYS.COMPLETION]: true,
       [COLUMN_KEYS.COST]: true,
+      [COLUMN_KEYS.PROFIT]: false,
       [COLUMN_KEYS.RETRY]: isAdminUser,
       [COLUMN_KEYS.IP]: true,
       [COLUMN_KEYS.DETAILS]: true,
@@ -153,6 +159,7 @@ export const useLogsData = () => {
     try {
       const parsed = JSON.parse(savedColumns);
       const merged = { ...defaults, ...parsed };
+      if (getCurrentUserRole() !== 100) merged[COLUMN_KEYS.PROFIT] = false;
 
       if (!isAdminUser) {
         merged[COLUMN_KEYS.CHANNEL] = false;
@@ -210,6 +217,8 @@ export const useLogsData = () => {
 
   // Handle column visibility change
   const handleColumnVisibilityChange = (columnKey, checked) => {
+    if (columnKey === COLUMN_KEYS.PROFIT && getCurrentUserRole() !== 100)
+      return;
     const updatedColumns = { ...visibleColumns, [columnKey]: checked };
     setVisibleColumns(updatedColumns);
   };
@@ -220,6 +229,10 @@ export const useLogsData = () => {
     const updatedColumns = {};
 
     allKeys.forEach((key) => {
+      if (key === COLUMN_KEYS.PROFIT && getCurrentUserRole() !== 100) {
+        updatedColumns[key] = false;
+        return;
+      }
       if (
         (key === COLUMN_KEYS.CHANNEL ||
           key === COLUMN_KEYS.USERNAME ||
@@ -405,8 +418,13 @@ export const useLogsData = () => {
     };
 
     const renderReasoningEffortTag = (effort) => {
-      const color = effort === 'high' ? 'orange' : effort === 'medium' ? 'amber' : 'green';
-      return <Tag color={color} size='small'>{effort}</Tag>;
+      const color =
+        effort === 'high' ? 'orange' : effort === 'medium' ? 'amber' : 'green';
+      return (
+        <Tag color={color} size='small'>
+          {effort}
+        </Tag>
+      );
     };
 
     let expandDatesLocal = {};
@@ -417,9 +435,19 @@ export const useLogsData = () => {
       let expandDataLocal = [];
 
       if (isRoot() && other?.root_cost) {
-        expandDataLocal.push({ key: t('Estimated model cost (USD)'), value: other.root_cost.amount_usd ?? '-' });
-        expandDataLocal.push({ key: t('Cost multiplier'), value: String(other.root_cost.ratio ?? '-') });
-        if (other.root_cost.status === 'stale') expandDataLocal.push({ key: t('Cost source'), value: t('Cost ratio is stale') });
+        expandDataLocal.push({
+          key: t('Estimated model cost'),
+          value: other.root_cost.amount_usd ?? '-',
+        });
+        expandDataLocal.push({
+          key: t('Cost multiplier'),
+          value: String(other.root_cost.ratio ?? '-'),
+        });
+        if (other.root_cost.status === 'stale')
+          expandDataLocal.push({
+            key: t('Cost source'),
+            value: t('Cost ratio is stale'),
+          });
       }
 
       if (isAdminUser && (logs[i].type === 0 || logs[i].type === 2 || logs[i].type === 6)) {
@@ -572,19 +600,31 @@ export const useLogsData = () => {
           }
           expandDataLocal.push({
             key: t('Thinking Budget (Request)'),
-            value: <Tag color='blue' size='small'>{budgetLabel}</Tag>,
+            value: (
+              <Tag color='blue' size='small'>
+                {budgetLabel}
+              </Tag>
+            ),
           });
         }
         if (other?.thinking_type) {
           expandDataLocal.push({
             key: t('Thinking Mode (Request)'),
-            value: <Tag color='blue' size='small'>{other.thinking_type}</Tag>,
+            value: (
+              <Tag color='blue' size='small'>
+                {other.thinking_type}
+              </Tag>
+            ),
           });
         }
         if (other?.reasoning_tokens != null && other.reasoning_tokens > 0) {
           expandDataLocal.push({
             key: t('Reasoning Tokens (Actual)'),
-            value: <Tag color='green' size='small'>{renderNumber(other.reasoning_tokens)}</Tag>,
+            value: (
+              <Tag color='green' size='small'>
+                {renderNumber(other.reasoning_tokens)}
+              </Tag>
+            ),
           });
         }
         if (other?.long_context_tier) {

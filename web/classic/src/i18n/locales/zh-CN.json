@@ -5257,12 +5257,13 @@
     "Cost multiplier": "成本倍率",
     "Cost ratio is stale": "成本倍率已过期",
     "Cost source": "成本来源",
-    "Estimated model cost (USD)": "模型预估成本（USD）",
+    "Estimated model cost": "模型预估成本",
     "Failed to load": "加载失败",
     "Loading...": "加载中...",
     "Manual": "手动",
     "Save cost settings": "保存成本设置",
     "Saved successfully": "保存成功",
-    "Upstream declared multiplier": "上游声明倍率"
+    "Upstream declared multiplier": "上游声明倍率",
+    "Profit": "收益"
   }
 }

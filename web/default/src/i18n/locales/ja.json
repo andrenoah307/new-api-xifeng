@@ -1877,7 +1877,7 @@
     "Errors": "エラー数",
     "Errors per minute": "毎分エラー数",
     "Estimated cost": "推定コスト",
-    "Estimated model cost (USD)": "モデル推定原価 (USD)",
+    "Estimated model cost": "モデル推定原価",
     "Estimated quota cost": "想定クォートコスト",
     "Every group name in the pricing table can be used in two places: on a user (the user group, assigned by admins) and on a token (the token group, chosen when creating the token). Same name pool, two different jobs.": "料金表の各グループ名は2つの場所で使えます。ユーザー側（ユーザーグループ、管理者が割り当て）とトークン側（トークングループ、トークン作成時に選択）です。同じ名前プールで、役割は2つです。",
     "Every month": "毎月",
@@ -5703,6 +5703,7 @@
     "Zero-charge guard applied": "ゼロ課金ガードが作動しました",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Profit": "利益"
   }
 }

@@ -35,6 +35,7 @@ import {
   renderModelPriceSimple,
   renderTieredModelPriceSimple,
   stripLocalRequestId,
+  getCurrentUserRole,
 } from '../../../helpers';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
 import { CircleAlert, Route, Sparkles } from 'lucide-react';
@@ -43,6 +44,7 @@ import {
   isUsageLogOperationAction,
 } from './usage-log-operation';
 import { getPromptCacheSummary } from './cache-tokens';
+import { calculateLogProfit } from './profit';
 
 const colors = [
   'amber',
@@ -150,10 +152,7 @@ function renderType(type, t) {
 
 function buildStreamStatusTooltip(ss, t) {
   if (!ss) return null;
-  const lines = [
-    t('流状态') + '：' + t('异常'),
-    (ss.end_reason || 'unknown'),
-  ];
+  const lines = [t('流状态') + '：' + t('异常'), ss.end_reason || 'unknown'];
   if (ss.error_count > 0) {
     lines.push(`${t('软错误')}: ${ss.error_count}`);
   }
@@ -879,6 +878,30 @@ export const getLogsColumns = ({
         return <>{renderQuota(text, 6)}</>;
       },
     },
+    ...(getCurrentUserRole() === 100
+      ? [
+          {
+            key: COLUMN_KEYS.PROFIT,
+            title: t('Profit'),
+            render: (_text, record) => {
+              const role = getCurrentUserRole();
+              if (role !== 100) return null;
+              const profit = calculateLogProfit(
+                role,
+                record.type,
+                record.quota,
+                Number(localStorage.getItem('quota_per_unit')),
+                getLogOther(record.other)?.root_cost,
+              );
+              return (
+                <span className='tabular-nums'>
+                  {profit === null ? '-' : profit.toFixed(6)}
+                </span>
+              );
+            },
+          },
+        ]
+      : []),
     {
       key: COLUMN_KEYS.IP,
       title: (

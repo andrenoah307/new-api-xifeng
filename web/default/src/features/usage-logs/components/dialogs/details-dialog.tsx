@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -31,7 +32,6 @@ import {
   Info,
   LogIn,
 } from 'lucide-react'
-import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 
 import { Dialog } from '@/components/dialog'
@@ -733,7 +733,7 @@ export function DetailsDialog(props: DetailsDialogProps) {
           {isRoot && other?.root_cost && (
             <>
               <DetailRow
-                label={t('Estimated model cost (USD)')}
+                label={t('Estimated model cost')}
                 value={other.root_cost.amount_usd ?? '-'}
                 mono
               />

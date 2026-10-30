@@ -31,6 +31,7 @@ import {
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 
 import {
   DEFAULT_LOGS_DATA,
@@ -48,6 +49,7 @@ import { UsageLogsMobileList } from './usage-logs-mobile-card'
 import { useLogsViewScope } from './usage-logs-provider'
 
 const route = getRouteApi('/_authenticated/usage-logs/$section')
+const initialColumnVisibility = { profit: false }
 
 const logTypeRowTint: Record<number, string> = {
   [LOG_TYPE_ENUM.ERROR]: 'bg-rose-50/40 dark:bg-rose-950/20',
@@ -60,9 +62,12 @@ const quotaSaturationRowTint = 'bg-amber-50/60 dark:bg-amber-950/25'
 
 function getColumnVisibilityStorageKey(
   logCategory: LogCategory,
-  isAdmin: boolean
+  isAdmin: boolean,
+  isRoot: boolean
 ): string {
-  return `usage-logs:${logCategory}:${isAdmin ? 'admin' : 'user'}:column-visibility`
+  let scope = isAdmin ? 'admin' : 'user'
+  if (isRoot) scope = 'root'
+  return `usage-logs:${logCategory}:${scope}:column-visibility`
 }
 
 function deserializeLogTypeFilter(value: unknown): unknown[] {
@@ -82,6 +87,8 @@ interface UsageLogsTableProps {
 export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const { t } = useTranslation()
   const { isAdminView: isAdmin } = useLogsViewScope()
+  const userId = useAuthStore((state) => state.auth.user?.id)
+  const role = useAuthStore((state) => state.auth.user?.role)
   const isMobile = useMediaQuery('(max-width: 640px)')
   const searchParams = route.useSearch()
 
@@ -131,6 +138,8 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
       'logs',
       logCategory,
       isAdmin,
+      userId,
+      role,
       pagination.pageIndex + 1,
       pagination.pageSize,
       columnFilters,
@@ -165,7 +174,12 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     },
     retry: shouldRetryUsageLogQuery,
     placeholderData: (previousData, previousQuery) => {
-      if (previousQuery?.queryKey[1] === logCategory) {
+      if (
+        previousQuery?.queryKey[1] === logCategory &&
+        previousQuery.queryKey[2] === isAdmin &&
+        previousQuery.queryKey[3] === userId &&
+        previousQuery.queryKey[4] === role
+      ) {
         return previousData
       }
       return undefined
@@ -180,9 +194,11 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     data: logs as Record<string, unknown>[],
     columns: columns as ColumnDef<Record<string, unknown>>[],
     columnFilters,
+    initialColumnVisibility,
     columnVisibilityStorageKey: getColumnVisibilityStorageKey(
       logCategory,
-      isAdmin
+      isAdmin,
+      role === 100
     ),
     pagination,
     enableRowSelection: false,

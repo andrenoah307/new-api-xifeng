@@ -5136,12 +5136,13 @@
     "Cost multiplier": "Множитель стоимости",
     "Cost ratio is stale": "Множитель стоимости устарел",
     "Cost source": "Источник стоимости",
-    "Estimated model cost (USD)": "Оценка стоимости модели (USD)",
+    "Estimated model cost": "Оценка стоимости модели",
     "Failed to load": "Не удалось загрузить",
     "Loading...": "Загрузка...",
     "Manual": "Вручную",
     "Save cost settings": "Сохранить настройки стоимости",
     "Saved successfully": "Сохранено",
-    "Upstream declared multiplier": "Заявленный множитель провайдера"
+    "Upstream declared multiplier": "Заявленный множитель провайдера",
+    "Profit": "Прибыль"
   }
 }

@@ -39,6 +39,8 @@ import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTimestampToDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
+import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import { LOG_TYPE_ALL_VALUE } from '../../constants'
 import type { UsageLog } from '../../data/schema'
@@ -51,6 +53,7 @@ import {
   isViolationFeeLog,
   renderAuditContent,
 } from '../../lib/format'
+import { calculateLogProfit } from '../../lib/profit'
 import {
   isDisplayableLogType,
   isTimingLogType,
@@ -301,6 +304,10 @@ function buildTypeDetailSegments(
 
 export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
   const { t } = useTranslation()
+  const role = useAuthStore((state) => state.auth.user?.role)
+  const quotaPerUnit = useSystemConfigStore(
+    (state) => state.config.currency.quotaPerUnit
+  )
   const columns: ColumnDef<UsageLog>[] = [
     {
       accessorKey: 'created_at',
@@ -852,5 +859,36 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
     }
   )
 
+  if (role === 100) {
+    const costIndex = columns.findIndex(
+      (column) => 'accessorKey' in column && column.accessorKey === 'quota'
+    )
+    columns.splice(costIndex + 1, 0, {
+      id: 'profit',
+      header: t('Profit'),
+      accessorFn: (log) => {
+        const currentRole = useAuthStore.getState().auth.user?.role
+        if (currentRole !== 100) return null
+        return calculateLogProfit(
+          currentRole,
+          log.type,
+          log.quota,
+          quotaPerUnit,
+          parseLogOther(log.other)?.root_cost
+        )
+      },
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        if (useAuthStore.getState().auth.user?.role !== 100) return null
+        const profit = getValue() as number | null
+        return (
+          <span className='tabular-nums'>
+            {profit === null ? '-' : profit.toFixed(6)}
+          </span>
+        )
+      },
+      size: 120,
+    })
+  }
   return columns
 }

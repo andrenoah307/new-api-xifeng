@@ -1877,7 +1877,7 @@
     "Errors": "Errors",
     "Errors per minute": "Errors per minute",
     "Estimated cost": "Estimated cost",
-    "Estimated model cost (USD)": "Estimated model cost (USD)",
+    "Estimated model cost": "Estimated model cost",
     "Estimated quota cost": "Estimated quota cost",
     "Every group name in the pricing table can be used in two places: on a user (the user group, assigned by admins) and on a token (the token group, chosen when creating the token). Same name pool, two different jobs.": "Every group name in the pricing table can be used in two places: on a user (the user group, assigned by admins) and on a token (the token group, chosen when creating the token). Same name pool, two different jobs.",
     "Every month": "Every month",
@@ -5703,6 +5703,7 @@
     "Zero-charge guard applied": "Zero-charge guard applied",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Profit": "Profit"
   }
 }

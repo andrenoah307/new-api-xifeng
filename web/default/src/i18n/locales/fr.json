@@ -1877,7 +1877,7 @@
     "Errors": "Erreurs",
     "Errors per minute": "Erreurs par minute",
     "Estimated cost": "Coût estimé",
-    "Estimated model cost (USD)": "Coût estimé du modèle (USD)",
+    "Estimated model cost": "Coût estimé du modèle",
     "Estimated quota cost": "Coût de quota estimé",
     "Every group name in the pricing table can be used in two places: on a user (the user group, assigned by admins) and on a token (the token group, chosen when creating the token). Same name pool, two different jobs.": "Chaque nom de groupe du tableau tarifaire peut être utilisé à deux endroits : sur un utilisateur (groupe d’utilisateurs, attribué par les admins) et sur un jeton (groupe de jetons, choisi à la création du jeton). Même ensemble de noms, deux rôles différents.",
     "Every month": "Chaque mois",
@@ -5703,6 +5703,7 @@
     "Zero-charge guard applied": "Protection de facturation nulle déclenchée",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Profit": "Bénéfice"
   }
 }

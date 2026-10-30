@@ -1877,7 +1877,7 @@
     "Errors": "错误数",
     "Errors per minute": "每分钟错误数",
     "Estimated cost": "预计成本",
-    "Estimated model cost (USD)": "模型预估成本（USD）",
+    "Estimated model cost": "模型预估成本",
     "Estimated quota cost": "估算配额费用",
     "Every group name in the pricing table can be used in two places: on a user (the user group, assigned by admins) and on a token (the token group, chosen when creating the token). Same name pool, two different jobs.": "定价表中的每个分组名可用在两个地方：用户身上（用户分组，由管理员分配）和令牌身上（令牌分组，创建令牌时选择）。同一批名字，两种不同职责。",
     "Every month": "每月",
@@ -5703,6 +5703,7 @@
     "Zero-charge guard applied": "零计费保护已触发",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Profit": "收益"
   }
 }

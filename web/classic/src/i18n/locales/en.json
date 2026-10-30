@@ -5342,12 +5342,13 @@
     "Cost multiplier": "Cost multiplier",
     "Cost ratio is stale": "Cost ratio is stale",
     "Cost source": "Cost source",
-    "Estimated model cost (USD)": "Estimated model cost (USD)",
+    "Estimated model cost": "Estimated model cost",
     "Failed to load": "Failed to load",
     "Loading...": "Loading...",
     "Manual": "Manual",
     "Save cost settings": "Save cost settings",
     "Saved successfully": "Saved successfully",
-    "Upstream declared multiplier": "Upstream declared multiplier"
+    "Upstream declared multiplier": "Upstream declared multiplier",
+    "Profit": "Profit"
   }
 }
