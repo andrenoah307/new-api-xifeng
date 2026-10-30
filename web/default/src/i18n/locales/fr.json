@@ -4469,7 +4469,7 @@
     "Select a store": "Sélectionner une boutique",
     "Select a timestamp before clearing logs.": "Sélectionnez un horodatage avant de vider les journaux.",
     "Select a usage mode to continue": "Sélectionnez un mode d'utilisation pour continuer",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "Choisissez une période passée valide de 31 jours maximum et confirmez la base d’estimation.",
+    "Select a valid historical time range and confirm the estimation basis.": "Sélectionnez une période historique valide et confirmez la base d’estimation.",
     "Select a verification method first": "Sélectionnez d'abord une méthode de vérification",
     "Select active subscription plan": "Sélectionner un forfait actif",
     "Select all": "Tout sélectionner",

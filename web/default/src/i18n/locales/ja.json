@@ -4469,7 +4469,7 @@
     "Select a store": "ストアを選択",
     "Select a timestamp before clearing logs.": "ログをクリアする前にタイムスタンプを選択してください。",
     "Select a usage mode to continue": "続行するには使用モードを選択してください",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "31日以内の有効な過去期間を選択し、推定基準を確認してください。",
+    "Select a valid historical time range and confirm the estimation basis.": "有効な過去の期間を選択し、見積もり基準を確認してください。",
     "Select a verification method first": "まず検証方法を選択してください",
     "Select active subscription plan": "有効なサブスクリプションプランを選択",
     "Select all": "すべて選択",

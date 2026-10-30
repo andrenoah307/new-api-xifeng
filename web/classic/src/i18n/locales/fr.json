@@ -5160,7 +5160,7 @@
     "Report task": "Tâche de rapport",
     "Resume": "Reprendre",
     "Running": "En cours",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "Choisissez une période passée valide de 31 jours maximum et confirmez la base d’estimation.",
+    "Select a valid historical time range and confirm the estimation basis.": "Sélectionnez une période historique valide et confirmez la base d’estimation.",
     "Snapshot cost": "Coût enregistré",
     "Snapshot only": "Enregistrements seuls",
     "Snapshot records": "Coûts enregistrés",

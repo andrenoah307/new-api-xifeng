@@ -4469,7 +4469,7 @@
     "Select a store": "Выберите магазин",
     "Select a timestamp before clearing logs.": "Выберите временную метку перед очисткой журналов.",
     "Select a usage mode to continue": "Выберите режим использования для продолжения",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "Выберите прошедший период до 31 дня и подтвердите базу оценки.",
+    "Select a valid historical time range and confirm the estimation basis.": "Выберите корректный период в прошлом и подтвердите основу оценки.",
     "Select a verification method first": "Сначала выберите метод верификации",
     "Select active subscription plan": "Выберите активный тариф подписки",
     "Select all": "Выбрать все",

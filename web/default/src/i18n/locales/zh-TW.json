@@ -4469,7 +4469,7 @@
     "Select a store": "選擇店鋪",
     "Select a timestamp before clearing logs.": "清除日誌前請選擇一個時間戳。",
     "Select a usage mode to continue": "選擇使用模式以繼續",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "請選擇不超過 31 天的有效歷史時間範圍，並確認預估口徑。",
+    "Select a valid historical time range and confirm the estimation basis.": "請選擇有效的歷史時間範圍，並確認預估口徑。",
     "Select a verification method first": "請先選擇驗證方式",
     "Select active subscription plan": "選擇有效訂閱套餐",
     "Select all": "全選",

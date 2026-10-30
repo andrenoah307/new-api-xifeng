@@ -4469,7 +4469,7 @@
     "Select a store": "选择店铺",
     "Select a timestamp before clearing logs.": "清除日志前请选择一个时间戳。",
     "Select a usage mode to continue": "选择使用模式以继续",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "请选择不超过 31 天的有效历史时间范围，并确认预估口径。",
+    "Select a valid historical time range and confirm the estimation basis.": "请选择有效的历史时间范围，并确认预估口径。",
     "Select a verification method first": "请先选择验证方式",
     "Select active subscription plan": "选择有效订阅套餐",
     "Select all": "全选",

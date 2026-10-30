@@ -5127,7 +5127,7 @@
     "Report task": "集計タスク",
     "Resume": "再開",
     "Running": "実行中",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "31日以内の有効な過去期間を選択し、推定基準を確認してください。",
+    "Select a valid historical time range and confirm the estimation basis.": "有効な過去の期間を選択し、見積もり基準を確認してください。",
     "Snapshot cost": "記録時コスト",
     "Snapshot only": "スナップショットのみ",
     "Snapshot records": "スナップショット件数",

@@ -71,7 +71,7 @@ func costReportSourceDecimal(value string) (decimal.Decimal, bool) {
 
 func ValidateCostReportPolicy(p CostReportPolicy) error {
 	q, ok := costReportDecimal(p.QuotaPerUnit)
-	if p.Start < 1 || p.End <= p.Start || p.End-p.Start > 31*86400 || p.ChannelID < 0 || !ok || q.LessThan(decimal.NewFromInt(1)) || q.GreaterThan(decimal.NewFromInt(1000000000000)) || (p.FallbackMode != "none" && p.FallbackMode != "billed_basis") || len(p.Rates) > 5000 {
+	if p.Start < 1 || p.End <= p.Start || p.End > time.Now().Unix() || p.ChannelID < 0 || !ok || q.LessThan(decimal.NewFromInt(1)) || q.GreaterThan(decimal.NewFromInt(1000000000000)) || (p.FallbackMode != "none" && p.FallbackMode != "billed_basis") || len(p.Rates) > 5000 {
 		return errors.New("invalid cost report policy")
 	}
 	if (p.FallbackMode == "none" && len(p.Rates) != 0) || (p.FallbackMode == "billed_basis" && len(p.Rates) == 0) {

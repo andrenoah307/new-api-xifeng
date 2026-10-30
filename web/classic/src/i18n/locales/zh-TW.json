@@ -5139,7 +5139,7 @@
     "Report task": "彙總任務",
     "Resume": "繼續",
     "Running": "執行中",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "請選擇不超過 31 天的有效歷史時間範圍，並確認預估口徑。",
+    "Select a valid historical time range and confirm the estimation basis.": "請選擇有效的歷史時間範圍，並確認預估口徑。",
     "Snapshot cost": "快照成本",
     "Snapshot only": "僅使用快照",
     "Snapshot records": "快照記錄數",

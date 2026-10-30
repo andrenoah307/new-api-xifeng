@@ -101,9 +101,15 @@ func checkCostReportSnapshotPriority(t *testing.T) {
 func TestCostReportPolicyAndMerge(t *testing.T) {
 	valid := CostReportPolicy{Start: 100, End: 110, QuotaPerUnit: "100", FallbackMode: "none"}
 	require.NoError(t, ValidateCostReportPolicy(valid))
+	for _, end := range []int64{valid.Start + 32*86400, valid.Start + 10*365*86400} {
+		historical := valid
+		historical.End = end
+		require.NoError(t, ValidateCostReportPolicy(historical))
+	}
 	for _, mutate := range []func(*CostReportPolicy){
 		func(p *CostReportPolicy) { p.QuotaPerUnit = "0" },
-		func(p *CostReportPolicy) { p.End = p.Start + 32*86400 },
+		func(p *CostReportPolicy) { p.End = 1<<63 - 1 },
+		func(p *CostReportPolicy) { p.End = p.Start },
 		func(p *CostReportPolicy) { p.FallbackMode = "billed_basis" },
 		func(p *CostReportPolicy) { p.Rates = []CostReportRate{{ChannelID: 1, Ratio: "1"}} },
 		func(p *CostReportPolicy) {

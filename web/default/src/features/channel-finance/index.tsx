@@ -172,7 +172,7 @@ function ChannelFinanceContent(props: { userId: number }) {
       !Number.isFinite(endAt) ||
       endAt <= startAt ||
       endAt > Date.now() / 1000 ||
-      endAt - startAt > 31 * 86400 ||
+      startAt < 1 ||
       !Number.isSafeInteger(channelId) ||
       channelId < 0 ||
       (fallback &&
@@ -190,7 +190,7 @@ function ChannelFinanceContent(props: { userId: number }) {
     ) {
       setError(
         t(
-          'Select a valid past period of up to 31 days and confirm the estimation basis.',
+          'Select a valid historical time range and confirm the estimation basis.',
         ),
       )
       return

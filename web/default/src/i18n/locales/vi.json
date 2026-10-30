@@ -4469,7 +4469,7 @@
     "Select a store": "Chọn cửa hàng",
     "Select a timestamp before clearing logs.": "Chọn một dấu thời gian trước khi xóa nhật ký.",
     "Select a usage mode to continue": "Chọn chế độ sử dụng để tiếp tục",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "Chọn khoảng thời gian đã qua tối đa 31 ngày và xác nhận cơ sở ước tính.",
+    "Select a valid historical time range and confirm the estimation basis.": "Chọn khoảng thời gian hợp lệ trong quá khứ và xác nhận cơ sở ước tính.",
     "Select a verification method first": "Vui lòng chọn phương thức xác thực trước",
     "Select active subscription plan": "Chọn gói đăng ký đang hoạt động",
     "Select all": "Chọn tất cả",

@@ -5181,7 +5181,7 @@
     "Report task": "Задача отчёта",
     "Resume": "Продолжить",
     "Running": "Выполняется",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "Выберите прошедший период до 31 дня и подтвердите базу оценки.",
+    "Select a valid historical time range and confirm the estimation basis.": "Выберите корректный период в прошлом и подтвердите основу оценки.",
     "Snapshot cost": "Зафиксированная стоимость",
     "Snapshot only": "Только снимки",
     "Snapshot records": "Записи со снимком",

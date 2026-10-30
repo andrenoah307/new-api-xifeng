@@ -5387,7 +5387,7 @@
     "Report task": "Report task",
     "Resume": "Resume",
     "Running": "Running",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "Select a valid past period of up to 31 days and confirm the estimation basis.",
+    "Select a valid historical time range and confirm the estimation basis.": "Select a valid historical time range and confirm the estimation basis.",
     "Snapshot cost": "Snapshot cost",
     "Snapshot only": "Snapshot only",
     "Snapshot records": "Snapshot records",

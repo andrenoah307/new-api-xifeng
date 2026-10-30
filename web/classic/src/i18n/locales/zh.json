@@ -3032,7 +3032,7 @@
     "Report task": "汇总任务",
     "Resume": "继续",
     "Running": "运行中",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "请选择不超过 31 天的有效历史时间范围，并确认预估口径。",
+    "Select a valid historical time range and confirm the estimation basis.": "请选择有效的历史时间范围，并确认预估口径。",
     "Snapshot cost": "快照成本",
     "Snapshot only": "仅使用快照",
     "Snapshot records": "快照记录数",

@@ -16,17 +16,37 @@ import (
 	"testing"
 )
 
-func costReportJobFixture(t *testing.T) (*ChannelCostReportJob, *SystemTask) {
+func costReportJobFixture(t *testing.T, policies ...CostReportPolicy) (*ChannelCostReportJob, *SystemTask) {
 	t.Helper()
 	truncateTables(t)
 	require.NoError(t, DB.AutoMigrate(&ChannelCostReportJob{}))
 	t.Cleanup(func() { DB.Where("1 = 1").Delete(&ChannelCostReportJob{}) })
 	require.NoError(t, DB.Create(&User{Id: 989, Username: "cost-root", Role: common.RoleRootUser, Status: common.UserStatusEnabled}).Error)
-	job, err := CreateChannelCostReportJob(context.Background(), 989, uuid.NewString(), CostReportPolicy{Start: 100, End: 7300, QuotaPerUnit: "500000", FallbackMode: "none"})
+	policy := CostReportPolicy{Start: 100, End: 7300, QuotaPerUnit: "500000", FallbackMode: "none"}
+	if len(policies) > 0 {
+		policy = policies[0]
+	}
+	job, err := CreateChannelCostReportJob(context.Background(), 989, uuid.NewString(), policy)
 	require.NoError(t, err)
 	task, err := GetSystemTaskByTaskID(job.SystemTaskID)
 	require.NoError(t, err)
 	return job, task
+}
+
+func TestChannelCostReportMultiYearHistoryKeepsBoundedWindows(t *testing.T) {
+	policy := CostReportPolicy{Start: 100, End: 100 + 10*365*86400, QuotaPerUnit: "500000", FallbackMode: "none"}
+	job, task := costReportJobFixture(t, policy)
+	assert.Equal(t, 10*365*24, job.TotalWindows)
+	_, claimed, err := ClaimSystemTask(task.ID, task.Type, "worker", common.GetTimestamp()+60)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.NoError(t, BeginChannelCostReportJob(context.Background(), job, "worker"))
+	require.Error(t, PublishChannelCostReportWindow(context.Background(), job, "worker", policy.End, nil))
+	require.NoError(t, PublishChannelCostReportWindow(context.Background(), job, "worker", policy.Start+3600, nil))
+	stored, err := GetChannelCostReportJob(context.Background(), job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, policy.Start+3600, stored.Cursor)
+	assert.Equal(t, 1, stored.ProcessedWindows)
 }
 
 func TestChannelCostReportIdempotencyAndExclusiveActiveJob(t *testing.T) {

@@ -5670,7 +5670,7 @@
     "Report task": "Tác vụ báo cáo",
     "Resume": "Tiếp tục",
     "Running": "Đang chạy",
-    "Select a valid past period of up to 31 days and confirm the estimation basis.": "Chọn khoảng thời gian đã qua tối đa 31 ngày và xác nhận cơ sở ước tính.",
+    "Select a valid historical time range and confirm the estimation basis.": "Chọn khoảng thời gian hợp lệ trong quá khứ và xác nhận cơ sở ước tính.",
     "Snapshot cost": "Chi phí đã ghi",
     "Snapshot only": "Chỉ dùng chi phí đã ghi",
     "Snapshot records": "Số bản ghi đã ghi chi phí",
