@@ -2,11 +2,14 @@ package router
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
 	"github.com/QuantumNous/new-api/controller"
 	"github.com/QuantumNous/new-api/service/authz"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,6 +53,30 @@ func TestChannelStatusRoutesRegisterWithoutConflict(t *testing.T) {
 	require.NotPanics(t, func() {
 		registerChannelRoutes(api)
 	})
+}
+
+func TestChannelCollectionPathsReachAuthenticationWithCostSibling(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := gin.New()
+	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("channel-route-test"))))
+	SetApiRouter(engine)
+	engine.NoRoute(controller.RelayNotFound)
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut} {
+		for _, path := range []string{"/api/channel", "/api/channel/"} {
+			t.Run(method+path, func(t *testing.T) {
+				recorder := httptest.NewRecorder()
+				engine.ServeHTTP(recorder, httptest.NewRequest(method, path+"?p=1&page_size=20", nil))
+				assert.Equal(t, http.StatusUnauthorized, recorder.Code, recorder.Body.String())
+				assert.Empty(t, recorder.Header().Get("Location"), "collection requests must not depend on redirects")
+				assert.NotContains(t, recorder.Body.String(), "Invalid URL")
+			})
+		}
+	}
+	for _, method := range []string{http.MethodGet, http.MethodPut} {
+		recorder := httptest.NewRecorder()
+		engine.ServeHTTP(recorder, httptest.NewRequest(method, "/api/channel-cost/1", nil))
+		assert.Equal(t, http.StatusUnauthorized, recorder.Code, "cost routes must remain protected")
+	}
 }
 
 func assertChannelRoutePermission(t *testing.T, method string, path string, permission authz.Permission, handler any) {

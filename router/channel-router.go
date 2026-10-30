@@ -29,10 +29,16 @@ func registerChannelRoutes(apiRouter *gin.RouterGroup) {
 	)
 
 	for _, route := range channelPermissionRoutes {
-		channelRoute.Handle(route.method, route.path,
+		handlers := []gin.HandlerFunc{
 			middleware.RequirePermission(route.permission),
 			route.handler,
-		)
+		}
+		channelRoute.Handle(route.method, route.path, handlers...)
+		// Both dashboard clients and API callers use the collection without a
+		// trailing slash. Register it directly with the identical permission chain.
+		if route.path == "/" {
+			channelRoute.Handle(route.method, "", handlers...)
+		}
 	}
 }
 
