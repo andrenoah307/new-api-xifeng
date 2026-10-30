@@ -1,6 +1,6 @@
 name: Dev Branch CI (test + image)
 
-# Triggers on dev/* branches so we can run unit tests and ship a tagged image
+# Triggers on development and finance branches to run tests and ship a tagged image
 # admins can pull for staging validation before merging back to main.
 on:
   push:
@@ -8,6 +8,7 @@ on:
       - 'dev/*'
       - 'dev/**'
       - 'dev-*'
+      - 'finance-dev-20261021'
   workflow_dispatch:
 
 permissions:
