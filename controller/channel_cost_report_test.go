@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +14,89 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestChannelCostReportTaskPaginationAndFilters(t *testing.T) {
+	db := setupLogExportValidationDB(t)
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.ChannelCostReportJob{}, &model.SystemTask{}))
+	root := model.User{Username: "report-list-root", Role: common.RoleRootUser, Status: common.UserStatusEnabled}
+	require.NoError(t, db.Create(&root).Error)
+	for i := 0; i < 63; i++ {
+		status := "completed"
+		if i%2 == 0 {
+			status = "paused"
+		}
+		job := model.ChannelCostReportJob{ID: fmt.Sprintf("report-%03d", i), RequestKey: uuid.NewString(), OwnerID: root.Id, CreatedAt: 100,
+			Status: status, PolicyJSON: `{"start":1,"end":3601,"quota_per_unit":"500000"}`, RowsJSON: "not-loaded"}
+		require.NoError(t, db.Create(&job).Error)
+	}
+	// Listings must work with no source log database available.
+	oldLogDB := model.LOG_DB
+	model.LOG_DB = nil
+	t.Cleanup(func() { model.LOG_DB = oldLogDB })
+	call := func(query string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/channel-finance/jobs"+query, nil)
+		c.Set("id", root.Id)
+		c.Set("role", common.RoleRootUser)
+		ListChannelCostReportJobs(c)
+		return rec
+	}
+	var legacy struct {
+		Data []channelCostReportJobDTO
+	}
+	response := call("")
+	require.Equal(t, http.StatusOK, response.Code)
+	require.NoError(t, common.Unmarshal(response.Body.Bytes(), &legacy))
+	require.Len(t, legacy.Data, 50)
+	assert.Equal(t, "report-062", legacy.Data[0].ID)
+	for _, test := range []struct {
+		query string
+		total int64
+		count int
+		first string
+	}{
+		{"?page=6", 63, 10, "report-012"},
+		{"?page=7", 63, 3, "report-002"},
+		{"?page=8", 63, 0, ""},
+		{"?page=1&page_size=100&status=paused", 32, 32, "report-062"},
+		{"?page=1&keyword=report-06&status=completed", 1, 1, "report-061"},
+		{"?page=1&keyword=%25", 0, 0, ""},
+		{"?page=1&keyword=_", 0, 0, ""},
+	} {
+		t.Run(test.query, func(t *testing.T) {
+			response := call(test.query)
+			require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+			var result struct {
+				Data struct {
+					Items    []channelCostReportJobDTO
+					Total    int64
+					Page     int
+					PageSize int `json:"page_size"`
+				}
+			}
+			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
+			assert.Equal(t, test.total, result.Data.Total)
+			require.Len(t, result.Data.Items, test.count)
+			assert.Positive(t, result.Data.Page)
+			assert.Positive(t, result.Data.PageSize)
+			if test.first != "" {
+				assert.Equal(t, test.first, result.Data.Items[0].ID)
+			}
+			assert.NotContains(t, response.Body.String(), "not-loaded")
+			assert.Equal(t, "no-store", response.Header().Get("Cache-Control"))
+		})
+	}
+	for _, query := range []string{"?page=", "?page=0", "?page=-1", "?page=1000001", "?page=1&page_size=0", "?page=1&page_size=101", "?page=1&page_size=x", "?page=1&status=unknown", "?page=1&keyword=" + strings.Repeat("x", 129)} {
+		assert.Equal(t, http.StatusServiceUnavailable, call(query).Code, query)
+	}
+	for _, role := range []int{common.RoleCommonUser, common.RoleAdminUser} {
+		require.NoError(t, db.Model(&root).Update("role", role).Error)
+		response := call("?page=1")
+		assert.Equal(t, http.StatusServiceUnavailable, response.Code)
+		assert.NotContains(t, response.Body.String(), "report-062")
+	}
+}
 
 func TestChannelCostReportProfitCoverage(t *testing.T) {
 	row := model.ChannelCostReportRow{ChannelID: 7, ConsumeCount: 10, OriginalCount: 6, FallbackCount: 2, MissingCount: 2, RefundCount: 1,

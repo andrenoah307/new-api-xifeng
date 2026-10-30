@@ -5396,6 +5396,18 @@
     "Unknown-cost records": "Unknown-cost records",
     "I accept billing-basis estimates for missing snapshots throughout this report period.": "I accept billing-basis estimates for missing snapshots throughout this report period.",
     "Add": "Add",
-    "Remove": "Remove"
+    "Remove": "Remove",
+    "Search": "Search",
+    "Status": "Status",
+    "All": "All",
+    "Progress": "Progress",
+    "View": "View",
+    "Previous": "Previous",
+    "Next": "Next",
+    "Time range": "Time range",
+    "Total": "Total",
+    "Page size": "Page size",
+    "Loading": "Loading",
+    "Revenue": "Revenue"
   }
 }

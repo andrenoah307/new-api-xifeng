@@ -49,6 +49,24 @@ func TestChannelCostReportMultiYearHistoryKeepsBoundedWindows(t *testing.T) {
 	assert.Equal(t, 1, stored.ProcessedWindows)
 }
 
+func TestChannelCostReportTaskFilterReconcilesWorkerFailure(t *testing.T) {
+	job, task := costReportJobFixture(t)
+	require.NoError(t, DB.Model(task).Update("status", SystemTaskStatusFailed).Error)
+	jobs, total, err := ListChannelCostReportJobsPage(context.Background(), 1, 10, job.ID, "failed")
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, total)
+	require.Len(t, jobs, 1)
+	assert.Equal(t, "failed", jobs[0].Status)
+	assert.Equal(t, "Report interrupted; resume to continue", jobs[0].Error)
+	jobs, total, err = ListChannelCostReportJobsPage(context.Background(), 1, 10, job.ID, "pending")
+	require.NoError(t, err)
+	assert.Zero(t, total)
+	assert.Empty(t, jobs)
+	var stored ChannelCostReportJob
+	require.NoError(t, DB.First(&stored, "id = ?", job.ID).Error)
+	assert.Equal(t, "pending", stored.Status, "reading task lists must not mutate job state")
+}
+
 func TestChannelCostReportIdempotencyAndExclusiveActiveJob(t *testing.T) {
 	job, _ := costReportJobFixture(t)
 	var policy CostReportPolicy

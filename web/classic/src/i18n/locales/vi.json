@@ -5679,6 +5679,18 @@
     "Unknown-cost records": "Số bản ghi chưa rõ chi phí",
     "I accept billing-basis estimates for missing snapshots throughout this report period.": "Tôi chấp nhận ước tính theo cơ sở tính phí cho bản ghi thiếu chi phí trong toàn bộ kỳ báo cáo.",
     "Add": "Thêm",
-    "Remove": "Xóa"
+    "Remove": "Xóa",
+    "Search": "Tìm kiếm",
+    "Status": "Trạng thái",
+    "All": "All",
+    "Progress": "Tiến độ",
+    "View": "Xem",
+    "Previous": "Trước",
+    "Next": "Tiếp",
+    "Time range": "Khoảng thời gian",
+    "Total": "Tổng cộng",
+    "Page size": "Số dòng mỗi trang",
+    "Loading": "Đang tải",
+    "Revenue": "Doanh thu"
   }
 }

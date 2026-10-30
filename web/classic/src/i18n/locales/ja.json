@@ -5136,6 +5136,18 @@
     "Unknown-cost records": "コスト不明件数",
     "I accept billing-basis estimates for missing snapshots throughout this report period.": "本集計期間全体のスナップショットがない記録について、課金基準によるコスト推定に同意します。",
     "Add": "追加",
-    "Remove": "削除"
+    "Remove": "削除",
+    "Search": "検索",
+    "Status": "ステータス",
+    "All": "すべて",
+    "Progress": "進捗",
+    "View": "表示",
+    "Previous": "前へ",
+    "Next": "次へ",
+    "Time range": "集計期間",
+    "Total": "合計",
+    "Page size": "ページあたりの件数",
+    "Loading": "読み込み中",
+    "Revenue": "収益"
   }
 }

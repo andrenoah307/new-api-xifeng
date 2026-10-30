@@ -5169,6 +5169,18 @@
     "Unknown-cost records": "Coûts inconnus",
     "I accept billing-basis estimates for missing snapshots throughout this report period.": "J’accepte l’estimation sur la base facturée des coûts manquants sur toute la période du rapport.",
     "Add": "Ajouter",
-    "Remove": "Retirer"
+    "Remove": "Retirer",
+    "Search": "Rechercher",
+    "Status": "Statut",
+    "All": "Tout",
+    "Progress": "Progression",
+    "View": "Afficher",
+    "Previous": "Précédent",
+    "Next": "Suivant",
+    "Time range": "Période",
+    "Total": "Total",
+    "Page size": "Lignes par page",
+    "Loading": "Chargement",
+    "Revenue": "Revenu"
   }
 }

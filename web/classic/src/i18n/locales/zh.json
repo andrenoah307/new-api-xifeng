@@ -3041,6 +3041,18 @@
     "Unknown-cost records": "成本未知记录数",
     "I accept billing-basis estimates for missing snapshots throughout this report period.": "我接受对本汇总整个时间范围内缺失快照的记录按计费基数预估成本。",
     "Add": "添加",
-    "Remove": "移除"
+    "Remove": "移除",
+    "Search": "搜索",
+    "Status": "状态",
+    "All": "全部",
+    "Progress": "进度",
+    "View": "查看",
+    "Previous": "上一步",
+    "Next": "下一步",
+    "Time range": "统计期间",
+    "Total": "总计",
+    "Page size": "每页条数",
+    "Loading": "加载中",
+    "Revenue": "收入"
   }
 }

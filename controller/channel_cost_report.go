@@ -3,6 +3,8 @@ package controller
 import (
 	"errors"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -37,7 +39,26 @@ func ListChannelCostReportJobs(c *gin.Context) {
 	if !authorizeLogRoot(c) {
 		return
 	}
-	jobs, err := model.ListChannelCostReportJobs(c.Request.Context(), 50)
+	var jobs []*model.ChannelCostReportJob
+	var total int64
+	var err error
+	page, pageSize := 1, 10
+	paginated := c.Request.URL.Query().Has("page")
+	if paginated {
+		page, err = strconv.Atoi(c.Query("page"))
+		if err == nil {
+			pageSize, err = strconv.Atoi(c.DefaultQuery("page_size", "10"))
+		}
+		keyword, status := strings.TrimSpace(c.Query("keyword")), c.Query("status")
+		validStatus := status == "" || status == "pending" || status == "running" || status == "paused" || status == "completed" || status == "failed" || status == "cancelled"
+		if err != nil || page < 1 || page > 1000000 || pageSize < 1 || pageSize > 100 || len(keyword) > 128 || !validStatus {
+			logRootUnavailable(c, i18n.MsgInvalidParams)
+			return
+		}
+		jobs, total, err = model.ListChannelCostReportJobsPage(c.Request.Context(), page, pageSize, keyword, status)
+	} else {
+		jobs, err = model.ListChannelCostReportJobs(c.Request.Context(), 50)
+	}
 	if err != nil {
 		logRootUnavailable(c, i18n.MsgDatabaseError)
 		return
@@ -55,6 +76,10 @@ func ListChannelCostReportJobs(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
+	if paginated {
+		common.ApiSuccess(c, gin.H{"items": data, "total": total, "page": page, "page_size": pageSize})
+		return
+	}
 	common.ApiSuccess(c, data)
 }
 

@@ -177,7 +177,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
       ...(isFinanceRoot
         ? [
             {
-              text: t('Channel finance'),
+              text: t('Revenue'),
               itemKey: 'channel_finance',
               to: '/console/channel-finance',
             },

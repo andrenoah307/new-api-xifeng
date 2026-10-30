@@ -5190,6 +5190,18 @@
     "Unknown-cost records": "Записи без стоимости",
     "I accept billing-basis estimates for missing snapshots throughout this report period.": "Я согласен на оценку по базе начислений для записей без снимка стоимости за весь период отчёта.",
     "Add": "Добавить",
-    "Remove": "Удалить"
+    "Remove": "Удалить",
+    "Search": "Поиск",
+    "Status": "Статус",
+    "All": "Все",
+    "Progress": "Прогресс",
+    "View": "Просмотр",
+    "Previous": "Предыдущий шаг",
+    "Next": "Следующий шаг",
+    "Time range": "Период",
+    "Total": "Всего",
+    "Page size": "Записей на странице",
+    "Loading": "Загрузка",
+    "Revenue": "Доход"
   }
 }

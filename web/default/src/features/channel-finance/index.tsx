@@ -16,20 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
 import { Calculator, Pause, Play, Plus, RefreshCw, X } from 'lucide-react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
-import type { FinanceJob, FinanceReport, FinanceRow } from './types'
+
 import { formatReportAmount as amount } from './format'
+import { FinanceTaskTable } from './task-table'
+import type { FinanceJob, FinanceReport, FinanceRow } from './types'
 
 const statuses = {
   pending: 'Pending',
@@ -77,7 +80,7 @@ function ChannelFinanceContent(props: { userId: number }) {
   const { t } = useTranslation()
   const client = useQueryClient()
   const [start, setStart] = useState(() =>
-    localTime(new Date(new Date().setHours(0, 0, 0, 0))),
+    localTime(new Date(new Date().setHours(0, 0, 0, 0)))
   )
   const [end, setEnd] = useState(() => localTime(new Date()))
   const [channel, setChannel] = useState('')
@@ -91,40 +94,21 @@ function ChannelFinanceContent(props: { userId: number }) {
   const [filter, setFilter] = useState('')
   const [error, setError] = useState('')
   const prefix = ['channel-finance', props.userId, 100] as const
-  const jobs = useQuery({
-    queryKey: [...prefix, 'jobs'],
-    queryFn: async ({ signal }) => {
-      const response = await api.get('/api/channel-finance/jobs', {
-        signal,
-        disableDuplicate: true,
-      })
-      if (!response.data.success) {
-        throw new Error(response.data.message || t('Failed to load report'))
-      }
-      return response.data.data as FinanceJob[]
-    },
-    gcTime: 0,
-    refetchInterval: (query) =>
-      query.state.data?.some((job) =>
-        ['pending', 'running'].includes(job.status),
-      )
-        ? 2000
-        : false,
-  })
-  const id = selected ?? jobs.data?.[0]?.id
+  const id = selected
   const report = useQuery({
     queryKey: [...prefix, 'report', id],
     queryFn: async ({ signal }) => {
       const response = await api.get(`/api/channel-finance/jobs/${id}/report`, {
         signal,
         disableDuplicate: true,
+        skipErrorHandler: true,
       })
       if (!response.data.success) {
         throw new Error(response.data.message || t('Failed to load report'))
       }
       return response.data.data as FinanceReport
     },
-    enabled: id !== undefined,
+    enabled: id !== null,
     gcTime: 0,
     refetchInterval: (query) =>
       ['pending', 'running'].includes(query.state.data?.job.status ?? '')
@@ -141,7 +125,7 @@ function ChannelFinanceContent(props: { userId: number }) {
       }
       const response = await api.post(
         `/api/channel-finance/jobs${request.path}`,
-        request.body,
+        request.body
       )
       if (!response.data.success) {
         throw new Error(response.data.message || t('Operation failed'))
@@ -160,7 +144,8 @@ function ChannelFinanceContent(props: { userId: number }) {
     const startAt = Math.floor(new Date(start).getTime() / 1000)
     const endAt = Math.floor(new Date(end).getTime() / 1000)
     const channelId = channel === '' ? 0 : Number(channel)
-    const configuredRates = channelId > 0
+    const configuredRates =
+      channelId > 0
         ? [{ channel_id: channelId, ratio }]
         : rates.map((row) => ({
             channel_id: Number(row.channel),
@@ -185,13 +170,13 @@ function ChannelFinanceContent(props: { userId: number }) {
               !Number.isSafeInteger(row.channel_id) ||
               row.channel_id <= 0 ||
               !/^[0-9]{1,18}(?:\.[0-9]{1,18})?$/.test(row.ratio) ||
-              Number(row.ratio) > 10000,
+              Number(row.ratio) > 10000
           )))
     ) {
       setError(
         t(
-          'Select a valid historical time range and confirm the estimation basis.',
-        ),
+          'Select a valid historical time range and confirm the estimation basis.'
+        )
       )
       return
     }
@@ -215,11 +200,11 @@ function ChannelFinanceContent(props: { userId: number }) {
     report.data?.channels.filter((row) =>
       `${row.channel_id} ${row.channel_name}`
         .toLowerCase()
-        .includes(filter.toLowerCase()),
+        .includes(filter.toLowerCase())
     ) ?? []
   return (
     <SectionPageLayout>
-      <SectionPageLayout.Title>{t('Channel finance')}</SectionPageLayout.Title>
+      <SectionPageLayout.Title>{t('Revenue')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <form onSubmit={generate} className='border-b pb-5'>
           <FieldGroup className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
@@ -296,7 +281,7 @@ function ChannelFinanceContent(props: { userId: number }) {
                 <div className='space-y-3'>
                   {rates.map((row) => (
                     <div key={row.key} className='flex items-end gap-3'>
-                      <Field className='min-w-0 max-w-xs'>
+                      <Field className='max-w-xs min-w-0'>
                         <FieldLabel htmlFor={`finance-channel-${row.key}`}>
                           {t('Channel')}
                         </FieldLabel>
@@ -311,14 +296,14 @@ function ChannelFinanceContent(props: { userId: number }) {
                               values.map((item) =>
                                 item.key === row.key
                                   ? { ...item, channel: event.target.value }
-                                  : item,
-                              ),
+                                  : item
+                              )
                             )
                             setAccepted(false)
                           }}
                         />
                       </Field>
-                      <Field className='min-w-0 max-w-xs'>
+                      <Field className='max-w-xs min-w-0'>
                         <FieldLabel htmlFor={`finance-ratio-${row.key}`}>
                           {t('Historical cost ratio')}
                         </FieldLabel>
@@ -334,8 +319,8 @@ function ChannelFinanceContent(props: { userId: number }) {
                               values.map((item) =>
                                 item.key === row.key
                                   ? { ...item, ratio: event.target.value }
-                                  : item,
-                              ),
+                                  : item
+                              )
                             )
                             setAccepted(false)
                           }}
@@ -348,7 +333,7 @@ function ChannelFinanceContent(props: { userId: number }) {
                         aria-label={t('Remove')}
                         onClick={() => {
                           setRates((values) =>
-                            values.filter((item) => item.key !== row.key),
+                            values.filter((item) => item.key !== row.key)
                           )
                           setAccepted(false)
                         }}
@@ -381,7 +366,7 @@ function ChannelFinanceContent(props: { userId: number }) {
                 />
                 <FieldLabel htmlFor='finance-accept'>
                   {t(
-                    'I accept billing-basis estimates for missing snapshots throughout this report period.',
+                    'I accept billing-basis estimates for missing snapshots throughout this report period.'
                   )}
                 </FieldLabel>
               </Field>
@@ -392,32 +377,22 @@ function ChannelFinanceContent(props: { userId: number }) {
             {t('Generate report')}
           </Button>
         </form>
-        {(error || jobs.isError || report.isError) && (
-          <p role='alert' className='mt-4 text-destructive'>
+        {(error || report.isError) && (
+          <p role='alert' className='text-destructive mt-4'>
             {error || t('Failed to load report')}
           </p>
         )}
-        <div className='my-4 flex flex-wrap items-end gap-3'>
-          <Field className='min-w-0 flex-1'>
-            <FieldLabel htmlFor='finance-job'>{t('Report task')}</FieldLabel>
-            <NativeSelect
-              id='finance-job'
-              className='w-full'
-              value={id ?? ''}
-              onChange={(event) => setSelected(event.target.value)}
-            >
-              <option value='' disabled>
-                {t('No data')}
-              </option>
-              {jobs.data?.map((item) => (
-                <option key={item.id} value={item.id}>
-                  #{item.id} · {t(statuses[item.status])} ·{' '}
-                  {new Date(item.start * 1000).toLocaleString()} -{' '}
-                  {new Date(item.end * 1000).toLocaleString()}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
+        <FinanceTaskTable
+          userId={props.userId}
+          selected={selected}
+          onSelect={setSelected}
+        />
+        <div className='my-4 flex flex-wrap items-center gap-3'>
+          {id && (
+            <h2 className='min-w-0 flex-1 text-sm font-semibold break-all'>
+              {t('Report task')} · {id}
+            </h2>
+          )}
           <Button
             variant='outline'
             aria-label={t('Refresh')}
@@ -474,7 +449,7 @@ function ChannelFinanceContent(props: { userId: number }) {
               </span>
             </div>
             <progress
-              className='h-2 w-full accent-primary'
+              className='accent-primary h-2 w-full'
               value={progress}
               max={100}
             />
@@ -484,7 +459,7 @@ function ChannelFinanceContent(props: { userId: number }) {
                 {t(
                   job.policy.fallback_mode === 'billed_basis'
                     ? 'Billing-basis estimate'
-                    : 'Snapshot only',
+                    : 'Snapshot only'
                 )}
                 {job.policy.rates
                   ?.map((rate) => ` · #${rate.channel_id}: ${rate.ratio}`)
@@ -492,7 +467,7 @@ function ChannelFinanceContent(props: { userId: number }) {
               </p>
             )}
             {job.error && (
-              <p role='alert' className='break-words text-destructive'>
+              <p role='alert' className='text-destructive break-words'>
                 {job.error}
               </p>
             )}
@@ -505,10 +480,10 @@ function ChannelFinanceContent(props: { userId: number }) {
                 ['net_amount', 'cost', 'known_profit', 'coverage'] as const
               ).map((key) => (
                 <div key={key}>
-                  <dt className='text-sm text-muted-foreground'>
+                  <dt className='text-muted-foreground text-sm'>
                     {t(columns.find((column) => column[0] === key)?.[1] ?? key)}
                   </dt>
-                  <dd className='mt-1 break-all text-lg font-semibold tabular-nums'>
+                  <dd className='mt-1 text-lg font-semibold break-all tabular-nums'>
                     {amount(report.data.total[key], key)}
                   </dd>
                 </div>
@@ -528,13 +503,13 @@ function ChannelFinanceContent(props: { userId: number }) {
               <table className='w-full text-sm'>
                 <thead className='bg-muted'>
                   <tr>
-                    <th className='whitespace-nowrap p-3 text-left'>
+                    <th className='p-3 text-left whitespace-nowrap'>
                       {t('Channel')}
                     </th>
                     {columns.map(([key, label]) => (
                       <th
                         key={key}
-                        className='whitespace-nowrap p-3 text-right'
+                        className='p-3 text-right whitespace-nowrap'
                       >
                         {t(label)}
                       </th>
@@ -544,7 +519,7 @@ function ChannelFinanceContent(props: { userId: number }) {
                 <tbody>
                   {rows.map((row: FinanceRow) => (
                     <tr key={row.channel_id} className='border-t'>
-                      <th className='min-w-40 max-w-60 break-words p-3 text-left font-medium'>
+                      <th className='max-w-60 min-w-40 p-3 text-left font-medium break-words'>
                         {row.channel_name || '-'}{' '}
                         <span className='text-muted-foreground'>
                           #{row.channel_id}
@@ -553,7 +528,7 @@ function ChannelFinanceContent(props: { userId: number }) {
                       {columns.map(([key]) => (
                         <td
                           key={key}
-                          className='whitespace-nowrap p-3 text-right tabular-nums'
+                          className='p-3 text-right whitespace-nowrap tabular-nums'
                         >
                           {amount(row[key], key)}
                         </td>
@@ -564,7 +539,7 @@ function ChannelFinanceContent(props: { userId: number }) {
                     <tr>
                       <td
                         colSpan={columns.length + 1}
-                        className='p-8 text-center text-muted-foreground'
+                        className='text-muted-foreground p-8 text-center'
                       >
                         {t('No data')}
                       </td>

@@ -130,7 +130,7 @@ export function useSidebarData(): SidebarData {
           ...(userRole === ROLE.SUPER_ADMIN
             ? [
                 {
-                  title: t('Channel finance'),
+                  title: t('Revenue'),
                   url: '/channel-finance' as const,
                   icon: CreditCard,
                   requiredRole: ROLE.SUPER_ADMIN,

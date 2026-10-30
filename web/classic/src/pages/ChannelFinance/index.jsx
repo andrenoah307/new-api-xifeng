@@ -19,8 +19,19 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
-import { Button } from '@douyinfe/semi-ui';
-import { Calculator, Pause, Play, Plus, RefreshCw, X } from 'lucide-react';
+import { Button, Tag } from '@douyinfe/semi-ui';
+import {
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  Search,
+  X,
+} from 'lucide-react';
 import { API } from '../../helpers';
 import { UserContext } from '../../context/User';
 import './style.css';
@@ -33,6 +44,14 @@ const statuses = {
   cancelled: 'Cancelled',
   failed: 'Failed',
   completed: 'Completed',
+};
+const statusColors = {
+  pending: 'grey',
+  running: 'blue',
+  paused: 'orange',
+  cancelled: 'grey',
+  failed: 'red',
+  completed: 'green',
 };
 const columns = [
   ['consume_amount', 'Consumption'],
@@ -92,47 +111,101 @@ function ChannelFinanceContent({ userId }) {
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
   const [jobs, setJobs] = useState([]);
+  const [keywordInput, setKeywordInput] = useState('');
+  const [keyword, setKeyword] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState('');
+  const [reportError, setReportError] = useState('');
+  const initialSelection = useRef(false);
   const [report, setReport] = useState(null);
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
+    if (keywordInput.trim() === keyword) return;
+    const timer = setTimeout(() => {
+      setKeyword(keywordInput.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [keywordInput, keyword]);
+  useEffect(() => {
     const controller = new AbortController();
     let timer;
     let active = true;
-    setReport(null);
+    setListLoading(true);
     async function load() {
       if (identity.current?.role !== 100 || identity.current?.id !== userId)
         return;
       try {
         const response = await API.get('/api/channel-finance/jobs', {
+          params: { page, page_size: pageSize, keyword, status },
           signal: controller.signal,
           disableDuplicate: true,
+          skipErrorHandler: true,
         });
         if (!response.data.success)
           throw new Error(response.data.message || t('Failed to load report'));
         if (!active) return;
-        setJobs(response.data.data);
-        const id = selected ?? response.data.data[0]?.id;
-        let pending = response.data.data.some((item) =>
-          ['pending', 'running'].includes(item.status),
-        );
-        if (id !== undefined) {
-          const result = await API.get(
-            `/api/channel-finance/jobs/${id}/report`,
-            { signal: controller.signal, disableDuplicate: true },
-          );
-          if (!result.data.success)
-            throw new Error(result.data.message || t('Failed to load report'));
-          if (!active) return;
-          setReport(result.data.data);
-          pending ||= ['pending', 'running'].includes(
-            result.data.data.job.status,
-          );
+        const data = response.data.data;
+        const lastPage = Math.max(1, Math.ceil(data.total / pageSize));
+        if (page > lastPage) {
+          setPage(lastPage);
+          return;
         }
-        setError('');
-        if (pending && active) timer = setTimeout(load, 2000);
+        setJobs(data.items);
+        setTotal(data.total);
+        if (!initialSelection.current) {
+          initialSelection.current = true;
+          if (data.items[0]) setSelected((value) => value ?? data.items[0].id);
+        }
+        setListError('');
+        timer = setTimeout(load, 5000);
       } catch (failure) {
-        if (active && !controller.signal.aborted) setError(failure.message);
+        if (active && !controller.signal.aborted) setListError(failure.message);
+      } finally {
+        if (active) setListLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      active = false;
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [keyword, status, page, pageSize, refresh, userId, t]);
+
+  useEffect(() => {
+    setReport(null);
+    setReportError('');
+  }, [selected]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const controller = new AbortController();
+    let timer;
+    let active = true;
+    async function load() {
+      if (identity.current?.role !== 100 || identity.current?.id !== userId)
+        return;
+      try {
+        const result = await API.get(
+          `/api/channel-finance/jobs/${selected}/report`,
+          { signal: controller.signal, disableDuplicate: true, skipErrorHandler: true },
+        );
+        if (!result.data.success)
+          throw new Error(result.data.message || t('Failed to load report'));
+        if (!active) return;
+        setReport(result.data.data);
+        setReportError('');
+        if (['pending', 'running'].includes(result.data.data.job.status))
+          timer = setTimeout(load, 2000);
+      } catch (failure) {
+        if (active && !controller.signal.aborted)
+          setReportError(failure.message);
       }
     }
     void load();
@@ -226,7 +299,7 @@ function ChannelFinanceContent({ userId }) {
     ) ?? [];
   return (
     <main className='channel-finance'>
-      <h1>{t('Channel finance')}</h1>
+      <h1>{t('Revenue')}</h1>
       <form onSubmit={generate}>
         <div className='finance-fields'>
           <label>
@@ -385,31 +458,187 @@ function ChannelFinanceContent({ userId }) {
           {error}
         </p>
       )}
+      <section className='finance-jobs' aria-label={t('Report task')}>
+        <h2>{t('Report task')}</h2>
+        <div className='finance-toolbar finance-jobs-filters'>
+          <label className='finance-job-search'>
+            {t('Search')}
+            <span className='finance-search-input'>
+              <Search size={16} aria-hidden />
+              <input
+                type='search'
+                value={keywordInput}
+                maxLength={64}
+                placeholder={t('Report task')}
+                onChange={(event) => setKeywordInput(event.target.value)}
+              />
+            </span>
+          </label>
+          <label>
+            {t('Status')}
+            <select
+              aria-label={t('Status')}
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value=''>{t('All')}</option>
+              {Object.entries(statuses).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {t(label)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            title={t('Refresh')}
+            aria-label={t('Refresh')}
+            icon={<RefreshCw size={16} />}
+            onClick={() => setRefresh((value) => value + 1)}
+          />
+        </div>
+        {listError && (
+          <p role='alert' className='finance-error'>
+            {listError}
+          </p>
+        )}
+        <div
+          className='finance-table finance-jobs-table'
+          aria-busy={listLoading}
+        >
+          <table>
+            <thead>
+              <tr>
+                <th scope='col'>{t('Report task')}</th>
+                <th scope='col'>{t('Time range')}</th>
+                <th scope='col'>{t('Channel')}</th>
+                <th scope='col'>{t('Status')}</th>
+                <th scope='col'>{t('Progress')}</th>
+                <th scope='col'>{t('View')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jobs.map((item) => {
+                const percent = item.total_windows
+                  ? Math.min(
+                      100,
+                      (item.processed_windows / item.total_windows) * 100,
+                    )
+                  : 0;
+                return (
+                  <tr key={item.id} data-selected={selected === item.id}>
+                    <th scope='row'>
+                      <span className='finance-task-id' title={item.id}>
+                        #{item.id}
+                      </span>
+                    </th>
+                    <td className='finance-task-range'>
+                      <time
+                        dateTime={new Date(item.start * 1000).toISOString()}
+                      >
+                        {new Date(item.start * 1000).toLocaleString()}
+                      </time>
+                      <time dateTime={new Date(item.end * 1000).toISOString()}>
+                        {new Date(item.end * 1000).toLocaleString()}
+                      </time>
+                    </td>
+                    <td>
+                      {item.channel_id ? `#${item.channel_id}` : t('All')}
+                    </td>
+                    <td>
+                      <Tag color={statusColors[item.status]}>
+                        {t(statuses[item.status])}
+                      </Tag>
+                    </td>
+                    <td>
+                      <div className='finance-task-progress'>
+                        <span>{percent.toFixed(1)}%</span>
+                        <progress
+                          aria-label={`${t('Progress')} #${item.id}`}
+                          value={percent}
+                          max={100}
+                        />
+                        <small>
+                          {item.processed_windows}/{item.total_windows}
+                        </small>
+                      </div>
+                    </td>
+                    <td>
+                      <Button
+                        theme={selected === item.id ? 'light' : 'borderless'}
+                        title={t('View')}
+                        aria-label={`${t('View')} #${item.id}`}
+                        aria-pressed={selected === item.id}
+                        icon={<Eye size={16} />}
+                        onClick={() => setSelected(item.id)}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {!jobs.length && (
+                <tr>
+                  <td colSpan={6} className='finance-task-empty'>
+                    {t(listLoading ? 'Loading' : 'No data')}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className='finance-task-pagination'>
+          <span>
+            {t('Total')}: {total}
+          </span>
+          <label>
+            {t('Page size')}
+            <select
+              aria-label={t('Page size')}
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.target.value));
+                setPage(1);
+              }}
+            >
+              {[10, 20, 50].map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span>
+            {page} / {Math.max(1, Math.ceil(total / pageSize))}
+          </span>
+          <Button
+            title={t('Previous')}
+            aria-label={t('Previous')}
+            icon={<ChevronLeft size={16} />}
+            disabled={page <= 1 || listLoading}
+            onClick={() => setPage((value) => value - 1)}
+          />
+          <Button
+            title={t('Next')}
+            aria-label={t('Next')}
+            icon={<ChevronRight size={16} />}
+            disabled={page * pageSize >= total || listLoading}
+            onClick={() => setPage((value) => value + 1)}
+          />
+        </div>
+      </section>
+      {reportError && (
+        <p role='alert' className='finance-error'>
+          {reportError}
+        </p>
+      )}
       <div className='finance-toolbar'>
-        <label className='finance-job'>
-          {t('Report task')}
-          <select
-            value={selected ?? jobs[0]?.id ?? ''}
-            onChange={(event) => setSelected(event.target.value)}
-          >
-            <option value='' disabled>
-              {t('No data')}
-            </option>
-            {jobs.map((item) => (
-              <option key={item.id} value={item.id}>
-                #{item.id} · {t(statuses[item.status])} ·{' '}
-                {new Date(item.start * 1000).toLocaleString()} -{' '}
-                {new Date(item.end * 1000).toLocaleString()}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button
-          title={t('Refresh')}
-          aria-label={t('Refresh')}
-          icon={<RefreshCw size={16} />}
-          onClick={() => setRefresh((value) => value + 1)}
-        />
+        {selected && (
+          <h2 className='finance-selected-task'>
+            {t('Report task')} <span>#{selected}</span>
+          </h2>
+        )}
         {job && (
           <>
             {['pending', 'running'].includes(job.status) && (

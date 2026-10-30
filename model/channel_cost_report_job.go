@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/google/uuid"
@@ -162,6 +163,45 @@ func ListChannelCostReportJobs(ctx context.Context, limit int) ([]*ChannelCostRe
 		}
 	}
 	return jobs, nil
+}
+
+// Only task metadata is queried; report rows and source logs are not scanned.
+func ListChannelCostReportJobsPage(ctx context.Context, page, pageSize int, keyword, status string) ([]*ChannelCostReportJob, int64, error) {
+	if page < 1 || page > 1000000 || pageSize < 1 || pageSize > 100 || len(keyword) > 128 {
+		return nil, 0, errors.New("invalid report pagination")
+	}
+	query := DB.WithContext(ctx).Model(&ChannelCostReportJob{})
+	if keyword != "" {
+		literal := strings.NewReplacer("!", "!!", "%", "!%", "_", "!_").Replace(keyword)
+		query = query.Where("id LIKE ? ESCAPE '!'", "%"+literal+"%")
+	}
+	// A worker lease failure is projected as failed without changing stored jobs.
+	failedTask := "EXISTS (SELECT 1 FROM system_tasks WHERE system_tasks.task_id = channel_cost_report_jobs.system_task_id AND system_tasks.status = ?)"
+	switch status {
+	case "":
+	case "failed":
+		query = query.Where("status = ? OR (status IN ? AND "+failedTask+")", "failed", []string{"pending", "running"}, SystemTaskStatusFailed)
+	case "pending", "running":
+		query = query.Where("status = ? AND NOT "+failedTask, status, SystemTaskStatusFailed)
+	case "paused", "completed", "cancelled":
+		query = query.Where("status = ?", status)
+	default:
+		return nil, 0, errors.New("invalid report status")
+	}
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	jobs := make([]*ChannelCostReportJob, 0)
+	if err := query.Omit("rows_json").Order("created_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&jobs).Error; err != nil {
+		return nil, 0, err
+	}
+	for _, job := range jobs {
+		if err := reconcileCostReportJobStatus(ctx, job); err != nil {
+			return nil, 0, err
+		}
+	}
+	return jobs, total, nil
 }
 
 func ControlChannelCostReportJob(ctx context.Context, id, action string) error {
