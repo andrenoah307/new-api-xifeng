@@ -88,6 +88,46 @@ func ValidateCostReportPolicy(p CostReportPolicy) error {
 	return nil
 }
 
+// Locate the next relevant timestamp using the source time index, not OFFSET or
+// a JSON scan. An empty result proves the remaining interval empty at read time.
+func NextChannelCostReportTimestamp(ctx context.Context, p CostReportPolicy, start int64) (int64, error) {
+	if err := ValidateCostReportPolicy(p); err != nil {
+		return 0, err
+	}
+	if start < p.Start || start >= p.End {
+		return 0, errors.New("invalid cost report cursor")
+	}
+	var timestamps []int64
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		// Match the MergeTree ordering expression. Keep all channels here because
+		// the aggregation also checks conflicting event identities across channels.
+		err := LOG_DB.WithContext(ctx).Raw(`SELECT created_at FROM logs
+ WHERE ifNull(created_at,0) >= ? AND ifNull(created_at,0) < ? AND type IN (2,6)
+ ORDER BY ifNull(created_at,0) ASC LIMIT 1
+ SETTINGS optimize_read_in_order=1,max_threads=2,max_memory_usage=536870912,max_execution_time=30,
+ timeout_overflow_mode='throw',max_rows_to_read=5000000,read_overflow_mode='throw'`, start, p.End).Scan(&timestamps).Error
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		query := LOG_DB.WithContext(ctx).Model(&Log{}).
+			Where("created_at >= ? AND created_at < ? AND type IN ?", start, p.End, []int{2, 6})
+		if p.ChannelID > 0 {
+			query = query.Where("channel_id = ?", p.ChannelID)
+		}
+		if err := query.Order("created_at ASC").Limit(1).Pluck("created_at", &timestamps).Error; err != nil {
+			return 0, err
+		}
+	}
+	if len(timestamps) == 0 {
+		return p.End, nil
+	}
+	if timestamps[0] < start || timestamps[0] >= p.End {
+		return 0, errors.New("invalid next cost report timestamp")
+	}
+	return timestamps[0], nil
+}
+
 // AggregateChannelCostWindow reads one bounded immutable report window. It never
 // writes source logs. Late arrivals require a new report generation.
 func AggregateChannelCostWindow(ctx context.Context, p CostReportPolicy, start, end int64) ([]ChannelCostReportRow, error) {

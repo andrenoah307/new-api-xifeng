@@ -5160,6 +5160,9 @@
     "Total": "總計",
     "Page size": "每頁筆數",
     "Loading": "載入中",
-    "Revenue": "收入"
+    "Revenue": "收入",
+    "Summary workflow": "彙總流程",
+    "Existing costs only (may be incomplete)": "僅統計已有的（可能不全）",
+    "Full summary with channel-rate cost estimates": "統計全量並按渠道倍率補全"
   }
 }

@@ -49,6 +49,54 @@ func TestChannelCostReportMultiYearHistoryKeepsBoundedWindows(t *testing.T) {
 	assert.Equal(t, 1, stored.ProcessedWindows)
 }
 
+func TestChannelCostReportEmptyWindowSkipFences(t *testing.T) {
+	for _, action := range []string{"skip", "pause", "revoke", "stale-runner"} {
+		t.Run(action, func(t *testing.T) {
+			policy := CostReportPolicy{Start: 100, End: 100 + 365*86400 + 10, QuotaPerUnit: "500000", FallbackMode: "none"}
+			job, task := costReportJobFixture(t, policy)
+			_, ok, err := ClaimSystemTask(task.ID, task.Type, "worker", common.GetTimestamp()+60)
+			require.NoError(t, err)
+			require.True(t, ok)
+			require.NoError(t, BeginChannelCostReportJob(context.Background(), job, "worker"))
+			const occupied = int64(100 + 364*86400)
+			require.NoError(t, LOG_DB.Create(&Log{CreatedAt: occupied + 3599, Type: 2, ChannelId: 1, Quota: 10}).Error)
+			runner := "worker"
+			switch action {
+			case "pause":
+				require.NoError(t, ControlChannelCostReportJob(context.Background(), job.ID, "pause"))
+			case "revoke":
+				require.NoError(t, DB.Model(&User{}).Where("id = ?", job.OwnerID).Update("role", common.RoleAdminUser).Error)
+			case "stale-runner":
+				runner = "expired"
+			}
+			next, err := SkipChannelCostReportEmptyWindows(context.Background(), job, runner)
+			stored, readErr := GetChannelCostReportJob(context.Background(), job.ID)
+			require.NoError(t, readErr)
+			if action != "skip" {
+				require.ErrorIs(t, err, ErrChannelCostReportConflict)
+				assert.Equal(t, policy.Start, stored.Cursor)
+				assert.Zero(t, stored.ProcessedWindows)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, occupied, next)
+			assert.Equal(t, 364*24, stored.ProcessedWindows)
+			assert.Equal(t, job.RowsJSON, stored.RowsJSON)
+			_, err = SkipChannelCostReportEmptyWindows(context.Background(), job, runner)
+			require.ErrorIs(t, err, ErrChannelCostReportConflict, "stale cursor cannot publish again")
+			require.NoError(t, PublishChannelCostReportWindow(context.Background(), stored, runner, occupied+3600, nil))
+			stored, err = GetChannelCostReportJob(context.Background(), job.ID)
+			require.NoError(t, err)
+			next, err = SkipChannelCostReportEmptyWindows(context.Background(), stored, runner)
+			require.NoError(t, err)
+			assert.Equal(t, policy.End, next)
+			stored, err = GetChannelCostReportJob(context.Background(), job.ID)
+			require.NoError(t, err)
+			assert.Equal(t, stored.TotalWindows, stored.ProcessedWindows)
+		})
+	}
+}
+
 func TestChannelCostReportTaskFilterReconcilesWorkerFailure(t *testing.T) {
 	job, task := costReportJobFixture(t)
 	require.NoError(t, DB.Model(task).Update("status", SystemTaskStatusFailed).Error)

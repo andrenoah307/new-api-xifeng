@@ -194,7 +194,11 @@ function ChannelFinanceContent({ userId }) {
       try {
         const result = await API.get(
           `/api/channel-finance/jobs/${selected}/report`,
-          { signal: controller.signal, disableDuplicate: true, skipErrorHandler: true },
+          {
+            signal: controller.signal,
+            disableDuplicate: true,
+            skipErrorHandler: true,
+          },
         );
         if (!result.data.success)
           throw new Error(result.data.message || t('Failed to load report'));
@@ -301,6 +305,35 @@ function ChannelFinanceContent({ userId }) {
     <main className='channel-finance'>
       <h1>{t('Revenue')}</h1>
       <form onSubmit={generate}>
+        <fieldset className='finance-workflow'>
+          <legend>{t('Summary workflow')}</legend>
+          <label>
+            <input
+              type='radio'
+              name='finance-workflow'
+              value='none'
+              checked={!fallback}
+              onChange={() => {
+                setFallback(false);
+                setAccepted(false);
+              }}
+            />
+            {t('Existing costs only (may be incomplete)')}
+          </label>
+          <label>
+            <input
+              type='radio'
+              name='finance-workflow'
+              value='billed_basis'
+              checked={fallback}
+              onChange={() => {
+                setFallback(true);
+                setAccepted(false);
+              }}
+            />
+            {t('Full summary with channel-rate cost estimates')}
+          </label>
+        </fieldset>
         <div className='finance-fields'>
           <label>
             {t('Start time')}
@@ -329,21 +362,6 @@ function ChannelFinanceContent({ userId }) {
               value={channel}
               onChange={(event) => setChannel(event.target.value)}
             />
-          </label>
-          <label>
-            {t('Historical cost basis')}
-            <select
-              value={fallback ? 'billed_basis' : 'none'}
-              onChange={(event) => {
-                setFallback(event.target.value === 'billed_basis');
-                setAccepted(false);
-              }}
-            >
-              <option value='none'>{t('Snapshot only')}</option>
-              <option value='billed_basis'>
-                {t('Billing-basis estimate')}
-              </option>
-            </select>
           </label>
         </div>
         {fallback && (
@@ -684,11 +702,11 @@ function ChannelFinanceContent({ userId }) {
           <progress value={progress} max={100} />
           {job.policy && (
             <p>
-              {t('Historical cost basis')}:{' '}
+              {t('Summary workflow')}:{' '}
               {t(
                 job.policy.fallback_mode === 'billed_basis'
-                  ? 'Billing-basis estimate'
-                  : 'Snapshot only',
+                  ? 'Full summary with channel-rate cost estimates'
+                  : 'Existing costs only (may be incomplete)',
               )}
               {job.policy.rates
                 ?.map((rate) => ` · #${rate.channel_id}: ${rate.ratio}`)

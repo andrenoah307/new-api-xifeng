@@ -5691,6 +5691,9 @@
     "Total": "Tổng cộng",
     "Page size": "Số dòng mỗi trang",
     "Loading": "Đang tải",
-    "Revenue": "Doanh thu"
+    "Revenue": "Doanh thu",
+    "Summary workflow": "Chế độ tổng hợp",
+    "Existing costs only (may be incomplete)": "Chỉ chi phí đã có (có thể chưa đầy đủ)",
+    "Full summary with channel-rate cost estimates": "Tổng hợp toàn bộ và bổ sung chi phí theo hệ số kênh"
   }
 }

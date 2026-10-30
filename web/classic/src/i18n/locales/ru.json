@@ -5202,6 +5202,9 @@
     "Total": "Всего",
     "Page size": "Записей на странице",
     "Loading": "Загрузка",
-    "Revenue": "Доход"
+    "Revenue": "Доход",
+    "Summary workflow": "Режим сводки",
+    "Existing costs only (may be incomplete)": "Только известные затраты (возможна неполнота)",
+    "Full summary with channel-rate cost estimates": "Полная сводка с оценкой затрат по коэффициентам каналов"
   }
 }

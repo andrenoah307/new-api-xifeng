@@ -290,6 +290,41 @@ func BeginChannelCostReportJob(ctx context.Context, job *ChannelCostReportJob, r
 	return nil
 }
 
+// Skip only complete empty windows on the original report grid. This leaves the
+// first occupied window intact and uses the same publication fences as totals.
+func SkipChannelCostReportEmptyWindows(ctx context.Context, job *ChannelCostReportJob, runner string) (int64, error) {
+	var policy CostReportPolicy
+	if err := common.UnmarshalJsonStr(job.PolicyJSON, &policy); err != nil {
+		return job.Cursor, err
+	}
+	next, err := NextChannelCostReportTimestamp(ctx, policy, job.Cursor)
+	if err != nil {
+		return job.Cursor, err
+	}
+	end := policy.Start + (next-policy.Start)/3600*3600
+	if next == policy.End {
+		end = policy.End
+	}
+	if end <= job.Cursor {
+		return job.Cursor, nil
+	}
+	if err := ValidateChannelCostReportSource(ctx, job); err != nil {
+		return job.Cursor, err
+	}
+	processed := int((end - policy.Start + 3599) / 3600)
+	result := costReportFencedUpdate(DB.WithContext(ctx), job, runner).
+		Where("status = ? AND control = ? AND cursor_timestamp = ? AND processed_windows = ?", "running", "", job.Cursor, job.ProcessedWindows).
+		Where("EXISTS (SELECT 1 FROM users WHERE users.id = channel_cost_report_jobs.owner_id AND users.role = ? AND users.status = ?)", common.RoleRootUser, common.UserStatusEnabled).
+		Updates(map[string]any{"cursor_timestamp": end, "processed_windows": processed, "updated_at": common.GetTimestamp()})
+	if result.Error != nil {
+		return job.Cursor, result.Error
+	}
+	if result.RowsAffected != 1 {
+		return job.Cursor, ErrChannelCostReportConflict
+	}
+	return end, nil
+}
+
 func PublishChannelCostReportWindow(ctx context.Context, job *ChannelCostReportJob, runner string, end int64, rows []ChannelCostReportRow) error {
 	var policy CostReportPolicy
 	if err := common.UnmarshalJsonStr(job.PolicyJSON, &policy); err != nil {

@@ -12,12 +12,13 @@ import (
 
 type channelCostReportHandler struct {
 	aggregate func(context.Context, model.CostReportPolicy, int64, int64) ([]model.ChannelCostReportRow, error)
+	skipEmpty func(context.Context, *model.ChannelCostReportJob, string) (int64, error)
 }
 
 func (channelCostReportHandler) Type() string { return model.SystemTaskTypeChannelCostReport }
 
 func init() {
-	RegisterSystemTaskHandler(channelCostReportHandler{aggregate: model.AggregateChannelCostWindow})
+	RegisterSystemTaskHandler(channelCostReportHandler{aggregate: model.AggregateChannelCostWindow, skipEmpty: model.SkipChannelCostReportEmptyWindows})
 }
 
 func (handler channelCostReportHandler) Run(ctx context.Context, task *model.SystemTask, runner string) {
@@ -68,6 +69,7 @@ func (handler channelCostReportHandler) Run(ctx context.Context, task *model.Sys
 		logChannelCostReportFailure(ctx, job.ID, "policy", err)
 		return
 	}
+	seekEmpty := true
 	for job.Cursor < policy.End {
 		latest, err := model.GetChannelCostReportJob(ctx, job.ID)
 		if err != nil || latest.Control != "" || latest.SystemTaskID != task.TaskID {
@@ -112,24 +114,41 @@ func (handler channelCostReportHandler) Run(ctx context.Context, task *model.Sys
 				}
 			}
 		}()
-		rows, queryErr := handler.aggregate(windowCtx, policy, job.Cursor, end)
+		var rows []model.ChannelCostReportRow
+		var queryErr error
+		queryStage := "aggregate"
+		skipped := job.Cursor
+		if seekEmpty && handler.skipEmpty != nil {
+			queryStage = "seek"
+			skipped, queryErr = handler.skipEmpty(windowCtx, job, runner)
+		}
+		if queryErr == nil && skipped == job.Cursor {
+			queryStage = "aggregate"
+			rows, queryErr = handler.aggregate(windowCtx, policy, job.Cursor, end)
+		}
 		contextErr := windowCtx.Err()
 		cancel()
 		close(done)
 		<-stopped
 		if queryErr != nil || contextErr != nil {
 			if queryErr != nil {
-				logChannelCostReportFailure(ctx, job.ID, "aggregate", queryErr)
+				logChannelCostReportFailure(ctx, job.ID, queryStage, queryErr)
 			} else {
-				logChannelCostReportFailure(ctx, job.ID, "aggregate", contextErr)
+				logChannelCostReportFailure(ctx, job.ID, queryStage, contextErr)
 			}
 			return
+		}
+		if skipped > job.Cursor {
+			job.Cursor = skipped
+			seekEmpty = false
+			continue
 		}
 		if err := model.PublishChannelCostReportWindow(ctx, job, runner, end, rows); err != nil {
 			logChannelCostReportFailure(ctx, job.ID, "publish", err)
 			return
 		}
 		job.Cursor = end
+		seekEmpty = len(rows) == 0
 	}
 	status = "completed"
 }

@@ -33,7 +33,7 @@ For commercial licensing, please contact support@quantumnous.com
 }
 .finance-fields {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
@@ -60,6 +60,29 @@ For commercial licensing, please contact support@quantumnous.com
   flex-wrap: wrap;
   gap: 16px;
   align-items: end;
+}
+.finance-workflow {
+  border: 0;
+  margin: 0 0 20px;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.finance-workflow legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.finance-workflow label {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.finance-workflow input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--semi-color-primary);
 }
 .finance-rates {
   width: 100%;

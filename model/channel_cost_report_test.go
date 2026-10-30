@@ -22,6 +22,48 @@ func TestClickHouseCostReportSnapshotPriorityAndConservativeFallback(t *testing.
 	checkCostReportSnapshotPriority(t)
 }
 
+func TestCostReportNextTimestamp(t *testing.T) {
+	checkCostReportNextTimestamp(t)
+}
+
+func TestClickHouseCostReportNextTimestamp(t *testing.T) {
+	setupClickHouseLogTest(t)
+	checkCostReportNextTimestamp(t)
+}
+
+func checkCostReportNextTimestamp(t *testing.T) {
+	t.Helper()
+	if !common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		require.NoError(t, LOG_DB.Exec("DELETE FROM logs").Error)
+		t.Cleanup(func() { LOG_DB.Exec("DELETE FROM logs") })
+	}
+	const recent = int64(100 + 3600*24*364)
+	require.NoError(t, LOG_DB.Create(&[]Log{
+		{CreatedAt: 100, Type: 1, ChannelId: 7},
+		{CreatedAt: recent, Type: 6, ChannelId: 7},
+		{CreatedAt: recent + 10, Type: 2, ChannelId: 7},
+		{CreatedAt: recent + 3600, Type: 2, ChannelId: 7},
+	}).Error)
+	p := CostReportPolicy{Start: 100, End: recent + 3600, QuotaPerUnit: "500000", FallbackMode: "none"}
+	for _, tc := range []struct{ start, want int64 }{
+		{100, recent}, {recent, recent}, {recent + 1, recent + 10}, {recent + 11, p.End},
+	} {
+		next, err := NextChannelCostReportTimestamp(context.Background(), p, tc.start)
+		require.NoError(t, err)
+		assert.Equal(t, tc.want, next)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := NextChannelCostReportTimestamp(ctx, p, p.Start)
+	require.Error(t, err)
+	if !common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		p.ChannelID = 8
+		next, err := NextChannelCostReportTimestamp(context.Background(), p, p.Start)
+		require.NoError(t, err)
+		assert.Equal(t, p.End, next)
+	}
+}
+
 func checkCostReportSnapshotPriority(t *testing.T) {
 	t.Helper()
 	if !common.UsingLogDatabase(common.DatabaseTypeClickHouse) {

@@ -24,9 +24,15 @@ import { useTranslation } from 'react-i18next'
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { NativeSelect } from '@/components/ui/native-select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -207,7 +213,31 @@ function ChannelFinanceContent(props: { userId: number }) {
       <SectionPageLayout.Title>{t('Revenue')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <form onSubmit={generate} className='border-b pb-5'>
-          <FieldGroup className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+          <FieldSet className='mb-5 gap-3'>
+            <FieldLegend variant='label'>{t('Summary workflow')}</FieldLegend>
+            <RadioGroup
+              value={fallback ? 'billed_basis' : 'none'}
+              onValueChange={(value) => {
+                setFallback(value === 'billed_basis')
+                setAccepted(false)
+              }}
+              className='gap-3'
+            >
+              <Field orientation='horizontal'>
+                <RadioGroupItem id='finance-existing' value='none' />
+                <FieldLabel htmlFor='finance-existing'>
+                  {t('Existing costs only (may be incomplete)')}
+                </FieldLabel>
+              </Field>
+              <Field orientation='horizontal'>
+                <RadioGroupItem id='finance-complete' value='billed_basis' />
+                <FieldLabel htmlFor='finance-complete'>
+                  {t('Full summary with channel-rate cost estimates')}
+                </FieldLabel>
+              </Field>
+            </RadioGroup>
+          </FieldSet>
+          <FieldGroup className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
             <Field>
               <FieldLabel htmlFor='finance-start'>{t('Start time')}</FieldLabel>
               <Input
@@ -240,24 +270,6 @@ function ChannelFinanceContent(props: { userId: number }) {
                 value={channel}
                 onChange={(event) => setChannel(event.target.value)}
               />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor='finance-basis'>
-                {t('Historical cost basis')}
-              </FieldLabel>
-              <NativeSelect
-                id='finance-basis'
-                value={fallback ? 'billed_basis' : 'none'}
-                onChange={(event) => {
-                  setFallback(event.target.value === 'billed_basis')
-                  setAccepted(false)
-                }}
-              >
-                <option value='none'>{t('Snapshot only')}</option>
-                <option value='billed_basis'>
-                  {t('Billing-basis estimate')}
-                </option>
-              </NativeSelect>
             </Field>
           </FieldGroup>
           {fallback && (
@@ -455,11 +467,11 @@ function ChannelFinanceContent(props: { userId: number }) {
             />
             {job.policy && (
               <p>
-                {t('Historical cost basis')}:{' '}
+                {t('Summary workflow')}:{' '}
                 {t(
                   job.policy.fallback_mode === 'billed_basis'
-                    ? 'Billing-basis estimate'
-                    : 'Snapshot only'
+                    ? 'Full summary with channel-rate cost estimates'
+                    : 'Existing costs only (may be incomplete)'
                 )}
                 {job.policy.rates
                   ?.map((rate) => ` · #${rate.channel_id}: ${rate.ratio}`)

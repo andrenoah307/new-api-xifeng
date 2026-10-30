@@ -5181,6 +5181,9 @@
     "Total": "Total",
     "Page size": "Lignes par page",
     "Loading": "Chargement",
-    "Revenue": "Revenu"
+    "Revenue": "Revenu",
+    "Summary workflow": "Mode de synthèse",
+    "Existing costs only (may be incomplete)": "Coûts existants uniquement (potentiellement incomplet)",
+    "Full summary with channel-rate cost estimates": "Synthèse complète avec estimation des coûts par canal"
   }
 }

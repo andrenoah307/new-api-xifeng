@@ -5408,6 +5408,9 @@
     "Total": "Total",
     "Page size": "Page size",
     "Loading": "Loading",
-    "Revenue": "Revenue"
+    "Revenue": "Revenue",
+    "Summary workflow": "Summary workflow",
+    "Existing costs only (may be incomplete)": "Existing costs only (may be incomplete)",
+    "Full summary with channel-rate cost estimates": "Full summary with channel-rate cost estimates"
   }
 }

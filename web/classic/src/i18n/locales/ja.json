@@ -5148,6 +5148,9 @@
     "Total": "合計",
     "Page size": "ページあたりの件数",
     "Loading": "読み込み中",
-    "Revenue": "収益"
+    "Revenue": "収益",
+    "Summary workflow": "集計方式",
+    "Existing costs only (may be incomplete)": "既存のコストのみ集計（不完全な場合あり）",
+    "Full summary with channel-rate cost estimates": "全件集計し、チャネル倍率でコストを補完"
   }
 }
