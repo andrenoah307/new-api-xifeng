@@ -21,6 +21,7 @@ func TestLegacyInvoicePolicyDefaultsClosedAndCannotBypass(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, config.LegacyTopUpsEnabled)
 		config.Enabled = taxEnabled
+		config.ModuleEnabled = true
 		require.NoError(t, SaveInvoiceTaxConfig(config))
 		orders, err := GetEligibleInvoiceOrders(user.Id, "")
 		require.NoError(t, err)
@@ -39,7 +40,7 @@ func TestLegacyInvoicePolicyDefaultsClosedAndCannotBypass(t *testing.T) {
 
 func TestLegacyInvoicePolicyClosurePreservesSettlementRefundAndIssuedStatus(t *testing.T) {
 	truncateTables(t)
-	config := InvoiceTaxConfig{Mode: "vat", Enabled: true, LegacyTopUpsEnabled: true, OrdinaryRateBps: 600}
+	config := InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat", Enabled: true, LegacyTopUpsEnabled: true, OrdinaryRateBps: 600}
 	require.NoError(t, SaveInvoiceTaxConfig(config))
 	t.Cleanup(func() {
 		require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error)
@@ -62,6 +63,7 @@ func TestLegacyInvoicePolicyClosurePreservesSettlementRefundAndIssuedStatus(t *t
 	issued := &TicketInvoice{TicketId: ticket.Id + 1000, UserId: user.Id, CompanyName: "Issued", TaxNumber: "91110000ABCDEFGH1X", Email: "issued@example.com", TopUpOrderIds: "[999999]", InvoiceStatus: InvoiceStatusIssued}
 	require.NoError(t, DB.Create(issued).Error)
 	config.LegacyTopUpsEnabled = false
+	config.ModuleEnabled = false
 	require.NoError(t, SaveInvoiceTaxConfig(config))
 	for range 2 {
 		require.NoError(t, SettleInvoiceTax(invoice.TaxCharge.TradeNo, "alipay", quote.FeeCents))

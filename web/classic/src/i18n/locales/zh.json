@@ -3307,6 +3307,7 @@
     "Private payment gateway name": "对私支付网关名称",
     "Random": "随机",
     "Round robin": "顺序轮询",
-    "Routing strategy": "路由策略"
+    "Routing strategy": "路由策略",
+    "Enable finance module": "启用财务模块"
   }
 }

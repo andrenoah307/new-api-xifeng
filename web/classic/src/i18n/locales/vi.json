@@ -5956,6 +5956,7 @@
     "Private payment gateway name": "Tên cổng thanh toán cá nhân",
     "Random": "Ngẫu nhiên",
     "Round robin": "Luân phiên theo thứ tự",
-    "Routing strategy": "Chiến lược định tuyến"
+    "Routing strategy": "Chiến lược định tuyến",
+    "Enable finance module": "Bật mô-đun tài chính"
   }
 }

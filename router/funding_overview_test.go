@@ -20,7 +20,8 @@ func TestFundingOverviewRootOnly(t *testing.T) {
 	oldLog, oldExport := model.LOG_DB, common.DataExportEnabled
 	model.LOG_DB, common.DataExportEnabled = db, true
 	t.Cleanup(func() { model.LOG_DB, common.DataExportEnabled = oldLog, oldExport })
-	require.NoError(t, db.AutoMigrate(&model.TopUp{}, &model.QuotaData{}, &model.Log{}))
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.QuotaData{}, &model.Log{}))
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
 	engine := gin.New()
 	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("funding-test"))))
 	var sessionUser model.User

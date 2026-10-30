@@ -5425,6 +5425,7 @@
     "Private payment gateway name": "對私支付閘道名稱",
     "Random": "隨機",
     "Round robin": "順序輪詢",
-    "Routing strategy": "路由策略"
+    "Routing strategy": "路由策略",
+    "Enable finance module": "啟用財務模組"
   }
 }

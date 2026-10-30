@@ -19,7 +19,7 @@ func TestInvoiceTaxFromTotalPreservesPaymentAmount(t *testing.T) {
 		{"fractional cent", "vat", "ordinary", 10000, 9434, 566},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			config := InvoiceTaxConfig{Enabled: true, Mode: test.mode, OrdinaryRateBps: 600, SpecialRateBps: 1300}
+			config := InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: test.mode, OrdinaryRateBps: 600, SpecialRateBps: 1300}
 			quote, err := CalculateInvoiceTaxFromTotal(test.total, test.invoiceType, config)
 			require.NoError(t, err)
 			assert.Equal(t, test.base, quote.BaseCents)
@@ -31,7 +31,7 @@ func TestInvoiceTaxFromTotalPreservesPaymentAmount(t *testing.T) {
 }
 
 func TestInvoiceTaxFromTotalRejectsInvalidAmounts(t *testing.T) {
-	config := InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}
+	config := InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}
 	for _, amount := range []int64{-1, 0, 100000000001} {
 		_, err := CalculateInvoiceTaxFromTotal(amount, "ordinary", config)
 		assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)

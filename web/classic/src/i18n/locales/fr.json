@@ -5446,6 +5446,7 @@
     "Private payment gateway name": "Nom du prestataire de paiement privé",
     "Random": "Aléatoire",
     "Round robin": "À tour de rôle",
-    "Routing strategy": "Stratégie de routage"
+    "Routing strategy": "Stratégie de routage",
+    "Enable finance module": "Activer le module financier"
   }
 }

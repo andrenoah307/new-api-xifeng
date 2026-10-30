@@ -5672,6 +5672,7 @@
     "Private payment gateway name": "Private payment gateway name",
     "Random": "Random",
     "Round robin": "Round robin",
-    "Routing strategy": "Routing strategy"
+    "Routing strategy": "Routing strategy",
+    "Enable finance module": "Enable finance module"
   }
 }

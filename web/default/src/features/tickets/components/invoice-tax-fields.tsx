@@ -26,7 +26,7 @@ export function InvoiceTaxNotice() {
     queryKey: ['invoice-tax-config'],
     queryFn: getInvoiceTaxConfig,
   })
-  if (!config.data?.enabled) return null
+  if (!config.data?.module_enabled || !config.data?.enabled) return null
   return (
     <p className='text-sm text-amber-700 dark:text-amber-400'>
       {t(
@@ -59,7 +59,11 @@ export function InvoiceTaxFields({
   const quote = useQuery({
     queryKey: ['invoice-tax-quote', ids, type, config.data],
     queryFn: () => getInvoiceTaxQuote(ids, type),
-    enabled: open && !!config.data && ids.length > 0,
+    enabled:
+      open &&
+      !!config.data &&
+      (config.data.module_enabled || !!config.data.invoice_workflow_required) &&
+      ids.length > 0,
     refetchOnWindowFocus: 'always',
     retry: false,
   })
@@ -68,7 +72,9 @@ export function InvoiceTaxFields({
     onChange({
       ready:
         !!config.data &&
-        !!quote.data &&
+        ((!config.data.module_enabled &&
+          !config.data.invoice_workflow_required) ||
+          !!quote.data) &&
         !quote.isFetching &&
         !quote.isError &&
         !config.isError,
@@ -88,6 +94,9 @@ export function InvoiceTaxFields({
   ])
   if (!config.data) {
     return <p>{config.isError ? t('Failed to load') : t('Loading...')}</p>
+  }
+  if (!config.data.module_enabled && !config.data.invoice_workflow_required) {
+    return null
   }
   return (
     <section className='space-y-3 border-y py-3'>

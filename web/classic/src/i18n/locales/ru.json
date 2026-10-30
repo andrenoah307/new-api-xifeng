@@ -5467,6 +5467,7 @@
     "Private payment gateway name": "Название частного платёжного шлюза",
     "Random": "Случайный",
     "Round robin": "По очереди",
-    "Routing strategy": "Стратегия маршрутизации"
+    "Routing strategy": "Стратегия маршрутизации",
+    "Enable finance module": "Включить финансовый модуль"
   }
 }

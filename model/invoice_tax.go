@@ -15,6 +15,7 @@ const InvoiceTaxConfigKey = "InvoiceTaxConfig"
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
+	ModuleEnabled       bool   `json:"module_enabled"`
 	LegacyTopUpsEnabled bool   `json:"legacy_topups_enabled"`
 	Enabled             bool   `json:"enabled"`
 	Mode                string `json:"mode"`
@@ -84,6 +85,10 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	if err != nil {
 		return empty, err
 	}
+	if !config.ModuleEnabled {
+		config.Enabled = false
+		config.LegacyTopUpsEnabled = true
+	}
 	if invoiceType == "" && !config.Enabled {
 		invoiceType = "ordinary"
 	}
@@ -129,7 +134,7 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 		if !config.LegacyTopUpsEnabled {
 			return empty, ErrTicketInvoiceOrderInvalid
 		}
-		if !IsCNYInvoiceTopUp(order) {
+		if config.ModuleEnabled && !IsCNYInvoiceTopUp(order) {
 			return empty, ErrInvoiceTaxCurrency
 		}
 		amount, err := invoiceMoneyCents(order.Money)
@@ -255,7 +260,7 @@ func refundPaidInvoiceTax(tx *gorm.DB, charge *InvoiceTaxCharge) error {
 		return ErrInvoiceTaxInvalid
 	}
 	if charge.Quota > 0 {
-		result = tx.Model(&User{}).Where("id = ? AND quota <= ?", charge.UserId, common.MaxQuota-charge.Quota).Update("quota", gorm.Expr("quota + ?", charge.Quota))
+		result = tx.Model(&User{}).Where("id = ? AND quota <= ?", charge.UserId, math.MaxInt64-int64(charge.Quota)).Update("quota", gorm.Expr("quota + ?", charge.Quota))
 		if result.Error != nil {
 			return result.Error
 		}
@@ -307,7 +312,16 @@ func SaveInvoiceTaxConfig(config InvoiceTaxConfig) error {
 	if err != nil {
 		return err
 	}
-	return DB.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "key"}}, DoUpdates: clause.AssignmentColumns([]string{"value"})}).Create(&Option{Key: InvoiceTaxConfigKey, Value: string(raw)}).Error
+	if err := DB.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "key"}}, DoUpdates: clause.AssignmentColumns([]string{"value"})}).Create(&Option{Key: InvoiceTaxConfigKey, Value: string(raw)}).Error; err != nil {
+		return err
+	}
+	common.OptionMapRWMutex.Lock()
+	if common.OptionMap == nil {
+		common.OptionMap = make(map[string]string)
+	}
+	common.OptionMap[InvoiceTaxConfigKey] = string(raw)
+	common.OptionMapRWMutex.Unlock()
+	return nil
 }
 
 func CalculateInvoiceTax(baseCents int64, invoiceType string, config InvoiceTaxConfig) (InvoiceTaxQuote, error) {

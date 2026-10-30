@@ -13,6 +13,31 @@ import (
 // below reproduces that oversized product for the saturation checks.
 const overflowingProduct = 2000 * 1.8446744073686647e19
 
+func TestRechargeQuotaFromDecimal(t *testing.T) {
+	limit := int(^uint(0) >> 1)
+	for _, test := range []struct {
+		value decimal.Decimal
+		want  int
+		valid bool
+	}{
+		{decimal.RequireFromString("42.9"), 42, true},
+		{decimal.NewFromInt(int64(limit)), limit, true},
+		{decimal.NewFromInt(int64(limit)).Add(decimal.NewFromInt(1)), 0, false},
+		{decimal.RequireFromString("0.9"), 0, false},
+		{decimal.NewFromInt(-1), 0, false},
+	} {
+		t.Run(test.value.String(), func(t *testing.T) {
+			got, err := RechargeQuotaFromDecimal(test.value)
+			if test.valid {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
 // TestQuotaFromFloat guards the billing invariant that oversized quota
 // products (e.g. price multiplied by a huge user-supplied count) saturate
 // instead of wrapping into a negative charge (credit). QuotaFromFloat
