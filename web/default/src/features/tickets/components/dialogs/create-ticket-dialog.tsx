@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useForm, type Resolver } from 'react-hook-form'
@@ -47,6 +47,9 @@ import { useStatus } from '@/hooks/use-status'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
 import { PAYEE_TYPE_OPTIONS, humanFileSize } from '../../constants'
 import { useTicketAttachments } from '../../hooks/use-ticket-attachments'
+import { quoteRefundFinance } from '../../refund-finance-api'
+import { RefundFinanceDetail } from '../refund-finance-detail'
+import { useAuthStore } from '@/stores/auth-store'
 
 const generalSchema = z.object({
   type: z.enum(['general', 'refund']),
@@ -82,6 +85,8 @@ export function CreateTicketDialog({
   const attachmentEnabled = status?.ticket_attachment_enabled === true
   const [ticketType, setTicketType] = useState<'general' | 'refund'>('general')
   const [invoiceConflictAcked, setInvoiceConflictAcked] = useState(false)
+  const refundRequest = useRef({ signature: '', key: '' })
+  const userId = useAuthStore((state) => state.auth.user?.id)
 
   const {
     attachments,
@@ -136,12 +141,27 @@ export function CreateTicketDialog({
   })
 
   const payeeType = form.watch('payee_type')
+  const refundAmount = form.watch('refund_amount')
+  const requestedQuota = parseQuotaFromDollars(Number(refundAmount) || 0)
+  const [quoteQuota, setQuoteQuota] = useState(0)
+  useEffect(() => {
+    const timer = setTimeout(() => setQuoteQuota(requestedQuota), 500)
+    return () => clearTimeout(timer)
+  }, [requestedQuota])
+  const financeQuote = useQuery({
+    queryKey: ['tickets', 'refund-finance-quote', userId, quoteQuota],
+    queryFn: ({ signal }) => quoteRefundFinance(quoteQuota, signal),
+    enabled: open && ticketType === 'refund' && quoteQuota > 0 && quoteQuota === requestedQuota,
+    gcTime: 0,
+    retry: false,
+  })
 
   useEffect(() => {
     if (!open) {
       form.reset()
       setTicketType('general')
       setInvoiceConflictAcked(false)
+      refundRequest.current = { signature: '', key: '' }
       discardAll()
     }
   }, [open, form, discardAll])
@@ -162,6 +182,10 @@ export function CreateTicketDialog({
 
   const createRefund = useMutation({
     mutationFn: createRefundTicket,
+    onError: (error) => {
+      toast.error(t(error.message))
+      if (error.message === 'invoice tax quote changed') void financeQuote.refetch()
+    },
     onSuccess: (data) => {
       toast.success(t('Ticket created, quota frozen'))
       queryClient.invalidateQueries({
@@ -231,7 +255,8 @@ export function CreateTicketDialog({
           form.setError('reason', { message: t('Ticket content is required') })
           return
         }
-        createRefund.mutate({
+        const payload = {
+          finance_quote: financeQuote.data?.quote_token,
           subject: values.subject?.trim() || t('Refund Ticket'),
           priority: values.priority,
           refund_quota: parseQuotaFromDollars(amount),
@@ -243,13 +268,17 @@ export function CreateTicketDialog({
           reason: values.reason || values.content || '',
           attachment_ids: attachmentIds,
           invoice_conflict_acknowledged: invoiceConflictAcked,
-        })
+        }
+        const signature = JSON.stringify(payload)
+        if (refundRequest.current.signature !== signature) refundRequest.current = { signature, key: crypto.randomUUID() }
+        createRefund.mutate({ ...payload, request_key: refundRequest.current.key })
       }
     },
-    [isLimited, ticketType, createGeneral, createRefund, t, attachmentIds, maxRefundDollars, form, payeeType, invoiceConflictAcked]
+    [isLimited, ticketType, createGeneral, createRefund, t, attachmentIds, maxRefundDollars, form, payeeType, invoiceConflictAcked, financeQuote.data]
   )
 
   const isSubmitDisabled = isLimited || isPending ||
+    (ticketType === 'refund' && requestedQuota > 0 && (quoteQuota !== requestedQuota || financeQuote.isPending || financeQuote.isFetching || financeQuote.isError)) ||
     (ticketType === 'refund' && (quotaLoading || maxRefundDollars == null)) ||
     (ticketType === 'refund' && invoiceConflict?.has_active_invoices && !invoiceConflictAcked)
 
@@ -425,6 +454,8 @@ export function CreateTicketDialog({
 
             {ticketType === 'refund' ? (
               <>
+                {financeQuote.data && quoteQuota === requestedQuota && <RefundFinanceDetail finance={financeQuote.data} />}
+                {financeQuote.isError && <p role="alert" className="text-destructive">{t(financeQuote.error.message || 'Unable to calculate refund')}</p>}
                 <FormField
                   control={form.control}
                   name="refund_amount"

@@ -96,6 +96,9 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 		return empty, ErrInvoiceTaxInvalid
 	}
 	orders, err := fetchSuccessTopUpsByIds(db, userID, ids)
+	if err == nil {
+		orders, err = adjustInvoiceOrdersForRefunds(db, orders)
+	}
 	if err != nil {
 		return empty, err
 	}

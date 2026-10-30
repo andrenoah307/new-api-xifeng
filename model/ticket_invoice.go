@@ -280,6 +280,11 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 		tx.Rollback()
 		return nil, err
 	}
+	topUps, err = adjustInvoiceOrdersForRefunds(tx, topUps)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 	if err = tx.Commit().Error; err != nil {
 		return nil, err
 	}
@@ -405,6 +410,9 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 		}
 
 		topUps, err := fetchSuccessTopUpsByIds(tx, params.UserId, orderIds)
+		if err == nil {
+			topUps, err = adjustInvoiceOrdersForRefunds(tx, topUps)
+		}
 		if err != nil {
 			return err
 		}
@@ -595,10 +603,26 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 			return err
 		}
 		prevStatus = ticket.Status
+		if invoiceStatus != InvoiceStatusIssued {
+			var corrections int64
+			if err := tx.Model(&RefundInvoiceCorrection{}).Where("invoice_ticket_id = ? AND status IN ?", ticketId, []string{"pending", "processing", "completed"}).Count(&corrections).Error; err != nil {
+				return err
+			}
+			if corrections != 0 {
+				return ErrRefundInvoiceCorrection
+			}
+		}
 		if invoice.InvoiceStatus == InvoiceStatusRejected && invoiceStatus != InvoiceStatusRejected {
 			ids, err := invoice.GetTopUpOrderIDs()
 			if err != nil {
 				return err
+			}
+			var refundedOrders int64
+			if err := tx.Model(&RefundOrderAllocation{}).Where("top_up_id IN ? AND status IN ?", ids, []string{"reserved", "committed"}).Count(&refundedOrders).Error; err != nil {
+				return err
+			}
+			if refundedOrders > 0 {
+				return ErrTicketInvoiceOrderInvalid
 			}
 			orders, err := fetchSuccessTopUpsByIds(tx, invoice.UserId, ids)
 			if err != nil {

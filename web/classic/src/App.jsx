@@ -63,6 +63,7 @@ import Setup from './pages/Setup';
 import SetupCheck from './components/layout/SetupCheck';
 
 const Home = lazy(() => import('./pages/Home'));
+const RefundFinancePage = lazy(() => import('./pages/RefundFinance'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
@@ -391,6 +392,7 @@ function App() {
             </TicketStaffRoute>
           }
         />
+        <Route path='/console/refund-finance' element={<PrivateRoute><Suspense fallback={<Loading />}><RefundFinancePage /></Suspense></PrivateRoute>} />
         <Route
           path='/console/log'
           element={

@@ -39,6 +39,7 @@ const routerMap = {
   invitation_code: '/console/invitation_code',
   topup: '/console/topup',
   topup_history: '/console/topup_history',
+  refund_finance: '/console/refund-finance',
   ticket: '/console/ticket',
   user: '/console/user',
   risk: '/console/risk',
@@ -136,7 +137,10 @@ const SiderBar = ({ onNavigate = () => { } }) => {
   ]);
 
   const financeItems = useMemo(() => {
+    let refundFinanceRole = 0;
+    try { refundFinanceRole = JSON.parse(localStorage.getItem('user') || '{}').role; } catch {}
     const items = [
+      ...([3,10,100].includes(refundFinanceRole) ? [{ text: t('Refund reconciliation'), itemKey: 'refund_finance', to: '/console/refund-finance' }] : []),
       {
         text: t('钱包管理'),
         itemKey: 'topup',
@@ -164,7 +168,7 @@ const SiderBar = ({ onNavigate = () => { } }) => {
 
     // 根据配置过滤项目
     const filteredItems = items.filter((item) => {
-      const configVisible = (item.itemKey === 'topup_history' && canReadFinance) || isModuleVisible('personal', item.itemKey);
+      const configVisible = item.itemKey === 'refund_finance' || (item.itemKey === 'topup_history' && canReadFinance) || isModuleVisible('personal', item.itemKey);
       return configVisible;
     });
 

@@ -39,6 +39,7 @@ import {
   type RefundCommissionInfo,
 } from '../api'
 import { REFUND_STATUS, REFUND_STATUS_CONFIG, PAYEE_TYPE_LABELS, INVOICE_STATUS_CONFIG } from '../constants'
+import { RefundFinanceDetail } from './refund-finance-detail'
 
 interface RefundDetailProps {
   refund: TicketRefund
@@ -228,6 +229,7 @@ export function RefundDetail({
 }: RefundDetailProps) {
   const { t } = useTranslation()
   const statusCfg = REFUND_STATUS_CONFIG[refund.refund_status]
+  const correctionsPending = refund.finance_version === 1 && (!refund.finance || refund.finance.invoice_corrections.some((item) => item.status !== 'completed'))
 
   const [resolveOpen, setResolveOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
@@ -295,6 +297,7 @@ export function RefundDetail({
   const parsedClawbackQuota = parseQuotaInput(clawbackAmount)
 
   const isResolveEnabled = useMemo(() => {
+    if (correctionsPending) return false
     if (
       clawbackAvailable &&
       clawbackEnabled &&
@@ -315,6 +318,7 @@ export function RefundDetail({
     return parsedCustomQuota >= 0
   }, [
     quotaMode,
+    correctionsPending,
     parsedCustomQuota,
     targetUserQuota,
     frozenQ,
@@ -324,15 +328,16 @@ export function RefundDetail({
   ])
 
   const handleResolve = () => {
+    if (correctionsPending) return
     const extra: {
       quota_mode: string
       actual_refund_quota?: number
       claw_back_commission?: boolean
       claw_back_quota?: number
     } = {
-      quota_mode: quotaMode,
+      quota_mode: refund.finance_version === 1 ? 'write_off' : quotaMode,
     }
-    if (quotaMode !== 'write_off') {
+    if (refund.finance_version !== 1 && quotaMode !== 'write_off') {
       extra.actual_refund_quota = parsedCustomQuota ?? 0
     }
     if (clawbackAvailable) {
@@ -369,6 +374,7 @@ export function RefundDetail({
           )}
         </CardHeader>
         <CardContent className="space-y-4">
+          {refund.finance && <RefundFinanceDetail finance={refund.finance} ticketId={refund.ticket_id} />}
           {userInvoices && userInvoices.length > 0 && (
             <InvoiceHistoryAlert invoices={userInvoices} />
           )}
@@ -425,7 +431,7 @@ export function RefundDetail({
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
-                disabled={loading}
+                disabled={loading || correctionsPending}
                 onClick={() => setResolveOpen(true)}
               >
                 {t('Complete Refund')}
@@ -501,8 +507,8 @@ export function RefundDetail({
                   <SelectItem value="write_off">
                     {t('Write Off (Recommended)')}
                   </SelectItem>
-                  <SelectItem value="subtract">{t('Subtract')}</SelectItem>
-                  <SelectItem value="override">{t('Override')}</SelectItem>
+                  {refund.finance_version !== 1 && <SelectItem value="subtract">{t('Subtract')}</SelectItem>}
+                  {refund.finance_version !== 1 && <SelectItem value="override">{t('Override')}</SelectItem>}
                 </SelectContent>
               </Select>
             </div>

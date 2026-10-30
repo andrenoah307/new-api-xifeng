@@ -58,6 +58,8 @@ func TestMain(m *testing.M) {
 		&InvoiceTaxCharge{},
 		&Option{},
 		&TicketRefund{},
+		&RefundOrderAllocation{},
+		&RefundInvoiceCorrection{},
 		&CommissionRecord{},
 	); err != nil {
 		panic("failed to migrate: " + err.Error())
