@@ -45,6 +45,7 @@ type textQuotaSummary struct {
 	CacheCreationRatio5m     float64
 	CacheCreationRatio1h     float64
 	Quota                    int
+	ModelCostQuota           decimal.Decimal
 	IsClaudeUsageSemantic    bool
 	UsageSemantic            string
 	WebSearchPrice           float64
@@ -328,6 +329,11 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 
 		promptQuota := baseTokens.Add(cachedTokensWithRatio).Add(imageTokensWithRatio).Add(cachedCreationTokensWithRatio)
 		completionQuota := dCompletionTokens.Mul(dCompletionRatio)
+		summary.ModelCostQuota = promptQuota.Add(completionQuota).Mul(dModelRatio)
+		if summary.AudioInputPrice > 0 {
+			summary.ModelCostQuota = summary.ModelCostQuota.Add(decimal.NewFromFloat(summary.AudioInputPrice).Div(decimal.NewFromInt(1000000)).Mul(dAudioTokens).Mul(dQuotaPerUnit))
+		}
+		summary.ModelCostQuota = relayInfo.PriceData.ApplyOtherRatiosToDecimal(summary.ModelCostQuota)
 		quotaCalculateDecimal := promptQuota.Add(completionQuota).Mul(ratio)
 		quotaCalculateDecimal = quotaCalculateDecimal.Add(summary.ToolCallSurchargeQuota)
 		quotaCalculateDecimal = quotaCalculateDecimal.Add(audioInputQuota)
@@ -340,6 +346,7 @@ func calculateTextQuotaSummary(ctx *gin.Context, relayInfo *relaycommon.RelayInf
 		summary.Quota = quota
 		noteQuotaClamp(relayInfo, clamp)
 	} else {
+		summary.ModelCostQuota = relayInfo.PriceData.ApplyOtherRatiosToDecimal(dModelPrice.Mul(dQuotaPerUnit))
 		quotaCalculateDecimal := dModelPrice.Mul(dQuotaPerUnit).Mul(dGroupRatio)
 		quotaCalculateDecimal = quotaCalculateDecimal.Add(summary.ToolCallSurchargeQuota)
 		quotaCalculateDecimal = quotaCalculateDecimal.Add(audioInputQuota)
@@ -650,7 +657,10 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	attachUsageSemanticMismatch(ctx, relayInfo, other, usageSemanticMismatch)
 	attachUsageSemanticProbe(other, usageSemanticProbe)
 
+	baseCost := modelCostUSD(relayInfo, summary.ModelCostQuota, tieredResult, summary.TotalTokens > 0)
 	model.RecordConsumeLog(ctx, relayInfo.UserId, model.RecordConsumeLogParams{
+		CostBaseUSD:      baseCost,
+		CostTokenBased:   !relayInfo.PriceData.UsePrice,
 		ChannelId:        relayInfo.ChannelId,
 		PromptTokens:     summary.PromptTokens,
 		CompletionTokens: summary.CompletionTokens,

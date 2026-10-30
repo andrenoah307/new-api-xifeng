@@ -298,6 +298,8 @@ func PostWssConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, mod
 	model.RecordConsumeLog(ctx, relayInfo.UserId, model.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,
 		PromptTokens:     usage.InputTokens,
+		CostBaseUSD:      modelCostUSD(relayInfo, audioModelCostQuota(quotaInfo), tieredResult, totalTokens > 0),
+		CostTokenBased:   !relayInfo.PriceData.UsePrice,
 		CompletionTokens: usage.OutputTokens,
 		ModelName:        logModel,
 		TokenName:        tokenName,
@@ -424,6 +426,8 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 	model.RecordConsumeLog(ctx, relayInfo.UserId, model.RecordConsumeLogParams{
 		ChannelId:        relayInfo.ChannelId,
 		PromptTokens:     usage.PromptTokens,
+		CostBaseUSD:      modelCostUSD(relayInfo, audioModelCostQuota(quotaInfo), tieredResult, totalTokens > 0),
+		CostTokenBased:   !relayInfo.PriceData.UsePrice,
 		CompletionTokens: usage.CompletionTokens,
 		ModelName:        logModel,
 		TokenName:        tokenName,

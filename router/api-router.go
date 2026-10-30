@@ -288,6 +288,11 @@ func SetApiRouter(router *gin.Engine) {
 			performanceRoute.GET("/logs", controller.GetLogFiles)
 			performanceRoute.DELETE("/logs", controller.CleanupLogFiles)
 		}
+		channelCostRoute := apiRouter.Group("/channel-cost")
+		channelCostRoute.Use(middleware.RootAuth())
+		channelCostRoute.GET("/:id", controller.GetChannelCost)
+		channelCostRoute.PUT("/:id", controller.UpdateChannelCost)
+
 		ratioSyncRoute := apiRouter.Group("/ratio_sync")
 		ratioSyncRoute.Use(middleware.RootAuth())
 		{

@@ -54,6 +54,7 @@ type Channel struct {
 	ChannelInfo ChannelInfo `json:"channel_info" gorm:"type:json"`
 
 	OtherSettings string `json:"settings" gorm:"column:settings"` // 其他设置，存储azure版本等不需要检索的信息，详见dto.ChannelOtherSettings
+	CostSettings  string `json:"-" gorm:"type:text"`
 
 	// cache info
 	Keys []string `json:"-" gorm:"-"`
@@ -344,14 +345,14 @@ func (channel *Channel) GetAutoBan() bool {
 
 func (channel *Channel) Save() error {
 	// 排除原子/专路维护列，避免整行覆盖并发扣费（Lost Update，详见 Channel.Update）。
-	return DB.Omit("used_quota", "balance", "balance_updated_time").Save(channel).Error
+	return DB.Omit("cost_settings", "used_quota", "balance", "balance_updated_time").Save(channel).Error
 }
 
 func (channel *Channel) SaveWithoutKey() error {
 	if channel.Id == 0 {
 		return errors.New("channel ID is 0")
 	}
-	return DB.Omit("key", "used_quota", "balance", "balance_updated_time").Save(channel).Error
+	return DB.Omit("cost_settings", "key", "used_quota", "balance", "balance_updated_time").Save(channel).Error
 }
 
 func GetAllChannels(startIdx int, num int, selectAll bool, idSort bool, sortOptions ...ChannelSortOptions) ([]*Channel, error) {
@@ -566,7 +567,7 @@ func (channel *Channel) Update() error {
 	var err error
 	// used_quota 由 updateChannelUsedQuota 原子自增；balance/balance_updated_time 由
 	// UpdateBalance 专路维护。管理员编辑不得用旧快照覆盖它们（Lost Update）。
-	err = DB.Model(channel).Omit("used_quota", "balance", "balance_updated_time").Updates(channel).Error
+	err = DB.Model(channel).Omit("cost_settings", "used_quota", "balance", "balance_updated_time").Updates(channel).Error
 	if err != nil {
 		return err
 	}

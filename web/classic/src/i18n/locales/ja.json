@@ -5076,6 +5076,18 @@
     "Excluded channels": "除外するチャネル",
     "Excluded users": "除外するユーザー",
     "Search by name": "名前で検索",
-    "Exclude non-streaming requests from cache hit rate": "キャッシュヒット率から非ストリーミングリクエストを除外"
+    "Exclude non-streaming requests from cache hit rate": "キャッシュヒット率から非ストリーミングリクエストを除外",
+    "Automatic": "自動",
+    "Channel cost": "チャネル原価",
+    "Cost multiplier": "原価倍率",
+    "Cost ratio is stale": "原価倍率が古くなっています",
+    "Cost source": "原価の取得元",
+    "Estimated model cost (USD)": "モデル推定原価 (USD)",
+    "Failed to load": "読み込みに失敗しました",
+    "Loading...": "読み込み中...",
+    "Manual": "手動",
+    "Save cost settings": "原価設定を保存",
+    "Saved successfully": "保存しました",
+    "Upstream declared multiplier": "上流の申告倍率"
   }
 }

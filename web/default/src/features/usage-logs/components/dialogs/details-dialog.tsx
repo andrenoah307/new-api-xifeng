@@ -44,6 +44,7 @@ import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 import { formatLogQuota, formatTokens, formatUseTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 import { useSystemConfigStore } from '@/stores/system-config-store'
 
 import type { UsageLog } from '../../data/schema'
@@ -551,6 +552,7 @@ interface DetailsDialogProps {
 }
 
 export function DetailsDialog(props: DetailsDialogProps) {
+  const isRoot = useAuthStore((state) => state.auth.user?.role === 100)
   const { t } = useTranslation()
   const { copiedText, copyToClipboard } = useCopyToClipboard({ notify: false })
   const details = stripLocalRequestId(props.log.content ?? '')
@@ -728,6 +730,25 @@ export function DetailsDialog(props: DetailsDialogProps) {
       <div className='w-full max-w-full min-w-0 space-y-2.5 overflow-x-hidden py-1 sm:space-y-3'>
         {/* Overview section - key identifiers */}
         <div className='min-w-0 space-y-1'>
+          {isRoot && other?.root_cost && (
+            <>
+              <DetailRow
+                label={t('Estimated model cost (USD)')}
+                value={other.root_cost.amount_usd ?? '-'}
+                mono
+              />
+              <DetailRow
+                label={t('Cost multiplier')}
+                value={String(other.root_cost.ratio ?? '-')}
+              />
+              {other.root_cost.status === 'stale' && (
+                <DetailRow
+                  label={t('Cost source')}
+                  value={t('Cost ratio is stale')}
+                />
+              )}
+            </>
+          )}
           {props.log.request_id && (
             <DetailRow
               label={t('Request ID')}
@@ -933,7 +954,8 @@ export function DetailsDialog(props: DetailsDialogProps) {
             <DetailRow
               label={t('Normalized prompt tokens')}
               value={String(
-                other.admin_info.usage_semantic_mismatch.normalized_prompt_tokens
+                other.admin_info.usage_semantic_mismatch
+                  .normalized_prompt_tokens
               )}
               mono
             />
@@ -962,7 +984,9 @@ export function DetailsDialog(props: DetailsDialogProps) {
             variant='danger'
           >
             <p className='mb-1 text-xs wrap-break-word'>
-              {t('Upstream usage was cleared because the response was empty or usage was missing')}
+              {t(
+                'Upstream usage was cleared because the response was empty or usage was missing'
+              )}
             </p>
             <DetailRow
               label={t('Reason')}
@@ -979,23 +1003,31 @@ export function DetailsDialog(props: DetailsDialogProps) {
             />
             <DetailRow
               label={t('Completion tokens')}
-              value={String(other.admin_info.zero_charge_guard.completion_tokens)}
+              value={String(
+                other.admin_info.zero_charge_guard.completion_tokens
+              )}
               mono
             />
             <DetailRow
               label={t('Cache read tokens')}
-              value={String(other.admin_info.zero_charge_guard.cache_read_tokens)}
+              value={String(
+                other.admin_info.zero_charge_guard.cache_read_tokens
+              )}
               mono
             />
             <DetailRow
               label={t('Cache creation tokens')}
-              value={String(other.admin_info.zero_charge_guard.cache_creation_tokens)}
+              value={String(
+                other.admin_info.zero_charge_guard.cache_creation_tokens
+              )}
               mono
             />
             {other.admin_info.zero_charge_guard.pre_consumed_quota != null && (
               <DetailRow
                 label={t('Pre-consumed quota')}
-                value={String(other.admin_info.zero_charge_guard.pre_consumed_quota)}
+                value={String(
+                  other.admin_info.zero_charge_guard.pre_consumed_quota
+                )}
                 mono
               />
             )}
@@ -1306,16 +1338,12 @@ export function DetailsDialog(props: DetailsDialogProps) {
             <AlertTriangle className='size-3.5 shrink-0' />
             <span className='min-w-0'>
               {t('Upstream overload: error code rewritten for retry')}
-              {props.isAdmin &&
-                other?.admin_info?.stream_overload_rewrite && (
-                  <span className='ml-1 text-[11px]'>
-                    （
-                    {
-                      other.admin_info.stream_overload_rewrite.original_code
-                    }{' '}
-                    × {other.admin_info.stream_overload_rewrite.count}）
-                  </span>
-                )}
+              {props.isAdmin && other?.admin_info?.stream_overload_rewrite && (
+                <span className='ml-1 text-[11px]'>
+                  （{other.admin_info.stream_overload_rewrite.original_code} ×{' '}
+                  {other.admin_info.stream_overload_rewrite.count}）
+                </span>
+              )}
             </span>
           </div>
         )}

@@ -5619,6 +5619,18 @@
     "Excluded channels": "Kênh bị loại trừ",
     "Excluded users": "Người dùng bị loại trừ",
     "Search by name": "Tìm theo tên",
-    "Exclude non-streaming requests from cache hit rate": "Loại yêu cầu không streaming khỏi tỷ lệ trúng bộ nhớ đệm"
+    "Exclude non-streaming requests from cache hit rate": "Loại yêu cầu không streaming khỏi tỷ lệ trúng bộ nhớ đệm",
+    "Automatic": "Tự động",
+    "Channel cost": "Chi phí kênh",
+    "Cost multiplier": "Hệ số chi phí",
+    "Cost ratio is stale": "Hệ số chi phí đã cũ",
+    "Cost source": "Nguồn chi phí",
+    "Estimated model cost (USD)": "Chi phí mô hình ước tính (USD)",
+    "Failed to load": "Tải thất bại",
+    "Loading...": "Đang tải...",
+    "Manual": "Thủ công",
+    "Save cost settings": "Lưu cài đặt chi phí",
+    "Saved successfully": "Đã lưu",
+    "Upstream declared multiplier": "Hệ số do nhà cung cấp công bố"
   }
 }

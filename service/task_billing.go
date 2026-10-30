@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 )
 
 // LogTaskConsumption 记录任务消费日志和统计信息（仅记录，不涉及实际扣费）。
@@ -53,14 +54,15 @@ func LogTaskConsumption(c *gin.Context, info *relaycommon.RelayInfo) {
 	}
 	attachQuotaSaturation(c, info, other)
 	model.RecordConsumeLog(c, info.UserId, model.RecordConsumeLogParams{
-		ChannelId: info.ChannelId,
-		ModelName: info.OriginModelName,
-		TokenName: tokenName,
-		Quota:     info.PriceData.Quota,
-		Content:   logContent,
-		TokenId:   info.TokenId,
-		Group:     info.UsingGroup,
-		Other:     other,
+		CostBaseUSD: modelCostUSD(info, info.PriceData.ApplyOtherRatiosToDecimal(decimal.NewFromFloat(info.PriceData.ModelPrice).Mul(decimal.NewFromFloat(common.QuotaPerUnit))), nil, info.PriceData.UsePrice),
+		ChannelId:   info.ChannelId,
+		ModelName:   info.OriginModelName,
+		TokenName:   tokenName,
+		Quota:       info.PriceData.Quota,
+		Content:     logContent,
+		TokenId:     info.TokenId,
+		Group:       info.UsingGroup,
+		Other:       other,
 	})
 	model.UpdateUserUsedQuotaAndRequestCount(info.UserId, info.PriceData.Quota)
 	model.UpdateChannelUsedQuota(info.ChannelId, info.PriceData.Quota)

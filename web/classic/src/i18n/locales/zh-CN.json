@@ -5251,6 +5251,18 @@
     "Excluded channels": "排除渠道",
     "Excluded users": "排除用户",
     "Search by name": "按名称搜索",
-    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求"
+    "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求",
+    "Automatic": "自动",
+    "Channel cost": "渠道成本",
+    "Cost multiplier": "成本倍率",
+    "Cost ratio is stale": "成本倍率已过期",
+    "Cost source": "成本来源",
+    "Estimated model cost (USD)": "模型预估成本（USD）",
+    "Failed to load": "加载失败",
+    "Loading...": "加载中...",
+    "Manual": "手动",
+    "Save cost settings": "保存成本设置",
+    "Saved successfully": "保存成功",
+    "Upstream declared multiplier": "上游声明倍率"
   }
 }

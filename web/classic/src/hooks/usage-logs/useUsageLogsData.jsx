@@ -25,6 +25,7 @@ import {
   getTodayStartTimestamp,
   getTodayEndTimestamp,
   isAdmin,
+  isRoot,
   showError,
   showSuccess,
   timestamp2string,
@@ -414,6 +415,12 @@ export const useLogsData = () => {
       logs[i].key = logs[i].id;
       let other = getLogOther(logs[i].other);
       let expandDataLocal = [];
+
+      if (isRoot() && other?.root_cost) {
+        expandDataLocal.push({ key: t('Estimated model cost (USD)'), value: other.root_cost.amount_usd ?? '-' });
+        expandDataLocal.push({ key: t('Cost multiplier'), value: String(other.root_cost.ratio ?? '-') });
+        if (other.root_cost.status === 'stale') expandDataLocal.push({ key: t('Cost source'), value: t('Cost ratio is stale') });
+      }
 
       if (isAdminUser && (logs[i].type === 0 || logs[i].type === 2 || logs[i].type === 6)) {
         expandDataLocal.push({

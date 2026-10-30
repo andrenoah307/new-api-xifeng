@@ -5130,6 +5130,18 @@
     "Excluded channels": "Исключённые каналы",
     "Excluded users": "Исключённые пользователи",
     "Search by name": "Поиск по имени",
-    "Exclude non-streaming requests from cache hit rate": "Исключать непотоковые запросы из доли попаданий в кэш"
+    "Exclude non-streaming requests from cache hit rate": "Исключать непотоковые запросы из доли попаданий в кэш",
+    "Automatic": "Автоматически",
+    "Channel cost": "Стоимость канала",
+    "Cost multiplier": "Множитель стоимости",
+    "Cost ratio is stale": "Множитель стоимости устарел",
+    "Cost source": "Источник стоимости",
+    "Estimated model cost (USD)": "Оценка стоимости модели (USD)",
+    "Failed to load": "Не удалось загрузить",
+    "Loading...": "Загрузка...",
+    "Manual": "Вручную",
+    "Save cost settings": "Сохранить настройки стоимости",
+    "Saved successfully": "Сохранено",
+    "Upstream declared multiplier": "Заявленный множитель провайдера"
   }
 }

@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import ChannelCostSettings from './ChannelCostSettings';
 import { useTranslation } from 'react-i18next';
 import {
   API,
@@ -2478,6 +2479,7 @@ const EditChannelModal = (props) => {
           {() => {
             const advancedSettingsContent = (
               <div className='space-y-4'>
+                {isEdit && <ChannelCostSettings channelId={channelId} />}
                 {/* Upstream Model Management Section */}
                 {MODEL_FETCHABLE_CHANNEL_TYPES.has(inputs.type) && (
                   <div className='pb-3 border-b border-gray-100'>

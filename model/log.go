@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -214,6 +215,7 @@ func assignDisplayLogIds(logs []*Log, startIdx int) {
 }
 
 func formatUserLogs(logs []*Log, startIdx int) {
+	FilterLogCosts(logs, false)
 	for i := range logs {
 		logs[i].ChannelName = ""
 		var otherMap map[string]interface{}
@@ -443,6 +445,8 @@ func RecordErrorLog(c *gin.Context, userId int, channelId int, modelName string,
 }
 
 type RecordConsumeLogParams struct {
+	CostBaseUSD      *string                `json:"-"`
+	CostTokenBased   bool                   `json:"-"`
 	ChannelId        int                    `json:"channel_id"`
 	PromptTokens     int                    `json:"prompt_tokens"`
 	CompletionTokens int                    `json:"completion_tokens"`
@@ -458,6 +462,26 @@ type RecordConsumeLogParams struct {
 }
 
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
+	if value, ok := c.Get(ChannelCostContextKey); ok {
+		if settings, ok := value.(ChannelCostSettings); ok {
+			base := decimal.Zero
+			known := false
+			if params.CostBaseUSD != nil {
+				var err error
+				base, err = decimal.NewFromString(*params.CostBaseUSD)
+				known = err == nil
+			}
+			if settings.Mode == "auto" && !params.CostTokenBased {
+				known = false
+			}
+			if cost := BuildChannelCost(settings, base, known); cost != nil {
+				if params.Other == nil {
+					params.Other = make(map[string]interface{})
+				}
+				params.Other["root_cost"] = cost
+			}
+		}
+	}
 	params.Other = attachUserRouting(c, params.Other)
 	realtimemetrics.RecordUsage(int64(params.PromptTokens), int64(params.CompletionTokens), int64(params.Quota))
 	frtMs := 0

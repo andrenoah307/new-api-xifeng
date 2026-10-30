@@ -5336,6 +5336,18 @@
     "Excluded channels": "Excluded channels",
     "Excluded users": "Excluded users",
     "Search by name": "Search by name",
-    "Exclude non-streaming requests from cache hit rate": "Exclude non-streaming requests from cache hit rate"
+    "Exclude non-streaming requests from cache hit rate": "Exclude non-streaming requests from cache hit rate",
+    "Automatic": "Automatic",
+    "Channel cost": "Channel cost",
+    "Cost multiplier": "Cost multiplier",
+    "Cost ratio is stale": "Cost ratio is stale",
+    "Cost source": "Cost source",
+    "Estimated model cost (USD)": "Estimated model cost (USD)",
+    "Failed to load": "Failed to load",
+    "Loading...": "Loading...",
+    "Manual": "Manual",
+    "Save cost settings": "Save cost settings",
+    "Saved successfully": "Saved successfully",
+    "Upstream declared multiplier": "Upstream declared multiplier"
   }
 }

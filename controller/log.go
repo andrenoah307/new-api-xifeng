@@ -97,6 +97,10 @@ func GetAllLogs(c *gin.Context) {
 			}
 			return
 		}
+		if root && !authorizeLogRoot(c) {
+			return
+		}
+		model.FilterLogCosts(page.Items, root)
 		common.ApiSuccess(c, gin.H{"page": 1, "page_size": pageInfo.PageSize, "total": -1, "items": page.Items, "has_more": page.HasMore, "next_cursor": page.NextCursor})
 		return
 	}
@@ -109,6 +113,9 @@ func GetAllLogs(c *gin.Context) {
 		logs, hasMore, err := model.GetAllLogsBatch(ctx, logType, startTimestamp, endTimestamp, modelName, username, tokenName, pageInfo.PageSize, channel, group, requestId, upstreamRequestId, beforeID)
 		if err != nil {
 			handleLogQueryError(c, err)
+			return
+		}
+		if !authorizeLogRoot(c) {
 			return
 		}
 		nextID := int64(0)
@@ -124,6 +131,10 @@ func GetAllLogs(c *gin.Context) {
 		return
 	}
 	pageInfo.SetTotal(int(total))
+	if root && !authorizeLogRoot(c) {
+		return
+	}
+	model.FilterLogCosts(logs, root)
 	pageInfo.SetItems(logs)
 	common.ApiSuccess(c, pageInfo)
 	return

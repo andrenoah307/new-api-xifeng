@@ -145,12 +145,11 @@ import {
   FIELD_PLACEHOLDERS,
   MODEL_FETCHABLE_TYPES,
 } from '../../constants'
+import { useChannelCacheRates } from '../../hooks/use-channel-cache-rates'
 import {
   hasSensitiveFormChanges,
   useChannelMutateForm,
 } from '../../hooks/use-channel-mutate-form'
-import { useChannelCacheRates } from '../../hooks/use-channel-cache-rates'
-import { ChannelCacheRate } from '../channel-cache-rate'
 import {
   CHANNEL_FORM_DEFAULT_VALUES,
   CHANNEL_TYPE_ADVANCED_CUSTOM,
@@ -177,7 +176,10 @@ import {
   collectNewDisallowedStatusCodeRedirects,
 } from '../../lib/status-code-risk-guard'
 import type { Channel } from '../../types'
+import { ChannelCacheRate } from '../channel-cache-rate'
+import { ChannelCostSettings } from '../channel-cost-settings'
 import { useChannels } from '../channels-provider'
+import { ChannelCustomSections } from '../custom/channel-custom-sections'
 import { AdvancedCustomEditorDialog } from '../dialogs/advanced-custom-editor-dialog'
 import { FetchModelsDialog } from '../dialogs/fetch-models-dialog'
 import {
@@ -195,7 +197,6 @@ import {
   ChannelEditorLoadingState,
   ChannelModelsSection,
 } from './sections'
-import { ChannelCustomSections } from '../custom/channel-custom-sections'
 
 type ChannelMutateDrawerProps = {
   open: boolean
@@ -2021,6 +2022,7 @@ export function ChannelMutateDrawer({
                     onNavigate={handleEditorNavNavigate}
                   />
                   <div className='flex min-w-0 flex-col gap-5'>
+                    {channelId && <ChannelCostSettings channelId={channelId} />}
                     {/* ── Basic Information ── */}
                     <div
                       id={CHANNEL_EDITOR_SECTION_IDS.identity}
@@ -4200,7 +4202,9 @@ export function ChannelMutateDrawer({
                                   <FormItem className='flex items-center justify-between px-4 py-3'>
                                     <div className='space-y-0.5'>
                                       <FormLabel>
-                                        {t('Strip Upstream Request ID from Responses')}
+                                        {t(
+                                          'Strip Upstream Request ID from Responses'
+                                        )}
                                       </FormLabel>
                                       <FormDescription>
                                         {t(

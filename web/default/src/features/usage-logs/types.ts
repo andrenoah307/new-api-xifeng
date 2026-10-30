@@ -107,6 +107,17 @@ export type UsageBillingPath =
   (typeof USAGE_BILLING_PATH)[keyof typeof USAGE_BILLING_PATH]
 
 export interface LogOtherData {
+  root_cost?: {
+    version: number
+    status: 'estimated' | 'stale' | 'unknown'
+    amount_usd?: string
+    base_usd?: string
+    ratio?: number
+    source: string
+    config_version?: string
+    ratio_updated_at?: number
+    basis: string
+  }
   admin_info?: {
     user_routing?: {
       source_group: string
