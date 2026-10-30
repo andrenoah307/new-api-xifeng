@@ -524,7 +524,11 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 	var ticket Ticket
 	var refundedQuota int
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ticket, "id = ?", ticketId).Error; err != nil {
+		var owner User
+		if err := lockForUpdate(tx).Select("id").First(&owner, userId).Error; err != nil {
+			return err
+		}
+		if err := lockForUpdate(tx).First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketNotFound
 			}
@@ -574,6 +578,9 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 		syncInvoiceTaxQuotaCache(ticket.UserId, refundedQuota)
 		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, refundedQuota))
 	}
+	if ticket.Type == TicketTypeRefund {
+		_ = InvalidateUserCache(ticket.UserId)
+	}
 	return &ticket, nil
 }
 
@@ -588,13 +595,21 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 }
 
 func updateTicketStatus(db *gorm.DB, ticketId int, adminId int, status *int, priority *int) (*Ticket, int, error) {
+	var ownerTicket Ticket
+	if err := db.Select("id, user_id").First(&ownerTicket, ticketId).Error; err != nil {
+		return nil, 0, err
+	}
 	var refundedQuota int
 	var (
 		ticket     Ticket
 		prevStatus int
 	)
 	err := db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ticket, "id = ?", ticketId).Error; err != nil {
+		var owner User
+		if err := lockForUpdate(tx).Select("id").First(&owner, ownerTicket.UserId).Error; err != nil {
+			return err
+		}
+		if err := lockForUpdate(tx).First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketNotFound
 			}
@@ -663,6 +678,9 @@ func updateTicketStatus(db *gorm.DB, ticketId int, adminId int, status *int, pri
 	if refundedQuota > 0 {
 		syncInvoiceTaxQuotaCache(ticket.UserId, refundedQuota)
 		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, refundedQuota))
+	}
+	if ticket.Type == TicketTypeRefund {
+		_ = InvalidateUserCache(ticket.UserId)
 	}
 	return &ticket, prevStatus, nil
 }
