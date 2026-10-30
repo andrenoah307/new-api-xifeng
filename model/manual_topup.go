@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/QuantumNous/new-api/common"
@@ -37,6 +38,9 @@ func QuoteManualTopUp(db *gorm.DB, operatorID int, req ManualTopUpRequest) (Epay
 	config, err := GetInvoiceTaxConfig(db)
 	if err != nil {
 		return empty, err
+	}
+	if !config.ModuleEnabled {
+		return empty, ErrTicketForbidden
 	}
 	quote, err := CalculateEpayCheckout(req.TotalCents, req.InvoiceType, config, decimal.NewFromInt(1), 100)
 	if err != nil {
@@ -117,7 +121,7 @@ func CreateManualTopUp(operatorID int, req ManualTopUpRequest) (*TopUp, bool, er
 		if result.RowsAffected != 1 {
 			return ErrInvoiceTaxInvalid
 		}
-		result = tx.Model(&User{}).Where("id = ? AND quota <= ?", req.UserID, common.MaxQuota-quote.Quota).Update("quota", gorm.Expr("quota + ?", quote.Quota))
+		result = tx.Model(&User{}).Where("id = ? AND quota <= ?", req.UserID, math.MaxInt64-int64(quote.Quota)).Update("quota", gorm.Expr("quota + ?", quote.Quota))
 		if result.Error != nil {
 			return result.Error
 		}

@@ -22,6 +22,7 @@ import { Tabs, TabPane, Typography } from '@douyinfe/semi-ui';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { UserContext } from '../../context/User';
+import { StatusContext } from '../../context/Status';
 import TopupHistoryPage from '../../components/topup/TopupHistoryPage';
 
 const FinanceRecords = lazy(() => import('../Finance'));
@@ -29,11 +30,13 @@ const FinanceRecords = lazy(() => import('../Finance'));
 export default function TopupHistory() {
   const { t } = useTranslation();
   const [state] = useContext(UserContext);
+  const [statusState] = useContext(StatusContext);
   const user = state.user;
   const [params, setParams] = useSearchParams();
   const canRead =
-    user?.role === 100 ||
-    user?.permissions?.admin_permissions?.finance?.read === true;
+    statusState?.status?.finance_module_enabled &&
+    (user?.role === 100 ||
+      user?.permissions?.admin_permissions?.finance?.read === true);
   const requested = params.get('view');
   const finance =
     canRead && (requested === 'finance' || (!requested && user?.role < 10));

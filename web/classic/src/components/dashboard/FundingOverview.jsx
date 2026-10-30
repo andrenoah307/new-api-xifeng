@@ -22,6 +22,7 @@ import { RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../../helpers';
 import { UserContext } from '../../context/User';
+import { StatusContext } from '../../context/Status';
 
 function localHour(timestamp) {
   const date = new Date(timestamp * 1000);
@@ -31,8 +32,13 @@ function localHour(timestamp) {
 }
 
 export default function FundingOverview() {
+  const [statusState] = useContext(StatusContext);
   const [userState] = useContext(UserContext);
-  if (userState.user?.role !== 100) return null;
+  if (
+    userState.user?.role !== 100 ||
+    !statusState?.status?.finance_module_enabled
+  )
+    return null;
   return <FundingOverviewContent key={userState.user.id} />;
 }
 

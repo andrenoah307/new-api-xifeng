@@ -32,7 +32,7 @@ func TestAdminGrantedInvoiceEligibilityDoesNotChangeFunds(t *testing.T) {
 			truncateTables(t)
 			user := insertInvoiceTicketUser(t, 980602)
 			require.NoError(t, DB.Model(user).Update("quota", 1234567).Error)
-			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300, LegacyTopUpsEnabled: test.legacyEnabled}))
+			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300, LegacyTopUpsEnabled: test.legacyEnabled}))
 			order := TopUp{UserId: user.Id, TradeNo: test.name, Status: common.TopUpStatusSuccess, Money: 100, PaymentProvider: PaymentProviderEpay, InvoiceType: test.originalType, CheckoutVersion: test.version, InvoiceTaxCents: test.tax}
 			if test.version == 1 {
 				order.PaymentTotalCents, order.InvoiceNetCents = 10000, 10000-test.tax
@@ -77,7 +77,7 @@ func TestAdminGrantedInvoiceEligibilityDoesNotChangeFunds(t *testing.T) {
 			_, err = UpdateTopUpInvoiceType(order.Id, "special", "none")
 			require.NoError(t, err)
 			// Even enabling historical supplements must not override an explicit opt-out.
-			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600, LegacyTopUpsEnabled: true}))
+			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600, LegacyTopUpsEnabled: true}))
 			eligible, err = GetEligibleInvoiceOrders(user.Id, "ordinary")
 			require.NoError(t, err)
 			assert.Empty(t, eligible)
@@ -89,6 +89,8 @@ func TestAdminGrantedInvoiceEligibilityDoesNotChangeFunds(t *testing.T) {
 
 func TestUpdateTopUpInvoiceTypePreservesPaymentAndChecksOccupancy(t *testing.T) {
 	truncateTables(t)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
+	t.Cleanup(func() { require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error) })
 	user := insertInvoiceTicketUser(t, 980601)
 	order := TopUp{UserId: user.Id, TradeNo: "invoice-type-edit", Status: common.TopUpStatusSuccess, PaymentProvider: PaymentProviderEpay,
 		Money: 100, InvoiceType: "ordinary", CheckoutVersion: 1, PaymentTotalCents: 10000, InvoiceNetCents: 9434, InvoiceTaxCents: 566, CheckoutQuota: 943400}
@@ -137,6 +139,8 @@ func TestUpdateTopUpInvoiceTypePreservesPaymentAndChecksOccupancy(t *testing.T) 
 
 func TestTopUpInvoiceTypeEditAndApplicationCannotBothSucceed(t *testing.T) {
 	truncateTables(t)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
+	t.Cleanup(func() { require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error) })
 	user := insertInvoiceTicketUser(t, 980603)
 	oldMinimum := operation_setting.MinInvoiceAmount
 	operation_setting.MinInvoiceAmount = 0

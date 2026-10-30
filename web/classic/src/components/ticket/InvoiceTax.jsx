@@ -16,7 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
+import { StatusContext } from '../../context/Status';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw } from 'lucide-react';
 import {
@@ -66,7 +67,7 @@ function useInvoiceTaxConfig() {
 export function InvoiceTaxNotice() {
   const { t } = useTranslation();
   const [config] = useInvoiceTaxConfig();
-  return config?.enabled ? (
+  return config?.module_enabled && config?.enabled ? (
     <Banner
       type='warning'
       description={t(
@@ -95,7 +96,12 @@ export function InvoiceTaxFields({ ids, open, onChange, type, onTypeChange }) {
     setQuote(null);
     setFailed(false);
     const selected = JSON.parse(key);
-    if (open && config && selected.length) {
+    if (
+      open &&
+      config &&
+      (config.module_enabled || config.invoice_workflow_required) &&
+      selected.length
+    ) {
       API.post('/api/ticket/invoice/tax-quote', {
         topup_order_ids: selected,
         invoice_type: type,
@@ -118,13 +124,17 @@ export function InvoiceTaxFields({ ids, open, onChange, type, onTypeChange }) {
   const method = current?.can_balance ? payment : 'online';
   useEffect(() => {
     onChange({
-      ready: !!config && !!current,
+      ready:
+        !!config &&
+        ((!config.module_enabled && !config.invoice_workflow_required) ||
+          !!current),
       invoice_type: type,
       tax_payment_method: method,
       tax_quote: current?.token || '',
     });
   }, [config, current, type, method, onChange]);
   if (!config) return <p>{t('Loading...')}</p>;
+  if (!config.module_enabled && !config.invoice_workflow_required) return null;
   return (
     <div className='space-y-3 my-4'>
       <InvoiceTaxNotice />
@@ -332,6 +342,7 @@ export function InvoiceTaxPayment({ charge, rejected }) {
 }
 
 export function InvoiceTaxSettings() {
+  const [statusState, statusDispatch] = useContext(StatusContext);
   const { t } = useTranslation();
   const [config, setConfig] = useInvoiceTaxConfig();
   const [saving, setSaving] = useState(false);
@@ -363,6 +374,13 @@ export function InvoiceTaxSettings() {
     try {
       const { data } = await API.put('/api/option/invoice-tax', config);
       if (!data.success) throw new Error(data.message);
+      statusDispatch({
+        type: 'set',
+        payload: {
+          ...statusState.status,
+          finance_module_enabled: config.module_enabled,
+        },
+      });
       showSuccess(t('Saved successfully'));
     } catch (error) {
       showError(error.message);
@@ -373,6 +391,16 @@ export function InvoiceTaxSettings() {
   return (
     <section className='space-y-4'>
       <h3>{t('Invoice tax charges')}</h3>
+      <Space>
+        <Switch
+          checked={!!config.module_enabled}
+          onChange={(module_enabled) =>
+            setConfig({ ...config, module_enabled })
+          }
+          aria-label={t('Enable finance module')}
+        />
+        <span>{t('Enable finance module')}</span>
+      </Space>
       <Space>
         <Switch
           checked={config.enabled}

@@ -17,7 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useContext } from 'react';
+import { StatusContext } from '../../../context/Status';
 import { Empty } from '@douyinfe/semi-ui';
 import CardTable from '../../common/ui/CardTable';
 import {
@@ -34,6 +35,8 @@ import UserSubscriptionsModal from './modals/UserSubscriptionsModal';
 import ManualTopupModal from './modals/ManualTopupModal';
 
 const UsersTable = (usersData) => {
+  const [statusState] = useContext(StatusContext);
+  const financeEnabled = !!statusState?.status?.finance_module_enabled;
   const {
     users,
     loading,
@@ -138,7 +141,7 @@ const UsersTable = (usersData) => {
       showResetPasskeyModal: showResetPasskeyUserModal,
       showResetTwoFAModal: showResetTwoFAUserModal,
       showUserSubscriptionsModal: showUserSubscriptionsUserModal,
-      showManualTopup: setManualUser,
+      showManualTopup: financeEnabled ? setManualUser : undefined,
       currentUserRole: usersData.currentUserRole,
     });
   }, [
@@ -153,6 +156,7 @@ const UsersTable = (usersData) => {
     showResetTwoFAUserModal,
     showUserSubscriptionsUserModal,
     usersData.currentUserRole,
+    financeEnabled,
   ]);
 
   // Handle compact mode by removing fixed positioning

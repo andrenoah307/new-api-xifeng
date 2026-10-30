@@ -44,10 +44,11 @@ func TestStatus(c *gin.Context) {
 }
 
 func GetStatus(c *gin.Context) {
-
 	cs := console_setting.GetConsoleSetting()
 	common.OptionMapRWMutex.RLock()
 	defer common.OptionMapRWMutex.RUnlock()
+	var financeConfig model.InvoiceTaxConfig
+	_ = common.UnmarshalJsonStr(common.OptionMap[model.InvoiceTaxConfigKey], &financeConfig)
 
 	passkeySetting := system_setting.GetPasskeySettings()
 	legalSetting := system_setting.GetLegalSettings()
@@ -83,6 +84,7 @@ func GetStatus(c *gin.Context) {
 		"top_up_commission_rate":      common.TopUpCommissionRate,
 		"min_invoice_amount":          operation_setting.MinInvoiceAmount,
 		"invoice_service_name":        operation_setting.InvoiceServiceName,
+		"finance_module_enabled":      financeConfig.ModuleEnabled,
 		// 兼容旧前端：保留 display_in_currency，同时提供新的 quota_display_type
 		"display_in_currency":           operation_setting.IsCurrencyDisplay(),
 		"quota_display_type":            operation_setting.GetQuotaDisplayType(),
