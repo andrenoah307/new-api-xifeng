@@ -18,7 +18,8 @@ import (
 
 func TestTopUpInvoiceTypeWriteIsAdminOnly(t *testing.T) {
 	db := setupMonitoringRouterTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.TopUp{}, &model.TicketInvoice{}, &model.Log{}))
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.TicketInvoice{}, &model.Log{}))
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
 	engine := gin.New()
 	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("topup-invoice-type-test"))))
 	SetApiRouter(engine)

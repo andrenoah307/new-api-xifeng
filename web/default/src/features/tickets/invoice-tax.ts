@@ -1,6 +1,8 @@
 import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
+  module_enabled: boolean
+  invoice_workflow_required?: boolean
   enabled: boolean
   legacy_topups_enabled?: boolean
   mode: 'vat' | 'compound' | 'gross_up'
@@ -25,7 +27,11 @@ export interface InvoiceTaxQuote {
 
 export interface InvoiceTaxCharge extends Omit<
   InvoiceTaxQuote,
-  'can_balance' | 'token' | 'prepaid_only' | 'prepaid_net_cents' | 'prepaid_tax_cents'
+  | 'can_balance'
+  | 'token'
+  | 'prepaid_only'
+  | 'prepaid_net_cents'
+  | 'prepaid_tax_cents'
 > {
   ticket_id: number
   user_id: number

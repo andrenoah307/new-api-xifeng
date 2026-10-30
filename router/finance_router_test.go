@@ -22,6 +22,7 @@ import (
 func TestFinanceRoutesEnforceScopeAndExportOneRowPerInvoice(t *testing.T) {
 	db := setupMonitoringRouterTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.Ticket{}, &model.TicketInvoice{}, &model.AuthzRole{}, &model.CasbinRule{}, &model.Log{}))
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
 	wasMaster := common.IsMasterNode
 	common.IsMasterNode = true
 	t.Cleanup(func() { common.IsMasterNode = wasMaster })
@@ -57,6 +58,13 @@ func TestFinanceRoutesEnforceScopeAndExportOneRowPerInvoice(t *testing.T) {
 		engine.ServeHTTP(w, req)
 		return w
 	}
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{Mode: "vat"}))
+	for _, role := range []int{common.RoleCommonUser, common.RoleFinanceUser, common.RoleAdminUser} {
+		for _, path := range []string{"/api/finance/records", "/api/finance/export", "/api/finance/policy", "/api/user/epay/checkout/methods"} {
+			assert.Contains(t, request(role, "GET", path, "").Body.String(), `"success":false`, path)
+		}
+	}
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
 	for _, role := range []int{common.RoleCommonUser, common.RoleCustomerServiceUser} {
 		for _, path := range []string{"/api/finance/records", "/api/finance/export", "/api/finance/policy"} {
 			assert.Equal(t, http.StatusForbidden, request(role, "GET", path, "").Code, path)

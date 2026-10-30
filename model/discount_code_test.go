@@ -20,7 +20,7 @@ func setupDiscountCodeTest(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "discount.db")), &gorm.Config{})
 	require.NoError(t, err)
 	DB, LOG_DB, common.RedisEnabled = db, db, false
-	require.NoError(t, db.AutoMigrate(&DiscountCode{}, &DiscountCodeUsage{}, &TopUp{}, &User{}, &Log{}))
+	require.NoError(t, db.AutoMigrate(&Option{}, &DiscountCode{}, &DiscountCodeUsage{}, &TopUp{}, &User{}, &Log{}))
 	t.Cleanup(func() {
 		DB, LOG_DB, common.RedisEnabled = oldDB, oldLogDB, oldRedis
 		sqlDB, err := db.DB()

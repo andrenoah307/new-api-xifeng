@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"math"
 	"sync"
 	"testing"
 
@@ -20,7 +21,7 @@ func setupManualTopUpTest(t *testing.T) (*User, *User) {
 		common.QuotaPerUnit = old
 		require.NoError(t, DB.Where("key = ?", InvoiceTaxConfigKey).Delete(&Option{}).Error)
 	})
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300}))
 	admin := &User{Username: "manual-admin", AffCode: "manual-admin", Role: common.RoleAdminUser, Status: common.UserStatusEnabled}
 	user := &User{Username: "manual-user", AffCode: "manual-user", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, Quota: 123}
 	require.NoError(t, DB.Create(admin).Error)
@@ -116,7 +117,7 @@ func TestManualTopUpRollbackPermissionsAndQuoteChanges(t *testing.T) {
 	quote, err := QuoteManualTopUp(DB, admin.Id, req)
 	require.NoError(t, err)
 	req.Token = quote.Token
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", SpecialRateBps: 600}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", SpecialRateBps: 600}))
 	_, _, err = CreateManualTopUp(admin.Id, req)
 	assert.ErrorIs(t, err, ErrInvoiceTaxQuoteChanged)
 	req.InvoiceType = "none"
@@ -140,7 +141,7 @@ func TestManualTopUpRollbackPermissionsAndQuoteChanges(t *testing.T) {
 	require.NoError(t, DB.First(user, user.Id).Error)
 	assert.Equal(t, 123, user.Quota)
 	require.NoError(t, DB.Callback().Update().Remove("test:manual_wallet_failure"))
-	require.NoError(t, DB.Model(user).Update("quota", common.MaxQuota).Error)
+	require.NoError(t, DB.Model(user).Update("quota", int64(math.MaxInt64)).Error)
 	_, _, err = CreateManualTopUp(admin.Id, req)
 	assert.Error(t, err)
 	require.NoError(t, DB.Model(&TopUp{}).Count(&count).Error)

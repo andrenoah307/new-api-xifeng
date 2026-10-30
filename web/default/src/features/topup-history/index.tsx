@@ -7,6 +7,7 @@ import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useIsAdmin } from '@/hooks/use-admin'
+import { useStatus } from '@/hooks/use-status'
 import { hasPermission } from '@/lib/admin-permissions'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -22,7 +23,9 @@ export default function TopupHistoryPage() {
   const { applyInvoice, view } = route.useSearch()
   const user = useAuthStore((state) => state.auth.user)
   const admin = useIsAdmin()
-  const canReadFinance = hasPermission(user, 'finance', 'read')
+  const { status } = useStatus()
+  const canReadFinance =
+    !!status?.finance_module_enabled && hasPermission(user, 'finance', 'read')
   const finance =
     canReadFinance && !applyInvoice && (view === 'finance' || (!view && !admin))
   const [invoiceOpen, setInvoiceOpen] = useState(false)

@@ -16,7 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
+import { StatusContext } from '../../context/Status';
 import {
   Table,
   Badge,
@@ -62,6 +63,8 @@ const PAYMENT_METHOD_MAP = {
 };
 
 const TopupHistoryPage = () => {
+  const [statusState] = useContext(StatusContext);
+  const financeEnabled = !!statusState?.status?.finance_module_enabled;
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [topups, setTopups] = useState([]);
@@ -89,7 +92,7 @@ const TopupHistoryPage = () => {
       });
       if (debouncedKeyword) params.set('keyword', debouncedKeyword);
       if (statusFilter) params.set('status', statusFilter);
-      if (isAdmin() && invoiceTypeFilter)
+      if (financeEnabled && isAdmin() && invoiceTypeFilter)
         params.set('invoice_type', invoiceTypeFilter);
       if (dateRange[0])
         params.set('start_time', Math.floor(dateRange[0] / 1000));
@@ -362,7 +365,11 @@ const TopupHistoryPage = () => {
         key: 'action',
         render: (_, record) => {
           const actions = [];
-          if (record.status === 'success' && !record.invoice_status) {
+          if (
+            financeEnabled &&
+            record.status === 'success' &&
+            !record.invoice_status
+          ) {
             actions.push(
               <Button
                 key='invoice'
@@ -403,8 +410,10 @@ const TopupHistoryPage = () => {
       render: (time) => timestamp2string(time),
     });
 
-    return baseColumns;
-  }, [t, userIsAdmin]);
+    return financeEnabled
+      ? baseColumns
+      : baseColumns.filter((column) => column.key !== 'invoice_type');
+  }, [t, userIsAdmin, financeEnabled]);
 
   return (
     <div>
@@ -423,7 +432,7 @@ const TopupHistoryPage = () => {
           onChange={handleStatusChange}
           style={{ width: 130 }}
         />
-        {userIsAdmin && (
+        {userIsAdmin && financeEnabled && (
           <Select
             value={invoiceTypeFilter}
             aria-label={t('Invoice type')}

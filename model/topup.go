@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -48,9 +49,15 @@ type TopUp struct {
 }
 
 func (topUp *TopUp) BeforeCreate(tx *gorm.DB) error {
-	// Empty is reserved for rows created before invoice eligibility was recorded.
+	// Legacy-mode orders retain the old invoice rules; advanced orders record eligibility.
 	if topUp.InvoiceType == "" {
-		topUp.InvoiceType = "none"
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
+			return err
+		}
+		if config.ModuleEnabled {
+			topUp.InvoiceType = "none"
+		}
 	}
 	return nil
 }
@@ -534,16 +541,16 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		// 计算应充值额度：
 		// - Stripe 订单：Money 代表经分组倍率换算后的美元数量，直接 * QuotaPerUnit
 		// - 其他订单（如易支付）：Amount 为美元数量，* QuotaPerUnit
-		var clamp *common.QuotaClamp
+		var quotaErr error
 		if topUp.PaymentProvider == PaymentProviderStripe {
 			dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
-			quotaToAdd, clamp = common.QuotaFromDecimalChecked(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).Truncate(0))
+			quotaToAdd, quotaErr = common.RechargeQuotaFromDecimal(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit))
 		} else {
 			dAmount := decimal.NewFromInt(topUp.Amount)
 			dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
-			quotaToAdd, clamp = common.QuotaFromDecimalChecked(dAmount.Mul(dQuotaPerUnit).Truncate(0))
+			quotaToAdd, quotaErr = common.RechargeQuotaFromDecimal(dAmount.Mul(dQuotaPerUnit))
 		}
-		if clamp != nil || quotaToAdd <= 0 {
+		if quotaErr != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
 
@@ -556,7 +563,7 @@ func ManualCompleteTopUp(tradeNo string, callerIp string) error {
 		}
 
 		// 增加用户额度（立即写库，保持一致性）
-		result := tx.Model(&User{}).Where("id = ? AND quota <= ?", topUp.UserId, common.MaxQuota-quotaToAdd).Update("quota", gorm.Expr("quota + ?", quotaToAdd))
+		result := tx.Model(&User{}).Where("id = ? AND quota <= ?", topUp.UserId, math.MaxInt64-int64(quotaToAdd)).Update("quota", gorm.Expr("quota + ?", quotaToAdd))
 		if result.Error != nil {
 			return result.Error
 		}
@@ -706,13 +713,13 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 			topUp.PaymentMethod = paymentMethod
 		}
 		dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
-		var clamp *common.QuotaClamp
+		var quotaErr error
 		if topUp.DiscountCodeId > 0 {
-			quotaToAdd, clamp = common.QuotaFromDecimalChecked(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).Truncate(0))
+			quotaToAdd, quotaErr = common.RechargeQuotaFromDecimal(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit))
 		} else {
-			quotaToAdd, clamp = common.QuotaFromDecimalChecked(decimal.NewFromInt(topUp.Amount).Mul(dQuotaPerUnit).Truncate(0))
+			quotaToAdd, quotaErr = common.RechargeQuotaFromDecimal(decimal.NewFromInt(topUp.Amount).Mul(dQuotaPerUnit))
 		}
-		if clamp != nil || quotaToAdd <= 0 {
+		if quotaErr != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
 
@@ -730,8 +737,11 @@ func RechargeEpay(tradeNo string, paymentMethod string) (*TopUp, int, error) {
 		if err != nil {
 			return err
 		}
+		if bonus < 0 || int64(quotaToAdd) > math.MaxInt64-int64(bonus) {
+			return ErrInvoiceTaxInvalid
+		}
 		result := tx.Model(&User{}).
-			Where("id = ? AND quota <= ?", topUp.UserId, int64(common.MaxQuota)-int64(quotaToAdd)-int64(bonus)).
+			Where("id = ? AND quota <= ?", topUp.UserId, int64(math.MaxInt64)-int64(quotaToAdd)-int64(bonus)).
 			Update("quota", gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus)))
 		if result.Error != nil {
 			return result.Error

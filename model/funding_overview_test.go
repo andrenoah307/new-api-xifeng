@@ -26,7 +26,7 @@ func TestFundingOverviewAccounting(t *testing.T) {
 	sqlDB, err := db.DB()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = sqlDB.Close() })
-	require.NoError(t, db.AutoMigrate(&QuotaData{}, &TopUp{}, &Log{}))
+	require.NoError(t, db.AutoMigrate(&Option{}, &QuotaData{}, &TopUp{}, &Log{}))
 	start, end := int64(3600), int64(7200)
 	require.NoError(t, db.Create(&[]QuotaData{{CreatedAt: start, Quota: 25000000}, {CreatedAt: end, Quota: 99999999}}).Error)
 	orders := []TopUp{

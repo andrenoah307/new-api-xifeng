@@ -49,6 +49,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { UserSubscriptionsDialog } from '@/features/subscriptions/components/dialogs/user-subscriptions-dialog'
+import { useStatus } from '@/hooks/use-status'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { manageUser, resetUserPasskey, resetUserTwoFA } from '../api'
@@ -70,6 +71,7 @@ interface DataTableRowActionsProps {
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
   const user = row.original
   const myRole = useAuthStore((state) => state.auth.user?.role ?? 1)
   const { setOpen, setCurrentRow, triggerRefresh } = useUsers()
@@ -243,7 +245,8 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
 
         <DropdownMenuSeparator />
 
-        {myRole >= USER_ROLE.ADMIN &&
+        {status?.finance_module_enabled &&
+          myRole >= USER_ROLE.ADMIN &&
           (myRole === USER_ROLE.ROOT || myRole > user.role) && (
             <DropdownMenuItem
               onClick={() => {

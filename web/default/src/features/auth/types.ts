@@ -87,6 +87,7 @@ export interface ApiResponse {
 // ============================================================================
 
 export interface SystemStatus {
+  finance_module_enabled?: boolean
   success?: boolean
   message?: string
   data?: {

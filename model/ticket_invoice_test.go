@@ -70,7 +70,7 @@ func createInvoiceTicketParams(user *User, topUpOrderIds []int) CreateInvoiceTic
 
 func enableLegacyInvoiceTopUps(t *testing.T) {
 	t.Helper()
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat", LegacyTopUpsEnabled: true}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat", LegacyTopUpsEnabled: true}))
 	t.Cleanup(func() {
 		require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error)
 	})

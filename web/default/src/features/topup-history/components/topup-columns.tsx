@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { StatusBadge } from '@/components/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
+import { useStatus } from '@/hooks/use-status'
 import { formatTimestampToDate } from '@/lib/format'
 
 import type { TopupRecord } from '../api'
@@ -17,6 +18,8 @@ import {
 
 export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const financeEnabled = !!status?.finance_module_enabled
   const { copyToClipboard } = useCopyToClipboard()
 
   return useMemo((): ColumnDef<TopupRecord>[] => {
@@ -129,7 +132,21 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
             return <span className='text-muted-foreground text-xs'>-</span>
           }
           if (
+            !financeEnabled &&
             !row.original.invoice_status &&
+            !row.original.invoice_type
+          ) {
+            return (
+              <StatusBadge
+                label={t('Not Invoiced')}
+                variant='neutral'
+                copyable={false}
+              />
+            )
+          }
+          if (
+            !row.original.invoice_status &&
+            financeEnabled &&
             row.original.invoice_type !== 'ordinary' &&
             row.original.invoice_type !== 'special'
           ) {
@@ -161,6 +178,10 @@ export function useTopupColumns(admin: boolean): ColumnDef<TopupRecord>[] {
       }
     )
 
-    return cols
-  }, [t, admin, copyToClipboard])
+    return financeEnabled
+      ? cols
+      : cols.filter(
+          (col) => !('accessorKey' in col) || col.accessorKey !== 'invoice_type'
+        )
+  }, [t, admin, copyToClipboard, financeEnabled])
 }

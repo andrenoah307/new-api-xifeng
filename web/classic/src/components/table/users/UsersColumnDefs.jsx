@@ -244,7 +244,8 @@ const renderOperations = (
   }
 
   const moreMenu = [
-    ...(currentUserRole >= 10 &&
+    ...(showManualTopup &&
+    currentUserRole >= 10 &&
     (currentUserRole === 100 || currentUserRole > record.role)
       ? [
           {

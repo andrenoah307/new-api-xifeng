@@ -31,7 +31,7 @@ func setupDiscountControllerTest(t *testing.T) {
 	common.RedisEnabled = false
 	operation_setting.GetDiscountCodeSetting().Enabled = true
 	operation_setting.GetGeneralSetting().QuotaDisplayType = operation_setting.QuotaDisplayTypeUSD
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.DiscountCode{}, &model.TopUp{}))
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.User{}, &model.DiscountCode{}, &model.TopUp{}))
 	require.NoError(t, db.Create(&model.User{Id: 12345, Username: "discount", Group: "default"}).Error)
 	t.Cleanup(func() {
 		model.DB, common.RedisEnabled = oldDB, oldRedis
