@@ -42,7 +42,7 @@ func TestEpayCheckoutMethodsExposeOnlyConfiguredMethods(t *testing.T) {
 
 func TestEpayCheckoutCallbackPinsMerchantAndAcknowledgesCommit(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
-	require.NoError(t, db.AutoMigrate(&model.TopUp{}, &model.Log{}))
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.Log{}))
 	user := model.User{Username: "checkout-callback", Password: "hashed", Status: common.UserStatusEnabled, AffCode: "checkout-callback"}
 	require.NoError(t, db.Create(&user).Error)
 	credentials, err := common.Marshal(model.InvoiceEpayConfig{Address: "https://payment.example.test", PartnerID: "invoice-merchant", Key: "invoice-secret"})
@@ -96,7 +96,7 @@ func TestEpayCheckoutCallbackPinsMerchantAndAcknowledgesCommit(t *testing.T) {
 
 func TestLegacyEpayCallbackRejectsAmountMismatchAndWriteFailure(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
-	require.NoError(t, db.AutoMigrate(&model.TopUp{}, &model.Log{}))
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.Log{}))
 	confirmPaymentComplianceForTest(t)
 	address, id, key, methods := operation_setting.PayAddress, operation_setting.EpayId, operation_setting.EpayKey, operation_setting.PayMethods
 	operation_setting.PayAddress, operation_setting.EpayId, operation_setting.EpayKey = "https://payment.example.test", "legacy-merchant", "legacy-secret"

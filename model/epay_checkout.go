@@ -80,6 +80,9 @@ func QuoteEpayCheckout(db *gorm.DB, userID int, req EpayCheckoutRequest, reserve
 	if err != nil {
 		return empty, err
 	}
+	if !config.ModuleEnabled {
+		return empty, ErrTicketForbidden
+	}
 	routingDB := db
 	if reserve {
 		routingDB = lockForUpdate(db)
@@ -248,7 +251,7 @@ func CompleteEpayCheckout(tradeNo, method string, paidCents int64) (*TopUp, int,
 		if order.CheckoutBaseQuota+bonus != order.CheckoutQuota {
 			return ErrInvoiceTaxInvalid
 		}
-		result = tx.Model(&User{}).Where("id = ? AND quota <= ?", order.UserId, common.MaxQuota-order.CheckoutQuota).Update("quota", gorm.Expr("quota + ?", order.CheckoutQuota))
+		result = tx.Model(&User{}).Where("id = ? AND quota <= ?", order.UserId, math.MaxInt64-int64(order.CheckoutQuota)).Update("quota", gorm.Expr("quota + ?", order.CheckoutQuota))
 		if result.Error != nil {
 			return result.Error
 		}

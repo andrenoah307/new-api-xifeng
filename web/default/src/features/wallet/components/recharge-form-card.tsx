@@ -181,12 +181,14 @@ export function RechargeFormCard({
     t,
   ])
 
-  const epayMethods = topupInfo?.enable_online_topup
-    ? (topupInfo.pay_methods ?? []).filter(
-        (method) => method.type === 'alipay' || method.type === 'wxpay'
-      )
-    : []
+  const epayMethods =
+    topupInfo?.finance_module_enabled && topupInfo?.enable_online_topup
+      ? (topupInfo.pay_methods ?? []).filter(
+          (method) => method.type === 'alipay' || method.type === 'wxpay'
+        )
+      : []
   const hasConfigurableTopup =
+    (!topupInfo?.finance_module_enabled && topupInfo?.enable_online_topup) ||
     topupInfo?.enable_stripe_topup ||
     enableWaffoTopup ||
     enableWaffoPancakeTopup
@@ -406,7 +408,8 @@ export function RechargeFormCard({
                     {topupInfo?.pay_methods
                       ?.filter(
                         (method) =>
-                          method.type !== 'alipay' && method.type !== 'wxpay'
+                          !topupInfo?.finance_module_enabled ||
+                          (method.type !== 'alipay' && method.type !== 'wxpay')
                       )
                       .map((method) => {
                         const minTopup = method.min_topup || 0
@@ -598,78 +601,80 @@ export function RechargeFormCard({
         )}
 
       {/* Discount Code Section */}
-      {hasConfigurableTopup && onDiscountCodeChange && onValidateDiscountCode && (
-        <div className='space-y-2.5 border-t pt-4 sm:space-y-3 sm:pt-6'>
-          <div className='flex items-center gap-2'>
-            <TicketPercent className='text-muted-foreground h-4 w-4' />
-            <Label
-              htmlFor='discount-code'
-              className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
-            >
-              {t('Discount Code')}
-            </Label>
-          </div>
-          {selectedPaymentMethodType === 'creem' ? (
-            <Alert>
-              <AlertDescription>
-                {t('This payment method does not support discount codes')}
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-2'>
-                <Input
-                  id='discount-code'
-                  value={discountCode || ''}
-                  onChange={(e) => onDiscountCodeChange(e.target.value)}
-                  placeholder={t('Enter discount code')}
-                  className='h-9 min-w-0'
-                  disabled={!!discountInfo}
-                />
-                {discountInfo ? (
-                  <Button
-                    onClick={onClearDiscountCode}
-                    variant='outline'
-                    className='h-9 px-4'
-                  >
-                    {t('Clear')}
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={onValidateDiscountCode}
-                    disabled={discountValidating || !discountCode?.trim()}
-                    variant='outline'
-                    className='h-9 px-4'
-                  >
-                    {discountValidating && (
-                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                    )}
-                    {t('Validate')}
-                  </Button>
+      {hasConfigurableTopup &&
+        onDiscountCodeChange &&
+        onValidateDiscountCode && (
+          <div className='space-y-2.5 border-t pt-4 sm:space-y-3 sm:pt-6'>
+            <div className='flex items-center gap-2'>
+              <TicketPercent className='text-muted-foreground h-4 w-4' />
+              <Label
+                htmlFor='discount-code'
+                className='text-muted-foreground text-xs font-medium tracking-wider uppercase'
+              >
+                {t('Discount Code')}
+              </Label>
+            </div>
+            {selectedPaymentMethodType === 'creem' ? (
+              <Alert>
+                <AlertDescription>
+                  {t('This payment method does not support discount codes')}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                <div className='grid grid-cols-[minmax(0,1fr)_auto] gap-2'>
+                  <Input
+                    id='discount-code'
+                    value={discountCode || ''}
+                    onChange={(e) => onDiscountCodeChange(e.target.value)}
+                    placeholder={t('Enter discount code')}
+                    className='h-9 min-w-0'
+                    disabled={!!discountInfo}
+                  />
+                  {discountInfo ? (
+                    <Button
+                      onClick={onClearDiscountCode}
+                      variant='outline'
+                      className='h-9 px-4'
+                    >
+                      {t('Clear')}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={onValidateDiscountCode}
+                      disabled={discountValidating || !discountCode?.trim()}
+                      variant='outline'
+                      className='h-9 px-4'
+                    >
+                      {discountValidating && (
+                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                      )}
+                      {t('Validate')}
+                    </Button>
+                  )}
+                </div>
+                {discountInfo && (
+                  <Alert>
+                    <Check className='h-4 w-4' />
+                    <AlertDescription>
+                      {t('Discount code valid: {{off}}% off (pay {{rate}}%)', {
+                        off: 100 - discountInfo.discount_rate,
+                        rate: discountInfo.discount_rate,
+                      })}
+                    </AlertDescription>
+                  </Alert>
                 )}
-              </div>
-              {discountInfo && (
-                <Alert>
-                  <Check className='h-4 w-4' />
-                  <AlertDescription>
-                    {t('Discount code valid: {{off}}% off (pay {{rate}}%)', {
-                      off: 100 - discountInfo.discount_rate,
-                      rate: discountInfo.discount_rate,
+                {discountInfo && discountInfo.max_amount > 0 && (
+                  <p className='text-muted-foreground text-sm'>
+                    {t('Max {{amount}} per order with this code', {
+                      amount: discountInfo.max_amount,
                     })}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {discountInfo && discountInfo.max_amount > 0 && (
-                <p className='text-muted-foreground text-sm'>
-                  {t('Max {{amount}} per order with this code', {
-                    amount: discountInfo.max_amount,
-                  })}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      )}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
       {/* Redemption Code Section */}
       {redemptionEnabled ? (

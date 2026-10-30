@@ -286,7 +286,7 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 	eligible := make([]*TopUp, 0, len(topUps))
 	for _, order := range topUps {
 		if order.InvoiceType == "" {
-			if config.LegacyTopUpsEnabled && IsCNYInvoiceTopUp(order) {
+			if !config.ModuleEnabled || (config.LegacyTopUpsEnabled && IsCNYInvoiceTopUp(order)) {
 				eligible = append(eligible, order)
 			}
 		} else if order.InvoiceType == invoiceType {
@@ -420,13 +420,20 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			return ErrTicketInvoiceAmountBelowMin
 		}
 		orderedTopUps = orderTopUps(orderIds, topUps)
-		quote, err := QuoteInvoiceTax(tx, params.UserId, orderIds, params.InvoiceType)
-		if err != nil {
-			return err
+		advancedInvoice := config.ModuleEnabled
+		for _, order := range topUps {
+			advancedInvoice = advancedInvoice || order.InvoiceType != ""
 		}
-		totalMoney = float64(quote.TotalCents) / 100
+		var quote InvoiceTaxQuote
+		if advancedInvoice {
+			quote, err = QuoteInvoiceTax(tx, params.UserId, orderIds, params.InvoiceType)
+			if err != nil {
+				return err
+			}
+			totalMoney = float64(quote.TotalCents) / 100
+		}
 		var charge *InvoiceTaxCharge
-		if config.Enabled && !quote.PrepaidOnly {
+		if config.ModuleEnabled && config.Enabled && !quote.PrepaidOnly {
 			if quote.Token != params.TaxQuote {
 				return ErrInvoiceTaxQuoteChanged
 			}

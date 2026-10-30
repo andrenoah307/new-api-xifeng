@@ -40,6 +40,7 @@ import { ticketQueryKeys } from '@/features/tickets/lib/ticket-actions'
 import { CompactDateTimeRangePicker } from '@/features/usage-logs/components/compact-date-time-range-picker'
 import { useMediaQuery, useDebounce } from '@/hooks'
 import { useIsAdmin } from '@/hooks/use-admin'
+import { useStatus } from '@/hooks/use-status'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -61,6 +62,8 @@ const route = getRouteApi('/_authenticated/topup-history/')
 export function TopupTable() {
   const { t } = useTranslation()
   const admin = useIsAdmin()
+  const { status } = useStatus()
+  const financeEnabled = !!status?.finance_module_enabled
   const userId = useAuthStore((state) => state.auth.user?.id)
   const queryClient = useQueryClient()
   const isMobile = useMediaQuery('(max-width: 640px)')
@@ -102,7 +105,7 @@ export function TopupTable() {
       keyword: debouncedKeyword || undefined,
       status: statusFilter === '__all__' ? undefined : statusFilter,
       invoice_type:
-        admin && invoiceTypeFilter !== '__all__'
+        financeEnabled && admin && invoiceTypeFilter !== '__all__'
           ? invoiceTypeFilter
           : undefined,
       start_time: dateStart
@@ -118,6 +121,7 @@ export function TopupTable() {
       dateEnd,
       admin,
       invoiceTypeFilter,
+      financeEnabled,
     ]
   )
 
@@ -169,7 +173,11 @@ export function TopupTable() {
       id: 'actions',
       header: t('Actions'),
       cell: ({ row }: { row: { original: TopupRecord } }) => {
-        if (row.original.status === 'success' && !row.original.invoice_status) {
+        if (
+          financeEnabled &&
+          row.original.status === 'success' &&
+          !row.original.invoice_status
+        ) {
           return (
             <Button
               variant='ghost'
@@ -199,7 +207,7 @@ export function TopupTable() {
       size: 120,
       meta: { label: t('Actions') },
     }
-  }, [admin, t])
+  }, [admin, t, financeEnabled])
 
   const allColumns = useMemo(
     () => (actionsColumn ? [...columns, actionsColumn] : columns),
@@ -250,7 +258,7 @@ export function TopupTable() {
           )}
           additionalSearch={
             <div className='flex flex-wrap items-center gap-2'>
-              {admin && (
+              {admin && financeEnabled && (
                 <Select
                   value={invoiceTypeFilter}
                   onValueChange={(value) => {

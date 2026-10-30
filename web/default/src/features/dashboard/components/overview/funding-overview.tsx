@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
+import { useStatus } from '@/hooks/use-status'
 import { toIntlLocale } from '@/i18n/languages'
 import { api } from '@/lib/api'
 import { ROLE } from '@/lib/roles'
@@ -46,8 +47,11 @@ function localHour(timestamp: number) {
 }
 
 export function FundingOverview() {
+  const { status } = useStatus()
   const user = useAuthStore((state) => state.auth.user)
-  if (user?.role !== ROLE.SUPER_ADMIN) return null
+  if (user?.role !== ROLE.SUPER_ADMIN || !status?.finance_module_enabled) {
+    return null
+  }
   return <FundingOverviewContent key={user.id} userId={user.id} />
 }
 

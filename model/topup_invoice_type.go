@@ -16,6 +16,13 @@ func UpdateTopUpInvoiceType(id int, expectedType, invoiceType string) (*TopUp, e
 		return nil, err
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
+			return err
+		}
+		if !config.ModuleEnabled {
+			return ErrTicketForbidden
+		}
 		// Match invoice application lock order so eligibility cannot change mid-application.
 		var owner User
 		if err := lockForUpdate(tx).First(&owner, order.UserId).Error; err != nil {

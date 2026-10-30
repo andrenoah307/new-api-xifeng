@@ -17,7 +17,7 @@ func TestEpayCheckoutFixedPayment(t *testing.T) {
 	previous := common.QuotaPerUnit
 	common.QuotaPerUnit = 500000
 	t.Cleanup(func() { common.QuotaPerUnit = previous })
-	config := InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300}
+	config := InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300}
 	for _, test := range []struct {
 		kind     string
 		net, fee int64
@@ -58,7 +58,7 @@ func TestEpayCheckoutMerchantMethodsAreEnforced(t *testing.T) {
 		operation_setting.Price, operation_setting.MinTopUp, operation_setting.PayMethods = oldPrice, oldMin, oldMethods
 		require.NoError(t, DB.Where("key IN ?", []string{InvoiceTaxConfigKey, InvoiceEpayConfigKey}).Delete(&Option{}).Error)
 	})
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
 	config := InvoiceEpayConfig{Address: "https://payment.example.test", PartnerID: "invoice", Key: "secret", PaymentMethods: []string{"wxpay"}}
 	require.NoError(t, SaveInvoiceEpayConfig(config))
 	methods, err := GetEpayCheckoutMethods(DB, "ordinary")
@@ -105,7 +105,7 @@ func TestEpayCheckoutQuoteReservationPinsRatesAndMerchant(t *testing.T) {
 		operation_setting.Price, operation_setting.MinTopUp, operation_setting.PayMethods = oldPrice, oldMin, oldMethods
 		require.NoError(t, DB.Where("key IN ?", []string{InvoiceTaxConfigKey, InvoiceEpayConfigKey}).Delete(&Option{}).Error)
 	})
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600}))
 	require.NoError(t, SaveInvoiceEpayConfig(InvoiceEpayConfig{Address: "https://payment.example.test", PartnerID: "invoice", Key: "old-key"}))
 	user := insertInvoiceTicketUser(t, 980504)
 	code := DiscountCode{Code: "checkout-90", DiscountRate: 90, Status: DiscountCodeStatusEnabled, MaxUsesPerUser: 1}
@@ -205,7 +205,8 @@ func TestEpayCheckoutWalletFailureRollsBackOrderAndBonus(t *testing.T) {
 
 func TestPrepaidInvoiceTypeFilteringAndNoSecondTaxCharge(t *testing.T) {
 	truncateTables(t)
-	require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
+	t.Cleanup(func() { require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error) })
 	user := insertInvoiceTicketUser(t, 980503)
 	ordinary := &TopUp{UserId: user.Id, TradeNo: "prepaid-ordinary", Status: common.TopUpStatusSuccess, Money: 100, CheckoutVersion: 1, InvoiceType: "ordinary", InvoiceNetCents: 9434, InvoiceTaxCents: 566, PaymentTotalCents: 10000, PaymentProvider: PaymentProviderEpay}
 	special := &TopUp{UserId: user.Id, TradeNo: "prepaid-special", Status: common.TopUpStatusSuccess, Money: 100, CheckoutVersion: 1, InvoiceType: "special", InvoiceNetCents: 8850, InvoiceTaxCents: 1150, PaymentTotalCents: 10000, PaymentProvider: PaymentProviderEpay}

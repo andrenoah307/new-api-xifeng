@@ -1,11 +1,23 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/shopspring/decimal"
 )
+
+// RechargeQuotaFromDecimal preserves bigint wallet credits used by legacy
+// recharge orders. Unlike relay charges, these must not saturate at MaxQuota:
+// reject overflow before IntPart, and let callers bound balance + credit in SQL.
+func RechargeQuotaFromDecimal(amount decimal.Decimal) (int, error) {
+	amount = amount.Truncate(0)
+	if !amount.IsPositive() || amount.GreaterThan(decimal.NewFromInt(int64(^uint(0)>>1))) {
+		return 0, errors.New("invalid recharge quota")
+	}
+	return int(amount.IntPart()), nil
+}
 
 // Quota conversions are centralized here so every billing path shares one
 // saturation + logging policy. Quota columns (user/token/log) are 32-bit

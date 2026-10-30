@@ -23,7 +23,23 @@ func GetInvoiceTaxConfig(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return
 	}
-	common.ApiSuccess(c, config)
+	var typedOrder model.TopUp
+	needsWorkflow := false
+	if !config.ModuleEnabled {
+		err := model.DB.WithContext(c.Request.Context()).Select("id").
+			Where("user_id = ? AND status = ? AND invoice_type IN ?", c.GetInt("id"), common.TopUpStatusSuccess, []string{"ordinary", "special"}).
+			Limit(1).Find(&typedOrder).Error
+		if err != nil {
+			common.ApiErrorI18n(c, i18n.MsgDatabaseError)
+			return
+		}
+		needsWorkflow = typedOrder.Id != 0
+	}
+	c.Header("Cache-Control", "no-store")
+	common.ApiSuccess(c, struct {
+		model.InvoiceTaxConfig
+		InvoiceWorkflowRequired bool `json:"invoice_workflow_required"`
+	}{config, needsWorkflow})
 }
 
 func QuoteInvoiceTax(c *gin.Context) {

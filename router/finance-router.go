@@ -8,7 +8,7 @@ import (
 )
 
 func registerFinanceRoutes(api *gin.RouterGroup) {
-	finance := api.Group("/finance", middleware.UserAuth())
+	finance := api.Group("/finance", middleware.UserAuth(), middleware.FinanceModuleRequired())
 	finance.GET("/records", middleware.RequirePermission(authz.FinanceRead), controller.GetFinanceRecords)
 	finance.GET("/export", middleware.RequirePermission(authz.FinanceRead), middleware.RequirePermission(authz.FinanceExport), middleware.CriticalRateLimit(), controller.ExportFinanceRecords)
 	finance.GET("/policy", middleware.RequirePermission(authz.FinanceRead), controller.GetFinancePolicy)

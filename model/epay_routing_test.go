@@ -33,7 +33,7 @@ func setupEpayRoutingTest(t *testing.T) InvoiceEpayConfig {
 		operation_setting.PayAddress, operation_setting.EpayId, operation_setting.EpayKey = oldAddress, oldID, oldKey
 		require.NoError(t, DB.Where("key IN ?", keys).Delete(&Option{}).Error)
 	})
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300}))
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600, SpecialRateBps: 1300}))
 	config := InvoiceEpayConfig{Strategy: "round_robin", PrivateBelowCents: 50000, PrivateGatewayName: "Gateway P", Gateways: []InvoiceEpayGateway{
 		{ID: "corporate-a", Name: "Gateway A", AccountName: "Issuer A", Address: "https://a.example.test", PartnerID: "a", Key: "key-a", PaymentMethods: []string{"alipay", "wxpay"}},
 		{ID: "corporate-b", Name: "Gateway B", AccountName: "Issuer B", Address: "https://b.example.test", PartnerID: "b", Key: "key-b", PaymentMethods: []string{"alipay"}},

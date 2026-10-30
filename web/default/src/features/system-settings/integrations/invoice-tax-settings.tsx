@@ -42,6 +42,7 @@ export function InvoiceTaxSettings() {
     mutationFn: saveInvoiceTaxConfig,
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ['invoice-tax-config'] })
+      client.invalidateQueries({ queryKey: ['status'] })
       toast.success(t('Saved successfully'))
     },
   })
@@ -54,6 +55,18 @@ export function InvoiceTaxSettings() {
   return (
     <section className='space-y-4 border-t pt-4'>
       <h3 className='font-medium'>{t('Invoice tax charges')}</h3>
+      <div className='flex items-center gap-2'>
+        <Switch
+          id='finance-module-enabled'
+          checked={!!config.module_enabled}
+          onCheckedChange={(module_enabled) =>
+            setDraft({ ...config, module_enabled })
+          }
+        />
+        <Label htmlFor='finance-module-enabled'>
+          {t('Enable finance module')}
+        </Label>
+      </div>
       <div className='flex items-center gap-2'>
         <Switch
           id='invoice-tax-enabled'

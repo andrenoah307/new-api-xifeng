@@ -113,13 +113,17 @@ const RechargeCard = ({
   const [activeTab, setActiveTab] = useState('topup');
   const shouldShowSubscription =
     !subscriptionLoading && subscriptionPlans.length > 0;
-  const epayMethods = enableOnlineTopUp
-    ? (payMethods || []).filter(
-        (method) => method.type === 'alipay' || method.type === 'wxpay',
-      )
-    : [];
+  const legacyEpay = !topupInfo?.finance_module_enabled && enableOnlineTopUp;
+  const epayMethods =
+    topupInfo?.finance_module_enabled && enableOnlineTopUp
+      ? (payMethods || []).filter(
+          (method) => method.type === 'alipay' || method.type === 'wxpay',
+        )
+      : [];
   const regularPayMethods = (payMethods || []).filter(
-    (method) => method.type !== 'alipay' && method.type !== 'wxpay',
+    (method) =>
+      !topupInfo?.finance_module_enabled ||
+      (method.type !== 'alipay' && method.type !== 'wxpay'),
   );
 
   // Discount code state
@@ -298,7 +302,8 @@ const RechargeCard = ({
                   discountsEnabled={discountCodeEnabled}
                 />
               )}
-              {(enableStripeTopUp ||
+              {(legacyEpay ||
+                enableStripeTopUp ||
                 enableWaffoTopUp ||
                 enableWaffoPancakeTopUp) && (
                 <Row gutter={12}>
@@ -476,7 +481,7 @@ const RechargeCard = ({
                 </Row>
               )}
 
-              {(enableStripeTopUp || enableWaffoTopUp) && (
+              {(legacyEpay || enableStripeTopUp || enableWaffoTopUp) && (
                 <Form.Slot
                   label={
                     <div className='flex items-center gap-2'>
@@ -604,7 +609,8 @@ const RechargeCard = ({
 
               {/* 折扣码输入区域 */}
               {discountCodeEnabled &&
-                (enableStripeTopUp ||
+                (legacyEpay ||
+                  enableStripeTopUp ||
                   enableWaffoTopUp ||
                   enableWaffoPancakeTopUp) && (
                   <Form.Slot label={t('折扣码')}>
