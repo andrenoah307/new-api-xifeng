@@ -50,6 +50,18 @@ export default function RefundFinanceDetail({ finance, ticketId, onUpdated }) {
       setError(failure.message);
     }
   }
+  if (
+    finance.settlement_status === 'waiting' &&
+    finance.allocations.length === 0
+  ) {
+    return (
+      <p className='text-sm' role='status'>
+        {t(
+          'Awaiting settlement verification. The refund amount must be confirmed again after verification.',
+        )}
+      </p>
+    );
+  }
   return (
     <section className='space-y-4 border-t pt-4'>
       <div className='flex flex-wrap items-center justify-between gap-2'>
@@ -168,22 +180,6 @@ function Correction({ correction, editable, onUpdated }) {
   const [status, setStatus] = useState(correction.status);
   const completed = status === 'completed';
   const processing = status === 'processing';
-  async function start() {
-    if (busy || !editable) return;
-    setBusy(true);
-    try {
-      const response = await API.post(
-        `/api/ticket/refund/invoice-corrections/${correction.id}/start`,
-      );
-      if (!response.data.success) throw new Error(response.data.message);
-      setStatus('processing');
-      onUpdated?.(correction.id, 'processing');
-    } catch (failure) {
-      setError(failure.message);
-    } finally {
-      setBusy(false);
-    }
-  }
   async function complete() {
     if (busy || !editable || !processing) return;
     setBusy(true);
@@ -211,7 +207,7 @@ function Correction({ correction, editable, onUpdated }) {
         {t('Invoice correction')} #{correction.invoice_ticket_id} ·{' '}
         {completed && t('Completed')}
         {processing && t('Processing')}
-        {status === 'pending' && t('Pending')}
+        {status === 'pending' && t('Awaiting settlement verification')}
         {status === 'cancelled' && t('Cancelled')}
       </h4>
       <p className='text-sm'>
@@ -261,11 +257,6 @@ function Correction({ correction, editable, onUpdated }) {
         <p role='alert' className='text-red-600'>
           {t(error)}
         </p>
-      )}
-      {editable && status === 'pending' && (
-        <Button htmlType='button' onClick={start} disabled={busy}>
-          {t('Start processing')}
-        </Button>
       )}
       {editable && processing && (
         <Button

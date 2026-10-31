@@ -29,6 +29,7 @@ import {
 } from '@douyinfe/semi-ui';
 import CardTable from '../common/ui/CardTable';
 import { InvoiceTaxPayment } from './InvoiceTax';
+import { refundCash } from './refundFinanceFormat';
 import { timestamp2string } from '../../helpers';
 import { getInvoiceStatusColor, getInvoiceStatusText } from './ticketUtils';
 
@@ -43,6 +44,15 @@ const InvoiceDetail = ({
   fallbackRemark = '',
   t,
 }) => {
+  const net = invoice?.invoice_net_cents ?? NaN;
+  const tax = invoice?.invoice_tax_cents ?? NaN;
+  const total =
+    Number.isSafeInteger(net) &&
+    Number.isSafeInteger(tax) &&
+    net >= 0 &&
+    tax >= 0
+      ? net + tax
+      : NaN;
   const [rejectInvoiceId, setRejectInvoiceId] = useState(null);
   const descriptionRows = useMemo(() => {
     if (!invoice) {
@@ -180,7 +190,7 @@ const InvoiceDetail = ({
         {invoice ? (
           <>
             <Descriptions data={descriptionRows} />
-            {invoice.invoice_type && (
+            {invoice.invoice_type && !invoice.tax_charge && (
               <dl className='grid grid-cols-2 gap-2'>
                 <dt>{t('Invoice type')}</dt>
                 <dd>
@@ -191,9 +201,17 @@ const InvoiceDetail = ({
                   )}
                 </dd>
                 <dt>{t('Net amount (CNY)')}</dt>
-                <dd>{((invoice.invoice_net_cents || 0) / 100).toFixed(2)}</dd>
+                <dd>{refundCash(net)}</dd>
                 <dt>{t('Tax charge (CNY)')}</dt>
-                <dd>{((invoice.invoice_tax_cents || 0) / 100).toFixed(2)}</dd>
+                <dd>{refundCash(tax)}</dd>
+                <dt>{t('Payment breakdown')}</dt>
+                <dd className='break-words'>
+                  {t('Net amount {{net}} + tax {{tax}} = payment {{total}}', {
+                    net: refundCash(net),
+                    tax: refundCash(tax),
+                    total: refundCash(total),
+                  })}
+                </dd>
               </dl>
             )}
             {invoice.tax_charge && (

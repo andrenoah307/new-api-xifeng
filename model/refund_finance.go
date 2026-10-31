@@ -15,6 +15,9 @@ import (
 var ErrRefundFinanceReview = errors.New("refund requires financial reconciliation")
 var ErrRefundFinancePending = errors.New("complete the pending refund or invoice application first")
 var ErrRefundFinanceCorrectionPending = errors.New("complete invoice reversal and reissue before confirming the refund")
+var ErrRefundSettlementUnconfirmed = errors.New("refund is waiting for settlement verification; funds cannot be released")
+
+const RefundSettlementWaiting = "waiting"
 
 type RefundOrderAllocation struct {
 	ID                    int    `json:"id"`
@@ -38,6 +41,8 @@ type RefundOrderAllocation struct {
 }
 
 type RefundFinanceDetail struct {
+	SettlementStatus   string                    `json:"settlement_status,omitempty"`
+	WaitingReason      string                    `json:"waiting_reason,omitempty"`
 	QuoteToken         string                    `json:"quote_token,omitempty"`
 	Version            int                       `json:"version"`
 	RefundCashCents    int64                     `json:"refund_cash_cents"`
@@ -216,23 +221,19 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int) (*RefundFinanceDetail,
 }
 
 func QuoteRefundFinance(userID, quota int) (*RefundFinanceDetail, error) {
-	var detail *RefundFinanceDetail
-	err := DB.Transaction(func(tx *gorm.DB) error {
-		required, err := refundFinanceRequired(tx, userID)
-		if err != nil {
-			return err
-		}
-		if !required {
-			return nil
-		}
-		var user User
-		if err := lockForUpdate(tx).Select("id").First(&user, userID).Error; err != nil {
-			return err
-		}
-		detail, err = quoteRefundFinanceTx(tx, userID, quota)
-		return err
-	})
-	return detail, err
+	if quota <= 0 {
+		return nil, ErrTicketRefundQuotaInvalid
+	}
+	eligibility, err := GetRefundEligibility(userID)
+	if err != nil {
+		return nil, err
+	}
+	if quota > eligibility.RequestableQuota {
+		return nil, ErrTicketRefundQuotaExceed
+	}
+	// A wallet snapshot is not proof that fail-open, in-flight charges have settled.
+	// Do not publish a payable quote or create an automatic/administrative bypass.
+	return &RefundFinanceDetail{Version: 1, SettlementStatus: RefundSettlementWaiting, WaitingReason: "settlement_unconfirmed", Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}, nil
 }
 
 func prepareRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params CreateRefundTicketParams) error {
@@ -341,10 +342,16 @@ func releaseRefundFinanceTx(tx *gorm.DB, refund *TicketRefund) error {
 }
 
 func AttachRefundFinance(tx *gorm.DB, refund *TicketRefund) error {
+	if refund.RefundStatus == RefundStatusPending {
+		refund.SettlementStatus = RefundSettlementWaiting
+	}
 	if refund.FinanceVersion != 1 {
 		return nil
 	}
 	detail := &RefundFinanceDetail{Version: 1, RefundCashCents: refund.RefundCashCents, Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
+	if refund.RefundStatus == RefundStatusPending {
+		detail.SettlementStatus, detail.WaitingReason = RefundSettlementWaiting, "settlement_unconfirmed"
+	}
 	if err := tx.Where("refund_ticket_id = ?", refund.TicketId).Order("id ASC").Find(&detail.Allocations).Error; err != nil {
 		return err
 	}

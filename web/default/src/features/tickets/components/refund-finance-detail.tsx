@@ -1,3 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { Download, Check } from 'lucide-react'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -18,19 +20,18 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
-import { Download, Check } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
+import { Field, FieldLabel, FieldGroup } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Field, FieldLabel, FieldGroup } from '@/components/ui/field'
-import { useAuthStore } from '@/stores/auth-store'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth-store'
+
 import type {
   InvoiceCorrection,
   RefundFinanceDetail as FinanceData,
 } from '../refund-finance-api'
-
 import { refundCash, refundQuota } from '../refund-finance-format'
 
 export function RefundFinanceDetail(props: {
@@ -60,6 +61,18 @@ export function RefundFinanceDetail(props: {
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : t('Export failed'))
     }
+  }
+  if (
+    props.finance.settlement_status === 'waiting' &&
+    props.finance.allocations.length === 0
+  ) {
+    return (
+      <p className='text-sm' role='status'>
+        {t(
+          'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
+        )}
+      </p>
+    )
   }
   return (
     <section className='space-y-4 border-t pt-4'>
@@ -108,7 +121,7 @@ export function RefundFinanceDetail(props: {
               ].map((label) => (
                 <th
                   key={label}
-                  className='whitespace-nowrap border-b p-2 text-left'
+                  className='border-b p-2 text-left whitespace-nowrap'
                 >
                   {t(label)}
                 </th>
@@ -118,7 +131,7 @@ export function RefundFinanceDetail(props: {
           <tbody>
             {props.finance.allocations.map((row) => (
               <tr key={row.top_up_id}>
-                <td className='whitespace-nowrap p-2'>
+                <td className='p-2 whitespace-nowrap'>
                   {row.trade_no || `#${row.top_up_id}`}
                 </td>
                 {(
@@ -128,7 +141,7 @@ export function RefundFinanceDetail(props: {
                     'used_invoice_cents',
                   ] as const
                 ).map((key) => (
-                  <td key={key} className='whitespace-nowrap p-2'>
+                  <td key={key} className='p-2 whitespace-nowrap'>
                     {refundCash(row[key])}
                   </td>
                 ))}
@@ -140,7 +153,7 @@ export function RefundFinanceDetail(props: {
                     'refund_quota',
                   ] as const
                 ).map((key) => (
-                  <td key={key} className='whitespace-nowrap p-2'>
+                  <td key={key} className='p-2 whitespace-nowrap'>
                     {refundQuota(row[key], row.quota_per_unit)}
                   </td>
                 ))}
@@ -151,7 +164,7 @@ export function RefundFinanceDetail(props: {
                     'remaining_invoice_cents',
                   ] as const
                 ).map((key) => (
-                  <td key={key} className='whitespace-nowrap p-2'>
+                  <td key={key} className='p-2 whitespace-nowrap'>
                     {refundCash(row[key])}
                   </td>
                 ))}
@@ -181,7 +194,7 @@ function InvoiceCorrectionForm(props: {
   const client = useQueryClient()
   const [red, setRed] = useState(props.correction.red_reference || '')
   const [reissue, setReissue] = useState(
-    props.correction.reissue_reference || '',
+    props.correction.reissue_reference || ''
   )
   const [evidence, setEvidence] = useState(props.correction.evidence || '')
   const [busy, setBusy] = useState(false)
@@ -189,25 +202,6 @@ function InvoiceCorrectionForm(props: {
   const [status, setStatus] = useState(props.correction.status)
   const completed = status === 'completed'
   const processing = status === 'processing'
-  async function start() {
-    if (busy || !props.editable) return
-    setBusy(true)
-    try {
-      const response = await api.post(
-        `/api/ticket/refund/invoice-corrections/${props.correction.id}/start`,
-      )
-      if (!response.data.success) throw new Error(response.data.message)
-      setStatus('processing')
-      await client.invalidateQueries({ queryKey: ['tickets'] })
-      props.onUpdated?.()
-    } catch (failure) {
-      setError(
-        failure instanceof Error ? failure.message : t('Operation failed'),
-      )
-    } finally {
-      setBusy(false)
-    }
-  }
   async function complete(event: React.FormEvent) {
     event.preventDefault()
     if (busy || !props.editable || !processing) return
@@ -219,7 +213,7 @@ function InvoiceCorrectionForm(props: {
           red_reference: red.trim(),
           reissue_reference: reissue.trim(),
           evidence: evidence.trim(),
-        },
+        }
       )
       if (!response.data.success) throw new Error(response.data.message)
       setStatus('completed')
@@ -227,7 +221,7 @@ function InvoiceCorrectionForm(props: {
       props.onUpdated?.()
     } catch (failure) {
       setError(
-        failure instanceof Error ? failure.message : t('Operation failed'),
+        failure instanceof Error ? failure.message : t('Operation failed')
       )
     } finally {
       setBusy(false)
@@ -239,7 +233,7 @@ function InvoiceCorrectionForm(props: {
         {t('Invoice correction')} #{props.correction.invoice_ticket_id} ·{' '}
         {completed && t('Completed')}
         {processing && t('Processing')}
-        {status === 'pending' && t('Pending')}
+        {status === 'pending' && t('Awaiting settlement verification')}
         {status === 'cancelled' && t('Cancelled')}
       </h4>
       <p className='text-sm'>
@@ -302,11 +296,6 @@ function InvoiceCorrectionForm(props: {
         <p role='alert' className='text-destructive'>
           {t(error)}
         </p>
-      )}
-      {props.editable && status === 'pending' && (
-        <Button type='button' onClick={start} disabled={busy}>
-          {t('Start processing')}
-        </Button>
       )}
       {props.editable && processing && (
         <Button

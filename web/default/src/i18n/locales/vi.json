@@ -6037,6 +6037,27 @@
     "Zero-charge guard applied": "Đã kích hoạt bảo vệ không tính phí",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Only historical orders completed before 00:00 Beijing time on this date can pay tax to request an invoice. Leave empty to disable.": "Chỉ đơn cũ hoàn tất trước 00:00 giờ Bắc Kinh của ngày này mới được nộp thêm thuế để yêu cầu hóa đơn. Để trống để tắt.",
+    "Recharge amount (CNY)": "Số tiền nạp (CNY)",
+    "Confirm whether you need an <strong>invoice</strong> before payment. If required, select the invoice type in the next step. The payment includes tax; <strong>tax charges are deducted</strong> before calculating the credited balance. If no invoice is selected, no tax is charged and this order is not eligible for an invoice.": "Vui lòng xác nhận có cần <strong>hóa đơn</strong> trước khi thanh toán. Nếu cần, chọn loại hóa đơn ở bước tiếp theo. Số tiền thanh toán đã gồm thuế; <strong>thuế được khấu trừ</strong> trước khi tính số dư được cộng. Nếu không chọn hóa đơn, không thu thuế và đơn này không đủ điều kiện xuất hóa đơn.",
+    "Payment breakdown": "Chi tiết thanh toán",
+    "Non-refundable balance": "Số dư không thể hoàn",
+    "refund_reason.gift_balance": "Số dư tặng đã xác minh",
+    "refund_reason.invite_reward_balance": "Số dư thưởng giới thiệu đã xác minh",
+    "refund_reason.unverified_balance": "Nguồn hoặc số dư còn lại đang chờ xác minh",
+    "Awaiting settlement verification": "Chờ xác minh quyết toán",
+    "Awaiting settlement verification. The refund amount must be confirmed again after verification.": "Yêu cầu hoàn tiền đang chờ xác minh quyết toán. Số tiền có thể hoàn cần được xác nhận lại sau khi xác minh.",
+    "Refund request registered; awaiting settlement verification. No balance has been frozen.": "Đã ghi nhận yêu cầu hoàn tiền, đang chờ xác minh quyết toán. Số dư chưa bị đóng băng.",
+    "Submitting registers a request awaiting settlement verification. Your balance will not be frozen and API usage can continue. The refundable amount must be confirmed again after verification.": "Gửi yêu cầu sẽ ghi nhận đơn chờ xác minh quyết toán. Số dư chưa bị đóng băng và API vẫn dùng được. Số tiền có thể hoàn cần được xác nhận lại sau khi xác minh.",
+    "No balance has been frozen.": "Số dư chưa bị đóng băng.",
+    "Net amount {{net}} + tax {{tax}} = payment {{total}}": "Tiền chưa thuế {{net}} + thuế {{tax}} = thanh toán {{total}}",
+    "Net amount {{net}} + tax {{tax}} = amount due {{total}}": "Tiền chưa thuế {{net}} + thuế {{tax}} = cần thanh toán {{total}}",
+    "Net amount {{net}} + tax {{tax}} = invoice total {{total}}": "Tiền chưa thuế {{net}} + thuế {{tax}} = tổng hóa đơn {{total}}",
+    "refund is waiting for settlement verification; funds cannot be released": "Hoàn tiền đang chờ xác minh quyết toán. Chưa thể chi trả tiền.",
+    "Allow orders completed before this date to request invoices": "Cho phép yêu cầu hóa đơn cho đơn hoàn tất trước ngày này",
+    "Verified refundable balance": "Số dư có thể hoàn đã xác minh",
+    "Requestable balance": "Số dư có thể đăng ký yêu cầu",
+    "Requested quota is not the final cash refund amount.": "Hạn mức yêu cầu không phải là số tiền hoàn cuối cùng."
   }
 }

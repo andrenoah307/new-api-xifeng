@@ -6037,6 +6037,27 @@
     "Zero-charge guard applied": "Protection de facturation nulle déclenchée",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Only historical orders completed before 00:00 Beijing time on this date can pay tax to request an invoice. Leave empty to disable.": "Seules les anciennes commandes terminées avant 00:00, heure de Pékin, à cette date peuvent faire l’objet d’une facture après paiement de la taxe. Laisser vide pour désactiver.",
+    "Recharge amount (CNY)": "Montant de recharge (CNY)",
+    "Confirm whether you need an <strong>invoice</strong> before payment. If required, select the invoice type in the next step. The payment includes tax; <strong>tax charges are deducted</strong> before calculating the credited balance. If no invoice is selected, no tax is charged and this order is not eligible for an invoice.": "Confirmez avant le paiement si vous souhaitez une <strong>facture</strong>. Si oui, choisissez son type à l’étape suivante. Le paiement inclut la taxe ; <strong>les taxes sont déduites</strong> avant le calcul du solde crédité. Sans facture, aucune taxe n’est prélevée et cette commande ne peut pas être facturée.",
+    "Payment breakdown": "Détail du paiement",
+    "Non-refundable balance": "Solde non remboursable",
+    "refund_reason.gift_balance": "Solde de cadeaux vérifié",
+    "refund_reason.invite_reward_balance": "Solde de récompenses de parrainage vérifié",
+    "refund_reason.unverified_balance": "Origine ou répartition du solde à vérifier",
+    "Awaiting settlement verification": "En attente de vérification du règlement",
+    "Awaiting settlement verification. The refund amount must be confirmed again after verification.": "Le remboursement attend la vérification du règlement. Le montant remboursable devra ensuite être confirmé à nouveau.",
+    "Refund request registered; awaiting settlement verification. No balance has been frozen.": "Demande enregistrée, en attente de vérification du règlement. Aucun solde n’a été gelé.",
+    "Submitting registers a request awaiting settlement verification. Your balance will not be frozen and API usage can continue. The refundable amount must be confirmed again after verification.": "L’envoi enregistre une demande en attente de vérification du règlement. Votre solde ne sera pas gelé et vous pourrez continuer à utiliser l’API. Le montant remboursable devra être confirmé à nouveau après vérification.",
+    "No balance has been frozen.": "Aucun solde n’a été gelé.",
+    "Net amount {{net}} + tax {{tax}} = payment {{total}}": "Montant HT {{net}} + taxe {{tax}} = paiement {{total}}",
+    "Net amount {{net}} + tax {{tax}} = amount due {{total}}": "Montant HT {{net}} + taxe {{tax}} = montant dû {{total}}",
+    "Net amount {{net}} + tax {{tax}} = invoice total {{total}}": "Montant HT {{net}} + taxe {{tax}} = total TTC {{total}}",
+    "refund is waiting for settlement verification; funds cannot be released": "Le remboursement attend la vérification du règlement. Les fonds ne peuvent pas être libérés.",
+    "Allow orders completed before this date to request invoices": "Autoriser la facturation des commandes terminées avant cette date",
+    "Verified refundable balance": "Solde remboursable vérifié",
+    "Requestable balance": "Solde pouvant faire l’objet d’une demande",
+    "Requested quota is not the final cash refund amount.": "Le quota demandé ne correspond pas au montant final du remboursement en espèces."
   }
 }

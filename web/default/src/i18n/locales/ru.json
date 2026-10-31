@@ -6037,6 +6037,27 @@
     "Zero-charge guard applied": "Защита от нулевого списания сработала",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Only historical orders completed before 00:00 Beijing time on this date can pay tax to request an invoice. Leave empty to disable.": "Доплатить налог и запросить счёт можно только для старых заказов, завершённых до 00:00 по пекинскому времени указанной даты. Оставьте поле пустым, чтобы отключить.",
+    "Recharge amount (CNY)": "Сумма пополнения (CNY)",
+    "Confirm whether you need an <strong>invoice</strong> before payment. If required, select the invoice type in the next step. The payment includes tax; <strong>tax charges are deducted</strong> before calculating the credited balance. If no invoice is selected, no tax is charged and this order is not eligible for an invoice.": "До оплаты подтвердите, нужен ли вам <strong>счёт</strong>. Если нужен, выберите его тип на следующем шаге. Платёж включает налог; <strong>налог вычитается</strong> перед расчётом зачисляемого баланса. Без счёта налог не взимается, и по этому заказу нельзя запросить счёт.",
+    "Payment breakdown": "Состав платежа",
+    "Non-refundable balance": "Невозвратный баланс",
+    "refund_reason.gift_balance": "Подтверждённый подарочный баланс",
+    "refund_reason.invite_reward_balance": "Подтверждённый баланс реферальных наград",
+    "refund_reason.unverified_balance": "Источник или остаток баланса требует проверки",
+    "Awaiting settlement verification": "Ожидание проверки расчётов",
+    "Awaiting settlement verification. The refund amount must be confirmed again after verification.": "Возврат ожидает проверки расчётов. После проверки сумму возврата необходимо подтвердить заново.",
+    "Refund request registered; awaiting settlement verification. No balance has been frozen.": "Заявка зарегистрирована и ожидает проверки расчётов. Баланс не заморожен.",
+    "Submitting registers a request awaiting settlement verification. Your balance will not be frozen and API usage can continue. The refundable amount must be confirmed again after verification.": "Отправка регистрирует заявку в ожидании проверки расчётов. Баланс не замораживается, API остаётся доступным. После проверки сумму возврата необходимо подтвердить заново.",
+    "No balance has been frozen.": "Баланс не заморожен.",
+    "Net amount {{net}} + tax {{tax}} = payment {{total}}": "Сумма без налога {{net}} + налог {{tax}} = платёж {{total}}",
+    "Net amount {{net}} + tax {{tax}} = amount due {{total}}": "Сумма без налога {{net}} + налог {{tax}} = к оплате {{total}}",
+    "Net amount {{net}} + tax {{tax}} = invoice total {{total}}": "Сумма без налога {{net}} + налог {{tax}} = итог счёта {{total}}",
+    "refund is waiting for settlement verification; funds cannot be released": "Возврат ожидает проверки расчётов. Средства нельзя выплатить.",
+    "Allow orders completed before this date to request invoices": "Разрешить счета для заказов, завершённых до этой даты",
+    "Verified refundable balance": "Подтверждённый возвратный баланс",
+    "Requestable balance": "Баланс для регистрации заявки",
+    "Requested quota is not the final cash refund amount.": "Запрошенная квота не равна окончательной сумме денежного возврата."
   }
 }
