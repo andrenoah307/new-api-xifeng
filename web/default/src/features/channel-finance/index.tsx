@@ -17,13 +17,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Calculator, Pause, Play, Plus, RefreshCw, X } from 'lucide-react'
+import { Calculator, Download, Pause, Play, RefreshCw, X } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Field,
   FieldGroup,
@@ -34,8 +33,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { api } from '@/lib/api'
+import { downloadTextFile } from '@/lib/download'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { CostConfirmation, type FinanceRequest } from './cost-confirmation'
+import { reportCSV } from './export'
 import { formatReportAmount as amount } from './format'
 import { FinanceTaskTable } from './task-table'
 import type { FinanceJob, FinanceReport, FinanceRow } from './types'
@@ -91,11 +93,9 @@ function ChannelFinanceContent(props: { userId: number }) {
   const [end, setEnd] = useState(() => localTime(new Date()))
   const [channel, setChannel] = useState('')
   const [fallback, setFallback] = useState(false)
-  const [ratio, setRatio] = useState('1')
-  const [rates, setRates] = useState([
-    { key: crypto.randomUUID(), channel: '', ratio: '1' },
-  ])
-  const [accepted, setAccepted] = useState(false)
+  const [pendingRequest, setPendingRequest] = useState<FinanceRequest | null>(
+    null
+  )
   const [selected, setSelected] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
   const [error, setError] = useState('')
@@ -131,7 +131,8 @@ function ChannelFinanceContent(props: { userId: number }) {
       }
       const response = await api.post(
         `/api/channel-finance/jobs${request.path}`,
-        request.body
+        request.body,
+        { skipErrorHandler: true }
       )
       if (!response.data.success) {
         throw new Error(response.data.message || t('Operation failed'))
@@ -141,23 +142,23 @@ function ChannelFinanceContent(props: { userId: number }) {
     onSuccess: (job) => {
       if (job?.id) setSelected(job.id)
       setError('')
+      setPendingRequest(null)
       void client.invalidateQueries({ queryKey: prefix })
     },
-    onError: (failure) => setError(failure.message),
+    onError: (failure: { message: string; response?: { status?: number } }) => {
+      if (failure.response?.status === 409) {
+        setError(
+          t('Channel cost settings changed. Review the channel list again.')
+        )
+        void client.invalidateQueries({ queryKey: [...prefix, 'cost-preview'] })
+      } else setError(failure.message)
+    },
   })
   function generate(event: React.FormEvent) {
     event.preventDefault()
     const startAt = Math.floor(new Date(start).getTime() / 1000)
     const endAt = Math.floor(new Date(end).getTime() / 1000)
     const channelId = channel === '' ? 0 : Number(channel)
-    const configuredRates =
-      channelId > 0
-        ? [{ channel_id: channelId, ratio }]
-        : rates.map((row) => ({
-            channel_id: Number(row.channel),
-            ratio: row.ratio,
-          }))
-    const submittedRates = fallback ? configuredRates : []
     if (
       !Number.isFinite(startAt) ||
       !Number.isFinite(endAt) ||
@@ -165,19 +166,7 @@ function ChannelFinanceContent(props: { userId: number }) {
       endAt > Date.now() / 1000 ||
       startAt < 1 ||
       !Number.isSafeInteger(channelId) ||
-      channelId < 0 ||
-      (fallback &&
-        (!accepted ||
-          submittedRates.length === 0 ||
-          new Set(submittedRates.map((row) => row.channel_id)).size !==
-            submittedRates.length ||
-          submittedRates.some(
-            (row) =>
-              !Number.isSafeInteger(row.channel_id) ||
-              row.channel_id <= 0 ||
-              !/^[0-9]{1,18}(?:\.[0-9]{1,18})?$/.test(row.ratio) ||
-              Number(row.ratio) > 10000
-          )))
+      channelId < 0
     ) {
       setError(
         t(
@@ -186,17 +175,16 @@ function ChannelFinanceContent(props: { userId: number }) {
       )
       return
     }
-    mutate.mutate({
-      path: '',
-      body: {
-        request_key: crypto.randomUUID(),
-        start: startAt,
-        end: endAt,
-        channel_id: channelId,
-        fallback_mode: fallback ? 'billed_basis' : 'none',
-        rates: submittedRates,
-      },
-    })
+    setError('')
+    const body: FinanceRequest = {
+      request_key: crypto.randomUUID(),
+      start: startAt,
+      end: endAt,
+      channel_id: channelId,
+      fallback_mode: fallback ? 'billed_basis' : 'none',
+    }
+    if (fallback) setPendingRequest(body)
+    else mutate.mutate({ path: '', body })
   }
   const job = report.data?.job
   const progress = job?.total_windows
@@ -212,6 +200,21 @@ function ChannelFinanceContent(props: { userId: number }) {
     <SectionPageLayout>
       <SectionPageLayout.Title>{t('Revenue')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
+        {pendingRequest && (
+          <CostConfirmation
+            request={pendingRequest}
+            userId={props.userId}
+            busy={mutate.isPending}
+            error={error}
+            onClose={() => setPendingRequest(null)}
+            onConfirm={(fingerprint) =>
+              mutate.mutate({
+                path: '',
+                body: { ...pendingRequest, cost_fingerprint: fingerprint },
+              })
+            }
+          />
+        )}
         <form onSubmit={generate} className='border-b pb-5'>
           <FieldSet className='mb-5 gap-3'>
             <FieldLegend variant='label'>{t('Summary workflow')}</FieldLegend>
@@ -219,7 +222,6 @@ function ChannelFinanceContent(props: { userId: number }) {
               value={fallback ? 'billed_basis' : 'none'}
               onValueChange={(value) => {
                 setFallback(value === 'billed_basis')
-                setAccepted(false)
               }}
               className='gap-3'
             >
@@ -272,118 +274,6 @@ function ChannelFinanceContent(props: { userId: number }) {
               />
             </Field>
           </FieldGroup>
-          {fallback && (
-            <FieldGroup className='mt-4 gap-3'>
-              {channel !== '' ? (
-                <Field className='max-w-xs'>
-                  <FieldLabel htmlFor='finance-ratio'>
-                    {t('Historical cost ratio')}
-                  </FieldLabel>
-                  <Input
-                    id='finance-ratio'
-                    type='number'
-                    min='0'
-                    max='10000'
-                    step='any'
-                    value={ratio}
-                    onChange={(event) => setRatio(event.target.value)}
-                  />
-                </Field>
-              ) : (
-                <div className='space-y-3'>
-                  {rates.map((row) => (
-                    <div key={row.key} className='flex items-end gap-3'>
-                      <Field className='max-w-xs min-w-0'>
-                        <FieldLabel htmlFor={`finance-channel-${row.key}`}>
-                          {t('Channel')}
-                        </FieldLabel>
-                        <Input
-                          id={`finance-channel-${row.key}`}
-                          type='number'
-                          min='1'
-                          step='1'
-                          value={row.channel}
-                          onChange={(event) => {
-                            setRates((values) =>
-                              values.map((item) =>
-                                item.key === row.key
-                                  ? { ...item, channel: event.target.value }
-                                  : item
-                              )
-                            )
-                            setAccepted(false)
-                          }}
-                        />
-                      </Field>
-                      <Field className='max-w-xs min-w-0'>
-                        <FieldLabel htmlFor={`finance-ratio-${row.key}`}>
-                          {t('Historical cost ratio')}
-                        </FieldLabel>
-                        <Input
-                          id={`finance-ratio-${row.key}`}
-                          type='number'
-                          min='0'
-                          max='10000'
-                          step='any'
-                          value={row.ratio}
-                          onChange={(event) => {
-                            setRates((values) =>
-                              values.map((item) =>
-                                item.key === row.key
-                                  ? { ...item, ratio: event.target.value }
-                                  : item
-                              )
-                            )
-                            setAccepted(false)
-                          }}
-                        />
-                      </Field>
-                      <Button
-                        type='button'
-                        variant='outline'
-                        title={t('Remove')}
-                        aria-label={t('Remove')}
-                        onClick={() => {
-                          setRates((values) =>
-                            values.filter((item) => item.key !== row.key)
-                          )
-                          setAccepted(false)
-                        }}
-                      >
-                        <X />
-                      </Button>
-                    </div>
-                  ))}
-                  <Button
-                    type='button'
-                    variant='outline'
-                    onClick={() => {
-                      setRates((values) => [
-                        ...values,
-                        { key: crypto.randomUUID(), channel: '', ratio: '1' },
-                      ])
-                      setAccepted(false)
-                    }}
-                  >
-                    <Plus />
-                    {t('Add')}
-                  </Button>
-                </div>
-              )}
-              <Field orientation='horizontal'>
-                <Checkbox
-                  id='finance-accept'
-                  checked={accepted}
-                  onCheckedChange={(value) => setAccepted(value === true)}
-                />
-                <FieldLabel htmlFor='finance-accept'>
-                  {t(
-                    'I accept billing-basis estimates for missing snapshots throughout this report period.'
-                  )}
-                </FieldLabel>
-              </Field>
-            </FieldGroup>
-          )}
           <Button className='mt-4' type='submit' disabled={mutate.isPending}>
             <Calculator />
             {t('Generate report')}
@@ -466,7 +356,7 @@ function ChannelFinanceContent(props: { userId: number }) {
               max={100}
             />
             {job.policy && (
-              <p>
+              <p className='max-h-24 overflow-y-auto break-words'>
                 {t('Summary workflow')}:{' '}
                 {t(
                   job.policy.fallback_mode === 'billed_basis'
@@ -474,7 +364,10 @@ function ChannelFinanceContent(props: { userId: number }) {
                     : 'Existing costs only (may be incomplete)'
                 )}
                 {job.policy.rates
-                  ?.map((rate) => ` · #${rate.channel_id}: ${rate.ratio}`)
+                  ?.map(
+                    (rate) =>
+                      ` · #${rate.channel_id}: ${rate.ratio}${rate.peak ? ` (${rate.peak.start}-${rate.peak.end} ${rate.peak.timezone} × ${rate.peak.ratio})` : ''}`
+                  )
                   .join('')}
               </p>
             )}
@@ -501,16 +394,32 @@ function ChannelFinanceContent(props: { userId: number }) {
                 </div>
               ))}
             </dl>
-            <Field className='my-4 max-w-sm'>
-              <FieldLabel htmlFor='finance-filter'>
-                {t('Filter channels')}
-              </FieldLabel>
-              <Input
-                id='finance-filter'
-                value={filter}
-                onChange={(event) => setFilter(event.target.value)}
-              />
-            </Field>
+            <div className='my-4 flex flex-wrap items-end gap-3'>
+              <Field className='max-w-sm flex-1'>
+                <FieldLabel htmlFor='finance-filter'>
+                  {t('Filter channels')}
+                </FieldLabel>
+                <Input
+                  id='finance-filter'
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value)}
+                />
+              </Field>
+              <Button
+                variant='outline'
+                disabled={!rows.length}
+                onClick={() => {
+                  if (!report.data) return
+                  downloadTextFile(
+                    reportCSV(report.data.job, rows),
+                    `revenue-${report.data.job.id}-filtered.csv`
+                  )
+                }}
+              >
+                <Download />
+                {t('Export filtered results')}
+              </Button>
+            </div>
             <div className='overflow-x-auto rounded-md border'>
               <table className='w-full text-sm'>
                 <thead className='bg-muted'>

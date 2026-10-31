@@ -17,7 +17,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Eye, RefreshCw, Search } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  RefreshCw,
+  Search,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -26,6 +33,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import { api } from '@/lib/api'
+import { downloadTextFile } from '@/lib/download'
+import { useAuthStore } from '@/stores/auth-store'
 
 import type { FinanceJob } from './types'
 
@@ -51,6 +60,29 @@ export function FinanceTaskTable(props: {
   onSelect: (id: string) => void
 }) {
   const { t } = useTranslation()
+  const [downloading, setDownloading] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState('')
+  async function download(id: string) {
+    if (downloading) return
+    setDownloading(id)
+    setDownloadError('')
+    try {
+      const response = await api.get(
+        `/api/channel-finance/jobs/${encodeURIComponent(id)}/export`,
+        { responseType: 'text', skipErrorHandler: true, disableDuplicate: true }
+      )
+      if (!response.headers['content-type']?.startsWith('text/csv')) {
+        throw new Error(t('Operation failed'))
+      }
+      const user = useAuthStore.getState().auth.user
+      if (user?.id !== props.userId || user.role !== 100) return
+      downloadTextFile(response.data, `revenue-${id}.csv`)
+    } catch {
+      setDownloadError(t('Operation failed'))
+    } finally {
+      setDownloading(null)
+    }
+  }
   const [search, setSearch] = useState('')
   const [filters, setFilters] = useState({
     keyword: '',
@@ -181,6 +213,11 @@ export function FinanceTaskTable(props: {
           {t('Failed to load report')}
         </p>
       )}
+      {downloadError && (
+        <p role='alert' className='text-destructive text-sm'>
+          {downloadError}
+        </p>
+      )}
       <div
         className='overflow-x-auto rounded-md border'
         aria-busy={jobs.isFetching}
@@ -194,7 +231,7 @@ export function FinanceTaskTable(props: {
                 'Channel',
                 'Status',
                 'Progress',
-                'View',
+                'Actions',
               ].map((label) => (
                 <th
                   key={label}
@@ -277,6 +314,16 @@ export function FinanceTaskTable(props: {
                       onClick={() => props.onSelect(job.id)}
                     >
                       <Eye />
+                    </Button>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      title={t('Download report CSV')}
+                      aria-label={`${t('Download report CSV')} ${job.id}`}
+                      disabled={downloading !== null}
+                      onClick={() => void download(job.id)}
+                    >
+                      <Download />
                     </Button>
                   </td>
                 </tr>

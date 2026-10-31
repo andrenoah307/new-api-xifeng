@@ -11,6 +11,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -83,17 +84,39 @@ func ListChannelCostReportJobs(c *gin.Context) {
 	common.ApiSuccess(c, data)
 }
 
+func PreviewChannelCostReportConfig(c *gin.Context) {
+	if !authorizeLogRoot(c) {
+		return
+	}
+	id, err := strconv.Atoi(c.DefaultQuery("channel_id", "0"))
+	if err != nil || id < 0 {
+		logRootUnavailable(c, i18n.MsgInvalidParams)
+		return
+	}
+	preview, err := model.PreviewChannelCostReportConfig(c.Request.Context(), id)
+	if err != nil {
+		logRootUnavailable(c, i18n.MsgDatabaseError)
+		return
+	}
+	if !authorizeLogRoot(c) {
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	common.ApiSuccess(c, preview)
+}
+
 func CreateChannelCostReportJob(c *gin.Context) {
 	if !authorizeLogRoot(c) {
 		return
 	}
 	var request struct {
-		RequestKey   string                 `json:"request_key"`
-		Start        int64                  `json:"start"`
-		End          int64                  `json:"end"`
-		ChannelID    int                    `json:"channel_id"`
-		Rates        []model.CostReportRate `json:"rates"`
-		FallbackMode string                 `json:"fallback_mode"`
+		RequestKey      string                 `json:"request_key"`
+		Start           int64                  `json:"start"`
+		End             int64                  `json:"end"`
+		ChannelID       int                    `json:"channel_id"`
+		Rates           []model.CostReportRate `json:"rates"`
+		FallbackMode    string                 `json:"fallback_mode"`
+		CostFingerprint string                 `json:"cost_fingerprint"`
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 128*1024)
 	if common.DecodeJson(c.Request.Body, &request) != nil || request.End > time.Now().Unix() {
@@ -101,12 +124,18 @@ func CreateChannelCostReportJob(c *gin.Context) {
 		return
 	}
 	policy := model.CostReportPolicy{Start: request.Start, End: request.End, ChannelID: request.ChannelID,
-		QuotaPerUnit: decimal.NewFromFloat(common.QuotaPerUnit).String(), Rates: request.Rates, FallbackMode: request.FallbackMode}
-	if err := model.ValidateCostReportPolicy(policy); err != nil {
-		logRootUnavailable(c, i18n.MsgInvalidParams)
+		QuotaPerUnit: decimal.NewFromFloat(common.QuotaPerUnit).String(), Rates: request.Rates, FallbackMode: request.FallbackMode, CostFingerprint: request.CostFingerprint}
+	var job *model.ChannelCostReportJob
+	var err error
+	if policy.FallbackMode == "billed_basis" {
+		job, err = model.CreateConfiguredChannelCostReportJob(c.Request.Context(), c.GetInt("id"), request.RequestKey, policy)
+	} else {
+		job, err = model.CreateChannelCostReportJob(c.Request.Context(), c.GetInt("id"), request.RequestKey, policy)
+	}
+	if errors.Is(err, model.ErrCostReportConfigChanged) {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "Channel cost settings changed. Review the channel list again."})
 		return
 	}
-	job, err := model.CreateChannelCostReportJob(c.Request.Context(), c.GetInt("id"), request.RequestKey, policy)
 	if err != nil {
 		logRootUnavailable(c, i18n.MsgInvalidParams)
 		return
@@ -202,6 +231,18 @@ func projectChannelCostReportRow(row model.ChannelCostReportRow) (channelCostRep
 }
 
 func GetChannelCostReport(c *gin.Context) {
+	getChannelCostReport(c, false)
+}
+
+func ExportChannelCostReport(c *gin.Context) {
+	if _, err := uuid.Parse(c.Param("id")); err != nil {
+		logRootUnavailable(c, i18n.MsgInvalidParams)
+		return
+	}
+	getChannelCostReport(c, true)
+}
+
+func getChannelCostReport(c *gin.Context, export bool) {
 	if !authorizeLogRoot(c) {
 		return
 	}
@@ -278,5 +319,19 @@ func GetChannelCostReport(c *gin.Context) {
 		total.Profit, total.ProfitMargin = nil, nil
 	}
 	c.Header("Cache-Control", "no-store")
+	if export {
+		content, err := channelCostReportCSV(jobDTO, data)
+		if err != nil {
+			logRootUnavailable(c, i18n.MsgDatabaseError)
+			return
+		}
+		if !authorizeLogRoot(c) {
+			return
+		}
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Content-Disposition", `attachment; filename="revenue-`+job.ID+`.csv"`)
+		c.Data(http.StatusOK, "text/csv; charset=utf-8", content)
+		return
+	}
 	common.ApiSuccess(c, gin.H{"job": jobDTO, "channels": data, "total": total})
 }

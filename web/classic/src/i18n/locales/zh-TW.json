@@ -5163,6 +5163,14 @@
     "Revenue": "收入",
     "Summary workflow": "彙總流程",
     "Existing costs only (may be incomplete)": "僅統計已有的（可能不全）",
-    "Full summary with channel-rate cost estimates": "統計全量並按渠道倍率補全"
+    "Full summary with channel-rate cost estimates": "統計全量並按渠道倍率補全",
+    "Confirm channel cost estimates": "確認渠道成本補算",
+    "Current channel cost settings apply to the entire report period. Channels without usable cost settings are skipped.": "目前渠道成本設定將用於整個統計期間，略過沒有可用成本設定的渠道。",
+    "No channels have usable cost settings.": "沒有設定可用成本的渠道。",
+    "Skipped channels: {{count}}": "略過渠道：{{count}}",
+    "Confirm and generate": "確認並產生",
+    "Channel cost settings changed. Review the channel list again.": "渠道成本設定已變更，請重新確認渠道清單。",
+    "Export filtered results": "匯出篩選結果",
+    "Download report CSV": "下載彙總 CSV"
   }
 }

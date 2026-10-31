@@ -5694,6 +5694,14 @@
     "Revenue": "Doanh thu",
     "Summary workflow": "Chế độ tổng hợp",
     "Existing costs only (may be incomplete)": "Chỉ chi phí đã có (có thể chưa đầy đủ)",
-    "Full summary with channel-rate cost estimates": "Tổng hợp toàn bộ và bổ sung chi phí theo hệ số kênh"
+    "Full summary with channel-rate cost estimates": "Tổng hợp toàn bộ và bổ sung chi phí theo hệ số kênh",
+    "Confirm channel cost estimates": "Xác nhận chi phí ước tính",
+    "Current channel cost settings apply to the entire report period. Channels without usable cost settings are skipped.": "Cài đặt chi phí kênh hiện tại áp dụng cho toàn bộ kỳ báo cáo. Bỏ qua kênh không có cài đặt chi phí hợp lệ.",
+    "No channels have usable cost settings.": "Không có kênh nào có cài đặt chi phí hợp lệ.",
+    "Skipped channels: {{count}}": "Kênh bị bỏ qua: {{count}}",
+    "Confirm and generate": "Xác nhận và tạo",
+    "Channel cost settings changed. Review the channel list again.": "Cài đặt chi phí kênh đã thay đổi. Vui lòng kiểm tra lại danh sách.",
+    "Export filtered results": "Xuất kết quả đã lọc",
+    "Download report CSV": "Tải báo cáo CSV"
   }
 }

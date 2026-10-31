@@ -35,7 +35,11 @@ export interface FinanceJob {
   updated_at: number
   policy?: {
     fallback_mode: 'none' | 'billed_basis'
-    rates: { channel_id: number; ratio: string }[]
+    rates: {
+      channel_id: number
+      ratio: string
+      peak?: { start: string; end: string; timezone: string; ratio: string }
+    }[]
   }
 }
 

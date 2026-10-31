@@ -5184,6 +5184,14 @@
     "Revenue": "Revenu",
     "Summary workflow": "Mode de synthèse",
     "Existing costs only (may be incomplete)": "Coûts existants uniquement (potentiellement incomplet)",
-    "Full summary with channel-rate cost estimates": "Synthèse complète avec estimation des coûts par canal"
+    "Full summary with channel-rate cost estimates": "Synthèse complète avec estimation des coûts par canal",
+    "Confirm channel cost estimates": "Confirmer les coûts estimés",
+    "Current channel cost settings apply to the entire report period. Channels without usable cost settings are skipped.": "Les coûts actuels des canaux seront appliqués à toute la période. Les canaux sans coûts valides sont ignorés.",
+    "No channels have usable cost settings.": "Aucun canal ne dispose de coûts valides.",
+    "Skipped channels: {{count}}": "Canaux ignorés : {{count}}",
+    "Confirm and generate": "Confirmer et générer",
+    "Channel cost settings changed. Review the channel list again.": "Les coûts des canaux ont changé. Vérifiez à nouveau la liste.",
+    "Export filtered results": "Exporter les résultats filtrés",
+    "Download report CSV": "Télécharger le rapport CSV"
   }
 }

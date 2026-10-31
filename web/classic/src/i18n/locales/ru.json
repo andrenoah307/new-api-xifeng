@@ -5205,6 +5205,14 @@
     "Revenue": "Доход",
     "Summary workflow": "Режим сводки",
     "Existing costs only (may be incomplete)": "Только известные затраты (возможна неполнота)",
-    "Full summary with channel-rate cost estimates": "Полная сводка с оценкой затрат по коэффициентам каналов"
+    "Full summary with channel-rate cost estimates": "Полная сводка с оценкой затрат по коэффициентам каналов",
+    "Confirm channel cost estimates": "Подтвердить оценку затрат",
+    "Current channel cost settings apply to the entire report period. Channels without usable cost settings are skipped.": "Текущие настройки затрат каналов применяются ко всему периоду. Каналы без допустимых настроек пропускаются.",
+    "No channels have usable cost settings.": "Нет каналов с допустимыми настройками затрат.",
+    "Skipped channels: {{count}}": "Пропущено каналов: {{count}}",
+    "Confirm and generate": "Подтвердить и создать",
+    "Channel cost settings changed. Review the channel list again.": "Настройки затрат изменились. Проверьте список каналов снова.",
+    "Export filtered results": "Экспорт результатов фильтра",
+    "Download report CSV": "Скачать отчёт CSV"
   }
 }

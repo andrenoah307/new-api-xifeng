@@ -15,16 +15,24 @@ import (
 )
 
 type CostReportRate struct {
-	ChannelID int    `json:"channel_id"`
-	Ratio     string `json:"ratio"`
+	ChannelID int             `json:"channel_id"`
+	Ratio     string          `json:"ratio"`
+	Peak      *CostReportPeak `json:"peak,omitempty"`
+}
+type CostReportPeak struct {
+	Start    string `json:"start"`
+	End      string `json:"end"`
+	Timezone string `json:"timezone"`
+	Ratio    string `json:"ratio"`
 }
 type CostReportPolicy struct {
-	Start        int64            `json:"start"`
-	End          int64            `json:"end"`
-	ChannelID    int              `json:"channel_id"`
-	QuotaPerUnit string           `json:"quota_per_unit"`
-	Rates        []CostReportRate `json:"rates"`
-	FallbackMode string           `json:"fallback_mode"`
+	Start           int64            `json:"start"`
+	End             int64            `json:"end"`
+	ChannelID       int              `json:"channel_id"`
+	QuotaPerUnit    string           `json:"quota_per_unit"`
+	Rates           []CostReportRate `json:"rates"`
+	FallbackMode    string           `json:"fallback_mode"`
+	CostFingerprint string           `json:"cost_fingerprint,omitempty"`
 }
 type ChannelCostReportRow struct {
 	ChannelID      int    `json:"channel_id"`
@@ -50,6 +58,7 @@ var costReportDecimalRE = regexp.MustCompile(costReportDecimalPattern)
 var costReportSourceDecimalRE = regexp.MustCompile(costReportSourceDecimalPattern)
 var costReportAggregateDecimalRE = regexp.MustCompile(`^[0-9]{1,60}([.][0-9]{1,18}){0,1}$`)
 var costReportUnsupportedRE = regexp.MustCompile(`(?i)(tool|search|audio|image|video|tiered|expression|extra_ratio)`)
+var costReportTimezoneRE = regexp.MustCompile(`^[A-Za-z0-9_+/-]{1,100}$`)
 
 func costReportDecimal(value string) (decimal.Decimal, bool) {
 	if !costReportDecimalRE.MatchString(value) {
@@ -84,6 +93,15 @@ func ValidateCostReportPolicy(p CostReportPolicy) error {
 			return errors.New("invalid or duplicate cost report rate")
 		}
 		seen[r.ChannelID] = true
+		if r.Peak != nil {
+			start, startErr := time.Parse("15:04", r.Peak.Start)
+			end, endErr := time.Parse("15:04", r.Peak.End)
+			_, zoneErr := time.LoadLocation(r.Peak.Timezone)
+			peak, valid := costReportDecimal(r.Peak.Ratio)
+			if startErr != nil || endErr != nil || len(r.Peak.Start) != 5 || len(r.Peak.End) != 5 || !start.Before(end) || zoneErr != nil || r.Peak.Timezone == "Local" || !costReportTimezoneRE.MatchString(r.Peak.Timezone) || !valid || !peak.IsPositive() || peak.GreaterThan(decimal.NewFromInt(100)) {
+				return errors.New("invalid cost report peak rule")
+			}
+		}
 	}
 	return nil
 }
@@ -142,7 +160,7 @@ func AggregateChannelCostWindow(ctx context.Context, p CostReportPolicy, start, 
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
 		return aggregateClickHouseCostWindow(ctx, p, start, end)
 	}
-	query := LOG_DB.WithContext(ctx).Model(&Log{}).Select("id, channel_id, type, quota, other").Where("created_at >= ? AND created_at < ? AND type IN ?", start, end, []int{2, 6})
+	query := LOG_DB.WithContext(ctx).Model(&Log{}).Select("id, created_at, channel_id, type, quota, other").Where("created_at >= ? AND created_at < ? AND type IN ?", start, end, []int{2, 6})
 	if p.ChannelID > 0 {
 		query = query.Where("channel_id = ?", p.ChannelID)
 	}
@@ -153,8 +171,14 @@ func AggregateChannelCostWindow(ctx context.Context, p CostReportPolicy, start, 
 	defer rows.Close()
 	q, _ := costReportDecimal(p.QuotaPerUnit)
 	rates := map[int]decimal.Decimal{}
+	peaks := map[int]CostReportPeak{}
+	locations := map[int]*time.Location{}
 	for _, rate := range p.Rates {
 		rates[rate.ChannelID], _ = costReportDecimal(rate.Ratio)
+		if rate.Peak != nil {
+			peaks[rate.ChannelID] = *rate.Peak
+			locations[rate.ChannelID], _ = time.LoadLocation(rate.Peak.Timezone)
+		}
 	}
 	result := map[int]ChannelCostReportRow{}
 	for count := 0; rows.Next(); count++ {
@@ -219,6 +243,13 @@ func AggregateChannelCostWindow(ctx context.Context, p CostReportPolicy, start, 
 					}
 				}
 				rate, hasRate := rates[log.ChannelId]
+				if peak, ok := peaks[log.ChannelId]; ok {
+					clock := time.Unix(log.CreatedAt, 0).In(locations[log.ChannelId]).Format("15:04")
+					if clock >= peak.Start && clock < peak.End {
+						multiplier, _ := costReportDecimal(peak.Ratio)
+						rate = rate.Mul(multiplier).Truncate(18)
+					}
+				}
 				if p.FallbackMode == "billed_basis" && baseOK && safe && hasRate {
 					row.FallbackCount = 1
 					row.FallbackCost = base.Mul(rate).Truncate(18).String()
@@ -323,13 +354,18 @@ func aggregateClickHouseCostWindow(ctx context.Context, p CostReportPolicy, star
 	if p.FallbackMode == "billed_basis" && len(p.Rates) > 0 {
 		parts := []string{}
 		for _, r := range p.Rates {
-			parts = append(parts, fmt.Sprintf("channel_id = %d, toDecimal256('%s',18)", r.ChannelID, r.Ratio))
+			rate := fmt.Sprintf("toDecimal256('%s',18)", r.Ratio)
+			if r.Peak != nil {
+				clock := fmt.Sprintf("formatDateTime(toDateTime(at),'%%H:%%i','%s')", r.Peak.Timezone)
+				rate = fmt.Sprintf("multiplyDecimal(%s, if(%s >= '%s' AND %s < '%s', toDecimal256('%s',18), toDecimal256(1,18)),18)", rate, clock, r.Peak.Start, clock, r.Peak.End, r.Peak.Ratio)
+			}
+			parts = append(parts, fmt.Sprintf("channel_id = %d, %s", r.ChannelID, rate))
 		}
 		rateExpr = "multiIf(" + strings.Join(parts, ",") + ", CAST(NULL AS Nullable(Decimal256(18))))"
 	}
 	sql := `WITH dedup AS (
  SELECT event_id, any(ifNull(logs.channel_id,0)) channel_id, any(ifNull(type,0)) kind,
- any(ifNull(quota,0)) units, any(ifNull(other,'')) doc,
+ any(ifNull(quota,0)) units, any(ifNull(other,'')) doc, any(ifNull(created_at,0)) at,
  uniqExact(tuple(logs.channel_id,type,quota,other,created_at)) variants
  FROM logs WHERE created_at >= ? AND created_at < ? AND type IN (2,6) GROUP BY event_id
  ), parsed AS (

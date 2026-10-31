@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/csv"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -192,6 +193,27 @@ func TestChannelCostReportCreatesVersionAndReadsOnlyPublishedAggregates(t *testi
 	assert.Nil(t, report.Data.Total.Profit, "partial generation must not imply full-range profit")
 	assert.Equal(t, "7", report.Data.Total.KnownProfit)
 	assert.Nil(t, report.Data.Channels[0].Profit)
+	// Download only stored results, with the same conservative partial semantics.
+	require.NoError(t, db.Model(&channel).Update("name", " \t=SUM(1,2)\"渠道").Error)
+	exported := call(ExportChannelCostReport, job.ID, "", "")
+	require.Equal(t, http.StatusOK, exported.Code, exported.Body.String())
+	assert.Equal(t, "text/csv; charset=utf-8", exported.Header().Get("Content-Type"))
+	assert.Equal(t, "no-store", exported.Header().Get("Cache-Control"))
+	assert.Equal(t, "nosniff", exported.Header().Get("X-Content-Type-Options"))
+	assert.Contains(t, exported.Header().Get("Content-Disposition"), job.ID+".csv")
+	assert.NotContains(t, exported.Body.String(), "must-not-appear")
+	records, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(exported.Body.String(), "\ufeff"))).ReadAll()
+	require.NoError(t, err)
+	require.Len(t, records, 2)
+	assert.Equal(t, "paused", records[1][1])
+	assert.Equal(t, "' \t=SUM(1,2)\"渠道", records[1][6])
+	assert.Equal(t, "3", records[1][12])
+	assert.Empty(t, records[1][14], "partial profit must be blank")
+	assert.Empty(t, records[1][15])
+	require.NoError(t, db.Model(job).Update("rows_json", "invalid").Error)
+	invalid := call(ExportChannelCostReport, job.ID, "", "")
+	assert.NotEqual(t, http.StatusOK, invalid.Code)
+	assert.NotContains(t, invalid.Header().Get("Content-Type"), "text/csv")
 }
 
 func TestChannelCostReportEndpointsRequireFreshRoot(t *testing.T) {
@@ -199,13 +221,14 @@ func TestChannelCostReportEndpointsRequireFreshRoot(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(&model.User{}))
 	user := model.User{Username: "report-root", Role: common.RoleRootUser, Status: common.UserStatusEnabled}
 	require.NoError(t, db.Create(&user).Error)
-	handlers := []gin.HandlerFunc{ListChannelCostReportJobs, CreateChannelCostReportJob, GetChannelCostReportJob, ControlChannelCostReportJob, GetChannelCostReport}
+	handlers := []gin.HandlerFunc{ListChannelCostReportJobs, CreateChannelCostReportJob, GetChannelCostReportJob, ControlChannelCostReportJob, GetChannelCostReport, PreviewChannelCostReportConfig, ExportChannelCostReport}
 	call := func(role int, handler gin.HandlerFunc) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(rec)
 		c.Request = httptest.NewRequest(http.MethodGet, "/api/channel-finance/jobs/test", nil)
 		c.Set("id", user.Id)
 		c.Set("role", role)
+		c.Params = gin.Params{{Key: "id", Value: uuid.NewString()}}
 		handler(c)
 		return rec
 	}

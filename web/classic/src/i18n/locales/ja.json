@@ -5151,6 +5151,14 @@
     "Revenue": "収益",
     "Summary workflow": "集計方式",
     "Existing costs only (may be incomplete)": "既存のコストのみ集計（不完全な場合あり）",
-    "Full summary with channel-rate cost estimates": "全件集計し、チャネル倍率でコストを補完"
+    "Full summary with channel-rate cost estimates": "全件集計し、チャネル倍率でコストを補完",
+    "Confirm channel cost estimates": "チャネルの推定コストを確認",
+    "Current channel cost settings apply to the entire report period. Channels without usable cost settings are skipped.": "現在のチャネルコスト設定を集計期間全体に適用します。有効なコスト設定がないチャネルはスキップします。",
+    "No channels have usable cost settings.": "有効なコスト設定のあるチャネルがありません。",
+    "Skipped channels: {{count}}": "スキップしたチャネル：{{count}}",
+    "Confirm and generate": "確認して生成",
+    "Channel cost settings changed. Review the channel list again.": "チャネルのコスト設定が変更されました。一覧を再確認してください。",
+    "Export filtered results": "絞り込み結果をエクスポート",
+    "Download report CSV": "集計 CSV をダウンロード"
   }
 }

@@ -25,17 +25,19 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  Download,
   Pause,
   Play,
-  Plus,
   RefreshCw,
   Search,
   X,
 } from 'lucide-react';
-import { API } from '../../helpers';
+import { API, downloadTextAsFile } from '../../helpers';
 import { UserContext } from '../../context/User';
 import './style.css';
 import { formatReportAmount as amount } from './format';
+import CostConfirmation from './CostConfirmation';
+import { reportCSV } from './export';
 
 const statuses = {
   pending: 'Pending',
@@ -96,17 +98,21 @@ function ChannelFinanceContent({ userId }) {
   const [state] = useContext(UserContext);
   const identity = useRef(state.user);
   identity.current = state.user;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const [start, setStart] = useState(() =>
     localTime(new Date(new Date().setHours(0, 0, 0, 0))),
   );
   const [end, setEnd] = useState(() => localTime(new Date()));
   const [channel, setChannel] = useState('');
   const [fallback, setFallback] = useState(false);
-  const [ratio, setRatio] = useState('1');
-  const [rates, setRates] = useState([
-    { key: crypto.randomUUID(), channel: '', ratio: '1' },
-  ]);
-  const [accepted, setAccepted] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState(null);
+  const [previewRefresh, setPreviewRefresh] = useState(0);
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
@@ -123,6 +129,7 @@ function ChannelFinanceContent({ userId }) {
   const initialSelection = useRef(false);
   const [report, setReport] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     if (keywordInput.trim() === keyword) return;
@@ -229,16 +236,52 @@ function ChannelFinanceContent({ userId }) {
       return;
     setBusy(true);
     try {
-      const result = await API.post(`/api/channel-finance/jobs${path}`, body);
+      const result = await API.post(`/api/channel-finance/jobs${path}`, body, {
+        skipErrorHandler: true,
+      });
       if (!result.data.success)
         throw new Error(result.data.message || t('Operation failed'));
       if (result.data.data?.id) setSelected(result.data.data.id);
       setRefresh((value) => value + 1);
       setError('');
+      setPendingRequest(null);
     } catch (failure) {
-      setError(failure.message);
+      if (failure.response?.status === 409) {
+        setError(
+          t('Channel cost settings changed. Review the channel list again.'),
+        );
+        setPreviewRefresh((value) => value + 1);
+      } else setError(failure.message);
     } finally {
       setBusy(false);
+    }
+  }
+  async function download(id) {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const response = await API.get(
+        `/api/channel-finance/jobs/${encodeURIComponent(id)}/export`,
+        {
+          responseType: 'text',
+          skipErrorHandler: true,
+          disableDuplicate: true,
+        },
+      );
+      if (!response.headers['content-type']?.startsWith('text/csv'))
+        throw new Error(t('Operation failed'));
+      if (
+        !mounted.current ||
+        identity.current?.id !== userId ||
+        identity.current?.role !== 100
+      )
+        return;
+      downloadTextAsFile(response.data, `revenue-${id}.csv`);
+      setError('');
+    } catch {
+      setError(t('Operation failed'));
+    } finally {
+      setDownloading(false);
     }
   }
   function generate(event) {
@@ -246,14 +289,6 @@ function ChannelFinanceContent({ userId }) {
     const startAt = Math.floor(new Date(start).getTime() / 1000);
     const endAt = Math.floor(new Date(end).getTime() / 1000);
     const channelId = channel === '' ? 0 : Number(channel);
-    const submittedRates = fallback
-      ? channelId > 0
-        ? [{ channel_id: channelId, ratio }]
-        : rates.map((row) => ({
-            channel_id: Number(row.channel),
-            ratio: row.ratio,
-          }))
-      : [];
     if (
       !Number.isFinite(startAt) ||
       !Number.isFinite(endAt) ||
@@ -261,19 +296,7 @@ function ChannelFinanceContent({ userId }) {
       endAt > Date.now() / 1000 ||
       startAt < 1 ||
       !Number.isSafeInteger(channelId) ||
-      channelId < 0 ||
-      (fallback &&
-        (!accepted ||
-          submittedRates.length === 0 ||
-          new Set(submittedRates.map((row) => row.channel_id)).size !==
-            submittedRates.length ||
-          submittedRates.some(
-            (row) =>
-              !Number.isSafeInteger(row.channel_id) ||
-              row.channel_id <= 0 ||
-              !/^[0-9]{1,18}(?:\.[0-9]{1,18})?$/.test(row.ratio) ||
-              Number(row.ratio) > 10000,
-          )))
+      channelId < 0
     ) {
       setError(
         t(
@@ -282,14 +305,16 @@ function ChannelFinanceContent({ userId }) {
       );
       return;
     }
-    void mutate('', {
+    setError('');
+    const body = {
       request_key: crypto.randomUUID(),
       start: startAt,
       end: endAt,
       channel_id: channelId,
       fallback_mode: fallback ? 'billed_basis' : 'none',
-      rates: submittedRates,
-    });
+    };
+    if (fallback) setPendingRequest(body);
+    else void mutate('', body);
   }
   const job = report?.job;
   const progress = job?.total_windows
@@ -304,6 +329,21 @@ function ChannelFinanceContent({ userId }) {
   return (
     <main className='channel-finance'>
       <h1>{t('Revenue')}</h1>
+      {pendingRequest && (
+        <CostConfirmation
+          request={pendingRequest}
+          refresh={previewRefresh}
+          busy={busy}
+          error={error}
+          onClose={() => setPendingRequest(null)}
+          onConfirm={(fingerprint) =>
+            void mutate('', {
+              ...pendingRequest,
+              cost_fingerprint: fingerprint,
+            })
+          }
+        />
+      )}
       <form onSubmit={generate}>
         <fieldset className='finance-workflow'>
           <legend>{t('Summary workflow')}</legend>
@@ -315,7 +355,6 @@ function ChannelFinanceContent({ userId }) {
               checked={!fallback}
               onChange={() => {
                 setFallback(false);
-                setAccepted(false);
               }}
             />
             {t('Existing costs only (may be incomplete)')}
@@ -328,7 +367,6 @@ function ChannelFinanceContent({ userId }) {
               checked={fallback}
               onChange={() => {
                 setFallback(true);
-                setAccepted(false);
               }}
             />
             {t('Full summary with channel-rate cost estimates')}
@@ -364,104 +402,6 @@ function ChannelFinanceContent({ userId }) {
             />
           </label>
         </div>
-        {fallback && (
-          <div className='finance-estimate'>
-            {channel !== '' ? (
-              <label>
-                {t('Historical cost ratio')}
-                <input
-                  type='number'
-                  min='0'
-                  max='10000'
-                  step='any'
-                  value={ratio}
-                  onChange={(event) => setRatio(event.target.value)}
-                />
-              </label>
-            ) : (
-              <div className='finance-rates'>
-                {rates.map((row) => (
-                  <div key={row.key} className='finance-rate-row'>
-                    <label>
-                      {t('Channel')}
-                      <input
-                        type='number'
-                        min='1'
-                        step='1'
-                        value={row.channel}
-                        onChange={(event) => {
-                          setRates((values) =>
-                            values.map((item) =>
-                              item.key === row.key
-                                ? { ...item, channel: event.target.value }
-                                : item,
-                            ),
-                          );
-                          setAccepted(false);
-                        }}
-                      />
-                    </label>
-                    <label>
-                      {t('Historical cost ratio')}
-                      <input
-                        type='number'
-                        min='0'
-                        max='10000'
-                        step='any'
-                        value={row.ratio}
-                        onChange={(event) => {
-                          setRates((values) =>
-                            values.map((item) =>
-                              item.key === row.key
-                                ? { ...item, ratio: event.target.value }
-                                : item,
-                            ),
-                          );
-                          setAccepted(false);
-                        }}
-                      />
-                    </label>
-                    <Button
-                      htmlType='button'
-                      title={t('Remove')}
-                      aria-label={t('Remove')}
-                      icon={<X size={16} />}
-                      onClick={() => {
-                        setRates((values) =>
-                          values.filter((item) => item.key !== row.key),
-                        );
-                        setAccepted(false);
-                      }}
-                    />
-                  </div>
-                ))}
-                <Button
-                  htmlType='button'
-                  icon={<Plus size={16} />}
-                  onClick={() => {
-                    setRates((values) => [
-                      ...values,
-                      { key: crypto.randomUUID(), channel: '', ratio: '1' },
-                    ]);
-                    setAccepted(false);
-                  }}
-                >
-                  {t('Add')}
-                </Button>
-              </div>
-            )}
-            <label className='finance-check'>
-              <input
-                type='checkbox'
-                checked={accepted}
-                onChange={(event) => setAccepted(event.target.checked)}
-              />
-              {t(
-                'I accept billing-basis estimates for missing snapshots throughout this report period.',
-              )}
-            </label>
-          </div>
-        )}
         <Button
           htmlType='submit'
           theme='solid'
@@ -534,7 +474,7 @@ function ChannelFinanceContent({ userId }) {
                 <th scope='col'>{t('Channel')}</th>
                 <th scope='col'>{t('Status')}</th>
                 <th scope='col'>{t('Progress')}</th>
-                <th scope='col'>{t('View')}</th>
+                <th scope='col'>{t('操作')}</th>
               </tr>
             </thead>
             <tbody>
@@ -591,6 +531,14 @@ function ChannelFinanceContent({ userId }) {
                         aria-pressed={selected === item.id}
                         icon={<Eye size={16} />}
                         onClick={() => setSelected(item.id)}
+                      />
+                      <Button
+                        theme='borderless'
+                        title={t('Download report CSV')}
+                        aria-label={`${t('Download report CSV')} ${item.id}`}
+                        disabled={downloading}
+                        icon={<Download size={16} />}
+                        onClick={() => void download(item.id)}
                       />
                     </td>
                   </tr>
@@ -701,7 +649,7 @@ function ChannelFinanceContent({ userId }) {
           </div>
           <progress value={progress} max={100} />
           {job.policy && (
-            <p>
+            <p className='max-h-24 overflow-y-auto break-words'>
               {t('Summary workflow')}:{' '}
               {t(
                 job.policy.fallback_mode === 'billed_basis'
@@ -709,7 +657,10 @@ function ChannelFinanceContent({ userId }) {
                   : 'Existing costs only (may be incomplete)',
               )}
               {job.policy.rates
-                ?.map((rate) => ` · #${rate.channel_id}: ${rate.ratio}`)
+                ?.map(
+                  (rate) =>
+                    ` · #${rate.channel_id}: ${rate.ratio}${rate.peak ? ` (${rate.peak.start}-${rate.peak.end} ${rate.peak.timezone} × ${rate.peak.ratio})` : ''}`,
+                )
                 .join('')}
             </p>
           )}
@@ -730,13 +681,27 @@ function ChannelFinanceContent({ userId }) {
               </div>
             ))}
           </dl>
-          <label className='finance-filter'>
-            {t('Filter channels')}
-            <input
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-            />
-          </label>
+          <div className='flex flex-wrap items-end gap-3 my-4'>
+            <label className='finance-filter'>
+              {t('Filter channels')}
+              <input
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+              />
+            </label>
+            <Button
+              icon={<Download size={16} />}
+              disabled={!rows.length}
+              onClick={() =>
+                downloadTextAsFile(
+                  reportCSV(report.job, rows),
+                  `revenue-${report.job.id}-filtered.csv`,
+                )
+              }
+            >
+              {t('Export filtered results')}
+            </Button>
+          </div>
           <div className='finance-table'>
             <table>
               <thead>

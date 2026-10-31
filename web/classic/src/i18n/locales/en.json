@@ -5411,6 +5411,14 @@
     "Revenue": "Revenue",
     "Summary workflow": "Summary workflow",
     "Existing costs only (may be incomplete)": "Existing costs only (may be incomplete)",
-    "Full summary with channel-rate cost estimates": "Full summary with channel-rate cost estimates"
+    "Full summary with channel-rate cost estimates": "Full summary with channel-rate cost estimates",
+    "Confirm channel cost estimates": "Confirm channel cost estimates",
+    "Current channel cost settings apply to the entire report period. Channels without usable cost settings are skipped.": "Current channel cost settings apply to the entire report period. Channels without usable cost settings are skipped.",
+    "No channels have usable cost settings.": "No channels have usable cost settings.",
+    "Skipped channels: {{count}}": "Skipped channels: {{count}}",
+    "Confirm and generate": "Confirm and generate",
+    "Channel cost settings changed. Review the channel list again.": "Channel cost settings changed. Review the channel list again.",
+    "Export filtered results": "Export filtered results",
+    "Download report CSV": "Download report CSV"
   }
 }
