@@ -3372,6 +3372,16 @@
     "低优先级": "低优先级",
     "Verified refundable balance": "已核实可退额度",
     "Requestable balance": "可登记申请额度",
-    "Requested quota is not the final cash refund amount.": "申请额度不等于最终现金退款金额。"
+    "Requested quota is not the final cash refund amount.": "申请额度不等于最终现金退款金额。",
+    "Choose ticket type": "选择工单类型",
+    "invoice.amount.additional": "补缴税费",
+    "invoice.amount.due": "应付金额",
+    "invoice.amount.net": "不含税",
+    "invoice.amount.paid": "实付金额",
+    "invoice.amount.tax": "税费",
+    "invoice.amount.total": "价税合计",
+    "ticket.choice.general": "普通工单",
+    "ticket.choice.invoice": "申请开票",
+    "ticket.choice.refund": "申请退款"
   }
 }

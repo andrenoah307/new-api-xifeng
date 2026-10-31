@@ -5728,6 +5728,16 @@
     "Allow orders completed before this date to request invoices": "Allow orders completed before this date to request invoices",
     "Verified refundable balance": "Verified refundable balance",
     "Requestable balance": "Requestable balance",
-    "Requested quota is not the final cash refund amount.": "Requested quota is not the final cash refund amount."
+    "Requested quota is not the final cash refund amount.": "Requested quota is not the final cash refund amount.",
+    "Choose ticket type": "Choose ticket type",
+    "invoice.amount.additional": "Tax due",
+    "invoice.amount.due": "Amount due",
+    "invoice.amount.net": "Net",
+    "invoice.amount.paid": "Paid",
+    "invoice.amount.tax": "Tax",
+    "invoice.amount.total": "Total",
+    "ticket.choice.general": "General support",
+    "ticket.choice.invoice": "Request an invoice",
+    "ticket.choice.refund": "Request a refund"
   }
 }

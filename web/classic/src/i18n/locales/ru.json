@@ -5523,6 +5523,16 @@
     "Allow orders completed before this date to request invoices": "Разрешить счета для заказов, завершённых до этой даты",
     "Verified refundable balance": "Подтверждённый возвратный баланс",
     "Requestable balance": "Баланс для регистрации заявки",
-    "Requested quota is not the final cash refund amount.": "Запрошенная квота не равна окончательной сумме денежного возврата."
+    "Requested quota is not the final cash refund amount.": "Запрошенная квота не равна окончательной сумме денежного возврата.",
+    "Choose ticket type": "Выберите тип обращения",
+    "invoice.amount.additional": "Доплата налога",
+    "invoice.amount.due": "К оплате",
+    "invoice.amount.net": "Без налога",
+    "invoice.amount.paid": "Оплачено",
+    "invoice.amount.tax": "Налог",
+    "invoice.amount.total": "Итого с налогом",
+    "ticket.choice.general": "Общая поддержка",
+    "ticket.choice.invoice": "Запросить счёт",
+    "ticket.choice.refund": "Запросить возврат"
   }
 }
