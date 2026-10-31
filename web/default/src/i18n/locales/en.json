@@ -1226,6 +1226,7 @@
     "Cost ratio is stale": "Cost ratio is stale",
     "Cost source": "Cost source",
     "Cost Tracking": "Cost Tracking",
+    "Cost_finance": "Cost",
     "Could not reach the server. Retrying automatically.": "Could not reach the server. Retrying automatically.",
     "Count must be between {{min}} and {{max}}": "Count must be between {{min}} and {{max}}",
     "Counts cover only the instance answering this request.": "Counts cover only the instance answering this request.",

@@ -1226,6 +1226,7 @@
     "Cost ratio is stale": "Multiplicateur de coût périmé",
     "Cost source": "Source du coût",
     "Cost Tracking": "Suivi des coûts",
+    "Cost_finance": "Coût",
     "Could not reach the server. Retrying automatically.": "Serveur injoignable. Nouvelle tentative automatique.",
     "Count must be between {{min}} and {{max}}": "Le nombre doit être compris entre {{min}} et {{max}}",
     "Counts cover only the instance answering this request.": "Les comptages ne couvrent que l'instance qui répond à cette requête.",

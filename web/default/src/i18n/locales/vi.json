@@ -1226,6 +1226,7 @@
     "Cost ratio is stale": "Hệ số chi phí đã cũ",
     "Cost source": "Nguồn chi phí",
     "Cost Tracking": "Theo dõi chi phí",
+    "Cost_finance": "Chi phí",
     "Could not reach the server. Retrying automatically.": "Không kết nối được máy chủ. Đang tự động thử lại.",
     "Count must be between {{min}} and {{max}}": "Số lượng phải nằm trong khoảng từ {{min}} đến {{max}}.",
     "Counts cover only the instance answering this request.": "Số liệu chỉ tính riêng phiên bản đang trả lời yêu cầu này.",

@@ -371,7 +371,11 @@ function ChannelFinanceContent(props: { userId: number }) {
             <dl className='grid grid-cols-2 gap-5 border-b py-5 lg:grid-cols-4'>
               {columns.map(([key, label]) => (
                 <div key={key}>
-                  <dt className='text-muted-foreground text-sm'>{t(label)}</dt>
+                  <dt className='text-muted-foreground text-sm'>
+                    {t(label, {
+                      context: key === 'cost' ? 'finance' : undefined,
+                    })}
+                  </dt>
                   <dd className='mt-1 text-lg font-semibold break-all tabular-nums'>
                     {amount(report.data.total[key], key)}
                   </dd>
@@ -416,7 +420,9 @@ function ChannelFinanceContent(props: { userId: number }) {
                         key={key}
                         className='p-3 text-right whitespace-nowrap'
                       >
-                        {t(label)}
+                        {t(label, {
+                          context: key === 'cost' ? 'finance' : undefined,
+                        })}
                       </th>
                     ))}
                   </tr>

@@ -1226,6 +1226,7 @@
     "Cost ratio is stale": "成本倍率已過期",
     "Cost source": "成本來源",
     "Cost Tracking": "成本追蹤",
+    "Cost_finance": "成本",
     "Could not reach the server. Retrying automatically.": "無法連線伺服器，正在自動重試。",
     "Count must be between {{min}} and {{max}}": "計數必須介於{{min}}和{{max}}之間",
     "Counts cover only the instance answering this request.": "計數僅涵蓋回應本次請求的執行個體。",

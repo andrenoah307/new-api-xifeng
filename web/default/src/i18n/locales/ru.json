@@ -1226,6 +1226,7 @@
     "Cost ratio is stale": "Множитель стоимости устарел",
     "Cost source": "Источник стоимости",
     "Cost Tracking": "Отслеживание затрат",
+    "Cost_finance": "Себестоимость",
     "Could not reach the server. Retrying automatically.": "Сервер недоступен. Повтор выполняется автоматически.",
     "Count must be between {{min}} and {{max}}": "Количество должно быть от {{min}} до {{max}}",
     "Counts cover only the instance answering this request.": "Счётчики охватывают только тот экземпляр, который отвечает на этот запрос.",

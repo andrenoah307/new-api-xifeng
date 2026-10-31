@@ -1226,6 +1226,7 @@
     "Cost ratio is stale": "原価倍率が古くなっています",
     "Cost source": "原価の取得元",
     "Cost Tracking": "コスト追跡",
+    "Cost_finance": "原価",
     "Could not reach the server. Retrying automatically.": "サーバーに接続できません。自動的に再試行しています。",
     "Count must be between {{min}} and {{max}}": "カウントは{{min}}から{{max}}の間である必要があります",
     "Counts cover only the instance answering this request.": "件数はこのリクエストに応答したインスタンスのみを対象とします。",
