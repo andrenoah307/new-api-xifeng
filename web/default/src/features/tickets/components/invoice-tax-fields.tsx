@@ -19,6 +19,7 @@ import {
   invoiceTaxModes,
   type InvoiceTaxSelection,
 } from '../invoice-tax'
+import { InvoiceAmountFormula } from './invoice-amount-formula'
 
 export function InvoiceTaxNotice() {
   const { t } = useTranslation()
@@ -42,12 +43,14 @@ export function InvoiceTaxFields({
   onChange,
   type,
   onTypeChange,
+  legacyTotalCents,
 }: {
   ids: number[]
   open: boolean
   onChange: (value: InvoiceTaxSelection) => void
   type: string
   onTypeChange: (value: string) => void
+  legacyTotalCents: number
 }) {
   const { t } = useTranslation()
   const [payment, setPayment] = useState('balance')
@@ -96,7 +99,13 @@ export function InvoiceTaxFields({
     return <p>{config.isError ? t('Failed to load') : t('Loading...')}</p>
   }
   if (!config.data.module_enabled && !config.data.invoice_workflow_required) {
-    return null
+    return ids.length > 0 ? (
+      <InvoiceAmountFormula
+        net={legacyTotalCents}
+        tax={0}
+        total={legacyTotalCents}
+      />
+    ) : null
   }
   return (
     <section className='space-y-3 border-y py-3'>
@@ -153,20 +162,18 @@ export function InvoiceTaxFields({
                 <dd>{quote.data.rate_bps / 100}%</dd>
               </>
             )}
-            <dt>{t('Net amount (CNY)')}</dt>
-            <dd>
-              {(
-                (quote.data.base_cents + quote.data.prepaid_net_cents) /
-                100
-              ).toFixed(2)}
-            </dd>
-            <dt>{t('Tax paid at checkout (CNY)')}</dt>
-            <dd>{(quote.data.prepaid_tax_cents / 100).toFixed(2)}</dd>
-            <dt>{t('Additional payment (CNY)')}</dt>
-            <dd>{(quote.data.fee_cents / 100).toFixed(2)}</dd>
-            <dt>{t('Invoice total (CNY)')}</dt>
-            <dd>{(quote.data.total_cents / 100).toFixed(2)}</dd>
           </dl>
+          <InvoiceAmountFormula
+            net={quote.data.base_cents + quote.data.prepaid_net_cents}
+            tax={quote.data.prepaid_tax_cents}
+            additional={quote.data.fee_cents}
+            total={quote.data.total_cents}
+            totalLabel={
+              quote.data.prepaid_only
+                ? 'invoice.amount.paid'
+                : 'invoice.amount.total'
+            }
+          />
           {quote.data.fee_cents > 0 && (
             <>
               <Select

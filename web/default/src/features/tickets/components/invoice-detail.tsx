@@ -17,7 +17,7 @@ import { formatTimestampToDate } from '@/lib/format'
 
 import type { TicketInvoice, TicketInvoiceOrder } from '../api'
 import { INVOICE_STATUS_CONFIG } from '../constants'
-import { refundCash } from '../refund-finance-format'
+import { InvoiceAmountFormula } from './invoice-amount-formula'
 import { InvoiceTaxPayment } from './invoice-tax-payment'
 
 interface InvoiceDetailProps {
@@ -74,17 +74,13 @@ export function InvoiceDetail({
                   : 'Ordinary VAT invoice'
               )}
             </dd>
-            <dt>{t('Net amount (CNY)')}</dt>
-            <dd>{refundCash(net)}</dd>
-            <dt>{t('Tax charge (CNY)')}</dt>
-            <dd>{refundCash(tax)}</dd>
-            <dt>{t('Payment breakdown')}</dt>
-            <dd className='break-words'>
-              {t('Net amount {{net}} + tax {{tax}} = payment {{total}}', {
-                net: refundCash(net),
-                tax: refundCash(tax),
-                total: refundCash(total),
-              })}
+            <dd className='col-span-2 min-w-0'>
+              <InvoiceAmountFormula
+                net={net}
+                tax={tax}
+                total={total}
+                totalLabel='invoice.amount.paid'
+              />
             </dd>
           </dl>
         )}

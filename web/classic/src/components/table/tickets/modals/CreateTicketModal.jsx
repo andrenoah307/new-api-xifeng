@@ -1,4 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import {
+  ArrowLeft,
+  ChevronRight,
+  MessageSquare,
+  Receipt,
+  Wallet,
+} from 'lucide-react';
+import CreateInvoiceTicketModal from './CreateInvoiceTicketModal';
 import RefundFinanceDetail from '../../../ticket/RefundFinanceDetail';
 import {
   Banner,
@@ -24,13 +32,13 @@ import {
 import {
   getRefundPayeeTypeOptions,
   getTicketPriorityOptions,
-  getTicketTypeOptions,
 } from '../../../ticket/ticketUtils';
 import { useTicketAttachments } from '../../../ticket/useTicketAttachments';
 
 const { Text } = Typography;
 
 const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
+  const [step, setStep] = useState('choose');
   const [loading, setLoading] = useState(false);
   const [ticketType, setTicketType] = useState('general');
   const [payeeType, setPayeeType] = useState('alipay');
@@ -56,6 +64,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
     const quota = displayAmountToQuota(Number(refundAmount) || 0);
     if (
       !visible ||
+      step !== 'details' ||
       ticketType !== 'refund' ||
       !Number.isFinite(quota) ||
       quota <= 0
@@ -84,7 +93,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [visible, ticketType, refundAmount, quoteRevision]);
+  }, [visible, step, ticketType, refundAmount, quoteRevision]);
   const {
     config,
     attachments,
@@ -132,6 +141,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
 
   useEffect(() => {
     if (!visible) {
+      setStep('choose');
       refundRequest.current = { signature: '', key: '' };
       setRefundAmount('');
       setTicketType('general');
@@ -141,7 +151,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
       reset();
       return;
     }
-    loadUserQuota();
     loadLimitStatus();
     formApiRef.current?.setValues({
       type: 'general',
@@ -159,7 +168,8 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
   }, [visible]);
 
   useEffect(() => {
-    if (ticketType === 'refund' && visible) {
+    if (ticketType === 'refund' && visible && step === 'details') {
+      loadUserQuota();
       API.get('/api/ticket/refund/invoice-check').then((res) => {
         if (res.data?.success) setInvoiceConflict(res.data.data);
       });
@@ -167,12 +177,12 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
       setInvoiceConflict(null);
       setInvoiceConflictAcked(false);
     }
-  }, [ticketType, visible]);
+  }, [ticketType, visible, step]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
-      if (values.type === 'refund') {
+      if (ticketType === 'refund') {
         const refundAmountNum = Number(values.refund_amount);
         if (!Number.isFinite(refundAmountNum) || refundAmountNum <= 0) {
           showError(t('申请退款金额必须大于 0'));
@@ -240,7 +250,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
       // 发票工单有独立端点不走这里；这里只处理 general / 其它可带附件的普通工单。
       const res = await API.post('/api/ticket/', {
         subject: values.subject,
-        type: values.type,
+        type: ticketType,
         priority: values.priority,
         content: values.content,
         attachment_ids: attachments.map((a) => a.id),
@@ -266,15 +276,66 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
     onClose?.();
   };
 
+  if (step === 'invoice') {
+    return (
+      <CreateInvoiceTicketModal
+        visible={visible}
+        onClose={onClose}
+        onSuccess={onSuccess}
+        t={t}
+        onBack={() => setStep('choose')}
+      />
+    );
+  }
+
   return (
     <Modal
-      title={t('创建工单')}
+      title={
+        step === 'choose'
+          ? t('Choose ticket type')
+          : t(
+              ticketType === 'refund'
+                ? 'ticket.choice.refund'
+                : 'ticket.choice.general',
+            )
+      }
       visible={visible}
       onCancel={handleCancel}
       onOk={() => formApiRef.current?.submitForm()}
       okText={t('提交工单')}
       cancelText={t('取消')}
       confirmLoading={loading || uploading}
+      footer={
+        step === 'choose' ? null : (
+          <div className='flex justify-between gap-3'>
+            <Button
+              icon={<ArrowLeft size={16} />}
+              disabled={loading || uploading}
+              onClick={() => setStep('choose')}
+            >
+              {t('Back')}
+            </Button>
+            <Button
+              theme='solid'
+              loading={loading || uploading}
+              disabled={
+                quoteLoading ||
+                !!quoteError ||
+                limitStatus?.limited ||
+                (ticketType === 'refund' &&
+                  (quotaLoading ||
+                    eligibilityError ||
+                    !eligibility ||
+                    (invoiceConflict?.has_active_invoices &&
+                      !invoiceConflictAcked)))
+              }
+              onClick={() => formApiRef.current?.submitForm()}
+            >
+              {t('提交工单')}
+            </Button>
+          </div>
+        )
+      }
       okButtonProps={{
         disabled:
           quoteLoading ||
@@ -291,7 +352,44 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
         overflowX: 'hidden',
       }}
     >
+      {step === 'choose' && (
+        <div className='grid gap-3'>
+          {[
+            {
+              value: 'general',
+              label: 'ticket.choice.general',
+              Icon: MessageSquare,
+            },
+            { value: 'invoice', label: 'ticket.choice.invoice', Icon: Receipt },
+            { value: 'refund', label: 'ticket.choice.refund', Icon: Wallet },
+          ].map(({ value, label, Icon }) => (
+            <button
+              key={value}
+              type='button'
+              className='flex min-h-20 w-full items-center gap-4 rounded-lg border p-4 text-left hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-gray-800 focus-visible:outline-2 focus-visible:outline-blue-500'
+              onClick={() => {
+                if (value === 'invoice') {
+                  setStep('invoice');
+                  return;
+                }
+                if (value !== ticketType) {
+                  formApiRef.current?.reset();
+                  void discardAll();
+                }
+                formApiRef.current?.setValue('type', value);
+                setTicketType(value);
+                setStep('details');
+              }}
+            >
+              <Icon size={24} className='shrink-0' aria-hidden='true' />
+              <span className='flex-1 font-medium'>{t(label)}</span>
+              <ChevronRight size={16} className='shrink-0' aria-hidden='true' />
+            </button>
+          ))}
+        </div>
+      )}
       <div
+        hidden={step === 'choose'}
         onPasteCapture={(e) => {
           // 包一层 div 挂 paste 监听：Modal 内部 content 渲染层不一定透传 React 合成事件。
           // 退款工单分支不展示 Upload，handlePaste 内部通过 uploadRef 判空自行忽略。
@@ -343,13 +441,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
           }}
           onSubmit={handleSubmit}
         >
-          <Form.Select
-            field='type'
-            label={t('工单类型')}
-            optionList={getTicketTypeOptions(t)}
-            getPopupContainer={() => document.body}
-          />
-
           {ticketType === 'refund' && (
             <>
               {financeQuote && <RefundFinanceDetail finance={financeQuote} />}

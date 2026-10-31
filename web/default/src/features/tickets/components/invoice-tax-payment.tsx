@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { invoiceTaxModes, type InvoiceTaxCharge } from '../invoice-tax'
-import { refundCash } from '../refund-finance-format'
+import { InvoiceAmountFormula } from './invoice-amount-formula'
 
 export function InvoiceTaxPayment({
   charge,
@@ -49,12 +49,12 @@ export function InvoiceTaxPayment({
     paid: t('Tax paid'),
     refunded: t('Tax refunded to balance'),
   }
-  let equationKey = 'Net amount {{net}} + tax {{tax}} = invoice total {{total}}'
+  let equationKey = 'invoice.amount.total'
   if (current.status === 'paid') {
-    equationKey = 'Net amount {{net}} + tax {{tax}} = payment {{total}}'
+    equationKey = 'invoice.amount.paid'
   }
   if (current.status === 'pending') {
-    equationKey = 'Net amount {{net}} + tax {{tax}} = amount due {{total}}'
+    equationKey = 'invoice.amount.due'
   }
   return (
     <section className='space-y-3 border-y py-3 text-sm'>
@@ -76,20 +76,15 @@ export function InvoiceTaxPayment({
         </dd>
         <dt>{t('Rate (%)')}</dt>
         <dd>{current.rate_bps / 100}%</dd>
-        <dt>{t('Net amount (CNY)')}</dt>
-        <dd>{(current.base_cents / 100).toFixed(2)}</dd>
-        <dt>{t('Additional payment (CNY)')}</dt>
-        <dd>{(current.fee_cents / 100).toFixed(2)}</dd>
         <dt>{t('Status')}</dt>
         <dd>{statusLabels[current.status]}</dd>
       </dl>
-      <p className='break-words'>
-        {t(equationKey, {
-          net: refundCash(current.base_cents),
-          tax: refundCash(current.fee_cents),
-          total: refundCash(current.total_cents),
-        })}
-      </p>
+      <InvoiceAmountFormula
+        net={current.base_cents}
+        tax={current.fee_cents}
+        total={current.total_cents}
+        totalLabel={equationKey}
+      />
       {owner && current.status === 'pending' && !rejected && (
         <div className='flex flex-wrap gap-2'>
           {(details.data?.payment_methods ?? [])

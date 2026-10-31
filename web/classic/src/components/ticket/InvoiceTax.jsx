@@ -30,7 +30,7 @@ import {
   Table,
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess } from '../../helpers';
-import { refundCash } from './refundFinanceFormat';
+import { InvoiceAmountFormula } from './InvoiceAmountFormula';
 
 const modes = [
   { value: 'vat', label: 'VAT added to net amount', formula: 'B × (1 + r)' },
@@ -78,7 +78,14 @@ export function InvoiceTaxNotice() {
   ) : null;
 }
 
-export function InvoiceTaxFields({ ids, open, onChange, type, onTypeChange }) {
+export function InvoiceTaxFields({
+  ids,
+  open,
+  onChange,
+  type,
+  onTypeChange,
+  legacyTotalCents,
+}) {
   const { t } = useTranslation();
   const [config] = useInvoiceTaxConfig();
   const [payment, setPayment] = useState('balance');
@@ -135,7 +142,14 @@ export function InvoiceTaxFields({ ids, open, onChange, type, onTypeChange }) {
     });
   }, [config, current, type, method, onChange]);
   if (!config) return <p>{t('Loading...')}</p>;
-  if (!config.module_enabled && !config.invoice_workflow_required) return null;
+  if (!config.module_enabled && !config.invoice_workflow_required)
+    return ids.length > 0 ? (
+      <InvoiceAmountFormula
+        net={legacyTotalCents}
+        tax={0}
+        total={legacyTotalCents}
+      />
+    ) : null;
   return (
     <div className='space-y-3 my-4'>
       <InvoiceTaxNotice />
@@ -181,19 +195,18 @@ export function InvoiceTaxFields({ ids, open, onChange, type, onTypeChange }) {
                 <dd>{current.rate_bps / 100}%</dd>
               </>
             )}
-            <dt>{t('Net amount (CNY)')}</dt>
-            <dd>
-              {((current.base_cents + current.prepaid_net_cents) / 100).toFixed(
-                2,
-              )}
-            </dd>
-            <dt>{t('Tax paid at checkout (CNY)')}</dt>
-            <dd>{(current.prepaid_tax_cents / 100).toFixed(2)}</dd>
-            <dt>{t('Additional payment (CNY)')}</dt>
-            <dd>{(current.fee_cents / 100).toFixed(2)}</dd>
-            <dt>{t('Invoice total (CNY)')}</dt>
-            <dd>{(current.total_cents / 100).toFixed(2)}</dd>
           </dl>
+          <InvoiceAmountFormula
+            net={current.base_cents + current.prepaid_net_cents}
+            tax={current.prepaid_tax_cents}
+            additional={current.fee_cents}
+            total={current.total_cents}
+            totalLabel={
+              current.prepaid_only
+                ? 'invoice.amount.paid'
+                : 'invoice.amount.total'
+            }
+          />
           {current.fee_cents > 0 && (
             <>
               <Select
@@ -285,12 +298,9 @@ export function InvoiceTaxPayment({ charge, rejected }) {
     paid: t('Tax paid'),
     refunded: t('Tax refunded to balance'),
   };
-  let equationKey =
-    'Net amount {{net}} + tax {{tax}} = invoice total {{total}}';
-  if (current.status === 'paid')
-    equationKey = 'Net amount {{net}} + tax {{tax}} = payment {{total}}';
-  if (current.status === 'pending')
-    equationKey = 'Net amount {{net}} + tax {{tax}} = amount due {{total}}';
+  let equationKey = 'invoice.amount.total';
+  if (current.status === 'paid') equationKey = 'invoice.amount.paid';
+  if (current.status === 'pending') equationKey = 'invoice.amount.due';
   return (
     <div className='space-y-3 my-4'>
       <dl className='grid grid-cols-2 gap-2'>
@@ -311,20 +321,15 @@ export function InvoiceTaxPayment({ charge, rejected }) {
         </dd>
         <dt>{t('Rate (%)')}</dt>
         <dd>{current.rate_bps / 100}%</dd>
-        <dt>{t('Net amount (CNY)')}</dt>
-        <dd>{(current.base_cents / 100).toFixed(2)}</dd>
-        <dt>{t('Additional payment (CNY)')}</dt>
-        <dd>{(current.fee_cents / 100).toFixed(2)}</dd>
         <dt>{t('Status')}</dt>
         <dd>{labels[current.status]}</dd>
       </dl>
-      <p className='break-words'>
-        {t(equationKey, {
-          net: refundCash(current.base_cents),
-          tax: refundCash(current.fee_cents),
-          total: refundCash(current.total_cents),
-        })}
-      </p>
+      <InvoiceAmountFormula
+        net={current.base_cents}
+        tax={current.fee_cents}
+        total={current.total_cents}
+        totalLabel={equationKey}
+      />
       {owner && current.status === 'pending' && !rejected && (
         <Space wrap>
           {(data?.payment_methods || [])

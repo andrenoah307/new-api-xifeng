@@ -77,12 +77,14 @@ function createSchema(t: (key: string) => string) {
 type FormValues = z.infer<ReturnType<typeof createSchema>>
 
 interface Props {
+  onBack?: () => void
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated?: (id: number) => void
 }
 
 export function CreateInvoiceTicketDialog({
+  onBack,
   open,
   onOpenChange,
   onCreated,
@@ -294,6 +296,7 @@ export function CreateInvoiceTicketDialog({
           )}
 
           <InvoiceTaxFields
+            legacyTotalCents={Math.round(invoiceAmount * 100)}
             ids={[...selectedIds]}
             open={open}
             onChange={setTax}
@@ -456,6 +459,16 @@ export function CreateInvoiceTicketDialog({
         </div>
 
         <DialogFooter>
+          {onBack && (
+            <Button
+              type='button'
+              variant='outline'
+              onClick={onBack}
+              disabled={mutation.isPending}
+            >
+              {t('Back')}
+            </Button>
+          )}
           <Button
             type='submit'
             form='invoice-ticket-form'
