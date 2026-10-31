@@ -32,11 +32,12 @@ func TestRefundInvoiceCorrectionChain(t *testing.T) {
 	require.ErrorIs(t, err, ErrRefundInvoiceCorrection, "external work must be claimed first")
 	_, err = StartRefundInvoiceCorrection(first.Id, owner.Id)
 	require.ErrorIs(t, err, ErrTicketForbidden)
-	started, err := StartRefundInvoiceCorrection(first.Id, actor.Id)
-	require.NoError(t, err)
-	assert.Equal(t, "processing", started.Status)
 	_, err = StartRefundInvoiceCorrection(first.Id, actor.Id)
-	require.ErrorIs(t, err, ErrRefundInvoiceCorrection)
+	require.ErrorIs(t, err, ErrRefundSettlementUnconfirmed)
+	// Historical external work already started before settlement was blocked.
+	require.NoError(t, DB.Model(&first).Update("status", "processing").Error)
+	_, err = StartRefundInvoiceCorrection(first.Id, actor.Id)
+	require.ErrorIs(t, err, ErrRefundSettlementUnconfirmed)
 	_, err = CompleteRefundInvoiceCorrection(first.Id, actor.Id, "RED-1", "", "")
 	require.ErrorIs(t, err, ErrRefundInvoiceCorrection)
 	completed, err := CompleteRefundInvoiceCorrection(first.Id, actor.Id, "RED-1", "BLUE-2", "Verified by finance")
@@ -46,7 +47,7 @@ func TestRefundInvoiceCorrectionChain(t *testing.T) {
 	require.Error(t, err)
 	var messages int64
 	require.NoError(t, DB.Model(&TicketMessage{}).Where("ticket_id = ?", refund.TicketId).Count(&messages).Error)
-	assert.Equal(t, int64(2), messages)
+	assert.Equal(t, int64(1), messages)
 
 	secondRefund := TicketRefund{TicketId: 984005, UserId: owner.Id, RefundStatus: RefundStatusPending}
 	require.NoError(t, DB.Create(&secondRefund).Error)
@@ -57,7 +58,8 @@ func TestRefundInvoiceCorrectionChain(t *testing.T) {
 	assert.Equal(t, "BLUE-2", second.OriginalReference)
 	assert.Zero(t, second.ReissueCents)
 	_, err = StartRefundInvoiceCorrection(second.Id, actor.Id)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, ErrRefundSettlementUnconfirmed)
+	require.NoError(t, DB.Model(&second).Update("status", "processing").Error)
 	_, err = CompleteRefundInvoiceCorrection(second.Id, actor.Id, "RED-2", "BLUE-3", "")
 	require.ErrorIs(t, err, ErrRefundInvoiceCorrection)
 	_, err = CompleteRefundInvoiceCorrection(second.Id, actor.Id, "RED-2", "", "")

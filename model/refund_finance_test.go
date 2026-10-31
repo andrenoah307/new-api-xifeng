@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
 
@@ -53,131 +54,165 @@ func financeRefundParams(user User, quota int) CreateRefundTicketParams {
 	return params
 }
 
-func TestRefundFinanceIssuedInvoiceCorrectionAndBigintWallet(t *testing.T) {
+func recordHistoricalRefund(t *testing.T, userID, quota int) *RefundFinanceDetail {
+	t.Helper()
+	var detail *RefundFinanceDetail
+	require.NoError(t, DB.Transaction(func(tx *gorm.DB) error {
+		var err error
+		detail, err = quoteRefundFinanceTx(tx, userID, quota)
+		if err != nil {
+			return err
+		}
+		ticket := Ticket{UserId: userID, Type: TicketTypeRefund, Status: TicketStatusResolved}
+		if err = tx.Create(&ticket).Error; err != nil {
+			return err
+		}
+		refund := TicketRefund{TicketId: ticket.Id, UserId: userID, RefundQuota: quota, FinanceVersion: 1, RefundCashCents: detail.RefundCashCents, RefundStatus: RefundStatusRefunded}
+		if err = tx.Create(&refund).Error; err != nil {
+			return err
+		}
+		for i := range detail.Allocations {
+			detail.Allocations[i].RefundTicketID = ticket.Id
+			detail.Allocations[i].Status = "committed"
+		}
+		if err = tx.Create(&detail.Allocations).Error; err != nil {
+			return err
+		}
+		return tx.Model(&User{}).Where("id = ?", userID).Update("quota", gorm.Expr("quota - ?", quota)).Error
+	}))
+	return detail
+}
+func TestRefundWaitingPreservesWalletAndBlocksEveryApprovalMode(t *testing.T) {
 	f := newRefundFinanceFixture(t)
-	const originalQuota int64 = 5_000_000_000
-	const refundQuota = 2_500_000_000
-	order := seedRefundFinanceOrder(t, f.user.Id, originalQuota, 1060000, 60000, 100)
-	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": refundQuota, "used_quota": originalQuota - refundQuota}).Error)
-	invoiceTicket := Ticket{UserId: f.user.Id, Username: f.user.Username, Type: TicketTypeInvoice, Status: TicketStatusResolved}
-	require.NoError(t, DB.Create(&invoiceTicket).Error)
-	ids, err := common.Marshal([]int{order.Id})
+	seedRefundFinanceOrder(t, f.user.Id, 10000, 1060000, 60000, 100)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": 5000, "used_quota": 5000}).Error)
+	quote, err := QuoteRefundFinance(f.user.Id, 5000)
 	require.NoError(t, err)
-	require.NoError(t, DB.Create(&TicketInvoice{TicketId: invoiceTicket.Id, UserId: f.user.Id, TopUpOrderIds: string(ids), TotalMoney: 10600, InvoiceStatus: InvoiceStatusIssued, InvoiceType: "ordinary"}).Error)
-	quote, err := QuoteRefundFinance(f.user.Id, refundQuota)
+	assert.Equal(t, RefundSettlementWaiting, quote.SettlementStatus)
+	assert.Empty(t, quote.Allocations)
+	assert.Zero(t, quote.RefundCashCents)
+	assert.Empty(t, quote.QuoteToken)
+	params := financeRefundParams(f.user, 5000)
+	ticket, refund, _, err := CreateRefundTicket(params)
+	require.NoError(t, err)
+	assert.Zero(t, refund.FrozenQuota)
+	assert.Zero(t, refund.RefundCashCents)
+	assert.Empty(t, refund.Finance.Allocations)
+	assert.Empty(t, refund.Finance.InvoiceCorrections)
+	require.NoError(t, DecreaseUserQuota(f.user.Id, 1000, true))
+	for _, actor := range []int{f.admin.Id, f.root.Id} {
+		for _, mode := range []string{"", RefundQuotaModeWriteOff, RefundQuotaModeSubtract, RefundQuotaModeOverride} {
+			_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: actor, RefundStatus: RefundStatusRefunded, QuotaMode: mode, ActualRefundQuota: 1})
+			require.ErrorIs(t, err, ErrRefundSettlementUnconfirmed)
+		}
+	}
+	replay, _, _, err := CreateRefundTicket(params)
+	require.NoError(t, err)
+	assert.Equal(t, ticket.Id, replay.Id)
+	var owner User
+	require.NoError(t, DB.First(&owner, f.user.Id).Error)
+	assert.Equal(t, 4000, owner.Quota)
+	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRejected})
+	require.NoError(t, err)
+	require.NoError(t, DB.First(&owner, f.user.Id).Error)
+	assert.Equal(t, 4000, owner.Quota)
+}
+func TestRefundFinanceIssuedInvoiceMathAndBigintWallet(t *testing.T) {
+	f := newRefundFinanceFixture(t)
+	seedRefundFinanceOrder(t, f.user.Id, 5000000000, 1060000, 60000, 100)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": 2500000000, "used_quota": 2500000000}).Error)
+	quote, err := quoteRefundFinanceTx(DB, f.user.Id, 2500000000)
 	require.NoError(t, err)
 	assert.Equal(t, int64(530000), quote.RefundCashCents)
 	assert.Equal(t, int64(30000), quote.RefundTaxCents)
-	params := financeRefundParams(f.user, refundQuota)
-	ticket, refund, _, err := CreateRefundTicket(params)
-	require.NoError(t, err)
-	assert.Equal(t, refundQuota, refund.RefundQuota)
-	assert.Equal(t, refundQuota, refund.FrozenQuota)
-	assert.Equal(t, refundQuota, refund.UserQuotaSnapshot)
-	require.NotNil(t, refund.Finance)
-	require.Len(t, refund.Finance.InvoiceCorrections, 1)
-	correction := refund.Finance.InvoiceCorrections[0]
-	assert.Equal(t, int64(1060000), correction.OriginalCents)
-	assert.Equal(t, int64(530000), correction.ReissueCents)
-	again, againRefund, _, err := CreateRefundTicket(params)
-	require.NoError(t, err)
-	assert.Equal(t, ticket.Id, again.Id)
-	assert.Equal(t, refund.Id, againRefund.Id)
 	var owner User
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)
-	assert.Zero(t, owner.Quota)
-	approve := UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded}
-	_, _, _, _, err = UpdateRefundStatus(approve)
-	require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
-	_, err = StartRefundInvoiceCorrection(correction.Id, f.finance.Id)
-	require.NoError(t, err)
-	_, err = CompleteRefundInvoiceCorrection(correction.Id, f.finance.Id, "red-1", "blue-2", "verified")
-	require.NoError(t, err)
-	approve.AdminId = f.finance.Id
-	_, _, _, _, err = UpdateRefundStatus(approve)
-	require.ErrorIs(t, err, ErrTicketForbidden)
-	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRejected})
-	require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
-	_, err = CloseUserTicket(ticket.Id, f.user.Id)
-	require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
-	approve.AdminId = f.root.Id
-	settled, _, _, _, err := UpdateRefundStatus(approve)
-	require.NoError(t, err)
-	assert.Equal(t, RefundStatusRefunded, settled.RefundStatus)
-	require.Len(t, settled.Finance.Allocations, 1)
-	assert.Equal(t, "committed", settled.Finance.Allocations[0].Status)
+	assert.Equal(t, 2500000000, owner.Quota)
 }
-
 func TestRefundFinanceFIFOAndRoundingConserveCents(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	first := seedRefundFinanceOrder(t, f.user.Id, 3, 101, 6, 100)
 	second := seedRefundFinanceOrder(t, f.user.Id, 2, 226, 26, 200)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 5).Error)
 	var cash, tax int64
-	for i, expected := range []struct {
-		orderID   int
+	for _, expected := range []struct {
+		id        int
 		cash, tax int64
 	}{{first.Id, 34, 2}, {first.Id, 33, 2}, {first.Id, 34, 2}, {second.Id, 113, 13}, {second.Id, 113, 13}} {
-		ticket, refund, _, err := CreateRefundTicket(financeRefundParams(f.user, 1))
-		require.NoError(t, err, "refund %d", i)
-		require.Len(t, refund.Finance.Allocations, 1)
-		assert.Equal(t, expected.orderID, refund.Finance.Allocations[0].TopUpID)
-		assert.Equal(t, expected.cash, refund.RefundCashCents)
-		assert.Equal(t, expected.tax, refund.Finance.RefundTaxCents)
-		cash += refund.RefundCashCents
-		tax += refund.Finance.RefundTaxCents
-		_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
-		require.NoError(t, err)
+		detail := recordHistoricalRefund(t, f.user.Id, 1)
+		require.Len(t, detail.Allocations, 1)
+		assert.Equal(t, expected.id, detail.Allocations[0].TopUpID)
+		assert.Equal(t, expected.cash, detail.RefundCashCents)
+		assert.Equal(t, expected.tax, detail.RefundTaxCents)
+		cash += detail.RefundCashCents
+		tax += detail.RefundTaxCents
 	}
 	assert.Equal(t, int64(327), cash)
 	assert.Equal(t, int64(32), tax)
 }
-
-func TestRefundFinanceReservationAndRemainingInvoice(t *testing.T) {
+func TestRefundFinanceHistoricalRemainingInvoice(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	order := seedRefundFinanceOrder(t, f.user.Id, 1000, 10600, 600, 100)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
-	ticket, _, _, err := CreateRefundTicket(financeRefundParams(f.user, 400))
-	require.NoError(t, err)
-	_, err = QuoteInvoiceTax(DB, f.user.Id, []int{order.Id}, "ordinary")
-	require.ErrorIs(t, err, ErrTicketInvoiceOrderInvalid)
-	_, err = QuoteRefundFinance(f.user.Id, 100)
-	require.ErrorIs(t, err, ErrRefundFinancePending)
-	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
-	require.NoError(t, err)
+	recordHistoricalRefund(t, f.user.Id, 400)
 	quote, err := QuoteInvoiceTax(DB, f.user.Id, []int{order.Id}, "ordinary")
 	require.NoError(t, err)
 	assert.Equal(t, int64(6360), quote.TotalCents)
-	var unchanged TopUp
-	require.NoError(t, DB.First(&unchanged, order.Id).Error)
-	assert.Equal(t, int64(10600), unchanged.PaymentTotalCents)
+	var original TopUp
+	require.NoError(t, DB.First(&original, order.Id).Error)
+	assert.Equal(t, int64(10600), original.PaymentTotalCents)
 }
-
-func TestRefundFinanceLegacyOrdersRequireReviewAndDisabledModulePreservesLegacy(t *testing.T) {
+func TestRefundWaitingAlsoAppliesWhenInvoiceModuleDisabled(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	order := seedRefundFinanceOrder(t, f.user.Id, 1000, 10600, 600, 100)
 	require.NoError(t, DB.Model(order).Update("checkout_version", 0).Error)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
-	_, err := QuoteRefundFinance(f.user.Id, 400)
+	_, err := quoteRefundFinanceTx(DB, f.user.Id, 400)
 	require.ErrorIs(t, err, ErrRefundFinanceReview)
-	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: false, Mode: "vat"}))
-	quote, err := QuoteRefundFinance(f.user.Id, 400)
-	require.NoError(t, err)
-	assert.Nil(t, quote)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat"}))
 	params := financeRefundParams(f.user, 400)
 	params.RequestKey = ""
+	_, _, _, err = CreateRefundTicket(params)
+	require.Error(t, err)
+	params.RequestKey = uuid.NewString()
 	_, refund, _, err := CreateRefundTicket(params)
 	require.NoError(t, err)
-	assert.Zero(t, refund.FinanceVersion)
-	assert.Nil(t, refund.Finance)
+	assert.Equal(t, 1, refund.FinanceVersion)
+	assert.Zero(t, refund.FrozenQuota)
 }
 
+func TestRefundWaitingAcceptsUnsettledPreconsumeWithoutFreezing(t *testing.T) {
+	f := newRefundFinanceFixture(t)
+	seedRefundFinanceOrder(t, f.user.Id, 1000, 10600, 600, 100)
+	// The request has preconsumed 200; UsedQuota has not been settled yet.
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 800).Error)
+	eligibility, err := GetRefundEligibility(f.user.Id)
+	require.NoError(t, err)
+	assert.Zero(t, eligibility.MaxRefundableQuota)
+	assert.Equal(t, 800, eligibility.RequestableQuota)
+	assert.Equal(t, []RefundExclusion{{Code: "unverified_balance", Quota: 800}}, eligibility.Reasons)
+	quote, err := QuoteRefundFinance(f.user.Id, 800)
+	require.NoError(t, err)
+	assert.Equal(t, RefundSettlementWaiting, quote.SettlementStatus)
+	ticket, refund, _, err := CreateRefundTicket(financeRefundParams(f.user, 800))
+	require.NoError(t, err)
+	assert.Zero(t, refund.FrozenQuota)
+	// Finishing the charge does not automatically prove that no other request is in flight.
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("used_quota", 200).Error)
+	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
+	require.ErrorIs(t, err, ErrRefundSettlementUnconfirmed)
+	_, err = CloseUserTicket(ticket.Id, f.user.Id)
+	require.NoError(t, err)
+	var owner User
+	require.NoError(t, DB.First(&owner, f.user.Id).Error)
+	assert.Equal(t, 800, owner.Quota)
+}
 func TestRefundFinanceFIFOConsumptionAcrossDifferentRates(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	first := seedRefundFinanceOrder(t, f.user.Id, 100, 10600, 600, 100)
 	second := seedRefundFinanceOrder(t, f.user.Id, 100, 11300, 1300, 200)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": 120, "used_quota": 80}).Error)
-	quote, err := QuoteRefundFinance(f.user.Id, 50)
+	quote, err := quoteRefundFinanceTx(DB, f.user.Id, 50)
 	require.NoError(t, err)
 	require.Len(t, quote.Allocations, 2)
 	assert.Equal(t, first.Id, quote.Allocations[0].TopUpID)
@@ -201,31 +236,12 @@ func TestRefundWalletSnapshotsUseBigintAcrossSQLDialects(t *testing.T) {
 	}
 }
 
-func TestRefundFinanceStaleQuoteDoesNotFreezeOrCreateTicket(t *testing.T) {
-	f := newRefundFinanceFixture(t)
-	seedRefundFinanceOrder(t, f.user.Id, 1000, 10600, 600, 100)
-	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
-	params := financeRefundParams(f.user, 400)
-	require.NotEmpty(t, params.FinanceQuote)
-	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": 900, "used_quota": 100}).Error)
-	_, _, _, err := CreateRefundTicket(params)
-	require.ErrorIs(t, err, ErrInvoiceTaxQuoteChanged)
-	var owner User
-	require.NoError(t, DB.First(&owner, f.user.Id).Error)
-	assert.Equal(t, 900, owner.Quota)
-	var count int64
-	require.NoError(t, DB.Model(&Ticket{}).Where("user_id = ?", f.user.Id).Count(&count).Error)
-	assert.Zero(t, count)
-	require.NoError(t, DB.Model(&RefundOrderAllocation{}).Where("user_id = ?", f.user.Id).Count(&count).Error)
-	assert.Zero(t, count)
-}
-
 func TestRefundFinanceManualGiftCannotMaskConsumedPaidBalance(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	seedRefundFinanceOrder(t, f.user.Id, 1000, 10600, 600, 100)
 	// A manual credit has replaced spent quota, but it is not refundable cash.
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": 1000, "used_quota": 100}).Error)
-	_, err := QuoteRefundFinance(f.user.Id, 400)
+	_, err := quoteRefundFinanceTx(DB, f.user.Id, 400)
 	require.ErrorIs(t, err, ErrRefundFinanceReview)
 }
 
@@ -233,13 +249,10 @@ func TestRefundFinanceZeroCashRoundingCannotCreateTaxOnlyRefund(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	seedRefundFinanceOrder(t, f.user.Id, 100000, 10600, 600, 100)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 100000).Error)
-	ticket, refund, _, err := CreateRefundTicket(financeRefundParams(f.user, 83))
-	require.NoError(t, err)
-	assert.Equal(t, int64(9), refund.RefundCashCents)
-	assert.Equal(t, int64(1), refund.Finance.RefundTaxCents)
-	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
-	require.NoError(t, err)
-	quote, err := QuoteRefundFinance(f.user.Id, 1)
+	first := recordHistoricalRefund(t, f.user.Id, 83)
+	assert.Equal(t, int64(9), first.RefundCashCents)
+	assert.Equal(t, int64(1), first.RefundTaxCents)
+	quote, err := quoteRefundFinanceTx(DB, f.user.Id, 1)
 	require.NoError(t, err)
 	assert.Zero(t, quote.RefundCashCents)
 	assert.Zero(t, quote.RefundTaxCents)

@@ -49,9 +49,17 @@ export function InvoiceTaxSettings() {
   if (!config) {
     return <p>{query.isError ? t('Failed to load') : t('Loading...')}</p>
   }
-  const valid = [config.ordinary_rate_bps, config.special_rate_bps].every(
-    (rate) => Number.isInteger(rate) && rate >= 0 && rate < 10000
-  )
+  const legacyBefore = config.legacy_invoice_before ?? 0
+  const validCutoff =
+    Number.isSafeInteger(legacyBefore) &&
+    legacyBefore >= 0 &&
+    legacyBefore <= Date.parse('9999-12-31T00:00:00+08:00') / 1000 &&
+    (legacyBefore === 0 || (legacyBefore + 28800) % 86400 === 0)
+  const valid =
+    validCutoff &&
+    [config.ordinary_rate_bps, config.special_rate_bps].every(
+      (rate) => Number.isInteger(rate) && rate >= 0 && rate < 10000
+    )
   return (
     <section className='space-y-4 border-t pt-4'>
       <h3 className='font-medium'>{t('Invoice tax charges')}</h3>
@@ -77,17 +85,36 @@ export function InvoiceTaxSettings() {
           {t('Collect invoice tax charges')}
         </Label>
       </div>
-      <div className='flex items-center gap-2'>
-        <Switch
-          id='invoice-legacy-enabled'
-          checked={!!config.legacy_topups_enabled}
-          onCheckedChange={(legacy_topups_enabled) =>
-            setDraft({ ...config, legacy_topups_enabled })
+      <div className='space-y-2'>
+        <Label htmlFor='invoice-legacy-before'>
+          {t('Allow orders completed before this date to request invoices')}
+        </Label>
+        <Input
+          id='invoice-legacy-before'
+          type='date'
+          min='1970-01-02'
+          max='9999-12-31'
+          value={
+            validCutoff && legacyBefore > 0
+              ? new Date((legacyBefore + 28800) * 1000)
+                  .toISOString()
+                  .slice(0, 10)
+              : ''
+          }
+          onChange={(event) =>
+            setDraft({
+              ...config,
+              legacy_invoice_before: event.target.value
+                ? Date.parse(`${event.target.value}T00:00:00+08:00`) / 1000
+                : 0,
+            })
           }
         />
-        <Label htmlFor='invoice-legacy-enabled'>
-          {t('Allow tax payments for historical recharge orders')}
-        </Label>
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'Only historical orders completed before 00:00 Beijing time on this date can pay tax to request an invoice. Leave empty to disable.'
+          )}
+        </p>
       </div>
       <div className='grid gap-4 sm:grid-cols-2'>
         {(['ordinary', 'special'] as const).map((type) => (

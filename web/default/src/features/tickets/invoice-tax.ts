@@ -4,7 +4,7 @@ export interface InvoiceTaxConfig {
   module_enabled: boolean
   invoice_workflow_required?: boolean
   enabled: boolean
-  legacy_topups_enabled?: boolean
+  legacy_invoice_before?: number
   mode: 'vat' | 'compound' | 'gross_up'
   ordinary_rate_bps: number
   special_rate_bps: number

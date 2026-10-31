@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -17,13 +19,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
-import { useAuthStore } from '@/stores/auth-store'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth-store'
+
 import type { TicketRefund } from './api'
 import { RefundFinanceDetail } from './components/refund-finance-detail'
 import { refundCash } from './refund-finance-format'
@@ -133,10 +135,16 @@ function RefundFinanceList(props: { userId: number; role: number }) {
                   <td className='p-3'>#{row.ticket_id}</td>
                   <td className='p-3'>{row.user_id}</td>
                   <td className='p-3'>
-                    {refundCash(row.refund_cash_cents ?? 0)}
+                    {row.settlement_status === 'waiting'
+                      ? '-'
+                      : refundCash(row.refund_cash_cents ?? 0)}
                   </td>
                   <td className='p-3'>
-                    {t(row.refund_status === 1 ? 'Pending' : 'Processed')}
+                    {t(
+                      row.refund_status === 1
+                        ? 'Awaiting settlement verification'
+                        : 'Processed'
+                    )}
                   </td>
                   <td className='p-3'>
                     <Button

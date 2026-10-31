@@ -77,7 +77,7 @@ func TestAdminGrantedInvoiceEligibilityDoesNotChangeFunds(t *testing.T) {
 			_, err = UpdateTopUpInvoiceType(order.Id, "special", "none")
 			require.NoError(t, err)
 			// Even enabling historical supplements must not override an explicit opt-out.
-			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600, LegacyTopUpsEnabled: true}))
+			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 600, LegacyTopUpsEnabled: true, LegacyInvoiceBefore: 4102416000}))
 			eligible, err = GetEligibleInvoiceOrders(user.Id, "ordinary")
 			require.NoError(t, err)
 			assert.Empty(t, eligible)

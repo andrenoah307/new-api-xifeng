@@ -20,7 +20,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button, Input, Modal } from '@douyinfe/semi-ui';
 import { CreditCard } from 'lucide-react';
 import { SiAlipay, SiWechat } from 'react-icons/si';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { API, showError } from '../../helpers';
 
 export default function EpayCheckout({ minimum, discountsEnabled }) {
@@ -147,7 +147,7 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
     <section className='space-y-4 border-b pb-5'>
       <div className='grid gap-4 sm:grid-cols-2'>
         <label className='space-y-2'>
-          <span>{t('Payment amount (CNY)')}</span>
+          <span>{t('Recharge amount (CNY)')}</span>
           <Input
             id='epay-payment-total'
             type='number'
@@ -196,10 +196,11 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
       >
         {step === 1 ? (
           <div className='space-y-4'>
-            <p className='whitespace-pre-line leading-relaxed'>
-              {t(
-                'Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.',
-              )}
+            <p className='leading-relaxed'>
+              <Trans
+                i18nKey='Confirm whether you need an <strong>invoice</strong> before payment. If required, select the invoice type in the next step. The payment includes tax; <strong>tax charges are deducted</strong> before calculating the credited balance. If no invoice is selected, no tax is charged and this order is not eligible for an invoice.'
+                components={{ strong: <strong /> }}
+              />
             </p>
             <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
               <Button
@@ -237,11 +238,13 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
           </div>
         ) : (
           <div className='space-y-4'>
-            <p>
-              {t(
-                'Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.',
-              )}
-            </p>
+            {invoiceType !== 'none' && (
+              <p>
+                {t(
+                  'Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.',
+                )}
+              </p>
+            )}
             {invoiceType !== 'none' && (
               <fieldset
                 disabled={paying}

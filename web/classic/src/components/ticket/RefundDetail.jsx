@@ -84,7 +84,14 @@ const RefundDetail = ({
   const [rejectLoading, setRejectLoading] = useState(false);
   const [invoicesExpanded, setInvoicesExpanded] = useState(false);
   const [registeredCorrections, setRegisteredCorrections] = useState([]);
-  const correctionsPending = refund?.finance_version === 1 && (!refund.finance || refund.finance.invoice_corrections.some((item) => item.status !== 'completed' && !registeredCorrections.includes(item.id)));
+  const correctionsPending =
+    refund?.finance_version === 1 &&
+    (!refund.finance ||
+      refund.finance.invoice_corrections.some(
+        (item) =>
+          item.status !== 'completed' &&
+          !registeredCorrections.includes(item.id),
+      ));
 
   const [quotaMode, setQuotaMode] = useState(QUOTA_MODE_WRITE_OFF);
   const [customAmountInput, setCustomAmountInput] = useState('');
@@ -265,419 +272,429 @@ const RefundDetail = ({
   }
 
   const isPending = refund.refund_status === REFUND_STATUS_PENDING;
-  const frozenAmount = formatAmount(refund.frozen_quota || refund.refund_quota);
+  const frozenAmount = formatAmount(refund.frozen_quota ?? 0);
   const requestedAmount = formatAmount(refund.refund_quota);
   const snapshotAmount = formatAmount(refund.user_quota_snapshot);
 
   return (
     <>
-    {userInvoices && userInvoices.length > 0 && (
-      <Banner
-        type='warning'
-        description={
-          <div>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>
-              {t('该用户存在发票申请记录')}
+      {userInvoices && userInvoices.length > 0 && (
+        <Banner
+          type='warning'
+          description={
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                {t('该用户存在发票申请记录')}
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'auto 1fr auto auto',
+                  gap: '4px 16px',
+                  fontSize: 13,
+                  maxWidth: 672,
+                }}
+              >
+                <span style={{ color: 'var(--semi-color-text-2)' }}>
+                  {t('申请时间')}
+                </span>
+                <span style={{ color: 'var(--semi-color-text-2)' }}>
+                  {t('公司抬头')}
+                </span>
+                <span style={{ color: 'var(--semi-color-text-2)' }}>
+                  {t('发票金额')}
+                </span>
+                <span style={{ color: 'var(--semi-color-text-2)' }}>
+                  {t('状态')}
+                </span>
+                <span>{timestamp2string(userInvoices[0].created_time)}</span>
+                <span>{userInvoices[0].company_name}</span>
+                <span>&yen;{userInvoices[0].total_money?.toFixed(2)}</span>
+                <Tag
+                  color={getInvoiceStatusColor(userInvoices[0].invoice_status)}
+                  size='small'
+                >
+                  {getInvoiceStatusText(userInvoices[0].invoice_status, t)}
+                </Tag>
+              </div>
+              {userInvoices.length > 1 && !invoicesExpanded && (
+                <Button
+                  theme='borderless'
+                  size='small'
+                  onClick={() => setInvoicesExpanded(true)}
+                  style={{ marginTop: 4 }}
+                >
+                  {t('展开更多')} ({userInvoices.length - 1} {t('条')})
+                </Button>
+              )}
+              {invoicesExpanded &&
+                userInvoices.slice(1).map((inv) => (
+                  <div
+                    key={inv.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'auto 1fr auto auto',
+                      gap: '4px 16px',
+                      fontSize: 13,
+                      marginTop: 4,
+                      maxWidth: 672,
+                    }}
+                  >
+                    <span>{timestamp2string(inv.created_time)}</span>
+                    <span>{inv.company_name}</span>
+                    <span>&yen;{inv.total_money?.toFixed(2)}</span>
+                    <Tag
+                      color={getInvoiceStatusColor(inv.invoice_status)}
+                      size='small'
+                    >
+                      {getInvoiceStatusText(inv.invoice_status, t)}
+                    </Tag>
+                  </div>
+                ))}
+              {invoicesExpanded && (
+                <Button
+                  theme='borderless'
+                  size='small'
+                  onClick={() => setInvoicesExpanded(false)}
+                  style={{ marginTop: 4 }}
+                >
+                  {t('收起')}
+                </Button>
+              )}
             </div>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'auto 1fr auto auto',
-                gap: '4px 16px',
-                fontSize: 13,
-                maxWidth: 672,
-              }}
-            >
-              <span style={{ color: 'var(--semi-color-text-2)' }}>
-                {t('申请时间')}
-              </span>
-              <span style={{ color: 'var(--semi-color-text-2)' }}>
-                {t('公司抬头')}
-              </span>
-              <span style={{ color: 'var(--semi-color-text-2)' }}>
-                {t('发票金额')}
-              </span>
-              <span style={{ color: 'var(--semi-color-text-2)' }}>
-                {t('状态')}
-              </span>
-              <span>
-                {timestamp2string(userInvoices[0].created_time)}
-              </span>
-              <span>{userInvoices[0].company_name}</span>
-              <span>
-                &yen;{userInvoices[0].total_money?.toFixed(2)}
-              </span>
+          }
+          closeIcon={null}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+      <Card className='!rounded-2xl shadow-sm border-0'>
+        <div className='flex flex-col gap-4'>
+          {/* 头部：标题 + 状态 + 操作按钮 */}
+          <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+            <Space align='center'>
+              <Title heading={5} className='!mb-0'>
+                {t('退款信息')}
+              </Title>
               <Tag
-                color={getInvoiceStatusColor(
-                  userInvoices[0].invoice_status,
-                )}
-                size='small'
+                color={getRefundStatusColor(refund.refund_status)}
+                shape='circle'
               >
-                {getInvoiceStatusText(userInvoices[0].invoice_status, t)}
+                {isPending
+                  ? t('Awaiting settlement verification')
+                  : getRefundStatusText(refund.refund_status, t)}
               </Tag>
-            </div>
-            {userInvoices.length > 1 && !invoicesExpanded && (
-              <Button
-                theme='borderless'
-                size='small'
-                onClick={() => setInvoicesExpanded(true)}
-                style={{ marginTop: 4 }}
-              >
-                {t('展开更多')} ({userInvoices.length - 1} {t('条')})
-              </Button>
-            )}
-            {invoicesExpanded &&
-              userInvoices.slice(1).map((inv) => (
-                <div
-                  key={inv.id}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'auto 1fr auto auto',
-                    gap: '4px 16px',
-                    fontSize: 13,
-                    marginTop: 4,
-                    maxWidth: 672,
+            </Space>
+            {!readonly && typeof onStatusChange === 'function' && (
+              <Space wrap>
+                <Button
+                  theme='light'
+                  type='danger'
+                  loading={loading}
+                  disabled={!isPending}
+                  onClick={() => {
+                    setRejectReason('');
+                    setRejectVisible(true);
                   }}
                 >
-                  <span>{timestamp2string(inv.created_time)}</span>
-                  <span>{inv.company_name}</span>
-                  <span>&yen;{inv.total_money?.toFixed(2)}</span>
-                  <Tag
-                    color={getInvoiceStatusColor(inv.invoice_status)}
-                    size='small'
-                  >
-                    {getInvoiceStatusText(inv.invoice_status, t)}
-                  </Tag>
-                </div>
-              ))}
-            {invoicesExpanded && (
-              <Button
-                theme='borderless'
-                size='small'
-                onClick={() => setInvoicesExpanded(false)}
-                style={{ marginTop: 4 }}
-              >
-                {t('收起')}
-              </Button>
+                  {t('Reject')}
+                </Button>
+              </Space>
             )}
           </div>
-        }
-        closeIcon={null}
-        style={{ marginBottom: 16 }}
-      />
-    )}
-    <Card className='!rounded-2xl shadow-sm border-0'>
-      <div className='flex flex-col gap-4'>
-        {/* 头部：标题 + 状态 + 操作按钮 */}
-        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
-          <Space align='center'>
-            <Title heading={5} className='!mb-0'>
-              {t('退款信息')}
-            </Title>
-            <Tag
-              color={getRefundStatusColor(refund.refund_status)}
-              shape='circle'
-            >
-              {getRefundStatusText(refund.refund_status, t)}
-            </Tag>
-          </Space>
-          {!readonly && typeof onStatusChange === 'function' && (
-            <Space wrap>
-              <Button
-                theme='light'
-                type='danger'
-                loading={loading}
-                disabled={!isPending}
-                onClick={() => {
-                  setRejectReason('');
-                  setRejectVisible(true);
-                }}
-              >
-                {t('驳回并解冻')}
-              </Button>
-              <Button
-                theme='solid'
-                type='primary'
-                loading={loading}
-                disabled={!isPending || correctionsPending}
-                onClick={() => setResolveVisible(true)}
-              >
-                {t('完成退款')}
-              </Button>
-            </Space>
+
+          {refund.finance && (
+            <RefundFinanceDetail
+              finance={refund.finance}
+              ticketId={refund.ticket_id}
+              onUpdated={(id, status) => {
+                if (status === 'completed')
+                  setRegisteredCorrections((items) => [...items, id]);
+              }}
+            />
           )}
-        </div>
-
-        {refund.finance && <RefundFinanceDetail finance={refund.finance} ticketId={refund.ticket_id} onUpdated={(id, status) => { if (status === 'completed') setRegisteredCorrections((items) => [...items, id]); }} />}
-        {/* 金额高亮区 */}
-        <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
-          <div
-            className='rounded-2xl p-4'
-            style={{ background: 'var(--semi-color-primary-light-default)' }}
-          >
-            <Text type='secondary' size='small'>
-              {t('申请退款金额')}
-            </Text>
-            <div className='mt-1'>
-              <Text
-                strong
-                style={{
-                  fontSize: 24,
-                  color: 'var(--semi-color-primary)',
-                }}
-              >
-                {requestedAmount}
-              </Text>
-            </div>
-          </div>
-          <div
-            className='rounded-2xl p-4'
-            style={{
-              background: isPending
-                ? 'var(--semi-color-warning-light-default)'
-                : 'var(--semi-color-fill-0)',
-            }}
-          >
-            <Text type='secondary' size='small'>
-              {isPending ? t('冻结中金额') : t('冻结记录')}
-            </Text>
-            <div className='mt-1'>
-              <Text
-                strong
-                style={{
-                  fontSize: 20,
-                  color: isPending ? 'var(--semi-color-warning)' : undefined,
-                }}
-              >
-                {frozenAmount}
-              </Text>
-            </div>
-            <Text type='tertiary' size='small'>
-              {isPending
-                ? t('该金额已从用户可用额度中预扣除')
-                : t('工单处理完成后冻结已解除')}
-            </Text>
-          </div>
-          <div
-            className='rounded-2xl p-4'
-            style={{ background: 'var(--semi-color-fill-0)' }}
-          >
-            <Text type='secondary' size='small'>
-              {t('提交时可用额度')}
-            </Text>
-            <div className='mt-1'>
-              <Text strong style={{ fontSize: 20 }}>
-                {snapshotAmount}
-              </Text>
-            </div>
-          </div>
-        </div>
-
-        {/* 收款信息 */}
-        <div>
-          <Text strong className='block mb-2'>
-            {t('收款信息')}
-          </Text>
-          <Descriptions data={payeeRows} />
-        </div>
-
-        {/* 退款原因 */}
-        <div>
-          <Text strong className='block mb-2'>
-            {t('退款原因')}
-          </Text>
-          <div
-            className='rounded-xl p-3'
-            style={{ background: 'var(--semi-color-fill-0)' }}
-          >
-            {refund.reason ? (
-              <Text style={{ whiteSpace: 'pre-wrap' }}>{refund.reason}</Text>
-            ) : (
-              <Text type='tertiary'>{t('用户未填写')}</Text>
-            )}
-          </div>
-        </div>
-
-        {/* 时间 */}
-        <div className='flex flex-wrap gap-x-6 gap-y-1'>
-          <Text type='tertiary' size='small'>
-            {t('提交时间')}：
-            {refund.created_time ? timestamp2string(refund.created_time) : '-'}
-          </Text>
-          <Text type='tertiary' size='small'>
-            {t('处理时间')}：
-            {refund.processed_time
-              ? timestamp2string(refund.processed_time)
-              : '-'}
-          </Text>
-        </div>
-      </div>
-
-      {/* 驳回 Modal */}
-      <Modal
-        centered
-        visible={rejectVisible}
-        onOk={handleRejectConfirm}
-        onCancel={() => {
-          setRejectVisible(false);
-          setRejectReason('');
-        }}
-        confirmLoading={rejectLoading}
-        okText={t('确认驳回')}
-        okButtonProps={{ type: 'danger', theme: 'solid' }}
-        cancelText={t('取消')}
-        title={t('驳回退款申请')}
-      >
-        <div className='mb-3'>
-          <Text type='secondary'>
-            {t(
-              '驳回后工单回到处理中状态，冻结的额度会立即归还给用户可用额度，用户可再次发起退款申请。',
-            )}
-          </Text>
-        </div>
-        <div>
-          <div className='mb-1'>
-            <Text size='small'>
-              {t('驳回理由')}
-              <Text type='tertiary' size='small' className='ml-1'>
-                （{t('选填，会作为一条回复发送给用户')}）
-              </Text>
-            </Text>
-          </div>
-          <TextArea
-            value={rejectReason}
-            onChange={setRejectReason}
-            autosize={{ minRows: 3, maxRows: 6 }}
-            maxLength={2000}
-            placeholder={t('例如：收款信息有误，请补充更新后再提交')}
-            showClear
-          />
-        </div>
-      </Modal>
-
-      {/* 完成退款 Modal */}
-      <Modal
-        centered
-        visible={resolveVisible}
-        onOk={handleResolveConfirm}
-        onCancel={() => setResolveVisible(false)}
-        confirmLoading={resolveLoading}
-        okText={t('确认完成退款')}
-        okButtonProps={{ disabled: !isResolveConfirmEnabled || correctionsPending }}
-        cancelText={t('取消')}
-        title={t('完成退款')}
-        bodyStyle={{
-          maxHeight: 'calc(80vh - 120px)',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-        }}
-      >
-        <div className='flex flex-col gap-3'>
-          <Banner
-            type='info'
-            closeIcon={null}
-            description={t(
-              '请根据实际线下打款情况选择额度处理方式。操作将写入用户日志，便于日后追溯。',
-            )}
-          />
-
-          <div
-            className='rounded-xl p-3'
-            style={{ background: 'var(--semi-color-fill-0)' }}
-          >
-            <div className='flex flex-wrap gap-x-6 gap-y-1'>
-              <Text type='secondary' size='small'>
-                {t('申请退款金额')}：
-                <Text strong>{requestedAmount}</Text>
-              </Text>
-              <Text type='secondary' size='small'>
-                {t('当前冻结金额')}：
-                <Text strong>{frozenAmount}</Text>
-              </Text>
-              <Text type='secondary' size='small'>
-                {t('用户当前余额')}：
-                <Text strong>
-                  {targetUserQuotaLoading || targetUserQuota === null
-                    ? '-'
-                    : formatAmount(targetUserQuota)}
-                </Text>
-              </Text>
-            </div>
-            <div className='mt-2'>
-              <Text type='tertiary' size='small'>
-                {t('收款方')}：{refund.payee_name} ·{' '}
-                {getRefundPayeeTypeText(refund.payee_type, t)} ·{' '}
-                {refund.payee_account}
-              </Text>
-            </div>
-          </div>
-
-          <div>
-            <div className='mb-2'>
-              <Text size='small' strong>
-                {t('额度处理方式')}
-              </Text>
-            </div>
-            <RadioGroup
-              value={quotaMode}
-              onChange={(e) => setQuotaMode(e.target.value)}
-              direction='vertical'
+          {isPending && (
+            <p role='status'>
+              {t(
+                'Awaiting settlement verification. The refund amount must be confirmed again after verification.',
+              )}
+            </p>
+          )}
+          {/* 金额高亮区 */}
+          <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
+            <div
+              className='rounded-2xl p-4'
+              style={{ background: 'var(--semi-color-primary-light-default)' }}
             >
-              <Radio value={QUOTA_MODE_WRITE_OFF}>
-                <Text>{t('核销冻结额度')}</Text>
-                <Text type='tertiary' size='small' className='ml-2'>
-                  {t('推荐：按冻结金额')}{frozenAmount}
-                  {t('核销，用户余额不变')}
-                </Text>
-              </Radio>
-              {refund.finance_version !== 1 && <Radio value={QUOTA_MODE_SUBTRACT}>
-                <Text>{t('自定义扣减额度')}</Text>
-                <Text type='tertiary' size='small' className='ml-2'>
-                  {t('先解冻回用户余额，再按下方金额扣减')}
-                </Text>
-              </Radio>}
-              {refund.finance_version !== 1 && <Radio value={QUOTA_MODE_OVERRIDE}>
-                <Text>{t('覆盖最终余额')}</Text>
-                <Text type='tertiary' size='small' className='ml-2'>
-                  {t('先解冻回用户余额，再把余额设为下方金额')}
-                </Text>
-              </Radio>}
-            </RadioGroup>
-          </div>
-
-          {quotaMode !== QUOTA_MODE_WRITE_OFF && (
-            <div>
-              <div className='mb-1'>
-                <Text size='small'>
-                  {quotaMode === QUOTA_MODE_SUBTRACT
-                    ? t('实际扣减金额')
-                    : t('用户最终余额')}
-                </Text>
-              </div>
-              <InputNumber
-                value={customAmountInput}
-                onChange={(v) => setCustomAmountInput(v)}
-                prefix={currencySymbol}
-                placeholder={
-                  quotaMode === QUOTA_MODE_SUBTRACT
-                    ? t('请输入实际扣减金额')
-                    : t('请输入用户最终余额')
-                }
-                precision={6}
-                step={0.000001}
-                min={0}
-                style={{ width: '100%' }}
-              />
+              <Text type='secondary' size='small'>
+                {t('申请退款金额')}
+              </Text>
               <div className='mt-1'>
-                <Text type='tertiary' size='small'>
-                  {resolvePreviewText}
+                <Text
+                  strong
+                  style={{
+                    fontSize: 24,
+                    color: 'var(--semi-color-primary)',
+                  }}
+                >
+                  {requestedAmount}
                 </Text>
               </div>
             </div>
-          )}
+            <div
+              className='rounded-2xl p-4'
+              style={{
+                background: isPending
+                  ? 'var(--semi-color-warning-light-default)'
+                  : 'var(--semi-color-fill-0)',
+              }}
+            >
+              <Text type='secondary' size='small'>
+                {isPending ? t('冻结中金额') : t('冻结记录')}
+              </Text>
+              <div className='mt-1'>
+                <Text
+                  strong
+                  style={{
+                    fontSize: 20,
+                    color: isPending ? 'var(--semi-color-warning)' : undefined,
+                  }}
+                >
+                  {frozenAmount}
+                </Text>
+              </div>
+              <Text type='tertiary' size='small'>
+                {refund.frozen_quota > 0
+                  ? t('该金额已从用户可用额度中预扣除')
+                  : t('No balance has been frozen.')}
+              </Text>
+            </div>
+            <div
+              className='rounded-2xl p-4'
+              style={{ background: 'var(--semi-color-fill-0)' }}
+            >
+              <Text type='secondary' size='small'>
+                {t('提交时可用额度')}
+              </Text>
+              <div className='mt-1'>
+                <Text strong style={{ fontSize: 20 }}>
+                  {snapshotAmount}
+                </Text>
+              </div>
+            </div>
+          </div>
+
+          {/* 收款信息 */}
+          <div>
+            <Text strong className='block mb-2'>
+              {t('收款信息')}
+            </Text>
+            <Descriptions data={payeeRows} />
+          </div>
+
+          {/* 退款原因 */}
+          <div>
+            <Text strong className='block mb-2'>
+              {t('退款原因')}
+            </Text>
+            <div
+              className='rounded-xl p-3'
+              style={{ background: 'var(--semi-color-fill-0)' }}
+            >
+              {refund.reason ? (
+                <Text style={{ whiteSpace: 'pre-wrap' }}>{refund.reason}</Text>
+              ) : (
+                <Text type='tertiary'>{t('用户未填写')}</Text>
+              )}
+            </div>
+          </div>
+
+          {/* 时间 */}
+          <div className='flex flex-wrap gap-x-6 gap-y-1'>
+            <Text type='tertiary' size='small'>
+              {t('提交时间')}：
+              {refund.created_time
+                ? timestamp2string(refund.created_time)
+                : '-'}
+            </Text>
+            <Text type='tertiary' size='small'>
+              {t('处理时间')}：
+              {refund.processed_time
+                ? timestamp2string(refund.processed_time)
+                : '-'}
+            </Text>
+          </div>
         </div>
-      </Modal>
-    </Card>
+
+        {/* 驳回 Modal */}
+        <Modal
+          centered
+          visible={rejectVisible}
+          onOk={handleRejectConfirm}
+          onCancel={() => {
+            setRejectVisible(false);
+            setRejectReason('');
+          }}
+          confirmLoading={rejectLoading}
+          okText={t('确认驳回')}
+          okButtonProps={{ type: 'danger', theme: 'solid' }}
+          cancelText={t('取消')}
+          title={t('驳回退款申请')}
+        >
+          <div className='mb-3'>
+            <Text type='secondary'>
+              {t(
+                '驳回后工单回到处理中状态，冻结的额度会立即归还给用户可用额度，用户可再次发起退款申请。',
+              )}
+            </Text>
+          </div>
+          <div>
+            <div className='mb-1'>
+              <Text size='small'>
+                {t('驳回理由')}
+                <Text type='tertiary' size='small' className='ml-1'>
+                  （{t('选填，会作为一条回复发送给用户')}）
+                </Text>
+              </Text>
+            </div>
+            <TextArea
+              value={rejectReason}
+              onChange={setRejectReason}
+              autosize={{ minRows: 3, maxRows: 6 }}
+              maxLength={2000}
+              placeholder={t('例如：收款信息有误，请补充更新后再提交')}
+              showClear
+            />
+          </div>
+        </Modal>
+
+        {/* 完成退款 Modal */}
+        <Modal
+          centered
+          visible={resolveVisible}
+          onOk={handleResolveConfirm}
+          onCancel={() => setResolveVisible(false)}
+          confirmLoading={resolveLoading}
+          okText={t('确认完成退款')}
+          okButtonProps={{
+            disabled: !isResolveConfirmEnabled || correctionsPending,
+          }}
+          cancelText={t('取消')}
+          title={t('完成退款')}
+          bodyStyle={{
+            maxHeight: 'calc(80vh - 120px)',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          }}
+        >
+          <div className='flex flex-col gap-3'>
+            <Banner
+              type='info'
+              closeIcon={null}
+              description={t(
+                '请根据实际线下打款情况选择额度处理方式。操作将写入用户日志，便于日后追溯。',
+              )}
+            />
+
+            <div
+              className='rounded-xl p-3'
+              style={{ background: 'var(--semi-color-fill-0)' }}
+            >
+              <div className='flex flex-wrap gap-x-6 gap-y-1'>
+                <Text type='secondary' size='small'>
+                  {t('申请退款金额')}：<Text strong>{requestedAmount}</Text>
+                </Text>
+                <Text type='secondary' size='small'>
+                  {t('当前冻结金额')}：<Text strong>{frozenAmount}</Text>
+                </Text>
+                <Text type='secondary' size='small'>
+                  {t('用户当前余额')}：
+                  <Text strong>
+                    {targetUserQuotaLoading || targetUserQuota === null
+                      ? '-'
+                      : formatAmount(targetUserQuota)}
+                  </Text>
+                </Text>
+              </div>
+              <div className='mt-2'>
+                <Text type='tertiary' size='small'>
+                  {t('收款方')}：{refund.payee_name} ·{' '}
+                  {getRefundPayeeTypeText(refund.payee_type, t)} ·{' '}
+                  {refund.payee_account}
+                </Text>
+              </div>
+            </div>
+
+            <div>
+              <div className='mb-2'>
+                <Text size='small' strong>
+                  {t('额度处理方式')}
+                </Text>
+              </div>
+              <RadioGroup
+                value={quotaMode}
+                onChange={(e) => setQuotaMode(e.target.value)}
+                direction='vertical'
+              >
+                <Radio value={QUOTA_MODE_WRITE_OFF}>
+                  <Text>{t('核销冻结额度')}</Text>
+                  <Text type='tertiary' size='small' className='ml-2'>
+                    {t('推荐：按冻结金额')}
+                    {frozenAmount}
+                    {t('核销，用户余额不变')}
+                  </Text>
+                </Radio>
+                {refund.finance_version !== 1 && (
+                  <Radio value={QUOTA_MODE_SUBTRACT}>
+                    <Text>{t('自定义扣减额度')}</Text>
+                    <Text type='tertiary' size='small' className='ml-2'>
+                      {t('先解冻回用户余额，再按下方金额扣减')}
+                    </Text>
+                  </Radio>
+                )}
+                {refund.finance_version !== 1 && (
+                  <Radio value={QUOTA_MODE_OVERRIDE}>
+                    <Text>{t('覆盖最终余额')}</Text>
+                    <Text type='tertiary' size='small' className='ml-2'>
+                      {t('先解冻回用户余额，再把余额设为下方金额')}
+                    </Text>
+                  </Radio>
+                )}
+              </RadioGroup>
+            </div>
+
+            {quotaMode !== QUOTA_MODE_WRITE_OFF && (
+              <div>
+                <div className='mb-1'>
+                  <Text size='small'>
+                    {quotaMode === QUOTA_MODE_SUBTRACT
+                      ? t('实际扣减金额')
+                      : t('用户最终余额')}
+                  </Text>
+                </div>
+                <InputNumber
+                  value={customAmountInput}
+                  onChange={(v) => setCustomAmountInput(v)}
+                  prefix={currencySymbol}
+                  placeholder={
+                    quotaMode === QUOTA_MODE_SUBTRACT
+                      ? t('请输入实际扣减金额')
+                      : t('请输入用户最终余额')
+                  }
+                  precision={6}
+                  step={0.000001}
+                  min={0}
+                  style={{ width: '100%' }}
+                />
+                <div className='mt-1'>
+                  <Text type='tertiary' size='small'>
+                    {resolvePreviewText}
+                  </Text>
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+      </Card>
     </>
   );
 };

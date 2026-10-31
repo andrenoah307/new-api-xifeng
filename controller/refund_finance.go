@@ -44,6 +44,21 @@ func QuoteRefundFinance(c *gin.Context) {
 	common.ApiSuccess(c, detail)
 }
 
+func GetRefundEligibility(c *gin.Context) {
+	user, err := getTicketCurrentUser(c)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	eligibility, err := model.GetRefundEligibility(user.Id)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, eligibility)
+}
+
 func ListRefundFinance(c *gin.Context) {
 	if !authorizeRefundFinance(c) {
 		return
@@ -149,6 +164,10 @@ func ExportRefundFinance(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	if refund.RefundStatus == model.RefundStatusPending && len(refund.Finance.Allocations) == 0 {
+		common.ApiError(c, model.ErrRefundSettlementUnconfirmed)
+		return
+	}
 	corrections := map[int]model.RefundInvoiceCorrection{}
 	for _, correction := range refund.Finance.InvoiceCorrections {
 		corrections[correction.InvoiceTicketId] = correction
@@ -164,7 +183,7 @@ func ExportRefundFinance(c *gin.Context) {
 	for _, row := range refund.Finance.Allocations {
 		correction := corrections[row.InvoiceTicketID]
 		values := []string{strconv.Itoa(id), strconv.Itoa(refund.UserId), row.TradeNo, strconv.Itoa(row.InvoiceTicketID), refundCentsText(row.OriginalPaidCents), strconv.FormatInt(row.OriginalQuota, 10), strconv.FormatInt(row.UsedQuota, 10), strconv.FormatInt(row.RefundableQuota, 10), strconv.FormatInt(row.RefundQuota, 10), refundCentsText(row.RefundCents - row.RefundTaxCents), refundCentsText(row.RefundTaxCents), refundCentsText(row.RefundCents), refundCentsText(row.UsedInvoiceCents), refundCentsText(row.RemainingInvoiceCents), refundCentsText(correction.OriginalCents), refundCentsText(correction.OriginalCents), refundCentsText(correction.ReissueCents), correction.OriginalReference, correction.RedReference, correction.ReissueReference, correction.Status, correction.Evidence}
-		status := map[int]string{model.RefundStatusPending: "待审核", model.RefundStatusRefunded: "已退款", model.RefundStatusRejected: "已驳回", model.RefundStatusCancelled: "已取消"}
+		status := map[int]string{model.RefundStatusPending: "等待结算核验", model.RefundStatusRefunded: "已退款", model.RefundStatusRejected: "已驳回", model.RefundStatusCancelled: "已取消"}
 		values = append(values, status[refund.RefundStatus])
 		denominator, err := decimal.NewFromString(row.QuotaPerUnit)
 		if err != nil || !denominator.IsPositive() {

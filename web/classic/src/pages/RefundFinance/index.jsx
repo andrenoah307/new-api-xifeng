@@ -113,10 +113,16 @@ function RefundFinanceList() {
                 <td className='p-3'>#{row.ticket_id}</td>
                 <td className='p-3'>{row.user_id}</td>
                 <td className='p-3'>
-                  {refundCash(row.refund_cash_cents ?? 0)}
+                  {row.settlement_status === 'waiting'
+                    ? '-'
+                    : refundCash(row.refund_cash_cents ?? 0)}
                 </td>
                 <td className='p-3'>
-                  {t(row.refund_status === 1 ? 'Pending' : 'Processed')}
+                  {t(
+                    row.refund_status === 1
+                      ? 'Awaiting settlement verification'
+                      : 'Processed',
+                  )}
                 </td>
                 <td className='p-3'>
                   <Button onClick={() => setSelected(row.ticket_id)}>

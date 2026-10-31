@@ -17,6 +17,7 @@ import { formatTimestampToDate } from '@/lib/format'
 
 import type { TicketInvoice, TicketInvoiceOrder } from '../api'
 import { INVOICE_STATUS_CONFIG } from '../constants'
+import { refundCash } from '../refund-finance-format'
 import { InvoiceTaxPayment } from './invoice-tax-payment'
 
 interface InvoiceDetailProps {
@@ -40,6 +41,15 @@ export function InvoiceDetail({
   const [rejectInvoiceId, setRejectInvoiceId] = useState<number | null>(null)
   const statusCfg = INVOICE_STATUS_CONFIG[invoice.invoice_status]
   const remark = invoice.remark?.trim() || fallbackRemark?.trim() || ''
+  const net = invoice.invoice_net_cents ?? Number.NaN
+  const tax = invoice.invoice_tax_cents ?? Number.NaN
+  const total =
+    Number.isSafeInteger(net) &&
+    Number.isSafeInteger(tax) &&
+    net >= 0 &&
+    tax >= 0
+      ? net + tax
+      : Number.NaN
 
   return (
     <Card>
@@ -54,7 +64,7 @@ export function InvoiceDetail({
         )}
       </CardHeader>
       <CardContent className='space-y-4'>
-        {invoice.invoice_type && (
+        {invoice.invoice_type && !invoice.tax_charge && (
           <dl className='grid grid-cols-2 gap-2 text-sm'>
             <dt>{t('Invoice type')}</dt>
             <dd>
@@ -65,9 +75,17 @@ export function InvoiceDetail({
               )}
             </dd>
             <dt>{t('Net amount (CNY)')}</dt>
-            <dd>{((invoice.invoice_net_cents ?? 0) / 100).toFixed(2)}</dd>
+            <dd>{refundCash(net)}</dd>
             <dt>{t('Tax charge (CNY)')}</dt>
-            <dd>{((invoice.invoice_tax_cents ?? 0) / 100).toFixed(2)}</dd>
+            <dd>{refundCash(tax)}</dd>
+            <dt>{t('Payment breakdown')}</dt>
+            <dd className='break-words'>
+              {t('Net amount {{net}} + tax {{tax}} = payment {{total}}', {
+                net: refundCash(net),
+                tax: refundCash(tax),
+                total: refundCash(total),
+              })}
+            </dd>
           </dl>
         )}
         {invoice.tax_charge && (

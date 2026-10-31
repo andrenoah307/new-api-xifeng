@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"gorm.io/gorm"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -84,17 +85,8 @@ func TestRefundClawbackHappyPath(t *testing.T) {
 	truncateTables(t)
 	fx := seedClawbackScenario(t, 10000, 20000, 5000, 100, 25_000_000)
 
-	refund, ticket, _, clawback, err := UpdateRefundStatus(UpdateRefundStatusParams{
-		TicketId:           fx.ticketId,
-		AdminId:            1,
-		RefundStatus:       RefundStatusRefunded,
-		QuotaMode:          RefundQuotaModeWriteOff,
-		ClawBackCommission: true,
-		ClawBackQuota:      3000,
-	})
+	clawback, err := runHistoricalClawback(t, fx.ticketId, 3000)
 	require.NoError(t, err)
-	require.Equal(t, RefundStatusRefunded, refund.RefundStatus)
-	require.Equal(t, TicketStatusResolved, ticket.Status)
 	require.NotNil(t, clawback)
 	assert.Equal(t, fx.inviterId, clawback.InviterId)
 	assert.Equal(t, 3000, clawback.ClawedQuota)
@@ -117,13 +109,7 @@ func TestRefundClawbackClampsToInviterAffQuota(t *testing.T) {
 	// 邀请人只剩 1200 aff（已转出一部分），请求扣 5000 → 只能扣 1200。
 	fx := seedClawbackScenario(t, 1200, 20000, 5000, 100, 25_000_000)
 
-	_, _, _, clawback, err := UpdateRefundStatus(UpdateRefundStatusParams{
-		TicketId:           fx.ticketId,
-		AdminId:            1,
-		RefundStatus:       RefundStatusRefunded,
-		ClawBackCommission: true,
-		ClawBackQuota:      5000,
-	})
+	clawback, err := runHistoricalClawback(t, fx.ticketId, 5000)
 	require.NoError(t, err)
 	require.NotNil(t, clawback)
 	assert.Equal(t, 1200, clawback.ClawedQuota)
@@ -143,13 +129,7 @@ func TestRefundClawbackClampsToInviterAffHistory(t *testing.T) {
 	require.NotNil(t, info)
 	assert.Equal(t, 800, info.ClawbackableQuota)
 
-	_, _, _, clawback, err := UpdateRefundStatus(UpdateRefundStatusParams{
-		TicketId:           fx.ticketId,
-		AdminId:            1,
-		RefundStatus:       RefundStatusRefunded,
-		ClawBackCommission: true,
-		ClawBackQuota:      5000,
-	})
+	clawback, err := runHistoricalClawback(t, fx.ticketId, 5000)
 	require.NoError(t, err)
 	require.NotNil(t, clawback)
 	assert.Equal(t, 800, clawback.ClawedQuota)
@@ -171,13 +151,7 @@ func TestRefundClawbackClampsToNetCommission(t *testing.T) {
 		Type:            CommissionTypeRefundClawback,
 	}).Error)
 
-	_, _, _, clawback, err := UpdateRefundStatus(UpdateRefundStatusParams{
-		TicketId:           fx.ticketId,
-		AdminId:            1,
-		RefundStatus:       RefundStatusRefunded,
-		ClawBackCommission: true,
-		ClawBackQuota:      5000,
-	})
+	clawback, err := runHistoricalClawback(t, fx.ticketId, 5000)
 	require.NoError(t, err)
 	require.NotNil(t, clawback)
 	assert.Equal(t, 2000, clawback.ClawedQuota)
@@ -202,15 +176,8 @@ func TestRefundClawbackNoInviterIsNoop(t *testing.T) {
 		PayeeType:    RefundPayeeTypeAlipay, PayeeName: "n", PayeeAccount: "a", Contact: "c",
 	}).Error)
 
-	refund, _, _, clawback, err := UpdateRefundStatus(UpdateRefundStatusParams{
-		TicketId:           ticket.Id,
-		AdminId:            1,
-		RefundStatus:       RefundStatusRefunded,
-		ClawBackCommission: true,
-		ClawBackQuota:      3000,
-	})
+	clawback, err := runHistoricalClawback(t, ticket.Id, 3000)
 	require.NoError(t, err)
-	require.Equal(t, RefundStatusRefunded, refund.RefundStatus)
 	require.NotNil(t, clawback)
 	assert.Equal(t, 0, clawback.ClawedQuota)
 
@@ -289,4 +256,19 @@ func TestGetRefundCommissionInfoNoInviter(t *testing.T) {
 	info, err := GetRefundCommissionInfo(&TicketRefund{UserId: user.Id, RefundQuota: 1000})
 	require.NoError(t, err)
 	assert.Nil(t, info)
+}
+
+func runHistoricalClawback(t *testing.T, ticketID, amount int) (*CommissionClawbackResult, error) {
+	t.Helper()
+	var result *CommissionClawbackResult
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var refund TicketRefund
+		if err := tx.Where("ticket_id = ?", ticketID).First(&refund).Error; err != nil {
+			return err
+		}
+		var err error
+		result, err = applyCommissionClawback(tx, &refund, amount)
+		return err
+	})
+	return result, err
 }

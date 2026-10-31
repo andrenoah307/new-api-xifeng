@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { invoiceTaxModes, type InvoiceTaxCharge } from '../invoice-tax'
+import { refundCash } from '../refund-finance-format'
 
 export function InvoiceTaxPayment({
   charge,
@@ -48,6 +49,13 @@ export function InvoiceTaxPayment({
     paid: t('Tax paid'),
     refunded: t('Tax refunded to balance'),
   }
+  let equationKey = 'Net amount {{net}} + tax {{tax}} = invoice total {{total}}'
+  if (current.status === 'paid') {
+    equationKey = 'Net amount {{net}} + tax {{tax}} = payment {{total}}'
+  }
+  if (current.status === 'pending') {
+    equationKey = 'Net amount {{net}} + tax {{tax}} = amount due {{total}}'
+  }
   return (
     <section className='space-y-3 border-y py-3 text-sm'>
       <dl className='grid grid-cols-2 gap-2'>
@@ -75,6 +83,13 @@ export function InvoiceTaxPayment({
         <dt>{t('Status')}</dt>
         <dd>{statusLabels[current.status]}</dd>
       </dl>
+      <p className='break-words'>
+        {t(equationKey, {
+          net: refundCash(current.base_cents),
+          tax: refundCash(current.fee_cents),
+          total: refundCash(current.total_cents),
+        })}
+      </p>
       {owner && current.status === 'pending' && !rejected && (
         <div className='flex flex-wrap gap-2'>
           {(details.data?.payment_methods ?? [])

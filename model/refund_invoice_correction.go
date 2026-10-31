@@ -106,8 +106,8 @@ func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocat
 	return nil
 }
 
-// Claim before external invoice work; the irreversible-operation fence prevents
-// cancellation from restoring the wallet while finance is issuing red invoices.
+// New external invoice work must wait until wallet liabilities can be proven
+// settled. Existing processing corrections can still record their evidence.
 func StartRefundInvoiceCorrection(correctionID, actorID int) (*RefundInvoiceCorrection, error) {
 	if correctionID <= 0 || actorID <= 0 {
 		return nil, ErrRefundInvoiceCorrection
@@ -116,7 +116,6 @@ func StartRefundInvoiceCorrection(correctionID, actorID int) (*RefundInvoiceCorr
 	if err := DB.First(&known, correctionID).Error; err != nil {
 		return nil, err
 	}
-	var result RefundInvoiceCorrection
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var owner User
 		if err := lockForUpdate(tx).First(&owner, known.UserId).Error; err != nil {
@@ -130,23 +129,9 @@ func StartRefundInvoiceCorrection(correctionID, actorID int) (*RefundInvoiceCorr
 		if err := lockForUpdate(tx).Where("ticket_id = ? AND user_id = ? AND refund_status = ?", known.RefundTicketId, known.UserId, RefundStatusPending).First(&refund).Error; err != nil {
 			return ErrRefundInvoiceCorrection
 		}
-		if err := lockForUpdate(tx).Where("id = ? AND user_id = ? AND refund_ticket_id = ? AND status = ?", correctionID, known.UserId, known.RefundTicketId, "pending").First(&result).Error; err != nil {
-			return ErrRefundInvoiceCorrection
-		}
-		update := tx.Model(&RefundInvoiceCorrection{}).Where("id = ? AND status = ?", correctionID, "pending").Update("status", "processing")
-		if update.Error != nil {
-			return update.Error
-		}
-		if update.RowsAffected != 1 {
-			return ErrRefundInvoiceCorrection
-		}
-		result.Status = "processing"
-		return tx.Create(&TicketMessage{TicketId: refund.TicketId, UserId: actorID, Username: actor.Username, Role: actor.Role, Content: fmt.Sprintf("Invoice correction started: invoice ticket #%d; correction #%d; refund cancellation locked", result.InvoiceTicketId, result.Id), CreatedTime: common.GetTimestamp()}).Error
+		return ErrRefundSettlementUnconfirmed
 	})
-	if err != nil {
-		return nil, err
-	}
-	return &result, nil
+	return nil, err
 }
 
 func CompleteRefundInvoiceCorrection(correctionID, actorID int, redReference, reissueReference, evidence string) (*RefundInvoiceCorrection, error) {
