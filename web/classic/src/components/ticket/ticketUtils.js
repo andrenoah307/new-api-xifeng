@@ -22,9 +22,7 @@ export function extractRemarkFromSummary(content) {
   const separatorIndex = content.indexOf(TICKET_REMARK_SEPARATOR);
   if (separatorIndex === -1) return '';
 
-  return content
-    .slice(separatorIndex + TICKET_REMARK_SEPARATOR.length)
-    .trim();
+  return content.slice(separatorIndex + TICKET_REMARK_SEPARATOR.length).trim();
 }
 
 export const getTicketStatusText = (status, t) => {
@@ -154,7 +152,7 @@ export const canCloseTicket = (ticket) => Number(ticket?.status) !== 4;
 export const getRefundStatusText = (status, t) => {
   switch (Number(status)) {
     case 1:
-      return t('待审核');
+      return t('Awaiting settlement verification');
     case 2:
       return t('已退款');
     case 3:
@@ -201,4 +199,7 @@ export const getRefundPayeeTypeText = (payeeType, t) => {
 };
 
 export const getRefundPayeeTypeOptions = (t) =>
-  REFUND_PAYEE_TYPE_OPTIONS.map((x) => ({ label: t(x.labelKey), value: x.value }));
+  REFUND_PAYEE_TYPE_OPTIONS.map((x) => ({
+    label: t(x.labelKey),
+    value: x.value,
+  }));

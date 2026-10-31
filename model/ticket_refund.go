@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	RefundStatusPending   = 1 // 待审核（冻结中）
+	RefundStatusPending   = 1 // 待审核（可能尚未冻结，必须读取 FrozenQuota）
 	RefundStatusRefunded  = 2 // 已退款
 	RefundStatusRejected  = 3 // 已驳回
 	RefundStatusCancelled = 4 // 用户主动取消（关闭退款工单）
@@ -48,6 +48,7 @@ var (
 )
 
 type TicketRefund struct {
+	SettlementStatus  string               `json:"settlement_status,omitempty" gorm:"-"`
 	CreationReplayed  bool                 `json:"-" gorm:"-"`
 	FinanceVersion    int                  `json:"finance_version"`
 	RefundCashCents   int64                `json:"refund_cash_cents" gorm:"type:bigint"`
@@ -149,7 +150,9 @@ func buildRefundSummaryMessage(params CreateRefundTicketParams) string {
 	return strings.Join(lines, "\n")
 }
 
-// CreateRefundTicket atomically reserves the wallet balance and creates the ticket.
+// CreateRefundTicket records an idempotent waiting application without reserving funds.
+// Fail-open forwarding cannot currently prove that all admitted wallet liabilities
+// have settled, including zero-preconsume requests on another instance.
 func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund, *TicketMessage, error) {
 	payeeType := NormalizeRefundPayeeType(params.PayeeType)
 	if payeeType == "" {
@@ -173,10 +176,8 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 	if strings.TrimSpace(params.Contact) == "" {
 		return nil, nil, nil, ErrTicketRefundContactEmpty
 	}
-	if params.RequestKey != "" {
-		if _, err := uuid.Parse(params.RequestKey); err != nil || len(params.RequestKey) != 36 {
-			return nil, nil, nil, ErrTicketRefundQuotaInvalid
-		}
+	if _, err := uuid.Parse(params.RequestKey); err != nil || len(params.RequestKey) != 36 {
+		return nil, nil, nil, ErrTicketRefundQuotaInvalid
 	}
 	subject := strings.TrimSpace(params.Subject)
 	if subject == "" {
@@ -223,11 +224,18 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 				return err
 			}
 		}
-		maxRefundable, err := getUserMaxRefundableQuotaTx(tx, params.UserId)
+		var pending int64
+		if err := tx.Model(&TicketRefund{}).Where("user_id = ? AND refund_status = ?", params.UserId, RefundStatusPending).Count(&pending).Error; err != nil {
+			return err
+		}
+		if pending != 0 {
+			return ErrRefundFinancePending
+		}
+		eligibility, err := getRefundEligibilityTx(tx, params.UserId)
 		if err != nil {
 			return err
 		}
-		if params.RefundQuota > maxRefundable {
+		if params.RefundQuota > eligibility.RequestableQuota {
 			return ErrTicketRefundQuotaExceed
 		}
 		userQuota := user.Quota
@@ -250,7 +258,8 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 			TicketId:          ticket.Id,
 			UserId:            params.UserId,
 			RefundQuota:       params.RefundQuota,
-			FrozenQuota:       params.RefundQuota,
+			FrozenQuota:       0,
+			FinanceVersion:    1,
 			UserQuotaSnapshot: userQuota,
 			PayeeType:         payeeType,
 			PayeeName:         strings.TrimSpace(params.PayeeName),
@@ -265,17 +274,6 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 			key := fmt.Sprintf("%d:%s", params.UserId, params.RequestKey)
 			refund.FinanceRequestKey = &key
 		}
-		if err := prepareRefundFinanceTx(tx, refund, params); err != nil {
-			return err
-		}
-		result := tx.Model(&User{}).Where("id = ? AND quota >= ?", params.UserId, params.RefundQuota).
-			Update("quota", gorm.Expr("quota - ?", params.RefundQuota))
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected != 1 {
-			return ErrTicketRefundQuotaExceed
-		}
 		if err := tx.Create(refund).Error; err != nil {
 			return err
 		}
@@ -285,7 +283,7 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 			UserId:      params.UserId,
 			Username:    strings.TrimSpace(params.Username),
 			Role:        common.RoleCommonUser,
-			Content:     buildRefundSummaryMessage(params),
+			Content:     buildRefundSummaryMessage(params) + "\n退款等待结算核验，尚未冻结余额；金额变化后须重新确认。",
 			CreatedTime: now,
 		}
 		if err := tx.Create(message).Error; err != nil {
@@ -300,23 +298,18 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 		refund.CreationReplayed = true
 		return ticket, refund, message, nil
 	}
-	_ = InvalidateUserCache(params.UserId)
 	RecordLog(params.UserId, LogTypeSystem,
-		fmt.Sprintf("提交退款申请，扣减余额 %s（工单 #%d，冻结待审核）",
+		fmt.Sprintf("提交退款申请 %s（工单 #%d，等待结算核验，未冻结余额）",
 			logger.LogQuota(params.RefundQuota), ticket.Id))
 	return ticket, refund, message, nil
 }
 
-// SumUserPendingRefundQuota 汇总用户当前处于 Pending 状态的退款工单累计申请额度。
-//
-// 注意：这笔钱在退款工单提交事务内已从 user.quota 中**扣除**，
-// 并不是账户层面意义上的"冻结"。此处数字仅供管理员审计参考（"这位用户还有 X 额度在等审核"），
-// 切勿把它再加回到可用余额上。对应字段 TicketRefund.RefundQuota（与 FrozenQuota 同值，取任一即可）。
+// SumUserPendingRefundQuota sums funds actually removed from the wallet, excluding waiting requests.
 func SumUserPendingRefundQuota(userId int) (int64, error) {
 	var total int64
 	err := DB.Model(&TicketRefund{}).
 		Where("user_id = ? AND refund_status = ?", userId, RefundStatusPending).
-		Select("COALESCE(SUM(refund_quota), 0)").
+		Select("COALESCE(SUM(frozen_quota), 0)").
 		Scan(&total).Error
 	return total, err
 }
@@ -349,7 +342,7 @@ func getUserMaxRefundableQuotaTx(tx *gorm.DB, userId int) (int, error) {
 		return 0, err
 	}
 	if err := tx.Model(&TicketRefund{}).Where("user_id = ? AND refund_status = ?", userId, RefundStatusPending).
-		Select("COALESCE(SUM(refund_quota), 0)").Scan(&pendingRefund).Error; err != nil {
+		Select("COALESCE(SUM(frozen_quota), 0)").Scan(&pendingRefund).Error; err != nil {
 		return 0, err
 	}
 	var user User
@@ -392,7 +385,8 @@ func GetTicketRefundByTicketId(ticketId int) (*TicketRefund, error) {
 //   - RefundQuotaModeOverride：先退还原已扣 RefundQuota，再把用户余额强制设置为 ActualRefundQuota；
 //     ActualRefundQuota 必须 ≥ 0。
 //
-// 驳回（RefundStatusRejected）：忽略 ActualRefundQuota / QuotaMode，永远退还 RefundQuota 到用户余额。
+// 当前所有批准模式均等待结算安全证明；这些参数仅保留既有 API 协议。
+// 驳回只退回实际 FrozenQuota，等待申请不得按 RefundQuota 产生新余额。
 type UpdateRefundStatusParams struct {
 	TicketId          int
 	AdminId           int
@@ -450,7 +444,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 	}
 	var refund TicketRefund
 	var ticket Ticket
-	var prevStatus, originalQuota, oldQuotaForOverride, finalQuotaForOverride int
+	var prevStatus, originalQuota, originalFrozenQuota, oldQuotaForOverride, finalQuotaForOverride int
 	userId := identity.UserId
 	var clawback *CommissionClawbackResult
 	txErr := DB.Transaction(func(tx *gorm.DB) error {
@@ -470,6 +464,13 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		if refund.RefundQuota <= 0 {
 			return ErrTicketRefundQuotaInvalid
 		}
+		if params.RefundStatus == RefundStatusRefunded {
+			return ErrRefundSettlementUnconfirmed
+		}
+		if refund.FrozenQuota < 0 || refund.FrozenQuota > refund.RefundQuota {
+			return ErrTicketRefundQuotaInvalid
+		}
+		originalFrozenQuota = refund.FrozenQuota
 		prevStatus, originalQuota = ticket.Status, refund.RefundQuota
 		now := common.GetTimestamp()
 		refundUpdates := map[string]interface{}{
@@ -507,7 +508,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		delta := 0
 		if params.RefundStatus == RefundStatusRejected {
-			delta = originalQuota
+			delta = originalFrozenQuota
 		} else if mode == RefundQuotaModeSubtract {
 			delta = originalQuota - params.ActualRefundQuota
 		} else if mode == RefundQuotaModeOverride {
@@ -600,7 +601,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 	case RefundStatusRejected:
 		RecordLogWithAdminInfo(userId, LogTypeManage,
 			fmt.Sprintf("管理员驳回退款，退还额度 %s（工单 #%d）",
-				logger.LogQuota(originalQuota), ticket.Id), adminInfo)
+				logger.LogQuota(originalFrozenQuota), ticket.Id), adminInfo)
 	}
 
 	return &refund, &ticket, prevStatus, clawback, nil
@@ -665,7 +666,7 @@ func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) error {
 	if err := releaseRefundFinanceTx(tx, &refund); err != nil {
 		return err
 	}
-	if refund.FrozenQuota < 0 {
+	if refund.FrozenQuota < 0 || refund.FrozenQuota > refund.RefundQuota {
 		return ErrTicketRefundQuotaInvalid
 	}
 	if refund.FrozenQuota > 0 {

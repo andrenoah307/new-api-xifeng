@@ -1,16 +1,15 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner'
+import { useNavigate } from '@tanstack/react-router'
 import { Paperclip, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { useForm, type Resolver } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { z } from 'zod'
+
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -28,6 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -35,21 +35,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { formatQuota, parseQuotaFromDollars, quotaUnitsToDollars } from '@/lib/format'
+import { Textarea } from '@/components/ui/textarea'
+import { useStatus } from '@/hooks/use-status'
+import {
+  formatQuota,
+  parseQuotaFromDollars,
+  quotaUnitsToDollars,
+} from '@/lib/format'
+import { useAuthStore } from '@/stores/auth-store'
+
 import {
   createGeneralTicket,
   createRefundTicket,
-  getCurrentUserQuota,
   getTicketLimitStatus,
   checkRefundInvoiceConflict,
 } from '../../api'
-import { useStatus } from '@/hooks/use-status'
-import { ticketQueryKeys } from '../../lib/ticket-actions'
 import { PAYEE_TYPE_OPTIONS, humanFileSize } from '../../constants'
 import { useTicketAttachments } from '../../hooks/use-ticket-attachments'
-import { quoteRefundFinance } from '../../refund-finance-api'
+import { ticketQueryKeys } from '../../lib/ticket-actions'
+import {
+  getRefundEligibility,
+  quoteRefundFinance,
+} from '../../refund-finance-api'
 import { RefundFinanceDetail } from '../refund-finance-detail'
-import { useAuthStore } from '@/stores/auth-store'
 
 const generalSchema = z.object({
   type: z.enum(['general', 'refund']),
@@ -99,9 +107,13 @@ export function CreateTicketDialog({
     discardAll,
   } = useTicketAttachments()
 
-  const { data: userQuota, isLoading: quotaLoading } = useQuery({
-    queryKey: ['user', 'quota'],
-    queryFn: getCurrentUserQuota,
+  const {
+    data: userQuota,
+    isLoading: quotaLoading,
+    error: eligibilityError,
+  } = useQuery({
+    queryKey: ['user', 'refund-eligibility', userId],
+    queryFn: ({ signal }) => getRefundEligibility(signal),
     enabled: open && ticketType === 'refund',
   })
 
@@ -119,9 +131,10 @@ export function CreateTicketDialog({
 
   const isLimited = limitStatus?.limited === true
 
-  const maxRefundDollars = userQuota?.max_refundable_quota != null
-    ? quotaUnitsToDollars(userQuota.max_refundable_quota)
-    : null
+  const maxRefundDollars =
+    userQuota?.requestable_quota != null
+      ? quotaUnitsToDollars(userQuota.requestable_quota)
+      : null
 
   const form = useForm<FormValues>({
     resolver: zodResolver(generalSchema) as Resolver<FormValues>,
@@ -151,7 +164,11 @@ export function CreateTicketDialog({
   const financeQuote = useQuery({
     queryKey: ['tickets', 'refund-finance-quote', userId, quoteQuota],
     queryFn: ({ signal }) => quoteRefundFinance(quoteQuota, signal),
-    enabled: open && ticketType === 'refund' && quoteQuota > 0 && quoteQuota === requestedQuota,
+    enabled:
+      open &&
+      ticketType === 'refund' &&
+      quoteQuota > 0 &&
+      quoteQuota === requestedQuota,
     gcTime: 0,
     retry: false,
   })
@@ -184,10 +201,16 @@ export function CreateTicketDialog({
     mutationFn: createRefundTicket,
     onError: (error) => {
       toast.error(t(error.message))
-      if (error.message === 'invoice tax quote changed') void financeQuote.refetch()
+      if (error.message === 'invoice tax quote changed') {
+        void financeQuote.refetch()
+      }
     },
     onSuccess: (data) => {
-      toast.success(t('Ticket created, quota frozen'))
+      toast.success(
+        t(
+          'Refund request registered; awaiting settlement verification. No balance has been frozen.'
+        )
+      )
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.userLists(),
       })
@@ -224,15 +247,21 @@ export function CreateTicketDialog({
       } else {
         const amount = values.refund_amount ?? 0
         if (amount <= 0) {
-          form.setError('refund_amount', { message: t('Refund amount must be greater than 0') })
+          form.setError('refund_amount', {
+            message: t('Refund amount must be greater than 0'),
+          })
           return
         }
         if (maxRefundDollars == null) {
-          form.setError('refund_amount', { message: t('Unable to verify refundable quota, please try again') })
+          form.setError('refund_amount', {
+            message: t('Unable to verify refundable quota, please try again'),
+          })
           return
         }
         if (amount > maxRefundDollars) {
-          form.setError('refund_amount', { message: t('Refund amount cannot exceed available quota') })
+          form.setError('refund_amount', {
+            message: t('Refund amount cannot exceed available quota'),
+          })
           return
         }
         if (!values.payee_name?.trim()) {
@@ -240,7 +269,9 @@ export function CreateTicketDialog({
           return
         }
         if (!values.payee_account?.trim()) {
-          form.setError('payee_account', { message: t('Payee account is required') })
+          form.setError('payee_account', {
+            message: t('Payee account is required'),
+          })
           return
         }
         if (payeeType === 'bank' && !values.payee_bank?.trim()) {
@@ -263,24 +294,51 @@ export function CreateTicketDialog({
           payee_type: values.payee_type ?? 'alipay',
           payee_name: values.payee_name ?? '',
           payee_account: values.payee_account ?? '',
-          payee_bank: values.payee_type === 'bank' ? (values.payee_bank ?? '') : '',
+          payee_bank:
+            values.payee_type === 'bank' ? (values.payee_bank ?? '') : '',
           contact: values.contact ?? '',
           reason: values.reason || values.content || '',
           attachment_ids: attachmentIds,
           invoice_conflict_acknowledged: invoiceConflictAcked,
         }
         const signature = JSON.stringify(payload)
-        if (refundRequest.current.signature !== signature) refundRequest.current = { signature, key: crypto.randomUUID() }
-        createRefund.mutate({ ...payload, request_key: refundRequest.current.key })
+        if (refundRequest.current.signature !== signature) {
+          refundRequest.current = { signature, key: crypto.randomUUID() }
+        }
+        createRefund.mutate({
+          ...payload,
+          request_key: refundRequest.current.key,
+        })
       }
     },
-    [isLimited, ticketType, createGeneral, createRefund, t, attachmentIds, maxRefundDollars, form, payeeType, invoiceConflictAcked, financeQuote.data]
+    [
+      isLimited,
+      ticketType,
+      createGeneral,
+      createRefund,
+      t,
+      attachmentIds,
+      maxRefundDollars,
+      form,
+      payeeType,
+      invoiceConflictAcked,
+      financeQuote.data,
+    ]
   )
 
-  const isSubmitDisabled = isLimited || isPending ||
-    (ticketType === 'refund' && requestedQuota > 0 && (quoteQuota !== requestedQuota || financeQuote.isPending || financeQuote.isFetching || financeQuote.isError)) ||
+  const isSubmitDisabled =
+    isLimited ||
+    isPending ||
+    (ticketType === 'refund' &&
+      requestedQuota > 0 &&
+      (quoteQuota !== requestedQuota ||
+        financeQuote.isPending ||
+        financeQuote.isFetching ||
+        financeQuote.isError)) ||
     (ticketType === 'refund' && (quotaLoading || maxRefundDollars == null)) ||
-    (ticketType === 'refund' && invoiceConflict?.has_active_invoices && !invoiceConflictAcked)
+    (ticketType === 'refund' &&
+      invoiceConflict?.has_active_invoices &&
+      !invoiceConflictAcked)
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -293,7 +351,7 @@ export function CreateTicketDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[85vh] overflow-y-auto sm:max-w-lg"
+        className='max-h-[85vh] overflow-y-auto sm:max-w-lg'
         onPasteCapture={attachmentEnabled ? handlePaste : undefined}
       >
         <DialogHeader>
@@ -303,11 +361,13 @@ export function CreateTicketDialog({
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
             {isLimited && (
-              <Alert variant="warning">
+              <Alert variant='warning'>
                 <AlertDescription>
-                  {t('You\'ve used this week\'s limit for creating tickets on a low balance. If you need help, please contact support first.')}
+                  {t(
+                    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first."
+                  )}
                 </AlertDescription>
               </Alert>
             )}
@@ -334,80 +394,121 @@ export function CreateTicketDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value="general">
-                    {t('General Ticket')}
-                  </SelectItem>
-                  <SelectItem value="refund">
-                    {t('Refund Ticket')}
-                  </SelectItem>
-                  <SelectItem value="invoice">
-                    {t('Invoice Ticket')}
-                  </SelectItem>
+                  <SelectItem value='general'>{t('General Ticket')}</SelectItem>
+                  <SelectItem value='refund'>{t('Refund Ticket')}</SelectItem>
+                  <SelectItem value='invoice'>{t('Invoice Ticket')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {ticketType === 'refund' && (
               <Alert>
-                <AlertDescription className="space-y-1">
-                  {quotaLoading
-                    ? t('Loading...')
-                    : (
-                      <>
-                        <div>{t('Current available quota')}: {formatQuota(userQuota?.quota ?? 0)}</div>
-                        <div>{t('Max Refundable')}: {formatQuota(userQuota?.max_refundable_quota ?? 0)}</div>
-                      </>
-                    )}
+                <AlertDescription className='space-y-1'>
+                  {quotaLoading ? (
+                    t('Loading...')
+                  ) : (
+                    <>
+                      <div>
+                        {t('Current available quota')}:{' '}
+                        {formatQuota(userQuota?.wallet_quota ?? 0)}
+                      </div>
+                      <div>
+                        {t('Verified refundable balance')}:{' '}
+                        {formatQuota(userQuota?.max_refundable_quota ?? 0)}
+                      </div>
+                      <div>
+                        {t('Requestable balance')}:{' '}
+                        {formatQuota(userQuota?.requestable_quota ?? 0)}
+                      </div>
+                      <div>
+                        {t('Non-refundable balance')}:{' '}
+                        {formatQuota(userQuota?.non_refundable_quota ?? 0)}
+                      </div>
+                      <div>
+                        {t('Frozen Amount')}:{' '}
+                        {formatQuota(userQuota?.frozen_quota ?? 0)}
+                      </div>
+                      {userQuota?.reasons.map((reason) => (
+                        <div key={reason.code}>
+                          {t(`refund_reason.${reason.code}`)}:{' '}
+                          {formatQuota(reason.quota)}
+                        </div>
+                      ))}
+                      {eligibilityError && (
+                        <p role='alert'>
+                          {t(
+                            'Unable to verify refundable quota, please try again'
+                          )}
+                        </p>
+                      )}
+                    </>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
 
             {ticketType === 'refund' && (
-              <Alert variant="warning">
+              <Alert variant='warning'>
                 <AlertDescription>
-                  {t('Refund freeze warning')}
+                  {t(
+                    'Submitting registers a request awaiting settlement verification. Your balance will not be frozen and API usage can continue. The refundable amount must be confirmed again after verification.'
+                  )}{' '}
+                  {t('Requested quota is not the final cash refund amount.')}
                 </AlertDescription>
               </Alert>
             )}
 
-            {ticketType === 'refund' && invoiceConflict?.has_active_invoices && (
-              <Alert variant="warning">
-                <AlertDescription className="space-y-2">
-                  <p className="font-medium">{t('Invoice conflict warning')}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t('Active invoices summary', {
-                      count: invoiceConflict.invoices.filter(
-                        (inv) => inv.invoice_status === 1 || inv.invoice_status === 2
-                      ).length,
-                      amount: `¥${invoiceConflict.invoices
-                        .filter((inv) => inv.invoice_status === 1 || inv.invoice_status === 2)
-                        .reduce((sum, inv) => sum + inv.total_money, 0)
-                        .toFixed(2)}`,
-                    })}
-                  </p>
-                  <div className="flex items-center gap-2 pt-1">
-                    <Checkbox
-                      id="invoice-conflict-ack"
-                      checked={invoiceConflictAcked}
-                      onCheckedChange={(checked) => setInvoiceConflictAcked(checked === true)}
-                    />
-                    <label htmlFor="invoice-conflict-ack" className="text-xs cursor-pointer">
-                      {t('Invoice conflict acknowledge')}
-                    </label>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
+            {ticketType === 'refund' &&
+              invoiceConflict?.has_active_invoices && (
+                <Alert variant='warning'>
+                  <AlertDescription className='space-y-2'>
+                    <p className='font-medium'>
+                      {t('Invoice conflict warning')}
+                    </p>
+                    <p className='text-muted-foreground text-xs'>
+                      {t('Active invoices summary', {
+                        count: invoiceConflict.invoices.filter(
+                          (inv) =>
+                            inv.invoice_status === 1 || inv.invoice_status === 2
+                        ).length,
+                        amount: `¥${invoiceConflict.invoices
+                          .filter(
+                            (inv) =>
+                              inv.invoice_status === 1 ||
+                              inv.invoice_status === 2
+                          )
+                          .reduce((sum, inv) => sum + inv.total_money, 0)
+                          .toFixed(2)}`,
+                      })}
+                    </p>
+                    <div className='flex items-center gap-2 pt-1'>
+                      <Checkbox
+                        id='invoice-conflict-ack'
+                        checked={invoiceConflictAcked}
+                        onCheckedChange={(checked) =>
+                          setInvoiceConflictAcked(checked === true)
+                        }
+                      />
+                      <label
+                        htmlFor='invoice-conflict-ack'
+                        className='cursor-pointer text-xs'
+                      >
+                        {t('Invoice conflict acknowledge')}
+                      </label>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
             <FormField
               control={form.control}
-              name="subject"
+              name='subject'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
                     {t('Ticket Subject')}
                     {ticketType === 'general' && (
-                      <span className="text-destructive ml-0.5">*</span>
+                      <span className='text-destructive ml-0.5'>*</span>
                     )}
                   </FormLabel>
                   <FormControl>
@@ -428,7 +529,7 @@ export function CreateTicketDialog({
 
             <FormField
               control={form.control}
-              name="priority"
+              name='priority'
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('Priority')}</FormLabel>
@@ -442,9 +543,9 @@ export function CreateTicketDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="1">{t('High Priority')}</SelectItem>
-                      <SelectItem value="2">{t('Normal Priority')}</SelectItem>
-                      <SelectItem value="3">{t('Low Priority')}</SelectItem>
+                      <SelectItem value='1'>{t('High Priority')}</SelectItem>
+                      <SelectItem value='2'>{t('Normal Priority')}</SelectItem>
+                      <SelectItem value='3'>{t('Low Priority')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -454,21 +555,29 @@ export function CreateTicketDialog({
 
             {ticketType === 'refund' ? (
               <>
-                {financeQuote.data && quoteQuota === requestedQuota && <RefundFinanceDetail finance={financeQuote.data} />}
-                {financeQuote.isError && <p role="alert" className="text-destructive">{t(financeQuote.error.message || 'Unable to calculate refund')}</p>}
+                {financeQuote.data && quoteQuota === requestedQuota && (
+                  <RefundFinanceDetail finance={financeQuote.data} />
+                )}
+                {financeQuote.isError && (
+                  <p role='alert' className='text-destructive'>
+                    {t(
+                      financeQuote.error.message || 'Unable to calculate refund'
+                    )}
+                  </p>
+                )}
                 <FormField
                   control={form.control}
-                  name="refund_amount"
+                  name='refund_amount'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
                         {t('Requested Refund Amount')}
-                        <span className="text-destructive ml-0.5">*</span>
+                        <span className='text-destructive ml-0.5'>*</span>
                       </FormLabel>
                       <FormControl>
                         <Input
-                          type="number"
-                          step="any"
+                          type='number'
+                          step='any'
                           min={0}
                           max={maxRefundDollars ?? undefined}
                           {...field}
@@ -481,12 +590,12 @@ export function CreateTicketDialog({
                 />
                 <FormField
                   control={form.control}
-                  name="payee_type"
+                  name='payee_type'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
                         {t('Payee Type')}
-                        <span className="text-destructive ml-0.5">*</span>
+                        <span className='text-destructive ml-0.5'>*</span>
                       </FormLabel>
                       <Select
                         value={field.value}
@@ -509,15 +618,15 @@ export function CreateTicketDialog({
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className='grid grid-cols-2 gap-3'>
                   <FormField
                     control={form.control}
-                    name="payee_name"
+                    name='payee_name'
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
                           {t('Payee Name')}
-                          <span className="text-destructive ml-0.5">*</span>
+                          <span className='text-destructive ml-0.5'>*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -531,12 +640,12 @@ export function CreateTicketDialog({
                   />
                   <FormField
                     control={form.control}
-                    name="payee_account"
+                    name='payee_account'
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
                           {t('Payee Account')}
-                          <span className="text-destructive ml-0.5">*</span>
+                          <span className='text-destructive ml-0.5'>*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -552,12 +661,12 @@ export function CreateTicketDialog({
                 {payeeType === 'bank' && (
                   <FormField
                     control={form.control}
-                    name="payee_bank"
+                    name='payee_bank'
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
                           {t('Bank Name')}
-                          <span className="text-destructive ml-0.5">*</span>
+                          <span className='text-destructive ml-0.5'>*</span>
                         </FormLabel>
                         <FormControl>
                           <Input
@@ -572,12 +681,12 @@ export function CreateTicketDialog({
                 )}
                 <FormField
                   control={form.control}
-                  name="contact"
+                  name='contact'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
                         {t('Contact Info')}
-                        <span className="text-destructive ml-0.5">*</span>
+                        <span className='text-destructive ml-0.5'>*</span>
                       </FormLabel>
                       <FormControl>
                         <Input
@@ -591,12 +700,12 @@ export function CreateTicketDialog({
                 />
                 <FormField
                   control={form.control}
-                  name="reason"
+                  name='reason'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
                         {t('Refund Reason')}
-                        <span className="text-destructive ml-0.5">*</span>
+                        <span className='text-destructive ml-0.5'>*</span>
                       </FormLabel>
                       <FormControl>
                         <Textarea
@@ -610,7 +719,7 @@ export function CreateTicketDialog({
                     </FormItem>
                   )}
                 />
-                <p className="text-muted-foreground text-xs">
+                <p className='text-muted-foreground text-xs'>
                   {t('Refund process note')}
                 </p>
               </>
@@ -618,12 +727,12 @@ export function CreateTicketDialog({
               <>
                 <FormField
                   control={form.control}
-                  name="content"
+                  name='content'
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>
                         {t('Issue Description')}
-                        <span className="text-destructive ml-0.5">*</span>
+                        <span className='text-destructive ml-0.5'>*</span>
                       </FormLabel>
                       <FormControl>
                         <Textarea
@@ -640,67 +749,67 @@ export function CreateTicketDialog({
 
                 {/* Attachment area */}
                 {attachmentEnabled && (
-                <div>
-                  <FormLabel>{t('Attachment (Optional)')}</FormLabel>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <input
-                      type="file"
-                      multiple
-                      className="hidden"
-                      id="create-ticket-file-input"
-                      onChange={handleFileInput}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={uploading}
-                      render={
-                        <label
-                          htmlFor='create-ticket-file-input'
-                          className='cursor-pointer'
-                        />
-                      }
-                    >
-                      <Paperclip className="mr-1.5 h-4 w-4" />
-                      {uploading ? t('Uploading...') : t('Upload Attachment')}
-                    </Button>
-                    <span className="text-muted-foreground text-xs">
-                      {t('Upload limit hint', { n: 5, mb: 50 })}
-                    </span>
-                  </div>
-                  {attachments.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {attachments.map((a) => (
-                        <div
-                          key={a.id}
-                          className="bg-muted flex items-center gap-1.5 rounded-md px-2 py-1 text-xs"
-                        >
-                          <Paperclip className="h-3 w-3" />
-                          <span className="max-w-[120px] truncate">
-                            {a.file_name}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {humanFileSize(a.size)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => remove(a.id)}
-                            className="text-muted-foreground hover:text-foreground ml-1"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
+                  <div>
+                    <FormLabel>{t('Attachment (Optional)')}</FormLabel>
+                    <div className='mt-1.5 flex items-center gap-2'>
+                      <input
+                        type='file'
+                        multiple
+                        className='hidden'
+                        id='create-ticket-file-input'
+                        onChange={handleFileInput}
+                      />
+                      <Button
+                        type='button'
+                        variant='outline'
+                        size='sm'
+                        disabled={uploading}
+                        render={
+                          <label
+                            htmlFor='create-ticket-file-input'
+                            className='cursor-pointer'
+                          />
+                        }
+                      >
+                        <Paperclip className='mr-1.5 h-4 w-4' />
+                        {uploading ? t('Uploading...') : t('Upload Attachment')}
+                      </Button>
+                      <span className='text-muted-foreground text-xs'>
+                        {t('Upload limit hint', { n: 5, mb: 50 })}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    {attachments.length > 0 && (
+                      <div className='mt-2 flex flex-wrap gap-2'>
+                        {attachments.map((a) => (
+                          <div
+                            key={a.id}
+                            className='bg-muted flex items-center gap-1.5 rounded-md px-2 py-1 text-xs'
+                          >
+                            <Paperclip className='h-3 w-3' />
+                            <span className='max-w-[120px] truncate'>
+                              {a.file_name}
+                            </span>
+                            <span className='text-muted-foreground'>
+                              {humanFileSize(a.size)}
+                            </span>
+                            <button
+                              type='button'
+                              onClick={() => remove(a.id)}
+                              className='text-muted-foreground hover:text-foreground ml-1'
+                            >
+                              <X className='h-3 w-3' />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </>
             )}
 
             <DialogFooter>
-              <Button type="submit" disabled={isSubmitDisabled}>
+              <Button type='submit' disabled={isSubmitDisabled}>
                 {isPending ? t('Submitting...') : t('Submit Ticket')}
               </Button>
             </DialogFooter>

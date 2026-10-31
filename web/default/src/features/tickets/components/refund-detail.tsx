@@ -1,21 +1,13 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
-import { useQuery } from '@tanstack/react-query'
-import { StatusBadge } from '@/components/status-badge'
+
 import { CopyButton } from '@/components/copy-button'
-import {
-  formatTimestampToDate,
-  formatQuota,
-  parseQuotaFromDollars,
-  quotaUnitsToInputAmount,
-} from '@/lib/format'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
+import { StatusBadge } from '@/components/status-badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -31,14 +25,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  formatTimestampToDate,
+  formatQuota,
+  parseQuotaFromDollars,
+  quotaUnitsToInputAmount,
+} from '@/lib/format'
+import { cn } from '@/lib/utils'
+
 import {
   getUserQuota,
   type TicketRefund,
   type TicketInvoice,
   type RefundCommissionInfo,
 } from '../api'
-import { REFUND_STATUS, REFUND_STATUS_CONFIG, PAYEE_TYPE_LABELS, INVOICE_STATUS_CONFIG } from '../constants'
+import {
+  REFUND_STATUS,
+  REFUND_STATUS_CONFIG,
+  PAYEE_TYPE_LABELS,
+  INVOICE_STATUS_CONFIG,
+} from '../constants'
 import { RefundFinanceDetail } from './refund-finance-detail'
 
 interface RefundDetailProps {
@@ -62,10 +69,19 @@ interface RefundDetailProps {
 function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="flex items-start gap-1">
-        <span className="font-medium whitespace-pre-wrap break-words">{value || '-'}</span>
-        {value && <CopyButton value={value} size="icon" className="h-6 w-6" iconClassName="h-3 w-3" />}
+      <dt className='text-muted-foreground'>{label}</dt>
+      <dd className='flex items-start gap-1'>
+        <span className='font-medium break-words whitespace-pre-wrap'>
+          {value || '-'}
+        </span>
+        {value && (
+          <CopyButton
+            value={value}
+            size='icon'
+            className='h-6 w-6'
+            iconClassName='h-3 w-3'
+          />
+        )}
       </dd>
     </div>
   )
@@ -96,14 +112,24 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
           : 'bg-muted/50 border-border'
       )}
     >
-      <p className="text-sm font-medium mb-2">{t('User has invoice records')}</p>
-      <table className="text-xs border-collapse">
+      <p className='mb-2 text-sm font-medium'>
+        {t('User has invoice records')}
+      </p>
+      <table className='border-collapse text-xs'>
         <thead>
           <tr>
-            <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium whitespace-nowrap">{t('Date')}</th>
-            <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium">{t('Company')}</th>
-            <th className="text-muted-foreground px-2 py-1 text-right text-xs font-medium">{t('Amount')}</th>
-            <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium">{t('Status')}</th>
+            <th className='text-muted-foreground px-2 py-1 text-left text-xs font-medium whitespace-nowrap'>
+              {t('Date')}
+            </th>
+            <th className='text-muted-foreground px-2 py-1 text-left text-xs font-medium'>
+              {t('Company')}
+            </th>
+            <th className='text-muted-foreground px-2 py-1 text-right text-xs font-medium'>
+              {t('Amount')}
+            </th>
+            <th className='text-muted-foreground px-2 py-1 text-left text-xs font-medium'>
+              {t('Status')}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -112,16 +138,16 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
             const hidden = !expanded && i > 0
             return (
               <tr key={inv.id} className={hidden ? 'collapse' : undefined}>
-                <td className="text-muted-foreground px-2 py-1 whitespace-nowrap">
+                <td className='text-muted-foreground px-2 py-1 whitespace-nowrap'>
                   {formatTimestampToDate(inv.created_time)}
                 </td>
-                <td className="px-2 py-1 max-w-[200px] truncate">
+                <td className='max-w-[200px] truncate px-2 py-1'>
                   {inv.company_name}
                 </td>
-                <td className="px-2 py-1 font-mono text-right whitespace-nowrap">
+                <td className='px-2 py-1 text-right font-mono whitespace-nowrap'>
                   ¥{inv.total_money?.toFixed(2)}
                 </td>
-                <td className="px-2 py-1">
+                <td className='px-2 py-1'>
                   {statusCfg && (
                     <StatusBadge
                       label={t(statusCfg.labelKey)}
@@ -130,8 +156,10 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
                     />
                   )}
                   {(inv.invoice_status === 1 || inv.invoice_status === 2) && (
-                    <span className="ml-1 text-[11px] text-amber-600 dark:text-amber-400">
-                      {t('Needs manual handling (reject / offline red invoice)')}
+                    <span className='ml-1 text-[11px] text-amber-600 dark:text-amber-400'>
+                      {t(
+                        'Needs manual handling (reject / offline red invoice)'
+                      )}
                     </span>
                   )}
                 </td>
@@ -142,9 +170,9 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
       </table>
       {invoices.length > 1 && (
         <button
-          type="button"
+          type='button'
           onClick={() => setExpanded(!expanded)}
-          className="text-xs text-primary hover:underline mt-1"
+          className='text-primary mt-1 text-xs hover:underline'
         >
           {expanded
             ? t('Hide invoices')
@@ -160,17 +188,23 @@ function CommissionInfoCard({ info }: { info: RefundCommissionInfo }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
-    <div className="border-border bg-muted/50 mb-4 inline-block rounded-lg border p-3">
-      <p className="text-sm font-medium mb-2">
+    <div className='border-border bg-muted/50 mb-4 inline-block rounded-lg border p-3'>
+      <p className='mb-2 text-sm font-medium'>
         {t('Commission from this user')} · {t('Inviter')}:{' '}
         {info.inviter_username} ({info.inviter_id})
       </p>
-      <table className="text-xs border-collapse">
+      <table className='border-collapse text-xs'>
         <thead>
           <tr>
-            <th className="text-muted-foreground px-2 py-1 text-left text-xs font-medium whitespace-nowrap">{t('Date')}</th>
-            <th className="text-muted-foreground px-2 py-1 text-right text-xs font-medium">{t('Top-Up Amount')}</th>
-            <th className="text-muted-foreground px-2 py-1 text-right text-xs font-medium">{t('Commission')}</th>
+            <th className='text-muted-foreground px-2 py-1 text-left text-xs font-medium whitespace-nowrap'>
+              {t('Date')}
+            </th>
+            <th className='text-muted-foreground px-2 py-1 text-right text-xs font-medium'>
+              {t('Top-Up Amount')}
+            </th>
+            <th className='text-muted-foreground px-2 py-1 text-right text-xs font-medium'>
+              {t('Commission')}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -179,10 +213,10 @@ function CommissionInfoCard({ info }: { info: RefundCommissionInfo }) {
             const isClawback = record.type === 'refund_clawback'
             return (
               <tr key={record.id} className={hidden ? 'collapse' : undefined}>
-                <td className="text-muted-foreground px-2 py-1 whitespace-nowrap">
+                <td className='text-muted-foreground px-2 py-1 whitespace-nowrap'>
                   {formatTimestampToDate(record.created_at)}
                 </td>
-                <td className="px-2 py-1 font-mono text-right whitespace-nowrap">
+                <td className='px-2 py-1 text-right font-mono whitespace-nowrap'>
                   {isClawback ? '-' : `¥${record.topup_money?.toFixed(2)}`}
                 </td>
                 <td
@@ -201,14 +235,16 @@ function CommissionInfoCard({ info }: { info: RefundCommissionInfo }) {
       </table>
       {info.records.length > 3 && (
         <button
-          type="button"
+          type='button'
           onClick={() => setExpanded(!expanded)}
-          className="text-xs text-primary hover:underline mt-1"
+          className='text-primary mt-1 text-xs hover:underline'
         >
-          {expanded ? t('Collapse') : t('Show all ({{count}})', { count: info.records.length })}
+          {expanded
+            ? t('Collapse')
+            : t('Show all ({{count}})', { count: info.records.length })}
         </button>
       )}
-      <p className="text-muted-foreground mt-2 text-xs">
+      <p className='text-muted-foreground mt-2 text-xs'>
         {t('Total commission')}: {formatQuota(info.total_commission_quota)} ·{' '}
         {t('Clawed back')}: {formatQuota(info.clawed_back_quota)} ·{' '}
         {t('Clawback available')}: {formatQuota(info.clawbackable_quota)} ·{' '}
@@ -229,7 +265,12 @@ export function RefundDetail({
 }: RefundDetailProps) {
   const { t } = useTranslation()
   const statusCfg = REFUND_STATUS_CONFIG[refund.refund_status]
-  const correctionsPending = refund.finance_version === 1 && (!refund.finance || refund.finance.invoice_corrections.some((item) => item.status !== 'completed'))
+  const correctionsPending =
+    refund.finance_version === 1 &&
+    (!refund.finance ||
+      refund.finance.invoice_corrections.some(
+        (item) => item.status !== 'completed'
+      ))
 
   const [resolveOpen, setResolveOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
@@ -363,53 +404,72 @@ export function RefundDetail({
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">{t('Refund Detail')}</CardTitle>
+        <CardHeader className='flex flex-row items-center justify-between'>
+          <CardTitle className='text-base'>{t('Refund Detail')}</CardTitle>
           {statusCfg && (
             <StatusBadge
-              label={t(statusCfg.labelKey)}
+              label={t(
+                refund.refund_status === REFUND_STATUS.PENDING
+                  ? 'Awaiting settlement verification'
+                  : statusCfg.labelKey
+              )}
               variant={statusCfg.variant}
               copyable={false}
             />
           )}
         </CardHeader>
-        <CardContent className="space-y-4">
-          {refund.finance && <RefundFinanceDetail finance={refund.finance} ticketId={refund.ticket_id} />}
+        <CardContent className='space-y-4'>
+          {refund.refund_status === REFUND_STATUS.PENDING && (
+            <p role='status'>
+              {t(
+                'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
+              )}
+            </p>
+          )}
+          {refund.finance && (
+            <RefundFinanceDetail
+              finance={refund.finance}
+              ticketId={refund.ticket_id}
+            />
+          )}
           {userInvoices && userInvoices.length > 0 && (
             <InvoiceHistoryAlert invoices={userInvoices} />
           )}
           {commissionInfo && <CommissionInfoCard info={commissionInfo} />}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-muted/50 rounded-lg p-3 text-center">
-              <div className="text-muted-foreground text-xs">
+          <div className='grid grid-cols-3 gap-3'>
+            <div className='bg-muted/50 rounded-lg p-3 text-center'>
+              <div className='text-muted-foreground text-xs'>
                 {t('Requested Refund Amount')}
               </div>
-              <div className="mt-1 font-mono text-sm font-semibold">
+              <div className='mt-1 font-mono text-sm font-semibold'>
                 {formatQuota(refund.refund_quota)}
               </div>
             </div>
-            <div className="bg-muted/50 rounded-lg p-3 text-center">
-              <div className="text-muted-foreground text-xs">
+            <div className='bg-muted/50 rounded-lg p-3 text-center'>
+              <div className='text-muted-foreground text-xs'>
                 {t('Frozen Amount')}
               </div>
-              <div className="mt-1 font-mono text-sm font-semibold">
+              <div className='mt-1 font-mono text-sm font-semibold'>
                 {formatQuota(refund.frozen_quota)}
               </div>
             </div>
-            <div className="bg-muted/50 rounded-lg p-3 text-center">
-              <div className="text-muted-foreground text-xs">
+            <div className='bg-muted/50 rounded-lg p-3 text-center'>
+              <div className='text-muted-foreground text-xs'>
                 {t('Snapshot Balance')}
               </div>
-              <div className="mt-1 font-mono text-sm font-semibold">
+              <div className='mt-1 font-mono text-sm font-semibold'>
                 {formatQuota(refund.user_quota_snapshot)}
               </div>
             </div>
           </div>
 
-          <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+          <dl className='grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2'>
             <CopyField label={t('Payee Type')} value={t(payeeLabel)} />
             <CopyField label={t('Payee Name')} value={refund.payee_name} />
-            <CopyField label={t('Payee Account')} value={refund.payee_account} />
+            <CopyField
+              label={t('Payee Account')}
+              value={refund.payee_account}
+            />
             {refund.payee_bank && (
               <CopyField label={t('Payee Bank')} value={refund.payee_bank} />
             )}
@@ -428,21 +488,14 @@ export function RefundDetail({
           </dl>
 
           {!readonly && refund.refund_status === REFUND_STATUS.PENDING && (
-            <div className="flex gap-2 pt-2">
+            <div className='flex gap-2 pt-2'>
               <Button
-                size="sm"
-                disabled={loading || correctionsPending}
-                onClick={() => setResolveOpen(true)}
-              >
-                {t('Complete Refund')}
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
+                variant='destructive'
+                size='sm'
                 disabled={loading}
                 onClick={() => setRejectOpen(true)}
               >
-                {t('Reject and Unfreeze')}
+                {t('Reject')}
               </Button>
             </div>
           )}
@@ -458,7 +511,7 @@ export function RefundDetail({
               {t('Choose how to process the refund quota')}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className='space-y-4 py-2'>
             <Alert>
               <AlertDescription>
                 {t('This action will be logged')}
@@ -466,20 +519,28 @@ export function RefundDetail({
             </Alert>
 
             {/* Payee summary */}
-            <div className="bg-muted/50 rounded-lg p-3 text-sm">
-              <div className="text-muted-foreground mb-1 text-xs font-medium">
+            <div className='bg-muted/50 rounded-lg p-3 text-sm'>
+              <div className='text-muted-foreground mb-1 text-xs font-medium'>
                 {t('Payee Summary')}
               </div>
-              <div className="grid grid-cols-2 gap-1">
-                <span className="text-muted-foreground">{t('Payee Name')}:</span>
+              <div className='grid grid-cols-2 gap-1'>
+                <span className='text-muted-foreground'>
+                  {t('Payee Name')}:
+                </span>
                 <span>{refund.payee_name || '-'}</span>
-                <span className="text-muted-foreground">{t('Payee Type')}:</span>
+                <span className='text-muted-foreground'>
+                  {t('Payee Type')}:
+                </span>
                 <span>{t(payeeLabel)}</span>
-                <span className="text-muted-foreground">{t('Payee Account')}:</span>
+                <span className='text-muted-foreground'>
+                  {t('Payee Account')}:
+                </span>
                 <span>{refund.payee_account || '-'}</span>
                 {refund.payee_bank && (
                   <>
-                    <span className="text-muted-foreground">{t('Payee Bank')}:</span>
+                    <span className='text-muted-foreground'>
+                      {t('Payee Bank')}:
+                    </span>
                     <span>{refund.payee_bank}</span>
                   </>
                 )}
@@ -487,7 +548,7 @@ export function RefundDetail({
             </div>
 
             {targetUserQuota !== null && (
-              <div className="text-muted-foreground text-sm">
+              <div className='text-muted-foreground text-sm'>
                 {t('Current user balance')}: {formatQuota(targetUserQuota)}
               </div>
             )}
@@ -504,11 +565,15 @@ export function RefundDetail({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="write_off">
+                  <SelectItem value='write_off'>
                     {t('Write Off (Recommended)')}
                   </SelectItem>
-                  {refund.finance_version !== 1 && <SelectItem value="subtract">{t('Subtract')}</SelectItem>}
-                  {refund.finance_version !== 1 && <SelectItem value="override">{t('Override')}</SelectItem>}
+                  {refund.finance_version !== 1 && (
+                    <SelectItem value='subtract'>{t('Subtract')}</SelectItem>
+                  )}
+                  {refund.finance_version !== 1 && (
+                    <SelectItem value='override'>{t('Override')}</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -520,7 +585,7 @@ export function RefundDetail({
                     : t('Target Balance')}
                 </Label>
                 <Input
-                  type="number"
+                  type='number'
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}
                   min={0}
@@ -528,21 +593,21 @@ export function RefundDetail({
               </div>
             )}
             {resolvePreviewText && (
-              <div className="text-muted-foreground text-sm">
+              <div className='text-muted-foreground text-sm'>
                 {resolvePreviewText}
               </div>
             )}
 
             {clawbackAvailable && commissionInfo && (
-              <div className="border-border space-y-2 rounded-lg border p-3">
-                <label className="flex items-center gap-2 text-sm font-medium">
+              <div className='border-border space-y-2 rounded-lg border p-3'>
+                <label className='flex items-center gap-2 text-sm font-medium'>
                   <Checkbox
                     checked={clawbackEnabled}
                     onCheckedChange={(v) => setClawbackEnabled(!!v)}
                   />
                   {t('Claw back inviter commission')}
                 </label>
-                <p className="text-muted-foreground text-xs">
+                <p className='text-muted-foreground text-xs'>
                   {t('Inviter')}: {commissionInfo.inviter_username} (
                   {commissionInfo.inviter_id}) · {t('Clawback available')}:{' '}
                   {formatQuota(commissionInfo.clawbackable_quota)}
@@ -551,12 +616,12 @@ export function RefundDetail({
                   <div>
                     <Label>{t('Clawback amount')}</Label>
                     <Input
-                      type="number"
+                      type='number'
                       value={clawbackAmount}
                       onChange={(e) => setClawbackAmount(e.target.value)}
                       min={0}
                     />
-                    <p className="text-muted-foreground mt-1 text-xs">
+                    <p className='text-muted-foreground mt-1 text-xs'>
                       {t(
                         'Amount exceeding the clawback limit will be capped automatically. A negative commission record will be visible to the inviter.'
                       )}
@@ -567,10 +632,13 @@ export function RefundDetail({
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setResolveOpen(false)}>
+            <Button variant='outline' onClick={() => setResolveOpen(false)}>
               {t('Cancel')}
             </Button>
-            <Button onClick={handleResolve} disabled={loading || !isResolveEnabled}>
+            <Button
+              onClick={handleResolve}
+              disabled={loading || !isResolveEnabled}
+            >
               {t('Confirm Refund')}
             </Button>
           </DialogFooter>
@@ -598,11 +666,11 @@ export function RefundDetail({
             maxLength={500}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectOpen(false)}>
+            <Button variant='outline' onClick={() => setRejectOpen(false)}>
               {t('Cancel')}
             </Button>
             <Button
-              variant="destructive"
+              variant='destructive'
               onClick={handleReject}
               disabled={loading}
             >

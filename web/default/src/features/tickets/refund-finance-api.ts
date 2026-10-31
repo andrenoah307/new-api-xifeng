@@ -47,12 +47,32 @@ export interface InvoiceCorrection {
   evidence: string
 }
 export interface RefundFinanceDetail {
+  settlement_status?: string
+  waiting_reason?: string
   quote_token?: string
   version: number
   refund_cash_cents: number
   refund_tax_cents: number
   allocations: RefundAllocation[]
   invoice_corrections: InvoiceCorrection[]
+}
+
+export interface RefundEligibility {
+  wallet_quota: number
+  max_refundable_quota: number
+  requestable_quota: number
+  non_refundable_quota: number
+  frozen_quota: number
+  reasons: { code: string; quota: number }[]
+}
+
+export async function getRefundEligibility(signal?: AbortSignal) {
+  const response = await api.get('/api/ticket/refund/eligibility', {
+    signal,
+    disableDuplicate: true,
+  })
+  if (!response.data.success) throw new Error(response.data.message)
+  return response.data.data as RefundEligibility
 }
 export async function quoteRefundFinance(quota: number, signal?: AbortSignal) {
   const response = await api.get('/api/ticket/refund/finance-quote', {

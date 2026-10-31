@@ -6010,6 +6010,27 @@
     "Zero-charge guard applied": "零计费保护已触发",
     "Zhipu": "智谱",
     "Zhipu V4": "智谱 V4",
-    "Zoom": "缩放"
+    "Zoom": "缩放",
+    "Only historical orders completed before 00:00 Beijing time on this date can pay tax to request an invoice. Leave empty to disable.": "仅限在所选日期北京时间00:00之前完成的历史订单补税申请开票。留空则关闭。",
+    "Recharge amount (CNY)": "充值金额（元）",
+    "Confirm whether you need an <strong>invoice</strong> before payment. If required, select the invoice type in the next step. The payment includes tax; <strong>tax charges are deducted</strong> before calculating the credited balance. If no invoice is selected, no tax is charged and this order is not eligible for an invoice.": "请在付款前确认是否需要<strong>开票</strong>。如需开票，请在下一步选择发票类型。实付金额包含税费，系统将先<strong>扣除税费</strong>再计算到账额度。选择不开票则不收取税费，且该订单不具备开票资格。",
+    "Payment breakdown": "金额明细",
+    "Non-refundable balance": "不可退额度",
+    "refund_reason.gift_balance": "已核实的赠送余额",
+    "refund_reason.invite_reward_balance": "已核实的邀请奖励余额",
+    "refund_reason.unverified_balance": "余额来源或剩余额度尚待核实",
+    "Awaiting settlement verification": "等待结算核验",
+    "Awaiting settlement verification. The refund amount must be confirmed again after verification.": "退款正在等待结算核验，核验后需重新确认可退金额。",
+    "Refund request registered; awaiting settlement verification. No balance has been frozen.": "退款申请已登记，等待结算核验，余额暂未冻结。",
+    "Submitting registers a request awaiting settlement verification. Your balance will not be frozen and API usage can continue. The refundable amount must be confirmed again after verification.": "提交后仅登记退款申请并等待结算核验，余额暂不冻结，API调用可继续使用。核验后需重新确认可退金额。",
+    "No balance has been frozen.": "余额暂未冻结。",
+    "Net amount {{net}} + tax {{tax}} = payment {{total}}": "不含税金额 {{net}} + 税费 {{tax}} = 实付金额 {{total}}",
+    "Net amount {{net}} + tax {{tax}} = amount due {{total}}": "不含税金额 {{net}} + 税费 {{tax}} = 应付金额 {{total}}",
+    "Net amount {{net}} + tax {{tax}} = invoice total {{total}}": "不含税金额 {{net}} + 税费 {{tax}} = 价税合计 {{total}}",
+    "refund is waiting for settlement verification; funds cannot be released": "退款正在等待结算核验，暂不能执行退款。",
+    "Allow orders completed before this date to request invoices": "允许日期之前的订单申请开票",
+    "Verified refundable balance": "已核实可退额度",
+    "Requestable balance": "可登记申请额度",
+    "Requested quota is not the final cash refund amount.": "申请额度不等于最终现金退款金额。"
   }
 }

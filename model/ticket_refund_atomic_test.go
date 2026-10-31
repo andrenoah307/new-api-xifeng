@@ -20,7 +20,7 @@ func refundAtomicFixture(t *testing.T) CreateRefundTicketParams {
 	user := User{Username: "refund-atomic", Quota: 1000}
 	require.NoError(t, DB.Create(&user).Error)
 	require.NoError(t, DB.Create(&TopUp{UserId: user.Id, TradeNo: "refund-atomic", QuotaGranted: 1000, Status: common.TopUpStatusSuccess}).Error)
-	return CreateRefundTicketParams{UserId: user.Id, Username: user.Username, RefundQuota: 400, PayeeType: RefundPayeeTypeAlipay, PayeeName: "person", PayeeAccount: "account", Contact: "contact"}
+	return CreateRefundTicketParams{UserId: user.Id, Username: user.Username, RefundQuota: 400, PayeeType: RefundPayeeTypeAlipay, PayeeName: "person", PayeeAccount: "account", Contact: "contact", RequestKey: uuid.NewString()}
 }
 
 func TestRefundCreateRollbackIncludesWallet(t *testing.T) {
@@ -52,7 +52,9 @@ func TestRefundConcurrentCreateRespectsWalletAndRefundCap(t *testing.T) {
 	var workers sync.WaitGroup
 	for i := 0; i < 2; i++ {
 		workers.Add(1)
-		go func() { defer workers.Done(); _, _, _, err := CreateRefundTicket(params); outcomes <- err }()
+		request := params
+		request.RequestKey = uuid.NewString()
+		go func() { defer workers.Done(); _, _, _, err := CreateRefundTicket(request); outcomes <- err }()
 	}
 	workers.Wait()
 	close(outcomes)
@@ -61,19 +63,27 @@ func TestRefundConcurrentCreateRespectsWalletAndRefundCap(t *testing.T) {
 		if err == nil {
 			successes++
 		} else {
-			require.ErrorIs(t, err, ErrTicketRefundQuotaExceed)
+			require.ErrorIs(t, err, ErrRefundFinancePending)
 		}
 	}
 	assert.Equal(t, 1, successes)
 	var user User
 	require.NoError(t, DB.First(&user, params.UserId).Error)
-	assert.Equal(t, 300, user.Quota)
+	assert.Equal(t, 1000, user.Quota)
+}
+
+func legacyFrozenRefundFixture(t *testing.T, params CreateRefundTicketParams) *Ticket {
+	t.Helper()
+	ticket, _, _, err := CreateRefundTicket(params)
+	require.NoError(t, err)
+	require.NoError(t, DB.Model(&TicketRefund{}).Where("ticket_id = ?", ticket.Id).Updates(map[string]any{"finance_version": 0, "frozen_quota": params.RefundQuota}).Error)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", params.UserId).Update("quota", gorm.Expr("quota - ?", params.RefundQuota)).Error)
+	return ticket
 }
 
 func TestRefundConcurrentRejectCreditsOnlyOnce(t *testing.T) {
 	params := refundAtomicFixture(t)
-	ticket, _, _, err := CreateRefundTicket(params)
-	require.NoError(t, err)
+	ticket := legacyFrozenRefundFixture(t, params)
 	outcomes := make(chan error, 2)
 	var workers sync.WaitGroup
 	for i := 0; i < 2; i++ {
@@ -102,8 +112,7 @@ func TestRefundConcurrentRejectCreditsOnlyOnce(t *testing.T) {
 
 func TestRefundCancelParticipatesInCallerTransaction(t *testing.T) {
 	params := refundAtomicFixture(t)
-	ticket, _, _, err := CreateRefundTicket(params)
-	require.NoError(t, err)
+	ticket := legacyFrozenRefundFixture(t, params)
 	failure := errors.New("outer transaction failed")
 	require.ErrorIs(t, DB.Transaction(func(tx *gorm.DB) error {
 		if err := CancelPendingRefund(tx, ticket.Id, params.UserId); err != nil {
@@ -123,28 +132,69 @@ func TestRefundCancelParticipatesInCallerTransaction(t *testing.T) {
 	assert.Equal(t, 1000, user.Quota)
 }
 
-func TestRefundSettlementRejectsInsufficientFundsAndOverflow(t *testing.T) {
-	for _, test := range []struct {
-		name, mode              string
-		status, actual, balance int
-	}{
-		{"subtract-insufficient", RefundQuotaModeSubtract, RefundStatusRefunded, 2000, 600},
-		{"reject-overflow", "", RefundStatusRejected, 0, math.MaxInt64},
-		{"subtract-credit-overflow", RefundQuotaModeSubtract, RefundStatusRefunded, 200, math.MaxInt64},
-	} {
-		t.Run(test.name, func(t *testing.T) {
+func TestRefundRejectOverflowPreservesHistoricalFreeze(t *testing.T) {
+	params := refundAtomicFixture(t)
+	ticket := legacyFrozenRefundFixture(t, params)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", params.UserId).Update("quota", math.MaxInt64).Error)
+	_, _, _, _, err := UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, RefundStatus: RefundStatusRejected})
+	require.ErrorIs(t, err, ErrTicketRefundQuotaExceed)
+	var user User
+	require.NoError(t, DB.First(&user, params.UserId).Error)
+	assert.Equal(t, math.MaxInt64, user.Quota)
+	refund, err := GetTicketRefundByTicketId(ticket.Id)
+	require.NoError(t, err)
+	assert.Equal(t, RefundStatusPending, refund.RefundStatus)
+	assert.Equal(t, 400, refund.FrozenQuota)
+}
+
+func TestRefundCancelRejectsInconsistentHistoricalFreeze(t *testing.T) {
+	params := refundAtomicFixture(t)
+	ticket := legacyFrozenRefundFixture(t, params)
+	require.NoError(t, DB.Model(&TicketRefund{}).Where("ticket_id = ?", ticket.Id).Update("frozen_quota", params.RefundQuota+1).Error)
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		return CancelPendingRefund(tx, ticket.Id, params.UserId)
+	})
+	require.ErrorIs(t, err, ErrTicketRefundQuotaInvalid)
+	var owner User
+	require.NoError(t, DB.First(&owner, params.UserId).Error)
+	assert.Equal(t, 600, owner.Quota)
+	refund, err := GetTicketRefundByTicketId(ticket.Id)
+	require.NoError(t, err)
+	assert.Equal(t, RefundStatusPending, refund.RefundStatus)
+	assert.Equal(t, 401, refund.FrozenQuota)
+}
+
+func TestHistoricalFrozenRefundCannotBypassWaitingWithAnyApprovalMode(t *testing.T) {
+	params := refundAtomicFixture(t)
+	ticket := legacyFrozenRefundFixture(t, params)
+	for _, mode := range []string{"", RefundQuotaModeWriteOff, RefundQuotaModeSubtract, RefundQuotaModeOverride} {
+		_, _, _, _, err := UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, RefundStatus: RefundStatusRefunded, QuotaMode: mode, ActualRefundQuota: 1})
+		require.ErrorIs(t, err, ErrRefundSettlementUnconfirmed)
+	}
+	var user User
+	require.NoError(t, DB.First(&user, params.UserId).Error)
+	assert.Equal(t, 600, user.Quota)
+	refund, err := GetTicketRefundByTicketId(ticket.Id)
+	require.NoError(t, err)
+	assert.Zero(t, refund.FinanceVersion)
+	assert.Equal(t, 400, refund.FrozenQuota)
+	assert.Equal(t, RefundStatusPending, refund.RefundStatus)
+}
+
+func TestRefundWalletDeltaBounds(t *testing.T) {
+	for _, test := range []struct{ balance, delta int }{{600, -2000}, {math.MaxInt64, 200}} {
+		name := "insufficient"
+		if test.delta > 0 {
+			name = "overflow"
+		}
+		t.Run(name, func(t *testing.T) {
 			params := refundAtomicFixture(t)
-			ticket, _, _, err := CreateRefundTicket(params)
-			require.NoError(t, err)
 			require.NoError(t, DB.Model(&User{}).Where("id = ?", params.UserId).Update("quota", test.balance).Error)
-			_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, RefundStatus: test.status, QuotaMode: test.mode, ActualRefundQuota: test.actual})
+			err := DB.Transaction(func(tx *gorm.DB) error { return applyRefundWalletDeltaTx(tx, params.UserId, test.delta) })
 			require.ErrorIs(t, err, ErrTicketRefundQuotaExceed)
 			var user User
 			require.NoError(t, DB.First(&user, params.UserId).Error)
 			assert.Equal(t, test.balance, user.Quota)
-			refund, err := GetTicketRefundByTicketId(ticket.Id)
-			require.NoError(t, err)
-			assert.Equal(t, RefundStatusPending, refund.RefundStatus)
 		})
 	}
 }
@@ -160,7 +210,17 @@ func TestRefundClawbackFailureRollsBackWalletAdjustment(t *testing.T) {
 		}
 	}))
 	t.Cleanup(func() { DB.Callback().Create().Remove(name) })
-	_, _, _, _, err := UpdateRefundStatus(UpdateRefundStatusParams{TicketId: fx.ticketId, RefundStatus: RefundStatusRefunded, QuotaMode: RefundQuotaModeSubtract, ActualRefundQuota: 1000, ClawBackCommission: true, ClawBackQuota: 1000})
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		if err := applyRefundWalletDeltaTx(tx, fx.inviteeId, 1000); err != nil {
+			return err
+		}
+		var refund TicketRefund
+		if err := tx.Where("ticket_id = ?", fx.ticketId).First(&refund).Error; err != nil {
+			return err
+		}
+		_, err := applyCommissionClawback(tx, &refund, 1000)
+		return err
+	})
 	require.ErrorIs(t, err, failure)
 	var user User
 	require.NoError(t, DB.First(&user, fx.inviteeId).Error)
@@ -171,31 +231,6 @@ func TestRefundClawbackFailureRollsBackWalletAdjustment(t *testing.T) {
 	refund, err := GetTicketRefundByTicketId(fx.ticketId)
 	require.NoError(t, err)
 	assert.Equal(t, RefundStatusPending, refund.RefundStatus)
-}
-
-func TestRefundLegacySettlementModesPreserveBalances(t *testing.T) {
-	for _, test := range []struct {
-		name, mode       string
-		actual, expected int
-	}{
-		{"write-off", RefundQuotaModeWriteOff, 0, 600},
-		{"subtract-less", RefundQuotaModeSubtract, 200, 800},
-		{"subtract-more", RefundQuotaModeSubtract, 600, 400},
-		{"override", RefundQuotaModeOverride, 123, 123},
-		{"override-unchanged", RefundQuotaModeOverride, 600, 600},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			params := refundAtomicFixture(t)
-			ticket, _, _, err := CreateRefundTicket(params)
-			require.NoError(t, err)
-			refund, _, _, _, err := UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, RefundStatus: RefundStatusRefunded, QuotaMode: test.mode, ActualRefundQuota: test.actual})
-			require.NoError(t, err)
-			assert.Equal(t, RefundStatusRefunded, refund.RefundStatus)
-			var user User
-			require.NoError(t, DB.First(&user, params.UserId).Error)
-			assert.Equal(t, test.expected, user.Quota)
-		})
-	}
 }
 
 func TestRefundRequestReplayPreservesBalanceAndRejectsChangedPayload(t *testing.T) {
@@ -210,10 +245,10 @@ func TestRefundRequestReplayPreservesBalanceAndRejectsChangedPayload(t *testing.
 	assert.Equal(t, message.Id, replayedMessage.Id)
 	var user User
 	require.NoError(t, DB.First(&user, params.UserId).Error)
-	assert.Equal(t, 600, user.Quota)
+	assert.Equal(t, 1000, user.Quota)
 	params.PayeeAccount = "changed"
 	_, _, _, err = CreateRefundTicket(params)
 	require.ErrorIs(t, err, ErrTicketRefundQuotaInvalid)
 	require.NoError(t, DB.First(&user, params.UserId).Error)
-	assert.Equal(t, 600, user.Quota)
+	assert.Equal(t, 1000, user.Quota)
 }

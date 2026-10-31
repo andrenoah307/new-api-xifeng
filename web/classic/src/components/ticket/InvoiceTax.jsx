@@ -30,6 +30,7 @@ import {
   Table,
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess } from '../../helpers';
+import { refundCash } from './refundFinanceFormat';
 
 const modes = [
   { value: 'vat', label: 'VAT added to net amount', formula: 'B × (1 + r)' },
@@ -284,6 +285,12 @@ export function InvoiceTaxPayment({ charge, rejected }) {
     paid: t('Tax paid'),
     refunded: t('Tax refunded to balance'),
   };
+  let equationKey =
+    'Net amount {{net}} + tax {{tax}} = invoice total {{total}}';
+  if (current.status === 'paid')
+    equationKey = 'Net amount {{net}} + tax {{tax}} = payment {{total}}';
+  if (current.status === 'pending')
+    equationKey = 'Net amount {{net}} + tax {{tax}} = amount due {{total}}';
   return (
     <div className='space-y-3 my-4'>
       <dl className='grid grid-cols-2 gap-2'>
@@ -311,6 +318,13 @@ export function InvoiceTaxPayment({ charge, rejected }) {
         <dt>{t('Status')}</dt>
         <dd>{labels[current.status]}</dd>
       </dl>
+      <p className='break-words'>
+        {t(equationKey, {
+          net: refundCash(current.base_cents),
+          tax: refundCash(current.fee_cents),
+          total: refundCash(current.total_cents),
+        })}
+      </p>
       {owner && current.status === 'pending' && !rejected && (
         <Space wrap>
           {(data?.payment_methods || [])
@@ -347,9 +361,17 @@ export function InvoiceTaxSettings() {
   const [config, setConfig] = useInvoiceTaxConfig();
   const [saving, setSaving] = useState(false);
   if (!config) return <p>{t('Loading...')}</p>;
-  const valid = [config.ordinary_rate_bps, config.special_rate_bps].every(
-    (rate) => Number.isInteger(rate) && rate >= 0 && rate < 10000,
-  );
+  const legacyBefore = config.legacy_invoice_before ?? 0;
+  const validCutoff =
+    Number.isSafeInteger(legacyBefore) &&
+    legacyBefore >= 0 &&
+    legacyBefore <= Date.parse('9999-12-31T00:00:00+08:00') / 1000 &&
+    (legacyBefore === 0 || (legacyBefore + 28800) % 86400 === 0);
+  const valid =
+    validCutoff &&
+    [config.ordinary_rate_bps, config.special_rate_bps].every(
+      (rate) => Number.isInteger(rate) && rate >= 0 && rate < 10000,
+    );
   const rows = modes.flatMap((mode) =>
     ['ordinary', 'special'].map((type) => {
       const rate = config[`${type}_rate_bps`] / 10000;
@@ -409,16 +431,38 @@ export function InvoiceTaxSettings() {
         />
         <span>{t('Collect invoice tax charges')}</span>
       </Space>
-      <Space>
-        <Switch
-          checked={!!config.legacy_topups_enabled}
-          onChange={(legacy_topups_enabled) =>
-            setConfig({ ...config, legacy_topups_enabled })
+      <div className='space-y-2'>
+        <label htmlFor='invoice-legacy-before'>
+          {t('Allow orders completed before this date to request invoices')}
+        </label>
+        <input
+          id='invoice-legacy-before'
+          type='date'
+          min='1970-01-02'
+          max='9999-12-31'
+          className='block w-full rounded border border-[var(--semi-color-border)] bg-transparent p-2'
+          value={
+            validCutoff && legacyBefore > 0
+              ? new Date((legacyBefore + 28800) * 1000)
+                  .toISOString()
+                  .slice(0, 10)
+              : ''
           }
-          aria-label={t('Allow tax payments for historical recharge orders')}
+          onChange={(event) =>
+            setConfig({
+              ...config,
+              legacy_invoice_before: event.target.value
+                ? Date.parse(`${event.target.value}T00:00:00+08:00`) / 1000
+                : 0,
+            })
+          }
         />
-        <span>{t('Allow tax payments for historical recharge orders')}</span>
-      </Space>
+        <p className='text-sm text-[var(--semi-color-text-2)]'>
+          {t(
+            'Only historical orders completed before 00:00 Beijing time on this date can pay tax to request an invoice. Leave empty to disable.',
+          )}
+        </p>
+      </div>
       {['ordinary', 'special'].map((type) => (
         <div key={type}>
           <label>

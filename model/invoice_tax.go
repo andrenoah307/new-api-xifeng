@@ -17,6 +17,7 @@ const InvoiceTaxConfigKey = "InvoiceTaxConfig"
 type InvoiceTaxConfig struct {
 	ModuleEnabled       bool   `json:"module_enabled"`
 	LegacyTopUpsEnabled bool   `json:"legacy_topups_enabled"`
+	LegacyInvoiceBefore int64  `json:"legacy_invoice_before"`
 	Enabled             bool   `json:"enabled"`
 	Mode                string `json:"mode"`
 	OrdinaryRateBps     int    `json:"ordinary_rate_bps"`
@@ -87,7 +88,6 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	}
 	if !config.ModuleEnabled {
 		config.Enabled = false
-		config.LegacyTopUpsEnabled = true
 	}
 	if invoiceType == "" && !config.Enabled {
 		invoiceType = "ordinary"
@@ -134,7 +134,7 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 			}
 			continue
 		}
-		if !config.LegacyTopUpsEnabled {
+		if config.ModuleEnabled && !config.AllowsLegacyInvoice(order) {
 			return empty, ErrTicketInvoiceOrderInvalid
 		}
 		if config.ModuleEnabled && !IsCNYInvoiceTopUp(order) {
@@ -283,9 +283,17 @@ func syncInvoiceTaxQuotaCache(userID, delta int) {
 }
 
 func (config InvoiceTaxConfig) Valid() bool {
-	return (config.Mode == "vat" || config.Mode == "compound" || config.Mode == "gross_up") &&
+	return config.LegacyInvoiceBefore >= 0 && config.LegacyInvoiceBefore <= 253402271999 &&
+		(config.LegacyInvoiceBefore == 0 || (config.LegacyInvoiceBefore+8*3600)%86400 == 0) &&
+		(config.Mode == "vat" || config.Mode == "compound" || config.Mode == "gross_up") &&
 		config.OrdinaryRateBps >= 0 && config.OrdinaryRateBps < 10000 &&
 		config.SpecialRateBps >= 0 && config.SpecialRateBps < 10000
+}
+
+// Payment completion is authoritative: creating an unpaid order before the
+// cutoff must not grant eligibility to a payment completed afterwards.
+func (config InvoiceTaxConfig) AllowsLegacyInvoice(order *TopUp) bool {
+	return order != nil && config.LegacyInvoiceBefore > 0 && order.CompleteTime > 0 && order.CompleteTime < config.LegacyInvoiceBefore
 }
 
 func GetInvoiceTaxConfig(db *gorm.DB) (InvoiceTaxConfig, error) {

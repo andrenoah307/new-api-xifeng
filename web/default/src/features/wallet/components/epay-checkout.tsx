@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { CreditCard } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -132,7 +132,7 @@ export function EpayCheckout({
       <div className='grid gap-4 sm:grid-cols-2'>
         <div className='space-y-2'>
           <Label htmlFor='epay-payment-total'>
-            {t('Payment amount (CNY)')}
+            {t('Recharge amount (CNY)')}
           </Label>
           <Input
             id='epay-payment-total'
@@ -181,15 +181,20 @@ export function EpayCheckout({
             <DialogTitle>
               {step === 1 ? t('Invoice confirmation') : t('Confirm payment')}
             </DialogTitle>
-            <DialogDescription className='leading-relaxed whitespace-pre-line'>
-              {step === 1
-                ? t(
-                    'Choose invoice eligibility before paying. If you need an invoice, select Yes now and choose the invoice type next. Tax charges will be included in your payment and deducted when calculating the credited balance. Selecting No creates a non-invoiceable order without tax charges; this order cannot later be changed to an invoiceable order.'
-                  )
-                : t(
+            {(step === 1 || invoiceType !== 'none') && (
+              <DialogDescription className='leading-relaxed'>
+                {step === 1 ? (
+                  <Trans
+                    i18nKey='Confirm whether you need an <strong>invoice</strong> before payment. If required, select the invoice type in the next step. The payment includes tax; <strong>tax charges are deducted</strong> before calculating the credited balance. If no invoice is selected, no tax is charged and this order is not eligible for an invoice.'
+                    components={{ strong: <strong /> }}
+                  />
+                ) : (
+                  t(
                     'Invoice eligibility and type are fixed at checkout. Tax is included in the payment amount.'
-                  )}
-            </DialogDescription>
+                  )
+                )}
+              </DialogDescription>
+            )}
           </DialogHeader>
           {step === 1 ? (
             <DialogFooter className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
