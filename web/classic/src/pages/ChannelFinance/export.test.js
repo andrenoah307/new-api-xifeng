@@ -31,9 +31,11 @@ test('CSV preserves precise amounts, escapes channel text, and leaves unknown pr
   const row = {
     channel_id: 7,
     channel_name: ' \t=SUM(1,2)"渠道',
-    consume_amount: '9007199254740993.123456789012345678',
-    profit: '-0.123456789012345678',
-    profit_margin: null,
+    original_count: 1,
+    fallback_count: 0,
+    known_revenue: '9007199254740993.123456789012345678',
+    known_profit: '-0.123456789012345678',
+    known_profit_margin: null,
   };
   const csv = reportCSV(job, [row]);
   assert.ok(csv.startsWith('\ufeff'));
@@ -41,7 +43,11 @@ test('CSV preserves precise amounts, escapes channel text, and leaves unknown pr
   assert.ok(csv.includes('"9007199254740993.123456789012345678"'));
   assert.ok(csv.includes('"-0.123456789012345678",""'));
   const partial = reportCSV({ ...job, status: 'running' }, [row]);
-  assert.ok(!partial.includes('-0.123456789012345678'));
+  assert.ok(partial.includes('-0.123456789012345678'));
+  assert.equal(
+    reportCSV(job, [{ ...row, original_count: 0 }]),
+    reportCSV(job, []),
+  );
   assert.equal(reportCSV(job, []).split('\r\n').length, 2);
   assert.ok(
     reportCSV(job, [{ ...row, channel_name: '\u0001@formula' }]).includes(

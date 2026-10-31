@@ -27,23 +27,10 @@ export const reportCSVHeaders = [
   'aggregated_through',
   'channel_id',
   'channel_name',
-  'consume_amount',
-  'refund_amount',
-  'net_amount',
-  'original_cost',
-  'fallback_cost',
   'cost',
-  'known_profit',
+  'consume_amount',
   'profit',
   'profit_margin_ratio',
-  'cost_ratio',
-  'coverage_ratio',
-  'consume_count',
-  'original_count',
-  'fallback_count',
-  'missing_count',
-  'stale_count',
-  'refund_count',
 ]
 
 function textCell(value: unknown) {
@@ -59,32 +46,21 @@ function textCell(value: unknown) {
 export function reportCSV(job: FinanceJob, rows: FinanceRow[]) {
   const records = [
     reportCSVHeaders,
-    ...rows.map((row) => [
-      textCell(job.id),
-      textCell(job.status),
-      job.start,
-      job.end,
-      job.cursor,
-      row.channel_id,
-      textCell(row.channel_name),
-      row.consume_amount,
-      row.refund_amount,
-      row.net_amount,
-      row.original_cost,
-      row.fallback_cost,
-      row.cost,
-      row.known_profit,
-      job.status === 'completed' ? row.profit : null,
-      job.status === 'completed' ? row.profit_margin : null,
-      row.cost_ratio,
-      row.coverage,
-      row.consume_count,
-      row.original_count,
-      row.fallback_count,
-      row.missing_count,
-      row.stale_count,
-      row.refund_count,
-    ]),
+    ...rows
+      .filter((row) => row.original_count + row.fallback_count > 0)
+      .map((row) => [
+        textCell(job.id),
+        textCell(job.status),
+        job.start,
+        job.end,
+        job.cursor,
+        row.channel_id,
+        textCell(row.channel_name),
+        row.cost,
+        row.known_revenue,
+        row.known_profit,
+        row.known_profit_margin,
+      ]),
   ]
   return (
     '\ufeff' +

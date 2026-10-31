@@ -27,13 +27,14 @@ type CostReportPeak struct {
 	Ratio    string `json:"ratio"`
 }
 type CostReportPolicy struct {
-	Start           int64            `json:"start"`
-	End             int64            `json:"end"`
-	ChannelID       int              `json:"channel_id"`
-	QuotaPerUnit    string           `json:"quota_per_unit"`
-	Rates           []CostReportRate `json:"rates"`
-	FallbackMode    string           `json:"fallback_mode"`
-	CostFingerprint string           `json:"cost_fingerprint,omitempty"`
+	CostBasisVersion int              `json:"cost_basis_version,omitempty"`
+	Start            int64            `json:"start"`
+	End              int64            `json:"end"`
+	ChannelID        int              `json:"channel_id"`
+	QuotaPerUnit     string           `json:"quota_per_unit"`
+	Rates            []CostReportRate `json:"rates"`
+	FallbackMode     string           `json:"fallback_mode"`
+	CostFingerprint  string           `json:"cost_fingerprint,omitempty"`
 }
 type ChannelCostReportRow struct {
 	ChannelID      int    `json:"channel_id"`
@@ -80,6 +81,9 @@ func costReportSourceDecimal(value string) (decimal.Decimal, bool) {
 }
 
 func ValidateCostReportPolicy(p CostReportPolicy) error {
+	if p.CostBasisVersion < 0 || p.CostBasisVersion > 1 {
+		return errors.New("unsupported cost basis version")
+	}
 	q, ok := costReportDecimal(p.QuotaPerUnit)
 	if p.Start < 1 || p.End <= p.Start || p.End > time.Now().Unix() || p.ChannelID < 0 || !ok || q.LessThan(decimal.NewFromInt(1)) || q.GreaterThan(decimal.NewFromInt(1000000000000)) || (p.FallbackMode != "none" && p.FallbackMode != "billed_basis") || len(p.Rates) > 5000 {
 		return errors.New("invalid cost report policy")
@@ -252,15 +256,19 @@ func AggregateChannelCostWindow(ctx context.Context, p CostReportPolicy, start, 
 				if string(other["quota_saturated"]) == "true" {
 					safe = false
 				}
-				for key := range other {
-					if costReportUnsupportedRE.MatchString(key) {
+				if p.CostBasisVersion == 0 {
+					for key := range other {
+						if costReportUnsupportedRE.MatchString(key) {
+							safe = false
+						}
+					}
+					if raw := string(other["billing_mode"]); raw != "" && raw != `""` && raw != `"token"` {
 						safe = false
 					}
 				}
-				if raw := string(other["billing_mode"]); raw != "" && raw != `""` && raw != `"token"` {
-					safe = false
-				}
-				if !baseOK {
+				// Version 1 estimates from the final charge, including expression and
+				// tool charges. Never reconstruct tokens or substitute today's group rate.
+				if !baseOK || p.CostBasisVersion == 1 {
 					ratioText := string(other["group_ratio"])
 					ratio, ratioOK := costReportDecimal(ratioText)
 					baseOK = safe && ratioOK && ratio.GreaterThanOrEqual(decimal.RequireFromString("0.000001")) && ratio.LessThanOrEqual(decimal.NewFromInt(10000))
@@ -389,6 +397,13 @@ func aggregateClickHouseCostWindow(ctx context.Context, p CostReportPolicy, star
 		}
 		rateExpr = "multiIf(" + strings.Join(parts, ",") + ", CAST(NULL AS Nullable(Decimal256(18))))"
 	}
+	legacySafety := ` AND NOT arrayExists(k -> match(lower(k),'(tool|search|audio|image|video|tiered|expression|extra_ratio)'),JSONExtractKeys(doc))
+ AND JSONExtractString(doc,'billing_mode') IN ('','token')`
+	baseCondition := "base IS NOT NULL"
+	if p.CostBasisVersion == 1 {
+		legacySafety = ""
+		baseCondition = "0"
+	}
 	sql := `WITH dedup AS (
  SELECT event_id, any(ifNull(logs.channel_id,0)) channel_id, any(ifNull(type,0)) kind,
  any(ifNull(quota,0)) units, any(ifNull(other,'')) doc, any(ifNull(created_at,0)) at,
@@ -401,9 +416,7 @@ func aggregateClickHouseCostWindow(ctx context.Context, p CostReportPolicy, star
  JSONExtractRaw(doc,'group_ratio') group_text,
  ` + rateExpr + ` rate,
  isValidJSON(doc) AND JSONExtractRaw(doc,'admin_info','quota_saturation') IN ('','null')
- AND NOT JSONExtractBool(doc,'quota_saturated')
- AND NOT arrayExists(k -> match(lower(k),'(tool|search|audio|image|video|tiered|expression|extra_ratio)'),JSONExtractKeys(doc))
- AND JSONExtractString(doc,'billing_mode') IN ('','token') safe
+ AND NOT JSONExtractBool(doc,'quota_saturated')` + legacySafety + ` safe
  FROM dedup` + filter + `
  ), amounts AS (
  SELECT *, if(match(amount_text,'` + costReportSourceDecimalPattern + `'),toDecimal256OrNull(amount_text,18),NULL) snapshot,
@@ -413,7 +426,7 @@ func aggregateClickHouseCostWindow(ctx context.Context, p CostReportPolicy, star
  FROM parsed
  ), classified AS (
  SELECT *, kind=2 AND snapshot IS NOT NULL AND status IN ('estimated','stale') original,
- if(base IS NOT NULL,base,if(group_rate >= toDecimal256('0.000001',18) AND group_rate <= toDecimal256('10000',18),divideDecimal(toDecimal256(units,18),toDecimal256('` + p.QuotaPerUnit + `',18)*ifNull(nullIf(group_rate,0),toDecimal256(1,18)),18),NULL)) basis
+ if(` + baseCondition + `,base,if(group_rate >= toDecimal256('0.000001',18) AND group_rate <= toDecimal256('10000',18),divideDecimal(toDecimal256(units,18),toDecimal256('` + p.QuotaPerUnit + `',18)*ifNull(nullIf(group_rate,0),toDecimal256(1,18)),18),NULL)) basis
  FROM amounts
  ), resolved AS (
  SELECT *, kind=2 AND NOT original AND safe AND rate IS NOT NULL AND basis IS NOT NULL fallback

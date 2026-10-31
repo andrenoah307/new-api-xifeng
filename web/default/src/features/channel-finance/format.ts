@@ -21,7 +21,12 @@ export function formatReportAmount(value: string | number | null, key: string) {
   if (key.endsWith('_count')) return Number(value).toLocaleString()
   const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(String(value))
   if (!match) return '-'
-  const percent = ['coverage', 'profit_margin', 'cost_ratio'].includes(key)
+  const percent = [
+    'coverage',
+    'profit_margin',
+    'known_profit_margin',
+    'cost_ratio',
+  ].includes(key)
   const scale = percent ? 4 : 6
   const digits = percent ? 2 : 6
   const fraction = (match[3] ?? '').padEnd(scale + 1, '0')

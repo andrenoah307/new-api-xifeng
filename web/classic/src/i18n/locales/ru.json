@@ -5213,6 +5213,13 @@
     "Confirm and generate": "Подтвердить и создать",
     "Channel cost settings changed. Review the channel list again.": "Настройки затрат изменились. Проверьте список каналов снова.",
     "Export filtered results": "Экспорт результатов фильтра",
-    "Download report CSV": "Скачать отчёт CSV"
+    "Download report CSV": "Скачать отчёт CSV",
+    "Clean up stopped tasks?": "Очистить остановленные задачи?",
+    "Clean up tasks": "Очистить задачи",
+    "Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.": "Удалить все отменённые, неудачные и приостановленные задачи отчётов, выполнение которых остановлено, включая задачи вне текущих фильтров? Завершённые и активные задачи будут сохранены.",
+    "Delete report task?": "Удалить задачу отчёта?",
+    "Delete this report and its saved results? Source logs and account balances will not change.": "Удалить этот отчёт и сохранённые результаты? Исходные журналы и балансы счетов не изменятся.",
+    "Deleted {{count}} report tasks.": "Удалено задач отчётов: {{count}}.",
+    "Report task state changed. Refresh and try again.": "Состояние задачи изменилось. Обновите страницу и повторите попытку."
   }
 }

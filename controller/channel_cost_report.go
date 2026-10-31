@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -105,6 +106,32 @@ func PreviewChannelCostReportConfig(c *gin.Context) {
 	common.ApiSuccess(c, preview)
 }
 
+func DeleteChannelCostReportJobs(c *gin.Context) {
+	if !authorizeLogRoot(c) {
+		return
+	}
+	id := c.Param("id")
+	if id != "" {
+		if _, err := uuid.Parse(id); err != nil {
+			logRootUnavailable(c, i18n.MsgInvalidParams)
+			return
+		}
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+	deleted, err := model.DeleteChannelCostReportJobs(ctx, c.GetInt("id"), id)
+	if errors.Is(err, model.ErrChannelCostReportConflict) {
+		c.JSON(http.StatusConflict, gin.H{"success": false, "message": "Report task state changed. Refresh and try again."})
+		return
+	}
+	if err != nil {
+		logRootUnavailable(c, i18n.MsgDatabaseError)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	common.ApiSuccess(c, gin.H{"deleted_ids": deleted, "deleted_count": len(deleted)})
+}
+
 func CreateChannelCostReportJob(c *gin.Context) {
 	if !authorizeLogRoot(c) {
 		return
@@ -123,7 +150,7 @@ func CreateChannelCostReportJob(c *gin.Context) {
 		logRootUnavailable(c, i18n.MsgInvalidParams)
 		return
 	}
-	policy := model.CostReportPolicy{Start: request.Start, End: request.End, ChannelID: request.ChannelID,
+	policy := model.CostReportPolicy{CostBasisVersion: 1, Start: request.Start, End: request.End, ChannelID: request.ChannelID,
 		QuotaPerUnit: decimal.NewFromFloat(common.QuotaPerUnit).String(), Rates: request.Rates, FallbackMode: request.FallbackMode, CostFingerprint: request.CostFingerprint}
 	var job *model.ChannelCostReportJob
 	var err error
@@ -186,14 +213,15 @@ func ControlChannelCostReportJob(c *gin.Context) {
 
 type channelCostReportRowDTO struct {
 	model.ChannelCostReportRow
-	ChannelName  string  `json:"channel_name"`
-	Cost         string  `json:"cost"`
-	NetAmount    string  `json:"net_amount"`
-	KnownProfit  string  `json:"known_profit"`
-	Profit       *string `json:"profit"`
-	ProfitMargin *string `json:"profit_margin"`
-	CostRatio    *string `json:"cost_ratio"`
-	Coverage     string  `json:"coverage"`
+	ChannelName       string  `json:"channel_name"`
+	Cost              string  `json:"cost"`
+	NetAmount         string  `json:"net_amount"`
+	KnownProfit       string  `json:"known_profit"`
+	KnownProfitMargin *string `json:"known_profit_margin"`
+	Profit            *string `json:"profit"`
+	ProfitMargin      *string `json:"profit_margin"`
+	CostRatio         *string `json:"cost_ratio"`
+	Coverage          string  `json:"coverage"`
 }
 
 func projectChannelCostReportRow(row model.ChannelCostReportRow) (channelCostReportRowDTO, error) {
@@ -215,6 +243,8 @@ func projectChannelCostReportRow(row model.ChannelCostReportRow) (channelCostRep
 		result.Coverage = decimal.NewFromInt(row.ConsumeCount-row.MissingCount).DivRound(decimal.NewFromInt(row.ConsumeCount), 18).String()
 	}
 	if amounts[4].IsPositive() {
+		margin := knownProfit.DivRound(amounts[4], 18).String()
+		result.KnownProfitMargin = &margin
 		ratio := cost.DivRound(amounts[4], 18).String()
 		result.CostRatio = &ratio
 	}

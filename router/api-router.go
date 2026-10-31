@@ -298,6 +298,8 @@ func SetApiRouter(router *gin.Engine) {
 		channelFinanceRoute.GET("/cost-preview", controller.PreviewChannelCostReportConfig)
 		channelFinanceRoute.GET("/jobs", controller.ListChannelCostReportJobs)
 		channelFinanceRoute.POST("/jobs", controller.CreateChannelCostReportJob)
+		channelFinanceRoute.DELETE("/jobs", controller.DeleteChannelCostReportJobs)
+		channelFinanceRoute.DELETE("/jobs/:id", controller.DeleteChannelCostReportJobs)
 		channelFinanceRoute.GET("/jobs/:id", controller.GetChannelCostReportJob)
 		channelFinanceRoute.GET("/jobs/:id/report", controller.GetChannelCostReport)
 		channelFinanceRoute.GET("/jobs/:id/export", controller.ExportChannelCostReport)

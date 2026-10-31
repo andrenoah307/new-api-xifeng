@@ -59,6 +59,8 @@ export interface FinanceRow {
   fallback_cost: string
   cost: string
   known_profit: string
+  known_revenue: string
+  known_profit_margin: string | null
   profit: string | null
   profit_margin: string | null
   cost_ratio: string | null

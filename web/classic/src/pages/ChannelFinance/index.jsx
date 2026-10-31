@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
-import { Button, Tag } from '@douyinfe/semi-ui';
+import { Button, Modal, Tag } from '@douyinfe/semi-ui';
 import {
   Calculator,
   ChevronLeft,
@@ -30,6 +30,7 @@ import {
   Play,
   RefreshCw,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 import { API, downloadTextAsFile } from '../../helpers';
@@ -56,23 +57,10 @@ const statusColors = {
   completed: 'green',
 };
 const columns = [
-  ['consume_amount', 'Consumption'],
-  ['refund_amount', 'Refunds'],
-  ['net_amount', 'Net consumption'],
-  ['original_cost', 'Snapshot cost'],
-  ['fallback_cost', 'Estimated historical cost'],
   ['cost', 'Cost'],
-  ['known_profit', 'Known-cost profit'],
-  ['profit', 'Profit'],
-  ['profit_margin', 'Profit margin'],
-  ['cost_ratio', 'Cost ratio'],
-  ['coverage', 'Cost coverage'],
-  ['consume_count', 'Consumption records'],
-  ['original_count', 'Snapshot records'],
-  ['fallback_count', 'Estimated records'],
-  ['missing_count', 'Unknown-cost records'],
-  ['stale_count', 'Stale-rate records'],
-  ['refund_count', 'Refund records'],
+  ['known_revenue', 'Consumption'],
+  ['known_profit', 'Profit'],
+  ['known_profit_margin', 'Profit margin'],
 ];
 
 function localTime(value) {
@@ -131,6 +119,54 @@ function ChannelFinanceContent({ userId }) {
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [removing, setRemoving] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteResult, setDeleteResult] = useState('');
+  const deletedIDs = useRef(new Set());
+  async function deleteTasks() {
+    if (
+      deleting ||
+      !removing ||
+      identity.current?.role !== 100 ||
+      identity.current?.id !== userId
+    )
+      return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const response = await API.delete(
+        `/api/channel-finance/jobs${removing.id ? `/${encodeURIComponent(removing.id)}` : ''}`,
+        { skipErrorHandler: true },
+      );
+      if (!response.data.success) throw new Error('delete failed');
+      if (
+        !mounted.current ||
+        identity.current?.role !== 100 ||
+        identity.current?.id !== userId
+      )
+        return;
+      const { deleted_ids: ids, deleted_count: count } = response.data.data;
+      ids.forEach((id) => deletedIDs.current.add(id));
+      setJobs((items) =>
+        items.filter((item) => !deletedIDs.current.has(item.id)),
+      );
+      setSelected((current) => (ids.includes(current) ? null : current));
+      setReport((current) => (ids.includes(current?.job.id) ? null : current));
+      setRemoving(null);
+      setDeleteResult(t('Deleted {{count}} report tasks.', { count }));
+      setRefresh((value) => value + 1);
+    } catch (failure) {
+      if (mounted.current)
+        setDeleteError(
+          failure.response?.status === 409
+            ? t('Report task state changed. Refresh and try again.')
+            : t('Operation failed'),
+        );
+    } finally {
+      if (mounted.current) setDeleting(false);
+    }
+  }
   useEffect(() => {
     if (keywordInput.trim() === keyword) return;
     const timer = setTimeout(() => {
@@ -163,7 +199,7 @@ function ChannelFinanceContent({ userId }) {
           setPage(lastPage);
           return;
         }
-        setJobs(data.items);
+        setJobs(data.items.filter((item) => !deletedIDs.current.has(item.id)));
         setTotal(data.total);
         if (!initialSelection.current) {
           initialSelection.current = true;
@@ -209,7 +245,7 @@ function ChannelFinanceContent({ userId }) {
         );
         if (!result.data.success)
           throw new Error(result.data.message || t('Failed to load report'));
-        if (!active) return;
+        if (!active || deletedIDs.current.has(selected)) return;
         setReport(result.data.data);
         setReportError('');
         if (['pending', 'running'].includes(result.data.data.job.status))
@@ -321,10 +357,12 @@ function ChannelFinanceContent({ userId }) {
     ? Math.min(100, (job.processed_windows / job.total_windows) * 100)
     : 0;
   const rows =
-    report?.channels.filter((row) =>
-      `${row.channel_id} ${row.channel_name}`
-        .toLowerCase()
-        .includes(filter.toLowerCase()),
+    report?.channels.filter(
+      (row) =>
+        row.original_count + row.fallback_count > 0 &&
+        `${row.channel_id} ${row.channel_name}`
+          .toLowerCase()
+          .includes(filter.toLowerCase()),
     ) ?? [];
   return (
     <main className='channel-finance'>
@@ -417,7 +455,54 @@ function ChannelFinanceContent({ userId }) {
         </p>
       )}
       <section className='finance-jobs' aria-label={t('Report task')}>
-        <h2>{t('Report task')}</h2>
+        <Modal
+          width='min(520px, calc(100vw - 32px))'
+          visible={removing !== null}
+          title={
+            removing?.id
+              ? t('Delete report task?')
+              : t('Clean up stopped tasks?')
+          }
+          onCancel={() => {
+            if (!deleting) setRemoving(null);
+          }}
+          onOk={deleteTasks}
+          confirmLoading={deleting}
+          okText={t('Delete')}
+          cancelText={t('Cancel')}
+          okButtonProps={{ type: 'danger' }}
+          cancelButtonProps={{ disabled: deleting }}
+        >
+          <p>
+            {removing?.id
+              ? t(
+                  'Delete this report and its saved results? Source logs and account balances will not change.',
+                )
+              : t(
+                  'Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.',
+                )}
+          </p>
+          {removing?.id && <p className='finance-task-id'>{removing.id}</p>}
+          {deleteError && (
+            <p role='alert' className='finance-error'>
+              {deleteError}
+            </p>
+          )}
+        </Modal>
+        <div className='finance-jobs-heading'>
+          <h2>{t('Report task')}</h2>
+          <Button
+            icon={<Trash2 size={16} />}
+            disabled={deleting}
+            onClick={() => {
+              setDeleteError('');
+              setRemoving({ id: '' });
+            }}
+          >
+            {t('Clean up tasks')}
+          </Button>
+        </div>
+        {deleteResult && <p role='status'>{deleteResult}</p>}
         <div className='finance-toolbar finance-jobs-filters'>
           <label className='finance-job-search'>
             {t('Search')}
@@ -540,6 +625,20 @@ function ChannelFinanceContent({ userId }) {
                         icon={<Download size={16} />}
                         onClick={() => void download(item.id)}
                       />
+                      <Button
+                        theme='borderless'
+                        title={t('Delete')}
+                        aria-label={`${t('Delete')} ${item.id}`}
+                        disabled={
+                          deleting ||
+                          ['pending', 'running'].includes(item.status)
+                        }
+                        icon={<Trash2 size={16} />}
+                        onClick={() => {
+                          setDeleteError('');
+                          setRemoving({ id: item.id });
+                        }}
+                      />
                     </td>
                   </tr>
                 );
@@ -656,12 +755,6 @@ function ChannelFinanceContent({ userId }) {
                   ? 'Full summary with channel-rate cost estimates'
                   : 'Existing costs only (may be incomplete)',
               )}
-              {job.policy.rates
-                ?.map(
-                  (rate) =>
-                    ` · #${rate.channel_id}: ${rate.ratio}${rate.peak ? ` (${rate.peak.start}-${rate.peak.end} ${rate.peak.timezone} × ${rate.peak.ratio})` : ''}`,
-                )
-                .join('')}
             </p>
           )}
           {job.error && (
@@ -674,9 +767,9 @@ function ChannelFinanceContent({ userId }) {
       {report && (
         <>
           <dl className='finance-summary'>
-            {['net_amount', 'cost', 'known_profit', 'coverage'].map((key) => (
+            {columns.map(([key, label]) => (
               <div key={key}>
-                <dt>{t(columns.find((column) => column[0] === key)[1])}</dt>
+                <dt>{t(label)}</dt>
                 <dd>{amount(report.total[key], key)}</dd>
               </div>
             ))}

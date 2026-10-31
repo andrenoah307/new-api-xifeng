@@ -5192,6 +5192,13 @@
     "Confirm and generate": "Confirmer et générer",
     "Channel cost settings changed. Review the channel list again.": "Les coûts des canaux ont changé. Vérifiez à nouveau la liste.",
     "Export filtered results": "Exporter les résultats filtrés",
-    "Download report CSV": "Télécharger le rapport CSV"
+    "Download report CSV": "Télécharger le rapport CSV",
+    "Clean up stopped tasks?": "Nettoyer les tâches arrêtées ?",
+    "Clean up tasks": "Nettoyer les tâches",
+    "Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.": "Supprimer toutes les tâches de rapport annulées, échouées ou en pause dont l’exécution est arrêtée, même hors des filtres actuels ? Les tâches terminées et actives seront conservées.",
+    "Delete report task?": "Supprimer cette tâche de rapport ?",
+    "Delete this report and its saved results? Source logs and account balances will not change.": "Supprimer ce rapport et ses résultats enregistrés ? Les journaux sources et les soldes des comptes resteront inchangés.",
+    "Deleted {{count}} report tasks.": "{{count}} tâches de rapport supprimées.",
+    "Report task state changed. Refresh and try again.": "L’état de la tâche a changé. Actualisez et réessayez."
   }
 }

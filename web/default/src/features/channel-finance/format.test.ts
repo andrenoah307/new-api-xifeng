@@ -35,5 +35,6 @@ describe('finance report presentation', () => {
     assert.equal(formatReportAmount('0', 'cost'), '0.000000')
     assert.equal(formatReportAmount('0.123456', 'coverage'), '12.35%')
     assert.equal(formatReportAmount('-0.013456', 'profit_margin'), '-1.35%')
+    assert.equal(formatReportAmount('0.625', 'known_profit_margin'), '62.50%')
   })
 })

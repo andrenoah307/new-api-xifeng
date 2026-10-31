@@ -8,6 +8,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const SystemTaskTypeChannelCostReport = "channel_cost_report"
@@ -265,6 +266,58 @@ func ControlChannelCostReportJob(ctx context.Context, id, action string) error {
 		}
 		return nil
 	})
+}
+
+// A terminal report alone is insufficient: the executor must have released its
+// active key and lease. Preserve executor history and all source accounting data.
+func deletableCostReportJobs(tx *gorm.DB, actorID int, id string) *gorm.DB {
+	statuses := []string{"paused", "cancelled", "failed"}
+	if id != "" {
+		statuses = append(statuses, "completed")
+	}
+	query := tx.Model(&ChannelCostReportJob{}).
+		Where("EXISTS (SELECT 1 FROM users WHERE users.id = ? AND users.role = ? AND users.status = ?)", actorID, common.RoleRootUser, common.UserStatusEnabled).
+		Where("(status IN ? OR (status IN ? AND EXISTS (SELECT 1 FROM system_tasks WHERE system_tasks.task_id = channel_cost_report_jobs.system_task_id AND system_tasks.status = ?)))", statuses, []string{"pending", "running"}, SystemTaskStatusFailed).
+		Where("EXISTS (SELECT 1 FROM system_tasks WHERE system_tasks.task_id = channel_cost_report_jobs.system_task_id AND system_tasks.type = ? AND system_tasks.status IN ? AND system_tasks.active_key IS NULL)", SystemTaskTypeChannelCostReport, []SystemTaskStatus{SystemTaskStatusSucceeded, SystemTaskStatusFailed}).
+		Where("NOT EXISTS (SELECT 1 FROM system_task_locks WHERE system_task_locks.task_id = channel_cost_report_jobs.system_task_id)")
+	if id != "" {
+		query = query.Where("id = ?", id)
+	}
+	return query
+}
+
+func DeleteChannelCostReportJobs(ctx context.Context, actorID int, id string) ([]string, error) {
+	deleted := make([]string, 0)
+	err := DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := authorizeCostReportOwner(tx, actorID); err != nil {
+			return err
+		}
+		var jobs []ChannelCostReportJob
+		if err := deletableCostReportJobs(tx, actorID, id).Select("id").Order("id").Clauses(clause.Locking{Strength: "UPDATE"}).Find(&jobs).Error; err != nil {
+			return err
+		}
+		if len(jobs) == 0 {
+			if id != "" {
+				return ErrChannelCostReportConflict
+			}
+			return nil
+		}
+		for _, job := range jobs {
+			deleted = append(deleted, job.ID)
+		}
+		result := deletableCostReportJobs(tx, actorID, id).Where("id IN ?", deleted).Delete(&ChannelCostReportJob{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != int64(len(deleted)) {
+			return ErrChannelCostReportConflict
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return deleted, nil
 }
 
 // The lease and owner predicates are evaluated in the same statement as publication.

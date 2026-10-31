@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,10 +24,12 @@ import {
   Eye,
   RefreshCw,
   Search,
+  Trash2,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,8 +60,71 @@ export function FinanceTaskTable(props: {
   userId: number
   selected: string | null
   onSelect: (id: string) => void
+  onDeleted: (ids: string[]) => void
 }) {
   const { t } = useTranslation()
+  const client = useQueryClient()
+  const [removing, setRemoving] = useState<{ id: string } | null>(null)
+  const [deleteError, setDeleteError] = useState('')
+  const [deleteResult, setDeleteResult] = useState('')
+  const deletion = useMutation({
+    mutationFn: async (id: string) => {
+      const user = useAuthStore.getState().auth.user
+      if (user?.id !== props.userId || user.role !== 100) {
+        throw new Error(t('Forbidden'))
+      }
+      const response = await api.delete(
+        `/api/channel-finance/jobs${id ? `/${encodeURIComponent(id)}` : ''}`,
+        { skipErrorHandler: true }
+      )
+      if (!response.data.success) throw new Error(t('Operation failed'))
+      return response.data.data as {
+        deleted_ids: string[]
+        deleted_count: number
+      }
+    },
+    onSuccess: async (result) => {
+      const user = useAuthStore.getState().auth.user
+      if (user?.id !== props.userId || user.role !== 100) return
+      const prefix = ['channel-finance', props.userId, 100]
+      await client.cancelQueries({ queryKey: prefix })
+      client.setQueriesData<TaskPage>(
+        { queryKey: [...prefix, 'jobs'] },
+        (data) =>
+          data
+            ? {
+                ...data,
+                items: data.items.filter(
+                  (job) => !result.deleted_ids.includes(job.id)
+                ),
+              }
+            : data
+      )
+      for (const id of result.deleted_ids) {
+        client.removeQueries({
+          queryKey: [...prefix, 'report', id],
+          exact: true,
+        })
+      }
+      props.onDeleted(result.deleted_ids)
+      setRemoving(null)
+      setDeleteError('')
+      setDeleteResult(
+        t('Deleted {{count}} report tasks.', { count: result.deleted_count })
+      )
+      await client.invalidateQueries({ queryKey: [...prefix, 'jobs'] })
+    },
+    onError: (failure: { response?: { status?: number } }) => {
+      setDeleteError(
+        failure.response?.status === 409
+          ? t('Report task state changed. Refresh and try again.')
+          : t('Operation failed')
+      )
+      void client.invalidateQueries({
+        queryKey: ['channel-finance', props.userId, 100, 'jobs'],
+      })
+    },
+  })
   const [downloading, setDownloading] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState('')
   async function download(id: string) {
@@ -148,19 +213,73 @@ export function FinanceTaskTable(props: {
       aria-label={t('Report task')}
       className='min-w-0 space-y-3 border-b py-5'
     >
+      <ConfirmDialog
+        open={removing !== null}
+        onOpenChange={(open) => {
+          if (!open && !deletion.isPending) setRemoving(null)
+        }}
+        title={
+          removing?.id ? t('Delete report task?') : t('Clean up stopped tasks?')
+        }
+        desc={
+          <>
+            <p>
+              {removing?.id
+                ? t(
+                    'Delete this report and its saved results? Source logs and account balances will not change.'
+                  )
+                : t(
+                    'Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.'
+                  )}
+            </p>
+            {removing?.id && (
+              <p className='mt-2 font-mono break-all'>{removing.id}</p>
+            )}
+            {deleteError && (
+              <p role='alert' className='text-destructive mt-2'>
+                {deleteError}
+              </p>
+            )}
+          </>
+        }
+        confirmText={t('Delete')}
+        destructive
+        isLoading={deletion.isPending}
+        handleConfirm={() => {
+          if (removing) deletion.mutate(removing.id)
+        }}
+      />
       <div className='flex flex-wrap items-center justify-between gap-3'>
         <h2 className='text-base font-semibold'>{t('Report task')}</h2>
-        <Button
-          variant='outline'
-          size='icon'
-          title={t('Refresh')}
-          aria-label={t('Refresh')}
-          disabled={jobs.isFetching}
-          onClick={() => void jobs.refetch()}
-        >
-          <RefreshCw />
-        </Button>
+        <div className='flex flex-wrap items-center gap-2'>
+          <Button
+            variant='outline'
+            disabled={deletion.isPending}
+            onClick={() => {
+              setDeleteError('')
+              setRemoving({ id: '' })
+            }}
+          >
+            <Trash2 />
+            {t('Clean up tasks')}
+          </Button>
+          <Button
+            variant='outline'
+            size='icon'
+            title={t('Refresh')}
+            aria-label={t('Refresh')}
+            disabled={jobs.isFetching}
+            onClick={() => void jobs.refetch()}
+          >
+            <RefreshCw />
+          </Button>
+        </div>
       </div>
+      {deleteResult && (
+        <p role='status' className='text-muted-foreground text-sm'>
+          {deleteResult}
+        </p>
+      )}
       <div className='flex flex-wrap items-end gap-3'>
         <label
           className='grid min-w-0 flex-1 gap-2 text-sm font-medium'
@@ -324,6 +443,22 @@ export function FinanceTaskTable(props: {
                       onClick={() => void download(job.id)}
                     >
                       <Download />
+                    </Button>
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      title={t('Delete')}
+                      aria-label={`${t('Delete')} ${job.id}`}
+                      disabled={
+                        deletion.isPending ||
+                        ['pending', 'running'].includes(job.status)
+                      }
+                      onClick={() => {
+                        setDeleteError('')
+                        setRemoving({ id: job.id })
+                      }}
+                    >
+                      <Trash2 />
                     </Button>
                   </td>
                 </tr>

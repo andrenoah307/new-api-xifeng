@@ -107,6 +107,8 @@ func TestChannelCostReportProfitCoverage(t *testing.T) {
 	assert.Equal(t, "30", result.Cost)
 	assert.Equal(t, "95", result.NetAmount)
 	assert.Equal(t, "50", result.KnownProfit)
+	require.NotNil(t, result.KnownProfitMargin)
+	assert.Equal(t, "0.625", *result.KnownProfitMargin, "unknown consumption and unallocated refunds are outside the known-cost cohort")
 	assert.Equal(t, "0.8", result.Coverage)
 	require.NotNil(t, result.CostRatio)
 	assert.Equal(t, "0.375", *result.CostRatio)
@@ -129,6 +131,7 @@ func TestChannelCostReportProfitCoverage(t *testing.T) {
 	assert.Equal(t, "-30", *result.Profit)
 	assert.Nil(t, result.ProfitMargin)
 	assert.Nil(t, result.CostRatio)
+	assert.Nil(t, result.KnownProfitMargin)
 }
 
 func TestChannelCostReportCreatesVersionAndReadsOnlyPublishedAggregates(t *testing.T) {
@@ -157,6 +160,7 @@ func TestChannelCostReportCreatesVersionAndReadsOnlyPublishedAggregates(t *testi
 	require.NoError(t, common.Unmarshal(created.Body.Bytes(), &createdResponse))
 	job := createdResponse.Data.ChannelCostReportJob
 	require.NotNil(t, job)
+	assert.Equal(t, 1, createdResponse.Data.Policy.CostBasisVersion)
 	assert.NotEqual(t, "1", createdResponse.Data.Policy.QuotaPerUnit, "conversion unit is frozen by server, never supplied by client")
 	duplicate := call(CreateChannelCostReportJob, "", "", body)
 	require.Equal(t, http.StatusOK, duplicate.Code, duplicate.Body.String())
@@ -207,9 +211,9 @@ func TestChannelCostReportCreatesVersionAndReadsOnlyPublishedAggregates(t *testi
 	require.Len(t, records, 2)
 	assert.Equal(t, "paused", records[1][1])
 	assert.Equal(t, "' \t=SUM(1,2)\"渠道", records[1][6])
-	assert.Equal(t, "3", records[1][12])
-	assert.Empty(t, records[1][14], "partial profit must be blank")
-	assert.Empty(t, records[1][15])
+	assert.Equal(t, "3", records[1][7])
+	assert.Equal(t, "7", records[1][9], "profit covers only published known-cost consumption; task state and cursor identify partial reports")
+	assert.Equal(t, "0.7", records[1][10])
 	require.NoError(t, db.Model(job).Update("rows_json", "invalid").Error)
 	invalid := call(ExportChannelCostReport, job.ID, "", "")
 	assert.NotEqual(t, http.StatusOK, invalid.Code)

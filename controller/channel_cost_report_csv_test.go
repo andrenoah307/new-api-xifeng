@@ -21,6 +21,6 @@ func TestCostReportCSVExactDecimalAndFormulaSafety(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, records, 2)
 	assert.Equal(t, "'\u0001@formula,\"quoted\"", records[1][6])
-	assert.Equal(t, "9007199254740993.123456789012345678", records[1][7])
-	assert.Equal(t, "-0.876543210987654322", records[1][14], "negative numeric profit must not be treated as text injection")
+	assert.Equal(t, "9007199254740993.123456789012345678", records[1][8])
+	assert.Equal(t, "-0.876543210987654322", records[1][9], "negative numeric profit must not be treated as text injection")
 }

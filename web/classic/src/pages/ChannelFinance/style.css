@@ -119,6 +119,13 @@ For commercial licensing, please contact support@quantumnous.com
   padding-bottom: 20px;
   border-bottom: 1px solid var(--semi-color-border);
 }
+.finance-jobs-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .channel-finance h2 {
   font-size: 16px;
   font-weight: 600;

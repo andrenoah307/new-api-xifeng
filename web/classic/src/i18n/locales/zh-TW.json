@@ -5171,6 +5171,13 @@
     "Confirm and generate": "確認並產生",
     "Channel cost settings changed. Review the channel list again.": "渠道成本設定已變更，請重新確認渠道清單。",
     "Export filtered results": "匯出篩選結果",
-    "Download report CSV": "下載彙總 CSV"
+    "Download report CSV": "下載彙總 CSV",
+    "Clean up stopped tasks?": "清理已停止的任務？",
+    "Clean up tasks": "清理任務",
+    "Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.": "刪除所有已停止執行的已取消、失敗和已暫停彙總任務，包括目前篩選條件外的任務？已完成和進行中的任務將保留。",
+    "Delete report task?": "刪除彙總任務？",
+    "Delete this report and its saved results? Source logs and account balances will not change.": "刪除此報表及其儲存的結果？原始日誌和帳戶餘額不會改變。",
+    "Deleted {{count}} report tasks.": "已刪除 {{count}} 個彙總任務。",
+    "Report task state changed. Refresh and try again.": "彙總任務狀態已變更，請重新整理後再試。"
   }
 }

@@ -5419,6 +5419,13 @@
     "Confirm and generate": "Confirm and generate",
     "Channel cost settings changed. Review the channel list again.": "Channel cost settings changed. Review the channel list again.",
     "Export filtered results": "Export filtered results",
-    "Download report CSV": "Download report CSV"
+    "Download report CSV": "Download report CSV",
+    "Clean up stopped tasks?": "Clean up stopped tasks?",
+    "Clean up tasks": "Clean up tasks",
+    "Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.": "Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.",
+    "Delete report task?": "Delete report task?",
+    "Delete this report and its saved results? Source logs and account balances will not change.": "Delete this report and its saved results? Source logs and account balances will not change.",
+    "Deleted {{count}} report tasks.": "Deleted {{count}} report tasks.",
+    "Report task state changed. Refresh and try again.": "Report task state changed. Refresh and try again."
   }
 }

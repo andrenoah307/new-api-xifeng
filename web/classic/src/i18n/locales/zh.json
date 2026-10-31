@@ -3064,6 +3064,13 @@
     "Confirm and generate": "确认并生成",
     "Channel cost settings changed. Review the channel list again.": "渠道成本设置已变化，请重新确认渠道列表。",
     "Export filtered results": "导出筛选结果",
-    "Download report CSV": "下载汇总 CSV"
+    "Download report CSV": "下载汇总 CSV",
+    "Clean up stopped tasks?": "清理已停止的任务？",
+    "Clean up tasks": "清理任务",
+    "Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.": "删除所有已停止执行的已取消、失败和已暂停汇总任务，包括当前筛选条件外的任务？已完成和进行中的任务将保留。",
+    "Delete report task?": "删除汇总任务？",
+    "Delete this report and its saved results? Source logs and account balances will not change.": "删除此报表及其保存的结果？原始日志和账户余额不会改变。",
+    "Deleted {{count}} report tasks.": "已删除 {{count}} 个汇总任务。",
+    "Report task state changed. Refresh and try again.": "汇总任务状态已变化，请刷新后重试。"
   }
 }

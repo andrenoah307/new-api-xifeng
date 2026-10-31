@@ -5702,6 +5702,13 @@
     "Confirm and generate": "Xác nhận và tạo",
     "Channel cost settings changed. Review the channel list again.": "Cài đặt chi phí kênh đã thay đổi. Vui lòng kiểm tra lại danh sách.",
     "Export filtered results": "Xuất kết quả đã lọc",
-    "Download report CSV": "Tải báo cáo CSV"
+    "Download report CSV": "Tải báo cáo CSV",
+    "Clean up stopped tasks?": "Dọn các tác vụ đã dừng?",
+    "Clean up tasks": "Dọn tác vụ",
+    "Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.": "Xóa tất cả tác vụ báo cáo đã hủy, thất bại và tạm dừng đã ngừng thực thi, kể cả các tác vụ ngoài bộ lọc hiện tại? Các tác vụ hoàn tất và đang hoạt động sẽ được giữ lại.",
+    "Delete report task?": "Xóa tác vụ báo cáo?",
+    "Delete this report and its saved results? Source logs and account balances will not change.": "Xóa báo cáo này và kết quả đã lưu? Nhật ký gốc và số dư tài khoản sẽ không thay đổi.",
+    "Deleted {{count}} report tasks.": "Đã xóa {{count}} tác vụ báo cáo.",
+    "Report task state changed. Refresh and try again.": "Trạng thái tác vụ đã thay đổi. Hãy làm mới và thử lại."
   }
 }

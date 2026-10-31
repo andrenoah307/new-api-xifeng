@@ -5159,6 +5159,13 @@
     "Confirm and generate": "確認して生成",
     "Channel cost settings changed. Review the channel list again.": "チャネルのコスト設定が変更されました。一覧を再確認してください。",
     "Export filtered results": "絞り込み結果をエクスポート",
-    "Download report CSV": "集計 CSV をダウンロード"
+    "Download report CSV": "集計 CSV をダウンロード",
+    "Clean up stopped tasks?": "停止済みタスクを整理しますか？",
+    "Clean up tasks": "タスクを整理",
+    "Delete all cancelled, failed and paused report tasks whose execution has stopped, including tasks outside the current filters? Completed and active tasks will be kept.": "現在の絞り込み条件外も含め、実行が停止したキャンセル済み、失敗、一時停止中の集計タスクをすべて削除しますか？完了済みおよび実行待ち・実行中のタスクは保持されます。",
+    "Delete report task?": "集計タスクを削除しますか？",
+    "Delete this report and its saved results? Source logs and account balances will not change.": "このレポートと保存された結果を削除しますか？元のログとアカウント残高は変更されません。",
+    "Deleted {{count}} report tasks.": "{{count}} 件の集計タスクを削除しました。",
+    "Report task state changed. Refresh and try again.": "集計タスクの状態が変わりました。更新して再試行してください。"
   }
 }

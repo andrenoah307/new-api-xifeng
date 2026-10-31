@@ -51,23 +51,10 @@ const statuses = {
   completed: 'Completed',
 } as const
 const columns = [
-  ['consume_amount', 'Consumption'],
-  ['refund_amount', 'Refunds'],
-  ['net_amount', 'Net consumption'],
-  ['original_cost', 'Snapshot cost'],
-  ['fallback_cost', 'Estimated historical cost'],
   ['cost', 'Cost'],
-  ['known_profit', 'Known-cost profit'],
-  ['profit', 'Profit'],
-  ['profit_margin', 'Profit margin'],
-  ['cost_ratio', 'Cost ratio'],
-  ['coverage', 'Cost coverage'],
-  ['consume_count', 'Consumption records'],
-  ['original_count', 'Snapshot records'],
-  ['fallback_count', 'Estimated records'],
-  ['missing_count', 'Unknown-cost records'],
-  ['stale_count', 'Stale-rate records'],
-  ['refund_count', 'Refund records'],
+  ['known_revenue', 'Consumption'],
+  ['known_profit', 'Profit'],
+  ['known_profit_margin', 'Profit margin'],
 ] as const
 
 function localTime(value: Date) {
@@ -191,10 +178,12 @@ function ChannelFinanceContent(props: { userId: number }) {
     ? Math.min(100, (job.processed_windows / job.total_windows) * 100)
     : 0
   const rows =
-    report.data?.channels.filter((row) =>
-      `${row.channel_id} ${row.channel_name}`
-        .toLowerCase()
-        .includes(filter.toLowerCase())
+    report.data?.channels.filter(
+      (row) =>
+        row.original_count + row.fallback_count > 0 &&
+        `${row.channel_id} ${row.channel_name}`
+          .toLowerCase()
+          .includes(filter.toLowerCase())
     ) ?? []
   return (
     <SectionPageLayout>
@@ -288,6 +277,11 @@ function ChannelFinanceContent(props: { userId: number }) {
           userId={props.userId}
           selected={selected}
           onSelect={setSelected}
+          onDeleted={(ids) =>
+            setSelected((current) =>
+              current && ids.includes(current) ? null : current
+            )
+          }
         />
         <div className='my-4 flex flex-wrap items-center gap-3'>
           {id && (
@@ -363,12 +357,6 @@ function ChannelFinanceContent(props: { userId: number }) {
                     ? 'Full summary with channel-rate cost estimates'
                     : 'Existing costs only (may be incomplete)'
                 )}
-                {job.policy.rates
-                  ?.map(
-                    (rate) =>
-                      ` · #${rate.channel_id}: ${rate.ratio}${rate.peak ? ` (${rate.peak.start}-${rate.peak.end} ${rate.peak.timezone} × ${rate.peak.ratio})` : ''}`
-                  )
-                  .join('')}
               </p>
             )}
             {job.error && (
@@ -381,13 +369,9 @@ function ChannelFinanceContent(props: { userId: number }) {
         {report.data && (
           <>
             <dl className='grid grid-cols-2 gap-5 border-b py-5 lg:grid-cols-4'>
-              {(
-                ['net_amount', 'cost', 'known_profit', 'coverage'] as const
-              ).map((key) => (
+              {columns.map(([key, label]) => (
                 <div key={key}>
-                  <dt className='text-muted-foreground text-sm'>
-                    {t(columns.find((column) => column[0] === key)?.[1] ?? key)}
-                  </dt>
+                  <dt className='text-muted-foreground text-sm'>{t(label)}</dt>
                   <dd className='mt-1 text-lg font-semibold break-all tabular-nums'>
                     {amount(report.data.total[key], key)}
                   </dd>
