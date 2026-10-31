@@ -1,7 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import { Paperclip, X } from 'lucide-react'
+import {
+  Paperclip,
+  X,
+  ArrowLeft,
+  ChevronRight,
+  MessageSquare,
+  Receipt,
+  Wallet,
+} from 'lucide-react'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useForm, type Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
@@ -58,6 +65,7 @@ import {
   quoteRefundFinance,
 } from '../../refund-finance-api'
 import { RefundFinanceDetail } from '../refund-finance-detail'
+import { CreateInvoiceTicketDialog } from './create-invoice-ticket-dialog'
 
 const generalSchema = z.object({
   type: z.enum(['general', 'refund']),
@@ -87,7 +95,7 @@ export function CreateTicketDialog({
   onCreated,
 }: CreateTicketDialogProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const [step, setStep] = useState<'choose' | 'details' | 'invoice'>('choose')
   const queryClient = useQueryClient()
   const { status } = useStatus()
   const attachmentEnabled = status?.ticket_attachment_enabled === true
@@ -114,13 +122,13 @@ export function CreateTicketDialog({
   } = useQuery({
     queryKey: ['user', 'refund-eligibility', userId],
     queryFn: ({ signal }) => getRefundEligibility(signal),
-    enabled: open && ticketType === 'refund',
+    enabled: open && step === 'details' && ticketType === 'refund',
   })
 
   const { data: invoiceConflict } = useQuery({
     queryKey: ticketQueryKeys.refundInvoiceCheck(),
     queryFn: checkRefundInvoiceConflict,
-    enabled: open && ticketType === 'refund',
+    enabled: open && step === 'details' && ticketType === 'refund',
   })
 
   const { data: limitStatus } = useQuery({
@@ -166,6 +174,7 @@ export function CreateTicketDialog({
     queryFn: ({ signal }) => quoteRefundFinance(quoteQuota, signal),
     enabled:
       open &&
+      step === 'details' &&
       ticketType === 'refund' &&
       quoteQuota > 0 &&
       quoteQuota === requestedQuota,
@@ -175,6 +184,7 @@ export function CreateTicketDialog({
 
   useEffect(() => {
     if (!open) {
+      setStep('choose')
       form.reset()
       setTicketType('general')
       setInvoiceConflictAcked(false)
@@ -348,6 +358,17 @@ export function CreateTicketDialog({
     [handleFiles]
   )
 
+  if (step === 'invoice') {
+    return (
+      <CreateInvoiceTicketDialog
+        open={open}
+        onOpenChange={onOpenChange}
+        onCreated={onCreated}
+        onBack={() => setStep('choose')}
+      />
+    )
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -355,466 +376,506 @@ export function CreateTicketDialog({
         onPasteCapture={attachmentEnabled ? handlePaste : undefined}
       >
         <DialogHeader>
-          <DialogTitle>{t('Create Ticket')}</DialogTitle>
+          <DialogTitle>
+            {step === 'choose'
+              ? t('Choose ticket type')
+              : t(
+                  ticketType === 'refund'
+                    ? 'ticket.choice.refund'
+                    : 'ticket.choice.general'
+                )}
+          </DialogTitle>
           <DialogDescription>
             {t('Submit a new support ticket')}
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
-            {isLimited && (
-              <Alert variant='warning'>
-                <AlertDescription>
-                  {t(
-                    "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first."
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {/* 与其他字段的 FormItem（grid gap-2）保持一致的 label-控件间距 */}
-            <div className='grid gap-2'>
-              <FormLabel>{t('Ticket Type')}</FormLabel>
-              <Select
-                value={ticketType}
-                onValueChange={(v: string | null) => {
-                  if (v === 'invoice') {
-                    // 开票走 充值记录-申请开票 流程（选择充值订单后生成开票工单）
-                    onOpenChange(false)
-                    void navigate({
-                      to: '/topup-history',
-                      search: { applyInvoice: true },
-                    })
+        {step === 'choose' ? (
+          <div className='grid gap-3'>
+            {(
+              [
+                {
+                  value: 'general',
+                  label: 'ticket.choice.general',
+                  Icon: MessageSquare,
+                },
+                {
+                  value: 'invoice',
+                  label: 'ticket.choice.invoice',
+                  Icon: Receipt,
+                },
+                {
+                  value: 'refund',
+                  label: 'ticket.choice.refund',
+                  Icon: Wallet,
+                },
+              ] as const
+            ).map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                type='button'
+                className='hover:border-primary hover:bg-accent focus-visible:outline-ring flex min-h-20 w-full items-center gap-4 rounded-lg border p-4 text-left focus-visible:outline-2'
+                onClick={() => {
+                  if (value === 'invoice') {
+                    setStep('invoice')
                     return
                   }
-                  setTicketType(v as 'general' | 'refund')
+                  if (value !== ticketType) {
+                    form.reset()
+                    void discardAll()
+                  }
+                  setTicketType(value)
+                  setStep('details')
                 }}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false}>
-                  <SelectItem value='general'>{t('General Ticket')}</SelectItem>
-                  <SelectItem value='refund'>{t('Refund Ticket')}</SelectItem>
-                  <SelectItem value='invoice'>{t('Invoice Ticket')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {ticketType === 'refund' && (
-              <Alert>
-                <AlertDescription className='space-y-1'>
-                  {quotaLoading ? (
-                    t('Loading...')
-                  ) : (
-                    <>
-                      <div>
-                        {t('Current available quota')}:{' '}
-                        {formatQuota(userQuota?.wallet_quota ?? 0)}
-                      </div>
-                      <div>
-                        {t('Verified refundable balance')}:{' '}
-                        {formatQuota(userQuota?.max_refundable_quota ?? 0)}
-                      </div>
-                      <div>
-                        {t('Requestable balance')}:{' '}
-                        {formatQuota(userQuota?.requestable_quota ?? 0)}
-                      </div>
-                      <div>
-                        {t('Non-refundable balance')}:{' '}
-                        {formatQuota(userQuota?.non_refundable_quota ?? 0)}
-                      </div>
-                      <div>
-                        {t('Frozen Amount')}:{' '}
-                        {formatQuota(userQuota?.frozen_quota ?? 0)}
-                      </div>
-                      {userQuota?.reasons.map((reason) => (
-                        <div key={reason.code}>
-                          {t(`refund_reason.${reason.code}`)}:{' '}
-                          {formatQuota(reason.quota)}
-                        </div>
-                      ))}
-                      {eligibilityError && (
-                        <p role='alert'>
-                          {t(
-                            'Unable to verify refundable quota, please try again'
-                          )}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {ticketType === 'refund' && (
-              <Alert variant='warning'>
-                <AlertDescription>
-                  {t(
-                    'Submitting registers a request awaiting settlement verification. Your balance will not be frozen and API usage can continue. The refundable amount must be confirmed again after verification.'
-                  )}{' '}
-                  {t('Requested quota is not the final cash refund amount.')}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {ticketType === 'refund' &&
-              invoiceConflict?.has_active_invoices && (
+                <Icon className='size-6 shrink-0' aria-hidden='true' />
+                <span className='flex-1 font-medium'>{t(label)}</span>
+                <ChevronRight className='size-4 shrink-0' aria-hidden='true' />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
+              {isLimited && (
                 <Alert variant='warning'>
-                  <AlertDescription className='space-y-2'>
-                    <p className='font-medium'>
-                      {t('Invoice conflict warning')}
-                    </p>
-                    <p className='text-muted-foreground text-xs'>
-                      {t('Active invoices summary', {
-                        count: invoiceConflict.invoices.filter(
-                          (inv) =>
-                            inv.invoice_status === 1 || inv.invoice_status === 2
-                        ).length,
-                        amount: `¥${invoiceConflict.invoices
-                          .filter(
-                            (inv) =>
-                              inv.invoice_status === 1 ||
-                              inv.invoice_status === 2
-                          )
-                          .reduce((sum, inv) => sum + inv.total_money, 0)
-                          .toFixed(2)}`,
-                      })}
-                    </p>
-                    <div className='flex items-center gap-2 pt-1'>
-                      <Checkbox
-                        id='invoice-conflict-ack'
-                        checked={invoiceConflictAcked}
-                        onCheckedChange={(checked) =>
-                          setInvoiceConflictAcked(checked === true)
-                        }
-                      />
-                      <label
-                        htmlFor='invoice-conflict-ack'
-                        className='cursor-pointer text-xs'
-                      >
-                        {t('Invoice conflict acknowledge')}
-                      </label>
-                    </div>
+                  <AlertDescription>
+                    {t(
+                      "You've used this week's limit for creating tickets on a low balance. If you need help, please contact support first."
+                    )}
                   </AlertDescription>
                 </Alert>
               )}
 
-            <FormField
-              control={form.control}
-              name='subject'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('Ticket Subject')}
-                    {ticketType === 'general' && (
-                      <span className='text-destructive ml-0.5'>*</span>
-                    )}
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      maxLength={255}
-                      placeholder={
-                        ticketType === 'refund'
-                          ? t('Subject placeholder refund')
-                          : t('Subject placeholder general')
-                      }
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='priority'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('Priority')}</FormLabel>
-                  <Select
-                    value={String(field.value)}
-                    onValueChange={(v) => field.onChange(Number(v))}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value='1'>{t('High Priority')}</SelectItem>
-                      <SelectItem value='2'>{t('Normal Priority')}</SelectItem>
-                      <SelectItem value='3'>{t('Low Priority')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {ticketType === 'refund' ? (
-              <>
-                {financeQuote.data && quoteQuota === requestedQuota && (
-                  <RefundFinanceDetail finance={financeQuote.data} />
-                )}
-                {financeQuote.isError && (
-                  <p role='alert' className='text-destructive'>
-                    {t(
-                      financeQuote.error.message || 'Unable to calculate refund'
-                    )}
-                  </p>
-                )}
-                <FormField
-                  control={form.control}
-                  name='refund_amount'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('Requested Refund Amount')}
-                        <span className='text-destructive ml-0.5'>*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type='number'
-                          step='any'
-                          min={0}
-                          max={maxRefundDollars ?? undefined}
-                          {...field}
-                          placeholder={t('Refund amount placeholder')}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='payee_type'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('Payee Type')}
-                        <span className='text-destructive ml-0.5'>*</span>
-                      </FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {PAYEE_TYPE_OPTIONS.map((o) => (
-                            <SelectItem key={o.value} value={o.value}>
-                              {t(o.label)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className='grid grid-cols-2 gap-3'>
-                  <FormField
-                    control={form.control}
-                    name='payee_name'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {t('Payee Name')}
-                          <span className='text-destructive ml-0.5'>*</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder={t('Payee name placeholder')}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name='payee_account'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {t('Payee Account')}
-                          <span className='text-destructive ml-0.5'>*</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder={t('Payee account placeholder')}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                {payeeType === 'bank' && (
-                  <FormField
-                    control={form.control}
-                    name='payee_bank'
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {t('Bank Name')}
-                          <span className='text-destructive ml-0.5'>*</span>
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            placeholder={t('Bank name placeholder')}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-                <FormField
-                  control={form.control}
-                  name='contact'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('Contact Info')}
-                        <span className='text-destructive ml-0.5'>*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder={t('Contact placeholder')}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='reason'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('Refund Reason')}
-                        <span className='text-destructive ml-0.5'>*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          maxLength={5000}
-                          rows={3}
-                          placeholder={t('Refund reason placeholder')}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <p className='text-muted-foreground text-xs'>
-                  {t('Refund process note')}
-                </p>
-              </>
-            ) : (
-              <>
-                <FormField
-                  control={form.control}
-                  name='content'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        {t('Issue Description')}
-                        <span className='text-destructive ml-0.5'>*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          maxLength={5000}
-                          rows={4}
-                          placeholder={t('Content placeholder')}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Attachment area */}
-                {attachmentEnabled && (
-                  <div>
-                    <FormLabel>{t('Attachment (Optional)')}</FormLabel>
-                    <div className='mt-1.5 flex items-center gap-2'>
-                      <input
-                        type='file'
-                        multiple
-                        className='hidden'
-                        id='create-ticket-file-input'
-                        onChange={handleFileInput}
-                      />
-                      <Button
-                        type='button'
-                        variant='outline'
-                        size='sm'
-                        disabled={uploading}
-                        render={
-                          <label
-                            htmlFor='create-ticket-file-input'
-                            className='cursor-pointer'
-                          />
-                        }
-                      >
-                        <Paperclip className='mr-1.5 h-4 w-4' />
-                        {uploading ? t('Uploading...') : t('Upload Attachment')}
-                      </Button>
-                      <span className='text-muted-foreground text-xs'>
-                        {t('Upload limit hint', { n: 5, mb: 50 })}
-                      </span>
-                    </div>
-                    {attachments.length > 0 && (
-                      <div className='mt-2 flex flex-wrap gap-2'>
-                        {attachments.map((a) => (
-                          <div
-                            key={a.id}
-                            className='bg-muted flex items-center gap-1.5 rounded-md px-2 py-1 text-xs'
-                          >
-                            <Paperclip className='h-3 w-3' />
-                            <span className='max-w-[120px] truncate'>
-                              {a.file_name}
-                            </span>
-                            <span className='text-muted-foreground'>
-                              {humanFileSize(a.size)}
-                            </span>
-                            <button
-                              type='button'
-                              onClick={() => remove(a.id)}
-                              className='text-muted-foreground hover:text-foreground ml-1'
-                            >
-                              <X className='h-3 w-3' />
-                            </button>
+              {ticketType === 'refund' && (
+                <Alert>
+                  <AlertDescription className='space-y-1'>
+                    {quotaLoading ? (
+                      t('Loading...')
+                    ) : (
+                      <>
+                        <div>
+                          {t('Current available quota')}:{' '}
+                          {formatQuota(userQuota?.wallet_quota ?? 0)}
+                        </div>
+                        <div>
+                          {t('Verified refundable balance')}:{' '}
+                          {formatQuota(userQuota?.max_refundable_quota ?? 0)}
+                        </div>
+                        <div>
+                          {t('Requestable balance')}:{' '}
+                          {formatQuota(userQuota?.requestable_quota ?? 0)}
+                        </div>
+                        <div>
+                          {t('Non-refundable balance')}:{' '}
+                          {formatQuota(userQuota?.non_refundable_quota ?? 0)}
+                        </div>
+                        <div>
+                          {t('Frozen Amount')}:{' '}
+                          {formatQuota(userQuota?.frozen_quota ?? 0)}
+                        </div>
+                        {userQuota?.reasons.map((reason) => (
+                          <div key={reason.code}>
+                            {t(`refund_reason.${reason.code}`)}:{' '}
+                            {formatQuota(reason.quota)}
                           </div>
                         ))}
-                      </div>
+                        {eligibilityError && (
+                          <p role='alert'>
+                            {t(
+                              'Unable to verify refundable quota, please try again'
+                            )}
+                          </p>
+                        )}
+                      </>
                     )}
-                  </div>
-                )}
-              </>
-            )}
+                  </AlertDescription>
+                </Alert>
+              )}
 
-            <DialogFooter>
-              <Button type='submit' disabled={isSubmitDisabled}>
-                {isPending ? t('Submitting...') : t('Submit Ticket')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+              {ticketType === 'refund' && (
+                <Alert variant='warning'>
+                  <AlertDescription>
+                    {t(
+                      'Submitting registers a request awaiting settlement verification. Your balance will not be frozen and API usage can continue. The refundable amount must be confirmed again after verification.'
+                    )}{' '}
+                    {t('Requested quota is not the final cash refund amount.')}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {ticketType === 'refund' &&
+                invoiceConflict?.has_active_invoices && (
+                  <Alert variant='warning'>
+                    <AlertDescription className='space-y-2'>
+                      <p className='font-medium'>
+                        {t('Invoice conflict warning')}
+                      </p>
+                      <p className='text-muted-foreground text-xs'>
+                        {t('Active invoices summary', {
+                          count: invoiceConflict.invoices.filter(
+                            (inv) =>
+                              inv.invoice_status === 1 ||
+                              inv.invoice_status === 2
+                          ).length,
+                          amount: `¥${invoiceConflict.invoices
+                            .filter(
+                              (inv) =>
+                                inv.invoice_status === 1 ||
+                                inv.invoice_status === 2
+                            )
+                            .reduce((sum, inv) => sum + inv.total_money, 0)
+                            .toFixed(2)}`,
+                        })}
+                      </p>
+                      <div className='flex items-center gap-2 pt-1'>
+                        <Checkbox
+                          id='invoice-conflict-ack'
+                          checked={invoiceConflictAcked}
+                          onCheckedChange={(checked) =>
+                            setInvoiceConflictAcked(checked === true)
+                          }
+                        />
+                        <label
+                          htmlFor='invoice-conflict-ack'
+                          className='cursor-pointer text-xs'
+                        >
+                          {t('Invoice conflict acknowledge')}
+                        </label>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+              <FormField
+                control={form.control}
+                name='subject'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      {t('Ticket Subject')}
+                      {ticketType === 'general' && (
+                        <span className='text-destructive ml-0.5'>*</span>
+                      )}
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        maxLength={255}
+                        placeholder={
+                          ticketType === 'refund'
+                            ? t('Subject placeholder refund')
+                            : t('Subject placeholder general')
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='priority'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('Priority')}</FormLabel>
+                    <Select
+                      value={String(field.value)}
+                      onValueChange={(v) => field.onChange(Number(v))}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value='1'>{t('High Priority')}</SelectItem>
+                        <SelectItem value='2'>
+                          {t('Normal Priority')}
+                        </SelectItem>
+                        <SelectItem value='3'>{t('Low Priority')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {ticketType === 'refund' ? (
+                <>
+                  {financeQuote.data && quoteQuota === requestedQuota && (
+                    <RefundFinanceDetail finance={financeQuote.data} />
+                  )}
+                  {financeQuote.isError && (
+                    <p role='alert' className='text-destructive'>
+                      {t(
+                        financeQuote.error.message ||
+                          'Unable to calculate refund'
+                      )}
+                    </p>
+                  )}
+                  <FormField
+                    control={form.control}
+                    name='refund_amount'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('Requested Refund Amount')}
+                          <span className='text-destructive ml-0.5'>*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type='number'
+                            step='any'
+                            min={0}
+                            max={maxRefundDollars ?? undefined}
+                            {...field}
+                            placeholder={t('Refund amount placeholder')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='payee_type'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('Payee Type')}
+                          <span className='text-destructive ml-0.5'>*</span>
+                        </FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PAYEE_TYPE_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {t(o.label)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className='grid grid-cols-2 gap-3'>
+                    <FormField
+                      control={form.control}
+                      name='payee_name'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {t('Payee Name')}
+                            <span className='text-destructive ml-0.5'>*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder={t('Payee name placeholder')}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name='payee_account'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {t('Payee Account')}
+                            <span className='text-destructive ml-0.5'>*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder={t('Payee account placeholder')}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  {payeeType === 'bank' && (
+                    <FormField
+                      control={form.control}
+                      name='payee_bank'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {t('Bank Name')}
+                            <span className='text-destructive ml-0.5'>*</span>
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder={t('Bank name placeholder')}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                  <FormField
+                    control={form.control}
+                    name='contact'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('Contact Info')}
+                          <span className='text-destructive ml-0.5'>*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder={t('Contact placeholder')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='reason'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('Refund Reason')}
+                          <span className='text-destructive ml-0.5'>*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            maxLength={5000}
+                            rows={3}
+                            placeholder={t('Refund reason placeholder')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <p className='text-muted-foreground text-xs'>
+                    {t('Refund process note')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <FormField
+                    control={form.control}
+                    name='content'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t('Issue Description')}
+                          <span className='text-destructive ml-0.5'>*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            maxLength={5000}
+                            rows={4}
+                            placeholder={t('Content placeholder')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Attachment area */}
+                  {attachmentEnabled && (
+                    <div>
+                      <FormLabel>{t('Attachment (Optional)')}</FormLabel>
+                      <div className='mt-1.5 flex items-center gap-2'>
+                        <input
+                          type='file'
+                          multiple
+                          className='hidden'
+                          id='create-ticket-file-input'
+                          onChange={handleFileInput}
+                        />
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          disabled={uploading}
+                          render={
+                            <label
+                              htmlFor='create-ticket-file-input'
+                              className='cursor-pointer'
+                            />
+                          }
+                        >
+                          <Paperclip className='mr-1.5 h-4 w-4' />
+                          {uploading
+                            ? t('Uploading...')
+                            : t('Upload Attachment')}
+                        </Button>
+                        <span className='text-muted-foreground text-xs'>
+                          {t('Upload limit hint', { n: 5, mb: 50 })}
+                        </span>
+                      </div>
+                      {attachments.length > 0 && (
+                        <div className='mt-2 flex flex-wrap gap-2'>
+                          {attachments.map((a) => (
+                            <div
+                              key={a.id}
+                              className='bg-muted flex items-center gap-1.5 rounded-md px-2 py-1 text-xs'
+                            >
+                              <Paperclip className='h-3 w-3' />
+                              <span className='max-w-[120px] truncate'>
+                                {a.file_name}
+                              </span>
+                              <span className='text-muted-foreground'>
+                                {humanFileSize(a.size)}
+                              </span>
+                              <button
+                                type='button'
+                                onClick={() => remove(a.id)}
+                                className='text-muted-foreground hover:text-foreground ml-1'
+                              >
+                                <X className='h-3 w-3' />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type='button'
+                  variant='outline'
+                  disabled={isPending || uploading}
+                  onClick={() => setStep('choose')}
+                >
+                  <ArrowLeft className='size-4' />
+                  {t('Back')}
+                </Button>
+                <Button type='submit' disabled={isSubmitDisabled}>
+                  {isPending ? t('Submitting...') : t('Submit Ticket')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -42,7 +42,13 @@ import { useNavigate } from 'react-router-dom';
 
 const { Text, Title } = Typography;
 
-const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
+const CreateInvoiceTicketModal = ({
+  visible,
+  onClose,
+  onSuccess,
+  onBack,
+  t,
+}) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const [tax, setTax] = useState({ ready: false, invoice_type: 'ordinary' });
@@ -231,7 +237,9 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
             )}
           </div>
           <Space>
-            <Button onClick={onClose}>{t('取消')}</Button>
+            <Button disabled={loading} onClick={onBack || onClose}>
+              {onBack ? t('Back') : t('取消')}
+            </Button>
             <Button
               theme='solid'
               type='primary'
@@ -247,6 +255,7 @@ const CreateInvoiceTicketModal = ({ visible, onClose, onSuccess, t }) => {
     >
       <div className='flex flex-col gap-4'>
         <InvoiceTaxFields
+          legacyTotalCents={Math.round(invoiceAmount * 100)}
           ids={selectedOrderIds}
           open={visible}
           onChange={setTax}

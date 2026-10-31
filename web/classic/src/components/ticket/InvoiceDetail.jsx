@@ -29,7 +29,7 @@ import {
 } from '@douyinfe/semi-ui';
 import CardTable from '../common/ui/CardTable';
 import { InvoiceTaxPayment } from './InvoiceTax';
-import { refundCash } from './refundFinanceFormat';
+import { InvoiceAmountFormula } from './InvoiceAmountFormula';
 import { timestamp2string } from '../../helpers';
 import { getInvoiceStatusColor, getInvoiceStatusText } from './ticketUtils';
 
@@ -200,17 +200,13 @@ const InvoiceDetail = ({
                       : 'Ordinary VAT invoice',
                   )}
                 </dd>
-                <dt>{t('Net amount (CNY)')}</dt>
-                <dd>{refundCash(net)}</dd>
-                <dt>{t('Tax charge (CNY)')}</dt>
-                <dd>{refundCash(tax)}</dd>
-                <dt>{t('Payment breakdown')}</dt>
-                <dd className='break-words'>
-                  {t('Net amount {{net}} + tax {{tax}} = payment {{total}}', {
-                    net: refundCash(net),
-                    tax: refundCash(tax),
-                    total: refundCash(total),
-                  })}
+                <dd className='col-span-2 min-w-0'>
+                  <InvoiceAmountFormula
+                    net={net}
+                    tax={tax}
+                    total={total}
+                    totalLabel='invoice.amount.paid'
+                  />
                 </dd>
               </dl>
             )}

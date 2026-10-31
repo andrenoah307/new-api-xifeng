@@ -6058,6 +6058,16 @@
     "Allow orders completed before this date to request invoices": "Autoriser la facturation des commandes terminées avant cette date",
     "Verified refundable balance": "Solde remboursable vérifié",
     "Requestable balance": "Solde pouvant faire l’objet d’une demande",
-    "Requested quota is not the final cash refund amount.": "Le quota demandé ne correspond pas au montant final du remboursement en espèces."
+    "Requested quota is not the final cash refund amount.": "Le quota demandé ne correspond pas au montant final du remboursement en espèces.",
+    "Choose ticket type": "Choisir le type de demande",
+    "invoice.amount.additional": "Taxe supplémentaire",
+    "invoice.amount.due": "Montant dû",
+    "invoice.amount.net": "Montant HT",
+    "invoice.amount.paid": "Payé",
+    "invoice.amount.tax": "Taxe",
+    "invoice.amount.total": "Total TTC",
+    "ticket.choice.general": "Assistance générale",
+    "ticket.choice.invoice": "Demander une facture",
+    "ticket.choice.refund": "Demander un remboursement"
   }
 }
