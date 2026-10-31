@@ -2,12 +2,15 @@ package model
 
 import (
 	"context"
+	"errors"
 	"testing"
 
+	clickhousedriver "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/QuantumNous/new-api/common"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestCostReportSnapshotPriorityAndConservativeFallback(t *testing.T) {
@@ -29,6 +32,78 @@ func TestCostReportNextTimestamp(t *testing.T) {
 func TestClickHouseCostReportNextTimestamp(t *testing.T) {
 	setupClickHouseLogTest(t)
 	checkCostReportNextTimestamp(t)
+}
+
+func TestClickHouseCostReportSeekAcrossHistoricalParts(t *testing.T) {
+	db := setupClickHouseLogTest(t)
+	// Imported batches overlap in time. LIMIT 1 still initializes reads across
+	// these parts and can exhaust the row budget before producing its first row.
+	const start = int64(1790784000)
+	const end = start + 31*86400
+	require.NoError(t, db.Exec(`INSERT INTO logs (created_at, type, migration_batch)
+ SELECT ? + intDiv(number,280)*130, 2, toString(number%280)
+ FROM numbers(5600000) SETTINGS max_partitions_per_insert_block=1000`, start).Error)
+	var oldResult []int64
+	err := db.Raw(`SELECT created_at FROM logs
+ WHERE ifNull(created_at,0)>=? AND ifNull(created_at,0)<? AND type IN (2,6)
+ ORDER BY ifNull(created_at,0) ASC LIMIT 1
+ SETTINGS optimize_read_in_order=1,max_threads=2,max_memory_usage=536870912,
+ max_execution_time=30,max_rows_to_read=5000000,read_overflow_mode='throw'`, start, end).Scan(&oldResult).Error
+	var exception *clickhousedriver.Exception
+	require.Error(t, err)
+	if errors.As(err, &exception) {
+		require.EqualValues(t, 158, exception.Code)
+	} else {
+		require.Contains(t, err.Error(), "Code: 158.")
+		require.Contains(t, err.Error(), "(TOO_MANY_ROWS)")
+	}
+	p := CostReportPolicy{Start: start, End: end, QuotaPerUnit: "500000", FallbackMode: "none"}
+	next, err := NextChannelCostReportTimestamp(context.Background(), p, start)
+	require.NoError(t, err)
+	assert.Equal(t, start, next)
+	// A cursor between events must return the next event, not repeat the first.
+	next, err = NextChannelCostReportTimestamp(context.Background(), p, start+1)
+	require.NoError(t, err)
+	assert.Equal(t, start+130, next)
+}
+
+func TestClickHouseCostReportSeekDoesNotSkipFailedRanges(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		err         error
+		recoverable bool
+		hourLimit   bool
+	}{
+		{"native-row-limit", &clickhousedriver.Exception{Code: 158}, true, false},
+		{"http-row-limit", errors.New("Code: 158. Limit for rows exceeded (TOO_MANY_ROWS)"), true, false},
+		{"timeout", context.DeadlineExceeded, false, false},
+		{"hour-row-limit", &clickhousedriver.Exception{Code: 158}, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupClickHouseLogTest(t)
+			p := CostReportPolicy{Start: 100, End: 100 + 86400, QuotaPerUnit: "500000", FallbackMode: "none"}
+			want := p.Start + 7200
+			require.NoError(t, db.Create(&Log{CreatedAt: want, Type: 6, ChannelId: 7}).Error)
+			require.NoError(t, db.Callback().Row().Before("gorm:row").Register("test:seek-limit", func(tx *gorm.DB) {
+				if len(tx.Statement.Vars) == 2 {
+					start, okStart := tx.Statement.Vars[0].(int64)
+					end, okEnd := tx.Statement.Vars[1].(int64)
+					if okStart && okEnd && (end-start > 3600 || tc.hourLimit) {
+						tx.AddError(tc.err)
+					}
+				}
+			}))
+			t.Cleanup(func() { require.NoError(t, db.Callback().Row().Remove("test:seek-limit")) })
+			next, err := NextChannelCostReportTimestamp(context.Background(), p, p.Start)
+			if !tc.recoverable {
+				require.ErrorIs(t, err, tc.err)
+				assert.Zero(t, next)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, want, next, "a failed wider probe must not skip the refund at its lower narrowed boundary")
+		})
+	}
 }
 
 func checkCostReportNextTimestamp(t *testing.T) {

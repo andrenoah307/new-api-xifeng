@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	clickhousedriver "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/QuantumNous/new-api/common"
 	"github.com/shopspring/decimal"
 )
@@ -117,15 +118,40 @@ func NextChannelCostReportTimestamp(ctx context.Context, p CostReportPolicy, sta
 	}
 	var timestamps []int64
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
-		// Match the MergeTree ordering expression. Keep all channels here because
-		// the aggregation also checks conflicting event identities across channels.
-		err := LOG_DB.WithContext(ctx).Raw(`SELECT created_at FROM logs
+		// LIMIT does not bound reads across historical parts. Probe a narrow range
+		// first; expand only proven empty ranges, retaining all-channel conflict checks.
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		width := int64(3600)
+		for probe := start; probe < p.End; {
+			end := min(probe+width, p.End)
+			timestamps = nil
+			err := LOG_DB.WithContext(ctx).Raw(`SELECT created_at FROM logs
  WHERE ifNull(created_at,0) >= ? AND ifNull(created_at,0) < ? AND type IN (2,6)
  ORDER BY ifNull(created_at,0) ASC LIMIT 1
  SETTINGS optimize_read_in_order=1,max_threads=2,max_memory_usage=536870912,max_execution_time=30,
- timeout_overflow_mode='throw',max_rows_to_read=5000000,read_overflow_mode='throw'`, start, p.End).Scan(&timestamps).Error
-		if err != nil {
-			return 0, err
+ timeout_overflow_mode='throw',max_rows_to_read=5000000,read_overflow_mode='throw'`, probe, end).Scan(&timestamps).Error
+			if err != nil {
+				var exception *clickhousedriver.Exception
+				rowLimit := errors.As(err, &exception) && exception.Code == 158
+				// The HTTP driver returns server exceptions as plain error strings.
+				rowLimit = rowLimit || (strings.Contains(err.Error(), "Code: 158.") && strings.Contains(err.Error(), "(TOO_MANY_ROWS)"))
+				if ctx.Err() == nil && end-probe > 3600 && rowLimit {
+					// A dense range after an empty gap must be retried from the same
+					// lower bound, never mistaken for an empty range or skipped.
+					width = max(3600, (end-probe)/2)
+					continue
+				}
+				return 0, err
+			}
+			if len(timestamps) != 0 {
+				if timestamps[0] < probe || timestamps[0] >= end {
+					return 0, errors.New("invalid next cost report timestamp")
+				}
+				break
+			}
+			probe = end
+			width = min(width*2, 86400)
 		}
 	} else {
 		query := LOG_DB.WithContext(ctx).Model(&Log{}).
