@@ -5429,6 +5429,21 @@
     "Report task state changed. Refresh and try again.": "Report task state changed. Refresh and try again.",
     "Consumption by channel": "Consumption by channel",
     "Cost by channel": "Cost by channel",
-    "Profit by channel": "Profit by channel"
+    "Profit by channel": "Profit by channel",
+    "Live query": "Live query",
+    "Summary tasks": "Summary tasks",
+    "Time period": "Time period",
+    "Last 24 complete hours": "Last 24 complete hours",
+    "Previous calendar day": "Previous calendar day",
+    "Previous calendar week": "Previous calendar week",
+    "Previous calendar month": "Previous calendar month",
+    "Previous calendar quarter": "Previous calendar quarter",
+    "Previous calendar year": "Previous calendar year",
+    "Queried at": "Queried at",
+    "Missing summaries": "Missing summaries",
+    "Create summary": "Create summary",
+    "Summarize selected range": "Summarize selected range",
+    "Summary sources": "Summary sources",
+    "Too many summaries. Narrow the time range.": "Too many summaries. Narrow the time range."
   }
 }

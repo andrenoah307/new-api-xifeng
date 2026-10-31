@@ -5344,6 +5344,21 @@
     "Report task state changed. Refresh and try again.": "汇总任务状态已变化，请刷新后重试。",
     "Consumption by channel": "渠道消费分布",
     "Cost by channel": "渠道成本分布",
-    "Profit by channel": "渠道利润分布"
+    "Profit by channel": "渠道利润分布",
+    "Live query": "实时查询",
+    "Summary tasks": "汇总任务",
+    "Time period": "时间周期",
+    "Last 24 complete hours": "最近24个完整小时",
+    "Previous calendar day": "上一自然日",
+    "Previous calendar week": "上一自然周",
+    "Previous calendar month": "上一自然月",
+    "Previous calendar quarter": "上一自然季",
+    "Previous calendar year": "上一自然年",
+    "Queried at": "查询时间",
+    "Missing summaries": "缺少汇总",
+    "Create summary": "创建汇总",
+    "Summarize selected range": "汇总所选时间范围",
+    "Summary sources": "汇总来源",
+    "Too many summaries. Narrow the time range.": "汇总记录过多，请缩小查询时间范围。"
   }
 }

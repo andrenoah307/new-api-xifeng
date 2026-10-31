@@ -5223,6 +5223,21 @@
     "Report task state changed. Refresh and try again.": "Состояние задачи изменилось. Обновите страницу и повторите попытку.",
     "Consumption by channel": "Расходы по каналам",
     "Cost by channel": "Себестоимость по каналам",
-    "Profit by channel": "Прибыль по каналам"
+    "Profit by channel": "Прибыль по каналам",
+    "Live query": "Запрос в реальном времени",
+    "Summary tasks": "Задачи сводки",
+    "Time period": "Период",
+    "Last 24 complete hours": "Последние 24 полных часа",
+    "Previous calendar day": "Предыдущий календарный день",
+    "Previous calendar week": "Предыдущая календарная неделя",
+    "Previous calendar month": "Предыдущий календарный месяц",
+    "Previous calendar quarter": "Предыдущий календарный квартал",
+    "Previous calendar year": "Предыдущий календарный год",
+    "Queried at": "Время запроса",
+    "Missing summaries": "Нет сводок",
+    "Create summary": "Создать сводку",
+    "Summarize selected range": "Сводка за выбранный период",
+    "Summary sources": "Источники сводок",
+    "Too many summaries. Narrow the time range.": "Слишком много сводок. Сократите период."
   }
 }

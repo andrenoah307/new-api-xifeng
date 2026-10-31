@@ -5169,6 +5169,21 @@
     "Report task state changed. Refresh and try again.": "集計タスクの状態が変わりました。更新して再試行してください。",
     "Consumption by channel": "チャネル別消費",
     "Cost by channel": "チャネル別コスト",
-    "Profit by channel": "チャネル別利益"
+    "Profit by channel": "チャネル別利益",
+    "Live query": "リアルタイム照会",
+    "Summary tasks": "集計タスク",
+    "Time period": "期間",
+    "Last 24 complete hours": "直近の完了した24時間",
+    "Previous calendar day": "前日",
+    "Previous calendar week": "前週",
+    "Previous calendar month": "前月",
+    "Previous calendar quarter": "前四半期",
+    "Previous calendar year": "前年",
+    "Queried at": "照会時刻",
+    "Missing summaries": "集計不足",
+    "Create summary": "集計を作成",
+    "Summarize selected range": "選択期間を集計",
+    "Summary sources": "集計元",
+    "Too many summaries. Narrow the time range.": "集計件数が多すぎます。期間を短くしてください。"
   }
 }

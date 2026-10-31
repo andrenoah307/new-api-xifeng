@@ -5181,6 +5181,21 @@
     "Report task state changed. Refresh and try again.": "彙總任務狀態已變更，請重新整理後再試。",
     "Consumption by channel": "渠道消費分布",
     "Cost by channel": "渠道成本分布",
-    "Profit by channel": "渠道利潤分布"
+    "Profit by channel": "渠道利潤分布",
+    "Live query": "即時查詢",
+    "Summary tasks": "彙總任務",
+    "Time period": "時間週期",
+    "Last 24 complete hours": "最近24個完整小時",
+    "Previous calendar day": "上一自然日",
+    "Previous calendar week": "上一自然週",
+    "Previous calendar month": "上一自然月",
+    "Previous calendar quarter": "上一自然季",
+    "Previous calendar year": "上一自然年",
+    "Queried at": "查詢時間",
+    "Missing summaries": "缺少彙總",
+    "Create summary": "建立彙總",
+    "Summarize selected range": "彙總所選時間範圍",
+    "Summary sources": "彙總來源",
+    "Too many summaries. Narrow the time range.": "彙總紀錄過多，請縮小查詢時間範圍。"
   }
 }

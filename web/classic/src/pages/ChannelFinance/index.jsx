@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
-import { Button, Modal, Tag } from '@douyinfe/semi-ui';
+import { Button, Modal, Tag, Tabs, TabPane } from '@douyinfe/semi-ui';
 import {
   Calculator,
   ChevronLeft,
@@ -40,6 +40,7 @@ import { formatReportAmount as amount } from './format';
 import CostConfirmation from './CostConfirmation';
 import { reportCSV } from './export';
 import { FinanceCharts } from './Charts';
+import { FinanceQuery } from './Query';
 
 const statuses = {
   pending: 'Pending',
@@ -67,7 +68,7 @@ const columns = [
 function localTime(value) {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
     .toISOString()
-    .slice(0, 16);
+    .slice(0, 19);
 }
 
 export default function ChannelFinance() {
@@ -75,14 +76,46 @@ export default function ChannelFinance() {
   if (!state.user) return null;
   if (state.user?.role !== 100) return <Navigate to='/forbidden' replace />;
   return (
-    <ChannelFinanceContent
+    <ChannelFinanceViews
       key={`${state.user.id}:${state.user.role}`}
       userId={state.user.id}
     />
   );
 }
 
-function ChannelFinanceContent({ userId }) {
+function ChannelFinanceViews({ userId }) {
+  const { t } = useTranslation();
+  const [view, setView] = useState('query');
+  const [initialRange, setInitialRange] = useState();
+  return (
+    <main className='channel-finance'>
+      <h1>{t('Revenue')}</h1>
+      <Tabs activeKey={view} onChange={setView}>
+        <TabPane tab={t('Live query')} itemKey='query'>
+          <FinanceQuery
+            active={view === 'query'}
+            userId={userId}
+            onSummarize={(range) => {
+              setInitialRange(range);
+              setView('tasks');
+            }}
+          />
+        </TabPane>
+        <TabPane tab={t('Summary tasks')} itemKey='tasks'>
+          {view === 'tasks' && (
+            <ChannelFinanceContent
+              userId={userId}
+              initialRange={initialRange}
+              key={JSON.stringify(initialRange)}
+            />
+          )}
+        </TabPane>
+      </Tabs>
+    </main>
+  );
+}
+
+function ChannelFinanceContent({ userId, initialRange }) {
   const { t } = useTranslation();
   const [state] = useContext(UserContext);
   const identity = useRef(state.user);
@@ -95,11 +128,19 @@ function ChannelFinanceContent({ userId }) {
     };
   }, []);
   const [start, setStart] = useState(() =>
-    localTime(new Date(new Date().setHours(0, 0, 0, 0))),
+    localTime(
+      initialRange
+        ? new Date(initialRange.start * 1000)
+        : new Date(new Date().setHours(0, 0, 0, 0)),
+    ),
   );
-  const [end, setEnd] = useState(() => localTime(new Date()));
-  const [channel, setChannel] = useState('');
-  const [fallback, setFallback] = useState(false);
+  const [end, setEnd] = useState(() =>
+    localTime(initialRange ? new Date(initialRange.end * 1000) : new Date()),
+  );
+  const [channel, setChannel] = useState(
+    initialRange?.channel_id ? String(initialRange.channel_id) : '',
+  );
+  const [fallback, setFallback] = useState(Boolean(initialRange));
   const [pendingRequest, setPendingRequest] = useState(null);
   const [previewRefresh, setPreviewRefresh] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -366,8 +407,7 @@ function ChannelFinanceContent({ userId }) {
           .includes(filter.toLowerCase()),
     ) ?? [];
   return (
-    <main className='channel-finance'>
-      <h1>{t('Revenue')}</h1>
+    <div className='space-y-4'>
       {pendingRequest && (
         <CostConfirmation
           request={pendingRequest}
@@ -416,6 +456,7 @@ function ChannelFinanceContent({ userId }) {
             {t('Start time')}
             <input
               type='datetime-local'
+              step='1'
               required
               value={start}
               onChange={(event) => setStart(event.target.value)}
@@ -425,6 +466,7 @@ function ChannelFinanceContent({ userId }) {
             {t('End time')}
             <input
               type='datetime-local'
+              step='1'
               required
               value={end}
               onChange={(event) => setEnd(event.target.value)}
@@ -828,6 +870,6 @@ function ChannelFinanceContent({ userId }) {
           </div>
         </>
       )}
-    </main>
+    </div>
   );
 }

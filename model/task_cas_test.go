@@ -51,6 +51,8 @@ func TestMain(m *testing.M) {
 		&SystemInstance{},
 		&SystemTask{},
 		&SystemTaskLock{},
+		&ChannelCostReportCheckpoint{},
+		&ChannelCostCheckpointBudget{},
 		&Ticket{},
 		&TicketMessage{},
 		&TicketAttachment{},
@@ -83,6 +85,8 @@ func truncateTables(t *testing.T) {
 		DB.Exec("DELETE FROM system_instances")
 		DB.Exec("DELETE FROM system_task_locks")
 		DB.Exec("DELETE FROM system_tasks")
+		DB.Exec("DELETE FROM channel_cost_report_checkpoints")
+		DB.Exec("DELETE FROM channel_cost_checkpoint_budgets")
 		DB.Exec("DELETE FROM tickets")
 		DB.Exec("DELETE FROM ticket_messages")
 		DB.Exec("DELETE FROM ticket_invoices")

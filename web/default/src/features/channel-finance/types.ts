@@ -72,3 +72,19 @@ export interface FinanceReport {
   channels: FinanceRow[]
   total: FinanceRow
 }
+
+export interface FinanceRange {
+  start: number
+  end: number
+  channel_id: number
+}
+export interface FinanceQueryResult extends FinanceRange {
+  complete: boolean
+  missing: { start: number; end: number }[]
+  sources: { start: number; end: number; job_id: string; updated_at: number }[]
+  policy: FinanceJob['policy'] | null
+  channels: FinanceRow[]
+  total: FinanceRow | null
+  queried_at: number
+  storage: { stored_rows: number; stored_bytes: number; evicted_rows: number }
+}

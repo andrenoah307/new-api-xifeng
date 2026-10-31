@@ -312,7 +312,7 @@ func DeleteChannelCostReportJobs(ctx context.Context, actorID int, id string) ([
 		if result.RowsAffected != int64(len(deleted)) {
 			return ErrChannelCostReportConflict
 		}
-		return nil
+		return deleteCostReportCheckpoints(tx, deleted)
 	})
 	if err != nil {
 		return nil, err
@@ -365,15 +365,21 @@ func SkipChannelCostReportEmptyWindows(ctx context.Context, job *ChannelCostRepo
 		return job.Cursor, err
 	}
 	processed := int((end - policy.Start + 3599) / 3600)
-	result := costReportFencedUpdate(DB.WithContext(ctx), job, runner).
-		Where("status = ? AND control = ? AND cursor_timestamp = ? AND processed_windows = ?", "running", "", job.Cursor, job.ProcessedWindows).
-		Where("EXISTS (SELECT 1 FROM users WHERE users.id = channel_cost_report_jobs.owner_id AND users.role = ? AND users.status = ?)", common.RoleRootUser, common.UserStatusEnabled).
-		Updates(map[string]any{"cursor_timestamp": end, "processed_windows": processed, "updated_at": common.GetTimestamp()})
-	if result.Error != nil {
-		return job.Cursor, result.Error
-	}
-	if result.RowsAffected != 1 {
-		return job.Cursor, ErrChannelCostReportConflict
+	err = DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := costReportFencedUpdate(tx, job, runner).
+			Where("status = ? AND control = ? AND cursor_timestamp = ? AND processed_windows = ?", "running", "", job.Cursor, job.ProcessedWindows).
+			Where("EXISTS (SELECT 1 FROM users WHERE users.id = channel_cost_report_jobs.owner_id AND users.role = ? AND users.status = ?)", common.RoleRootUser, common.UserStatusEnabled).
+			Updates(map[string]any{"cursor_timestamp": end, "processed_windows": processed, "updated_at": common.GetTimestamp()})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrChannelCostReportConflict
+		}
+		return saveCostReportCheckpoint(tx, job, end, job.RowsJSON, true)
+	})
+	if err != nil {
+		return job.Cursor, err
 	}
 	return end, nil
 }
@@ -412,7 +418,7 @@ func PublishChannelCostReportWindow(ctx context.Context, job *ChannelCostReportJ
 		if result.RowsAffected != 1 {
 			return ErrChannelCostReportConflict
 		}
-		return nil
+		return saveCostReportCheckpoint(tx, job, end, string(encoded), len(rows) == 0)
 	})
 }
 

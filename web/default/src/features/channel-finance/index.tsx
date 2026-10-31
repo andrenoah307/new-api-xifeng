@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { api } from '@/lib/api'
 import { downloadTextFile } from '@/lib/download'
 import { useAuthStore } from '@/stores/auth-store'
@@ -41,7 +42,13 @@ import { FinanceCharts } from './charts'
 import { reportCSV } from './export'
 import { formatReportAmount as amount } from './format'
 import { FinanceTaskTable } from './task-table'
-import type { FinanceJob, FinanceReport, FinanceRow } from './types'
+import { FinanceQuery } from './query'
+import type {
+  FinanceJob,
+  FinanceReport,
+  FinanceRow,
+  FinanceRange,
+} from './types'
 
 const statuses = {
   pending: 'Pending',
@@ -61,26 +68,75 @@ const columns = [
 function localTime(value: Date) {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
     .toISOString()
-    .slice(0, 16)
+    .slice(0, 19)
 }
 
 export function ChannelFinance() {
   const user = useAuthStore((state) => state.auth.user)
   if (user?.role !== 100) return null
   return (
-    <ChannelFinanceContent key={`${user.id}:${user.role}`} userId={user.id} />
+    <ChannelFinanceViews key={`${user.id}:${user.role}`} userId={user.id} />
   )
 }
 
-function ChannelFinanceContent(props: { userId: number }) {
+function ChannelFinanceViews(props: { userId: number }) {
+  const { t } = useTranslation()
+  const [view, setView] = useState('query')
+  const [initialRange, setInitialRange] = useState<FinanceRange | undefined>()
+  return (
+    <SectionPageLayout>
+      <SectionPageLayout.Title>{t('Revenue')}</SectionPageLayout.Title>
+      <SectionPageLayout.Content>
+        <Tabs value={view} onValueChange={(value) => setView(String(value))}>
+          <TabsList variant='line'>
+            <TabsTrigger value='query'>{t('Live query')}</TabsTrigger>
+            <TabsTrigger value='tasks'>{t('Summary tasks')}</TabsTrigger>
+          </TabsList>
+          <TabsContent value='query' keepMounted>
+            <FinanceQuery
+              active={view === 'query'}
+              userId={props.userId}
+              onSummarize={(range) => {
+                setInitialRange(range)
+                setView('tasks')
+              }}
+            />
+          </TabsContent>
+          <TabsContent value='tasks'>
+            <ChannelFinanceContent
+              userId={props.userId}
+              initialRange={initialRange}
+              key={JSON.stringify(initialRange)}
+            />
+          </TabsContent>
+        </Tabs>
+      </SectionPageLayout.Content>
+    </SectionPageLayout>
+  )
+}
+
+function ChannelFinanceContent(props: {
+  userId: number
+  initialRange?: FinanceRange
+}) {
   const { t } = useTranslation()
   const client = useQueryClient()
   const [start, setStart] = useState(() =>
-    localTime(new Date(new Date().setHours(0, 0, 0, 0)))
+    localTime(
+      props.initialRange
+        ? new Date(props.initialRange.start * 1000)
+        : new Date(new Date().setHours(0, 0, 0, 0))
+    )
   )
-  const [end, setEnd] = useState(() => localTime(new Date()))
-  const [channel, setChannel] = useState('')
-  const [fallback, setFallback] = useState(false)
+  const [end, setEnd] = useState(() =>
+    localTime(
+      props.initialRange ? new Date(props.initialRange.end * 1000) : new Date()
+    )
+  )
+  const [channel, setChannel] = useState(
+    props.initialRange?.channel_id ? String(props.initialRange.channel_id) : ''
+  )
+  const [fallback, setFallback] = useState(Boolean(props.initialRange))
   const [pendingRequest, setPendingRequest] = useState<FinanceRequest | null>(
     null
   )
@@ -187,283 +243,279 @@ function ChannelFinanceContent(props: { userId: number }) {
           .includes(filter.toLowerCase())
     ) ?? []
   return (
-    <SectionPageLayout>
-      <SectionPageLayout.Title>{t('Revenue')}</SectionPageLayout.Title>
-      <SectionPageLayout.Content>
-        {pendingRequest && (
-          <CostConfirmation
-            request={pendingRequest}
-            userId={props.userId}
-            busy={mutate.isPending}
-            error={error}
-            onClose={() => setPendingRequest(null)}
-            onConfirm={(fingerprint) =>
-              mutate.mutate({
-                path: '',
-                body: { ...pendingRequest, cost_fingerprint: fingerprint },
-              })
-            }
-          />
-        )}
-        <form onSubmit={generate} className='border-b pb-5'>
-          <FieldSet className='mb-5 gap-3'>
-            <FieldLegend variant='label'>{t('Summary workflow')}</FieldLegend>
-            <RadioGroup
-              value={fallback ? 'billed_basis' : 'none'}
-              onValueChange={(value) => {
-                setFallback(value === 'billed_basis')
-              }}
-              className='gap-3'
-            >
-              <Field orientation='horizontal'>
-                <RadioGroupItem id='finance-existing' value='none' />
-                <FieldLabel htmlFor='finance-existing'>
-                  {t('Existing costs only (may be incomplete)')}
-                </FieldLabel>
-              </Field>
-              <Field orientation='horizontal'>
-                <RadioGroupItem id='finance-complete' value='billed_basis' />
-                <FieldLabel htmlFor='finance-complete'>
-                  {t('Full summary with channel-rate cost estimates')}
-                </FieldLabel>
-              </Field>
-            </RadioGroup>
-          </FieldSet>
-          <FieldGroup className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-            <Field>
-              <FieldLabel htmlFor='finance-start'>{t('Start time')}</FieldLabel>
-              <Input
-                id='finance-start'
-                type='datetime-local'
-                required
-                value={start}
-                onChange={(event) => setStart(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor='finance-end'>{t('End time')}</FieldLabel>
-              <Input
-                id='finance-end'
-                type='datetime-local'
-                required
-                value={end}
-                onChange={(event) => setEnd(event.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor='finance-channel'>
-                {t('Channel ID (empty for all)')}
-              </FieldLabel>
-              <Input
-                id='finance-channel'
-                type='number'
-                min='1'
-                step='1'
-                value={channel}
-                onChange={(event) => setChannel(event.target.value)}
-              />
-            </Field>
-          </FieldGroup>
-          <Button className='mt-4' type='submit' disabled={mutate.isPending}>
-            <Calculator />
-            {t('Generate report')}
-          </Button>
-        </form>
-        {(error || report.isError) && (
-          <p role='alert' className='text-destructive mt-4'>
-            {error || t('Failed to load report')}
-          </p>
-        )}
-        <FinanceTaskTable
+    <div className='space-y-4'>
+      {pendingRequest && (
+        <CostConfirmation
+          request={pendingRequest}
           userId={props.userId}
-          selected={selected}
-          onSelect={setSelected}
-          onDeleted={(ids) =>
-            setSelected((current) =>
-              current && ids.includes(current) ? null : current
-            )
+          busy={mutate.isPending}
+          error={error}
+          onClose={() => setPendingRequest(null)}
+          onConfirm={(fingerprint) =>
+            mutate.mutate({
+              path: '',
+              body: { ...pendingRequest, cost_fingerprint: fingerprint },
+            })
           }
         />
-        <div className='my-4 flex flex-wrap items-center gap-3'>
-          {id && (
-            <h2 className='min-w-0 flex-1 text-sm font-semibold break-all'>
-              {t('Report task')} · {id}
-            </h2>
-          )}
-          <Button
-            variant='outline'
-            aria-label={t('Refresh')}
-            title={t('Refresh')}
-            onClick={() => void client.invalidateQueries({ queryKey: prefix })}
+      )}
+      <form onSubmit={generate} className='border-b pb-5'>
+        <FieldSet className='mb-5 gap-3'>
+          <FieldLegend variant='label'>{t('Summary workflow')}</FieldLegend>
+          <RadioGroup
+            value={fallback ? 'billed_basis' : 'none'}
+            onValueChange={(value) => {
+              setFallback(value === 'billed_basis')
+            }}
+            className='gap-3'
           >
-            <RefreshCw />
-          </Button>
-          {job && (
-            <>
-              {['pending', 'running'].includes(job.status) && (
-                <Button
-                  variant='outline'
-                  disabled={mutate.isPending}
-                  onClick={() => mutate.mutate({ path: `/${job.id}/pause` })}
-                >
-                  <Pause />
-                  {t('Pause')}
-                </Button>
-              )}
-              {['paused', 'failed'].includes(job.status) && (
-                <Button
-                  variant='outline'
-                  disabled={mutate.isPending}
-                  onClick={() => mutate.mutate({ path: `/${job.id}/resume` })}
-                >
-                  <Play />
-                  {t('Resume')}
-                </Button>
-              )}
-              {['pending', 'running', 'paused'].includes(job.status) && (
-                <Button
-                  variant='outline'
-                  disabled={mutate.isPending}
-                  onClick={() => mutate.mutate({ path: `/${job.id}/cancel` })}
-                >
-                  <X />
-                  {t('Cancel')}
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-        {job && (
-          <div className='space-y-2 border-b pb-4 text-sm'>
-            <div className='flex flex-wrap justify-between gap-2'>
-              <span>
-                {t(statuses[job.status])} · {job.processed_windows}/
-                {job.total_windows} · {progress.toFixed(1)}%
-              </span>
-              <span>
-                {t('Aggregated through')}:{' '}
-                {new Date(job.cursor * 1000).toLocaleString()}
-              </span>
-            </div>
-            <progress
-              className='accent-primary h-2 w-full'
-              value={progress}
-              max={100}
+            <Field orientation='horizontal'>
+              <RadioGroupItem id='finance-existing' value='none' />
+              <FieldLabel htmlFor='finance-existing'>
+                {t('Existing costs only (may be incomplete)')}
+              </FieldLabel>
+            </Field>
+            <Field orientation='horizontal'>
+              <RadioGroupItem id='finance-complete' value='billed_basis' />
+              <FieldLabel htmlFor='finance-complete'>
+                {t('Full summary with channel-rate cost estimates')}
+              </FieldLabel>
+            </Field>
+          </RadioGroup>
+        </FieldSet>
+        <FieldGroup className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+          <Field>
+            <FieldLabel htmlFor='finance-start'>{t('Start time')}</FieldLabel>
+            <Input
+              id='finance-start'
+              type='datetime-local'
+              step='1'
+              required
+              value={start}
+              onChange={(event) => setStart(event.target.value)}
             />
-            {job.policy && (
-              <p className='max-h-24 overflow-y-auto break-words'>
-                {t('Summary workflow')}:{' '}
-                {t(
-                  job.policy.fallback_mode === 'billed_basis'
-                    ? 'Full summary with channel-rate cost estimates'
-                    : 'Existing costs only (may be incomplete)'
-                )}
-              </p>
-            )}
-            {job.error && (
-              <p role='alert' className='text-destructive break-words'>
-                {job.error}
-              </p>
-            )}
-          </div>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor='finance-end'>{t('End time')}</FieldLabel>
+            <Input
+              id='finance-end'
+              type='datetime-local'
+              step='1'
+              required
+              value={end}
+              onChange={(event) => setEnd(event.target.value)}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor='finance-channel'>
+              {t('Channel ID (empty for all)')}
+            </FieldLabel>
+            <Input
+              id='finance-channel'
+              type='number'
+              min='1'
+              step='1'
+              value={channel}
+              onChange={(event) => setChannel(event.target.value)}
+            />
+          </Field>
+        </FieldGroup>
+        <Button className='mt-4' type='submit' disabled={mutate.isPending}>
+          <Calculator />
+          {t('Generate report')}
+        </Button>
+      </form>
+      {(error || report.isError) && (
+        <p role='alert' className='text-destructive mt-4'>
+          {error || t('Failed to load report')}
+        </p>
+      )}
+      <FinanceTaskTable
+        userId={props.userId}
+        selected={selected}
+        onSelect={setSelected}
+        onDeleted={(ids) =>
+          setSelected((current) =>
+            current && ids.includes(current) ? null : current
+          )
+        }
+      />
+      <div className='my-4 flex flex-wrap items-center gap-3'>
+        {id && (
+          <h2 className='min-w-0 flex-1 text-sm font-semibold break-all'>
+            {t('Report task')} · {id}
+          </h2>
         )}
-        {report.data && (
+        <Button
+          variant='outline'
+          aria-label={t('Refresh')}
+          title={t('Refresh')}
+          onClick={() => void client.invalidateQueries({ queryKey: prefix })}
+        >
+          <RefreshCw />
+        </Button>
+        {job && (
           <>
-            <dl className='grid grid-cols-2 gap-5 border-b py-5 lg:grid-cols-4'>
-              {columns.map(([key, label]) => (
-                <div key={key}>
-                  <dt className='text-muted-foreground text-sm'>
-                    {t(label, {
-                      context: key === 'cost' ? 'finance' : undefined,
-                    })}
-                  </dt>
-                  <dd className='mt-1 text-lg font-semibold break-all tabular-nums'>
-                    {amount(report.data.total[key], key)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <div className='my-4 flex flex-wrap items-end gap-3'>
-              <Field className='max-w-sm flex-1'>
-                <FieldLabel htmlFor='finance-filter'>
-                  {t('Filter channels')}
-                </FieldLabel>
-                <Input
-                  id='finance-filter'
-                  value={filter}
-                  onChange={(event) => setFilter(event.target.value)}
-                />
-              </Field>
+            {['pending', 'running'].includes(job.status) && (
               <Button
                 variant='outline'
-                disabled={!rows.length}
-                onClick={() => {
-                  if (!report.data) return
-                  downloadTextFile(
-                    reportCSV(report.data.job, rows),
-                    `revenue-${report.data.job.id}-filtered.csv`
-                  )
-                }}
+                disabled={mutate.isPending}
+                onClick={() => mutate.mutate({ path: `/${job.id}/pause` })}
               >
-                <Download />
-                {t('Export filtered results')}
+                <Pause />
+                {t('Pause')}
               </Button>
-            </div>
-            <FinanceCharts rows={rows} />
-            <div className='overflow-x-auto rounded-md border'>
-              <table className='w-full text-sm'>
-                <thead className='bg-muted'>
-                  <tr>
-                    <th className='p-3 text-left whitespace-nowrap'>
-                      {t('Channel')}
-                    </th>
-                    {columns.map(([key, label]) => (
-                      <th
-                        key={key}
-                        className='p-3 text-right whitespace-nowrap'
-                      >
-                        {t(label, {
-                          context: key === 'cost' ? 'finance' : undefined,
-                        })}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row: FinanceRow) => (
-                    <tr key={row.channel_id} className='border-t'>
-                      <th className='max-w-60 min-w-40 p-3 text-left font-medium break-words'>
-                        {row.channel_name || '-'}{' '}
-                        <span className='text-muted-foreground'>
-                          #{row.channel_id}
-                        </span>
-                      </th>
-                      {columns.map(([key]) => (
-                        <td
-                          key={key}
-                          className='p-3 text-right whitespace-nowrap tabular-nums'
-                        >
-                          {amount(row[key], key)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                  {!rows.length && (
-                    <tr>
-                      <td
-                        colSpan={columns.length + 1}
-                        className='text-muted-foreground p-8 text-center'
-                      >
-                        {t('No data')}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            )}
+            {['paused', 'failed'].includes(job.status) && (
+              <Button
+                variant='outline'
+                disabled={mutate.isPending}
+                onClick={() => mutate.mutate({ path: `/${job.id}/resume` })}
+              >
+                <Play />
+                {t('Resume')}
+              </Button>
+            )}
+            {['pending', 'running', 'paused'].includes(job.status) && (
+              <Button
+                variant='outline'
+                disabled={mutate.isPending}
+                onClick={() => mutate.mutate({ path: `/${job.id}/cancel` })}
+              >
+                <X />
+                {t('Cancel')}
+              </Button>
+            )}
           </>
         )}
-      </SectionPageLayout.Content>
-    </SectionPageLayout>
+      </div>
+      {job && (
+        <div className='space-y-2 border-b pb-4 text-sm'>
+          <div className='flex flex-wrap justify-between gap-2'>
+            <span>
+              {t(statuses[job.status])} · {job.processed_windows}/
+              {job.total_windows} · {progress.toFixed(1)}%
+            </span>
+            <span>
+              {t('Aggregated through')}:{' '}
+              {new Date(job.cursor * 1000).toLocaleString()}
+            </span>
+          </div>
+          <progress
+            className='accent-primary h-2 w-full'
+            value={progress}
+            max={100}
+          />
+          {job.policy && (
+            <p className='max-h-24 overflow-y-auto break-words'>
+              {t('Summary workflow')}:{' '}
+              {t(
+                job.policy.fallback_mode === 'billed_basis'
+                  ? 'Full summary with channel-rate cost estimates'
+                  : 'Existing costs only (may be incomplete)'
+              )}
+            </p>
+          )}
+          {job.error && (
+            <p role='alert' className='text-destructive break-words'>
+              {job.error}
+            </p>
+          )}
+        </div>
+      )}
+      {report.data && (
+        <>
+          <dl className='grid grid-cols-2 gap-5 border-b py-5 lg:grid-cols-4'>
+            {columns.map(([key, label]) => (
+              <div key={key}>
+                <dt className='text-muted-foreground text-sm'>
+                  {t(label, {
+                    context: key === 'cost' ? 'finance' : undefined,
+                  })}
+                </dt>
+                <dd className='mt-1 text-lg font-semibold break-all tabular-nums'>
+                  {amount(report.data.total[key], key)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <div className='my-4 flex flex-wrap items-end gap-3'>
+            <Field className='max-w-sm flex-1'>
+              <FieldLabel htmlFor='finance-filter'>
+                {t('Filter channels')}
+              </FieldLabel>
+              <Input
+                id='finance-filter'
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+              />
+            </Field>
+            <Button
+              variant='outline'
+              disabled={!rows.length}
+              onClick={() => {
+                if (!report.data) return
+                downloadTextFile(
+                  reportCSV(report.data.job, rows),
+                  `revenue-${report.data.job.id}-filtered.csv`
+                )
+              }}
+            >
+              <Download />
+              {t('Export filtered results')}
+            </Button>
+          </div>
+          <FinanceCharts rows={rows} />
+          <div className='overflow-x-auto rounded-md border'>
+            <table className='w-full text-sm'>
+              <thead className='bg-muted'>
+                <tr>
+                  <th className='p-3 text-left whitespace-nowrap'>
+                    {t('Channel')}
+                  </th>
+                  {columns.map(([key, label]) => (
+                    <th key={key} className='p-3 text-right whitespace-nowrap'>
+                      {t(label, {
+                        context: key === 'cost' ? 'finance' : undefined,
+                      })}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row: FinanceRow) => (
+                  <tr key={row.channel_id} className='border-t'>
+                    <th className='max-w-60 min-w-40 p-3 text-left font-medium break-words'>
+                      {row.channel_name || '-'}{' '}
+                      <span className='text-muted-foreground'>
+                        #{row.channel_id}
+                      </span>
+                    </th>
+                    {columns.map(([key]) => (
+                      <td
+                        key={key}
+                        className='p-3 text-right whitespace-nowrap tabular-nums'
+                      >
+                        {amount(row[key], key)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                {!rows.length && (
+                  <tr>
+                    <td
+                      colSpan={columns.length + 1}
+                      className='text-muted-foreground p-8 text-center'
+                    >
+                      {t('No data')}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
   )
 }

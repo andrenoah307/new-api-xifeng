@@ -296,6 +296,7 @@ func SetApiRouter(router *gin.Engine) {
 		channelFinanceRoute := apiRouter.Group("/channel-finance")
 		channelFinanceRoute.Use(middleware.RootAuth())
 		channelFinanceRoute.GET("/cost-preview", controller.PreviewChannelCostReportConfig)
+		channelFinanceRoute.GET("/query", controller.QueryChannelCostReports)
 		channelFinanceRoute.GET("/jobs", controller.ListChannelCostReportJobs)
 		channelFinanceRoute.POST("/jobs", controller.CreateChannelCostReportJob)
 		channelFinanceRoute.DELETE("/jobs", controller.DeleteChannelCostReportJobs)

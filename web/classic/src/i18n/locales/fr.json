@@ -5202,6 +5202,21 @@
     "Report task state changed. Refresh and try again.": "L’état de la tâche a changé. Actualisez et réessayez.",
     "Consumption by channel": "Consommation par canal",
     "Cost by channel": "Coût par canal",
-    "Profit by channel": "Bénéfice par canal"
+    "Profit by channel": "Bénéfice par canal",
+    "Live query": "Consultation en direct",
+    "Summary tasks": "Tâches de synthèse",
+    "Time period": "Période",
+    "Last 24 complete hours": "24 dernières heures complètes",
+    "Previous calendar day": "Jour civil précédent",
+    "Previous calendar week": "Semaine civile précédente",
+    "Previous calendar month": "Mois civil précédent",
+    "Previous calendar quarter": "Trimestre civil précédent",
+    "Previous calendar year": "Année civile précédente",
+    "Queried at": "Consulté le",
+    "Missing summaries": "Synthèses manquantes",
+    "Create summary": "Créer une synthèse",
+    "Summarize selected range": "Synthétiser la période choisie",
+    "Summary sources": "Sources des synthèses",
+    "Too many summaries. Narrow the time range.": "Trop de synthèses. Réduisez la période."
   }
 }

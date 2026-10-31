@@ -5712,6 +5712,21 @@
     "Report task state changed. Refresh and try again.": "Trạng thái tác vụ đã thay đổi. Hãy làm mới và thử lại.",
     "Consumption by channel": "Tiêu dùng theo kênh",
     "Cost by channel": "Chi phí theo kênh",
-    "Profit by channel": "Lợi nhuận theo kênh"
+    "Profit by channel": "Lợi nhuận theo kênh",
+    "Live query": "Truy vấn trực tiếp",
+    "Summary tasks": "Tác vụ tổng hợp",
+    "Time period": "Khoảng thời gian",
+    "Last 24 complete hours": "24 giờ hoàn tất gần nhất",
+    "Previous calendar day": "Ngày lịch trước",
+    "Previous calendar week": "Tuần lịch trước",
+    "Previous calendar month": "Tháng lịch trước",
+    "Previous calendar quarter": "Quý lịch trước",
+    "Previous calendar year": "Năm lịch trước",
+    "Queried at": "Thời gian truy vấn",
+    "Missing summaries": "Thiếu tổng hợp",
+    "Create summary": "Tạo tổng hợp",
+    "Summarize selected range": "Tổng hợp khoảng đã chọn",
+    "Summary sources": "Nguồn tổng hợp",
+    "Too many summaries. Narrow the time range.": "Quá nhiều bản tổng hợp. Hãy thu hẹp khoảng thời gian."
   }
 }
