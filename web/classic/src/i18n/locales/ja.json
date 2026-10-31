@@ -5166,6 +5166,9 @@
     "Delete report task?": "集計タスクを削除しますか？",
     "Delete this report and its saved results? Source logs and account balances will not change.": "このレポートと保存された結果を削除しますか？元のログとアカウント残高は変更されません。",
     "Deleted {{count}} report tasks.": "{{count}} 件の集計タスクを削除しました。",
-    "Report task state changed. Refresh and try again.": "集計タスクの状態が変わりました。更新して再試行してください。"
+    "Report task state changed. Refresh and try again.": "集計タスクの状態が変わりました。更新して再試行してください。",
+    "Consumption by channel": "チャネル別消費",
+    "Cost by channel": "チャネル別コスト",
+    "Profit by channel": "チャネル別利益"
   }
 }

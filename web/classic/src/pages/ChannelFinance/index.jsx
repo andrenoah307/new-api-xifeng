@@ -39,6 +39,7 @@ import './style.css';
 import { formatReportAmount as amount } from './format';
 import CostConfirmation from './CostConfirmation';
 import { reportCSV } from './export';
+import { FinanceCharts } from './Charts';
 
 const statuses = {
   pending: 'Pending',
@@ -795,6 +796,7 @@ function ChannelFinanceContent({ userId }) {
               {t('Export filtered results')}
             </Button>
           </div>
+          <FinanceCharts rows={rows} />
           <div className='finance-table'>
             <table>
               <thead>

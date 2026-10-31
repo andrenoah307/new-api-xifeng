@@ -5220,6 +5220,9 @@
     "Delete report task?": "Удалить задачу отчёта?",
     "Delete this report and its saved results? Source logs and account balances will not change.": "Удалить этот отчёт и сохранённые результаты? Исходные журналы и балансы счетов не изменятся.",
     "Deleted {{count}} report tasks.": "Удалено задач отчётов: {{count}}.",
-    "Report task state changed. Refresh and try again.": "Состояние задачи изменилось. Обновите страницу и повторите попытку."
+    "Report task state changed. Refresh and try again.": "Состояние задачи изменилось. Обновите страницу и повторите попытку.",
+    "Consumption by channel": "Расходы по каналам",
+    "Cost by channel": "Себестоимость по каналам",
+    "Profit by channel": "Прибыль по каналам"
   }
 }

@@ -5199,6 +5199,9 @@
     "Delete report task?": "Supprimer cette tâche de rapport ?",
     "Delete this report and its saved results? Source logs and account balances will not change.": "Supprimer ce rapport et ses résultats enregistrés ? Les journaux sources et les soldes des comptes resteront inchangés.",
     "Deleted {{count}} report tasks.": "{{count}} tâches de rapport supprimées.",
-    "Report task state changed. Refresh and try again.": "L’état de la tâche a changé. Actualisez et réessayez."
+    "Report task state changed. Refresh and try again.": "L’état de la tâche a changé. Actualisez et réessayez.",
+    "Consumption by channel": "Consommation par canal",
+    "Cost by channel": "Coût par canal",
+    "Profit by channel": "Bénéfice par canal"
   }
 }

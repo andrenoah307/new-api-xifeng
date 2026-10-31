@@ -5426,6 +5426,9 @@
     "Delete report task?": "Delete report task?",
     "Delete this report and its saved results? Source logs and account balances will not change.": "Delete this report and its saved results? Source logs and account balances will not change.",
     "Deleted {{count}} report tasks.": "Deleted {{count}} report tasks.",
-    "Report task state changed. Refresh and try again.": "Report task state changed. Refresh and try again."
+    "Report task state changed. Refresh and try again.": "Report task state changed. Refresh and try again.",
+    "Consumption by channel": "Consumption by channel",
+    "Cost by channel": "Cost by channel",
+    "Profit by channel": "Profit by channel"
   }
 }

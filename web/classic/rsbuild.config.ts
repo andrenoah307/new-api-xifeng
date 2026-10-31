@@ -52,6 +52,14 @@ export default defineConfig(({ envMode }) => {
     },
     resolve: {
       alias: {
+        // VChart and VGrammar must share the same renderer dependency container.
+        '@visactor/vrender-core': path.dirname(
+          path.dirname(
+            require.resolve('@visactor/vrender-core', {
+              paths: [path.dirname(require.resolve('@visactor/vchart'))],
+            }),
+          ),
+        ),
         '@': path.resolve(__dirname, './src'),
         'date-fns': dateFnsV2,
         '@douyinfe/semi-ui/dist/css/semi.css': path.resolve(

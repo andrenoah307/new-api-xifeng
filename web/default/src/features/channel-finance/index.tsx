@@ -37,6 +37,7 @@ import { downloadTextFile } from '@/lib/download'
 import { useAuthStore } from '@/stores/auth-store'
 
 import { CostConfirmation, type FinanceRequest } from './cost-confirmation'
+import { FinanceCharts } from './charts'
 import { reportCSV } from './export'
 import { formatReportAmount as amount } from './format'
 import { FinanceTaskTable } from './task-table'
@@ -408,6 +409,7 @@ function ChannelFinanceContent(props: { userId: number }) {
                 {t('Export filtered results')}
               </Button>
             </div>
+            <FinanceCharts rows={rows} />
             <div className='overflow-x-auto rounded-md border'>
               <table className='w-full text-sm'>
                 <thead className='bg-muted'>

@@ -5178,6 +5178,9 @@
     "Delete report task?": "刪除彙總任務？",
     "Delete this report and its saved results? Source logs and account balances will not change.": "刪除此報表及其儲存的結果？原始日誌和帳戶餘額不會改變。",
     "Deleted {{count}} report tasks.": "已刪除 {{count}} 個彙總任務。",
-    "Report task state changed. Refresh and try again.": "彙總任務狀態已變更，請重新整理後再試。"
+    "Report task state changed. Refresh and try again.": "彙總任務狀態已變更，請重新整理後再試。",
+    "Consumption by channel": "渠道消費分布",
+    "Cost by channel": "渠道成本分布",
+    "Profit by channel": "渠道利潤分布"
   }
 }

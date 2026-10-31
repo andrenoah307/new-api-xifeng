@@ -3071,6 +3071,9 @@
     "Delete report task?": "删除汇总任务？",
     "Delete this report and its saved results? Source logs and account balances will not change.": "删除此报表及其保存的结果？原始日志和账户余额不会改变。",
     "Deleted {{count}} report tasks.": "已删除 {{count}} 个汇总任务。",
-    "Report task state changed. Refresh and try again.": "汇总任务状态已变化，请刷新后重试。"
+    "Report task state changed. Refresh and try again.": "汇总任务状态已变化，请刷新后重试。",
+    "Consumption by channel": "渠道消费分布",
+    "Cost by channel": "渠道成本分布",
+    "Profit by channel": "渠道利润分布"
   }
 }

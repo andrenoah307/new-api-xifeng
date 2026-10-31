@@ -5709,6 +5709,9 @@
     "Delete report task?": "Xóa tác vụ báo cáo?",
     "Delete this report and its saved results? Source logs and account balances will not change.": "Xóa báo cáo này và kết quả đã lưu? Nhật ký gốc và số dư tài khoản sẽ không thay đổi.",
     "Deleted {{count}} report tasks.": "Đã xóa {{count}} tác vụ báo cáo.",
-    "Report task state changed. Refresh and try again.": "Trạng thái tác vụ đã thay đổi. Hãy làm mới và thử lại."
+    "Report task state changed. Refresh and try again.": "Trạng thái tác vụ đã thay đổi. Hãy làm mới và thử lại.",
+    "Consumption by channel": "Tiêu dùng theo kênh",
+    "Cost by channel": "Chi phí theo kênh",
+    "Profit by channel": "Lợi nhuận theo kênh"
   }
 }
