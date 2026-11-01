@@ -32,6 +32,16 @@ func AdminManualTopUpQuote(c *gin.Context) {
 	common.ApiSuccess(c, quote)
 }
 
+func AdminManualTopUpAccounts(c *gin.Context) {
+	accounts, err := model.GetManualTopUpAccounts(model.DB.WithContext(c.Request.Context()), c.GetInt("id"))
+	if err != nil {
+		handleManualTopUpError(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	common.ApiSuccess(c, accounts)
+}
+
 func AdminManualTopUp(c *gin.Context) {
 	var req model.ManualTopUpRequest
 	if c.ShouldBindJSON(&req) != nil {
@@ -46,6 +56,7 @@ func AdminManualTopUp(c *gin.Context) {
 	if created {
 		recordUserAccountAudit(c, req.UserID, "user.manual_topup", map[string]interface{}{
 			"topup_id": order.Id, "trade_no": order.TradeNo, "total_cents": order.PaymentTotalCents, "tax_cents": order.InvoiceTaxCents, "quota": order.QuotaGranted, "invoice_type": order.InvoiceType,
+			"gateway_id": req.GatewayID,
 		})
 	}
 	common.ApiSuccess(c, order)

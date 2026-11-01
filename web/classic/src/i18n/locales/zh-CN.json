@@ -5664,6 +5664,8 @@
     "ticket.choice.general": "普通工单",
     "ticket.choice.invoice": "申请开票",
     "ticket.choice.refund": "申请退款",
+    "Configure a corporate account in payment gateway settings first.": "请先在支付网关设置中配置公账。",
+    "Select corporate account": "请选择公账",
     "Top navigation style": "顶部导航样式",
     "Default style": "默认样式",
     "Packy style": "Packy 风格",

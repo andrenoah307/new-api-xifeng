@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"sync"
 	"testing"
@@ -14,7 +15,7 @@ import (
 
 func setupManualTopUpTest(t *testing.T) (*User, *User) {
 	t.Helper()
-	setupEpayRechargeTest(t)
+	setupEpayRoutingTest(t)
 	old := common.QuotaPerUnit
 	common.QuotaPerUnit = 500000
 	t.Cleanup(func() {
@@ -31,7 +32,7 @@ func setupManualTopUpTest(t *testing.T) (*User, *User) {
 
 func TestManualTopUpAtomicIdempotentAndInvoiceable(t *testing.T) {
 	admin, user := setupManualTopUpTest(t)
-	req := ManualTopUpRequest{UserID: user.Id, TotalCents: 10000, InvoiceType: "ordinary", RequestID: "manual-request-0001"}
+	req := ManualTopUpRequest{UserID: user.Id, TotalCents: 10000, InvoiceType: "ordinary", GatewayID: "corporate-a", RequestID: "manual-request-0001"}
 	quote, err := QuoteManualTopUp(DB, admin.Id, req)
 	require.NoError(t, err)
 	assert.Equal(t, int64(9434), quote.NetCents)
@@ -80,7 +81,7 @@ func TestManualTopUpAtomicIdempotentAndInvoiceable(t *testing.T) {
 
 func TestManualTopUpConcurrentReceiptsPreserveOtherWalletWrites(t *testing.T) {
 	admin, user := setupManualTopUpTest(t)
-	req := ManualTopUpRequest{UserID: user.Id, TotalCents: 100, InvoiceType: "none", RequestID: "manual-concurrent-0001"}
+	req := ManualTopUpRequest{UserID: user.Id, TotalCents: 100, InvoiceType: "none", GatewayID: "corporate-a", RequestID: "manual-concurrent-0001"}
 	quote, err := QuoteManualTopUp(DB, admin.Id, req)
 	require.NoError(t, err)
 	req.Token = quote.Token
@@ -107,7 +108,7 @@ func TestManualTopUpConcurrentReceiptsPreserveOtherWalletWrites(t *testing.T) {
 
 func TestManualTopUpRollbackPermissionsAndQuoteChanges(t *testing.T) {
 	admin, user := setupManualTopUpTest(t)
-	req := ManualTopUpRequest{UserID: user.Id, TotalCents: 10000, InvoiceType: "special", RequestID: "manual-request-0002"}
+	req := ManualTopUpRequest{UserID: user.Id, TotalCents: 10000, InvoiceType: "special", GatewayID: "corporate-a", RequestID: "manual-request-0002"}
 	_, err := QuoteManualTopUp(DB, user.Id, req)
 	assert.ErrorIs(t, err, ErrTicketForbidden)
 	req.UserID = admin.Id
@@ -154,4 +155,78 @@ func TestManualTopUpRollbackPermissionsAndQuoteChanges(t *testing.T) {
 	eligible, err := GetEligibleInvoiceOrders(user.Id, "ordinary")
 	require.NoError(t, err)
 	assert.Empty(t, eligible)
+}
+
+func TestManualTopUpAccountSnapshotValidationAndReplay(t *testing.T) {
+	admin, user := setupManualTopUpTest(t)
+	req := ManualTopUpRequest{UserID: user.Id, TotalCents: 10000, InvoiceType: "ordinary", GatewayID: "corporate-a", RequestID: "manual-account-0001"}
+	quote, err := QuoteManualTopUp(DB, admin.Id, req)
+	require.NoError(t, err)
+	assert.Equal(t, "Issuer A", quote.AccountName)
+	raw, err := common.Marshal(quote)
+	require.NoError(t, err)
+	for _, secret := range []string{"key-a", "partner_id", "address", "payment_methods"} {
+		assert.NotContains(t, string(raw), secret)
+	}
+	req.Token = quote.Token
+	for _, id := range []string{"", "private", "unknown", "corporate-b"} {
+		changed := req
+		changed.GatewayID = id
+		_, _, err := CreateManualTopUp(admin.Id, changed)
+		assert.Error(t, err)
+	}
+	config, err := GetInvoiceEpayConfig(DB)
+	require.NoError(t, err)
+	config.Gateways[0].AccountName = "Issuer renamed"
+	require.NoError(t, SaveInvoiceEpayConfig(config))
+	_, _, err = CreateManualTopUp(admin.Id, req)
+	assert.ErrorIs(t, err, ErrInvoiceTaxQuoteChanged)
+	quote, err = QuoteManualTopUp(DB, admin.Id, req)
+	require.NoError(t, err)
+	req.Token = quote.Token
+	order, created, err := CreateManualTopUp(admin.Id, req)
+	require.NoError(t, err)
+	assert.True(t, created)
+	var snapshot ManualTopUpAccount
+	require.NoError(t, common.UnmarshalJsonStr(order.EpayCredentials, &snapshot))
+	assert.Equal(t, quote.ManualTopUpAccount, snapshot)
+	assert.NotContains(t, order.EpayCredentials, "key-a")
+	raw, err = common.Marshal(order)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "Issuer renamed")
+	config.Gateways = []InvoiceEpayGateway{}
+	require.NoError(t, SaveInvoiceEpayConfig(config))
+	replayed, created, err := CreateManualTopUp(admin.Id, req)
+	require.NoError(t, err)
+	assert.False(t, created)
+	assert.Equal(t, order.Id, replayed.Id)
+	changed := req
+	changed.GatewayID = "corporate-b"
+	_, _, err = CreateManualTopUp(admin.Id, changed)
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
+	notes, err := LoadEpayRoutingExportNotes(DB, map[int]int{order.Id: user.Id})
+	require.NoError(t, err)
+	assert.Contains(t, notes[order.Id], "Gateway A | Issuer renamed")
+	req.RequestID = "manual-account-0002"
+	_, _, err = CreateManualTopUp(admin.Id, req)
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
+	require.NoError(t, DB.First(user, user.Id).Error)
+	assert.Equal(t, 123+quote.Quota, user.Quota)
+}
+
+func TestManualTopUpLegacyReceiptReplayWithoutAccount(t *testing.T) {
+	admin, user := setupManualTopUpTest(t)
+	req := ManualTopUpRequest{UserID: user.Id, TotalCents: 100, InvoiceType: "none", RequestID: "manual-legacy-0001", Token: "legacy-quote"}
+	order := TopUp{UserId: user.Id, CreatedBy: admin.Id, TradeNo: fmt.Sprintf("MANUAL%d-%s", admin.Id, req.RequestID), PaymentProvider: "manual", PaymentMethod: "manual", InvoiceType: "none", CheckoutVersion: 1, CheckoutToken: req.Token, PaymentTotalCents: req.TotalCents, Status: common.TopUpStatusSuccess}
+	require.NoError(t, DB.Create(&order).Error)
+	require.NoError(t, DB.Where("key = ?", InvoiceEpayConfigKey).Delete(&Option{}).Error)
+	replayed, created, err := CreateManualTopUp(admin.Id, req)
+	require.NoError(t, err)
+	assert.False(t, created)
+	assert.Equal(t, order.Id, replayed.Id)
+	require.NoError(t, DB.First(user, user.Id).Error)
+	assert.Equal(t, 123, user.Quota)
+	req.RequestID = "manual-legacy-0002"
+	_, _, err = CreateManualTopUp(admin.Id, req)
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
 }

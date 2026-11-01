@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/shopspring/decimal"
@@ -15,13 +16,47 @@ type ManualTopUpRequest struct {
 	UserID      int    `json:"user_id"`
 	TotalCents  int64  `json:"total_cents"`
 	InvoiceType string `json:"invoice_type"`
+	GatewayID   string `json:"gateway_id"`
 	Token       string `json:"token"`
 	RequestID   string `json:"request_id"`
 }
 
+type ManualTopUpAccount struct {
+	GatewayID   string `json:"gateway_id"`
+	GatewayName string `json:"gateway_name"`
+	AccountName string `json:"account_name"`
+}
+
+type ManualTopUpQuote struct {
+	EpayCheckoutQuote
+	ManualTopUpAccount
+}
+
+// Expose only receipt metadata, never merchant credentials or payment routing rules.
+func GetManualTopUpAccounts(db *gorm.DB, operatorID int) ([]ManualTopUpAccount, error) {
+	var operator User
+	if err := db.First(&operator, operatorID).Error; err != nil {
+		return nil, err
+	}
+	if operator.Status != common.UserStatusEnabled || operator.Role < common.RoleAdminUser {
+		return nil, ErrTicketForbidden
+	}
+	config, err := GetInvoiceEpayConfig(db)
+	if err != nil {
+		return nil, err
+	}
+	accounts := make([]ManualTopUpAccount, 0, len(config.Gateways))
+	for _, gateway := range config.Gateways {
+		if gateway.ID != "" && strings.TrimSpace(gateway.AccountName) != "" {
+			accounts = append(accounts, ManualTopUpAccount{gateway.ID, gateway.Name, gateway.AccountName})
+		}
+	}
+	return accounts, nil
+}
+
 // Manual receipts represent money already collected, without gateway promotions.
-func QuoteManualTopUp(db *gorm.DB, operatorID int, req ManualTopUpRequest) (EpayCheckoutQuote, error) {
-	var empty EpayCheckoutQuote
+func QuoteManualTopUp(db *gorm.DB, operatorID int, req ManualTopUpRequest) (ManualTopUpQuote, error) {
+	var empty ManualTopUpQuote
 	if operatorID <= 0 || req.UserID <= 0 || !slices.Contains([]string{"none", "ordinary", "special"}, req.InvoiceType) {
 		return empty, ErrInvoiceTaxInvalid
 	}
@@ -42,12 +77,21 @@ func QuoteManualTopUp(db *gorm.DB, operatorID int, req ManualTopUpRequest) (Epay
 	if !config.ModuleEnabled {
 		return empty, ErrTicketForbidden
 	}
-	quote, err := CalculateEpayCheckout(req.TotalCents, req.InvoiceType, config, decimal.NewFromInt(1), 100)
+	accounts, err := GetManualTopUpAccounts(db, operatorID)
 	if err != nil {
 		return empty, err
 	}
+	index := slices.IndexFunc(accounts, func(account ManualTopUpAccount) bool { return account.GatewayID == req.GatewayID })
+	if index < 0 {
+		return empty, ErrInvoiceTaxInvalid
+	}
+	checkout, err := CalculateEpayCheckout(req.TotalCents, req.InvoiceType, config, decimal.NewFromInt(1), 100)
+	if err != nil {
+		return empty, err
+	}
+	quote := ManualTopUpQuote{checkout, accounts[index]}
 	raw, err := common.Marshal(struct {
-		Quote              EpayCheckoutQuote
+		Quote              ManualTopUpQuote
 		OperatorID, UserID int
 	}{quote, operatorID, req.UserID})
 	if err != nil {
@@ -74,6 +118,12 @@ func CreateManualTopUp(operatorID int, req ManualTopUpRequest) (*TopUp, bool, er
 				return err
 			}
 		}
+		// Lock before consistent reads so MySQL RR sees the latest committed configuration.
+		var gatewayOption Option
+		gatewayErr := lockForUpdate(tx).Where(Option{Key: InvoiceEpayConfigKey}).Take(&gatewayOption).Error
+		if gatewayErr != nil && !errors.Is(gatewayErr, gorm.ErrRecordNotFound) {
+			return gatewayErr
+		}
 		// Recheck current account privileges even for a replay.
 		var operator, user User
 		if err := tx.First(&operator, operatorID).Error; err != nil {
@@ -87,6 +137,15 @@ func CreateManualTopUp(operatorID int, req ManualTopUpRequest) (*TopUp, bool, er
 		}
 		err := tx.Where("trade_no = ?", tradeNo).Take(&order).Error
 		if err == nil {
+			var account ManualTopUpAccount
+			if order.EpayCredentials != "" {
+				if err := common.UnmarshalJsonStr(order.EpayCredentials, &account); err != nil {
+					return err
+				}
+			}
+			if account.GatewayID != req.GatewayID {
+				return ErrInvoiceTaxInvalid
+			}
 			if order.CreatedBy != operatorID || order.UserId != req.UserID || order.CheckoutToken != req.Token || order.PaymentTotalCents != req.TotalCents || order.InvoiceType != req.InvoiceType || order.PaymentProvider != "manual" || order.Status != common.TopUpStatusSuccess {
 				return ErrInvoiceTaxInvalid
 			}
@@ -95,12 +154,19 @@ func CreateManualTopUp(operatorID int, req ManualTopUpRequest) (*TopUp, bool, er
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
+		if errors.Is(gatewayErr, gorm.ErrRecordNotFound) {
+			return ErrInvoiceTaxInvalid
+		}
 		quote, err := QuoteManualTopUp(tx, operatorID, req)
 		if err != nil {
 			return err
 		}
 		if quote.Token != req.Token {
 			return ErrInvoiceTaxQuoteChanged
+		}
+		snapshot, err := common.Marshal(quote.ManualTopUpAccount)
+		if err != nil {
+			return err
 		}
 		now := common.GetTimestamp()
 		order = TopUp{
@@ -110,6 +176,7 @@ func CreateManualTopUp(operatorID int, req ManualTopUpRequest) (*TopUp, bool, er
 			Amount:       decimal.NewFromInt(int64(quote.Quota)).Div(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart(),
 			QuotaGranted: int64(quote.Quota), CreateTime: now, CompleteTime: now,
 			CheckoutVersion: 1, CheckoutToken: quote.Token, CheckoutCreditAmount: quote.CreditAmount,
+			EpayCredentials:   string(snapshot),
 			CheckoutBaseQuota: quote.Quota, CheckoutQuota: quote.Quota,
 			InvoiceType: quote.InvoiceType, InvoiceTaxMode: quote.Mode, InvoiceRateBps: quote.RateBps,
 			InvoiceNetCents: quote.NetCents, InvoiceTaxCents: quote.TaxCents, PaymentTotalCents: quote.TotalCents,

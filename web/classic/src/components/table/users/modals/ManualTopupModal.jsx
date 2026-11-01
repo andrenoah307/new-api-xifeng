@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Button, Input, Modal } from '@douyinfe/semi-ui';
+import React, { useEffect, useRef, useState } from 'react';
+import { Button, Input, Modal, Select } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess } from '../../../../helpers';
 
@@ -26,13 +26,42 @@ export default function ManualTopupModal({
     pending?.invoice_type || 'none',
   );
   const [quote, setQuote] = useState(pending?.quote || null);
+  const [gatewayID, setGatewayID] = useState(pending?.gateway_id || '');
+  const [accounts, setAccounts] = useState([]);
+  const [accountsStatus, setAccountsStatus] = useState('loading');
+  const [accountsRetry, setAccountsRetry] = useState(0);
+  useEffect(() => {
+    if (pending) return;
+    let active = true;
+    setAccountsStatus('loading');
+    API.get('/api/user/topup/manual/accounts')
+      .then(({ data }) => {
+        if (!active) return;
+        if (!data.success) {
+          setAccountsStatus('error');
+          return;
+        }
+        setAccounts(data.data);
+        setAccountsStatus('ready');
+      })
+      .catch(() => {
+        if (active) setAccountsStatus('error');
+      });
+    return () => {
+      active = false;
+    };
+  }, [pending, accountsRetry]);
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
   const cents = Math.round(Number(amount) * 100);
   const valid =
     /^\d+(\.\d{1,2})?$/.test(String(amount)) &&
     Number.isSafeInteger(cents) &&
-    cents > 0;
+    cents > 0 &&
+    (!!pending ||
+      !!quote ||
+      (accountsStatus === 'ready' &&
+        accounts.some((account) => account.gateway_id === gatewayID)));
 
   const submit = async () => {
     if (!valid || running.current) return;
@@ -44,6 +73,7 @@ export default function ManualTopupModal({
           user_id: user.id,
           total_cents: cents,
           invoice_type: invoiceType,
+          gateway_id: gatewayID,
         });
         if (data.success) setQuote(data.data);
         else showError(data.message || t('Request failed'));
@@ -53,6 +83,7 @@ export default function ManualTopupModal({
         user_id: user.id,
         total_cents: cents,
         invoice_type: invoiceType,
+        gateway_id: gatewayID,
         request_id: requestID.current,
         token: quote.token,
         quote,
@@ -138,6 +169,44 @@ export default function ManualTopupModal({
             </label>
           ))}
         </fieldset>
+        <div className='space-y-2'>
+          <label htmlFor='manual-topup-account'>
+            {t('Corporate account name')}
+          </label>
+          {quote ? (
+            <p className='break-words'>
+              {quote.account_name || '-'}
+              {quote.gateway_name && ` (${quote.gateway_name})`}
+            </p>
+          ) : (
+            <Select
+              id='manual-topup-account'
+              aria-label={t('Corporate account name')}
+              className='w-full'
+              value={gatewayID || undefined}
+              placeholder={t('Select corporate account')}
+              disabled={busy || accountsStatus !== 'ready'}
+              onChange={setGatewayID}
+              optionList={accounts.map((account) => ({
+                value: account.gateway_id,
+                label: `${account.account_name} (${account.gateway_name})`,
+              }))}
+            />
+          )}
+          {!quote && accountsStatus === 'loading' && <p>{t('Loading...')}</p>}
+          {!quote && accountsStatus === 'error' && (
+            <Button onClick={() => setAccountsRetry((value) => value + 1)}>
+              {t('Retry')}
+            </Button>
+          )}
+          {!quote && accountsStatus === 'ready' && accounts.length === 0 && (
+            <p>
+              {t(
+                'Configure a corporate account in payment gateway settings first.',
+              )}
+            </p>
+          )}
+        </div>
         {quote && (
           <dl className='grid grid-cols-2 gap-2'>
             <dt>{t('Payment amount (CNY)')}</dt>

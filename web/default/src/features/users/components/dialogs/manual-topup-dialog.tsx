@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -14,13 +14,25 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { User } from '../../types'
 import { useUsers } from '../users-provider'
 
-interface ReceiptQuote {
+interface ReceiptAccount {
+  gateway_id: string
+  gateway_name: string
+  account_name: string
+}
+interface ReceiptQuote extends ReceiptAccount {
   total_cents: number
   net_cents: number
   tax_cents: number
@@ -31,6 +43,7 @@ interface ReceiptDraft {
   user_id: number
   total_cents: number
   invoice_type: string
+  gateway_id: string
   request_id: string
   token: string
   quote: ReceiptQuote
@@ -60,6 +73,18 @@ export function ManualTopupDialog({
   const [invoiceType, setInvoiceType] = useState(
     pending?.invoice_type || 'none'
   )
+  const [gatewayID, setGatewayID] = useState(pending?.gateway_id || '')
+  const accounts = useQuery({
+    queryKey: ['manual-topup-accounts', actor],
+    queryFn: async ({ signal }) => {
+      const { data } = await api.get('/api/user/topup/manual/accounts', {
+        signal,
+      })
+      if (!data.success) throw new Error(data.message || 'Request failed')
+      return data.data as ReceiptAccount[]
+    },
+    enabled: !pending,
+  })
   const [quote, setQuote] = useState<ReceiptQuote | null>(
     pending?.quote || null
   )
@@ -69,9 +94,17 @@ export function ManualTopupDialog({
   const queryClient = useQueryClient()
   const cents = Math.round(Number(amount) * 100)
   const valid =
-    /^\d+(\.\d{1,2})?$/.test(amount) && Number.isSafeInteger(cents) && cents > 0
+    /^\d+(\.\d{1,2})?$/.test(amount) &&
+    Number.isSafeInteger(cents) &&
+    cents > 0 &&
+    (!!pending ||
+      !!quote ||
+      (!accounts.isError &&
+        !!accounts.data?.some((account) => account.gateway_id === gatewayID)))
   const invoiceLabels: Record<string, string> = {
-    none: '-', ordinary: t('Ordinary VAT invoice'), special: t('Special VAT invoice'),
+    none: '-',
+    ordinary: t('Ordinary VAT invoice'),
+    special: t('Special VAT invoice'),
   }
   let submitLabel = t('Continue')
   if (quote) submitLabel = t('Confirm')
@@ -86,6 +119,7 @@ export function ManualTopupDialog({
         user_id: user.id,
         total_cents: cents,
         invoice_type: invoiceType,
+        gateway_id: gatewayID,
       })
       if (data.success) setQuote(data.data)
     } finally {
@@ -102,6 +136,7 @@ export function ManualTopupDialog({
         user_id: user.id,
         total_cents: cents,
         invoice_type: invoiceType,
+        gateway_id: gatewayID,
         request_id: requestID.current,
         token: quote.token,
         quote,
@@ -186,6 +221,54 @@ export function ManualTopupDialog({
             </label>
           ))}
         </fieldset>
+        <div className='space-y-2'>
+          <Label htmlFor='manual-topup-account'>
+            {t('Corporate account name')}
+          </Label>
+          {quote ? (
+            <p className='break-words'>
+              {quote.account_name || '-'}
+              {quote.gateway_name && ` (${quote.gateway_name})`}
+            </p>
+          ) : (
+            <Select
+              value={gatewayID || null}
+              onValueChange={(value) => setGatewayID(value || '')}
+              disabled={busy || accounts.isPending || accounts.isError}
+            >
+              <SelectTrigger id='manual-topup-account' className='w-full'>
+                <SelectValue placeholder={t('Select corporate account')} />
+              </SelectTrigger>
+              <SelectContent>
+                {(accounts.data || []).map((account) => (
+                  <SelectItem
+                    key={account.gateway_id}
+                    value={account.gateway_id}
+                  >
+                    <span className='min-w-0 break-words whitespace-normal'>
+                      {account.account_name} ({account.gateway_name})
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {!quote && accounts.isPending && (
+            <p className='text-sm'>{t('Loading...')}</p>
+          )}
+          {!quote && accounts.isError && (
+            <Button variant='outline' onClick={() => void accounts.refetch()}>
+              {t('Retry')}
+            </Button>
+          )}
+          {!quote && accounts.isSuccess && accounts.data.length === 0 && (
+            <p className='text-muted-foreground text-sm'>
+              {t(
+                'Configure a corporate account in payment gateway settings first.'
+              )}
+            </p>
+          )}
+        </div>
         {quote && (
           <dl className='grid grid-cols-2 gap-2 text-sm'>
             <dt>{t('Payment amount (CNY)')}</dt>

@@ -5748,6 +5748,8 @@
     "ticket.choice.general": "General support",
     "ticket.choice.invoice": "Request an invoice",
     "ticket.choice.refund": "Request a refund",
+    "Configure a corporate account in payment gateway settings first.": "Configure a corporate account in payment gateway settings first.",
+    "Select corporate account": "Select corporate account",
     "Top navigation style": "Top navigation style",
     "Default style": "Default style",
     "Packy style": "Packy style",
