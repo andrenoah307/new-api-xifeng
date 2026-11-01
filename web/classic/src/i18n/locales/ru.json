@@ -5533,6 +5533,8 @@
     "invoice.amount.total": "Итого с налогом",
     "ticket.choice.general": "Общая поддержка",
     "ticket.choice.invoice": "Запросить счёт",
-    "ticket.choice.refund": "Запросить возврат"
+    "ticket.choice.refund": "Запросить возврат",
+    "Configure a corporate account in payment gateway settings first.": "Сначала настройте корпоративный счёт в настройках платёжного шлюза.",
+    "Select corporate account": "Выберите корпоративный счёт"
   }
 }

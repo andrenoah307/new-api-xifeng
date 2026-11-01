@@ -5491,6 +5491,8 @@
     "invoice.amount.total": "含稅總額",
     "ticket.choice.general": "一般工單",
     "ticket.choice.invoice": "申請開票",
-    "ticket.choice.refund": "申請退款"
+    "ticket.choice.refund": "申請退款",
+    "Configure a corporate account in payment gateway settings first.": "請先在支付閘道設定中設定公帳。",
+    "Select corporate account": "請選擇公帳"
   }
 }

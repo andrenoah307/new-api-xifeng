@@ -149,6 +149,7 @@ func SetApiRouter(router *gin.Engine) {
 				adminRoute.POST("/topup/complete", controller.AdminCompleteTopUp)
 				adminRoute.PUT("/topup/invoice-type", controller.AdminUpdateTopUpInvoiceType)
 				adminRoute.POST("/topup/manual/quote", middleware.FinanceModuleRequired(), controller.AdminManualTopUpQuote)
+				adminRoute.GET("/topup/manual/accounts", middleware.FinanceModuleRequired(), controller.AdminManualTopUpAccounts)
 				adminRoute.POST("/topup/manual", middleware.FinanceModuleRequired(), controller.AdminManualTopUp)
 				adminRoute.GET("/commission_records", controller.GetAllCommissionRecords)
 				adminRoute.GET("/search", controller.SearchUsers)

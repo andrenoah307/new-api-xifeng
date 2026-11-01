@@ -5479,6 +5479,8 @@
     "invoice.amount.total": "税込合計",
     "ticket.choice.general": "一般のお問い合わせ",
     "ticket.choice.invoice": "請求書を申請",
-    "ticket.choice.refund": "返金を申請"
+    "ticket.choice.refund": "返金を申請",
+    "Configure a corporate account in payment gateway settings first.": "先に決済ゲートウェイ設定で法人アカウントを登録してください。",
+    "Select corporate account": "法人アカウントを選択"
   }
 }

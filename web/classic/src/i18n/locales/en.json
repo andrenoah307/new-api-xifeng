@@ -5738,6 +5738,8 @@
     "invoice.amount.total": "Total",
     "ticket.choice.general": "General support",
     "ticket.choice.invoice": "Request an invoice",
-    "ticket.choice.refund": "Request a refund"
+    "ticket.choice.refund": "Request a refund",
+    "Configure a corporate account in payment gateway settings first.": "Configure a corporate account in payment gateway settings first.",
+    "Select corporate account": "Select corporate account"
   }
 }

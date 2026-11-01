@@ -6022,6 +6022,8 @@
     "invoice.amount.total": "Tổng gồm thuế",
     "ticket.choice.general": "Hỗ trợ chung",
     "ticket.choice.invoice": "Yêu cầu hóa đơn",
-    "ticket.choice.refund": "Yêu cầu hoàn tiền"
+    "ticket.choice.refund": "Yêu cầu hoàn tiền",
+    "Configure a corporate account in payment gateway settings first.": "Trước tiên hãy cấu hình tài khoản doanh nghiệp trong cài đặt cổng thanh toán.",
+    "Select corporate account": "Chọn tài khoản doanh nghiệp"
   }
 }
