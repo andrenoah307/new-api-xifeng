@@ -149,6 +149,7 @@ func StartSystemTaskRunner() {
 				if now.Sub(lastScheduler) >= systemTaskSchedulerInterval {
 					lastScheduler = now
 					runSystemTaskScheduler()
+					triggerRevenueAutomation()
 				}
 				runSystemTaskClaimPass(runnerID)
 			}

@@ -58,6 +58,7 @@ export function CostConfirmation(props: {
   error: string
   onClose: () => void
   onConfirm: (fingerprint: string) => void
+  confirmLabel?: string
 }) {
   const { t } = useTranslation()
   const [filter, setFilter] = useState('')
@@ -220,7 +221,7 @@ export function CostConfirmation(props: {
               if (preview.data) props.onConfirm(preview.data.fingerprint)
             }}
           >
-            {t('Confirm and generate')}
+            {t(props.confirmLabel ?? 'Confirm and generate')}
           </Button>
         </DialogFooter>
       </DialogContent>

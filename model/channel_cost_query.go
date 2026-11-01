@@ -44,6 +44,23 @@ type ChannelCostQueryResult struct {
 
 var ErrCostQueryTooLarge = errors.New("too many report checkpoints; narrow the query range")
 
+func costQueryPolicyKey(policy CostReportPolicy, channelID int) (string, error) {
+	canonical := policy
+	canonical.Start, canonical.End, canonical.ChannelID, canonical.CostFingerprint = 0, 0, channelID, ""
+	canonical.Rates = nil
+	for _, rate := range policy.Rates {
+		if channelID == 0 || rate.ChannelID == channelID {
+			canonical.Rates = append(canonical.Rates, rate)
+		}
+	}
+	sort.Slice(canonical.Rates, func(i, j int) bool { return canonical.Rates[i].ChannelID < canonical.Rates[j].ChannelID })
+	encoded, err := common.Marshal(canonical)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(encoded)), nil
+}
+
 type costQueryPiece struct {
 	CostQueryRange
 	job    *ChannelCostReportJob
@@ -95,6 +112,11 @@ func planCostQuery(pieces []costQueryPiece) ([]costQueryPiece, int64) {
 // Reads only task metadata and published checkpoints, never the source log rows.
 // Different source identities, cost algorithms, units and frozen rates cannot mix.
 func QueryChannelCostReports(ctx context.Context, start, end int64, channelID int) (*ChannelCostQueryResult, error) {
+	return QueryChannelCostReportsWithPolicy(ctx, start, end, channelID, nil)
+}
+
+// Automation must not satisfy a pinned report with another otherwise complete policy.
+func QueryChannelCostReportsWithPolicy(ctx context.Context, start, end int64, channelID int, required *CostReportPolicy) (*ChannelCostQueryResult, error) {
 	if start < 1 || end <= start || end > time.Now().Unix() || channelID < 0 {
 		return nil, errors.New("invalid cost query range")
 	}
@@ -122,6 +144,13 @@ func QueryChannelCostReports(ctx context.Context, start, end int64, channelID in
 	jobKeys := map[string]string{}
 	jobMap := map[string]*ChannelCostReportJob{}
 	ids := make([]string, 0)
+	requiredKey := ""
+	if required != nil {
+		requiredKey, err = costQueryPolicyKey(*required, channelID)
+		if err != nil {
+			return nil, err
+		}
+	}
 	for i := range jobs {
 		job := &jobs[i]
 		var policy CostReportPolicy
@@ -134,23 +163,13 @@ func QueryChannelCostReports(ctx context.Context, start, end int64, channelID in
 		if err := ValidateCostReportPolicy(policy); err != nil {
 			return nil, err
 		}
-		canonical := policy
-		canonical.Start, canonical.End, canonical.ChannelID, canonical.CostFingerprint = 0, 0, channelID, ""
-		canonical.Rates = append([]CostReportRate(nil), policy.Rates...)
-		if channelID > 0 {
-			canonical.Rates = nil
-			for _, rate := range policy.Rates {
-				if rate.ChannelID == channelID {
-					canonical.Rates = append(canonical.Rates, rate)
-				}
-			}
-		}
-		sort.Slice(canonical.Rates, func(i, j int) bool { return canonical.Rates[i].ChannelID < canonical.Rates[j].ChannelID })
-		encoded, err := common.Marshal(canonical)
+		key, err := costQueryPolicyKey(policy, channelID)
 		if err != nil {
 			return nil, err
 		}
-		key := fmt.Sprintf("%x", sha256.Sum256(encoded))
+		if requiredKey != "" && key != requiredKey {
+			continue
+		}
 		if _, ok := policies[key]; !ok {
 			policies[key] = policy
 			keys = append(keys, key)

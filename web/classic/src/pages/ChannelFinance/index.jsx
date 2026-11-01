@@ -41,6 +41,7 @@ import CostConfirmation from './CostConfirmation';
 import { reportCSV } from './export';
 import { FinanceCharts } from './Charts';
 import { FinanceQuery } from './Query';
+import FinanceAutomation from './Automation';
 
 const statuses = {
   pending: 'Pending',
@@ -109,6 +110,9 @@ function ChannelFinanceViews({ userId }) {
               key={JSON.stringify(initialRange)}
             />
           )}
+        </TabPane>
+        <TabPane tab={t('Schedules and notifications')} itemKey='automation'>
+          {view === 'automation' && <FinanceAutomation userId={userId} />}
         </TabPane>
       </Tabs>
     </main>

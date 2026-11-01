@@ -408,6 +408,9 @@ func PublishChannelCostReportWindow(ctx context.Context, job *ChannelCostReportJ
 		return err
 	}
 	return DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := validateAutomationReportSize(tx, job, string(encoded)); err != nil {
+			return err
+		}
 		result := costReportFencedUpdate(tx, job, runner)
 		result = result.Where("status = ? AND control = ? AND cursor_timestamp = ? AND processed_windows = ?", "running", "", job.Cursor, job.ProcessedWindows).
 			Where("EXISTS (SELECT 1 FROM users WHERE users.id = channel_cost_report_jobs.owner_id AND users.role = ? AND users.status = ?)", common.RoleRootUser, common.UserStatusEnabled).

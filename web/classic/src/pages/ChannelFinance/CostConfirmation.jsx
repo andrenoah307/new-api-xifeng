@@ -94,7 +94,7 @@ export default function CostConfirmation(props) {
             }
             onClick={() => props.onConfirm(preview.fingerprint)}
           >
-            {t('Confirm and generate')}
+            {t(props.confirmLabel || 'Confirm and generate')}
           </Button>
         </div>
       }

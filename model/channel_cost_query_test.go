@@ -73,6 +73,11 @@ func TestChannelCostQueryLegacyOverlapPolicyAndSource(t *testing.T) {
 	require.Len(t, result.Rows, 1)
 	assert.Equal(t, "30", result.Rows[0].KnownRevenue)
 	assert.Len(t, result.Sources, 2)
+	pinned := CostReportPolicy{QuotaPerUnit: "1000000", FallbackMode: "none", CostBasisVersion: 1}
+	pinnedResult, err := QueryChannelCostReportsWithPolicy(ctx, 100, 6100, 0, &pinned)
+	require.NoError(t, err)
+	assert.False(t, pinnedResult.Complete, "automation cannot use complete results with another frozen unit")
+	assert.Empty(t, pinnedResult.Rows)
 	result, err = QueryChannelCostReports(ctx, 100, 7100, 0)
 	require.NoError(t, err)
 	assert.False(t, result.Complete)

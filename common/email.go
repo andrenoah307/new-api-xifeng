@@ -41,12 +41,12 @@ func foldHeaderLine(name string, value string) string {
 	return sb.String()
 }
 
-func generateMessageID() (string, error) {
-	split := strings.Split(SMTPFrom, "@")
+func generateMessageID(from string) (string, error) {
+	split := strings.Split(from, "@")
 	if len(split) < 2 {
 		return "", fmt.Errorf("invalid SMTP account")
 	}
-	domain := strings.Split(SMTPFrom, "@")[1]
+	domain := split[1]
 	return fmt.Sprintf("<%d.%s@%s>", time.Now().UnixNano(), GetRandomString(12), domain), nil
 }
 
@@ -116,14 +116,18 @@ func newSMTPClient(addr string) (*smtp.Client, error) {
 // base64 输出字符集恒为 A-Za-z0-9+/=，永不出现行首点，与 textproto.DotWriter 的
 // dot-stuffing 不存在双重转义。
 func buildMailMessage(subject string, receiver string, content string) ([]byte, error) {
-	messageID, err := generateMessageID()
+	return buildMailMessageWithFrom(subject, receiver, content, SMTPFrom)
+}
+
+func buildMailMessageWithFrom(subject, receiver, content, from string) ([]byte, error) {
+	messageID, err := generateMessageID(from)
 	if err != nil {
 		return nil, err
 	}
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "To: %s\r\n", receiver)
-	sb.WriteString(foldHeaderLine("From", mime.BEncoding.Encode("UTF-8", SystemName)+" <"+SMTPFrom+">"))
+	sb.WriteString(foldHeaderLine("From", mime.BEncoding.Encode("UTF-8", SystemName)+" <"+from+">"))
 	sb.WriteString(foldHeaderLine("Subject", mime.BEncoding.Encode("UTF-8", subject)))
 	fmt.Fprintf(&sb, "Date: %s\r\n", time.Now().Format(time.RFC1123Z))
 	fmt.Fprintf(&sb, "Message-ID: %s\r\n", messageID)

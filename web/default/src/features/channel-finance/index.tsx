@@ -43,6 +43,7 @@ import { reportCSV } from './export'
 import { formatReportAmount as amount } from './format'
 import { FinanceTaskTable } from './task-table'
 import { FinanceQuery } from './query'
+import { FinanceAutomation } from './automation'
 import type {
   FinanceJob,
   FinanceReport,
@@ -88,10 +89,18 @@ function ChannelFinanceViews(props: { userId: number }) {
       <SectionPageLayout.Title>{t('Revenue')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <Tabs value={view} onValueChange={(value) => setView(String(value))}>
-          <TabsList variant='line'>
+          <TabsList variant='line' className='h-auto flex-wrap'>
             <TabsTrigger value='query'>{t('Live query')}</TabsTrigger>
             <TabsTrigger value='tasks'>{t('Summary tasks')}</TabsTrigger>
+            <TabsTrigger value='automation'>
+              {t('Schedules and notifications')}
+            </TabsTrigger>
           </TabsList>
+          <TabsContent value='automation'>
+            {view === 'automation' && (
+              <FinanceAutomation userId={props.userId} />
+            )}
+          </TabsContent>
           <TabsContent value='query' keepMounted>
             <FinanceQuery
               active={view === 'query'}
