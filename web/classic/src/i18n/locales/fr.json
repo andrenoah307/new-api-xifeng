@@ -5522,6 +5522,8 @@
     "ticket.choice.general": "Assistance générale",
     "ticket.choice.invoice": "Demander une facture",
     "ticket.choice.refund": "Demander un remboursement",
+    "Configure a corporate account in payment gateway settings first.": "Configurez un compte professionnel dans les paramètres de la passerelle de paiement.",
+    "Select corporate account": "Sélectionner un compte professionnel",
     "Top navigation style": "Style de navigation supérieure",
     "Default style": "Style par défaut",
     "Packy style": "Style Packy",

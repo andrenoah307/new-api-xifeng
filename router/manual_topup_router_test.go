@@ -20,6 +20,9 @@ func TestManualTopUpRoutePermissions(t *testing.T) {
 	db := setupMonitoringRouterTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.TopUp{}, &model.Option{}, &model.Log{}))
 	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
+	require.NoError(t, model.SaveInvoiceEpayConfig(model.InvoiceEpayConfig{Strategy: "round_robin", PrivateGatewayName: "Private", Gateways: []model.InvoiceEpayGateway{
+		{ID: "corporate-a", Name: "Gateway A", AccountName: "Issuer A", Address: "https://a.example.test", PartnerID: "merchant", Key: "secret-key", PaymentMethods: []string{"alipay"}},
+	}}))
 	engine := gin.New()
 	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("manual-topup-test"))))
 	SetApiRouter(engine)
@@ -29,12 +32,26 @@ func TestManualTopUpRoutePermissions(t *testing.T) {
 		token := fmt.Sprintf("manual-role-%d", role)
 		actor := model.User{Username: token, AffCode: token, Role: role, Status: common.UserStatusEnabled, AccessToken: &token}
 		require.NoError(t, db.Create(&actor).Error)
-		body := fmt.Sprintf(`{"user_id":%d,"total_cents":100,"invoice_type":"none"}`, target.Id)
+		request := httptest.NewRequest("GET", "/api/user/topup/manual/accounts", nil)
+		request.Header.Set("Authorization", "Bearer "+token)
+		request.Header.Set("New-Api-User", strconv.Itoa(actor.Id))
+		accountsResponse := httptest.NewRecorder()
+		engine.ServeHTTP(accountsResponse, request)
+		if role >= common.RoleAdminUser {
+			assert.Contains(t, accountsResponse.Body.String(), `"account_name":"Issuer A"`)
+			assert.Equal(t, "no-store", accountsResponse.Header().Get("Cache-Control"))
+		} else {
+			assert.NotContains(t, accountsResponse.Body.String(), "Issuer A")
+		}
+		for _, field := range []string{"secret-key", "merchant", "address", "payment_methods"} {
+			assert.NotContains(t, accountsResponse.Body.String(), field)
+		}
+		body := fmt.Sprintf(`{"user_id":%d,"total_cents":100,"invoice_type":"none","gateway_id":"corporate-a"}`, target.Id)
 		for _, path := range []string{"/api/user/topup/manual/quote", "/api/user/topup/manual"} {
 			if role >= common.RoleAdminUser && path == "/api/user/topup/manual" {
-				quote, err := model.QuoteManualTopUp(db, actor.Id, model.ManualTopUpRequest{UserID: target.Id, TotalCents: 100, InvoiceType: "none"})
+				quote, err := model.QuoteManualTopUp(db, actor.Id, model.ManualTopUpRequest{UserID: target.Id, TotalCents: 100, InvoiceType: "none", GatewayID: "corporate-a"})
 				require.NoError(t, err)
-				body = fmt.Sprintf(`{"user_id":%d,"total_cents":100,"invoice_type":"none","request_id":"manual-route-request-0001","token":"%s"}`, target.Id, quote.Token)
+				body = fmt.Sprintf(`{"user_id":%d,"total_cents":100,"invoice_type":"none","gateway_id":"corporate-a","request_id":"manual-route-request-0001","token":"%s"}`, target.Id, quote.Token)
 			}
 			req := httptest.NewRequest("POST", path, strings.NewReader(body))
 			req.Header.Set("Authorization", "Bearer "+token)
