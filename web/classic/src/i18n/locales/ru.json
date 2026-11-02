@@ -5296,6 +5296,9 @@
     "{{percent}}% surcharge": "Наценка {{percent}}%",
     "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "Относительно базовой цены модели при множителе группы 1, без скидок на пополнение.",
     "见下方动态计费详情": "Динамические тарифы приведены ниже",
-    "No charge": "Бесплатно"
+    "No charge": "Бесплатно",
+    "{{percent}}% off at USD/CNY 7": "{{percent}}% off",
+    "Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.": "Скидка = (1 - множитель группы / 7) × 100%, с округлением до целого. Фиксированный ориентир: 1 USD = 7 CNY, независимо от курса сайта и скидок на пополнение.",
+    "Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1.": "Это не текущий обменный курс. Расчёт по фиксированному ориентиру: 7 CNY за 1 USD."
   }
 }

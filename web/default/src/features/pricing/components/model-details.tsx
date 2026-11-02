@@ -24,6 +24,7 @@ import {
   Code2,
   FileText,
   HeartPulse,
+  CircleHelp,
   Info,
   Layers,
   Maximize2,
@@ -48,6 +49,11 @@ import {
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip'
 import { getPerfMetrics } from '@/features/performance-metrics/api'
 import {
   formatLatency,
@@ -855,18 +861,19 @@ function getDynamicFormattedPricesByTier(
 
 function GroupDiscount(props: { ratio: number }) {
   const { t } = useTranslation()
-  const label = `${Number((props.ratio * 100).toFixed(4))}%`
+  const discount = Math.round((1 - props.ratio / 7) * 100)
+  const label = t('{{percent}}% off at USD/CNY 7', { percent: discount })
   let color = 'bg-muted text-muted-foreground'
-  if (props.ratio < 1) {
+  if (discount > 0) {
     color = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-  } else if (props.ratio > 1) {
+  } else if (discount < 0) {
     color = 'bg-amber-500/10 text-amber-800 dark:text-amber-300'
   }
   return (
     <span
       className={`inline-flex rounded px-2 py-1 text-xs font-medium whitespace-nowrap ${color}`}
       title={t(
-        'Compared with the model base price at 1x group ratio, excluding recharge discounts.'
+        'Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.'
       )}
     >
       {label}
@@ -945,7 +952,25 @@ function GroupPricingSection(props: {
   ]
   const discountColumn = {
     id: 'discount',
-    header: t('Discount Rate'),
+    header: (
+      <span className='inline-flex items-center gap-1'>
+        {t('Discount Rate')}
+        <Tooltip>
+          <TooltipTrigger
+            type='button'
+            aria-label={t('Discount Rate')}
+            className='inline-flex size-5 shrink-0 items-center justify-center rounded focus-visible:outline-2'
+          >
+            <CircleHelp className='size-3.5' aria-hidden='true' />
+          </TooltipTrigger>
+          <TooltipContent className='normal-case'>
+            {t(
+              'Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1.'
+            )}
+          </TooltipContent>
+        </Tooltip>
+      </span>
+    ),
     className: thClass,
     cellClassName: 'py-2.5',
     cell: (group: string) => (

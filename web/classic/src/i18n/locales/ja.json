@@ -5242,6 +5242,9 @@
     "{{percent}}% surcharge": "{{percent}}% 割増",
     "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "グループ倍率1のモデル基準価格との比較です。チャージ割引は含みません。",
     "见下方动态计费详情": "動的料金の詳細は以下を参照",
-    "No charge": "無料"
+    "No charge": "無料",
+    "{{percent}}% off at USD/CNY 7": "{{percent}}% off",
+    "Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.": "割引率 = (1 - グループ倍率 / 7) × 100%、整数に四捨五入。固定参考レートは1米ドル = 7人民元で、サイトの為替レートやチャージ割引には影響されません。",
+    "Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1.": "リアルタイムの為替レートではありません。固定参考レート7人民元：1米ドルで計算します。"
   }
 }

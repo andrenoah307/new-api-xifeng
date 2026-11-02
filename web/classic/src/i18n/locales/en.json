@@ -5502,6 +5502,9 @@
     "{{percent}}% surcharge": "{{percent}}% surcharge",
     "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "Compared with the model base price at 1x group ratio, excluding recharge discounts.",
     "见下方动态计费详情": "See dynamic pricing details below",
-    "No charge": "No charge"
+    "No charge": "No charge",
+    "{{percent}}% off at USD/CNY 7": "{{percent}}% off",
+    "Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.": "Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.",
+    "Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1.": "Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1."
   }
 }

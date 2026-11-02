@@ -18,8 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Avatar, Typography, Table, Tag } from '@douyinfe/semi-ui';
-import { IconCoinMoneyStroked } from '@douyinfe/semi-icons';
+import { Avatar, Typography, Table, Tag, Tooltip } from '@douyinfe/semi-ui';
+import { IconCoinMoneyStroked, IconHelpCircle } from '@douyinfe/semi-icons';
 import {
   calculateModelPrice,
   getModelPriceItems,
@@ -100,21 +100,39 @@ const ModelPricingTable = ({
     ];
 
     const discountColumn = {
-      title: t('Discount Rate'),
+      title: (
+        <span className='inline-flex items-center gap-1'>
+          {t('Discount Rate')}
+          <Tooltip
+            content={t(
+              'Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1.',
+            )}
+          >
+            <button
+              type='button'
+              aria-label={t('Discount Rate')}
+              className='inline-flex w-5 h-5 items-center justify-center rounded border-0 bg-transparent p-0 text-inherit'
+            >
+              <IconHelpCircle aria-hidden='true' />
+            </button>
+          </Tooltip>
+        </span>
+      ),
       dataIndex: 'ratio',
       width: 155,
       render: (ratio) => {
-        const label = `${Number((ratio * 100).toFixed(4))}%`;
+        const discount = Math.round((1 - ratio / 7) * 100);
+        const label = t('{{percent}}% off at USD/CNY 7', { percent: discount });
         let color = 'grey';
-        if (ratio < 1) {
+        if (discount > 0) {
           color = 'green';
-        } else if (ratio > 1) {
+        } else if (discount < 0) {
           color = 'orange';
         }
         return (
           <span
             title={t(
-              'Compared with the model base price at 1x group ratio, excluding recharge discounts.',
+              'Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.',
             )}
           >
             <Tag color={color} size='small' shape='circle'>

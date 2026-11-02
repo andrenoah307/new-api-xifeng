@@ -5254,6 +5254,9 @@
     "{{percent}}% surcharge": "加價 {{percent}}%",
     "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "相對於模型在分組倍率為 1 時的基準價，不含儲值優惠。",
     "见下方动态计费详情": "見下方動態計費詳情",
-    "No charge": "免費"
+    "No charge": "免費",
+    "{{percent}}% off at USD/CNY 7": "{{percent}}% off",
+    "Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.": "折扣率 = (1 - 分組倍率 / 7) × 100%，四捨五入取整。固定參考匯率為 1 美元 = 7 元人民幣，不受站點匯率和儲值優惠影響。",
+    "Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1.": "非即時匯率，按固定參考匯率 ￥7:$1 計算。"
   }
 }

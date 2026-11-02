@@ -5275,6 +5275,9 @@
     "{{percent}}% surcharge": "+{{percent}} %",
     "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "Par rapport au prix de base du modèle avec un multiplicateur de groupe de 1, hors remises de recharge.",
     "见下方动态计费详情": "Voir la tarification dynamique ci-dessous",
-    "No charge": "Gratuit"
+    "No charge": "Gratuit",
+    "{{percent}}% off at USD/CNY 7": "{{percent}}% off",
+    "Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.": "Remise = (1 - multiplicateur du groupe / 7) × 100 %, arrondie à l’entier. Taux de référence fixe : 1 USD = 7 CNY, indépendant du taux du site et des remises de recharge.",
+    "Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1.": "Ce taux n’est pas en temps réel. Calcul selon le taux de référence fixe de 7 CNY pour 1 USD."
   }
 }

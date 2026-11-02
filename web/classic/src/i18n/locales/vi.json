@@ -5785,6 +5785,9 @@
     "{{percent}}% surcharge": "Phụ thu {{percent}}%",
     "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "So với giá cơ sở của mô hình ở hệ số nhóm 1, không bao gồm ưu đãi nạp tiền.",
     "见下方动态计费详情": "Xem chi tiết giá động bên dưới",
-    "No charge": "Miễn phí"
+    "No charge": "Miễn phí",
+    "{{percent}}% off at USD/CNY 7": "{{percent}}% off",
+    "Discount = (1 - group ratio / 7) × 100%, rounded to a whole percent. Uses a fixed reference rate of USD 1 = CNY 7, independent of site exchange rates and recharge discounts.": "Mức giảm = (1 - hệ số nhóm / 7) × 100%, làm tròn số nguyên. Tỷ giá tham chiếu cố định: 1 USD = 7 CNY, không phụ thuộc tỷ giá trang web hay ưu đãi nạp tiền.",
+    "Not a live exchange rate. Calculated using a fixed reference rate of CNY 7 : USD 1.": "Không phải tỷ giá trực tiếp. Tính theo tỷ giá tham chiếu cố định 7 CNY : 1 USD."
   }
 }
