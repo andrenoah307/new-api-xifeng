@@ -375,6 +375,9 @@ func (token *Token) Insert() error {
 // Update Make sure your token's fields is completed, because this will update non-zero values
 func (token *Token) Update() (err error) {
 	defer func() {
+		if err == nil {
+			NotifyTokenUsageAlert(token.Id)
+		}
 		if shouldUpdateRedis(true, err) {
 			gopool.Go(func() {
 				// 失效而非整 hash 覆盖 RemainQuota（Lost Update）；失效后下次读从库重建。
@@ -444,6 +447,7 @@ func (token *Token) updatePeriodConfig(includePolicy bool, resetState bool) erro
 	if result.Error != nil {
 		return result.Error
 	}
+	NotifyTokenUsageAlert(token.Id)
 	if common.RedisEnabled {
 		// Period policy changes invalidate the entire projection. Never write the
 		// freshly loaded struct back over accounting state in the Redis hash.
@@ -576,6 +580,7 @@ func AdjustTokenQuota(id int, key string, delta int, attributedPeriodStart int64
 	if err := adjustTokenQuota(id, delta, attributedPeriodStart, hint); err != nil {
 		return err
 	}
+	NotifyTokenUsageAlert(id)
 	if common.RedisEnabled {
 		cacheDelta := -int64(delta)
 		gopool.Go(func() {

@@ -51,6 +51,7 @@ import PaymentSetting from '../../components/settings/PaymentSetting';
 import ModelDeploymentSetting from '../../components/settings/ModelDeploymentSetting';
 import PerformanceSetting from '../../components/settings/PerformanceSetting';
 import TicketSetting from '../../components/settings/TicketSetting';
+import TokenUsageAlertSetting from '../../components/settings/TokenUsageAlertSetting';
 
 const Setting = () => {
   const { t } = useTranslation();
@@ -169,6 +170,11 @@ const Setting = () => {
       ),
       content: <TicketSetting />,
       itemKey: 'ticket',
+    });
+    panes.push({
+      tab: t('User API Key usage email alerts'),
+      content: <TokenUsageAlertSetting />,
+      itemKey: 'token-usage-alerts',
     });
     panes.push({
       tab: (

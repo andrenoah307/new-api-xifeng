@@ -6,6 +6,7 @@ import { EmailTemplateSettingsSection } from './email-template-settings-section'
 import { GroupMonitoringSettingsSection } from './group-monitoring-settings-section'
 import { HiddenModelsSection } from './hidden-models-section'
 import { TicketSettingsSection } from './ticket-settings-section'
+import { TokenUsageAlertSettingsSection } from './token-usage-alert-settings-section'
 
 export type CustomSettingsData = Record<string, string>
 
@@ -17,6 +18,14 @@ const boolOpt = (v: string | undefined, fallback: boolean): boolean => {
 }
 
 const CUSTOM_SECTIONS = [
+  {
+    id: 'token-usage-alerts',
+    titleKey: 'User API Key usage email alerts',
+    descriptionKey: 'User API Key usage email alerts',
+    build: (settings: CustomSettingsData) => (
+      <TokenUsageAlertSettingsSection settings={settings} />
+    ),
+  },
   {
     id: 'email-templates',
     titleKey: 'Email Templates',

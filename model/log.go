@@ -462,6 +462,7 @@ type RecordConsumeLogParams struct {
 }
 
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
+	NotifyTokenUsageAlert(params.TokenId)
 	if value, ok := c.Get(ChannelCostContextKey); ok {
 		if settings, ok := value.(ChannelCostSettings); ok {
 			base := decimal.Zero

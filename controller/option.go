@@ -183,6 +183,14 @@ func applyOptionUpdate(c *gin.Context, key string, value any) error {
 		if err := setting.ValidateInvitationCodePolicy(option.Value.(string)); err != nil {
 			return errors.New("邀请码策略 JSON 无效: " + err.Error())
 		}
+	case setting.TokenUsageAlertOption:
+		config, parseErr := setting.ParseTokenUsageAlerts(option.Value.(string))
+		if parseErr != nil {
+			return parseErr
+		}
+		if config.Enabled && !common.RedisEnabled {
+			return errors.New("Redis is required for API Key usage alerts")
+		}
 	case "TelegramOAuthEnabled":
 		if option.Value == "true" && common.TelegramBotToken == "" {
 			return errors.New("无法启用 Telegram OAuth，请先填入 Telegram Bot Token！")
