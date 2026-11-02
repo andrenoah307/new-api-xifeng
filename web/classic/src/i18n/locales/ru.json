@@ -5322,6 +5322,7 @@
     "Invalid API Key usage alert rule": "Недопустимое правило уведомления API",
     "Duplicate API Key usage alert threshold": "Повторяющийся порог уведомления API",
     "Redis is required for API Key usage alerts": "Для уведомлений API необходим Redis",
-    "Unable to load API Key usage alert status": "Не удалось загрузить состояние уведомлений API"
+    "Unable to load API Key usage alert status": "Не удалось загрузить состояние уведомлений API",
+    "Use Chinese report template": "Использовать китайский шаблон отчёта"
   }
 }

@@ -61,11 +61,13 @@ func RenderRevenueMail(c model.RevenueAutomationConfig, vars map[string]string) 
 		safe[key] = html.EscapeString(value)
 	}
 	safe["summary_table"] = vars["summary_table"]
+	safe["channel_reports"] = vars["channel_reports"]
 	subjectVars := map[string]string{}
 	for key, value := range vars {
 		subjectVars[key] = value
 	}
 	subjectVars["summary_table"] = ""
+	subjectVars["channel_reports"] = ""
 	subject := common.RenderPlaceholders(c.Subject, subjectVars)
 	if strings.ContainsAny(subject, "\r\n") || len(subject) > 1000 {
 		return "", "", errors.New("Invalid mail subject")
@@ -76,7 +78,7 @@ func RenderRevenueMail(c model.RevenueAutomationConfig, vars map[string]string) 
 	}
 	// Reuse the ticket notification information-table appearance; custom HTML is
 	// supported inside this shell and isolated by the frontend preview sandbox.
-	body = `<div style="background:#fafafa;padding:24px;font-family:Arial,sans-serif;color:#1d1d1f"><div style="max-width:640px;margin:auto;background:white;padding:24px;border:1px solid #ebebeb">` + body + `</div></div>`
+	body = `<div style="background:#fafafa;padding:16px;font-family:Arial,sans-serif;color:#1d1d1f;overflow-wrap:anywhere"><div style="max-width:640px;margin:auto;background:white;padding:16px;border:1px solid #ebebeb">` + body + `</div></div>`
 	return subject, body, nil
 }
 
@@ -87,12 +89,38 @@ func RevenueMailPreview(c model.RevenueAutomationConfig) (string, string, error)
 	now := time.Now().In(model.RevenueTimezone)
 	vars := map[string]string{"system_name": common.SystemNameOrDefault(), "scheduled_at": now.Format("2006-01-02 15:04:05"), "generated_at": now.Format("2006-01-02 15:04:05"), "run_id": "preview"}
 	rows := []common.EmailTemplateRow{}
+	vars["channel_reports"] = "<p>预览示例数据，非实际经营数据。</p>"
+	seen := map[string]bool{}
 	for _, f := range c.Fields {
 		window, _ := model.RevenueWindow(f.Period, f.Days, now)
+		key := fmt.Sprintf("%d:%d:%d", window.Start, window.End, f.ChannelID)
+		if !seen[key] && len(vars["channel_reports"]) < 40000 {
+			seen[key] = true
+			id := f.ChannelID
+			if id == 0 {
+				id = 101
+			}
+			sample := []model.ChannelCostReportRow{{ChannelID: id, OriginalCount: 10, OriginalCost: "80", FallbackCost: "20", KnownRevenue: "150"}}
+			if f.ChannelID == 0 {
+				sample = append(sample, model.ChannelCostReportRow{ChannelID: 102, FallbackCount: 5, OriginalCost: "0", FallbackCost: "60", KnownRevenue: "45"})
+			}
+			report, err := RenderRevenueChannelReport(sample, window, f.ChannelID, "示例计价单位")
+			if err != nil {
+				return "", "", err
+			}
+			vars["channel_reports"] += report
+		}
 		prefix := "fields." + f.Key + "."
 		vars[prefix+"value"] = "123.456789"
 		if f.Metric == "profit_margin" {
 			vars[prefix+"value"] = "12.34%"
+		}
+		if strings.Contains(c.Body, "channel_reports") {
+			sampleValues := map[string]string{"consumption": "195.000000", "cost": "160.000000", "profit": "35.000000", "profit_margin": "17.95%"}
+			if f.ChannelID > 0 {
+				sampleValues = map[string]string{"consumption": "150.000000", "cost": "100.000000", "profit": "50.000000", "profit_margin": "33.33%"}
+			}
+			vars[prefix+"value"] = sampleValues[f.Metric]
 		}
 		vars[prefix+"start"] = time.Unix(window.Start, 0).In(model.RevenueTimezone).Format("2006-01-02 15:04:05")
 		vars[prefix+"end"] = time.Unix(window.End, 0).In(model.RevenueTimezone).Format("2006-01-02 15:04:05")
@@ -286,6 +314,8 @@ func advanceRevenueAutomation(ctx context.Context, config *model.RevenueAutomati
 	if data.Subject == "" {
 		vars := map[string]string{"system_name": common.SystemNameOrDefault(), "scheduled_at": at.Format("2006-01-02 15:04:05"), "generated_at": time.Now().In(model.RevenueTimezone).Format("2006-01-02 15:04:05"), "run_id": run.ID}
 		rows := []common.EmailTemplateRow{}
+		vars["channel_reports"] = ""
+		seenReports := map[string]bool{}
 		for _, field := range c.Fields {
 			window, _ := model.RevenueWindow(field.Period, field.Days, at)
 			queryCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
@@ -296,6 +326,21 @@ func advanceRevenueAutomation(ctx context.Context, config *model.RevenueAutomati
 			}
 			if !result.Complete {
 				return errors.New("Email result coverage changed")
+			}
+			if strings.Contains(c.Body, "channel_reports") {
+				key := fmt.Sprintf("%d:%d:%d", window.Start, window.End, field.ChannelID)
+				if !seenReports[key] {
+					seenReports[key] = true
+					if len(vars["channel_reports"]) < 40000 {
+						report, err := RenderRevenueChannelReport(result.Rows, window, field.ChannelID, "quota / "+policy.QuotaPerUnit)
+						if err != nil {
+							return err
+						}
+						vars["channel_reports"] += report
+					} else if !strings.Contains(vars["channel_reports"], "报告体积限制") {
+						vars["channel_reports"] += "<p>报告体积限制：其余时间窗口请在收入页面查询。</p>"
+					}
+				}
 			}
 			cost, revenue := decimal.Zero, decimal.Zero
 			var known, total int64

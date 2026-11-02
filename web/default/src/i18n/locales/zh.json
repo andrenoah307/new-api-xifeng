@@ -5523,6 +5523,7 @@
     "Use a path to append it to the channel Base URL, or enter a full URL to override the Base URL for this route.": "填写以 / 开头的路径时会自动拼接渠道 Base URL；填写完整 URL 时，此路由会直接使用该 URL。",
     "Use authenticator code": "使用验证器代码",
     "Use backup code": "使用备用代码",
+    "Use Chinese report template": "使用中文报告模板",
     "Use disk cache when request body exceeds this size": "请求体超过此大小时使用磁盘缓存",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "填写客户端请求里的精确 model 名，多个用英文逗号分隔。不支持前缀或通配符。",
     "Use exact model names such as gpt-4o, or regex rules prefixed with re: such as re:^gemini-.": "可以填写 gpt-4o 这类精确模型名，也可以填写 re:^gemini- 这类以 re: 开头的正则规则。",

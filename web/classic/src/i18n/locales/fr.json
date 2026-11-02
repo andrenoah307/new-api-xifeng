@@ -5301,6 +5301,7 @@
     "Invalid API Key usage alert rule": "Règle d’alerte API invalide",
     "Duplicate API Key usage alert threshold": "Seuil d’alerte API en double",
     "Redis is required for API Key usage alerts": "Redis est requis pour les alertes API",
-    "Unable to load API Key usage alert status": "Impossible de charger l’état des alertes API"
+    "Unable to load API Key usage alert status": "Impossible de charger l’état des alertes API",
+    "Use Chinese report template": "Utiliser le modèle de rapport chinois"
   }
 }

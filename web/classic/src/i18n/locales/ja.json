@@ -5268,6 +5268,7 @@
     "Invalid API Key usage alert rule": "API キー使用量通知のルールが無効です",
     "Duplicate API Key usage alert threshold": "API キー使用量のしきい値が重複しています",
     "Redis is required for API Key usage alerts": "API キー使用量通知には Redis が必要です",
-    "Unable to load API Key usage alert status": "API キー使用量通知の状態を読み込めません"
+    "Unable to load API Key usage alert status": "API キー使用量通知の状態を読み込めません",
+    "Use Chinese report template": "中国語レポートテンプレートを使用"
   }
 }

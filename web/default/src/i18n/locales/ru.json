@@ -5523,6 +5523,7 @@
     "Use a path to append it to the channel Base URL, or enter a full URL to override the Base URL for this route.": "Укажите путь, чтобы добавить его к Base URL канала, или введите полный URL, чтобы переопределить Base URL для этого маршрута.",
     "Use authenticator code": "Использовать код аутентификатора",
     "Use backup code": "Использовать резервный код",
+    "Use Chinese report template": "Использовать китайский шаблон отчёта",
     "Use disk cache when request body exceeds this size": "Использовать дисковый кэш, когда тело запроса превышает этот размер",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "Укажите точные имена моделей клиента через запятую. Префиксы и подстановочные знаки не поддерживаются.",
     "Use exact model names such as gpt-4o, or regex rules prefixed with re: such as re:^gemini-.": "Используйте точные имена моделей, например gpt-4o, или regex-правила с префиксом re:, например re:^gemini-.",

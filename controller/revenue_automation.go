@@ -32,7 +32,7 @@ func RevenueAutomation(c *gin.Context) {
 	if !authorizeLogRoot(c) {
 		return
 	}
-	common.ApiSuccess(c, gin.H{"config": config, "revision": row.Revision, "next_at": row.NextAt, "runs": runs})
+	common.ApiSuccess(c, gin.H{"config": config, "revision": row.Revision, "next_at": row.NextAt, "runs": runs, "chinese_template": gin.H{"subject": service.RevenueChineseMailSubject, "body": service.RevenueChineseMailBody}})
 }
 
 func SaveRevenueAutomation(c *gin.Context) {

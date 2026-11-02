@@ -157,3 +157,25 @@ common/revenue_email.go、controller/revenue_automation.go 和两主题 automati
 Default全量typecheck保留既有103条诊断，收入模块无新增；model/service/controller vet通过，
 common vet保留既有CustomEvent锁值复制和旧邮件测试IPv6地址诊断。未修无关代码。
 不包含生产部署或正式邮件试发。
+
+## Built-in Chinese Report Template
+
+Both themes offer an explicit "Use Chinese report template" action. It replaces
+only the editor's subject/body; saving and sending remain separate actions. Existing
+saved templates are not migrated or overwritten. Sample preview is sandboxed and
+uses clearly marked demonstration data, without sending mail.
+
+The new `{{channel_reports}}` placeholder reuses each configured field's published
+query result. Identical time-window/channel scopes are rendered once. Each section
+shows known-cost consumption, snapshot plus supplemented cost, profit and margin,
+with a signed, color-coded HTML bar chart (top 10 by absolute profit) and up to 100
+channel detail rows, identified by channel ID. Totals include all eligible channels,
+even when display limits apply. Empty/zero-consumption results and negative profits
+remain explicit. Time boundaries are Beijing time, end-exclusive; amounts retain
+the report's quota-per-unit basis rather than assuming a currency conversion.
+
+The HTML needs no scripts, remote image service or image download. Large reports
+stop appending further windows after approximately 40 KB and show an omission
+notice; existing 128 KB email and 256 KB execution-snapshot guards still apply.
+No new source-log scans, scheduled jobs, database migrations or mail-send side
+effects are introduced by template application/preview.

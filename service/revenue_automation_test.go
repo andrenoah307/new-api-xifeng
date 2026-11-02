@@ -34,7 +34,7 @@ func TestRevenueAutomationReusesReportsAndNeverReplaysUncertainDelivery(t *testi
 	c.Recipients = []string{"finance@example.com"}
 	c.Fields = []model.RevenueField{{Key: "昨日利润", Metric: "profit", Period: "day"}, {Key: "margin", Metric: "profit_margin", Period: "day"}}
 	c.Subject = "昨日利润 {{fields.昨日利润.value}}"
-	c.Body = "{{fields.昨日利润.value}} {{summary_table}}"
+	c.Body = "{{fields.昨日利润.value}} {{summary_table}} {{ channel_reports }}"
 	require.NoError(t, model.SaveRevenueAutomation(ctx, root.Id, 0, c))
 	config, _, err := model.GetRevenueAutomation(ctx)
 	require.NoError(t, err)
@@ -61,6 +61,9 @@ func TestRevenueAutomationReusesReportsAndNeverReplaysUncertainDelivery(t *testi
 	assert.Equal(t, "-5.000000", data.Values["fields.昨日利润.value"])
 	assert.Equal(t, "昨日利润 -5.000000", data.Subject)
 	assert.Contains(t, data.Body, "昨日利润")
+	assert.Contains(t, data.Body, "渠道利润分布")
+	assert.Contains(t, data.Body, "#ce4545")
+	assert.NotContains(t, data.Body, "{{ channel_reports }}")
 	assert.NotContains(t, data.Body, "{{fields.")
 	assert.Equal(t, "-25.00%", data.Values["fields.margin.value"])
 	assert.Equal(t, "50.00%", data.Values["fields.昨日利润.coverage"])

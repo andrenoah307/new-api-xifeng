@@ -33,6 +33,7 @@ type Config = {
 }
 type Run = { id: string; scheduled_at: number; status: string; error: string }
 type Response = {
+  chinese_template?: { subject: string; body: string }
   config: Config
   revision: number
   next_at: number
@@ -206,7 +207,7 @@ function AutomationEditor(props: { data: Response; userId: number }) {
               </label>
             ))}
           </div>
-          <p className='text-sm text-muted-foreground'>
+          <p className='text-muted-foreground text-sm'>
             {t('Next run')}:{' '}
             {values.enabled && props.data.next_at
               ? date(props.data.next_at)
@@ -235,7 +236,7 @@ function AutomationEditor(props: { data: Response; userId: number }) {
             <span>{t('Recipients')}</span>
             <Textarea rows={3} {...form.register('recipientsText')} />
           </label>
-          <p className='text-sm text-muted-foreground'>
+          <p className='text-muted-foreground text-sm'>
             {t('Known-cost records only')}
           </p>
           {fields.fields.map((field, index) => (
@@ -329,6 +330,26 @@ function AutomationEditor(props: { data: Response; userId: number }) {
             <Plus />
             {t('Add field')}
           </Button>
+          {props.data.chinese_template && (
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => {
+                const template = props.data.chinese_template
+                if (!template) return
+                form.setValue('subject', template.subject, {
+                  shouldDirty: true,
+                })
+                form.setValue('body', template.body, {
+                  shouldDirty: true,
+                })
+                setPreview(null)
+              }}
+            >
+              <Mail />
+              {t('Use Chinese report template')}
+            </Button>
+          )}
           <label className='block space-y-2'>
             <span>{t('Subject')}</span>
             <Input {...form.register('subject')} maxLength={200} />
@@ -358,6 +379,7 @@ function AutomationEditor(props: { data: Response; userId: number }) {
                 'generated_at',
                 'run_id',
                 'summary_table',
+                'channel_reports',
                 ...values.fields.flatMap((field) =>
                   ['value', 'start', 'end', 'unit', 'coverage'].map(
                     (part) => `fields.${field.key}.${part}`
@@ -445,7 +467,7 @@ function AutomationEditor(props: { data: Response; userId: number }) {
             <tbody>
               {props.data.runs.map((run) => (
                 <tr key={run.id} className='border-t'>
-                  <td className='whitespace-nowrap p-2'>
+                  <td className='p-2 whitespace-nowrap'>
                     {date(run.scheduled_at)}
                   </td>
                   <td className='p-2'>{t(`Revenue status ${run.status}`)}</td>
@@ -467,7 +489,7 @@ function AutomationEditor(props: { data: Response; userId: number }) {
           </table>
         </div>
         {detail && (
-          <div className='space-y-2 break-words text-sm'>
+          <div className='space-y-2 text-sm break-words'>
             <p>{detail.run.id}</p>
             {['failed', 'unknown'].includes(detail.run.status) && (
               <div className='flex flex-wrap gap-2'>
@@ -510,7 +532,10 @@ function AutomationEditor(props: { data: Response; userId: number }) {
             ))}
             <dl className='grid gap-2 sm:grid-cols-2'>
               {Object.entries(detail.data.values ?? {})
-                .filter(([key]) => key !== 'summary_table')
+                .filter(
+                  ([key]) =>
+                    key !== 'summary_table' && key !== 'channel_reports'
+                )
                 .map(([key, value]) => (
                   <div key={key}>
                     <dt className='text-muted-foreground'>{key}</dt>

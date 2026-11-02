@@ -3174,6 +3174,7 @@
     "Invalid API Key usage alert rule": "API Key 用量告警规则无效",
     "Duplicate API Key usage alert threshold": "API Key 用量告警阈值重复",
     "Redis is required for API Key usage alerts": "API Key 用量告警需要启用 Redis",
-    "Unable to load API Key usage alert status": "无法加载 API Key 用量告警状态"
+    "Unable to load API Key usage alert status": "无法加载 API Key 用量告警状态",
+    "Use Chinese report template": "使用中文报告模板"
   }
 }

@@ -367,6 +367,22 @@ function AutomationEditor({ data, userId, reload }) {
           >
             {t('Add field')}
           </Button>
+          {data.chinese_template && (
+            <Button
+              type='button'
+              icon={<Mail size={16} />}
+              onClick={() => {
+                setConfig((old) => ({
+                  ...old,
+                  subject: data.chinese_template.subject,
+                  body: data.chinese_template.body,
+                }));
+                setPreview(null);
+              }}
+            >
+              {t('Use Chinese report template')}
+            </Button>
+          )}
           <label>
             {t('Subject')}
             <input
@@ -401,6 +417,7 @@ function AutomationEditor({ data, userId, reload }) {
                 'generated_at',
                 'run_id',
                 'summary_table',
+                'channel_reports',
                 ...config.fields.flatMap((field) =>
                   ['value', 'start', 'end', 'unit', 'coverage'].map(
                     (part) => `fields.${field.key}.${part}`,
@@ -523,7 +540,10 @@ function AutomationEditor({ data, userId, reload }) {
             )}
             <dl>
               {Object.entries(detail.data.values ?? {})
-                .filter(([key]) => key !== 'summary_table')
+                .filter(
+                  ([key]) =>
+                    key !== 'summary_table' && key !== 'channel_reports',
+                )
                 .map(([key, value]) => (
                   <div key={key}>
                     <dt>{key}</dt>
