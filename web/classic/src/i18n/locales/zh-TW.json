@@ -5281,6 +5281,7 @@
     "Duplicate API Key usage alert threshold": "API Key 用量告警門檻重複",
     "Redis is required for API Key usage alerts": "API Key 用量告警需要啟用 Redis",
     "Unable to load API Key usage alert status": "無法載入 API Key 用量告警狀態",
-    "Use Chinese report template": "使用中文報告範本"
+    "Use Chinese report template": "使用中文報告範本",
+    "Use built-in notification template": "使用內建通知範本"
   }
 }

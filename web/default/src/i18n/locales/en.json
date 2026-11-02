@@ -5523,6 +5523,7 @@
     "Use a path to append it to the channel Base URL, or enter a full URL to override the Base URL for this route.": "Use a path to append it to the channel Base URL, or enter a full URL to override the Base URL for this route.",
     "Use authenticator code": "Use authenticator code",
     "Use backup code": "Use backup code",
+    "Use built-in notification template": "Use built-in notification template",
     "Use Chinese report template": "Use Chinese report template",
     "Use disk cache when request body exceeds this size": "Use disk cache when request body exceeds this size",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.",

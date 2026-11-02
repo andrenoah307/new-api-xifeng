@@ -5523,6 +5523,7 @@
     "Use a path to append it to the channel Base URL, or enter a full URL to override the Base URL for this route.": "パスを入力するとチャネルの Base URL に追加されます。完全な URL を入力すると、このルートでは Base URL を使わずその URL を使用します。",
     "Use authenticator code": "認証コードを使用",
     "Use backup code": "バックアップコードを使用",
+    "Use built-in notification template": "組み込み通知テンプレートを使用",
     "Use Chinese report template": "中国語レポートテンプレートを使用",
     "Use disk cache when request body exceeds this size": "リクエストボディがこのサイズを超えた場合にディスクキャッシュを使用",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "クライアントの正確なモデル名をカンマ区切りで入力します。プレフィックスやワイルドカードは使えません。",

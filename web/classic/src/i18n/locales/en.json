@@ -5528,6 +5528,7 @@
     "Duplicate API Key usage alert threshold": "Duplicate API Key usage alert threshold",
     "Redis is required for API Key usage alerts": "Redis is required for API Key usage alerts",
     "Unable to load API Key usage alert status": "Unable to load API Key usage alert status",
-    "Use Chinese report template": "Use Chinese report template"
+    "Use Chinese report template": "Use Chinese report template",
+    "Use built-in notification template": "Use built-in notification template"
   }
 }

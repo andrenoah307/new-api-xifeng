@@ -13,7 +13,9 @@ func TestTokenUsageAlertRulesValidation(t *testing.T) {
 	require.NoError(t, err)
 	parsed, err := ParseTokenUsageAlerts(string(data))
 	require.NoError(t, err)
-	assert.Equal(t, valid, parsed)
+	assert.Equal(t, valid.Rules, parsed.Rules)
+	assert.Equal(t, TokenUsageAlertSubject, parsed.Subject)
+	assert.Equal(t, TokenUsageAlertBody, parsed.Body)
 	for _, test := range []struct {
 		name string
 		rule TokenUsageAlertRule

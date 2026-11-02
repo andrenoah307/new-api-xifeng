@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Add01Icon, Delete02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
@@ -12,6 +12,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 
 import { SettingsSection } from '../components/settings-section'
@@ -21,6 +22,8 @@ import { useUpdateOption } from '../hooks/use-update-option'
 const schema = z
   .object({
     enabled: z.boolean(),
+    subject: z.string().max(800).optional(),
+    body: z.string().max(32768).optional(),
     rules: z
       .array(
         z.object({
@@ -36,6 +39,8 @@ const schema = z
 
 type AlertConfig = z.infer<typeof schema>
 interface AlertStatus {
+  builtin_template?: { subject: string; body: string }
+  placeholders?: string[]
   redis_available: boolean
   pending: number
   cached_keys: number
@@ -56,6 +61,13 @@ export function TokenUsageAlertSettingsSection(props: {
 }) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
+  const [preview, setPreview] = useState<{
+    subject: string
+    body: string
+  } | null>(null)
+  const [previewScope, setPreviewScope] = useState('total')
+  const [previewBusy, setPreviewBusy] = useState(false)
+  const [previewError, setPreviewError] = useState('')
   const raw = props.settings.TokenUsageAlertRules
   const parsed = useMemo(() => {
     try {
@@ -180,6 +192,115 @@ export function TokenUsageAlertSettingsSection(props: {
             </div>
           ))}
         </FieldGroup>
+        <Field>
+          <FieldLabel htmlFor='token-alert-subject'>{t('Subject')}</FieldLabel>
+          <Input
+            id='token-alert-subject'
+            maxLength={800}
+            {...form.register('subject')}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor='token-alert-body'>{t('Body')}</FieldLabel>
+          <Textarea
+            id='token-alert-body'
+            rows={8}
+            maxLength={32768}
+            {...form.register('body')}
+          />
+        </Field>
+        <NativeSelect
+          aria-label={t('Insert placeholder')}
+          value=''
+          onChange={(event) => {
+            if (event.target.value) {
+              form.setValue(
+                'body',
+                `${form.getValues('body') || ''}{{${event.target.value}}}`,
+                { shouldDirty: true }
+              )
+            }
+          }}
+        >
+          <NativeSelectOption value=''>
+            {t('Insert placeholder')}
+          </NativeSelectOption>
+          {status.data?.placeholders?.map((key) => (
+            <NativeSelectOption key={key} value={key}>
+              {key}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+        <div className='flex flex-wrap gap-2'>
+          <Button
+            type='button'
+            variant='outline'
+            disabled={!status.data?.builtin_template}
+            onClick={() => {
+              const template = status.data?.builtin_template
+              if (!template) return
+              form.setValue('subject', template.subject, { shouldDirty: true })
+              form.setValue('body', template.body, { shouldDirty: true })
+              setPreview(null)
+            }}
+          >
+            {t('Use built-in notification template')}
+          </Button>
+          <NativeSelect
+            aria-label={t('Quota scope')}
+            value={previewScope}
+            onChange={(event) => setPreviewScope(event.target.value)}
+          >
+            <NativeSelectOption value='total'>
+              {t('Total quota')}
+            </NativeSelectOption>
+            <NativeSelectOption value='period'>
+              {t('Current period quota')}
+            </NativeSelectOption>
+          </NativeSelect>
+          <Button
+            type='button'
+            variant='outline'
+            disabled={previewBusy || !parsed}
+            onClick={async () => {
+              setPreviewBusy(true)
+              setPreviewError('')
+              setPreview(null)
+              try {
+                const response = await api.post(
+                  '/api/option/token_usage_alerts/preview',
+                  { config: form.getValues(), scope: previewScope }
+                )
+                if (!response.data.success) {
+                  throw new Error(response.data.message)
+                }
+                setPreview(response.data.data)
+              } catch (error) {
+                setPreviewError(
+                  error instanceof Error
+                    ? error.message
+                    : t('Invalid API Key usage alert settings')
+                )
+              } finally {
+                setPreviewBusy(false)
+              }
+            }}
+          >
+            {t('Preview sample')}
+          </Button>
+        </div>
+        {previewError && <p role='alert'>{t(previewError)}</p>}
+        {preview && (
+          <section className='space-y-2'>
+            <h3>{preview.subject}</h3>
+            <iframe
+              title={t('Preview sample')}
+              sandbox=''
+              className='h-96 w-full border'
+              srcDoc={`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'">${preview.body}`}
+            />
+          </section>
+        )}
         {(!parsed || Object.keys(form.formState.errors).length > 0) && (
           <p role='alert' className='text-destructive text-sm'>
             {t('Invalid API Key usage alert settings')}

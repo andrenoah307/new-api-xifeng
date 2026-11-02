@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"html"
+	"math"
 	"net/mail"
 	"strconv"
 	"strings"
@@ -297,6 +297,11 @@ func processTokenUsageAlert(id string) {
 		_ = common.RDB.Set(ctx, tokenAlertPrefix+"cooldown:"+id, "1", time.Until(time.Unix(until, 0))).Err()
 		return
 	}
+	subject, body, err := RenderTokenUsageAlertEmail(config, token, user, usage, rule)
+	if err != nil {
+		common.SysError("API Key usage alert template rendering failed")
+		return
+	}
 	// A user can own many keys. Recipient pacing delays other rules without
 	// consuming their independent cooldowns.
 	recipient := fmt.Sprintf("%x", sha256.Sum256([]byte(strings.ToLower(user.Email))))
@@ -323,7 +328,6 @@ func processTokenUsageAlert(id string) {
 	// duplicate because every sender also checks the database claim.
 	_ = common.RDB.Set(ctx, tokenAlertPrefix+"cooldown:"+id, "1", time.Until(time.Unix(delivery.CooldownUntil, 0))).Err()
 	cancel()
-	subject, body := buildTokenUsageAlertEmail(token, user, usage, rule)
 	sendCtx, sendCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	state, _ := sendTokenUsageAlertEmail(sendCtx, subject, user.Email, body)
 	sendCancel()
@@ -344,22 +348,34 @@ func processTokenUsageAlert(id string) {
 	}
 }
 
-func buildTokenUsageAlertEmail(token model.Token, user model.User, usage model.TokenUsageAlertUsage, rule setting.TokenUsageAlertRule) (string, string) {
+func RenderTokenUsageAlertEmail(config setting.TokenUsageAlertConfig, token model.Token, user model.User, usage model.TokenUsageAlertUsage, rule setting.TokenUsageAlertRule) (string, string, error) {
+	if usage.Limit <= 0 || common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
+		return "", "", errors.New("Invalid API Key usage alert settings")
+	}
 	percent := decimal.NewFromInt(usage.Used).Mul(decimal.NewFromInt(100)).Div(decimal.NewFromInt(usage.Limit)).StringFixed(2)
 	scope := "累计额度"
 	if usage.Scope == "period" {
 		scope = "当前周期额度"
 	}
 	used, limit := decimal.NewFromInt(usage.Used).Div(decimal.NewFromFloat(common.QuotaPerUnit)).StringFixed(6), decimal.NewFromInt(usage.Limit).Div(decimal.NewFromFloat(common.QuotaPerUnit)).StringFixed(6)
-	body := fmt.Sprintf(`<h2>API Key 用量告警</h2><table cellpadding="8"><tr><td>用户</td><td>%s</td></tr><tr><td>API Key 名称 / ID</td><td>%s / %d</td></tr><tr><td>额度类型</td><td>%s</td></tr><tr><td>已用 / 限额（额度计价单位）</td><td>%s / %s</td></tr><tr><td>使用比例</td><td>%s%%</td></tr><tr><td>告警阈值</td><td>%d%%</td></tr><tr><td>此规则邮件间隔</td><td>%d 天</td></tr></table>`, html.EscapeString(user.Username), html.EscapeString(token.Name), token.Id, scope, used, limit, percent, rule.Percent, rule.CooldownDays)
+	reset := "不适用（累计额度）"
 	if usage.ResetAt > 0 {
-		body += fmt.Sprintf("<p>周期重置时间：%s（北京时间）</p>", time.Unix(usage.ResetAt, 0).In(time.FixedZone("UTC+8", 8*3600)).Format("2006-01-02 15:04:05"))
+		reset = time.Unix(usage.ResetAt, 0).In(model.RevenueTimezone).Format("2006-01-02 15:04:05") + "（北京时间）"
 	}
-	return "API Key 用量告警", body
+	if config.Subject == "" {
+		config.Subject = setting.TokenUsageAlertSubject
+	}
+	if config.Body == "" {
+		config.Body = setting.TokenUsageAlertBody
+	}
+	vars := map[string]string{"system_name": common.SystemNameOrDefault(), "username": user.Username, "key_name": token.Name, "key_id": strconv.Itoa(token.Id), "scope": scope, "used_quota": used, "quota_limit": limit, "quota_unit": "quota / " + strconv.FormatFloat(common.QuotaPerUnit, 'f', -1, 64), "usage_percent": percent, "threshold_percent": strconv.Itoa(rule.Percent), "cooldown_days": strconv.Itoa(rule.CooldownDays), "reset_at": reset, "generated_at": time.Now().In(model.RevenueTimezone).Format("2006-01-02 15:04:05")}
+	return RenderRevenueMail(model.RevenueAutomationConfig{Subject: config.Subject, Body: config.Body}, vars)
 }
 
 func TokenUsageAlertStatus(ctx context.Context) (map[string]any, error) {
 	result := map[string]any{"redis_available": false, "pending": int64(0), "cached_keys": int64(0), "dropped_notices": tokenAlertDropped.Load()}
+	result["builtin_template"] = map[string]string{"subject": setting.TokenUsageAlertSubject, "body": setting.TokenUsageAlertBody}
+	result["placeholders"] = setting.TokenUsageAlertPlaceholders
 	if common.RedisEnabled && common.RDB != nil {
 		redisCtx, cancel := context.WithTimeout(ctx, time.Second)
 		if common.RDB.Ping(redisCtx).Err() == nil {

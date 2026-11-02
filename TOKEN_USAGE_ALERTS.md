@@ -32,6 +32,31 @@ rows, not by incrementing consume-log totals. No pricing or accounting calculati
 is changed. Email amounts use quota units divided by `QuotaPerUnit`, not an assumed
 currency exchange rate. Emails contain key name and ID, never the secret key.
 
+## Notification Templates
+
+Both themes provide subject/body editors, placeholder insertion, an explicit
+built-in Chinese notification template action and sandboxed preview. The template
+is shared by all rules; rule-specific threshold/cooldown values are filled at send
+time. Applying a template only edits the form. Preview uses synthetic total/period
+quota examples, requires fresh root authorization, and never sends mail, writes
+options or claims a cooldown. Save remains a separate action.
+
+The option JSON now accepts `subject` and `body`. Missing or blank values fall back
+to the built-in template, preserving existing configurations without a migration.
+Supported scalar placeholders are `system_name`, `username`, `key_name`, `key_id`,
+`scope`, `used_quota`, `quota_limit`, `quota_unit`, `usage_percent`,
+`threshold_percent`, `cooldown_days`, `reset_at`, and `generated_at`, enclosed in
+double braces. No secret API Key placeholder is available. Total-quota reset is
+shown as not applicable; period timestamps use Beijing time.
+
+Unknown/malformed placeholders, oversized templates and subject newlines are
+rejected. Subject/body limits are 800/32768 bytes, with a 65536-byte serialized
+configuration limit. All variable values are HTML escaped in the body. The sender
+renders the latest persisted template before recipient pacing or a durable claim;
+invalid rendered subjects do not consume the rule cooldown. The existing safe
+mail renderer also bounds the final body. Custom HTML previews use an empty iframe
+sandbox and a restrictive CSP, without external images or scripts.
+
 ## Performance, delivery and bounded storage
 
 Quota operations only perform an atomic enable check and nonblocking notification.

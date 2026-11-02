@@ -5523,6 +5523,7 @@
     "Use a path to append it to the channel Base URL, or enter a full URL to override the Base URL for this route.": "Dùng đường dẫn để nối vào Base URL của kênh, hoặc nhập URL đầy đủ để ghi đè Base URL cho tuyến này.",
     "Use authenticator code": "Sử dụng mã xác thực",
     "Use backup code": "Sử dụng mã dự phòng",
+    "Use built-in notification template": "Dùng mẫu thông báo có sẵn",
     "Use Chinese report template": "Dùng mẫu báo cáo tiếng Trung",
     "Use disk cache when request body exceeds this size": "Sử dụng bộ nhớ đệm đĩa khi nội dung yêu cầu vượt quá kích thước này",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "Nhập tên model chính xác từ yêu cầu client, ngăn cách bằng dấu phẩy. Không hỗ trợ tiền tố hoặc ký tự đại diện.",

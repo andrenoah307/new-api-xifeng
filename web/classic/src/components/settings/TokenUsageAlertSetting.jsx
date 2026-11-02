@@ -26,6 +26,9 @@ export default function TokenUsageAlertSetting() {
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [previewScope, setPreviewScope] = useState('total');
+  const [previewBusy, setPreviewBusy] = useState(false);
   useEffect(() => {
     let active = true;
     API.get('/api/option/')
@@ -204,16 +207,113 @@ export default function TokenUsageAlertSetting() {
           >
             {t('Add rule')}
           </Button>
-          <Button
-            theme='solid'
-            loading={saving}
-            disabled={!loaded}
-            disabled={loading}
-            onClick={save}
-          >
-            {t('Save')}
-          </Button>
         </div>
+        <div className='flex flex-col gap-3 my-4'>
+          <label>
+            {t('Subject')}
+            <input
+              className='w-full border p-2'
+              maxLength={800}
+              value={config.subject || ''}
+              onChange={(e) =>
+                setConfig((old) => ({ ...old, subject: e.target.value }))
+              }
+            />
+          </label>
+          <label>
+            {t('Body')}
+            <textarea
+              className='w-full border p-2'
+              rows={8}
+              maxLength={32768}
+              value={config.body || ''}
+              onChange={(e) =>
+                setConfig((old) => ({ ...old, body: e.target.value }))
+              }
+            />
+          </label>
+          <select
+            aria-label={t('Insert placeholder')}
+            className='w-full border p-2'
+            value=''
+            onChange={(e) => {
+              const key = e.target.value;
+              if (key)
+                setConfig((old) => ({
+                  ...old,
+                  body: `${old.body || ''}{{${key}}}`,
+                }));
+            }}
+          >
+            <option value=''>{t('Insert placeholder')}</option>
+            {status?.placeholders?.map((key) => (
+              <option value={key} key={key}>
+                {key}
+              </option>
+            ))}
+          </select>
+          <div className='flex flex-wrap gap-2'>
+            <Button
+              disabled={!status?.builtin_template}
+              onClick={() => {
+                setConfig((old) => ({ ...old, ...status.builtin_template }));
+                setPreview(null);
+              }}
+            >
+              {t('Use built-in notification template')}
+            </Button>
+            <select
+              aria-label={t('Quota scope')}
+              className='border p-2'
+              value={previewScope}
+              onChange={(e) => setPreviewScope(e.target.value)}
+            >
+              <option value='total'>{t('Total quota')}</option>
+              <option value='period'>{t('Current period quota')}</option>
+            </select>
+            <Button
+              disabled={!loaded}
+              loading={previewBusy}
+              onClick={async () => {
+                setPreviewBusy(true);
+                setPreview(null);
+                try {
+                  const { data } = await API.post(
+                    '/api/option/token_usage_alerts/preview',
+                    { config, scope: previewScope },
+                  );
+                  if (!data.success) throw new Error(data.message);
+                  setPreview(data.data);
+                } catch (error) {
+                  showError(t(error.message));
+                } finally {
+                  setPreviewBusy(false);
+                }
+              }}
+            >
+              {t('Preview sample')}
+            </Button>
+          </div>
+          {preview && (
+            <section>
+              <h3>{preview.subject}</h3>
+              <iframe
+                title={t('Preview sample')}
+                sandbox=''
+                style={{ width: '100%', height: 384, border: '1px solid #ddd' }}
+                srcDoc={`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'">${preview.body}`}
+              />
+            </section>
+          )}
+        </div>
+        <Button
+          theme='solid'
+          loading={saving}
+          disabled={!loaded || loading}
+          onClick={save}
+        >
+          {t('Save')}
+        </Button>
         {status && (
           <dl className='grid grid-cols-2 sm:grid-cols-4 gap-3 border-t py-4'>
             <div>

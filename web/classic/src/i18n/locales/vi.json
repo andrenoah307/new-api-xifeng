@@ -5812,6 +5812,7 @@
     "Duplicate API Key usage alert threshold": "Ngưỡng cảnh báo khóa API bị trùng",
     "Redis is required for API Key usage alerts": "Cảnh báo khóa API yêu cầu Redis",
     "Unable to load API Key usage alert status": "Không thể tải trạng thái cảnh báo khóa API",
-    "Use Chinese report template": "Dùng mẫu báo cáo tiếng Trung"
+    "Use Chinese report template": "Dùng mẫu báo cáo tiếng Trung",
+    "Use built-in notification template": "Dùng mẫu thông báo có sẵn"
   }
 }

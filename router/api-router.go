@@ -262,6 +262,7 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.GET("/waffo-pancake/subscription-product-options", controller.ListWaffoPancakeSubscriptionProductOptions)
 			optionRoute.GET("/email_templates", controller.ListEmailTemplates)
 			optionRoute.GET("/token_usage_alerts/status", controller.GetTokenUsageAlertStatus)
+			optionRoute.POST("/token_usage_alerts/preview", controller.PreviewTokenUsageAlertEmail)
 			optionRoute.POST("/email_templates/preview", controller.PreviewEmailTemplate)
 			optionRoute.POST("/email_templates/reset", controller.ResetEmailTemplate)
 			optionRoute.POST("/email_templates/test", controller.SendEmailTemplateTest)

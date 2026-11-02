@@ -5523,6 +5523,7 @@
     "Use a path to append it to the channel Base URL, or enter a full URL to override the Base URL for this route.": "Utilisez un chemin pour l’ajouter à la Base URL du canal, ou saisissez une URL complète pour remplacer la Base URL pour cette route.",
     "Use authenticator code": "Utiliser le code de l'authentificateur",
     "Use backup code": "Utiliser un code de secours",
+    "Use built-in notification template": "Utiliser le modèle de notification intégré",
     "Use Chinese report template": "Utiliser le modèle de rapport chinois",
     "Use disk cache when request body exceeds this size": "Utiliser le cache disque quand le corps de requête dépasse cette taille",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "Utilisez les noms exacts des modèles client, séparés par des virgules. Les préfixes et jokers ne sont pas pris en charge.",

@@ -5523,6 +5523,7 @@
     "Use a path to append it to the channel Base URL, or enter a full URL to override the Base URL for this route.": "填写以 / 开头的路径时会自动拼接渠道 Base URL；填写完整 URL 时，此路由会直接使用该 URL。",
     "Use authenticator code": "使用验证器代码",
     "Use backup code": "使用备用代码",
+    "Use built-in notification template": "使用内置通知模板",
     "Use Chinese report template": "使用中文报告模板",
     "Use disk cache when request body exceeds this size": "请求体超过此大小时使用磁盘缓存",
     "Use exact client model names, separated by commas. Prefixes and wildcards are not supported.": "填写客户端请求里的精确 model 名，多个用英文逗号分隔。不支持前缀或通配符。",
