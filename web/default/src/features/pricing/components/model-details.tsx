@@ -855,20 +855,11 @@ function getDynamicFormattedPricesByTier(
 
 function GroupDiscount(props: { ratio: number }) {
   const { t } = useTranslation()
-  let label = t('Base price')
+  const label = `${Number((props.ratio * 100).toFixed(4))}%`
   let color = 'bg-muted text-muted-foreground'
-  if (props.ratio === 0) {
-    label = t('No charge')
-    color = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-  } else if (props.ratio < 1) {
-    label = t('{{percent}}% off', {
-      percent: Number(((1 - props.ratio) * 100).toFixed(4)),
-    })
+  if (props.ratio < 1) {
     color = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
   } else if (props.ratio > 1) {
-    label = t('{{percent}}% surcharge', {
-      percent: Number(((props.ratio - 1) * 100).toFixed(4)),
-    })
     color = 'bg-amber-500/10 text-amber-800 dark:text-amber-300'
   }
   return (
@@ -951,26 +942,16 @@ function GroupPricingSection(props: {
       cellClassName: 'py-2.5',
       cell: (group: string) => <GroupBadge group={group} size='sm' />,
     },
-    {
-      id: 'ratio',
-      header: t('Ratio'),
-      className: thClass,
-      cellClassName: 'text-muted-foreground py-2.5 font-mono',
-      cell: (group: string) =>
-        `${getConfiguredGroupRatio(props.groupRatio, group)}x`,
-    },
-    {
-      id: 'discount',
-      header: t('Discount Rate'),
-      className: thClass,
-      cellClassName: 'py-2.5',
-      cell: (group: string) => (
-        <GroupDiscount
-          ratio={getConfiguredGroupRatio(props.groupRatio, group)}
-        />
-      ),
-    },
   ]
+  const discountColumn = {
+    id: 'discount',
+    header: t('Discount Rate'),
+    className: thClass,
+    cellClassName: 'py-2.5',
+    cell: (group: string) => (
+      <GroupDiscount ratio={getConfiguredGroupRatio(props.groupRatio, group)} />
+    ),
+  }
 
   if (isDynamicPricingModel(props.model)) {
     const dynamicTiers = getDynamicPricingTiers(props.model)
@@ -980,7 +961,7 @@ function GroupPricingSection(props: {
         tableClassName='text-sm'
         data={availableGroups}
         getRowKey={(group) => group}
-        columns={groupColumns}
+        columns={[...groupColumns, discountColumn]}
       />
     )
 
@@ -1156,6 +1137,7 @@ function GroupPricingSection(props: {
                   cell: renderFixedGroupPrice,
                 },
               ]),
+          discountColumn,
         ]}
       />
       <div className='-mx-4 sm:mx-0'>

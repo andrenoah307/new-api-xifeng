@@ -35,7 +35,6 @@ const ModelPricingTable = ({
   siteDisplayType,
   tokenUnit,
   displayPrice,
-  showRatio,
   usableGroup,
   autoGroups = [],
   t,
@@ -100,41 +99,16 @@ const ModelPricingTable = ({
       },
     ];
 
-    const isDynamic = modelData?.billing_mode === 'tiered_expr';
-
-    // 动态计费时始终显示倍率列，否则根据设置
-    if (showRatio || isDynamic) {
-      columns.push({
-        title: t('分组倍率'),
-        dataIndex: 'ratio',
-        width: 100,
-        render: (text) => (
-          <Tag color='blue' size='small' shape='circle'>
-            {text}x
-          </Tag>
-        ),
-      });
-    }
-
-    columns.push({
+    const discountColumn = {
       title: t('Discount Rate'),
       dataIndex: 'ratio',
       width: 155,
       render: (ratio) => {
-        let label = t('Base price');
+        const label = `${Number((ratio * 100).toFixed(4))}%`;
         let color = 'grey';
-        if (ratio === 0) {
-          label = t('No charge');
-          color = 'green';
-        } else if (ratio < 1) {
-          label = t('{{percent}}% off', {
-            percent: Number(((1 - ratio) * 100).toFixed(4)),
-          });
+        if (ratio < 1) {
           color = 'green';
         } else if (ratio > 1) {
-          label = t('{{percent}}% surcharge', {
-            percent: Number(((ratio - 1) * 100).toFixed(4)),
-          });
           color = 'orange';
         }
         return (
@@ -149,7 +123,7 @@ const ModelPricingTable = ({
           </span>
         );
       },
-    });
+    };
 
     columns.push({
       title: t('计费类型'),
@@ -195,13 +169,15 @@ const ModelPricingTable = ({
       },
     });
 
+    columns.push(discountColumn);
+
     return (
       <Table
         dataSource={tableData}
         columns={columns}
         pagination={false}
         size='small'
-        scroll={{ x: 720 }}
+        scroll={{ x: 620 }}
         bordered={false}
         className='!rounded-lg'
       />
