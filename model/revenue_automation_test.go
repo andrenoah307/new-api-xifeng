@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,6 +56,39 @@ func TestRevenueConfigurationValidation(t *testing.T) {
 	c.Fields = c.Fields[:1]
 	c.Recipients = []string{"finance@example.com\r\nBcc: leak@example.com"}
 	require.Error(t, ValidateRevenueAutomationConfig(c))
+}
+
+func TestRevenueFieldKeys(t *testing.T) {
+	for _, tc := range []struct {
+		key   string
+		valid bool
+	}{
+		{"昨日利润", true},
+		{"渠道A_利润2026", true},
+		{"yesterday_profit", true},
+		{strings.Repeat("收", 48), true},
+		{strings.Repeat("收", 49), false},
+		{"", false},
+		{"1收入", false},
+		{"昨日 利润", false},
+		{"收入.value", false},
+		{"{{收入}}", false},
+		{"收入\r\n", false},
+		{"<收入>", false},
+	} {
+		t.Run(tc.key, func(t *testing.T) {
+			c := DefaultRevenueAutomationConfig()
+			c.Fields[0].Key = tc.key
+			err := ValidateRevenueAutomationConfig(c)
+			if tc.valid {
+				require.NoError(t, err)
+				c.Fields = append(c.Fields, c.Fields[0])
+				require.EqualError(t, ValidateRevenueAutomationConfig(c), "Invalid field key")
+			} else {
+				require.EqualError(t, err, "Invalid field key")
+			}
+		})
+	}
 }
 
 func TestRevenueAutomationJobCreationIsIdempotentAndWaitsForManualJob(t *testing.T) {

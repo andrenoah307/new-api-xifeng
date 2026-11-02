@@ -247,7 +247,7 @@ function AutomationEditor(props: { data: Response; userId: number }) {
                 <span>{t('Field key')}</span>
                 <Input
                   required
-                  pattern='[a-z][a-z0-9_]{0,47}'
+                  pattern='[\p{L}][\p{L}\p{N}_]{0,47}'
                   {...form.register(`fields.${index}.key`)}
                 />
               </label>

@@ -15,7 +15,7 @@ import (
 )
 
 var ErrRevenueAutomationConflict = errors.New("Revenue automation changed or is busy")
-var revenueFieldKey = regexp.MustCompile(`^[a-z][a-z0-9_]{0,47}$`)
+var revenueFieldKey = regexp.MustCompile(`^[\p{L}][\p{L}\p{N}_]{0,47}$`)
 var RevenueTimezone = time.FixedZone("Asia/Shanghai", 8*3600)
 
 type RevenueField struct {

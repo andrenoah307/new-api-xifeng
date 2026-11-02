@@ -32,7 +32,9 @@ func TestRevenueAutomationReusesReportsAndNeverReplaysUncertainDelivery(t *testi
 	c.Periods = nil
 	c.MailEnabled = true
 	c.Recipients = []string{"finance@example.com"}
-	c.Fields = []model.RevenueField{{Key: "profit", Metric: "profit", Period: "day"}, {Key: "margin", Metric: "profit_margin", Period: "day"}}
+	c.Fields = []model.RevenueField{{Key: "昨日利润", Metric: "profit", Period: "day"}, {Key: "margin", Metric: "profit_margin", Period: "day"}}
+	c.Subject = "昨日利润 {{fields.昨日利润.value}}"
+	c.Body = "{{fields.昨日利润.value}} {{summary_table}}"
 	require.NoError(t, model.SaveRevenueAutomation(ctx, root.Id, 0, c))
 	config, _, err := model.GetRevenueAutomation(ctx)
 	require.NoError(t, err)
@@ -56,9 +58,12 @@ func TestRevenueAutomationReusesReportsAndNeverReplaysUncertainDelivery(t *testi
 	assert.Equal(t, "sending", run.Status)
 	var data RevenueAutomationData
 	require.NoError(t, common.UnmarshalJsonStr(run.Data, &data))
-	assert.Equal(t, "-5.000000", data.Values["fields.profit.value"])
+	assert.Equal(t, "-5.000000", data.Values["fields.昨日利润.value"])
+	assert.Equal(t, "昨日利润 -5.000000", data.Subject)
+	assert.Contains(t, data.Body, "昨日利润")
+	assert.NotContains(t, data.Body, "{{fields.")
 	assert.Equal(t, "-25.00%", data.Values["fields.margin.value"])
-	assert.Equal(t, "50.00%", data.Values["fields.profit.coverage"])
+	assert.Equal(t, "50.00%", data.Values["fields.昨日利润.coverage"])
 	require.Len(t, data.Windows, 1)
 	var jobs int64
 	require.NoError(t, model.DB.Model(&model.ChannelCostReportJob{}).Count(&jobs).Error)
@@ -94,4 +99,17 @@ func TestRevenueMailTemplate(t *testing.T) {
 	c.Subject = "{{system_name}}"
 	_, _, err = RenderRevenueMail(c, map[string]string{"system_name": "name\r\nBcc: victim@example.com", "summary_table": ""})
 	require.Error(t, err)
+}
+
+func TestRevenueMailChineseFieldPreview(t *testing.T) {
+	c := model.DefaultRevenueAutomationConfig()
+	c.Fields[0].Key = "昨日利润"
+	c.Subject = "利润：{{fields.昨日利润.value}}"
+	c.Body = "{{fields.昨日利润.value}} / {{fields.昨日利润.coverage}} {{summary_table}}"
+	subject, body, err := RevenueMailPreview(c)
+	require.NoError(t, err)
+	assert.Equal(t, "利润：123.456789", subject)
+	assert.Contains(t, body, "123.456789 / 95.00%")
+	assert.Contains(t, body, "昨日利润")
+	assert.NotContains(t, body, "{{fields.")
 }

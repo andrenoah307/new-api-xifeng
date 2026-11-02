@@ -272,7 +272,7 @@ function AutomationEditor({ data, userId, reload }) {
                 {t('Field key')}
                 <input
                   required
-                  pattern='[a-z][a-z0-9_]{0,47}'
+                  pattern='[\p{L}][\p{L}\p{N}_]{0,47}'
                   value={field.key}
                   onChange={(event) =>
                     fieldUpdate(index, 'key', event.target.value)
