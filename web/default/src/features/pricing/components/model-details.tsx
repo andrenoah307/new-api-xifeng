@@ -67,7 +67,11 @@ import {
   isDynamicPricingModel,
 } from '../lib/dynamic-price'
 import { parseTags } from '../lib/filters'
-import { getAvailableGroups, isTokenBasedModel } from '../lib/model-helpers'
+import {
+  getAvailableGroups,
+  getConfiguredGroupRatio,
+  isTokenBasedModel,
+} from '../lib/model-helpers'
 import { formatFixedPrice, formatGroupPrice } from '../lib/price'
 import type {
   ModelCapability,
@@ -849,6 +853,36 @@ function getDynamicFormattedPricesByTier(
 // Group pricing table
 // ----------------------------------------------------------------------------
 
+function GroupDiscount(props: { ratio: number }) {
+  const { t } = useTranslation()
+  let label = t('Base price')
+  let color = 'bg-muted text-muted-foreground'
+  if (props.ratio === 0) {
+    label = t('No charge')
+    color = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+  } else if (props.ratio < 1) {
+    label = t('{{percent}}% off', {
+      percent: Number(((1 - props.ratio) * 100).toFixed(4)),
+    })
+    color = 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+  } else if (props.ratio > 1) {
+    label = t('{{percent}}% surcharge', {
+      percent: Number(((props.ratio - 1) * 100).toFixed(4)),
+    })
+    color = 'bg-amber-500/10 text-amber-800 dark:text-amber-300'
+  }
+  return (
+    <span
+      className={`inline-flex rounded px-2 py-1 text-xs font-medium whitespace-nowrap ${color}`}
+      title={t(
+        'Compared with the model base price at 1x group ratio, excluding recharge discounts.'
+      )}
+    >
+      {label}
+    </span>
+  )
+}
+
 function GroupPricingSection(props: {
   model: PricingModel
   groupRatio: Record<string, number>
@@ -909,15 +943,53 @@ function GroupPricingSection(props: {
 
   const thClass =
     'text-muted-foreground py-2 text-[10px] font-medium tracking-wider uppercase'
+  const groupColumns = [
+    {
+      id: 'group',
+      header: t('Group'),
+      className: thClass,
+      cellClassName: 'py-2.5',
+      cell: (group: string) => <GroupBadge group={group} size='sm' />,
+    },
+    {
+      id: 'ratio',
+      header: t('Ratio'),
+      className: thClass,
+      cellClassName: 'text-muted-foreground py-2.5 font-mono',
+      cell: (group: string) =>
+        `${getConfiguredGroupRatio(props.groupRatio, group)}x`,
+    },
+    {
+      id: 'discount',
+      header: t('Discount Rate'),
+      className: thClass,
+      cellClassName: 'py-2.5',
+      cell: (group: string) => (
+        <GroupDiscount
+          ratio={getConfiguredGroupRatio(props.groupRatio, group)}
+        />
+      ),
+    },
+  ]
 
   if (isDynamicPricingModel(props.model)) {
     const dynamicTiers = getDynamicPricingTiers(props.model)
+    const groupSummary = (
+      <StaticDataTable
+        className='mb-3 rounded-none border-0'
+        tableClassName='text-sm'
+        data={availableGroups}
+        getRowKey={(group) => group}
+        columns={groupColumns}
+      />
+    )
 
     if (dynamicTiers.length === 0) {
       return (
         <section>
           <SectionTitle>{t('Pricing by Group')}</SectionTitle>
           <AutoGroupChain model={props.model} autoGroups={props.autoGroups} />
+          {groupSummary}
           <div className='rounded-lg border border-amber-200/70 bg-amber-50/70 p-3 dark:border-amber-500/20 dark:bg-amber-500/10'>
             <div className='text-sm font-medium text-amber-800 dark:text-amber-200'>
               {t('Special billing expression')}
@@ -949,7 +1021,7 @@ function GroupPricingSection(props: {
     })
     const formattedPricesByGroup = new Map(
       availableGroups.map((group) => {
-        const ratio = props.groupRatio[group] || 1
+        const ratio = getConfiguredGroupRatio(props.groupRatio, group)
         return [
           group,
           getDynamicFormattedPricesByTier(dynamicTiers, {
@@ -967,9 +1039,9 @@ function GroupPricingSection(props: {
       <section>
         <SectionTitle>{t('Pricing by Group')}</SectionTitle>
         <AutoGroupChain model={props.model} autoGroups={props.autoGroups} />
+        {groupSummary}
         <div className='space-y-3'>
           {availableGroups.map((group) => {
-            const ratio = props.groupRatio[group] || 1
             const formattedPricesByTier =
               formattedPricesByGroup.get(group) ??
               new Map<DynamicPricingTier, Map<string, string>>()
@@ -978,9 +1050,6 @@ function GroupPricingSection(props: {
               <div key={group} className='overflow-hidden rounded-lg border'>
                 <div className='bg-muted/20 flex items-center justify-between gap-3 border-b px-3 py-2'>
                   <GroupBadge group={group} size='sm' />
-                  <span className='text-muted-foreground font-mono text-xs'>
-                    {ratio}x
-                  </span>
                 </div>
                 <StaticDataTable
                   className='rounded-none border-0'
@@ -1053,20 +1122,7 @@ function GroupPricingSection(props: {
         data={availableGroups}
         getRowKey={(group) => group}
         columns={[
-          {
-            id: 'group',
-            header: t('Group'),
-            className: thClass,
-            cellClassName: 'py-2.5',
-            cell: (group) => <GroupBadge group={group} size='sm' />,
-          },
-          {
-            id: 'ratio',
-            header: t('Ratio'),
-            className: thClass,
-            cellClassName: 'text-muted-foreground py-2.5 font-mono',
-            cell: (group) => `${props.groupRatio[group] || 1}x`,
-          },
+          ...groupColumns,
           ...(isTokenBased
             ? [
                 {
@@ -1178,9 +1234,6 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
               tokenUnit={props.tokenUnit}
               showRechargePrice={showRechargePrice}
             />
-            {isDynamic && (
-              <DynamicPricingBreakdown billingExpr={props.model.billing_expr} />
-            )}
             <GroupPricingSection
               model={props.model}
               groupRatio={props.groupRatio}
@@ -1191,6 +1244,9 @@ export function ModelDetailsContent(props: ModelDetailsContentProps) {
               tokenUnit={props.tokenUnit}
               showRechargePrice={showRechargePrice}
             />
+            {isDynamic && (
+              <DynamicPricingBreakdown billingExpr={props.model.billing_expr} />
+            )}
           </section>
 
           <ModelBackendDetailsSection model={props.model} />

@@ -5268,6 +5268,13 @@
     "Monthly": "Chaque mois",
     "Quarterly": "Chaque trimestre",
     "Yearly": "Chaque année",
-    "Confirm and enable": "Confirmer et activer"
+    "Confirm and enable": "Confirmer et activer",
+    "Discount Rate": "Remise",
+    "Base price": "Prix de base",
+    "{{percent}}% off": "−{{percent}} %",
+    "{{percent}}% surcharge": "+{{percent}} %",
+    "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "Par rapport au prix de base du modèle avec un multiplicateur de groupe de 1, hors remises de recharge.",
+    "见下方动态计费详情": "Voir la tarification dynamique ci-dessous",
+    "No charge": "Gratuit"
   }
 }

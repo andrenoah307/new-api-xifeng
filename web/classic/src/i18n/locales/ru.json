@@ -5289,6 +5289,13 @@
     "Monthly": "Ежемесячно",
     "Quarterly": "Ежеквартально",
     "Yearly": "Ежегодно",
-    "Confirm and enable": "Подтвердить и включить"
+    "Confirm and enable": "Подтвердить и включить",
+    "Discount Rate": "Скидка",
+    "Base price": "Базовая цена",
+    "{{percent}}% off": "Скидка {{percent}}%",
+    "{{percent}}% surcharge": "Наценка {{percent}}%",
+    "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "Относительно базовой цены модели при множителе группы 1, без скидок на пополнение.",
+    "见下方动态计费详情": "Динамические тарифы приведены ниже",
+    "No charge": "Бесплатно"
   }
 }

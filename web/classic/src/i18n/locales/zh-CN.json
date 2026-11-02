@@ -5410,6 +5410,13 @@
     "Monthly": "每月",
     "Quarterly": "每季",
     "Yearly": "每年",
-    "Confirm and enable": "确认并启用"
+    "Confirm and enable": "确认并启用",
+    "Discount Rate": "折扣率",
+    "Base price": "基准价",
+    "{{percent}}% off": "优惠 {{percent}}%",
+    "{{percent}}% surcharge": "加价 {{percent}}%",
+    "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "相对于模型在分组倍率为 1 时的基准价，不含充值优惠。",
+    "见下方动态计费详情": "见下方动态计费详情",
+    "No charge": "免费"
   }
 }

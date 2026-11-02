@@ -61,7 +61,7 @@ const ModelDetailSideSheet = ({
         borderBottom: '1px solid var(--semi-color-border)',
       }}
       visible={visible}
-      width={isMobile ? '100%' : 600}
+      width={isMobile ? '100%' : 'min(820px, 100vw)'}
       closeIcon={
         <Button
           className='semi-button-tertiary semi-button-size-small semi-button-borderless'
@@ -95,17 +95,6 @@ const ModelDetailSideSheet = ({
                 t={t}
               />
             </div>
-            {modelData.billing_mode === 'tiered_expr' && modelData.billing_expr && (
-              <>
-                <Divider margin={16} />
-                <div style={{ padding: '0 24px' }}>
-                  <DynamicPricingBreakdown
-                    billingExpr={modelData.billing_expr}
-                    t={t}
-                  />
-                </div>
-              </>
-            )}
             <Divider margin={16} />
             <div style={{ padding: '0 24px' }}>
               <ModelPricingTable
@@ -121,6 +110,18 @@ const ModelDetailSideSheet = ({
                 t={t}
               />
             </div>
+            {modelData.billing_mode === 'tiered_expr' &&
+              modelData.billing_expr && (
+                <>
+                  <Divider margin={16} />
+                  <div style={{ padding: '0 24px' }}>
+                    <DynamicPricingBreakdown
+                      billingExpr={modelData.billing_expr}
+                      t={t}
+                    />
+                  </div>
+                </>
+              )}
             <Divider margin={16} />
           </>
         )}

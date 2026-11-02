@@ -20,7 +20,11 @@ For commercial licensing, please contact support@quantumnous.com
 import React from 'react';
 import { Avatar, Typography, Table, Tag } from '@douyinfe/semi-ui';
 import { IconCoinMoneyStroked } from '@douyinfe/semi-icons';
-import { calculateModelPrice, getModelPriceItems } from '../../../../../helpers';
+import {
+  calculateModelPrice,
+  getModelPriceItems,
+  stringToColor,
+} from '../../../../../helpers';
 
 const { Text } = Typography;
 
@@ -50,21 +54,21 @@ const ModelPricingTable = ({
 
     // 准备表格数据
     const tableData = availableGroups.map((group) => {
+      const configuredRatio = groupRatio?.[group];
+      const groupRatioValue = Number.isFinite(configuredRatio)
+        ? configuredRatio
+        : 1;
       const priceData = modelData
         ? calculateModelPrice({
             record: modelData,
             selectedGroup: group,
-            groupRatio,
+            groupRatio: { ...groupRatio, [group]: groupRatioValue },
             tokenUnit,
             displayPrice,
             currency,
             quotaDisplayType: siteDisplayType,
           })
         : { inputPrice: '-', outputPrice: '-', price: '-' };
-
-      // 获取分组倍率
-      const groupRatioValue =
-        groupRatio && groupRatio[group] ? groupRatio[group] : 1;
 
       return {
         key: group,
@@ -87,10 +91,10 @@ const ModelPricingTable = ({
       {
         title: t('分组'),
         dataIndex: 'group',
+        width: 110,
         render: (text) => (
-          <Tag color='white' size='small' shape='circle'>
+          <Tag color={stringToColor(text)} size='small' shape='circle'>
             {text}
-            {t('分组')}
           </Tag>
         ),
       },
@@ -103,6 +107,7 @@ const ModelPricingTable = ({
       columns.push({
         title: t('分组倍率'),
         dataIndex: 'ratio',
+        width: 100,
         render: (text) => (
           <Tag color='blue' size='small' shape='circle'>
             {text}x
@@ -112,8 +117,44 @@ const ModelPricingTable = ({
     }
 
     columns.push({
+      title: t('Discount Rate'),
+      dataIndex: 'ratio',
+      width: 155,
+      render: (ratio) => {
+        let label = t('Base price');
+        let color = 'grey';
+        if (ratio === 0) {
+          label = t('No charge');
+          color = 'green';
+        } else if (ratio < 1) {
+          label = t('{{percent}}% off', {
+            percent: Number(((1 - ratio) * 100).toFixed(4)),
+          });
+          color = 'green';
+        } else if (ratio > 1) {
+          label = t('{{percent}}% surcharge', {
+            percent: Number(((ratio - 1) * 100).toFixed(4)),
+          });
+          color = 'orange';
+        }
+        return (
+          <span
+            title={t(
+              'Compared with the model base price at 1x group ratio, excluding recharge discounts.',
+            )}
+          >
+            <Tag color={color} size='small' shape='circle'>
+              {label}
+            </Tag>
+          </span>
+        );
+      },
+    });
+
+    columns.push({
       title: t('计费类型'),
       dataIndex: 'billingType',
+      width: 125,
       render: (text) => {
         let color = 'white';
         if (text === t('按量计费')) color = 'violet';
@@ -130,11 +171,12 @@ const ModelPricingTable = ({
     columns.push({
       title: siteDisplayType === 'TOKENS' ? t('计费摘要') : t('价格摘要'),
       dataIndex: 'priceItems',
+      width: 230,
       render: (items) => {
         if (items.length === 1 && items[0].isDynamic) {
           return (
             <Text type='tertiary' size='small'>
-              {t('见上方动态计费详情')}
+              {t('见下方动态计费详情')}
             </Text>
           );
         }
@@ -159,6 +201,7 @@ const ModelPricingTable = ({
         columns={columns}
         pagination={false}
         size='small'
+        scroll={{ x: 720 }}
         bordered={false}
         className='!rounded-lg'
       />
@@ -184,7 +227,7 @@ const ModelPricingTable = ({
           <span className='text-sm'>→</span>
           {autoChain.map((g, idx) => (
             <React.Fragment key={g}>
-              <Tag color='white' size='small' shape='circle'>
+              <Tag color={stringToColor(g)} size='small' shape='circle'>
                 {g}
                 {t('分组')}
               </Tag>

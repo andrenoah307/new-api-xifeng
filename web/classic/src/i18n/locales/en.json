@@ -5495,6 +5495,13 @@
     "Monthly": "Monthly",
     "Quarterly": "Quarterly",
     "Yearly": "Yearly",
-    "Confirm and enable": "Confirm and enable"
+    "Confirm and enable": "Confirm and enable",
+    "Discount Rate": "Discount Rate",
+    "Base price": "Base price",
+    "{{percent}}% off": "{{percent}}% off",
+    "{{percent}}% surcharge": "{{percent}}% surcharge",
+    "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "Compared with the model base price at 1x group ratio, excluding recharge discounts.",
+    "见下方动态计费详情": "See dynamic pricing details below",
+    "No charge": "No charge"
   }
 }

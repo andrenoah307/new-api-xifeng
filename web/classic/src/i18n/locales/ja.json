@@ -5235,6 +5235,13 @@
     "Monthly": "毎月",
     "Quarterly": "四半期ごと",
     "Yearly": "毎年",
-    "Confirm and enable": "確認して有効化"
+    "Confirm and enable": "確認して有効化",
+    "Discount Rate": "割引率",
+    "Base price": "基準価格",
+    "{{percent}}% off": "{{percent}}% 割引",
+    "{{percent}}% surcharge": "{{percent}}% 割増",
+    "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "グループ倍率1のモデル基準価格との比較です。チャージ割引は含みません。",
+    "见下方动态计费详情": "動的料金の詳細は以下を参照",
+    "No charge": "無料"
   }
 }

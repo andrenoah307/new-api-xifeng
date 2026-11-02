@@ -5778,6 +5778,13 @@
     "Monthly": "Hằng tháng",
     "Quarterly": "Hằng quý",
     "Yearly": "Hằng năm",
-    "Confirm and enable": "Xác nhận và bật"
+    "Confirm and enable": "Xác nhận và bật",
+    "Discount Rate": "Mức giảm giá",
+    "Base price": "Giá cơ sở",
+    "{{percent}}% off": "Giảm {{percent}}%",
+    "{{percent}}% surcharge": "Phụ thu {{percent}}%",
+    "Compared with the model base price at 1x group ratio, excluding recharge discounts.": "So với giá cơ sở của mô hình ở hệ số nhóm 1, không bao gồm ưu đãi nạp tiền.",
+    "见下方动态计费详情": "Xem chi tiết giá động bên dưới",
+    "No charge": "Miễn phí"
   }
 }
