@@ -126,16 +126,23 @@ func NextRevenueAutomationRun(ctx context.Context, row *RevenueAutomation, initi
 		if row.NextAt > time.Now().Unix() {
 			return nil
 		}
-		var old []RevenueAutomationRun
-		if err := tx.Omit("data").Order("scheduled_at DESC").Offset(127).Find(&old).Error; err != nil {
-			return err
-		}
-		for _, item := range old {
-			if item.Status == "unknown" {
-				return errors.New("Resolve uncertain email deliveries before retention cleanup")
-			}
-			if err := tx.Delete(&item).Error; err != nil {
+		// MySQL requires LIMIT with OFFSET. Keep 127 runs before inserting the next;
+		// repeat bounded batches so excess history cannot bypass the retention cap.
+		for {
+			var old []RevenueAutomationRun
+			if err := tx.Omit("data").Order("scheduled_at DESC").Offset(127).Limit(128).Find(&old).Error; err != nil {
 				return err
+			}
+			for _, item := range old {
+				if item.Status == "unknown" {
+					return errors.New("Resolve uncertain email deliveries before retention cleanup")
+				}
+				if err := tx.Delete(&item).Error; err != nil {
+					return err
+				}
+			}
+			if len(old) < 128 {
+				break
 			}
 		}
 		run = RevenueAutomationRun{ID: uuid.NewString(), ScheduledAt: row.NextAt, Revision: row.Revision, Status: "pending", Data: initialData, UpdatedAt: time.Now().Unix()}

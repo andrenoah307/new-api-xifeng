@@ -54,6 +54,7 @@ func TestRevenueAutomationSQLTransactions(t *testing.T) {
 			other, _, err := ClaimRevenueAutomation(ctx)
 			require.NoError(t, err)
 			assert.Nil(t, other)
+			testRevenueAutomationScheduling(t, row)
 			// MySQL affected-rows must succeed even for two writes in the same second.
 			run := RevenueAutomationRun{ID: "sql-run", ScheduledAt: time.Now().Unix(), Status: "completed", Data: strings.Repeat("x", 100000)}
 			require.NoError(t, SaveRevenueAutomationRun(ctx, row, &run))

@@ -191,27 +191,61 @@ func TestRevenueAutomationCASAndDisabledDefault(t *testing.T) {
 	claimed, _, err = ClaimRevenueAutomation(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, claimed)
-	// Terminal history rolls, but unresolved delivery evidence is never evicted.
-	oldRuns := make([]RevenueAutomationRun, 128)
+	testRevenueAutomationScheduling(t, claimed)
+	ReleaseRevenueAutomation(ctx, claimed)
+	require.NoError(t, DB.Model(&root).Update("role", common.RoleAdminUser).Error)
+	_, _, err = ClaimRevenueAutomation(ctx)
+	require.Error(t, err)
+}
+
+// Exercise the same scheduling contract on SQLite, MySQL and PostgreSQL.
+func testRevenueAutomationScheduling(t *testing.T, claimed *RevenueAutomation) {
+	t.Helper()
+	ctx := context.Background()
+	due := time.Now().Add(-time.Minute).Unix()
+	claimed.NextAt = due
+	require.NoError(t, DB.Model(&RevenueAutomation{}).Where("id = ?", claimed.ID).Update("next_at", due).Error)
+	run, err := NextRevenueAutomationRun(ctx, claimed, "{}")
+	require.NoError(t, err)
+	require.NotNil(t, run)
+	assert.Equal(t, due, run.ScheduledAt)
+	assert.Equal(t, "pending", run.Status)
+	again, err := NextRevenueAutomationRun(ctx, claimed, "{}")
+	require.NoError(t, err)
+	require.NotNil(t, again)
+	assert.Equal(t, run.ID, again.ID)
+	var config RevenueAutomation
+	require.NoError(t, DB.First(&config, claimed.ID).Error)
+	assert.Equal(t, due+86400, config.NextAt)
+	require.NoError(t, DB.Delete(run).Error)
+	require.NoError(t, DB.Model(&RevenueAutomation{}).Where("id = ?", claimed.ID).Update("next_at", due).Error)
+	// More than one cleanup batch: an unknown delivery must roll back prior deletes.
+	oldRuns := make([]RevenueAutomationRun, 257)
 	for i := range oldRuns {
 		oldRuns[i] = RevenueAutomationRun{ID: fmt.Sprintf("history-%d", i), ScheduledAt: int64(i + 1), Status: "completed", Data: "{}"}
 	}
 	oldRuns[0].Status = "unknown"
 	require.NoError(t, DB.Create(&oldRuns).Error)
-	claimed.NextAt = time.Now().Add(-time.Minute).Unix()
 	_, err = NextRevenueAutomationRun(ctx, claimed, "{}")
 	require.ErrorContains(t, err, "uncertain")
-	require.NoError(t, DB.Model(&oldRuns[0]).Update("status", "cancelled").Error)
-	run, err := NextRevenueAutomationRun(ctx, claimed, "{}")
-	require.NoError(t, err)
-	require.NotNil(t, run)
 	var count int64
 	require.NoError(t, DB.Model(&RevenueAutomationRun{}).Count(&count).Error)
+	assert.EqualValues(t, len(oldRuns), count)
+	require.NoError(t, DB.First(&config, claimed.ID).Error)
+	assert.Equal(t, due, config.NextAt)
+	require.NoError(t, DB.Model(&oldRuns[0]).Update("status", "cancelled").Error)
+	run, err = NextRevenueAutomationRun(ctx, claimed, "{}")
+	require.NoError(t, err)
+	require.NotNil(t, run)
+	require.NoError(t, DB.Model(&RevenueAutomationRun{}).Count(&count).Error)
 	assert.EqualValues(t, 128, count)
+	var retained []RevenueAutomationRun
+	require.NoError(t, DB.Where("id <> ?", run.ID).Order("scheduled_at ASC").Find(&retained).Error)
+	require.Len(t, retained, 127)
+	assert.Equal(t, oldRuns[130].ID, retained[0].ID)
+	assert.Equal(t, oldRuns[256].ID, retained[126].ID)
+	require.NoError(t, DB.First(&config, claimed.ID).Error)
+	assert.Equal(t, due+86400, config.NextAt)
 	run.Status = "completed"
 	require.NoError(t, SaveRevenueAutomationRun(ctx, claimed, run))
-	ReleaseRevenueAutomation(ctx, claimed)
-	require.NoError(t, DB.Model(&root).Update("role", common.RoleAdminUser).Error)
-	_, _, err = ClaimRevenueAutomation(ctx)
-	require.Error(t, err)
 }
