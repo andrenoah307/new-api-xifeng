@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -121,4 +122,47 @@ func TestTokenUsageAlertPacingAndBoundedQueue(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, -1, queued)
 	assert.Equal(t, int64(10000), common.RDB.ZCard(ctx, tokenAlertPrefix+"queue").Val())
+}
+
+func TestTokenUsageAlertLoadsOnlyQuotaLimitedKeys(t *testing.T) {
+	_, existing := tokenUsageAlertFixture(t)
+	ctx := context.Background()
+	tokens := []model.Token{
+		{Id: 3, UserId: 1, Key: "unlimited", UnlimitedQuota: true},
+		{Id: 4, UserId: 1, Key: "period", UnlimitedQuota: true, PeriodType: "days", PeriodDays: 1, PeriodQuotaLimit: 100},
+		{Id: 5, UserId: 1, Key: "zero-period", UnlimitedQuota: true, PeriodType: "days", PeriodQuotaLimit: 0},
+		{Id: 6, UserId: 1, Key: "no-period-type", UnlimitedQuota: true, PeriodQuotaLimit: 100},
+		{Id: 7, UserId: 1, Key: "finite"},
+		{Id: 8, UserId: 1, Key: "legacy-null"},
+	}
+	require.NoError(t, model.DB.Create(&tokens).Error)
+	require.NoError(t, model.DB.Model(&model.Token{}).Where("id = ?", 8).Update("unlimited_quota", nil).Error)
+	// A page of excluded keys must not hide a later eligible key or end a sweep.
+	unlimited := make([]model.Token, 200)
+	for i := range unlimited {
+		unlimited[i] = model.Token{Id: i + 10, UserId: 1, Key: "excluded-" + strconv.Itoa(i), UnlimitedQuota: true}
+	}
+	require.NoError(t, model.DB.Create(&unlimited).Error)
+	require.NoError(t, model.DB.Create(&model.Token{Id: 210, UserId: 1, Key: "after-excluded-page"}).Error)
+	for _, request := range []struct {
+		name  string
+		ids   []int
+		after int
+		want  []int
+	}{
+		{"sweep", nil, 0, []int{existing.Id, 4, 7, 8, 210}},
+		{"cursor crosses excluded keys", nil, 3, []int{4, 7, 8, 210}},
+		{"changed IDs", []int{3, 4, 5, 6, 7, 8}, 0, []int{4, 7, 8}},
+		{"unlimited only", []int{3, 5, 6}, 0, []int{}},
+	} {
+		t.Run(request.name, func(t *testing.T) {
+			loaded, err := model.LoadTokenUsageAlertTokens(ctx, request.ids, request.after)
+			require.NoError(t, err)
+			ids := make([]int, 0, len(loaded))
+			for _, token := range loaded {
+				ids = append(ids, token.Id)
+			}
+			assert.ElementsMatch(t, request.want, ids)
+		})
+	}
 }

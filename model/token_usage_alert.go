@@ -103,6 +103,9 @@ func TokenUsageAlertID(userID, tokenID int, ruleID string) string {
 func LoadTokenUsageAlertTokens(ctx context.Context, ids []int, after int) ([]Token, error) {
 	var tokens []Token
 	query := DB.WithContext(ctx).Model(&Token{}).Select("id,user_id,name,status,expired_time,remain_quota,used_quota,unlimited_quota,period_type,period_days,period_quota_limit,period_anchor_at,period_start_at,period_used_quota")
+	// NULL is the legacy finite-quota default. Unlimited total quota can still
+	// have a period limit; match PeriodLimitEnabled before applying pagination.
+	query = query.Where("(unlimited_quota = ? OR unlimited_quota IS NULL OR (period_type <> ? AND period_quota_limit > ?))", false, "", 0)
 	if ids != nil {
 		query = query.Where("id IN ?", ids)
 	} else {

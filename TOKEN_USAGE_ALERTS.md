@@ -70,6 +70,11 @@ added to the forwarding path. Two background workers independently sample and se
   notifications and refresh inactive keys after period/configuration changes.
   Very large key inventories therefore take longer to sweep. This is eventual
   monitoring, not a zero-latency or guaranteed notification SLA.
+- Both sweep and changed-ID queries filter fully unlimited keys in SQL before
+  applying the 200-row limit. Finite total quotas (including legacy NULL flags)
+  and unlimited-total keys with a nonempty period type and positive period limit
+  remain eligible. This reduces returned rows and Redis work; without a new index
+  it does not guarantee fewer physical rows examined by the database.
 - Redis stores at most 10,000 usage snapshots and 10,000 queued rule candidates,
   with 48-hour idle expiry. Queue entries deduplicate by user/key/rule. Failed or
   dropped sampling is repaired by the sweep. Redis outage stops mail processing.
