@@ -23,14 +23,15 @@ type RevenueMailDelivery struct {
 	NextAt    int64  `json:"next_at"`
 }
 type RevenueAutomationData struct {
-	Source     string                 `json:"source"`
-	Windows    []model.CostQueryRange `json:"windows"`
-	Index      int                    `json:"index"`
-	JobID      string                 `json:"job_id,omitempty"`
-	Subject    string                 `json:"subject"`
-	Body       string                 `json:"body"`
-	Values     map[string]string      `json:"values"`
-	Deliveries []RevenueMailDelivery  `json:"deliveries"`
+	Source     string                  `json:"source"`
+	Policy     *model.CostReportPolicy `json:"policy,omitempty"`
+	Windows    []model.CostQueryRange  `json:"windows"`
+	Index      int                     `json:"index"`
+	JobID      string                  `json:"job_id,omitempty"`
+	Subject    string                  `json:"subject"`
+	Body       string                  `json:"body"`
+	Values     map[string]string       `json:"values"`
+	Deliveries []RevenueMailDelivery   `json:"deliveries"`
 }
 
 // Template values are scalar strings except for the server-built summary table.
@@ -209,10 +210,46 @@ func RunRevenueAutomationPass(ctx context.Context) error {
 }
 
 func advanceRevenueAutomation(ctx context.Context, config *model.RevenueAutomation, c model.RevenueAutomationConfig, run *model.RevenueAutomationRun, data *RevenueAutomationData) error {
-	var policy model.CostReportPolicy
-	if err := common.UnmarshalJsonStr(config.PolicyJSON, &policy); err != nil {
-		return err
+	if data.Policy == nil {
+		var policy model.CostReportPolicy
+		if data.Source == "" {
+			preview, err := model.PreviewChannelCostReportConfig(ctx, 0)
+			if err != nil {
+				return err
+			}
+			policy = model.CostReportPolicy{CostBasisVersion: 1, Start: 1, End: 2, QuotaPerUnit: preview.QuotaPerUnit, FallbackMode: "billed_basis", CostFingerprint: preview.Fingerprint}
+			for _, channel := range preview.Channels {
+				policy.Rates = append(policy.Rates, channel.CostReportRate)
+			}
+			if len(policy.Rates) == 0 {
+				policy.FallbackMode = "none"
+			}
+		} else if err := common.UnmarshalJsonStr(config.PolicyJSON, &policy); err != nil {
+			// Executions started before per-run snapshots retain their original basis.
+			return err
+		}
+		if err := model.ValidateCostReportPolicy(policy); err != nil {
+			return err
+		}
+		encoded, err := common.Marshal(policy)
+		if err != nil {
+			return err
+		}
+		if len(encoded) > 128*1024 {
+			return errors.New("Automation policy exceeds storage limit")
+		}
+		data.Policy = &policy
+		encoded, err = common.Marshal(data)
+		if err != nil {
+			return err
+		}
+		run.Data = string(encoded)
+		// Persist before creating reports so a restart cannot select a different basis.
+		if err := model.SaveRevenueAutomationRun(ctx, config, run); err != nil {
+			return err
+		}
 	}
+	policy := *data.Policy
 	identity, err := model.ChannelCostReportSourceIdentity(ctx)
 	if err != nil {
 		return err
@@ -270,13 +307,6 @@ func advanceRevenueAutomation(ctx context.Context, config *model.RevenueAutomati
 			data.JobID = ""
 			run.Status = "waiting"
 			return nil
-		}
-		preview, err := model.PreviewChannelCostReportConfig(ctx, 0)
-		if err != nil {
-			return err
-		}
-		if preview.Fingerprint != c.Fingerprint {
-			return model.ErrCostReportConfigChanged
 		}
 		active, err := model.GetActiveSystemTask(model.SystemTaskTypeChannelCostReport)
 		if err != nil {
