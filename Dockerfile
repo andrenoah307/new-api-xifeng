@@ -6,6 +6,7 @@ COPY web/default/package.json ./default/package.json
 COPY web/classic/package.json ./classic/package.json
 RUN bun install --frozen-lockfile
 COPY ./web/default ./default
+COPY ./web/shared ./shared
 COPY ./VERSION /build/VERSION
 RUN cd default && DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build
 
@@ -17,6 +18,7 @@ COPY web/default/package.json ./default/package.json
 COPY web/classic/package.json ./classic/package.json
 RUN bun install --filter ./classic --frozen-lockfile
 COPY ./web/classic ./classic
+COPY ./web/shared ./shared
 COPY ./VERSION /build/VERSION
 RUN cd classic && VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build
 

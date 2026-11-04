@@ -24,6 +24,12 @@ is not required for this module. Keep these boundaries when merging upstream:
 persistent session flag as proof. Routes added upstream must explicitly select
 a known protection action if captcha is appropriate.
 
+Both frontend Docker build stages must copy `web/shared` into `/build/web/shared`
+alongside their theme directory before running the build. A successful local
+theme build does not verify Docker's isolated build-stage inputs. Validate both
+stages with `docker build --target builder .` and
+`docker build --target builder-classic .` when changing shared frontend modules.
+
 ## Credentials
 
 Prepare these Tencent values in the Tencent consoles, then enter them through
