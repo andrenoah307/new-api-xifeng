@@ -47,6 +47,7 @@ import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import CustomOAuthSetting from './CustomOAuthSetting';
 import EmailTemplateSetting from './EmailTemplateSetting';
+import CaptchaSettings from './CaptchaSettings';
 
 const SystemSetting = () => {
   const { t } = useTranslation();
@@ -840,27 +841,6 @@ const SystemSetting = () => {
     await updateOptions(options);
   };
 
-  const submitTurnstile = async () => {
-    const options = [];
-
-    if (originInputs['TurnstileSiteKey'] !== inputs.TurnstileSiteKey) {
-      options.push({ key: 'TurnstileSiteKey', value: inputs.TurnstileSiteKey });
-    }
-    if (
-      originInputs['TurnstileSecretKey'] !== inputs.TurnstileSecretKey &&
-      inputs.TurnstileSecretKey !== ''
-    ) {
-      options.push({
-        key: 'TurnstileSecretKey',
-        value: inputs.TurnstileSecretKey,
-      });
-    }
-
-    if (options.length > 0) {
-      await updateOptions(options);
-    }
-  };
-
   const submitLinuxDOOAuth = async () => {
     const options = [];
 
@@ -1531,15 +1511,6 @@ const SystemSetting = () => {
                         }
                       >
                         {t('允许新用户注册')}
-                      </Form.Checkbox>
-                      <Form.Checkbox
-                        field='TurnstileCheckEnabled'
-                        noLabel
-                        onChange={(e) =>
-                          handleCheckboxChange('TurnstileCheckEnabled', e)
-                        }
-                      >
-                        {t('允许 Turnstile 用户校验')}
                       </Form.Checkbox>
                     </Col>
                     <Col xs={24} sm={24} md={12} lg={12} xl={12}>
@@ -2264,32 +2235,7 @@ const SystemSetting = () => {
                 </Form.Section>
               </Card>
 
-              <Card>
-                <Form.Section text={t('配置 Turnstile')}>
-                  <Text>{t('用以支持用户校验')}</Text>
-                  <Row
-                    gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
-                  >
-                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
-                      <Form.Input
-                        field='TurnstileSiteKey'
-                        label={t('Turnstile Site Key')}
-                      />
-                    </Col>
-                    <Col xs={24} sm={24} md={12} lg={12} xl={12}>
-                      <Form.Input
-                        field='TurnstileSecretKey'
-                        label={t('Turnstile Secret Key')}
-                        type='password'
-                        placeholder={t('敏感信息不会发送到前端显示')}
-                      />
-                    </Col>
-                  </Row>
-                  <Button onClick={submitTurnstile}>
-                    {t('保存 Turnstile 设置')}
-                  </Button>
-                </Form.Section>
-              </Card>
+              <CaptchaSettings />
 
               <Modal
                 title={t('确认取消密码登录')}

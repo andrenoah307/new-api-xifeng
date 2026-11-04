@@ -95,6 +95,10 @@ func rateLimitFactory(maxRequestNum int, duration int64, mark string) func(c *gi
 	}
 }
 
+func CaptchaVerificationRateLimit() gin.HandlerFunc {
+	return rateLimitFactory(30, 60, "CAPTCHA")
+}
+
 func GlobalWebRateLimit() func(c *gin.Context) {
 	if common.GlobalWebRateLimitEnable {
 		return rateLimitFactory(common.GlobalWebRateLimitNum, common.GlobalWebRateLimitDuration, "GW")

@@ -24,6 +24,8 @@ import {
   isValidMessage,
 } from './utils';
 import axios from 'axios';
+import i18n from '../i18n/i18n';
+import { installCaptchaInterceptor } from '../../../shared/captcha-client';
 import { MESSAGE_ROLES } from '../constants/playground.constants';
 
 export let API = axios.create({
@@ -51,6 +53,7 @@ function redirectToOAuthUrl(url, options = {}) {
 
 
 function patchAPIInstance(instance) {
+  installCaptchaInterceptor(instance, (key) => i18n.t(key));
   const originalGet = instance.get.bind(instance);
   const inFlightGetRequests = new Map();
 

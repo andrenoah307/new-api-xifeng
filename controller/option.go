@@ -10,6 +10,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting"
+	captchaconfig "github.com/QuantumNous/new-api/setting/captcha_setting"
 	"github.com/QuantumNous/new-api/setting/console_setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -118,6 +119,9 @@ type OptionUpdateRequest struct {
 }
 
 func applyOptionUpdate(c *gin.Context, key string, value any) error {
+	if strings.EqualFold(strings.TrimSpace(key), captchaconfig.OptionKey) {
+		return errors.New("use the captcha settings endpoint")
+	}
 	option := OptionUpdateRequest{Key: key, Value: value}
 	var err error
 	switch option.Value.(type) {

@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import axios, { type AxiosRequestConfig } from 'axios'
 import { t } from 'i18next'
 import { toast } from 'sonner'
+import { installCaptchaInterceptor } from '../../../shared/captcha-client'
 
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -78,6 +79,7 @@ api.get = ((url: string, config: ApiRequestConfig = {}) => {
 // ============================================================================
 
 // Handle business logic errors and HTTP errors globally
+installCaptchaInterceptor(api, t)
 api.interceptors.response.use(
   (response) => {
     const skipBusiness = response.config.skipBusinessError

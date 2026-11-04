@@ -264,12 +264,19 @@ func SyncOptions(frequency int) {
 }
 
 func UpdateOption(key string, value string) error {
+	if err := validateCaptchaOptionWrite(key); err != nil {
+		return err
+	}
 	// Save to database first
 	option := Option{
 		Key: key,
 	}
 	// https://gorm.io/docs/update.html#Save-All-Fields
 	if err := DB.FirstOrCreate(&option, Option{Key: key}).Error; err != nil {
+		return err
+	}
+	// Check the stored key too: database collations can equate distinct inputs.
+	if err := validateCaptchaOptionWrite(option.Key); err != nil {
 		return err
 	}
 	option.Value = value
@@ -294,8 +301,14 @@ func UpdateOptionsBulk(values map[string]string) error {
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		for k, v := range values {
+			if err := validateCaptchaOptionWrite(k); err != nil {
+				return err
+			}
 			option := Option{Key: k}
 			if err := tx.FirstOrCreate(&option, Option{Key: k}).Error; err != nil {
+				return err
+			}
+			if err := validateCaptchaOptionWrite(option.Key); err != nil {
 				return err
 			}
 			option.Value = v
