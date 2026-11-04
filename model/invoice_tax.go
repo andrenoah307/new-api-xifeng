@@ -13,8 +13,13 @@ import (
 
 const InvoiceTaxConfigKey = "InvoiceTaxConfig"
 
+// 2026-11-09 00:00 Asia/Shanghai. Fees and statutory invoice VAT are independent.
+const InvoicePolicyEffectiveAt int64 = 1794153600
+const InvoiceVATRateBps = 600
+
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
+	PolicyEffectiveAt   int64  `json:"policy_effective_at"`
 	ModuleEnabled       bool   `json:"module_enabled"`
 	LegacyTopUpsEnabled bool   `json:"legacy_topups_enabled"`
 	LegacyInvoiceBefore int64  `json:"legacy_invoice_before"`
@@ -25,6 +30,7 @@ type InvoiceTaxConfig struct {
 }
 
 type InvoiceTaxQuote struct {
+	VATRateBps      int    `json:"vat_rate_bps"`
 	PrepaidOnly     bool   `json:"prepaid_only"`
 	PrepaidNetCents int64  `json:"prepaid_net_cents"`
 	PrepaidTaxCents int64  `json:"prepaid_tax_cents"`
@@ -107,6 +113,17 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	}
 	var cents, prepaidNet, prepaidTax int64
 	for _, order := range orders {
+		if config.PolicyEffectiveAt > 0 && config.AllowsLegacyInvoice(order) {
+			if invoiceType != "ordinary" || !IsCNYInvoiceTopUp(order) {
+				return empty, ErrTicketInvoiceOrderInvalid
+			}
+			amount, err := invoiceMoneyCents(order.Money)
+			if err != nil {
+				return empty, err
+			}
+			prepaidNet += amount
+			continue
+		}
 		if order.InvoiceType != "" {
 			if order.InvoiceType != invoiceType {
 				return empty, ErrTicketInvoiceOrderInvalid
@@ -134,10 +151,10 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 			}
 			continue
 		}
-		if config.ModuleEnabled && !config.AllowsLegacyInvoice(order) {
+		if (config.ModuleEnabled || config.PolicyEffectiveAt > 0) && !config.AllowsLegacyInvoice(order) {
 			return empty, ErrTicketInvoiceOrderInvalid
 		}
-		if config.ModuleEnabled && !IsCNYInvoiceTopUp(order) {
+		if (config.ModuleEnabled || config.PolicyEffectiveAt > 0) && !IsCNYInvoiceTopUp(order) {
 			return empty, ErrInvoiceTaxCurrency
 		}
 		amount, err := invoiceMoneyCents(order.Money)
@@ -146,7 +163,7 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 		}
 		cents += amount
 	}
-	quote := InvoiceTaxQuote{InvoiceType: invoiceType, PrepaidOnly: cents == 0}
+	quote := InvoiceTaxQuote{InvoiceType: invoiceType, PrepaidOnly: cents == 0, VATRateBps: InvoiceVATRateBps}
 	if cents > 0 {
 		quote, err = CalculateInvoiceTax(cents, invoiceType, config)
 		if err != nil {
@@ -283,7 +300,8 @@ func syncInvoiceTaxQuotaCache(userID, delta int) {
 }
 
 func (config InvoiceTaxConfig) Valid() bool {
-	return config.LegacyInvoiceBefore >= 0 && config.LegacyInvoiceBefore <= 253402271999 &&
+	return (config.PolicyEffectiveAt == 0 || config.PolicyEffectiveAt == InvoicePolicyEffectiveAt) &&
+		config.LegacyInvoiceBefore >= 0 && config.LegacyInvoiceBefore <= 253402271999 &&
 		(config.LegacyInvoiceBefore == 0 || (config.LegacyInvoiceBefore+8*3600)%86400 == 0) &&
 		(config.Mode == "vat" || config.Mode == "compound" || config.Mode == "gross_up") &&
 		config.OrdinaryRateBps >= 0 && config.OrdinaryRateBps < 10000 &&
@@ -297,10 +315,13 @@ func (config InvoiceTaxConfig) AllowsLegacyInvoice(order *TopUp) bool {
 }
 
 func GetInvoiceTaxConfig(db *gorm.DB) (InvoiceTaxConfig, error) {
-	config := InvoiceTaxConfig{Mode: "vat"}
+	// Missing fields in pre-policy configuration adopt the announced schedule.
+	// Explicit zero retains the legacy calculation API for existing integrations.
+	config := InvoiceTaxConfig{Mode: "vat", PolicyEffectiveAt: InvoicePolicyEffectiveAt}
 	var option Option
 	err := db.Where(Option{Key: InvoiceTaxConfigKey}).Take(&option).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		config = config.WithInvoicePolicy()
 		return config, nil
 	}
 	if err != nil {
@@ -309,13 +330,32 @@ func GetInvoiceTaxConfig(db *gorm.DB) (InvoiceTaxConfig, error) {
 	if err = common.UnmarshalJsonStr(option.Value, &config); err != nil {
 		return config, err
 	}
+	config = config.WithInvoicePolicy()
 	if !config.Valid() {
 		return config, ErrInvoiceTaxInvalid
 	}
 	return config, nil
 }
 
+func (config InvoiceTaxConfig) WithInvoicePolicy() InvoiceTaxConfig {
+	if config.PolicyEffectiveAt > 0 {
+		config.Mode, config.Enabled = "gross_up", true
+		config.OrdinaryRateBps, config.SpecialRateBps = 600, 900
+		config.LegacyInvoiceBefore = config.PolicyEffectiveAt
+	}
+	return config
+}
+
+func (config InvoiceTaxConfig) CheckoutAt(now int64) InvoiceTaxConfig {
+	config = config.WithInvoicePolicy()
+	if config.PolicyEffectiveAt > 0 && now < config.PolicyEffectiveAt {
+		config.Enabled = false
+	}
+	return config
+}
+
 func SaveInvoiceTaxConfig(config InvoiceTaxConfig) error {
+	config = config.WithInvoicePolicy()
 	if !config.Valid() {
 		return ErrInvoiceTaxInvalid
 	}
@@ -336,7 +376,7 @@ func SaveInvoiceTaxConfig(config InvoiceTaxConfig) error {
 }
 
 func CalculateInvoiceTax(baseCents int64, invoiceType string, config InvoiceTaxConfig) (InvoiceTaxQuote, error) {
-	quote := InvoiceTaxQuote{InvoiceType: invoiceType, Mode: config.Mode, BaseCents: baseCents}
+	quote := InvoiceTaxQuote{InvoiceType: invoiceType, Mode: config.Mode, BaseCents: baseCents, VATRateBps: InvoiceVATRateBps}
 	if !config.Valid() || baseCents <= 0 || baseCents > 100000000000 || (invoiceType != "ordinary" && invoiceType != "special") {
 		return quote, ErrInvoiceTaxInvalid
 	}
@@ -387,7 +427,9 @@ func CalculateInvoiceTaxFromTotal(totalCents int64, invoiceType string, config I
 	case "compound":
 		base = total.DivRound(one.Add(rate).Mul(one.Add(rate)), 16)
 	case "gross_up":
-		base = total.Mul(one.Sub(rate))
+		// Round the charge, not the remaining credit: half a cent of fee must
+		// round up rather than disappear when the net amount also ends in .5.
+		base = total.Sub(total.Mul(rate).Round(0))
 	}
 	base = base.Round(0)
 	if base.LessThanOrEqual(decimal.Zero) || base.GreaterThan(total) {

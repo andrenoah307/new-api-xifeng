@@ -48,27 +48,29 @@ var (
 )
 
 type TicketRefund struct {
-	SettlementStatus  string               `json:"settlement_status,omitempty" gorm:"-"`
-	CreationReplayed  bool                 `json:"-" gorm:"-"`
-	FinanceVersion    int                  `json:"finance_version"`
-	RefundCashCents   int64                `json:"refund_cash_cents" gorm:"type:bigint"`
-	Finance           *RefundFinanceDetail `json:"finance,omitempty" gorm:"-"`
-	FinanceRequestKey *string              `json:"-" gorm:"size:64;uniqueIndex"`
-	Id                int                  `json:"id"`
-	TicketId          int                  `json:"ticket_id" gorm:"uniqueIndex;not null"`
-	UserId            int                  `json:"user_id" gorm:"index;not null"`
-	RefundQuota       int                  `json:"refund_quota" gorm:"type:bigint;not null"`
-	FrozenQuota       int                  `json:"frozen_quota" gorm:"type:bigint;default:0"`
-	UserQuotaSnapshot int                  `json:"user_quota_snapshot" gorm:"type:bigint;default:0"`
-	PayeeType         string               `json:"payee_type" gorm:"type:varchar(16);not null"`
-	PayeeName         string               `json:"payee_name" gorm:"type:varchar(128);not null"`
-	PayeeAccount      string               `json:"payee_account" gorm:"type:varchar(128);not null"`
-	PayeeBank         string               `json:"payee_bank" gorm:"type:varchar(255)"`
-	Contact           string               `json:"contact" gorm:"type:varchar(128);not null"`
-	Reason            string               `json:"reason" gorm:"type:text"`
-	RefundStatus      int                  `json:"refund_status" gorm:"type:int;default:1"`
-	ProcessedTime     int64                `json:"processed_time" gorm:"bigint;default:0"`
-	CreatedTime       int64                `json:"created_time" gorm:"bigint"`
+	SettlementStatus   string               `json:"settlement_status,omitempty" gorm:"-"`
+	SettlementVerified bool                 `json:"settlement_verified"`
+	SettlementQuote    string               `json:"-" gorm:"size:64"`
+	CreationReplayed   bool                 `json:"-" gorm:"-"`
+	FinanceVersion     int                  `json:"finance_version"`
+	RefundCashCents    int64                `json:"refund_cash_cents" gorm:"type:bigint"`
+	Finance            *RefundFinanceDetail `json:"finance,omitempty" gorm:"-"`
+	FinanceRequestKey  *string              `json:"-" gorm:"size:64;uniqueIndex"`
+	Id                 int                  `json:"id"`
+	TicketId           int                  `json:"ticket_id" gorm:"uniqueIndex;not null"`
+	UserId             int                  `json:"user_id" gorm:"index;not null"`
+	RefundQuota        int                  `json:"refund_quota" gorm:"type:bigint;not null"`
+	FrozenQuota        int                  `json:"frozen_quota" gorm:"type:bigint;default:0"`
+	UserQuotaSnapshot  int                  `json:"user_quota_snapshot" gorm:"type:bigint;default:0"`
+	PayeeType          string               `json:"payee_type" gorm:"type:varchar(16);not null"`
+	PayeeName          string               `json:"payee_name" gorm:"type:varchar(128);not null"`
+	PayeeAccount       string               `json:"payee_account" gorm:"type:varchar(128);not null"`
+	PayeeBank          string               `json:"payee_bank" gorm:"type:varchar(255)"`
+	Contact            string               `json:"contact" gorm:"type:varchar(128);not null"`
+	Reason             string               `json:"reason" gorm:"type:text"`
+	RefundStatus       int                  `json:"refund_status" gorm:"type:int;default:1"`
+	ProcessedTime      int64                `json:"processed_time" gorm:"bigint;default:0"`
+	CreatedTime        int64                `json:"created_time" gorm:"bigint"`
 }
 
 type CreateRefundTicketParams struct {
@@ -464,8 +466,13 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		if refund.RefundQuota <= 0 {
 			return ErrTicketRefundQuotaInvalid
 		}
-		if params.RefundStatus == RefundStatusRefunded {
+		if params.RefundStatus == RefundStatusRefunded && (!refund.SettlementVerified || refund.FrozenQuota != refund.RefundQuota) {
 			return ErrRefundSettlementUnconfirmed
+		}
+		if params.RefundStatus == RefundStatusRefunded {
+			if err := verifyRefundLiabilitiesTx(tx, userId); err != nil {
+				return err
+			}
 		}
 		if refund.FrozenQuota < 0 || refund.FrozenQuota > refund.RefundQuota {
 			return ErrTicketRefundQuotaInvalid

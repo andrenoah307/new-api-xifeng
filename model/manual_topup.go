@@ -85,7 +85,7 @@ func QuoteManualTopUp(db *gorm.DB, operatorID int, req ManualTopUpRequest) (Manu
 	if index < 0 {
 		return empty, ErrInvoiceTaxInvalid
 	}
-	checkout, err := CalculateEpayCheckout(req.TotalCents, req.InvoiceType, config, decimal.NewFromInt(1), 100)
+	checkout, err := CalculateEpayCheckout(req.TotalCents, req.InvoiceType, config.CheckoutAt(common.GetTimestamp()), decimal.NewFromInt(1), 100)
 	if err != nil {
 		return empty, err
 	}
@@ -176,8 +176,10 @@ func CreateManualTopUp(operatorID int, req ManualTopUpRequest) (*TopUp, bool, er
 			Amount:       decimal.NewFromInt(int64(quote.Quota)).Div(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart(),
 			QuotaGranted: int64(quote.Quota), CreateTime: now, CompleteTime: now,
 			CheckoutVersion: 1, CheckoutToken: quote.Token, CheckoutCreditAmount: quote.CreditAmount,
-			EpayCredentials:   string(snapshot),
-			CheckoutBaseQuota: quote.Quota, CheckoutQuota: quote.Quota,
+			CheckoutPolicyEffectiveAt: quote.PolicyEffectiveAt, CheckoutUnitPrice: quote.UnitPrice,
+			CheckoutQuotaPerUnit: quote.QuotaPerUnit,
+			EpayCredentials:      string(snapshot),
+			CheckoutBaseQuota:    quote.Quota, CheckoutQuota: quote.Quota,
 			InvoiceType: quote.InvoiceType, InvoiceTaxMode: quote.Mode, InvoiceRateBps: quote.RateBps,
 			InvoiceNetCents: quote.NetCents, InvoiceTaxCents: quote.TaxCents, PaymentTotalCents: quote.TotalCents,
 		}

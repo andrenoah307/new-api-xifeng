@@ -1,6 +1,7 @@
 import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
+  policy_effective_at?: number
   module_enabled: boolean
   invoice_workflow_required?: boolean
   enabled: boolean
@@ -11,6 +12,7 @@ export interface InvoiceTaxConfig {
 }
 
 export interface InvoiceTaxQuote {
+  vat_rate_bps: number
   prepaid_only: boolean
   prepaid_net_cents: number
   prepaid_tax_cents: number

@@ -49,7 +49,7 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 				initCol()
 				require.NoError(t, connection.Close())
 			})
-			models := []any{&User{}, &TopUp{}, &Ticket{}, &TicketMessage{}, &TicketInvoice{}, &InvoiceTaxCharge{}, &TicketRefund{}, &RefundOrderAllocation{}, &RefundInvoiceCorrection{}, &Option{}, &Log{}, &CommissionRecord{}}
+			models := []any{&User{}, &TopUp{}, &Ticket{}, &TicketMessage{}, &TicketInvoice{}, &InvoiceTaxCharge{}, &TicketRefund{}, &RefundOrderAllocation{}, &RefundInvoiceCorrection{}, &RefundLiability{}, &Option{}, &Log{}, &CommissionRecord{}}
 			require.NoError(t, db.AutoMigrate(models...))
 			require.NoError(t, db.AutoMigrate(models...))
 			var version string
@@ -152,6 +152,8 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			assert.Equal(t, 1, successes)
 			require.NoError(t, db.First(&other, other.Id).Error)
 			assert.Equal(t, 10000, other.Quota)
+			t.Run("published_policy", TestRefundSettlementPolicyFlow)
+			t.Run("admission_and_confirmation_races", TestRefundSettlementConcurrentConfirmation)
 		})
 	}
 }

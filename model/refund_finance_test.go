@@ -32,7 +32,7 @@ func newRefundFinanceFixture(t *testing.T) refundFinanceFixture {
 		u    *User
 		role int
 	}{{&f.user, common.RoleCommonUser}, {&f.admin, common.RoleAdminUser}, {&f.root, common.RoleRootUser}, {&f.finance, common.RoleFinanceUser}} {
-		*entry.u = User{Username: []string{"refund-owner", "refund-admin", "refund-root", "refund-finance"}[i], Role: entry.role, Status: common.UserStatusEnabled, AffCode: uuid.NewString()}
+		*entry.u = User{Username: []string{"refund-owner", "refund-admin", "refund-root", "refund-finance"}[i], Role: entry.role, Status: common.UserStatusEnabled, AffCode: uuid.NewString()[:20]}
 		require.NoError(t, DB.Create(entry.u).Error)
 	}
 	return f

@@ -19,19 +19,55 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useContext, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@douyinfe/semi-ui';
-import { Check, Download } from 'lucide-react';
+import { Check, Download, RefreshCw, Play } from 'lucide-react';
 import { API } from '../../helpers';
 import { UserContext } from '../../context/User';
 
 import { refundCash, refundQuota } from './refundFinanceFormat';
 export { refundCash } from './refundFinanceFormat';
 
-export default function RefundFinanceDetail({ finance, ticketId, onUpdated }) {
+export default function RefundFinanceDetail({
+  finance,
+  ticketId,
+  userId,
+  requestedQuota,
+  onUpdated,
+}) {
   const { t } = useTranslation();
   const [state] = useContext(UserContext);
   const role = state.user?.role;
   const staff = [3, 10, 100].includes(role);
   const [error, setError] = useState('');
+  const [quote, setQuote] = useState(null);
+  const [busy, setBusy] = useState(false);
+  async function confirmAmount(confirm) {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const response =
+        confirm && quote
+          ? await API.post('/api/ticket/refund/finance-confirm', {
+              ticket_id: ticketId,
+              refund_quota: quote.allocations.reduce(
+                (sum, row) => sum + row.refund_quota,
+                0,
+              ),
+              quote_token: quote.quote_token,
+            })
+          : await API.get('/api/ticket/refund/finance-quote', {
+              params: { refund_quota: requestedQuota },
+            });
+      if (!response.data.success) throw new Error(response.data.message);
+      if (confirm) window.location.reload();
+      else setQuote(response.data.data);
+    } catch (failure) {
+      setQuote(null);
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function download() {
     try {
       const response = await API.get('/api/ticket/refund/finance-export', {
@@ -55,11 +91,40 @@ export default function RefundFinanceDetail({ finance, ticketId, onUpdated }) {
     finance.allocations.length === 0
   ) {
     return (
-      <p className='text-sm' role='status'>
+      <div className='space-y-3 text-sm' role='status'>
         {t(
           'Awaiting settlement verification. The refund amount must be confirmed again after verification.',
         )}
-      </p>
+        <p>
+          {t(
+            'New consumption is suspended until this refund is completed or cancelled.',
+          )}
+        </p>
+        {userId === state.user?.id && ticketId && (
+          <Button
+            disabled={busy}
+            icon={<RefreshCw size={16} />}
+            onClick={() => confirmAmount(false)}
+          >
+            {t('Refresh')}
+          </Button>
+        )}
+        {quote?.quote_token && (
+          <div className='flex flex-wrap items-center gap-3'>
+            <span>
+              {t('Cash refund')}: {refundCash(quote.refund_cash_cents)}
+            </span>
+            <Button
+              disabled={busy}
+              icon={<Check size={16} />}
+              onClick={() => confirmAmount(true)}
+            >
+              {t('Confirm')}
+            </Button>
+          </div>
+        )}
+        {error && <p role='alert'>{t(error)}</p>}
+      </div>
     );
   }
   return (
@@ -180,6 +245,21 @@ function Correction({ correction, editable, onUpdated }) {
   const [status, setStatus] = useState(correction.status);
   const completed = status === 'completed';
   const processing = status === 'processing';
+  async function start() {
+    setBusy(true);
+    try {
+      const response = await API.post(
+        `/api/ticket/refund/invoice-corrections/${correction.id}/start`,
+      );
+      if (!response.data.success) throw new Error(response.data.message);
+      setStatus('processing');
+      onUpdated?.(correction.id, 'processing');
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function complete() {
     if (busy || !editable || !processing) return;
     setBusy(true);
@@ -207,7 +287,7 @@ function Correction({ correction, editable, onUpdated }) {
         {t('Invoice correction')} #{correction.invoice_ticket_id} ·{' '}
         {completed && t('Completed')}
         {processing && t('Processing')}
-        {status === 'pending' && t('Awaiting settlement verification')}
+        {status === 'pending' && t('Pending')}
         {status === 'cancelled' && t('Cancelled')}
       </h4>
       <p className='text-sm'>
@@ -266,12 +346,17 @@ function Correction({ correction, editable, onUpdated }) {
           onClick={complete}
           disabled={
             busy ||
-            !red.trim() ||
+            (correction.original_cents > 0 && !red.trim()) ||
             !evidence.trim() ||
             (correction.reissue_cents > 0 && !reissue.trim())
           }
         >
           {t('Register correction')}
+        </Button>
+      )}
+      {editable && status === 'pending' && (
+        <Button disabled={busy} icon={<Play size={16} />} onClick={start}>
+          {t('Start correction')}
         </Button>
       )}
     </div>

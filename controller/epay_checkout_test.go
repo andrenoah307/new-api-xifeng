@@ -43,6 +43,7 @@ func TestEpayCheckoutMethodsExposeOnlyConfiguredMethods(t *testing.T) {
 func TestEpayCheckoutCallbackPinsMerchantAndAcknowledgesCommit(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
 	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.Log{}))
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{Mode: "vat"}))
 	user := model.User{Username: "checkout-callback", Password: "hashed", Status: common.UserStatusEnabled, AffCode: "checkout-callback"}
 	require.NoError(t, db.Create(&user).Error)
 	credentials, err := common.Marshal(model.InvoiceEpayConfig{Address: "https://payment.example.test", PartnerID: "invoice-merchant", Key: "invoice-secret"})

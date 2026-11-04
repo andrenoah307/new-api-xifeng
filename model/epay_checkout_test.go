@@ -141,6 +141,8 @@ func TestEpayCheckoutQuoteReservationPinsRatesAndMerchant(t *testing.T) {
 
 func TestEpayCheckoutSettlementAndManualCompletionAreIdempotent(t *testing.T) {
 	setupEpayRechargeTest(t)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat"}))
+	t.Cleanup(func() { require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error) })
 	user, order := insertEpayRechargeFixture(t, "checkout-idempotent", PaymentProviderEpay, common.TopUpStatusPending, 100, 100, 0)
 	order.CheckoutVersion, order.InvoiceType = 1, "ordinary"
 	order.InvoiceNetCents, order.InvoiceTaxCents, order.PaymentTotalCents = 9434, 566, 10000

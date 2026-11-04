@@ -56,12 +56,16 @@ func refundProportionalCents(cents, quota, totalQuota int64) int64 {
 	return decimal.NewFromInt(cents).Mul(decimal.NewFromInt(quota)).DivRound(decimal.NewFromInt(totalQuota), 0).IntPart()
 }
 
-func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int) (*RefundFinanceDetail, error) {
+func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int) (*RefundFinanceDetail, error) {
 	if quota <= 0 {
 		return nil, ErrTicketRefundQuotaInvalid
 	}
 	var pending int64
-	if err := tx.Model(&TicketRefund{}).Where("user_id = ? AND refund_status = ?", userID, RefundStatusPending).Count(&pending).Error; err != nil {
+	query := tx.Model(&TicketRefund{}).Where("user_id = ? AND refund_status = ?", userID, RefundStatusPending)
+	if len(excludedTicket) > 0 {
+		query = query.Where("ticket_id != ?", excludedTicket[0])
+	}
+	if err := query.Count(&pending).Error; err != nil {
 		return nil, err
 	}
 	if pending != 0 {
@@ -224,16 +228,98 @@ func QuoteRefundFinance(userID, quota int) (*RefundFinanceDetail, error) {
 	if quota <= 0 {
 		return nil, ErrTicketRefundQuotaInvalid
 	}
-	eligibility, err := GetRefundEligibility(userID)
+	detail := &RefundFinanceDetail{Version: 1, SettlementStatus: RefundSettlementWaiting, WaitingReason: "settlement_unconfirmed", Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var owner User
+		if err := lockForUpdate(tx).First(&owner, userID).Error; err != nil {
+			return err
+		}
+		var refund TicketRefund
+		err := tx.Where("user_id = ? AND refund_status = ?", userID, RefundStatusPending).First(&refund).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if refund.SettlementVerified {
+			return ErrTicketRefundNotPending
+		}
+		if err := verifyRefundLiabilitiesTx(tx, userID); err != nil {
+			if errors.Is(err, ErrRefundSettlementUnconfirmed) {
+				return nil
+			}
+			return err
+		}
+		cap, err := getUserMaxRefundableQuotaTx(tx, userID)
+		if err != nil {
+			return err
+		}
+		detail, err = quoteRefundFinanceTx(tx, userID, min(quota, cap), refund.TicketId)
+		return err
+	})
+	return detail, err
+}
+
+// Confirmation is owner-only and repeats the quote under the admission lock.
+func ConfirmRefundFinance(userID, ticketID, quota int, token string) (*TicketRefund, error) {
+	var refund TicketRefund
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		var owner User
+		if err := lockForUpdate(tx).First(&owner, userID).Error; err != nil {
+			return err
+		}
+		if err := lockForUpdate(tx).Where("ticket_id = ? AND user_id = ? AND refund_status = ?", ticketID, userID, RefundStatusPending).First(&refund).Error; err != nil {
+			return err
+		}
+		if refund.SettlementVerified {
+			if quota != refund.RefundQuota || token != refund.SettlementQuote {
+				return ErrInvoiceTaxQuoteChanged
+			}
+			return AttachRefundFinance(tx, &refund)
+		}
+		if refund.FrozenQuota != 0 {
+			return ErrRefundFinanceReview
+		}
+		if err := verifyRefundLiabilitiesTx(tx, userID); err != nil {
+			return err
+		}
+		detail, err := quoteRefundFinanceTx(tx, userID, quota, ticketID)
+		if err != nil {
+			return err
+		}
+		if token == "" || token != detail.QuoteToken {
+			return ErrInvoiceTaxQuoteChanged
+		}
+		refund.RefundQuota, refund.FrozenQuota = quota, quota
+		refund.FinanceVersion, refund.RefundCashCents = 1, detail.RefundCashCents
+		for i := range detail.Allocations {
+			detail.Allocations[i].RefundTicketID = ticketID
+		}
+		if err := tx.Create(&detail.Allocations).Error; err != nil {
+			return err
+		}
+		if err := createRefundInvoiceCorrectionsTx(tx, &refund, detail.Allocations); err != nil {
+			return err
+		}
+		if err := applyRefundWalletDeltaTx(tx, userID, -quota); err != nil {
+			return err
+		}
+		refund.SettlementVerified = true
+		refund.SettlementQuote = token
+		if err := tx.Model(&refund).Updates(map[string]any{"refund_quota": quota, "frozen_quota": quota, "finance_version": 1, "refund_cash_cents": detail.RefundCashCents, "settlement_verified": true, "settlement_quote": token}).Error; err != nil {
+			return err
+		}
+		if err := tx.Create(&TicketMessage{TicketId: ticketID, UserId: userID, Username: owner.Username, Role: owner.Role, Content: fmt.Sprintf("Refund amount confirmed: %d cents; frozen quota: %d", detail.RefundCashCents, quota), CreatedTime: common.GetTimestamp()}).Error; err != nil {
+			return err
+		}
+		return AttachRefundFinance(tx, &refund)
+	})
 	if err != nil {
 		return nil, err
 	}
-	if quota > eligibility.RequestableQuota {
-		return nil, ErrTicketRefundQuotaExceed
-	}
-	// A wallet snapshot is not proof that fail-open, in-flight charges have settled.
-	// Do not publish a payable quote or create an automatic/administrative bypass.
-	return &RefundFinanceDetail{Version: 1, SettlementStatus: RefundSettlementWaiting, WaitingReason: "settlement_unconfirmed", Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}, nil
+	_ = InvalidateUserCache(userID)
+	return &refund, nil
 }
 
 func prepareRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params CreateRefundTicketParams) error {
@@ -342,14 +428,14 @@ func releaseRefundFinanceTx(tx *gorm.DB, refund *TicketRefund) error {
 }
 
 func AttachRefundFinance(tx *gorm.DB, refund *TicketRefund) error {
-	if refund.RefundStatus == RefundStatusPending {
+	if refund.RefundStatus == RefundStatusPending && !refund.SettlementVerified {
 		refund.SettlementStatus = RefundSettlementWaiting
 	}
 	if refund.FinanceVersion != 1 {
 		return nil
 	}
 	detail := &RefundFinanceDetail{Version: 1, RefundCashCents: refund.RefundCashCents, Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
-	if refund.RefundStatus == RefundStatusPending {
+	if refund.RefundStatus == RefundStatusPending && !refund.SettlementVerified {
 		detail.SettlementStatus, detail.WaitingReason = RefundSettlementWaiting, "settlement_unconfirmed"
 	}
 	if err := tx.Where("refund_ticket_id = ?", refund.TicketId).Order("id ASC").Find(&detail.Allocations).Error; err != nil {

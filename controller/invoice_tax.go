@@ -24,8 +24,8 @@ func GetInvoiceTaxConfig(c *gin.Context) {
 		return
 	}
 	var typedOrder model.TopUp
-	needsWorkflow := false
-	if !config.ModuleEnabled {
+	needsWorkflow := config.PolicyEffectiveAt > 0
+	if !config.ModuleEnabled && !needsWorkflow {
 		err := model.DB.WithContext(c.Request.Context()).Select("id").
 			Where("user_id = ? AND status = ? AND invoice_type IN ?", c.GetInt("id"), common.TopUpStatusSuccess, []string{"ordinary", "special"}).
 			Limit(1).Find(&typedOrder).Error
@@ -195,11 +195,13 @@ func InvoiceTaxEpayNotify(c *gin.Context) {
 var invoiceTaxAmountPattern = regexp.MustCompile(`^[0-9]{1,12}(\.[0-9]{1,2})?$`)
 
 func UpdateInvoiceTaxConfig(c *gin.Context) {
-	var config model.InvoiceTaxConfig
+	config := model.InvoiceTaxConfig{PolicyEffectiveAt: model.InvoicePolicyEffectiveAt}
 	if err := c.ShouldBindJSON(&config); err != nil || !config.Valid() {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	config.PolicyEffectiveAt = model.InvoicePolicyEffectiveAt
+	config = config.WithInvoicePolicy()
 	if err := model.SaveInvoiceTaxConfig(config); err != nil {
 		common.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return

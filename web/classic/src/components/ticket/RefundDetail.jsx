@@ -85,13 +85,14 @@ const RefundDetail = ({
   const [invoicesExpanded, setInvoicesExpanded] = useState(false);
   const [registeredCorrections, setRegisteredCorrections] = useState([]);
   const correctionsPending =
-    refund?.finance_version === 1 &&
-    (!refund.finance ||
-      refund.finance.invoice_corrections.some(
-        (item) =>
-          item.status !== 'completed' &&
-          !registeredCorrections.includes(item.id),
-      ));
+    !refund?.settlement_verified ||
+    (refund?.finance_version === 1 &&
+      (!refund.finance ||
+        refund.finance.invoice_corrections.some(
+          (item) =>
+            item.status !== 'completed' &&
+            !registeredCorrections.includes(item.id),
+        )));
 
   const [quotaMode, setQuotaMode] = useState(QUOTA_MODE_WRITE_OFF);
   const [customAmountInput, setCustomAmountInput] = useState('');
@@ -379,13 +380,19 @@ const RefundDetail = ({
                 color={getRefundStatusColor(refund.refund_status)}
                 shape='circle'
               >
-                {isPending
+                {isPending && !refund.settlement_verified
                   ? t('Awaiting settlement verification')
                   : getRefundStatusText(refund.refund_status, t)}
               </Tag>
             </Space>
             {!readonly && typeof onStatusChange === 'function' && (
               <Space wrap>
+                <Button
+                  disabled={!isPending || correctionsPending}
+                  onClick={() => setResolveVisible(true)}
+                >
+                  {t('Complete Refund')}
+                </Button>
                 <Button
                   theme='light'
                   type='danger'
@@ -406,13 +413,15 @@ const RefundDetail = ({
             <RefundFinanceDetail
               finance={refund.finance}
               ticketId={refund.ticket_id}
+              userId={refund.user_id}
+              requestedQuota={refund.refund_quota}
               onUpdated={(id, status) => {
                 if (status === 'completed')
                   setRegisteredCorrections((items) => [...items, id]);
               }}
             />
           )}
-          {isPending && (
+          {isPending && !refund.settlement_verified && !refund.finance && (
             <p role='status'>
               {t(
                 'Awaiting settlement verification. The refund amount must be confirmed again after verification.',

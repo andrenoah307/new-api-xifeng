@@ -35,6 +35,7 @@ type RefundInvoiceCorrection struct {
 // Red invoices reverse the entire active blue invoice, including untouched orders.
 func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocations []RefundOrderAllocation) error {
 	amounts := map[int]int64{}
+	adjustments := map[int]int64{}
 	orders := map[int]map[int]bool{}
 	for _, allocation := range allocations {
 		if allocation.InvoiceTicketID == 0 {
@@ -44,6 +45,15 @@ func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocat
 			return ErrRefundInvoiceCorrection
 		}
 		amounts[allocation.InvoiceTicketID] += allocation.RefundCents
+		coverage := allocation.RemainingInvoiceCents + allocation.RefundCents
+		var previousAllocation RefundOrderAllocation
+		err := tx.Where("top_up_id = ? AND invoice_ticket_id = ? AND status = ?", allocation.TopUpID, allocation.InvoiceTicketID, "committed").Order("id DESC").First(&previousAllocation).Error
+		if err == nil {
+			coverage = previousAllocation.UsedInvoiceCents
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		adjustments[allocation.InvoiceTicketID] += allocation.UsedInvoiceCents - coverage
 		if orders[allocation.InvoiceTicketID] == nil {
 			orders[allocation.InvoiceTicketID] = map[int]bool{}
 		}
@@ -59,7 +69,7 @@ func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocat
 	sort.Ints(ids)
 	for _, invoiceID := range ids {
 		amount := amounts[invoiceID]
-		if amount == 0 {
+		if amount == 0 && adjustments[invoiceID] == 0 {
 			continue
 		}
 		var invoice TicketInvoice
@@ -95,10 +105,14 @@ func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocat
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		if baseline <= 0 || amount > baseline || reference == "" {
+		reissue := baseline + adjustments[invoiceID]
+		if baseline < 0 || reissue < 0 || (baseline > 0 && reference == "") {
 			return ErrRefundInvoiceCorrection
 		}
-		correction := RefundInvoiceCorrection{UserId: refund.UserId, RefundTicketId: refund.TicketId, InvoiceTicketId: invoiceID, OriginalCents: baseline, RefundCents: amount, ReissueCents: baseline - amount, OriginalReference: reference, Status: "pending", CreatedTime: common.GetTimestamp()}
+		if baseline == 0 && reissue == 0 {
+			continue
+		}
+		correction := RefundInvoiceCorrection{UserId: refund.UserId, RefundTicketId: refund.TicketId, InvoiceTicketId: invoiceID, OriginalCents: baseline, RefundCents: amount, ReissueCents: reissue, OriginalReference: reference, Status: "pending", CreatedTime: common.GetTimestamp()}
 		if err := tx.Create(&correction).Error; err != nil {
 			return err
 		}
@@ -129,14 +143,33 @@ func StartRefundInvoiceCorrection(correctionID, actorID int) (*RefundInvoiceCorr
 		if err := lockForUpdate(tx).Where("ticket_id = ? AND user_id = ? AND refund_status = ?", known.RefundTicketId, known.UserId, RefundStatusPending).First(&refund).Error; err != nil {
 			return ErrRefundInvoiceCorrection
 		}
-		return ErrRefundSettlementUnconfirmed
+		if !refund.SettlementVerified || refund.FrozenQuota != refund.RefundQuota {
+			return ErrRefundSettlementUnconfirmed
+		}
+		if err := verifyRefundLiabilitiesTx(tx, known.UserId); err != nil {
+			return err
+		}
+		if err := lockForUpdate(tx).Where("id = ? AND status IN ?", correctionID, []string{"pending", "processing"}).First(&known).Error; err != nil {
+			return ErrRefundInvoiceCorrection
+		}
+		if known.Status == "processing" {
+			return nil
+		}
+		if err := tx.Model(&known).Update("status", "processing").Error; err != nil {
+			return err
+		}
+		known.Status = "processing"
+		return nil
 	})
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
+	return &known, nil
 }
 
 func CompleteRefundInvoiceCorrection(correctionID, actorID int, redReference, reissueReference, evidence string) (*RefundInvoiceCorrection, error) {
 	redReference, reissueReference, evidence = strings.TrimSpace(redReference), strings.TrimSpace(reissueReference), strings.TrimSpace(evidence)
-	if correctionID <= 0 || actorID <= 0 || redReference == "" || utf8.RuneCountInString(redReference) > 128 || utf8.RuneCountInString(reissueReference) > 128 || utf8.RuneCountInString(evidence) > 2000 {
+	if correctionID <= 0 || actorID <= 0 || utf8.RuneCountInString(redReference) > 128 || utf8.RuneCountInString(reissueReference) > 128 || utf8.RuneCountInString(evidence) > 2000 {
 		return nil, ErrRefundInvoiceCorrection
 	}
 	var known RefundInvoiceCorrection
@@ -160,7 +193,7 @@ func CompleteRefundInvoiceCorrection(correctionID, actorID int, redReference, re
 		if err := lockForUpdate(tx).Where("id = ? AND user_id = ? AND refund_ticket_id = ? AND status = ?", correctionID, known.UserId, known.RefundTicketId, "processing").First(&result).Error; err != nil {
 			return ErrRefundInvoiceCorrection
 		}
-		if result.OriginalCents <= 0 || result.RefundCents <= 0 || result.RefundCents > result.OriginalCents || result.ReissueCents != result.OriginalCents-result.RefundCents || (result.ReissueCents > 0) != (reissueReference != "") || redReference == reissueReference || redReference == result.OriginalReference || (reissueReference != "" && reissueReference == result.OriginalReference) {
+		if result.OriginalCents < 0 || result.ReissueCents < 0 || (result.OriginalCents > 0) != (redReference != "") || (result.ReissueCents > 0) != (reissueReference != "") || (redReference != "" && (redReference == reissueReference || redReference == result.OriginalReference)) || (reissueReference != "" && reissueReference == result.OriginalReference) {
 			return ErrRefundInvoiceCorrection
 		}
 		now := common.GetTimestamp()

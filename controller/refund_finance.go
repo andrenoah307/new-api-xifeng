@@ -44,6 +44,29 @@ func QuoteRefundFinance(c *gin.Context) {
 	common.ApiSuccess(c, detail)
 }
 
+func ConfirmRefundFinance(c *gin.Context) {
+	user, err := getTicketCurrentUser(c)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	var input struct {
+		TicketID int    `json:"ticket_id"`
+		Quota    int    `json:"refund_quota"`
+		Token    string `json:"quote_token"`
+	}
+	if err := common.DecodeJson(c.Request.Body, &input); err != nil {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	refund, err := model.ConfirmRefundFinance(user.Id, input.TicketID, input.Quota, input.Token)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, refund)
+}
+
 func GetRefundEligibility(c *gin.Context) {
 	user, err := getTicketCurrentUser(c)
 	if err != nil {

@@ -23,25 +23,36 @@ type EpayCheckoutRequest struct {
 }
 
 type EpayCheckoutQuote struct {
-	InvoiceType    string              `json:"invoice_type"`
-	Mode           string              `json:"mode"`
-	RateBps        int                 `json:"rate_bps"`
-	TotalCents     int64               `json:"total_cents"`
-	NetCents       int64               `json:"net_cents"`
-	TaxCents       int64               `json:"tax_cents"`
-	BaseQuota      int                 `json:"base_quota"`
-	Quota          int                 `json:"quota"`
-	CreditAmount   string              `json:"credit_amount"`
-	DiscountCodeID int                 `json:"discount_code_id"`
-	DiscountRate   int                 `json:"discount_rate"`
-	Token          string              `json:"token"`
-	Routes         []InvoiceEpayConfig `json:"-"`
-	Strategy       string              `json:"-"`
+	PolicyEffectiveAt int64               `json:"policy_effective_at"`
+	VATRateBps        int                 `json:"vat_rate_bps"`
+	UnitPrice         string              `json:"-"`
+	QuotaPerUnit      string              `json:"-"`
+	InvoiceType       string              `json:"invoice_type"`
+	Mode              string              `json:"mode"`
+	RateBps           int                 `json:"rate_bps"`
+	TotalCents        int64               `json:"total_cents"`
+	NetCents          int64               `json:"net_cents"`
+	TaxCents          int64               `json:"tax_cents"`
+	BaseQuota         int                 `json:"base_quota"`
+	Quota             int                 `json:"quota"`
+	CreditAmount      string              `json:"credit_amount"`
+	DiscountCodeID    int                 `json:"discount_code_id"`
+	DiscountRate      int                 `json:"discount_rate"`
+	Token             string              `json:"token"`
+	Routes            []InvoiceEpayConfig `json:"-"`
+	Strategy          string              `json:"-"`
 }
 
 func CalculateEpayCheckout(totalCents int64, invoiceType string, config InvoiceTaxConfig, price decimal.Decimal, discountRate int) (EpayCheckoutQuote, error) {
-	quote := EpayCheckoutQuote{InvoiceType: invoiceType, TotalCents: totalCents, NetCents: totalCents, DiscountRate: discountRate}
-	if totalCents <= 0 || totalCents > 100000000000 || !price.IsPositive() || discountRate < 1 || discountRate > 100 || common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
+	if common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
+		return EpayCheckoutQuote{}, ErrInvoiceTaxInvalid
+	}
+	return calculateEpayCheckout(totalCents, invoiceType, config, price, discountRate, decimal.NewFromFloat(common.QuotaPerUnit))
+}
+
+func calculateEpayCheckout(totalCents int64, invoiceType string, config InvoiceTaxConfig, price decimal.Decimal, discountRate int, quotaPerUnit decimal.Decimal) (EpayCheckoutQuote, error) {
+	quote := EpayCheckoutQuote{InvoiceType: invoiceType, TotalCents: totalCents, NetCents: totalCents, DiscountRate: discountRate, PolicyEffectiveAt: config.PolicyEffectiveAt, VATRateBps: InvoiceVATRateBps, UnitPrice: price.String(), QuotaPerUnit: quotaPerUnit.String()}
+	if totalCents <= 0 || totalCents > 100000000000 || !price.IsPositive() || !quotaPerUnit.IsPositive() || discountRate < 1 || discountRate > 100 {
 		return quote, ErrInvoiceTaxInvalid
 	}
 	if invoiceType != "none" {
@@ -52,7 +63,7 @@ func CalculateEpayCheckout(totalCents int64, invoiceType string, config InvoiceT
 		quote.NetCents, quote.TaxCents = tax.BaseCents, tax.FeeCents
 		quote.Mode, quote.RateBps = tax.Mode, tax.RateBps
 	}
-	base := decimal.NewFromInt(quote.NetCents).Div(decimal.NewFromInt(100)).Div(price).Mul(decimal.NewFromFloat(common.QuotaPerUnit))
+	base := decimal.NewFromInt(quote.NetCents).Div(decimal.NewFromInt(100)).Div(price).Mul(quotaPerUnit)
 	var clamp *common.QuotaClamp
 	quote.BaseQuota, clamp = common.QuotaFromDecimalChecked(base)
 	if clamp != nil || quote.BaseQuota <= 0 {
@@ -62,7 +73,7 @@ func CalculateEpayCheckout(totalCents int64, invoiceType string, config InvoiceT
 	if clamp != nil || quote.Quota <= 0 {
 		return quote, ErrInvoiceTaxInvalid
 	}
-	quote.CreditAmount = decimal.NewFromInt(int64(quote.Quota)).Div(decimal.NewFromFloat(common.QuotaPerUnit)).StringFixed(2)
+	quote.CreditAmount = decimal.NewFromInt(int64(quote.Quota)).Div(quotaPerUnit).StringFixed(2)
 	return quote, nil
 }
 
@@ -134,7 +145,7 @@ func QuoteEpayCheckout(db *gorm.DB, userID int, req EpayCheckoutRequest, reserve
 		rate = dc.DiscountRate
 	}
 	price := decimal.NewFromFloat(operation_setting.Price).Mul(decimal.NewFromFloat(groupRatio)).Mul(decimal.NewFromFloat(presetDiscount))
-	quote, err := CalculateEpayCheckout(req.TotalCents, req.InvoiceType, config, price, rate)
+	quote, err := CalculateEpayCheckout(req.TotalCents, req.InvoiceType, config.CheckoutAt(common.GetTimestamp()), price, rate)
 	if err != nil {
 		return empty, err
 	}
@@ -144,12 +155,14 @@ func QuoteEpayCheckout(db *gorm.DB, userID int, req EpayCheckoutRequest, reserve
 	quote.DiscountCodeID = dc.Id
 	quote.Routes, quote.Strategy = eligible, strategy
 	raw, err := common.Marshal(struct {
-		Quote    EpayCheckoutQuote
-		UserID   int
-		Method   string
-		Routes   []InvoiceEpayConfig
-		Strategy string
-	}{quote, userID, req.PaymentMethod, eligible, strategy})
+		Quote        EpayCheckoutQuote
+		UnitPrice    string
+		QuotaPerUnit string
+		UserID       int
+		Method       string
+		Routes       []InvoiceEpayConfig
+		Strategy     string
+	}{quote, quote.UnitPrice, quote.QuotaPerUnit, userID, req.PaymentMethod, eligible, strategy})
 	if err != nil {
 		return empty, err
 	}
@@ -202,7 +215,9 @@ func CreateEpayCheckout(userID int, req EpayCheckoutRequest) (*TopUp, error) {
 			Amount:     decimal.NewFromInt(int64(quote.Quota)).Div(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart(),
 			CreateTime: common.GetTimestamp(), DiscountCodeId: quote.DiscountCodeID, DiscountRate: quote.DiscountRate,
 			CheckoutVersion: 1, CheckoutToken: req.Token, CheckoutCreditAmount: quote.CreditAmount,
-			InvoiceType: quote.InvoiceType, InvoiceTaxMode: quote.Mode, InvoiceRateBps: quote.RateBps,
+			CheckoutPolicyEffectiveAt: quote.PolicyEffectiveAt, CheckoutUnitPrice: quote.UnitPrice,
+			CheckoutQuotaPerUnit: quote.QuotaPerUnit,
+			InvoiceType:          quote.InvoiceType, InvoiceTaxMode: quote.Mode, InvoiceRateBps: quote.RateBps,
 			InvoiceNetCents: quote.NetCents, InvoiceTaxCents: quote.TaxCents, PaymentTotalCents: quote.TotalCents,
 			CheckoutBaseQuota: quote.BaseQuota, CheckoutQuota: quote.Quota, EpayCredentials: string(credentials),
 		}
@@ -220,13 +235,17 @@ func CreateEpayCheckout(userID int, req EpayCheckoutRequest) (*TopUp, error) {
 }
 
 func CompleteEpayCheckout(tradeNo, method string, paidCents int64) (*TopUp, int, error) {
+	return completeEpayCheckoutAt(tradeNo, method, paidCents, common.GetTimestamp())
+}
+
+func completeEpayCheckoutAt(tradeNo, method string, paidCents, now int64) (*TopUp, int, error) {
 	var order TopUp
 	credited, bonus := 0, 0
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		if err := lockForUpdate(tx).Where("trade_no = ?", tradeNo).Take(&order).Error; err != nil {
 			return err
 		}
-		if order.CheckoutVersion != 1 || order.PaymentProvider != PaymentProviderEpay || order.PaymentMethod != method || order.PaymentTotalCents != paidCents || order.InvoiceNetCents <= 0 || order.InvoiceTaxCents < 0 || order.InvoiceNetCents+order.InvoiceTaxCents != order.PaymentTotalCents || order.CheckoutBaseQuota <= 0 || order.CheckoutQuota < order.CheckoutBaseQuota || order.CheckoutQuota > common.MaxQuota {
+		if order.CheckoutVersion != 1 || order.PaymentProvider != PaymentProviderEpay || order.PaymentMethod != method || order.PaymentTotalCents != paidCents || paidCents <= 0 || paidCents > 100000000000 || order.InvoiceNetCents <= 0 || order.InvoiceTaxCents < 0 || order.InvoiceTaxCents > paidCents || order.InvoiceNetCents != paidCents-order.InvoiceTaxCents || order.CheckoutBaseQuota <= 0 || order.CheckoutQuota < order.CheckoutBaseQuota || order.CheckoutQuota > common.MaxQuota {
 			return ErrInvoiceTaxInvalid
 		}
 		if order.Status == common.TopUpStatusSuccess {
@@ -235,14 +254,79 @@ func CompleteEpayCheckout(tradeNo, method string, paidCents int64) (*TopUp, int,
 		if order.Status != common.TopUpStatusPending && order.Status != common.TopUpStatusExpired {
 			return ErrTopUpStatusInvalid
 		}
-		result := tx.Model(&TopUp{}).Where("id = ? AND status = ?", order.Id, order.Status).Updates(map[string]interface{}{"status": common.TopUpStatusSuccess, "complete_time": common.GetTimestamp(), "quota_granted": order.CheckoutBaseQuota})
+		if order.CheckoutPolicyEffectiveAt == 0 {
+			config, err := GetInvoiceTaxConfig(tx)
+			if err != nil {
+				return err
+			}
+			if config.PolicyEffectiveAt > 0 {
+				if common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
+					return ErrInvoiceTaxInvalid
+				}
+				if order.InvoiceType != "ordinary" && order.InvoiceType != "special" && order.InvoiceType != "none" {
+					return ErrInvoiceTaxInvalid
+				}
+				// Older pending checkouts lack a unit-price snapshot. Preserve their
+				// original quota-per-net-cent ratio instead of using today's price.
+				quote, err := CalculateInvoiceTaxFromTotal(order.PaymentTotalCents, "ordinary", config.CheckoutAt(now))
+				if order.InvoiceType == "special" {
+					quote, err = CalculateInvoiceTaxFromTotal(order.PaymentTotalCents, "special", config.CheckoutAt(now))
+				}
+				if err != nil {
+					return err
+				}
+				if order.InvoiceType == "none" {
+					quote.BaseCents, quote.FeeCents, quote.RateBps = order.PaymentTotalCents, 0, 0
+				}
+				base, clamp := common.QuotaFromDecimalChecked(decimal.NewFromInt(int64(order.CheckoutBaseQuota)).Mul(decimal.NewFromInt(quote.BaseCents)).Div(decimal.NewFromInt(order.InvoiceNetCents)))
+				if clamp != nil || base <= 0 {
+					return ErrInvoiceTaxInvalid
+				}
+				total, clamp := common.QuotaFromDecimalChecked(decimal.NewFromInt(int64(order.CheckoutQuota)).Mul(decimal.NewFromInt(quote.BaseCents)).Div(decimal.NewFromInt(order.InvoiceNetCents)))
+				if clamp != nil || total < base {
+					return ErrInvoiceTaxInvalid
+				}
+				order.CheckoutBaseQuota, order.CheckoutQuota = base, total
+				order.InvoiceNetCents, order.InvoiceTaxCents, order.InvoiceRateBps, order.InvoiceTaxMode = quote.BaseCents, quote.FeeCents, quote.RateBps, quote.Mode
+				order.CheckoutCreditAmount = decimal.NewFromInt(int64(total)).Div(decimal.NewFromFloat(common.QuotaPerUnit)).StringFixed(2)
+				order.Amount = decimal.NewFromInt(int64(total)).Div(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart()
+			}
+		}
+		// Reprice scheduled orders at payment completion, using their original price
+		// and discount, so a pre-cutoff unpaid order cannot bypass the new fees.
+		if order.CheckoutPolicyEffectiveAt > 0 {
+			price, err := decimal.NewFromString(order.CheckoutUnitPrice)
+			if err != nil {
+				return ErrInvoiceTaxInvalid
+			}
+			quotaPerUnit, err := decimal.NewFromString(order.CheckoutQuotaPerUnit)
+			if err != nil {
+				return ErrInvoiceTaxInvalid
+			}
+			config := (InvoiceTaxConfig{PolicyEffectiveAt: order.CheckoutPolicyEffectiveAt}).CheckoutAt(now)
+			quote, err := calculateEpayCheckout(order.PaymentTotalCents, order.InvoiceType, config, price, order.DiscountRate, quotaPerUnit)
+			if err != nil {
+				return err
+			}
+			order.InvoiceNetCents, order.InvoiceTaxCents = quote.NetCents, quote.TaxCents
+			order.InvoiceRateBps, order.InvoiceTaxMode = quote.RateBps, quote.Mode
+			order.CheckoutBaseQuota, order.CheckoutQuota, order.CheckoutCreditAmount = quote.BaseQuota, quote.Quota, quote.CreditAmount
+			order.Amount = decimal.NewFromInt(int64(quote.Quota)).Div(quotaPerUnit).IntPart()
+		}
+		result := tx.Model(&TopUp{}).Where("id = ? AND status = ?", order.Id, order.Status).Updates(map[string]interface{}{
+			"status": common.TopUpStatusSuccess, "complete_time": now, "quota_granted": order.CheckoutBaseQuota,
+			"invoice_net_cents": order.InvoiceNetCents, "invoice_tax_cents": order.InvoiceTaxCents,
+			"invoice_rate_bps": order.InvoiceRateBps, "invoice_tax_mode": order.InvoiceTaxMode,
+			"checkout_base_quota": order.CheckoutBaseQuota, "checkout_quota": order.CheckoutQuota,
+			"checkout_credit_amount": order.CheckoutCreditAmount, "amount": order.Amount,
+		})
 		if result.Error != nil {
 			return result.Error
 		}
 		if result.RowsAffected != 1 {
 			return ErrTopUpStatusInvalid
 		}
-		order.Status, order.QuotaGranted = common.TopUpStatusSuccess, int64(order.CheckoutBaseQuota)
+		order.Status, order.QuotaGranted, order.CompleteTime = common.TopUpStatusSuccess, int64(order.CheckoutBaseQuota), now
 		var err error
 		bonus, err = grantDiscountCodeBonusTx(tx, &order)
 		if err != nil {
