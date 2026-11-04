@@ -93,6 +93,9 @@ func relayAttempt(c *gin.Context, info *relaycommon.RelayInfo, handler func(*gin
 		if r == nil {
 			return
 		}
+		if info != nil && info.RefundLiability != nil {
+			info.RefundLiability.Failed.Store(true)
+		}
 		logger.LogError(c, fmt.Sprintf("relay panic recovered: %v\n%s", r, string(debug.Stack())))
 		apiErr = types.NewErrorWithStatusCode(
 			fmt.Errorf("relay panic: %v", r),
@@ -910,6 +913,12 @@ func RelayTask(c *gin.Context) {
 		service.LogTaskConsumption(c, relayInfo)
 
 		task := model.InitTask(result.Platform, relayInfo)
+		if liability := relayInfo.RefundLiability; liability != nil {
+			model.HoldRefundLiability(liability)
+			if !liability.Failed.Load() {
+				task.PrivateData.RefundLiabilityID = liability.ID
+			}
+		}
 		task.PrivateData.UserRouting, _ = common.GetContextKeyType[*dto.UserRoutingInfo](c, constant.ContextKeyUserRouting)
 		task.PrivateData.UpstreamTaskID = result.UpstreamTaskID
 		task.PrivateData.BillingSource = relayInfo.BillingSource

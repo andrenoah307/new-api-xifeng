@@ -15,33 +15,36 @@ import (
 )
 
 type TopUp struct {
-	CreatedBy            int     `json:"-"`
-	CheckoutVersion      int     `json:"checkout_version"`
-	InvoiceType          string  `json:"invoice_type" gorm:"size:16"`
-	InvoiceTaxMode       string  `json:"invoice_tax_mode" gorm:"size:16"`
-	InvoiceRateBps       int     `json:"invoice_rate_bps"`
-	InvoiceNetCents      int64   `json:"invoice_net_cents"`
-	InvoiceTaxCents      int64   `json:"invoice_tax_cents"`
-	PaymentTotalCents    int64   `json:"payment_total_cents"`
-	CheckoutBaseQuota    int     `json:"checkout_base_quota"`
-	CheckoutQuota        int     `json:"checkout_quota"`
-	EpayCredentials      string  `json:"-" gorm:"type:text;<-:create"`
-	CheckoutToken        string  `json:"-" gorm:"size:40"`
-	CheckoutCreditAmount string  `json:"checkout_credit_amount" gorm:"size:32"`
-	Id                   int     `json:"id"`
-	UserId               int     `json:"user_id" gorm:"index"`
-	Amount               int64   `json:"amount"`
-	Money                float64 `json:"money"`
-	QuotaGranted         int64   `json:"quota_granted" gorm:"default:0"`
-	TradeNo              string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
-	PaymentMethod        string  `json:"payment_method" gorm:"type:varchar(50)"`
-	PaymentProvider      string  `json:"payment_provider" gorm:"type:varchar(50);default:''"`
-	CreateTime           int64   `json:"create_time"`
-	CompleteTime         int64   `json:"complete_time"`
-	Status               string  `json:"status"`
-	Source               string  `json:"source" gorm:"type:varchar(50);default:''"`
-	DiscountCodeId       int     `json:"discount_code_id" gorm:"default:0;index"`
-	DiscountRate         int     `json:"discount_rate" gorm:"default:0"`
+	CheckoutPolicyEffectiveAt int64   `json:"checkout_policy_effective_at" gorm:"type:bigint"`
+	CheckoutUnitPrice         string  `json:"-" gorm:"type:text"`
+	CheckoutQuotaPerUnit      string  `json:"-" gorm:"size:32"`
+	CreatedBy                 int     `json:"-"`
+	CheckoutVersion           int     `json:"checkout_version"`
+	InvoiceType               string  `json:"invoice_type" gorm:"size:16"`
+	InvoiceTaxMode            string  `json:"invoice_tax_mode" gorm:"size:16"`
+	InvoiceRateBps            int     `json:"invoice_rate_bps"`
+	InvoiceNetCents           int64   `json:"invoice_net_cents"`
+	InvoiceTaxCents           int64   `json:"invoice_tax_cents"`
+	PaymentTotalCents         int64   `json:"payment_total_cents"`
+	CheckoutBaseQuota         int     `json:"checkout_base_quota"`
+	CheckoutQuota             int     `json:"checkout_quota"`
+	EpayCredentials           string  `json:"-" gorm:"type:text;<-:create"`
+	CheckoutToken             string  `json:"-" gorm:"size:40"`
+	CheckoutCreditAmount      string  `json:"checkout_credit_amount" gorm:"size:32"`
+	Id                        int     `json:"id"`
+	UserId                    int     `json:"user_id" gorm:"index"`
+	Amount                    int64   `json:"amount"`
+	Money                     float64 `json:"money"`
+	QuotaGranted              int64   `json:"quota_granted" gorm:"default:0"`
+	TradeNo                   string  `json:"trade_no" gorm:"unique;type:varchar(255);index"`
+	PaymentMethod             string  `json:"payment_method" gorm:"type:varchar(50)"`
+	PaymentProvider           string  `json:"payment_provider" gorm:"type:varchar(50);default:''"`
+	CreateTime                int64   `json:"create_time"`
+	CompleteTime              int64   `json:"complete_time"`
+	Status                    string  `json:"status"`
+	Source                    string  `json:"source" gorm:"type:varchar(50);default:''"`
+	DiscountCodeId            int     `json:"discount_code_id" gorm:"default:0;index"`
+	DiscountRate              int     `json:"discount_rate" gorm:"default:0"`
 
 	// InvoiceStatus 是列表查询时按发票关联回填的展示字段（不落库）：
 	// 0=未开票，InvoiceStatusPending=开票中，InvoiceStatusIssued=已开票。

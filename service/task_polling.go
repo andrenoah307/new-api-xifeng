@@ -79,7 +79,7 @@ func sweepTimedOutTasks(ctx context.Context) {
 			continue
 		}
 		timedOutCount++
-		if !isLegacy && task.Quota != 0 {
+		if !isLegacy && (task.Quota != 0 || task.PrivateData.RefundLiabilityID != "") {
 			RefundTaskQuota(ctx, task, reason)
 		}
 	}
@@ -287,7 +287,7 @@ func updateSunoTasks(ctx context.Context, channelId int, taskIds []string, taskM
 		if responseItem.FailReason != "" || task.Status == model.TaskStatusFailure {
 			logger.LogInfo(ctx, task.TaskID+" 构建失败，"+task.FailReason)
 			task.Progress = "100%"
-			shouldRefund = task.Quota != 0 && preStatus != model.TaskStatusFailure && preStatus != model.TaskStatusSuccess
+			shouldRefund = (task.Quota != 0 || task.PrivateData.RefundLiabilityID != "") && preStatus != model.TaskStatusFailure && preStatus != model.TaskStatusSuccess
 		}
 		if responseItem.Status == model.TaskStatusSuccess {
 			task.Progress = "100%"
@@ -299,6 +299,8 @@ func updateSunoTasks(ctx context.Context, channelId int, taskIds []string, taskM
 			common.SysLog("UpdateSunoTask task error: " + err.Error())
 		} else if won && shouldRefund {
 			RefundTaskQuota(ctx, task, task.FailReason)
+		} else if won && task.Status == model.TaskStatusSuccess {
+			model.CompleteRefundLiability(task.PrivateData.RefundLiabilityID)
 		}
 	}
 	return nil
@@ -554,7 +556,7 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		task.FailReason = taskResult.Reason
 		logger.LogInfo(ctx, fmt.Sprintf("Task %s failed: %s", task.TaskID, task.FailReason))
 		taskResult.Progress = taskcommon.ProgressComplete
-		if quota != 0 {
+		if quota != 0 || task.PrivateData.RefundLiabilityID != "" {
 			shouldRefund = true
 		}
 	default:
@@ -638,17 +640,23 @@ func settleTaskBillingOnComplete(ctx context.Context, adaptor TaskPollingAdaptor
 	// 0. 按次计费的任务不做差额结算
 	if bc := task.PrivateData.BillingContext; bc != nil && bc.PerCallBilling {
 		logger.LogInfo(ctx, fmt.Sprintf("任务 %s 按次计费，跳过差额结算", task.TaskID))
+		model.CompleteRefundLiability(task.PrivateData.RefundLiabilityID)
 		return
 	}
 	// 1. 优先让 adaptor 决定最终额度
 	if actualQuota := adaptor.AdjustBillingOnComplete(task, taskResult); actualQuota > 0 {
-		RecalculateTaskQuota(ctx, task, actualQuota, "adaptor计费调整")
+		if RecalculateTaskQuota(ctx, task, actualQuota, "adaptor计费调整") {
+			model.CompleteRefundLiability(task.PrivateData.RefundLiabilityID)
+		}
 		return
 	}
 	// 2. 回退到 token 重算
 	if taskResult.TotalTokens > 0 {
-		RecalculateTaskQuotaByTokens(ctx, task, taskResult.TotalTokens)
+		if RecalculateTaskQuotaByTokens(ctx, task, taskResult.TotalTokens) {
+			model.CompleteRefundLiability(task.PrivateData.RefundLiabilityID)
+		}
 		return
 	}
 	// 3. 无调整，保持预扣额度
+	model.CompleteRefundLiability(task.PrivateData.RefundLiabilityID)
 }

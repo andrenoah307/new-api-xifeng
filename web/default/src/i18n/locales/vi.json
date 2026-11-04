@@ -2730,7 +2730,7 @@
     "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Thanh toán có hóa đơn dưới ngưỡng dùng cổng cá nhân và vẫn thu thuế. Từ ngưỡng trở lên dùng cổng doanh nghiệp.",
     "Invoice required": "Cần hóa đơn",
     "Invoice Settings": "Cài đặt hóa đơn",
-    "Invoice tax charges": "Phí thuế hóa đơn",
+    "Invoice tax charges": "Phí xuất hóa đơn",
     "invoice tax quote changed": "Kết quả tính hoàn tiền đã thay đổi. Kiểm tra số tiền mới và gửi lại.",
     "Invoice title": "Tên trên hóa đơn",
     "Invoice total (CNY)": "Tổng hóa đơn gồm thuế (CNY)",
@@ -2740,7 +2740,7 @@
     "invoice.amount.due": "Cần thanh toán",
     "invoice.amount.net": "Tiền trước thuế",
     "invoice.amount.paid": "Đã trả",
-    "invoice.amount.tax": "Thuế",
+    "invoice.amount.tax": "Phí xuất hóa đơn",
     "invoice.amount.total": "Tổng gồm thuế",
     "Invoke developer-defined functions with structured arguments": "Gọi các hàm do nhà phát triển định nghĩa với đối số có cấu trúc",
     "io.net API Key": "Khóa API io.net",
@@ -5153,7 +5153,7 @@
     "Task submitted, you will be notified by email when complete": "",
     "Tasks currently pending or running.": "Các tác vụ hiện đang chờ hoặc đang chạy.",
     "Tax calculation mode": "Cách tính thuế",
-    "Tax charge (CNY)": "Tiền thuế (CNY)",
+    "Tax charge (CNY)": "Phí xuất hóa đơn (CNY)",
     "Tax paid": "Đã thanh toán phí thuế",
     "Tax paid at checkout (CNY)": "Thuế đã trả khi nạp tiền (CNY)",
     "Tax payment pending": "Chờ thanh toán phí thuế",
@@ -6043,6 +6043,12 @@
     "Zero-charge guard applied": "Đã kích hoạt bảo vệ không tính phí",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Invoice fees": "Phí xuất hóa đơn",
+    "Invoice fee rate (%)": "Tỷ lệ phí xuất hóa đơn (%)",
+    "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "Từ 00:00 ngày 09/11/2026 theo giờ Bắc Kinh, phí hóa đơn thông thường là 6% và hóa đơn đặc biệt là 9% số tiền thanh toán, được khấu trừ khi thanh toán. Thuế suất VAT của cả hai loại đều là 6%. Các khoản thanh toán trước thời điểm này được xuất hóa đơn thông thường miễn phí.",
+    "New consumption is suspended until this refund is completed or cancelled.": "Tạm dừng tiêu dùng mới cho đến khi hoàn tất hoặc hủy yêu cầu hoàn tiền.",
+    "Start correction": "Bắt đầu điều chỉnh",
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "Chọn <strong>loại hóa đơn</strong> trước khi thanh toán. Từ ngày 09/11/2026, <strong>phí xuất hóa đơn được khấu trừ</strong> từ khoản thanh toán; đơn hàng không chọn hóa đơn sẽ không được xuất hóa đơn. Các khoản thanh toán trước đó được xuất hóa đơn thông thường miễn phí."
   }
 }

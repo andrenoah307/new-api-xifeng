@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"github.com/QuantumNous/new-api/common"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,7 +28,7 @@ func newRelayTestContext(t *testing.T) (*gin.Context, *httptest.ResponseRecorder
 // quota would stay deducted with no logs row written.
 func TestRelayAttemptConvertsPanicToError(t *testing.T) {
 	ctx, _ := newRelayTestContext(t)
-	info := &relaycommon.RelayInfo{}
+	info := &relaycommon.RelayInfo{RefundLiability: &common.RefundLiability{ID: "panic-request"}}
 
 	var apiErr *types.NewAPIError
 	require.NotPanics(t, func() {
@@ -43,6 +44,7 @@ func TestRelayAttemptConvertsPanicToError(t *testing.T) {
 	// retry, and processChannelError only auto-bans retryable errors, so this is
 	// also what keeps our own crash from disabling a healthy upstream channel.
 	assert.True(t, apiErr.IsSkipRetry())
+	assert.True(t, info.RefundLiability.Failed.Load())
 	assert.Contains(t, apiErr.Error(), "slice bounds out of range")
 }
 

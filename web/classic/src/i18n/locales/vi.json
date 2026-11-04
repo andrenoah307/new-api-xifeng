@@ -5885,7 +5885,7 @@
     "Estimated model cost (USD)": "Chi phí mô hình ước tính (USD)",
     "Example: net amount CNY 10,000. Rates below use the current draft settings.": "Ví dụ: 10.000 CNY chưa thuế, tính theo thuế suất đang nhập.",
     "Gross-up by total invoice amount": "Tính ngược từ tổng hóa đơn",
-    "Invoice tax charges": "Phí thuế hóa đơn",
+    "Invoice tax charges": "Phí xuất hóa đơn",
     "Invoice total (CNY)": "Tổng hóa đơn gồm thuế (CNY)",
     "Invoice type": "Loại hóa đơn",
     "Markup followed by VAT": "Cộng phụ phí rồi tính VAT",
@@ -5916,7 +5916,7 @@
     "Pay": "Pay",
     "Payment amount (CNY)": "Số tiền thanh toán (CNY)",
     "Payment request failed": "Yêu cầu thanh toán thất bại",
-    "Tax charge (CNY)": "Tiền thuế (CNY)",
+    "Tax charge (CNY)": "Phí xuất hóa đơn (CNY)",
     "Tax paid at checkout (CNY)": "Thuế đã trả khi nạp tiền (CNY)",
     "Alipay": "Alipay",
     "Back": "Quay lại",
@@ -6018,12 +6018,18 @@
     "invoice.amount.due": "Cần thanh toán",
     "invoice.amount.net": "Tiền trước thuế",
     "invoice.amount.paid": "Đã trả",
-    "invoice.amount.tax": "Thuế",
+    "invoice.amount.tax": "Phí xuất hóa đơn",
     "invoice.amount.total": "Tổng gồm thuế",
     "ticket.choice.general": "Hỗ trợ chung",
     "ticket.choice.invoice": "Yêu cầu hóa đơn",
     "ticket.choice.refund": "Yêu cầu hoàn tiền",
     "Configure a corporate account in payment gateway settings first.": "Trước tiên hãy cấu hình tài khoản doanh nghiệp trong cài đặt cổng thanh toán.",
-    "Select corporate account": "Chọn tài khoản doanh nghiệp"
+    "Select corporate account": "Chọn tài khoản doanh nghiệp",
+    "Invoice fees": "Phí xuất hóa đơn",
+    "Invoice fee rate (%)": "Tỷ lệ phí xuất hóa đơn (%)",
+    "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "Từ 00:00 ngày 09/11/2026 theo giờ Bắc Kinh, phí hóa đơn thông thường là 6% và hóa đơn đặc biệt là 9% số tiền thanh toán, được khấu trừ khi thanh toán. Thuế suất VAT của cả hai loại đều là 6%. Các khoản thanh toán trước thời điểm này được xuất hóa đơn thông thường miễn phí.",
+    "New consumption is suspended until this refund is completed or cancelled.": "Tạm dừng tiêu dùng mới cho đến khi hoàn tất hoặc hủy yêu cầu hoàn tiền.",
+    "Start correction": "Bắt đầu điều chỉnh",
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "Chọn <strong>loại hóa đơn</strong> trước khi thanh toán. Từ ngày 09/11/2026, <strong>phí xuất hóa đơn được khấu trừ</strong> từ khoản thanh toán; đơn hàng không chọn hóa đơn sẽ không được xuất hóa đơn. Các khoản thanh toán trước đó được xuất hóa đơn thông thường miễn phí."
   }
 }

@@ -2730,7 +2730,7 @@
     "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "Платежи со счётом ниже порога проходят через частный шлюз с уплатой налога. При достижении порога используются корпоративные шлюзы.",
     "Invoice required": "Нужен счёт-фактура",
     "Invoice Settings": "Настройки счетов",
-    "Invoice tax charges": "Сбор за счёт",
+    "Invoice tax charges": "Сбор за выставление счёта",
     "invoice tax quote changed": "Расчёт возврата изменился. Проверьте новую сумму и отправьте заявку снова.",
     "Invoice title": "Наименование получателя счёта",
     "Invoice total (CNY)": "Итого с налогом (CNY)",
@@ -2740,7 +2740,7 @@
     "invoice.amount.due": "К оплате",
     "invoice.amount.net": "Без налога",
     "invoice.amount.paid": "Оплачено",
-    "invoice.amount.tax": "Налог",
+    "invoice.amount.tax": "Сбор за счёт",
     "invoice.amount.total": "Итого с налогом",
     "Invoke developer-defined functions with structured arguments": "Вызывать заданные разработчиком функции со структурированными аргументами",
     "io.net API Key": "Ключ API io.net",
@@ -5153,7 +5153,7 @@
     "Task submitted, you will be notified by email when complete": "",
     "Tasks currently pending or running.": "Задачи, которые ожидают выполнения или выполняются сейчас.",
     "Tax calculation mode": "Способ расчёта сбора",
-    "Tax charge (CNY)": "Налог (CNY)",
+    "Tax charge (CNY)": "Сбор за счёт (CNY)",
     "Tax paid": "Сбор оплачен",
     "Tax paid at checkout (CNY)": "Налог, уплаченный при пополнении (CNY)",
     "Tax payment pending": "Сбор ожидает оплаты",
@@ -6043,6 +6043,12 @@
     "Zero-charge guard applied": "Защита от нулевого списания сработала",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Invoice fees": "Сбор за выставление счёта",
+    "Invoice fee rate (%)": "Ставка сбора за счёт (%)",
+    "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "С 00:00 9 ноября 2026 года по пекинскому времени из платежа удерживается сбор 6% за обычный счёт и 9% за специальный. Ставка НДС для обоих типов составляет 6%. По более ранним платежам обычный счёт выставляется бесплатно.",
+    "New consumption is suspended until this refund is completed or cancelled.": "Новые расходы приостановлены до завершения или отмены возврата.",
+    "Start correction": "Начать исправление",
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "Выберите <strong>тип счёта</strong> до оплаты. С 9 ноября 2026 года <strong>сбор за счёт удерживается</strong> из платежа; для заказов без выбранного счёта выставить его позднее нельзя. По более ранним платежам обычный счёт выставляется бесплатно."
   }
 }

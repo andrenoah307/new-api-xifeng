@@ -24,6 +24,7 @@ const (
 )
 
 type TicketInvoice struct {
+	VATRateBps      int               `json:"vat_rate_bps"`
 	InvoiceType     string            `json:"invoice_type" gorm:"size:16"`
 	InvoiceNetCents int64             `json:"invoice_net_cents"`
 	InvoiceTaxCents int64             `json:"invoice_tax_cents"`
@@ -290,8 +291,14 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 	}
 	eligible := make([]*TopUp, 0, len(topUps))
 	for _, order := range topUps {
+		if config.PolicyEffectiveAt > 0 && config.AllowsLegacyInvoice(order) {
+			if invoiceType == "ordinary" && IsCNYInvoiceTopUp(order) {
+				eligible = append(eligible, order)
+			}
+			continue
+		}
 		if order.InvoiceType == "" {
-			if !config.ModuleEnabled || (config.AllowsLegacyInvoice(order) && IsCNYInvoiceTopUp(order)) {
+			if (!config.ModuleEnabled && config.PolicyEffectiveAt == 0) || (config.AllowsLegacyInvoice(order) && IsCNYInvoiceTopUp(order)) {
 				eligible = append(eligible, order)
 			}
 		} else if order.InvoiceType == invoiceType {
@@ -428,7 +435,7 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			return ErrTicketInvoiceAmountBelowMin
 		}
 		orderedTopUps = orderTopUps(orderIds, topUps)
-		advancedInvoice := config.ModuleEnabled
+		advancedInvoice := config.ModuleEnabled || config.PolicyEffectiveAt > 0
 		for _, order := range topUps {
 			advancedInvoice = advancedInvoice || order.InvoiceType != ""
 		}
@@ -489,6 +496,7 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 
 		invoice = &TicketInvoice{
 			InvoiceType:     quote.InvoiceType,
+			VATRateBps:      InvoiceVATRateBps,
 			InvoiceNetCents: quote.BaseCents + quote.PrepaidNetCents,
 			InvoiceTaxCents: quote.FeeCents + quote.PrepaidTaxCents,
 			TicketId:        ticket.Id,
@@ -761,7 +769,7 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	items := make([]*InvoiceExportItem, 0)
 
 	query := DB.Table("tickets t").
-		Select("t.user_id, t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time, COALESCE(NULLIF(ti.invoice_type, ''), tc.invoice_type) AS invoice_type, tc.mode AS tax_mode, tc.rate_bps AS tax_rate_bps, CASE WHEN ti.invoice_type IS NOT NULL AND ti.invoice_type <> '' THEN ti.invoice_tax_cents ELSE tc.fee_cents END AS tax_fee_cents").
+		Select("t.user_id, t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time, COALESCE(NULLIF(ti.invoice_type, ''), tc.invoice_type) AS invoice_type, tc.mode AS tax_mode, COALESCE(NULLIF(ti.vat_rate_bps, 0), ?) AS tax_rate_bps, CASE WHEN ti.invoice_type IS NOT NULL AND ti.invoice_type <> '' THEN ti.invoice_tax_cents ELSE tc.fee_cents END AS tax_fee_cents", InvoiceVATRateBps).
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
 		Joins("LEFT JOIN invoice_tax_charges tc ON tc.ticket_id = t.id").
 		Where("ti.invoice_status <> ?", InvoiceStatusRejected).

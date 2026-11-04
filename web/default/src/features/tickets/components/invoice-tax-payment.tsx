@@ -74,7 +74,7 @@ export function InvoiceTaxPayment({
               ?.label ?? current.mode
           )}
         </dd>
-        <dt>{t('Rate (%)')}</dt>
+        <dt>{t('Invoice fee rate (%)')}</dt>
         <dd>{current.rate_bps / 100}%</dd>
         <dt>{t('Status')}</dt>
         <dd>{statusLabels[current.status]}</dd>

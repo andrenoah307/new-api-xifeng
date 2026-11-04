@@ -68,6 +68,7 @@ func SetRelayRouter(router *gin.Engine) {
 	playgroundRouter.Use(middleware.SystemPerformanceCheck())
 	playgroundRouter.Use(middleware.UserAuth())
 	playgroundRouter.Use(middleware.RelayAdmission())
+	playgroundRouter.Use(middleware.RefundLiability())
 	playgroundRouter.Use(middleware.Distribute())
 	{
 		playgroundRouter.POST("/chat/completions", controller.Playground)
@@ -81,6 +82,7 @@ func SetRelayRouter(router *gin.Engine) {
 	relayV1Router.Use(middleware.SystemPerformanceCheck())
 	relayV1Router.Use(middleware.TokenAuth())
 	relayV1Router.Use(middleware.RelayAdmission())
+	relayV1Router.Use(middleware.RefundLiability())
 	relayV1Router.Use(middleware.ModelRequestRateLimit())
 	{
 		// WebSocket 路由（统一到 Relay）
@@ -193,6 +195,7 @@ func SetRelayRouter(router *gin.Engine) {
 	relaySunoRouter.Use(middleware.SystemPerformanceCheck())
 	relaySunoRouter.Use(middleware.TokenAuth())
 	relaySunoRouter.Use(middleware.RelayAdmission())
+	relaySunoRouter.Use(middleware.RefundLiability())
 	relaySunoRouter.Use(middleware.Distribute())
 	{
 		relaySunoRouter.POST("/submit/:action", controller.RelayTask)
@@ -214,6 +217,7 @@ func SetRelayRouter(router *gin.Engine) {
 	relayGeminiRouter.Use(middleware.SystemPerformanceCheck())
 	relayGeminiRouter.Use(middleware.TokenAuth())
 	relayGeminiRouter.Use(middleware.RelayAdmission())
+	relayGeminiRouter.Use(middleware.RefundLiability())
 	relayGeminiRouter.Use(middleware.ModelRequestRateLimit())
 	relayGeminiRouter.Use(middleware.Distribute())
 	{
@@ -228,6 +232,7 @@ func registerMjRouterGroup(relayMjRouter *gin.RouterGroup) {
 	relayMjRouter.GET("/image/:id", relay.RelayMidjourneyImage)
 	relayMjRouter.Use(middleware.TokenAuth())
 	relayMjRouter.Use(middleware.RelayAdmission())
+	relayMjRouter.Use(middleware.RefundLiability())
 	relayMjRouter.Use(middleware.Distribute())
 	{
 		relayMjRouter.POST("/submit/action", controller.RelayMidjourney)

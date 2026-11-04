@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Download, Check } from 'lucide-react'
+import { Download, Check, RefreshCw, Play } from 'lucide-react'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -37,12 +37,51 @@ import { refundCash, refundQuota } from '../refund-finance-format'
 export function RefundFinanceDetail(props: {
   finance: FinanceData
   ticketId?: number
+  userId?: number
+  requestedQuota?: number
   onUpdated?: () => void
 }) {
   const { t } = useTranslation()
+  const client = useQueryClient()
+  const userId = useAuthStore((state) => state.auth.user?.id)
+  const [quote, setQuote] = useState<FinanceData | null>(null)
+  const [busy, setBusy] = useState(false)
   const role = useAuthStore((state) => state.auth.user?.role)
   const staff = [3, 10, 100].includes(role ?? 0)
   const [error, setError] = useState('')
+  async function confirmAmount(confirm: boolean) {
+    if (busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const response =
+        confirm && quote
+          ? await api.post('/api/ticket/refund/finance-confirm', {
+              ticket_id: props.ticketId,
+              refund_quota: quote.allocations.reduce(
+                (sum, row) => sum + row.refund_quota,
+                0
+              ),
+              quote_token: quote.quote_token,
+            })
+          : await api.get('/api/ticket/refund/finance-quote', {
+              params: { refund_quota: props.requestedQuota },
+            })
+      if (!response.data.success) throw new Error(response.data.message)
+      if (confirm) {
+        setQuote(null)
+        await client.invalidateQueries({ queryKey: ['tickets'] })
+        props.onUpdated?.()
+      } else setQuote(response.data.data)
+    } catch (failure) {
+      setQuote(null)
+      setError(
+        failure instanceof Error ? failure.message : t('Operation failed')
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
   async function download() {
     try {
       const response = await api.get('/api/ticket/refund/finance-export', {
@@ -67,11 +106,38 @@ export function RefundFinanceDetail(props: {
     props.finance.allocations.length === 0
   ) {
     return (
-      <p className='text-sm' role='status'>
+      <div className='space-y-3 text-sm' role='status'>
         {t(
           'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
         )}
-      </p>
+        <p>
+          {t(
+            'New consumption is suspended until this refund is completed or cancelled.'
+          )}
+        </p>
+        {props.userId === userId && props.ticketId && (
+          <Button
+            variant='outline'
+            disabled={busy}
+            onClick={() => confirmAmount(false)}
+          >
+            <RefreshCw />
+            {t('Refresh')}
+          </Button>
+        )}
+        {quote?.quote_token && (
+          <div className='flex flex-wrap items-center gap-3'>
+            <span>
+              {t('Cash refund')}: {refundCash(quote.refund_cash_cents)}
+            </span>
+            <Button disabled={busy} onClick={() => confirmAmount(true)}>
+              <Check />
+              {t('Confirm')}
+            </Button>
+          </div>
+        )}
+        {error && <p role='alert'>{t(error)}</p>}
+      </div>
     )
   }
   return (
@@ -202,6 +268,23 @@ function InvoiceCorrectionForm(props: {
   const [status, setStatus] = useState(props.correction.status)
   const completed = status === 'completed'
   const processing = status === 'processing'
+  async function start() {
+    setBusy(true)
+    try {
+      const response = await api.post(
+        `/api/ticket/refund/invoice-corrections/${props.correction.id}/start`
+      )
+      if (!response.data.success) throw new Error(response.data.message)
+      setStatus('processing')
+      await client.invalidateQueries({ queryKey: ['tickets'] })
+    } catch (failure) {
+      setError(
+        failure instanceof Error ? failure.message : t('Operation failed')
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
   async function complete(event: React.FormEvent) {
     event.preventDefault()
     if (busy || !props.editable || !processing) return
@@ -233,7 +316,7 @@ function InvoiceCorrectionForm(props: {
         {t('Invoice correction')} #{props.correction.invoice_ticket_id} ·{' '}
         {completed && t('Completed')}
         {processing && t('Processing')}
-        {status === 'pending' && t('Awaiting settlement verification')}
+        {status === 'pending' && t('Pending')}
         {status === 'cancelled' && t('Cancelled')}
       </h4>
       <p className='text-sm'>
@@ -257,7 +340,7 @@ function InvoiceCorrectionForm(props: {
             value={red}
             onChange={(event) => setRed(event.target.value)}
             maxLength={128}
-            required
+            required={props.correction.original_cents > 0}
             disabled={!props.editable || !processing}
           />
         </Field>
@@ -303,13 +386,19 @@ function InvoiceCorrectionForm(props: {
           onClick={complete}
           disabled={
             busy ||
-            !red.trim() ||
+            (props.correction.original_cents > 0 && !red.trim()) ||
             !evidence.trim() ||
             (props.correction.reissue_cents > 0 && !reissue.trim())
           }
         >
           <Check />
           {t('Register correction')}
+        </Button>
+      )}
+      {props.editable && status === 'pending' && (
+        <Button disabled={busy} onClick={start}>
+          <Play />
+          {t('Start correction')}
         </Button>
       )}
     </div>

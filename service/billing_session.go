@@ -111,15 +111,23 @@ func (s *BillingSession) Refund(c *gin.Context) {
 	extraReserved := s.extraReserved
 	subscriptionId := s.relayInfo.SubscriptionId
 	funding := s.funding
+	liability := s.relayInfo.RefundLiability
+	model.HoldRefundLiability(liability)
 
 	gopool.Go(func() {
 		// 1) 退还资金来源
 		if err := funding.Refund(); err != nil {
 			common.SysLog("error refunding billing source: " + err.Error())
+			if liability != nil {
+				liability.Failed.Store(true)
+			}
 		}
 		if extraReserved > 0 && funding.Source() == BillingSourceSubscription && subscriptionId > 0 {
 			if err := model.PostConsumeUserSubscriptionDelta(subscriptionId, -int64(extraReserved)); err != nil {
 				common.SysLog("error refunding subscription extra reserved quota: " + err.Error())
+				if liability != nil {
+					liability.Failed.Store(true)
+				}
 			}
 		}
 		// 2) 退还令牌额度
@@ -130,7 +138,13 @@ func (s *BillingSession) Refund(c *gin.Context) {
 			}
 			if err := model.AdjustTokenQuota(tokenId, tokenKey, -tokenConsumed, tokenPeriodStartAt, hint); err != nil {
 				common.SysLog("error refunding token quota: " + err.Error())
+				if liability != nil {
+					liability.Failed.Store(true)
+				}
 			}
+		}
+		if liability != nil && !liability.Failed.Load() {
+			model.CompleteRefundLiability(liability.ID)
 		}
 	})
 }
@@ -241,6 +255,9 @@ func (s *BillingSession) preConsume(c *gin.Context, quota int) *types.NewAPIErro
 
 	// ---- 2) 预扣资金来源 ----
 	if err := s.funding.PreConsume(effectiveQuota); err != nil {
+		if s.funding.Source() == BillingSourceWallet && s.relayInfo.RefundLiability != nil {
+			s.relayInfo.RefundLiability.Failed.Store(true)
+		}
 		// 预扣费失败，回滚令牌额度
 		if s.tokenConsumed > 0 && !s.relayInfo.IsPlayground {
 			if rollbackErr := s.adjustTokenQuota(-s.tokenConsumed); rollbackErr != nil {
@@ -278,6 +295,9 @@ func (s *BillingSession) reserveFunding(delta int) error {
 	case *WalletFunding:
 		reserved, err := model.ReserveUserQuota(funding.userId, delta)
 		if err != nil {
+			if s.relayInfo.RefundLiability != nil {
+				s.relayInfo.RefundLiability.Failed.Store(true)
+			}
 			return types.NewError(err, types.ErrorCodeUpdateDataError, types.ErrOptionWithSkipRetry())
 		}
 		if !reserved {
@@ -321,12 +341,18 @@ func (s *BillingSession) rollbackFundingReserve(delta int) {
 	case *WalletFunding:
 		if err := model.IncreaseUserQuota(funding.userId, delta, false); err != nil {
 			common.SysLog("error rolling back wallet funding reserve: " + err.Error())
+			if s.relayInfo.RefundLiability != nil {
+				s.relayInfo.RefundLiability.Failed.Store(true)
+			}
 		} else {
 			funding.consumed -= delta
 		}
 	case *SubscriptionFunding:
 		if err := model.PostConsumeUserSubscriptionDelta(funding.subscriptionId, -int64(delta)); err != nil {
 			common.SysLog("error rolling back subscription funding reserve: " + err.Error())
+			if s.relayInfo.RefundLiability != nil {
+				s.relayInfo.RefundLiability.Failed.Store(true)
+			}
 		}
 	}
 }

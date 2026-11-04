@@ -7,6 +7,7 @@ import (
 const searchMjCountHardLimit = 10000
 
 type Midjourney struct {
+	RefundLiabilityID  string `json:"-" gorm:"size:36"`
 	Id                 int    `json:"id"`
 	Code               int    `json:"code"`
 	UserId             int    `json:"user_id" gorm:"index"`

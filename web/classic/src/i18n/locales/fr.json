@@ -5406,7 +5406,7 @@
     "Pay": "Pay",
     "Payment amount (CNY)": "Montant à payer (CNY)",
     "Payment request failed": "Requête de paiement échouée",
-    "Tax charge (CNY)": "Frais de taxe (CNY)",
+    "Tax charge (CNY)": "Frais de facturation (CNY)",
     "Tax paid at checkout (CNY)": "Taxe payée à la recharge (CNY)",
     "Alipay": "Alipay",
     "Back": "Retour",
@@ -5508,12 +5508,18 @@
     "invoice.amount.due": "Montant dû",
     "invoice.amount.net": "Montant HT",
     "invoice.amount.paid": "Payé",
-    "invoice.amount.tax": "Taxe",
+    "invoice.amount.tax": "Frais de facturation",
     "invoice.amount.total": "Total TTC",
     "ticket.choice.general": "Assistance générale",
     "ticket.choice.invoice": "Demander une facture",
     "ticket.choice.refund": "Demander un remboursement",
     "Configure a corporate account in payment gateway settings first.": "Configurez un compte professionnel dans les paramètres de la passerelle de paiement.",
-    "Select corporate account": "Sélectionner un compte professionnel"
+    "Select corporate account": "Sélectionner un compte professionnel",
+    "Invoice fees": "Frais de facturation",
+    "Invoice fee rate (%)": "Taux des frais de facturation (%)",
+    "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "À compter du 9 novembre 2026 à 00 h, heure de Pékin, les frais déduits du paiement sont de 6 % pour une facture ordinaire et de 9 % pour une facture spéciale. Le taux de TVA est de 6 % pour les deux types. Les paiements antérieurs donnent droit à une facture ordinaire sans frais.",
+    "New consumption is suspended until this refund is completed or cancelled.": "Toute nouvelle consommation est suspendue jusqu’à la clôture ou l’annulation de ce remboursement.",
+    "Start correction": "Commencer la rectification",
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "Choisissez un <strong>type de facture</strong> avant de payer. À compter du 9 novembre 2026, les <strong>frais de facturation sont déduits</strong> du paiement et les commandes sans facture sélectionnée ne pourront pas être facturées. Les paiements antérieurs donnent droit à une facture ordinaire sans frais."
   }
 }
