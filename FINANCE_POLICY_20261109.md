@@ -102,3 +102,36 @@ address disagrees with the existing proxy-header fallback. This unrelated module
 is unchanged. Classic's two refund components also have existing license-header
 lint mismatches (missing header / 2023-2026 versus the linter's hard-coded 2025);
 functional lint passes with only that rule excluded, preserving existing attribution.
+
+## Rebase onto the Development Branch (2026-11-04)
+
+All 32 finance commits from `04e21bde3..2e938cb41` were replayed onto
+`origin/dev-20260712` at `915daf41e`. The policy and durable refund settlement
+logic are preserved. Channel revenue reports, scheduled summaries, API key alerts,
+captcha protection and Docker shared frontend assets from the new base are retained.
+
+Conflict resolution preserves both captcha and finance route registration, both
+dashboard destinations, and both sets of CI finance tests. Fixed-amount checkout
+quote/payment routes now also enforce the discount-code captcha when a code is
+present, after the finance module gate. Both themes already use the shared captcha
+interceptor. A direct-route regression test covers these additional endpoints.
+All 15 locale files retain every key from both original branch tips.
+
+Two integration checks required small compatibility fixes: narrow the CSV response
+Content-Type to a string before checking it, and import Axios by package name in
+the shared captcha test so Bun workspace dependency hoisting is supported.
+
+Validation after rebase: core model/service/controller/middleware/router tests,
+targeted finance/refund/invoice/captcha race tests, Default typecheck/build, Classic
+build, core Go vet, targeted frontend lint, and six frontend captcha/refund tests passed.
+The full Go suite is not green: the existing request-IP test above still fails,
+and `pkg/realtime_metrics.TestChannelHourlyCache` failed in the full run but passed
+when rerun alone on both finance and the original development base. Neither package
+was changed by this rebase. SQL dialect integration
+and browser checks described above were performed before this rebase, not repeated.
+
+Rebase pitfalls: merging routes must retain authentication, module gates and captcha
+checks together; locale conflicts require key-level merging; CI conflict resolution
+must retain channel-report tests as well as refund tests. Wait for frontend builds
+to finish before full Go tests because the root package embeds their generated assets.
+The development branch is unchanged. This is a source update, not a deployment.

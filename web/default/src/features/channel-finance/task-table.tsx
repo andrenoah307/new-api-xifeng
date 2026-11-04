@@ -136,7 +136,11 @@ export function FinanceTaskTable(props: {
         `/api/channel-finance/jobs/${encodeURIComponent(id)}/export`,
         { responseType: 'text', skipErrorHandler: true, disableDuplicate: true }
       )
-      if (!response.headers['content-type']?.startsWith('text/csv')) {
+      const contentType = response.headers['content-type']
+      if (
+        typeof contentType !== 'string' ||
+        !contentType.startsWith('text/csv')
+      ) {
         throw new Error(t('Operation failed'))
       }
       const user = useAuthStore.getState().auth.user
