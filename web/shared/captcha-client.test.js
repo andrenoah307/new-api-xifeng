@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import axios from '../default/node_modules/axios/index.js';
+import axios from 'axios';
 import { installCaptchaInterceptor } from './captcha-client.js';
 
 describe('captcha request replay', () => {

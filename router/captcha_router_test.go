@@ -18,6 +18,8 @@ import (
 
 func TestCaptchaRoutesRejectDirectBusinessCalls(t *testing.T) {
 	db := setupMonitoringRouterTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Option{}))
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
 	token := "captcha-route-token"
 	user := model.User{Username: "captcha-route-user", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, AccessToken: &token}
 	require.NoError(t, db.Create(&user).Error)
@@ -49,6 +51,8 @@ func TestCaptchaRoutesRejectDirectBusinessCalls(t *testing.T) {
 		{"POST", "/api/user/discount_code/validate", `{"code":"code"}`},
 		{"POST", "/api/user/pay", `{"discount_code":"code"}`},
 		{"POST", "/api/user/amount", `{"discount_code":"code"}`},
+		{"POST", "/api/user/epay/checkout/quote", `{"discount_code":"code"}`},
+		{"POST", "/api/user/epay/checkout/pay", `{"discount_code":"code"}`},
 		{"POST", "/api/user/stripe/pay", `{"discount_code":"code"}`},
 		{"POST", "/api/user/stripe/amount", `{"discount_code":"code"}`},
 		{"POST", "/api/user/creem/pay", `{"discount_code":"code"}`},
