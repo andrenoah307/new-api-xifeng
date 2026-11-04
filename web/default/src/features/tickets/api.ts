@@ -72,6 +72,7 @@ export interface TicketInvoiceOrder {
 }
 
 export interface TicketRefund {
+  settlement_verified?: boolean
   settlement_status?: string
   finance_version?: number
   refund_cash_cents?: number

@@ -266,11 +266,12 @@ export function RefundDetail({
   const { t } = useTranslation()
   const statusCfg = REFUND_STATUS_CONFIG[refund.refund_status]
   const correctionsPending =
-    refund.finance_version === 1 &&
-    (!refund.finance ||
-      refund.finance.invoice_corrections.some(
-        (item) => item.status !== 'completed'
-      ))
+    !refund.settlement_verified ||
+    (refund.finance_version === 1 &&
+      (!refund.finance ||
+        refund.finance.invoice_corrections.some(
+          (item) => item.status !== 'completed'
+        )))
 
   const [resolveOpen, setResolveOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
@@ -409,7 +410,8 @@ export function RefundDetail({
           {statusCfg && (
             <StatusBadge
               label={t(
-                refund.refund_status === REFUND_STATUS.PENDING
+                refund.refund_status === REFUND_STATUS.PENDING &&
+                  !refund.settlement_verified
                   ? 'Awaiting settlement verification'
                   : statusCfg.labelKey
               )}
@@ -419,17 +421,21 @@ export function RefundDetail({
           )}
         </CardHeader>
         <CardContent className='space-y-4'>
-          {refund.refund_status === REFUND_STATUS.PENDING && (
-            <p role='status'>
-              {t(
-                'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
-              )}
-            </p>
-          )}
+          {refund.refund_status === REFUND_STATUS.PENDING &&
+            !refund.settlement_verified &&
+            !refund.finance && (
+              <p role='status'>
+                {t(
+                  'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
+                )}
+              </p>
+            )}
           {refund.finance && (
             <RefundFinanceDetail
               finance={refund.finance}
               ticketId={refund.ticket_id}
+              userId={refund.user_id}
+              requestedQuota={refund.refund_quota}
             />
           )}
           {userInvoices && userInvoices.length > 0 && (
@@ -489,6 +495,12 @@ export function RefundDetail({
 
           {!readonly && refund.refund_status === REFUND_STATUS.PENDING && (
             <div className='flex gap-2 pt-2'>
+              <Button
+                disabled={loading || correctionsPending}
+                onClick={() => setResolveOpen(true)}
+              >
+                {t('Complete Refund')}
+              </Button>
               <Button
                 variant='destructive'
                 size='sm'

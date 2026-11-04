@@ -61,6 +61,7 @@ func TestMain(m *testing.M) {
 		&Option{},
 		&TicketRefund{},
 		&RefundOrderAllocation{},
+		&RefundLiability{},
 		&RefundInvoiceCorrection{},
 		&CommissionRecord{},
 	); err != nil {

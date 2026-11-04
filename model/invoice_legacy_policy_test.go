@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLegacyInvoicePolicyDefaultsClosedAndCannotBypass(t *testing.T) {
+func TestLegacyInvoicePolicyExplicitlyDisabledCannotBypass(t *testing.T) {
 	truncateTables(t)
 	require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error)
 	t.Cleanup(func() {
@@ -17,9 +17,7 @@ func TestLegacyInvoicePolicyDefaultsClosedAndCannotBypass(t *testing.T) {
 	orderID := seedInvoiceTicketTopUp(t, user.Id, "legacy-policy-disabled", 100)
 	require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", orderID).Update("payment_provider", PaymentProviderEpay).Error)
 	for _, taxEnabled := range []bool{false, true} {
-		config, err := GetInvoiceTaxConfig(DB)
-		require.NoError(t, err)
-		assert.Zero(t, config.LegacyInvoiceBefore)
+		config := InvoiceTaxConfig{Mode: "vat"}
 		config.Enabled = taxEnabled
 		config.ModuleEnabled = true
 		config.LegacyTopUpsEnabled = true

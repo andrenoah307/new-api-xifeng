@@ -12,6 +12,7 @@ import (
 func TestFinanceDisabledPreservesLegacyInvoice(t *testing.T) {
 	truncateTables(t)
 	require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat"}))
 	t.Cleanup(func() { require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error) })
 	user := insertInvoiceTicketUser(t, 980601)
 	order := TopUp{UserId: user.Id, TradeNo: "legacy-compatible", Money: 100, Status: common.TopUpStatusSuccess, PaymentProvider: PaymentProviderStripe}

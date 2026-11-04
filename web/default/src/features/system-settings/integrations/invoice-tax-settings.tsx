@@ -49,6 +49,37 @@ export function InvoiceTaxSettings() {
   if (!config) {
     return <p>{query.isError ? t('Failed to load') : t('Loading...')}</p>
   }
+  if (config.policy_effective_at) {
+    return (
+      <section className='space-y-4 border-t pt-4'>
+        <h3 className='font-medium'>{t('Invoice fees')}</h3>
+        <p className='text-muted-foreground text-sm'>
+          {t(
+            'From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.'
+          )}
+        </p>
+        <div className='flex items-center gap-2'>
+          <Switch
+            id='finance-module-enabled'
+            checked={!!config.module_enabled}
+            onCheckedChange={(module_enabled) =>
+              setDraft({ ...config, module_enabled })
+            }
+          />
+          <Label htmlFor='finance-module-enabled'>
+            {t('Enable finance module')}
+          </Label>
+        </div>
+        <Button
+          type='button'
+          disabled={save.isPending}
+          onClick={() => save.mutate(config)}
+        >
+          {t('Save')}
+        </Button>
+      </section>
+    )
+  }
   const legacyBefore = config.legacy_invoice_before ?? 0
   const validCutoff =
     Number.isSafeInteger(legacyBefore) &&

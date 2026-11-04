@@ -307,6 +307,12 @@ func RelaySwapFace(c *gin.Context, info *relaycommon.RelayInfo) *dto.MidjourneyR
 			return 0
 		}(),
 	}
+	if info.RefundLiability != nil && midjourneyTask.Quota > 0 {
+		model.HoldRefundLiability(info.RefundLiability)
+		if !info.RefundLiability.Failed.Load() {
+			midjourneyTask.RefundLiabilityID = info.RefundLiability.ID
+		}
+	}
 	err = midjourneyTask.Insert()
 	if err != nil {
 		return service.MidjourneyErrorWrapper(constant.MjRequestError, "insert_midjourney_task_failed")
@@ -692,6 +698,12 @@ func RelayMidjourneySubmit(c *gin.Context, relayInfo *relaycommon.RelayInfo) *dt
 	if midjResponse.Code == 1 && midjRequest.Action == "UPLOAD" {
 		midjourneyTask.Progress = "100%"
 		midjourneyTask.Status = "SUCCESS"
+	}
+	if relayInfo.RefundLiability != nil && midjourneyTask.Quota > 0 && midjourneyTask.Status != "SUCCESS" {
+		model.HoldRefundLiability(relayInfo.RefundLiability)
+		if !relayInfo.RefundLiability.Failed.Load() {
+			midjourneyTask.RefundLiabilityID = relayInfo.RefundLiability.ID
+		}
 	}
 	err = midjourneyTask.Insert()
 	if err != nil {

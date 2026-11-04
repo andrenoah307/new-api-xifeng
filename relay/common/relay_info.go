@@ -175,7 +175,8 @@ type RelayInfo struct {
 	SubscriptionPlanId    int
 	SubscriptionPlanTitle string
 	// RequestId is used for idempotent pre-consume/refund
-	RequestId string
+	RequestId       string
+	RefundLiability *common.RefundLiability
 	// SubscriptionAmountTotal / SubscriptionAmountUsedAfterPreConsume are used to compute remaining in logs.
 	SubscriptionAmountTotal               int64
 	SubscriptionAmountUsedAfterPreConsume int64
@@ -524,15 +525,18 @@ func genBaseRelayInfo(c *gin.Context, request dto.Request) *RelayInfo {
 	if reqId == "" {
 		reqId = common.NewRequestId()
 	}
+	liabilityValue, _ := c.Get(common.RefundLiabilityContextKey)
+	liability, _ := liabilityValue.(*common.RefundLiability)
 	info := &RelayInfo{
 		Request: request,
 
-		RequestId:  reqId,
-		UserId:     common.GetContextKeyInt(c, constant.ContextKeyUserId),
-		UsingGroup: common.GetContextKeyString(c, constant.ContextKeyUsingGroup),
-		UserGroup:  common.GetContextKeyString(c, constant.ContextKeyUserGroup),
-		UserQuota:  common.GetContextKeyInt(c, constant.ContextKeyUserQuota),
-		UserEmail:  common.GetContextKeyString(c, constant.ContextKeyUserEmail),
+		RequestId:       reqId,
+		RefundLiability: liability,
+		UserId:          common.GetContextKeyInt(c, constant.ContextKeyUserId),
+		UsingGroup:      common.GetContextKeyString(c, constant.ContextKeyUsingGroup),
+		UserGroup:       common.GetContextKeyString(c, constant.ContextKeyUserGroup),
+		UserQuota:       common.GetContextKeyInt(c, constant.ContextKeyUserQuota),
+		UserEmail:       common.GetContextKeyString(c, constant.ContextKeyUserEmail),
 
 		OriginModelName: common.GetContextKeyString(c, constant.ContextKeyOriginalModel),
 

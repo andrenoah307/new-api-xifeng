@@ -216,6 +216,11 @@ func runMidjourneyTaskUpdateOnce(ctx context.Context, report func(processed, tot
 				err = model.IncreaseUserQuota(task.UserId, task.Quota, false)
 				if err != nil {
 					logger.LogError(ctx, "fail to increase user quota: "+err.Error())
+					continue
+				}
+				if err := model.AdjustTaskUsedQuota(task.UserId, -task.Quota); err != nil {
+					logger.LogError(ctx, err.Error())
+					continue
 				}
 				if err := service.RefundMidjourneyTokenQuota(ctx, task); err != nil {
 					logger.LogWarn(ctx, fmt.Sprintf("fail to refund Midjourney token quota task=%s: %v", task.MjId, err))
@@ -233,6 +238,9 @@ func runMidjourneyTaskUpdateOnce(ctx context.Context, report func(processed, tot
 						"reason":  "构图失败",
 					},
 				})
+				model.CompleteRefundLiability(task.RefundLiabilityID)
+			} else if won && task.Status == "SUCCESS" {
+				model.CompleteRefundLiability(task.RefundLiabilityID)
 			}
 		}
 	}

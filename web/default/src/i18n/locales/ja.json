@@ -2739,7 +2739,7 @@
     "Invoice payments below the threshold use the private gateway; tax still applies. Payments at or above the threshold use corporate gateways.": "請求書付き決済は支払総額がしきい値未満の場合、個人向けゲートウェイを使用し、税金も徴収します。しきい値以上では法人ゲートウェイを使用します。",
     "Invoice required": "請求書が必要",
     "Invoice Settings": "請求書設定",
-    "Invoice tax charges": "請求書税費用",
+    "Invoice tax charges": "請求書発行手数料",
     "invoice tax quote changed": "返金計算が変更されました。更新後の金額を確認して再送信してください。",
     "Invoice title": "請求書の宛名",
     "Invoice total (CNY)": "請求書税込総額（元）",
@@ -5149,7 +5149,7 @@
     "Task submitted, you will be notified by email when complete": "",
     "Tasks currently pending or running.": "現在待機中または実行中のタスクです。",
     "Tax calculation mode": "税費用の計算方式",
-    "Tax charge (CNY)": "税額（CNY）",
+    "Tax charge (CNY)": "請求書発行手数料（元）",
     "Tax paid": "税費用支払済み",
     "Tax paid at checkout (CNY)": "チャージ時に支払済みの税額（CNY）",
     "Tax payment pending": "税費用の支払い待ち",
@@ -6066,10 +6066,16 @@
     "invoice.amount.due": "支払予定額",
     "invoice.amount.net": "税抜金額",
     "invoice.amount.paid": "支払済額",
-    "invoice.amount.tax": "税額",
+    "invoice.amount.tax": "発行手数料",
     "invoice.amount.total": "税込合計",
     "ticket.choice.general": "一般のお問い合わせ",
     "ticket.choice.invoice": "請求書を申請",
-    "ticket.choice.refund": "返金を申請"
+    "ticket.choice.refund": "返金を申請",
+    "Invoice fees": "請求書発行手数料",
+    "Invoice fee rate (%)": "請求書発行手数料率（%）",
+    "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "北京時間2026年11月9日午前0時より、発行手数料は普通発票が支払額の6%、専用発票が9%となり、支払時に差し引かれます。いずれの発票も増値税率は6%です。それ以前の支払いは普通発票を無料で発行できます。",
+    "New consumption is suspended until this refund is completed or cancelled.": "返金の完了またはキャンセルまで、新規の利用は停止されます。",
+    "Start correction": "訂正処理を開始",
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "支払い前に<strong>発票の種類</strong>を選択してください。2026年11月9日より、支払額から<strong>発行手数料が差し引かれます</strong>。発票を選択しなかった注文では発行できません。それ以前の支払いは普通発票を無料で発行できます。"
   }
 }

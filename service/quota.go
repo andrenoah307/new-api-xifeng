@@ -485,6 +485,11 @@ func preConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int, hint *mod
 }
 
 func PostConsumeQuota(relayInfo *relaycommon.RelayInfo, quota int, preConsumedQuota int, sendEmail bool) (err error) {
+	defer func() {
+		if err != nil && relayInfo.RefundLiability != nil {
+			relayInfo.RefundLiability.Failed.Store(true)
+		}
+	}()
 
 	// 1) Consume from wallet quota OR subscription item
 	if relayInfo != nil && relayInfo.BillingSource == BillingSourceSubscription {

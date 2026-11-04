@@ -28,6 +28,15 @@ export function InvoiceTaxNotice() {
     queryFn: getInvoiceTaxConfig,
   })
   if (!config.data?.module_enabled || !config.data?.enabled) return null
+  if (config.data.policy_effective_at) {
+    return (
+      <p className='text-muted-foreground text-sm'>
+        {t(
+          'From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.'
+        )}
+      </p>
+    )
+  }
   return (
     <p className='text-sm text-amber-700 dark:text-amber-400'>
       {t(
@@ -158,7 +167,7 @@ export function InvoiceTaxFields({
                     )?.label ?? quote.data.mode
                   )}
                 </dd>
-                <dt>{t('Rate (%)')}</dt>
+                <dt>{t('Invoice fee rate (%)')}</dt>
                 <dd>{quote.data.rate_bps / 100}%</dd>
               </>
             )}

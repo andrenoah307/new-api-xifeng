@@ -40,6 +40,13 @@ func UpdateTopUpInvoiceType(id int, expectedType, invoiceType string) (*TopUp, e
 		if order.InvoiceType == invoiceType {
 			return nil
 		}
+		if config.PolicyEffectiveAt > 0 {
+			// A grant cannot bypass prepaid fees or turn the legacy ordinary-only
+			// entitlement into a free special invoice.
+			if !config.AllowsLegacyInvoice(&order) || invoiceType != "ordinary" {
+				return ErrTicketInvoiceOrderInvalid
+			}
+		}
 		var invoices []TicketInvoice
 		if err := tx.Where("user_id = ? AND invoice_status IN ?", order.UserId, []int{InvoiceStatusPending, InvoiceStatusIssued}).Find(&invoices).Error; err != nil {
 			return err

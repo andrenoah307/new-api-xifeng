@@ -68,6 +68,16 @@ function useInvoiceTaxConfig() {
 export function InvoiceTaxNotice() {
   const { t } = useTranslation();
   const [config] = useInvoiceTaxConfig();
+  if (config?.module_enabled && config?.policy_effective_at) {
+    return (
+      <Banner
+        type='info'
+        description={t(
+          'From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.',
+        )}
+      />
+    );
+  }
   return config?.module_enabled && config?.enabled ? (
     <Banner
       type='warning'
@@ -191,7 +201,7 @@ export function InvoiceTaxFields({
                 <dd>
                   {t(modes.find((mode) => mode.value === current.mode)?.label)}
                 </dd>
-                <dt>{t('Rate (%)')}</dt>
+                <dt>{t('Invoice fee rate (%)')}</dt>
                 <dd>{current.rate_bps / 100}%</dd>
               </>
             )}
@@ -319,7 +329,7 @@ export function InvoiceTaxPayment({ charge, rejected }) {
               current.mode,
           )}
         </dd>
-        <dt>{t('Rate (%)')}</dt>
+        <dt>{t('Invoice fee rate (%)')}</dt>
         <dd>{current.rate_bps / 100}%</dd>
         <dt>{t('Status')}</dt>
         <dd>{labels[current.status]}</dd>
@@ -415,6 +425,31 @@ export function InvoiceTaxSettings() {
       setSaving(false);
     }
   };
+  if (config.policy_effective_at) {
+    return (
+      <section className='space-y-4'>
+        <h3>{t('Invoice fees')}</h3>
+        <p>
+          {t(
+            'From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.',
+          )}
+        </p>
+        <Space>
+          <Switch
+            checked={!!config.module_enabled}
+            onChange={(module_enabled) =>
+              setConfig({ ...config, module_enabled })
+            }
+            aria-label={t('Enable finance module')}
+          />
+          <span>{t('Enable finance module')}</span>
+        </Space>
+        <Button loading={saving} onClick={save}>
+          {t('Save')}
+        </Button>
+      </section>
+    );
+  }
   return (
     <section className='space-y-4'>
       <h3>{t('Invoice tax charges')}</h3>
