@@ -50,10 +50,11 @@ func TestClickHouseOfflineLogExport(t *testing.T) {
 		}
 	})
 	require.NoError(t, model.CreateClickHouseLogTable(db, 0))
-	require.NoError(t, db.Exec(`INSERT INTO logs (user_id,created_at,type,event_id,content,upstream_request_id) VALUES
-		(42,1700000000,2,'a','start','match'),(42,1700000001,2,'b','end','match'),
-		(43,1700000000,2,'c','other-user','match'),(42,1700000002,2,'d','outside','match'),
-		(42,1700000000,5,'e','other-type','match'),(42,1700000000,2,'f','other-request','other')`).Error)
+	require.NoError(t, db.Exec(`INSERT INTO logs (user_id,created_at,type,event_id,content,upstream_request_id,other) VALUES
+		(42,1700000000,2,'a','start','match','{"cache_tokens":60,"cache_creation_tokens":30,"cache_creation_tokens_5m":10,"cache_creation_tokens_1h":5}'),
+		(42,1700000001,2,'b','end','match','{"cache_creation_tokens_5m":10,"cache_creation_tokens_1h":5}'),
+		(43,1700000000,2,'c','other-user','match','{}'),(42,1700000002,2,'d','outside','match','{}'),
+		(42,1700000000,5,'e','other-type','match','{}'),(42,1700000000,2,'f','other-request','other','{}')`).Error)
 	task := &model.LogExportTask{Id: 62003, UserId: 42,
 		Filters: `{"type":2,"start_timestamp":1700000000,"end_timestamp":1700000001,"upstream_request_id":"match"}`}
 	count, size, err := (&logExportCenter{}).generateExport(task)
@@ -71,8 +72,17 @@ func TestClickHouseOfflineLogExport(t *testing.T) {
 	rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(string(data), "\uFEFF"))).ReadAll()
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
-	assert.Equal(t, []string{"start", "0", "0"}, rows[1][len(rows[1])-3:])
-	assert.Equal(t, []string{"end", "0", "0"}, rows[2][len(rows[2])-3:])
+	columns := make(map[string]int)
+	for i, header := range rows[0] {
+		columns[header] = i
+	}
+	for _, header := range []string{"详情", "缓存读取tokens", "缓存写入tokens"} {
+		require.Contains(t, columns, header)
+	}
+	for i, want := range [][]string{{"start", "60", "30"}, {"end", "0", "15"}} {
+		row := rows[i+1]
+		assert.Equal(t, want, []string{row[columns["详情"]], row[columns["缓存读取tokens"]], row[columns["缓存写入tokens"]]})
+	}
 }
 
 func TestOfflineLogExportCacheColumns(t *testing.T) {

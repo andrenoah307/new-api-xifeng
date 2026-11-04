@@ -55,10 +55,11 @@ func setupClickHouseHTTPLogTest(t *testing.T) *gorm.DB {
 
 func TestClickHouseOnlineLogExports(t *testing.T) {
 	db := setupClickHouseHTTPLogTest(t)
-	require.NoError(t, db.Exec(`INSERT INTO logs (user_id,created_at,type,event_id,content) VALUES
-		(42,1700000000,2,'a','start'),(42,1700000001,2,'b','end'),
-		(43,1700000000,2,'c','other-user'),(42,1700000002,2,'d','outside'),
-		(42,1700000000,5,'e','other-type')`).Error)
+	require.NoError(t, db.Exec(`INSERT INTO logs (user_id,created_at,type,event_id,content,other) VALUES
+		(42,1700000000,2,'a','start','{"cache_tokens":60,"cache_creation_tokens":30,"cache_creation_tokens_5m":10,"cache_creation_tokens_1h":5}'),
+		(42,1700000001,2,'b','end','{"cache_creation_tokens_5m":10,"cache_creation_tokens_1h":5}'),
+		(43,1700000000,2,'c','other-user','{}'),(42,1700000002,2,'d','outside','{}'),
+		(42,1700000000,5,'e','other-type','{}')`).Error)
 	for _, tc := range []struct {
 		name    string
 		handler gin.HandlerFunc
@@ -73,9 +74,21 @@ func TestClickHouseOnlineLogExports(t *testing.T) {
 			rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(recorder.Body.String(), "\uFEFF"))).ReadAll()
 			require.NoError(t, err)
 			require.Len(t, rows, len(tc.want)+1)
+			columns := make(map[string]int)
+			for i, header := range rows[0] {
+				columns[header] = i
+			}
+			for _, header := range []string{"详情", "缓存读取tokens", "缓存写入tokens"} {
+				require.Contains(t, columns, header)
+			}
+			cacheCounts := map[string][]string{
+				"start": {"60", "30"}, "end": {"0", "15"}, "other-user": {"0", "0"},
+			}
 			var contents []string
 			for _, row := range rows[1:] {
-				contents = append(contents, row[len(row)-1])
+				content := row[columns["详情"]]
+				contents = append(contents, content)
+				assert.Equal(t, cacheCounts[content], []string{row[columns["缓存读取tokens"]], row[columns["缓存写入tokens"]]})
 			}
 			assert.Equal(t, tc.want, contents)
 		})
