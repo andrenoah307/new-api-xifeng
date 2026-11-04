@@ -222,8 +222,7 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 	_, _ = csvFile.Write([]byte{0xEF, 0xBB, 0xBF})
 	headers := []string{
 		"时间", "类型", "令牌名称", "模型名称", "花费",
-		"提示词tokens", "补全tokens", "请求耗时ms", "分组", "请求ID", "上游请求ID", "详情",
-		"缓存读取tokens", "缓存写入tokens",
+		"提示词tokens", "补全tokens", "缓存读取tokens", "缓存写入tokens", "请求耗时ms", "分组", "请求ID", "上游请求ID", "详情",
 	}
 	if err := writer.Write(headers); err != nil {
 		return 0, 0, fmt.Errorf("write csv header: %w", err)
@@ -258,13 +257,13 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 					exportFormatQuota(log.Quota),
 					strconv.Itoa(log.PromptTokens),
 					strconv.Itoa(log.CompletionTokens),
+					strconv.FormatInt(cacheRead, 10),
+					strconv.FormatInt(cacheWrite, 10),
 					strconv.Itoa(log.UseTime),
 					log.Group,
 					log.RequestId,
 					log.UpstreamRequestId,
 					log.Content,
-					strconv.FormatInt(cacheRead, 10),
-					strconv.FormatInt(cacheWrite, 10),
 				}
 				if err := writer.Write(record); err != nil {
 					return err
