@@ -218,6 +218,40 @@ func TestSynchronousLogExportFiltersByUpstreamRequestID(t *testing.T) {
 	}
 }
 
+func TestOnlineLogExportCacheColumns(t *testing.T) {
+	db := setupLogExportValidationDB(t)
+	logs := []*model.Log{
+		{UserId: 42, CreatedAt: 150, Type: model.LogTypeConsume, Content: "cached", PromptTokens: 100, CompletionTokens: 5,
+			Other: `{"cache_tokens":60,"cache_creation_tokens":30,"cache_creation_tokens_5m":10,"cache_creation_tokens_1h":5,"admin_info":{"secret":"private"}}`},
+		{UserId: 42, CreatedAt: 151, Type: model.LogTypeConsume, Content: "uncached"},
+		{UserId: 43, CreatedAt: 152, Type: model.LogTypeConsume, Content: "other-user", Other: `{"cache_tokens":99}`},
+	}
+	require.NoError(t, db.Create(&logs).Error)
+	for _, tc := range []struct {
+		name                        string
+		handler                     gin.HandlerFunc
+		columns, rows, promptColumn int
+	}{
+		{"user", ExportUserLogsCsv, 13, 3, 5},
+		{"admin", ExportAllLogsCsv, 17, 4, 6},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			response := performLogExportRequest(t, tc.handler, "/?start_timestamp=100&end_timestamp=200")
+			require.Equal(t, http.StatusOK, response.Code)
+			rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(response.Body.String(), "\uFEFF"))).ReadAll()
+			require.NoError(t, err)
+			require.Len(t, rows, tc.rows)
+			require.Len(t, rows[0], tc.columns)
+			assert.Equal(t, []string{"详情", "缓存读取tokens", "缓存写入tokens"}, rows[0][tc.columns-3:])
+			assert.Equal(t, []string{"cached", "60", "30"}, rows[1][tc.columns-3:])
+			assert.Equal(t, []string{"uncached", "0", "0"}, rows[2][tc.columns-3:])
+			assert.Equal(t, "100", rows[1][tc.promptColumn])
+			assert.Equal(t, "5", rows[1][tc.promptColumn+1])
+			assert.NotContains(t, response.Body.String(), "private")
+		})
+	}
+}
+
 func TestSubmitOfflineExportTimeValidation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	db := setupLogExportValidationDB(t)

@@ -223,6 +223,7 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 	headers := []string{
 		"时间", "类型", "令牌名称", "模型名称", "花费",
 		"提示词tokens", "补全tokens", "请求耗时ms", "分组", "请求ID", "上游请求ID", "详情",
+		"缓存读取tokens", "缓存写入tokens",
 	}
 	if err := writer.Write(headers); err != nil {
 		return 0, 0, fmt.Errorf("write csv header: %w", err)
@@ -248,6 +249,7 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 				if truncated {
 					return nil
 				}
+				cacheRead, cacheWrite := log.CacheTokenCounts()
 				record := []string{
 					time.Unix(log.CreatedAt, 0).Format("2006-01-02 15:04:05"),
 					model.LogTypeLabel(log.Type),
@@ -261,6 +263,8 @@ func (ec *logExportCenter) generateExport(task *model.LogExportTask) (int, int64
 					log.RequestId,
 					log.UpstreamRequestId,
 					log.Content,
+					strconv.FormatInt(cacheRead, 10),
+					strconv.FormatInt(cacheWrite, 10),
 				}
 				if err := writer.Write(record); err != nil {
 					return err

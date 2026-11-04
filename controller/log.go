@@ -355,10 +355,11 @@ func ExportAllLogsCsv(c *gin.Context) {
 	requestId := c.Query("request_id")
 	upstreamRequestId := c.Query("upstream_request_id")
 
-	headers := []string{"时间", "类型", "用户名", "令牌名称", "模型名称", "花费", "提示词tokens", "补全tokens", "请求耗时ms", "渠道ID", "渠道名称", "分组", "请求ID", "IP", "详情"}
+	headers := []string{"时间", "类型", "用户名", "令牌名称", "模型名称", "花费", "提示词tokens", "补全tokens", "请求耗时ms", "渠道ID", "渠道名称", "分组", "请求ID", "IP", "详情", "缓存读取tokens", "缓存写入tokens"}
 	exportCsvWithHeartbeat(c, headers, func(ctx context.Context, writer *csv.Writer) error {
 		return model.ExportAllLogs(ctx, logType, startTimestamp, endTimestamp, modelName, username, tokenName, channel, group, requestId, upstreamRequestId, func(logs []*model.Log) error {
 			for _, log := range logs {
+				cacheRead, cacheWrite := log.CacheTokenCounts()
 				record := []string{
 					time.Unix(log.CreatedAt, 0).Format("2006-01-02 15:04:05"),
 					model.LogTypeLabel(log.Type),
@@ -375,6 +376,8 @@ func ExportAllLogsCsv(c *gin.Context) {
 					log.RequestId,
 					log.Ip,
 					log.Content,
+					strconv.FormatInt(cacheRead, 10),
+					strconv.FormatInt(cacheWrite, 10),
 				}
 				if err := writer.Write(record); err != nil {
 					return err
@@ -402,10 +405,11 @@ func ExportUserLogsCsv(c *gin.Context) {
 	requestId := c.Query("request_id")
 	upstreamRequestId := c.Query("upstream_request_id")
 
-	headers := []string{"时间", "类型", "令牌名称", "模型名称", "花费", "提示词tokens", "补全tokens", "请求耗时ms", "分组", "请求ID", "详情"}
+	headers := []string{"时间", "类型", "令牌名称", "模型名称", "花费", "提示词tokens", "补全tokens", "请求耗时ms", "分组", "请求ID", "详情", "缓存读取tokens", "缓存写入tokens"}
 	exportCsvWithHeartbeat(c, headers, func(ctx context.Context, writer *csv.Writer) error {
 		return model.ExportUserLogs(ctx, userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, upstreamRequestId, func(logs []*model.Log) error {
 			for _, log := range logs {
+				cacheRead, cacheWrite := log.CacheTokenCounts()
 				record := []string{
 					time.Unix(log.CreatedAt, 0).Format("2006-01-02 15:04:05"),
 					model.LogTypeLabel(log.Type),
@@ -418,6 +422,8 @@ func ExportUserLogsCsv(c *gin.Context) {
 					log.Group,
 					log.RequestId,
 					log.Content,
+					strconv.FormatInt(cacheRead, 10),
+					strconv.FormatInt(cacheWrite, 10),
 				}
 				if err := writer.Write(record); err != nil {
 					return err

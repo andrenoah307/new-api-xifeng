@@ -71,8 +71,45 @@ func TestClickHouseOfflineLogExport(t *testing.T) {
 	rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(string(data), "\uFEFF"))).ReadAll()
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
-	assert.Equal(t, "start", rows[1][len(rows[1])-1])
-	assert.Equal(t, "end", rows[2][len(rows[2])-1])
+	assert.Equal(t, []string{"start", "0", "0"}, rows[1][len(rows[1])-3:])
+	assert.Equal(t, []string{"end", "0", "0"}, rows[2][len(rows[2])-3:])
+}
+
+func TestOfflineLogExportCacheColumns(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.MkdirAll(exportDir, 0o755))
+	const userID = 62004
+	logs := []*model.Log{
+		{UserId: userID, CreatedAt: 150, Type: model.LogTypeConsume, Content: "cached", PromptTokens: 100, CompletionTokens: 5,
+			Other: `{"cache_tokens":60,"cache_creation_tokens_5m":10,"cache_creation_tokens_1h":5,"admin_info":{"secret":"private"}}`},
+		{UserId: userID, CreatedAt: 151, Type: model.LogTypeConsume, Content: "uncached"},
+		{UserId: userID + 1, CreatedAt: 150, Type: model.LogTypeConsume, Content: "other-user"},
+	}
+	require.NoError(t, model.LOG_DB.Create(&logs).Error)
+	t.Cleanup(func() {
+		assert.NoError(t, model.LOG_DB.Where("user_id IN ?", []int{userID, userID + 1}).Delete(&model.Log{}).Error)
+	})
+	task := &model.LogExportTask{Id: 62004, UserId: userID, Filters: `{"type":2,"start_timestamp":100,"end_timestamp":200}`}
+	count, _, err := (&logExportCenter{}).generateExport(task)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+	file, err := os.Open(filepath.Join(exportDir, "62004.csv.gz"))
+	require.NoError(t, err)
+	defer file.Close()
+	reader, err := gzip.NewReader(file)
+	require.NoError(t, err)
+	defer reader.Close()
+	data, err := io.ReadAll(reader)
+	require.NoError(t, err)
+	rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(string(data), "\uFEFF"))).ReadAll()
+	require.NoError(t, err)
+	require.Len(t, rows, 3)
+	require.Len(t, rows[0], 14)
+	assert.Equal(t, []string{"详情", "缓存读取tokens", "缓存写入tokens"}, rows[0][11:])
+	assert.Equal(t, []string{"cached", "60", "15"}, rows[1][11:])
+	assert.Equal(t, []string{"uncached", "0", "0"}, rows[2][11:])
+	assert.Equal(t, []string{"100", "5"}, rows[1][5:7])
+	assert.NotContains(t, string(data), "private")
 }
 
 func TestLogExportWorkerRejectsInvalidTimeRange(t *testing.T) {
