@@ -550,7 +550,13 @@ func ApplyChannelAffinityOverrideTemplate(c *gin.Context, paramOverride map[stri
 
 func GetPreferredChannelByAffinity(c *gin.Context, modelName string, usingGroup string) (int, bool) {
 	setting := operation_setting.GetChannelAffinitySetting()
+	if o := getRoutingObservation(c); o != nil && setting != nil {
+		o.mu.Lock()
+		o.data.SwitchSuccess, o.data.KeepDisabled = setting.SwitchOnSuccess, setting.KeepOnChannelDisabled
+		o.mu.Unlock()
+	}
 	if setting == nil || !setting.Enabled {
+		observeAffinityLookup(c, "disabled", 0)
 		return 0, false
 	}
 	path := ""
@@ -562,6 +568,7 @@ func GetPreferredChannelByAffinity(c *gin.Context, modelName string, usingGroup 
 		userAgent = c.Request.UserAgent()
 	}
 
+	missReason := "no_matching_rule"
 	for _, rule := range setting.Rules {
 		if !matchAnyRegexCached(rule.ModelRegex, modelName) {
 			continue
@@ -582,9 +589,11 @@ func GetPreferredChannelByAffinity(c *gin.Context, modelName string, usingGroup 
 			}
 		}
 		if affinityValue == "" {
+			missReason = "missing_key"
 			continue
 		}
 		if rule.ValueRegex != "" && !matchAnyRegexCached([]string{rule.ValueRegex}, affinityValue) {
+			missReason = "key_pattern_mismatch"
 			continue
 		}
 
@@ -614,14 +623,18 @@ func GetPreferredChannelByAffinity(c *gin.Context, modelName string, usingGroup 
 		cache := getChannelAffinityCache()
 		channelID, found, err := cache.Get(cacheKeySuffix)
 		if err != nil {
+			observeAffinityLookup(c, "cache_error", 0)
 			common.SysError(fmt.Sprintf("channel affinity cache get failed: key=%s, err=%v", cacheKeyFull, err))
 			return 0, false
 		}
 		if found {
+			observeAffinityLookup(c, "hit", channelID)
 			return channelID, true
 		}
+		observeAffinityLookup(c, "miss", 0)
 		return 0, false
 	}
+	observeAffinityLookup(c, missReason, 0)
 	return 0, false
 }
 
@@ -655,15 +668,18 @@ func ClearCurrentChannelAffinityCache(c *gin.Context) bool {
 	cache := getChannelAffinityCache()
 	deleted, err := cache.DeleteMany([]string{cacheKey})
 	if err != nil {
+		ObserveRoutingEvent(c, RoutingEvent{Kind: "binding_clear", Reason: "cache_error"})
 		common.SysError(fmt.Sprintf("channel affinity cache delete current failed: err=%v", err))
 		return false
 	}
 	c.Set(ginKeyChannelAffinitySkipRetry, false)
 	for _, ok := range deleted {
 		if ok {
+			ObserveRoutingEvent(c, RoutingEvent{Kind: "binding_clear", Reason: "deleted"})
 			return true
 		}
 	}
+	ObserveRoutingEvent(c, RoutingEvent{Kind: "binding_clear", Reason: "not_found"})
 	return false
 }
 
@@ -705,6 +721,9 @@ func AppendChannelAffinityAdminInfo(c *gin.Context, adminInfo map[string]interfa
 	if c == nil || adminInfo == nil {
 		return
 	}
+	if snapshot := RoutingObservationSnapshot(c); snapshot != nil {
+		adminInfo["routing_observation"] = snapshot
+	}
 	anyInfo, ok := c.Get(ginKeyChannelAffinityLogInfo)
 	if !ok || anyInfo == nil {
 		return
@@ -725,6 +744,9 @@ func RecordChannelAffinity(c *gin.Context, channelID int) {
 	// the original cache-friendly channel — otherwise a 2-second burst on A
 	// permanently moves the user's affinity (and prompt cache) to B.
 	rateLimitSkipped := c != nil && common.GetContextKeyBool(c, constant.ContextKeyRateLimitSkipped)
+	if rateLimitSkipped {
+		ObserveRoutingEvent(c, RoutingEvent{Kind: "binding_policy", Reason: "preserve_after_rate_limit"})
+	}
 	if setting.SwitchOnSuccess && c != nil && !rateLimitSkipped {
 		if successChannelID := c.GetInt("channel_id"); successChannelID > 0 {
 			channelID = successChannelID
@@ -742,7 +764,10 @@ func RecordChannelAffinity(c *gin.Context, channelID int) {
 	}
 	cache := getChannelAffinityCache()
 	if err := cache.SetWithTTL(cacheKey, channelID, time.Duration(ttlSeconds)*time.Second); err != nil {
+		observeAffinityWrite(c, channelID, ttlSeconds, "cache_error")
 		common.SysError(fmt.Sprintf("channel affinity cache set failed: key=%s, err=%v", cacheKey, err))
+	} else {
+		observeAffinityWrite(c, channelID, ttlSeconds, "stored")
 	}
 }
 

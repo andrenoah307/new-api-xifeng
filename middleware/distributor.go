@@ -45,7 +45,10 @@ func Distribute() func(c *gin.Context) {
 			abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidRequest, map[string]any{"Error": err.Error()}))
 			return
 		}
+		service.BeginRoutingObservation(c, modelRequest.Model)
+		defer service.FinishRoutingObservation(c)
 		if ok {
+			service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: "selection", Reason: "explicit_channel"})
 			id, err := strconv.Atoi(channelId.(string))
 			if err != nil {
 				abortWithOpenAiMessage(c, http.StatusBadRequest, i18n.T(c, i18n.MsgDistributorInvalidChannelId))
@@ -157,8 +160,18 @@ func Distribute() func(c *gin.Context) {
 					affinityUsable := false
 					affinityRateLimitSkipped := false
 					preferred, err := model.CacheGetChannel(preferredChannelID)
+					unavailableReason := "channel_missing"
+					if err != nil {
+						unavailableReason = "channel_lookup_error"
+					} else if preferred != nil {
+						unavailableReason = "unsupported_path"
+						if preferred.Status != common.ChannelStatusEnabled {
+							unavailableReason = "channel_disabled"
+						}
+					}
 					if err == nil && preferred != nil && preferred.Status == common.ChannelStatusEnabled &&
 						channelSupportsRequestPath(preferred, c.Request.URL.Path, modelRequest.Model) {
+						unavailableReason = "group_model_or_user_policy"
 						preferredGroup := ""
 						// The affinity cache key carries no user group, so a cached target may
 						// have been left by a user whose group this channel excludes.
@@ -186,11 +199,16 @@ func Distribute() func(c *gin.Context) {
 									common.SetContextKey(c, constant.ContextKeyAutoGroup, preferredGroup)
 								}
 								service.MarkChannelAffinityUsed(c, preferredGroup, preferred.Id)
+								service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: "affinity_selection", Channel: preferred.Id, Reason: "accepted"})
 							} else {
+								unavailableReason = "rate_limit_capacity"
 								affinityRateLimitSkipped = true
 								rateLimitedAffinityChannelID = preferred.Id
 							}
 						}
+					}
+					if !affinityUsable {
+						service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: "affinity_bypass", Channel: preferredChannelID, Reason: unavailableReason})
 					}
 					if !affinityUsable && !affinityRateLimitSkipped && !service.ShouldKeepChannelAffinityOnChannelDisabled() {
 						service.ClearCurrentChannelAffinityCache(c)
@@ -225,6 +243,7 @@ func Distribute() func(c *gin.Context) {
 		}
 		common.SetContextKey(c, constant.ContextKeyRequestStartTime, time.Now())
 		SetupContextForSelectedChannel(c, channel, modelRequest.Model)
+		service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: "initial_channel", Channel: c.GetInt("channel_id")})
 		c.Next()
 		if channel != nil && c.Writer != nil && c.Writer.Status() < http.StatusBadRequest {
 			recordChannelID := channel.Id

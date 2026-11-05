@@ -114,6 +114,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		newAPIError *types.NewAPIError
 		ws          *websocket.Conn
 	)
+	defer func() {
+		outcome := "relay_returned"
+		if newAPIError != nil {
+			outcome = "relay_error"
+		}
+		service.ObserveRoutingOutcome(c, outcome)
+	}()
 
 	if relayFormat == types.RelayFormatOpenAIRealtime {
 		var err error
@@ -174,6 +181,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		return
 	}
 
+	service.ObserveRoutingRequest(c, request)
 	relayInfo, err := relaycommon.GenRelayInfo(c, relayFormat, request, ws)
 	if err != nil {
 		newAPIError = types.NewError(err, types.ErrorCodeGenRelayInfoFailed)
@@ -307,12 +315,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
+			service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: "selection_failed", Attempt: retryParam.GetRetry() + 1})
 			logger.LogError(c, channelErr.Error())
 			newAPIError = channelErr
 			break
 		}
 
 		addUsedChannel(c, channel.Id)
+		service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: "attempt", Channel: channel.Id, Attempt: retryParam.GetRetry() + 1})
 
 		// Channel-level rate limit (RPM / concurrency).
 		rateLimitCfg := getChannelRateLimitConfig(c, channel)
@@ -332,6 +342,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 				}
 
 				logger.LogWarn(c, fmt.Sprintf("channel %d (%s) rate-limited: reason=%s, action=%s", channel.Id, channel.Name, decision.Reason, effectiveOnLimit))
+				service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: "rate_limit", Channel: channel.Id, Reason: effectiveOnLimit, Status: http.StatusTooManyRequests, Attempt: retryParam.GetRetry() + 1})
 				rlErr := newChannelRateLimitError(c, false)
 				relayInfo.LastError = rlErr
 				newAPIError = rlErr
@@ -411,7 +422,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 				errorFilterRules = cs.ErrorFilterRules
 			}
 		}
-		applyChannelErrorFilter(newAPIError, errorFilterRules, matchStatusCode, matchErrorCode, matchMessage)
+		ruleIndex, filterAction := applyChannelErrorFilter(newAPIError, errorFilterRules, matchStatusCode, matchErrorCode, matchMessage)
+		service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: "error_filter", Channel: channel.Id, Reason: filterAction, Status: matchStatusCode, RuleIndex: ruleIndex})
 		relayInfo.LastError = newAPIError
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
@@ -585,17 +597,25 @@ func getErrorFilterMatchInput(apiErr *types.NewAPIError) (statusCode int, errorC
 	return apiErr.StatusCode, fmt.Sprintf("%v", oaiErr.Code), msg
 }
 
-func applyChannelErrorFilter(apiErr *types.NewAPIError, rules []dto.ErrorFilterRule, statusCode int, errorCode string, message string) {
+func applyChannelErrorFilter(apiErr *types.NewAPIError, rules []dto.ErrorFilterRule, statusCode int, errorCode string, message string) (int, string) {
 	if apiErr == nil || len(rules) == 0 {
-		return
+		return 0, "no_match"
 	}
 
 	matched, rule := service.MatchErrorFilter(rules, statusCode, errorCode, message)
 	if !matched || rule == nil {
-		return
+		return 0, "no_match"
+	}
+	ruleIndex := 0
+	for i := range rules {
+		if rule == &rules[i] {
+			ruleIndex = i + 1
+			break
+		}
 	}
 
-	switch strings.ToLower(strings.TrimSpace(rule.Action)) {
+	action := strings.ToLower(strings.TrimSpace(rule.Action))
+	switch action {
 	case "rewrite":
 		if rule.RewriteMessage != "" {
 			apiErr.SetMessage(rule.RewriteMessage)
@@ -611,39 +631,68 @@ func applyChannelErrorFilter(apiErr *types.NewAPIError, rules []dto.ErrorFilterR
 		apiErr.SetSkipRetry(true)
 	case "retry":
 		apiErr.SetForceRetry(true)
+	default:
+		action = "unsupported_action"
 	}
+	return ruleIndex, action
 }
 
-func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) bool {
+func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) (retry bool) {
+	reason := "status_policy"
+	defer func() {
+		status := 0
+		if openaiErr != nil {
+			status = openaiErr.StatusCode
+		}
+		kind := "retry_denied"
+		if retry {
+			kind = "retry_allowed"
+		}
+		channelID := 0
+		if c != nil {
+			channelID = c.GetInt("channel_id")
+		}
+		service.ObserveRoutingEvent(c, service.RoutingEvent{Kind: kind, Channel: channelID, Status: status, Reason: reason})
+	}()
 	if openaiErr == nil {
+		reason = "no_error"
 		return false
 	}
 	if openaiErr.IsForceRetry() {
+		reason = "forced_by_error_filter"
 		return true
 	}
 	if service.ShouldSkipRetryAfterChannelAffinityFailure(c) {
+		reason = "hard_affinity"
 		return false
 	}
 	if types.IsChannelError(openaiErr) {
+		reason = "channel_error"
 		return true
 	}
 	if types.IsSkipRetryError(openaiErr) {
+		reason = "skip_retry_error"
 		return false
 	}
 	if retryTimes <= 0 {
+		reason = "retry_budget_exhausted"
 		return false
 	}
 	if _, ok := c.Get("specific_channel_id"); ok {
+		reason = "explicit_channel"
 		return false
 	}
 	code := openaiErr.StatusCode
 	if code >= 200 && code < 300 {
+		reason = "successful_status"
 		return false
 	}
 	if code < 100 || code > 599 {
+		reason = "invalid_status"
 		return true
 	}
 	if operation_setting.IsAlwaysSkipRetryCode(openaiErr.GetErrorCode()) {
+		reason = "non_retryable_error_code"
 		return false
 	}
 	return operation_setting.ShouldRetryByStatusCode(code)
