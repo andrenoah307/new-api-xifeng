@@ -77,19 +77,26 @@ func QuoteManualTopUp(db *gorm.DB, operatorID int, req ManualTopUpRequest) (Manu
 	if !config.ModuleEnabled {
 		return empty, ErrTicketForbidden
 	}
-	accounts, err := GetManualTopUpAccounts(db, operatorID)
-	if err != nil {
-		return empty, err
-	}
-	index := slices.IndexFunc(accounts, func(account ManualTopUpAccount) bool { return account.GatewayID == req.GatewayID })
-	if index < 0 {
+	var account ManualTopUpAccount
+	if req.GatewayID == "" && req.InvoiceType != "none" {
 		return empty, ErrInvoiceTaxInvalid
+	}
+	if req.GatewayID != "" {
+		accounts, err := GetManualTopUpAccounts(db, operatorID)
+		if err != nil {
+			return empty, err
+		}
+		index := slices.IndexFunc(accounts, func(account ManualTopUpAccount) bool { return account.GatewayID == req.GatewayID })
+		if index < 0 {
+			return empty, ErrInvoiceTaxInvalid
+		}
+		account = accounts[index]
 	}
 	checkout, err := CalculateEpayCheckout(req.TotalCents, req.InvoiceType, config.CheckoutAt(common.GetTimestamp()), decimal.NewFromInt(1), 100)
 	if err != nil {
 		return empty, err
 	}
-	quote := ManualTopUpQuote{checkout, accounts[index]}
+	quote := ManualTopUpQuote{checkout, account}
 	raw, err := common.Marshal(struct {
 		Quote              ManualTopUpQuote
 		OperatorID, UserID int
@@ -154,7 +161,7 @@ func CreateManualTopUp(operatorID int, req ManualTopUpRequest) (*TopUp, bool, er
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		if errors.Is(gatewayErr, gorm.ErrRecordNotFound) {
+		if errors.Is(gatewayErr, gorm.ErrRecordNotFound) && req.GatewayID != "" {
 			return ErrInvoiceTaxInvalid
 		}
 		quote, err := QuoteManualTopUp(tx, operatorID, req)

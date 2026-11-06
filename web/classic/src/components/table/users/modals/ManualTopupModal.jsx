@@ -60,6 +60,7 @@ export default function ManualTopupModal({
     cents > 0 &&
     (!!pending ||
       !!quote ||
+      (invoiceType === 'none' && !gatewayID) ||
       (accountsStatus === 'ready' &&
         accounts.some((account) => account.gateway_id === gatewayID)));
 
@@ -186,7 +187,8 @@ export default function ManualTopupModal({
               value={gatewayID || undefined}
               placeholder={t('Select corporate account')}
               disabled={busy || accountsStatus !== 'ready'}
-              onChange={setGatewayID}
+              showClear={invoiceType === 'none'}
+              onChange={(value) => setGatewayID(value || '')}
               optionList={accounts.map((account) => ({
                 value: account.gateway_id,
                 label: `${account.account_name} (${account.gateway_name})`,
@@ -199,13 +201,16 @@ export default function ManualTopupModal({
               {t('Retry')}
             </Button>
           )}
-          {!quote && accountsStatus === 'ready' && accounts.length === 0 && (
-            <p>
-              {t(
-                'Configure a corporate account in payment gateway settings first.',
-              )}
-            </p>
-          )}
+          {!quote &&
+            invoiceType !== 'none' &&
+            accountsStatus === 'ready' &&
+            accounts.length === 0 && (
+              <p>
+                {t(
+                  'Configure a corporate account in payment gateway settings first.',
+                )}
+              </p>
+            )}
         </div>
         {quote && (
           <dl className='grid grid-cols-2 gap-2'>

@@ -34,6 +34,19 @@ Completed payments are idempotent and never repriced on callback replay. Fees
 round to cents first; credited cash is the gross payment minus that fee.
 This configuration change adds no database columns and does not alter refunds.
 
+## Manual Top-Ups
+
+Manual top-ups require a configured corporate receipt account only when ordinary
+or special invoices are selected. The historical `-` choice (API value `none`)
+allows an empty account, including when no corporate accounts are configured.
+If an account is selected, it must still be valid and its receipt metadata is
+snapshotted. Quote tokens and request IDs still protect confirmation and replay;
+omitting an account does not grant invoice eligibility or change fee calculation.
+Regression checks cover missing configuration, invalid accounts, required invoice
+accounts, and idempotent account-free receipts. Both themes pass build and lint;
+Default also passes typecheck. Manual top-up race tests and model/controller vet
+pass. This update does not add schema changes or deploy to production.
+
 ## Refund Workflow
 
 1. The owner submits a refund ticket with a stable UUID request key. This creates
