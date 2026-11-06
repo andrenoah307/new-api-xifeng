@@ -195,6 +195,10 @@ export interface PressureCoolingRuntime {
   window_seconds: number
   state: string
   cooldown_until: number
+  consecutive?: number
+  max_consecutive?: number
+  scope?: string
+  cooled_groups?: string[]
 }
 
 export interface GetPressureCoolingRuntimeResponse {

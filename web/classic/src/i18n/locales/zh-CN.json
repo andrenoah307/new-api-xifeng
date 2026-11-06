@@ -5471,6 +5471,10 @@
     "Ticket attachments": "工单附件上传",
     "Ticket replies": "工单回复",
     "Ticket submission": "工单提交",
-    "Verification cancelled": "验证已取消"
+    "Verification cancelled": "验证已取消",
+    "Consecutive cooldown limit": "连续冷却次数上限",
+    "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "留空继承全局上限（系统默认 5 次）。达到上限后，冷却到期仍需手动恢复。修改上限不会自动恢复已挂起的渠道。",
+    "Consecutive cooldown limit must be an integer from 1 to 100": "连续冷却次数上限必须为 1 到 100 的整数",
+    "Suspended: manual recovery required": "已挂起，需手动恢复"
   }
 }

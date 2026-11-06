@@ -48,8 +48,8 @@ func loadPressureCoolingStateResult(channelId int) (*PressureCoolingState, error
 	return loadPressureCoolingStateMemory(channelId), nil
 }
 
-func savePressureCoolingState(channelId int, state *PressureCoolingState, ttlSeconds int) {
-	persistPressureCoolingState(channelId, state, ttlSeconds, false)
+func savePressureCoolingState(channelId int, state *PressureCoolingState, ttlSeconds int) bool {
+	return persistPressureCoolingState(channelId, state, ttlSeconds, false)
 }
 
 // Observation snapshots must not erase a newer cooldown, suspension or recovery.

@@ -291,6 +291,20 @@ export const channelFormSchema = z
           }
 
           const triggerPercent = pressureCooling.trigger_percent
+          const consecutiveLimit = pressureCooling.max_consecutive_cooldowns
+          if (
+            consecutiveLimit != null &&
+            (typeof consecutiveLimit !== 'number' ||
+              !Number.isInteger(consecutiveLimit) ||
+              consecutiveLimit < 1 ||
+              consecutiveLimit > 100)
+          ) {
+            addRequiredIssue(
+              ctx,
+              'pressure_cooling',
+              'Consecutive cooldown limit must be an integer from 1 to 100'
+            )
+          }
           if (
             triggerPercent != null &&
             (typeof triggerPercent !== 'number' ||

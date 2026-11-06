@@ -5555,6 +5555,10 @@
     "Ticket attachments": "Ticket attachments",
     "Ticket replies": "Ticket replies",
     "Ticket submission": "Ticket submission",
-    "Verification cancelled": "Verification cancelled"
+    "Verification cancelled": "Verification cancelled",
+    "Consecutive cooldown limit": "Consecutive cooldown limit",
+    "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.",
+    "Consecutive cooldown limit must be an integer from 1 to 100": "Consecutive cooldown limit must be an integer from 1 to 100",
+    "Suspended: manual recovery required": "Suspended: manual recovery required"
   }
 }

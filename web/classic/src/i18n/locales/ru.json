@@ -5350,6 +5350,10 @@
     "Ticket attachments": "Вложения к обращениям",
     "Ticket replies": "Ответы в обращениях",
     "Ticket submission": "Создание обращений",
-    "Verification cancelled": "Проверка отменена"
+    "Verification cancelled": "Проверка отменена",
+    "Consecutive cooldown limit": "Лимит последовательных охлаждений",
+    "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Оставьте пустым для наследования общего лимита (по умолчанию: 5). При достижении лимита после охлаждения требуется ручное восстановление. Изменение лимита не возобновляет работу приостановленных каналов.",
+    "Consecutive cooldown limit must be an integer from 1 to 100": "Лимит последовательных охлаждений должен быть целым числом от 1 до 100",
+    "Suspended: manual recovery required": "Приостановлено: требуется ручное восстановление"
   }
 }

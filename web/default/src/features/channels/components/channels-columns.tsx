@@ -84,9 +84,9 @@ import type {
   ChannelRateLimitStat,
   PressureCoolingRuntime,
 } from '../types'
+import { ChannelCacheRate } from './channel-cache-rate'
 import { ChannelRowActionsLayoutContext } from './channel-row-actions-context'
 import { useChannels } from './channels-provider'
-import { ChannelCacheRate } from './channel-cache-rate'
 import { DataTableRowActions } from './data-table-row-actions'
 import { DataTableTagRowActions } from './data-table-tag-row-actions'
 import {
@@ -162,7 +162,12 @@ function PressureCoolingRuntimeProgress({
       ? runtime.cooldown_until - Math.floor(Date.now() / 1000)
       : 0
 
-  if (triggerPercent <= 0 && triggerCount <= 0 && cooldownRemaining <= 0) {
+  if (
+    runtime.state !== 'susp' &&
+    triggerPercent <= 0 &&
+    triggerCount <= 0 &&
+    cooldownRemaining <= 0
+  ) {
     return null
   }
 
@@ -174,6 +179,15 @@ function PressureCoolingRuntimeProgress({
 
   return (
     <div className='w-full space-y-1'>
+      {runtime.state === 'susp' && (
+        <div className='text-destructive text-xs font-semibold break-words'>
+          {t('Suspended: manual recovery required')} ({runtime.consecutive ?? 0}
+          /{runtime.max_consecutive ?? '?'})
+          {runtime.scope === 'groups' && (
+            <div>{runtime.cooled_groups?.join(', ')}</div>
+          )}
+        </div>
+      )}
       {triggerPercent > 0 && (
         <div className='space-y-0.5'>
           <div className='flex items-center justify-between gap-1 text-[10px] leading-3'>
@@ -1204,9 +1218,12 @@ export function useChannelsColumns(
           return (
             <div className='min-w-0 space-y-1'>
               {badges}
-              {runtime?.configured && (
-                <PressureCoolingRuntimeProgress runtime={runtime} />
-              )}
+              {runtime &&
+                (runtime.configured ||
+                  runtime.state === 'susp' ||
+                  runtime.state === 'cool') && (
+                  <PressureCoolingRuntimeProgress runtime={runtime} />
+                )}
             </div>
           )
         },

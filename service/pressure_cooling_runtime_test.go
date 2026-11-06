@@ -99,13 +99,30 @@ func TestBatchPressureCoolingRuntimeRedisPipelineValues(t *testing.T) {
 	assert.Equal(t, PressureCoolingRuntime{
 		Configured: true, Enabled: true, Attempts: 12, Errors: 6,
 		TriggerPercent: 50, MinSamples: 10, WindowSeconds: 60,
-		State: "cool", CooldownUntil: 12345,
+		State: "cool", CooldownUntil: 12345, MaxConsecutive: 5, Scope: "channel",
 	}, runtimes[first.Id])
 	assert.Equal(t, PressureCoolingRuntime{
 		Configured: true, Enabled: true, Attempts: 8, Errors: 5,
 		TriggerCount: 5, WindowSeconds: 15,
-		State: "susp", CooldownUntil: 67890,
+		State: "susp", CooldownUntil: 67890, MaxConsecutive: 5, Scope: "channel",
 	}, runtimes[second.Id])
+}
+
+func TestPressureCoolingSuspensionVisibleWithoutErrorThresholds(t *testing.T) {
+	usePressureCoolingRuntimeRedis(t, miniredis.RunT(t))
+	configurePressureCoolingRuntimeTest(t, func(c *operation_setting.PressureCoolingSetting) {
+		c.Enabled = true
+		c.UpstreamErrorTriggerPercent, c.UpstreamErrorTriggerCount = 0, 0
+	})
+	ch := pressureCoolingRuntimeTestChannel(12830, dto.ChannelSettings{PressureCooling: &dto.PressureCoolingOverride{MaxConsecutiveCooldowns: common.GetPointer(2)}})
+	savePressureCoolingState(ch.Id, &PressureCoolingState{State: "susp", Scope: "groups", Consecutive: 2, CooledGroups: []string{"pro"}}, 900)
+	runtime := BatchPressureCoolingRuntime([]*model.Channel{ch})[ch.Id]
+	assert.False(t, runtime.Configured, "error metrics may be disabled independently of FRT cooling")
+	assert.Equal(t, "susp", runtime.State)
+	assert.EqualValues(t, 2, runtime.Consecutive)
+	assert.Equal(t, 2, runtime.MaxConsecutive)
+	assert.Equal(t, "groups", runtime.Scope)
+	assert.Equal(t, []string{"pro"}, runtime.CooledGroups)
 }
 
 func TestBatchPressureCoolingRuntimeMemoryReadsExistingBuckets(t *testing.T) {

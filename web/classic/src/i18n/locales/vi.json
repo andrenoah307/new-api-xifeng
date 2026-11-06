@@ -5839,6 +5839,10 @@
     "Ticket attachments": "Tệp đính kèm yêu cầu hỗ trợ",
     "Ticket replies": "Trả lời yêu cầu hỗ trợ",
     "Ticket submission": "Gửi yêu cầu hỗ trợ",
-    "Verification cancelled": "Đã hủy xác minh"
+    "Verification cancelled": "Đã hủy xác minh",
+    "Consecutive cooldown limit": "Giới hạn số lần làm nguội liên tiếp",
+    "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Để trống để kế thừa giới hạn chung (mặc định: 5). Khi đạt giới hạn, cần khôi phục thủ công sau khi hết thời gian làm nguội. Đổi giới hạn không khôi phục các kênh đang bị tạm ngưng.",
+    "Consecutive cooldown limit must be an integer from 1 to 100": "Giới hạn số lần làm nguội liên tiếp phải là số nguyên từ 1 đến 100",
+    "Suspended: manual recovery required": "Đã tạm ngưng: cần khôi phục thủ công"
   }
 }

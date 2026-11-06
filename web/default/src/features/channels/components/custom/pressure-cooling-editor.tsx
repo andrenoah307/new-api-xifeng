@@ -3,6 +3,7 @@ import type { UseFormReturn } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
 import { MultiSelect } from '@/components/multi-select'
+import { Field, FieldLabel, FieldDescription } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -396,6 +397,32 @@ export function PressureCoolingEditor({ form }: Props) {
             />
           </div>
         </div>
+        <Field>
+          <FieldLabel htmlFor='pressure-cooling-consecutive-limit'>
+            {t('Consecutive cooldown limit')}
+          </FieldLabel>
+          <Input
+            id='pressure-cooling-consecutive-limit'
+            type='number'
+            min={1}
+            max={100}
+            step={1}
+            value={data.max_consecutive_cooldowns ?? ''}
+            aria-describedby='pressure-cooling-consecutive-help'
+            onChange={(e) =>
+              update(
+                'max_consecutive_cooldowns',
+                e.target.value ? Number(e.target.value) : null
+              )
+            }
+            className='h-8'
+          />
+          <FieldDescription id='pressure-cooling-consecutive-help'>
+            {t(
+              'Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.'
+            )}
+          </FieldDescription>
+        </Field>
       </section>
     </div>
   )

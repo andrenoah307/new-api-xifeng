@@ -25,6 +25,25 @@ import { mock } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+test('consecutive cooldown limit survives edits and rejects invalid values', async () => {
+  const utils = await import('./PressureCoolingEditor.utils.js');
+  const value = utils.parsePressureCooling('{"max_consecutive_cooldowns":3}');
+  assert.equal(
+    JSON.parse(utils.serializePressureCooling(value)).max_consecutive_cooldowns,
+    3,
+  );
+  value.max_consecutive_cooldowns = null;
+  assert.equal(utils.serializePressureCooling(value), '');
+  for (const limit of [0, -1, 101, 1.5, '2']) {
+    assert.equal(
+      utils.getPressureCoolingValidationError({
+        max_consecutive_cooldowns: limit,
+      }),
+      'max_consecutive_cooldowns',
+    );
+  }
+});
+
 const MockComponent = ({ children }) => createElement('div', null, children);
 const MockText = ({ children }) => createElement('span', null, children);
 

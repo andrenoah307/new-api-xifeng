@@ -1734,6 +1734,8 @@ const EditChannelModal = (props) => {
     if (pressureCoolingValidationError) {
       const pressureCoolingValidationMessage =
         {
+          max_consecutive_cooldowns:
+            'Consecutive cooldown limit must be an integer from 1 to 100',
           trigger_percent: '压力冷却触发百分比必须在 1 到 100 之间',
           upstream_error_trigger_percent:
             '压力冷却上游报错比例必须在 0 到 100 之间',
@@ -3040,7 +3042,6 @@ const EditChannelModal = (props) => {
                     )}
                   />
                 </div>
-
               </div>
             );
 

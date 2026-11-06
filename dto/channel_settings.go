@@ -50,6 +50,7 @@ type PressureCoolingOverride struct {
 	FRTThresholdMs              *int     `json:"frt_threshold_ms,omitempty"`
 	TriggerPercent              *int     `json:"trigger_percent,omitempty"`
 	CooldownSeconds             *int     `json:"cooldown_seconds,omitempty"`
+	MaxConsecutiveCooldowns     *int     `json:"max_consecutive_cooldowns,omitempty"`
 	ObservationWindowSeconds    *int     `json:"observation_window_seconds,omitempty"`
 	UpstreamErrorTriggerPercent *int     `json:"upstream_error_trigger_percent,omitempty"`
 	UpstreamErrorMinSamples     *int     `json:"upstream_error_min_samples,omitempty"`

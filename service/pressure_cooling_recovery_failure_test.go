@@ -56,10 +56,18 @@ func TestPressureCoolingRecoveryRetriesFailedStatusWrite(t *testing.T) {
 	stored, err := model.GetChannelById(ch.Id, true)
 	require.NoError(t, err)
 	assert.Equal(t, common.ChannelStatusAutoDisabled, stored.Status)
+	var audit []model.Log
+	require.NoError(t, model.LOG_DB.Where("channel_id = ? AND type = ?", ch.Id, model.LogTypeManage).Order("id").Find(&audit).Error)
+	require.Len(t, audit, 1)
+	assert.Contains(t, audit[0].Content, "channel.pressure_cooling.recovery_failed")
+	assert.Contains(t, audit[0].Content, "status_write_unconfirmed")
 	require.NoError(t, model.DB.Callback().Update().Remove(callback))
 	pressureCoolingRecoveryOnce(now + 31)
 	stored, err = model.GetChannelById(ch.Id, true)
 	require.NoError(t, err)
 	assert.Equal(t, common.ChannelStatusEnabled, stored.Status)
 	assert.Equal(t, "obs", loadPressureCoolingState(ch.Id).State)
+	require.NoError(t, model.LOG_DB.Where("channel_id = ? AND type = ?", ch.Id, model.LogTypeManage).Order("id").Find(&audit).Error)
+	require.Len(t, audit, 2)
+	assert.Contains(t, audit[1].Content, "channel.pressure_cooling.recovered")
 }

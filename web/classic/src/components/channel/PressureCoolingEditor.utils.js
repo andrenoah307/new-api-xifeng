@@ -59,6 +59,7 @@ export const normalizePressureCooling = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
   const hasOverride =
+    value.max_consecutive_cooldowns != null ||
     PRESSURE_COOLING_FIELDS.some((field) => value[field] != null) ||
     PRESSURE_COOLING_UPSTREAM_ERROR_FIELDS.some(
       (field) => value[field] != null,
@@ -71,6 +72,9 @@ export const normalizePressureCooling = (value) => {
   const cooldownGroups = normalizeGroups(value.cooldown_groups);
 
   return {
+    ...(value.max_consecutive_cooldowns != null
+      ? { max_consecutive_cooldowns: value.max_consecutive_cooldowns }
+      : {}),
     enabled: typeof value.enabled === 'boolean' ? value.enabled : null,
     frt_threshold_ms:
       typeof value.frt_threshold_ms === 'number' &&
@@ -118,6 +122,11 @@ export const normalizePressureCooling = (value) => {
 
 export const getPressureCoolingValidationError = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  const limit = value.max_consecutive_cooldowns;
+  if (limit != null && (!Number.isInteger(limit) || limit < 1 || limit > 100)) {
+    return 'max_consecutive_cooldowns';
+  }
 
   const triggerPercent = value.trigger_percent;
   if (
@@ -194,6 +203,7 @@ export const serializePressureCooling = (value, availableGroups) => {
   if (!normalized) return '';
 
   const hasValue =
+    normalized.max_consecutive_cooldowns != null ||
     PRESSURE_COOLING_FIELDS.some((field) => normalized[field] != null) ||
     normalized.scope === 'groups' ||
     normalized.upstream_error_trigger_percent != null ||
@@ -204,6 +214,9 @@ export const serializePressureCooling = (value, availableGroups) => {
   const payload = Object.fromEntries(
     PRESSURE_COOLING_FIELDS.map((field) => [field, normalized[field]]),
   );
+  if (normalized.max_consecutive_cooldowns != null) {
+    payload.max_consecutive_cooldowns = normalized.max_consecutive_cooldowns;
+  }
   if (normalized.scope === 'groups') {
     payload.scope = 'groups';
     payload.cooldown_groups = cleanCooldownGroups(

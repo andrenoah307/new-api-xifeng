@@ -5296,6 +5296,10 @@
     "Ticket attachments": "チケット添付ファイル",
     "Ticket replies": "チケット返信",
     "Ticket submission": "チケット送信",
-    "Verification cancelled": "認証をキャンセルしました"
+    "Verification cancelled": "認証をキャンセルしました",
+    "Consecutive cooldown limit": "連続クールダウン回数の上限",
+    "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "空欄の場合は全体設定を継承します（初期値：5回）。上限に達すると、クールダウン終了後も手動復旧が必要です。上限を変更しても停止中のチャネルは復旧しません。",
+    "Consecutive cooldown limit must be an integer from 1 to 100": "連続クールダウン回数の上限は1から100の整数で指定してください",
+    "Suspended: manual recovery required": "停止中：手動復旧が必要"
   }
 }

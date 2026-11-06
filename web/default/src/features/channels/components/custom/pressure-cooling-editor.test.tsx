@@ -628,4 +628,30 @@ describe('pressure cooling scope configuration', () => {
       await rendered.cleanup()
     }
   })
+
+  test('edits and clears the consecutive limit with explicit inheritance help', async () => {
+    const rendered = await renderPressureCoolingEditor(
+      JSON.stringify({ enabled: true, max_consecutive_cooldowns: 3 })
+    )
+    try {
+      const input = rendered.container.querySelector(
+        '#pressure-cooling-consecutive-limit'
+      ) as DomInputElement | null
+      assert.ok(input)
+      assert.equal(input.value, '3')
+      assert.match(
+        rendered.container.textContent ?? '',
+        /Leave blank to inherit the global limit/
+      )
+      await setInputValue(input, '8')
+      assert.equal(JSON.parse(rendered.getRaw()).max_consecutive_cooldowns, 8)
+      await setInputValue(input, '')
+      assert.equal(
+        JSON.parse(rendered.getRaw()).max_consecutive_cooldowns,
+        undefined
+      )
+    } finally {
+      await rendered.cleanup()
+    }
+  })
 })

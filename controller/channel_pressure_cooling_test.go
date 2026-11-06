@@ -9,6 +9,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestValidateChannelConsecutiveCooldownLimit(t *testing.T) {
+	for _, raw := range []string{`{}`, `{"max_consecutive_cooldowns":null}`, `{"max_consecutive_cooldowns":1}`, `{"max_consecutive_cooldowns":100}`} {
+		setting := `{"pressure_cooling":` + raw + `}`
+		ch := &model.Channel{Group: "pro", Key: "key", Setting: &setting}
+		require.NoError(t, validateChannel(ch, false), raw)
+	}
+	for _, raw := range []string{"0", "-1", "101", "1.5", `"2"`} {
+		setting := `{"pressure_cooling":{"max_consecutive_cooldowns":` + raw + `}}`
+		ch := &model.Channel{Group: "pro", Key: "key", Setting: &setting}
+		require.Error(t, validateChannel(ch, false), raw)
+	}
+}
+
 func TestValidateChannelPressureCoolingGroupsMustBelongToChannel(t *testing.T) {
 	assert.NoError(t, validatePressureCoolingOverride(nil))
 	assert.NoError(t, validatePressureCoolingOverride(&model.Channel{Group: "pro", Key: "key"}))

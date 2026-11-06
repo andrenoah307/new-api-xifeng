@@ -25,6 +25,7 @@ export interface PressureCooling {
   frt_threshold_ms: number | null
   trigger_percent: number | null
   cooldown_seconds: number | null
+  max_consecutive_cooldowns?: number | null
   observation_window_seconds: number | null
   upstream_error_trigger_percent: number | null
   upstream_error_min_samples: number | null
@@ -75,6 +76,7 @@ export function normalizePressureCooling(
     value.frt_threshold_ms != null ||
     value.trigger_percent != null ||
     value.cooldown_seconds != null ||
+    value.max_consecutive_cooldowns != null ||
     value.observation_window_seconds != null ||
     value.upstream_error_trigger_percent != null ||
     value.upstream_error_min_samples != null ||
@@ -90,6 +92,13 @@ export function normalizePressureCooling(
     frt_threshold_ms: readNullableNumber(value.frt_threshold_ms),
     trigger_percent: readNullableNumber(value.trigger_percent),
     cooldown_seconds: readNullableNumber(value.cooldown_seconds),
+    ...(value.max_consecutive_cooldowns != null
+      ? {
+          max_consecutive_cooldowns: readNullableNumber(
+            value.max_consecutive_cooldowns
+          ),
+        }
+      : {}),
     observation_window_seconds: readNullableNumber(
       value.observation_window_seconds
     ),
@@ -165,6 +174,7 @@ export function serializePressureCooling(
     obj.frt_threshold_ms !== null ||
     obj.trigger_percent !== null ||
     obj.cooldown_seconds !== null ||
+    obj.max_consecutive_cooldowns != null ||
     obj.observation_window_seconds !== null ||
     obj.scope === 'groups' ||
     obj.upstream_error_trigger_percent !== null ||
@@ -183,6 +193,9 @@ export function serializePressureCooling(
   if (obj.scope === 'groups') {
     serialized.scope = 'groups'
     serialized.cooldown_groups = cooldownGroups
+  }
+  if (obj.max_consecutive_cooldowns != null) {
+    serialized.max_consecutive_cooldowns = obj.max_consecutive_cooldowns
   }
   if (obj.upstream_error_trigger_percent !== null) {
     serialized.upstream_error_trigger_percent =

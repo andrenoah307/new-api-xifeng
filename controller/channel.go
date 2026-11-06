@@ -573,6 +573,9 @@ func validatePressureCoolingOverride(channel *model.Channel) error {
 	if override == nil {
 		return nil
 	}
+	if override.MaxConsecutiveCooldowns != nil && (*override.MaxConsecutiveCooldowns < 1 || *override.MaxConsecutiveCooldowns > 100) {
+		return fmt.Errorf("Consecutive cooldown limit must be an integer from 1 to 100")
+	}
 	if override.TriggerPercent != nil && (*override.TriggerPercent < 1 || *override.TriggerPercent > 100) {
 		return fmt.Errorf("压力冷却触发百分比必须在 1 到 100 之间")
 	}

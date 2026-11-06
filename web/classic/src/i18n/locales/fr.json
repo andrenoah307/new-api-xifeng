@@ -5329,6 +5329,10 @@
     "Ticket attachments": "Pièces jointes aux tickets",
     "Ticket replies": "Réponses aux tickets",
     "Ticket submission": "Création de tickets",
-    "Verification cancelled": "Vérification annulée"
+    "Verification cancelled": "Vérification annulée",
+    "Consecutive cooldown limit": "Limite des refroidissements consécutifs",
+    "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Laisser vide pour hériter de la limite globale (5 par défaut). À cette limite, une reprise manuelle est requise après le refroidissement. Modifier la limite ne réactive pas les canaux suspendus.",
+    "Consecutive cooldown limit must be an integer from 1 to 100": "La limite des refroidissements consécutifs doit être un entier de 1 à 100",
+    "Suspended: manual recovery required": "Suspendu : reprise manuelle requise"
   }
 }

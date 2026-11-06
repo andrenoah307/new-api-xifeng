@@ -91,6 +91,7 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
   }, [groups, value]);
 
   const hasOverride =
+    v.max_consecutive_cooldowns != null ||
     v.enabled != null ||
     v.frt_threshold_ms != null ||
     v.trigger_percent != null ||
@@ -422,6 +423,32 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
                   style={{ width: '100%' }}
                   innerButtons
                 />
+              </Col>
+              <Col span={24} style={{ marginBottom: 8 }}>
+                <FieldLabel>{t('Consecutive cooldown limit')}</FieldLabel>
+                <InputNumber
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={v.max_consecutive_cooldowns ?? null}
+                  aria-label={t('Consecutive cooldown limit')}
+                  aria-describedby='pressure-cooling-consecutive-help'
+                  onChange={(n) =>
+                    update({
+                      max_consecutive_cooldowns:
+                        n === '' || n == null ? null : Number(n),
+                    })
+                  }
+                  style={{ width: '100%' }}
+                  innerButtons
+                />
+                <div id='pressure-cooling-consecutive-help'>
+                  <Text type='secondary' size='small'>
+                    {t(
+                      'Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.',
+                    )}
+                  </Text>
+                </div>
               </Col>
             </Row>
           </div>

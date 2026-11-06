@@ -11,16 +11,20 @@ import (
 )
 
 type PressureCoolingRuntime struct {
-	Configured     bool   `json:"configured"`
-	Enabled        bool   `json:"enabled"`
-	Attempts       int64  `json:"attempts"`
-	Errors         int64  `json:"errors"`
-	TriggerPercent int    `json:"trigger_percent"`
-	MinSamples     int    `json:"min_samples"`
-	TriggerCount   int    `json:"trigger_count"`
-	WindowSeconds  int    `json:"window_seconds"`
-	State          string `json:"state"`
-	CooldownUntil  int64  `json:"cooldown_until"`
+	Configured     bool     `json:"configured"`
+	Enabled        bool     `json:"enabled"`
+	Attempts       int64    `json:"attempts"`
+	Errors         int64    `json:"errors"`
+	TriggerPercent int      `json:"trigger_percent"`
+	MinSamples     int      `json:"min_samples"`
+	TriggerCount   int      `json:"trigger_count"`
+	WindowSeconds  int      `json:"window_seconds"`
+	State          string   `json:"state"`
+	CooldownUntil  int64    `json:"cooldown_until"`
+	Consecutive    int64    `json:"consecutive"`
+	MaxConsecutive int      `json:"max_consecutive"`
+	Scope          string   `json:"scope"`
+	CooledGroups   []string `json:"cooled_groups"`
 }
 
 type pressureCoolingRuntimeRedisCommands struct {
@@ -38,6 +42,7 @@ func pressureCoolingRuntimeForConfig(cfg resolvedPressureCoolingConfig) Pressure
 		MinSamples:     cfg.UpstreamErrorMinSamples,
 		TriggerCount:   cfg.UpstreamErrorTriggerCount,
 		WindowSeconds:  normalizePressureCoolingErrorWindow(cfg.ObservationWindowSeconds),
+		MaxConsecutive: cfg.MaxConsecutiveCooldowns,
 	}
 }
 
@@ -90,6 +95,8 @@ func BatchPressureCoolingRuntime(channels []*model.Channel) map[int]PressureCool
 			if state, err := parsePressureCoolingStateFields(command.channelID, command.state.Val()); err == nil && state != nil {
 				runtime.State = state.State
 				runtime.CooldownUntil = state.CooldownUntil
+				runtime.Consecutive, runtime.Scope = state.Consecutive, state.Scope
+				runtime.CooledGroups = append([]string(nil), state.CooledGroups...)
 			}
 			runtimes[command.channelID] = runtime
 		}
@@ -107,6 +114,8 @@ func BatchPressureCoolingRuntime(channels []*model.Channel) map[int]PressureCool
 		state := loadPressureCoolingStateMemory(channel.Id)
 		runtime.State = state.State
 		runtime.CooldownUntil = state.CooldownUntil
+		runtime.Consecutive, runtime.Scope = state.Consecutive, state.Scope
+		runtime.CooledGroups = append([]string(nil), state.CooledGroups...)
 		runtimes[channel.Id] = runtime
 	}
 	return runtimes

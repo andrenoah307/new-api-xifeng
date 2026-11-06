@@ -359,7 +359,13 @@ const renderChannelInflightSegments = (inflight, t) => {
 };
 
 const renderPressureCoolingRuntime = (runtime, t) => {
-  if (!runtime || runtime.configured !== true) return null;
+  if (
+    !runtime ||
+    (!runtime.configured &&
+      runtime.state !== 'susp' &&
+      runtime.state !== 'cool')
+  )
+    return null;
 
   const attempts = toNonNegativeFiniteNumber(runtime.attempts);
   const errors = toNonNegativeFiniteNumber(runtime.errors);
@@ -434,6 +440,18 @@ const renderPressureCoolingRuntime = (runtime, t) => {
         maxWidth: 360,
       }}
     >
+      {runtime.state === 'susp' && (
+        <Typography.Text
+          type='danger'
+          strong
+          style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+        >
+          {t('Suspended: manual recovery required')} ({runtime.consecutive ?? 0}
+          /{runtime.max_consecutive ?? '?'})
+          {runtime.scope === 'groups' &&
+            ` (${(runtime.cooled_groups || []).join(', ')})`}
+        </Typography.Text>
+      )}
       {metrics}
       {disabled && (
         <Typography.Text type='tertiary' size='small'>

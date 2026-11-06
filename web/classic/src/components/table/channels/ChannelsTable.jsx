@@ -143,46 +143,75 @@ const ChannelsTable = (channelsData) => {
       : visibleColumnsList;
   }, [compactMode, visibleColumnsList]);
 
+  const suspendedChannels = Object.entries(pressureCoolingRuntime || {}).filter(
+    ([, runtime]) => runtime.state === 'susp',
+  );
+
   return (
-    <CardTable
-      columns={tableColumns}
-      dataSource={channels}
-      scroll={compactMode ? undefined : { x: 'max-content' }}
-      pagination={{
-        currentPage: activePage,
-        pageSize: pageSize,
-        total: channelCount,
-        pageSizeOpts: [10, 20, 50, 100],
-        showSizeChanger: true,
-        onPageSizeChange: handlePageSizeChange,
-        onPageChange: handlePageChange,
-      }}
-      hidePagination={true}
-      expandAllRows={false}
-      onRow={handleRow}
-      rowSelection={
-        enableBatchDelete
-          ? {
-              onChange: (selectedRowKeys, selectedRows) => {
-                setSelectedChannels(selectedRows);
-              },
+    <>
+      {suspendedChannels.length > 0 && (
+        <div
+          role='alert'
+          style={{
+            borderLeft: '4px solid var(--semi-color-danger)',
+            background: 'var(--semi-color-danger-light-default)',
+            color: 'var(--semi-color-danger)',
+            padding: 12,
+            marginBottom: 12,
+            overflowWrap: 'anywhere',
+          }}
+        >
+          <strong>{t('Suspended: manual recovery required')}</strong>
+          <div>
+            {suspendedChannels
+              .map(
+                ([id, runtime]) =>
+                  `#${id} (${runtime.consecutive ?? 0}/${runtime.max_consecutive ?? '?'})`,
+              )
+              .join(', ')}
+          </div>
+        </div>
+      )}
+      <CardTable
+        columns={tableColumns}
+        dataSource={channels}
+        scroll={compactMode ? undefined : { x: 'max-content' }}
+        pagination={{
+          currentPage: activePage,
+          pageSize: pageSize,
+          total: channelCount,
+          pageSizeOpts: [10, 20, 50, 100],
+          showSizeChanger: true,
+          onPageSizeChange: handlePageSizeChange,
+          onPageChange: handlePageChange,
+        }}
+        hidePagination={true}
+        expandAllRows={false}
+        onRow={handleRow}
+        rowSelection={
+          enableBatchDelete
+            ? {
+                onChange: (selectedRowKeys, selectedRows) => {
+                  setSelectedChannels(selectedRows);
+                },
+              }
+            : null
+        }
+        empty={
+          <Empty
+            image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
+            darkModeImage={
+              <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
             }
-          : null
-      }
-      empty={
-        <Empty
-          image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
-          darkModeImage={
-            <IllustrationNoResultDark style={{ width: 150, height: 150 }} />
-          }
-          description={t('搜索无结果')}
-          style={{ padding: 30 }}
-        />
-      }
-      className='rounded-xl overflow-hidden'
-      size='middle'
-      loading={loading || searching}
-    />
+            description={t('搜索无结果')}
+            style={{ padding: 30 }}
+          />
+        }
+        className='rounded-xl overflow-hidden'
+        size='middle'
+        loading={loading || searching}
+      />
+    </>
   );
 };
 
