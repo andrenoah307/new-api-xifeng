@@ -6129,6 +6129,15 @@
     "Submit for review": "審査に提出",
     "Unexplained quota difference": "未説明の枠差額",
     "Unsupported currency": "未対応の通貨",
-    "Verified additional noncash quota": "証憑のある追加非現金枠"
+    "Verified additional noncash quota": "証憑のある追加非現金枠",
+    "Actual paid amount (CNY)": "実支払額（人民元）",
+    "Collected fee (CNY)": "徴収済み手数料（人民元）",
+    "Currency conversion settings unavailable": "換算設定を利用できません。システム設定を確認してください",
+    "Included bonus value (CNY)": "内包する特典額（人民元換算）",
+    "Noncash credit value (CNY)": "非現金枠の換算額（人民元）",
+    "Paid credit value (CNY)": "購入枠の換算額（人民元）",
+    "Purchased credit value (CNY)": "購入額（人民元換算）",
+    "Unexplained difference (CNY)": "未説明の差額（人民元換算）",
+    "Verified additional noncash value (CNY)": "証憑のある追加特典額（人民元換算）"
   }
 }

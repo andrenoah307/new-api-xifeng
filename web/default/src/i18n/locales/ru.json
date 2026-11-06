@@ -6129,6 +6129,15 @@
     "Submit for review": "Отправить на проверку",
     "Unexplained quota difference": "Необъяснённая разница лимита",
     "Unsupported currency": "Неподдерживаемая валюта",
-    "Verified additional noncash quota": "Подтверждённый дополнительный неденежный лимит"
+    "Verified additional noncash quota": "Подтверждённый дополнительный неденежный лимит",
+    "Actual paid amount (CNY)": "Фактически уплачено (CNY)",
+    "Collected fee (CNY)": "Удержанная комиссия (CNY)",
+    "Currency conversion settings unavailable": "Настройки пересчёта недоступны; проверьте настройки системы",
+    "Included bonus value (CNY)": "Включённый бонус (эквивалент CNY)",
+    "Noncash credit value (CNY)": "Неденежный лимит (эквивалент CNY)",
+    "Paid credit value (CNY)": "Оплаченный лимит (эквивалент CNY)",
+    "Purchased credit value (CNY)": "Купленный лимит (эквивалент CNY)",
+    "Unexplained difference (CNY)": "Необъяснённая разница (эквивалент CNY)",
+    "Verified additional noncash value (CNY)": "Подтверждённый дополнительный бонус (эквивалент CNY)"
   }
 }

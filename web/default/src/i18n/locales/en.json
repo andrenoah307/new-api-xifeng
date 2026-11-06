@@ -6129,6 +6129,15 @@
     "Submit for review": "Submit for review",
     "Unexplained quota difference": "Unexplained quota difference",
     "Unsupported currency": "Unsupported currency",
-    "Verified additional noncash quota": "Verified additional noncash quota"
+    "Verified additional noncash quota": "Verified additional noncash quota",
+    "Actual paid amount (CNY)": "Actual paid amount (CNY)",
+    "Collected fee (CNY)": "Collected fee (CNY)",
+    "Currency conversion settings unavailable": "Currency conversion settings unavailable",
+    "Included bonus value (CNY)": "Included bonus value (CNY)",
+    "Noncash credit value (CNY)": "Noncash credit value (CNY)",
+    "Paid credit value (CNY)": "Paid credit value (CNY)",
+    "Purchased credit value (CNY)": "Purchased credit value (CNY)",
+    "Unexplained difference (CNY)": "Unexplained difference (CNY)",
+    "Verified additional noncash value (CNY)": "Verified additional noncash value (CNY)"
   }
 }

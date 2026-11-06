@@ -6129,6 +6129,15 @@
     "Submit for review": "提交复核",
     "Unexplained quota difference": "未解释额度差额",
     "Unsupported currency": "不支持的币种",
-    "Verified additional noncash quota": "有凭证的额外非现金赠送额度"
+    "Verified additional noncash quota": "有凭证的额外非现金赠送额度",
+    "Actual paid amount (CNY)": "实付金额（￥）",
+    "Collected fee (CNY)": "已收费用（￥）",
+    "Currency conversion settings unavailable": "金额换算配置不可用，请检查系统设置",
+    "Included bonus value (CNY)": "内含赠送金额（折合￥）",
+    "Noncash credit value (CNY)": "非现金金额（折合￥）",
+    "Paid credit value (CNY)": "付费金额（折合￥）",
+    "Purchased credit value (CNY)": "购买金额（折合￥）",
+    "Unexplained difference (CNY)": "未解释差额（折合￥）",
+    "Verified additional noncash value (CNY)": "有凭证的额外赠送金额（折合￥）"
   }
 }

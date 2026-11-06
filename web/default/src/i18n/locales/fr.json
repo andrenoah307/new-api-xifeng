@@ -6129,6 +6129,15 @@
     "Submit for review": "Soumettre à vérification",
     "Unexplained quota difference": "Écart de crédit inexpliqué",
     "Unsupported currency": "Devise non prise en charge",
-    "Verified additional noncash quota": "Crédit non monétaire supplémentaire justifié"
+    "Verified additional noncash quota": "Crédit non monétaire supplémentaire justifié",
+    "Actual paid amount (CNY)": "Montant payé (CNY)",
+    "Collected fee (CNY)": "Frais perçus (CNY)",
+    "Currency conversion settings unavailable": "Conversion indisponible : vérifiez les paramètres système",
+    "Included bonus value (CNY)": "Bonus inclus (équivalent CNY)",
+    "Noncash credit value (CNY)": "Crédits non monétaires (équivalent CNY)",
+    "Paid credit value (CNY)": "Crédits payés (équivalent CNY)",
+    "Purchased credit value (CNY)": "Crédit acheté (équivalent CNY)",
+    "Unexplained difference (CNY)": "Écart inexpliqué (équivalent CNY)",
+    "Verified additional noncash value (CNY)": "Bonus supplémentaire justifié (équivalent CNY)"
   }
 }
