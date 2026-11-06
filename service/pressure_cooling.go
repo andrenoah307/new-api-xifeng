@@ -282,17 +282,8 @@ func CheckPressureCooling(channelId int, frtMs int64) {
 
 	switch state.State {
 	case "cool":
-		if state.Scope == "groups" {
-			return
-		}
-		if ch.Status == common.ChannelStatusEnabled {
-			state.State = "obs"
-			state.GraceUntil = now + int64(cfg.GracePeriodSeconds)
-			state.Violations = 0
-			state.TotalRequests = 0
-			state.WindowStart = now
-			savePressureCoolingObservation(channelId, state, stateTTL)
-		}
+		// A cached enabled channel may predate the cooldown. Only the recovery
+		// worker may reconcile the durable status and release this marker.
 		return
 	case "susp":
 		return
@@ -391,6 +382,7 @@ func executePressureCoolingDecision(ch *model.Channel, state *PressureCoolingSta
 		state.Consecutive++
 		state.Violations = 0
 		savePressureCoolingState(ch.Id, state, stateTTL)
+		common.SysLog(fmt.Sprintf("pressure cooling transition: channel=%d scope=groups state=cool cooldown_until=%d consecutive=%d", ch.Id, state.CooldownUntil, state.Consecutive))
 
 		subject := fmt.Sprintf("渠道「%s」(#%d) 因高延迟已自动冷却分组", ch.Name, ch.Id)
 		content := fmt.Sprintf("渠道「%s」(#%d) 已从分组 %s 摘除，其余分组不受影响。%s\n冷却将于 %s 后自动恢复（第 %d 次连续冷却）",
@@ -437,6 +429,7 @@ func executePressureCoolingDecision(ch *model.Channel, state *PressureCoolingSta
 	state.Consecutive++
 	state.Violations = 0
 	savePressureCoolingState(ch.Id, state, stateTTL)
+	common.SysLog(fmt.Sprintf("pressure cooling transition: channel=%d scope=channel state=cool cooldown_until=%d consecutive=%d", ch.Id, state.CooldownUntil, state.Consecutive))
 
 	subject := fmt.Sprintf("渠道「%s」(#%d) 因高延迟已自动冷却", ch.Name, ch.Id)
 	content := fmt.Sprintf("渠道「%s」(#%d) %s\n冷却将于 %s 后自动恢复（第 %d 次连续冷却）",
@@ -548,6 +541,7 @@ func pressureCoolingRecoveryLoop() {
 func pressureCoolingRecoveryOnce(now int64) {
 	states, stateErr := listCoolingChannelStatesResult()
 	if stateErr != nil {
+		common.SysError("pressure cooling recovery: state scan failed")
 		return
 	}
 	overlayDirty := false
@@ -599,16 +593,21 @@ func pressureCoolingRecoveryOnce(now int64) {
 		if state.State != "cool" {
 			continue
 		}
-		ch, err := model.CacheGetChannel(channelId)
+		ch, err := model.GetChannelById(channelId, false)
 		if err != nil || ch == nil {
-			deletePressureCoolingState(channelId)
+			common.SysError(fmt.Sprintf("pressure cooling recovery: channel=%d database_read_failed; retaining cooldown", channelId))
 			continue
 		}
 		cfg := resolvePressureCoolingConfig(ch.GetSetting().PressureCooling)
 		stateTTL := pressureCoolingStateTTL(cfg)
 		if !cfg.Enabled {
 			if ch.Status == common.ChannelStatusAutoDisabled {
-				model.UpdateChannelStatus(channelId, "", common.ChannelStatusEnabled, "压力冷却已禁用，自动恢复")
+				changed, err := model.RecoverPressureCoolingChannel(channelId, "压力冷却已禁用，自动恢复")
+				if err != nil || !changed {
+					savePressureCoolingObservation(channelId, state, stateTTL)
+					common.SysError(fmt.Sprintf("pressure cooling recovery: channel=%d status_write_unconfirmed; retaining cooldown", channelId))
+					continue
+				}
 			} else {
 				common.SysLog(fmt.Sprintf("压力冷却：渠道当前状态非自动禁用，压力冷却放弃恢复（渠道 #%d，%s）", channelId, ch.Name))
 			}
@@ -619,8 +618,11 @@ func pressureCoolingRecoveryOnce(now int64) {
 			state.State = "obs"
 			state.GraceUntil = now + int64(cfg.GracePeriodSeconds)
 			state.Violations = 0
+			state.TotalRequests = 0
 			state.WindowStart = now
-			savePressureCoolingState(channelId, state, stateTTL)
+			if savePressureCoolingObservation(channelId, state, stateTTL) {
+				common.SysLog(fmt.Sprintf("pressure cooling recovery: channel=%d already_enabled", channelId))
+			}
 			continue
 		}
 		if now < state.CooldownUntil {
@@ -628,7 +630,10 @@ func pressureCoolingRecoveryOnce(now int64) {
 		}
 		if state.Consecutive >= int64(cfg.MaxConsecutiveCooldowns) {
 			state.State = "susp"
-			savePressureCoolingState(channelId, state, stateTTL)
+			if !savePressureCoolingObservation(channelId, state, stateTTL) {
+				continue
+			}
+			common.SysLog(fmt.Sprintf("pressure cooling transition: channel=%d scope=channel state=susp consecutive=%d", channelId, state.Consecutive))
 			reason := fmt.Sprintf("压力冷却挂起：连续 %d 次冷却达上限，需手动恢复", state.Consecutive)
 			if ch.Status != common.ChannelStatusManuallyDisabled {
 				model.UpdateChannelStatus(channelId, "", common.ChannelStatusAutoDisabled, reason)
@@ -639,7 +644,12 @@ func pressureCoolingRecoveryOnce(now int64) {
 			continue
 		}
 		if ch.Status == common.ChannelStatusAutoDisabled {
-			model.UpdateChannelStatus(channelId, "", common.ChannelStatusEnabled, "压力冷却恢复")
+			changed, err := model.RecoverPressureCoolingChannel(channelId, "压力冷却恢复")
+			if err != nil || !changed {
+				savePressureCoolingObservation(channelId, state, stateTTL)
+				common.SysError(fmt.Sprintf("pressure cooling recovery: channel=%d status_write_unconfirmed; retaining cooldown", channelId))
+				continue
+			}
 		} else {
 			common.SysLog(fmt.Sprintf("压力冷却：渠道当前状态非自动禁用，压力冷却放弃恢复（渠道 #%d，%s）", channelId, ch.Name))
 		}
@@ -648,7 +658,14 @@ func pressureCoolingRecoveryOnce(now int64) {
 		state.Violations = 0
 		state.TotalRequests = 0
 		state.WindowStart = now
-		savePressureCoolingState(channelId, state, stateTTL)
+		if !savePressureCoolingObservation(channelId, state, stateTTL) {
+			common.SysLog(fmt.Sprintf("pressure cooling recovery: channel=%d state_changed; keeping newer state", channelId))
+			continue
+		}
+		common.SysLog(fmt.Sprintf("pressure cooling recovery: channel=%d status=%d cooldown_until=%d consecutive=%d", channelId, ch.Status, state.CooldownUntil, state.Consecutive))
+		if ch.Status != common.ChannelStatusAutoDisabled {
+			continue
+		}
 
 		NotifyRootUser(fmt.Sprintf("pressure_cooling_recover_%d", channelId),
 			fmt.Sprintf("渠道「%s」(#%d) 已从压力冷却中恢复", ch.Name, channelId),

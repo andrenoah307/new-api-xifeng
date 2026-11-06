@@ -318,7 +318,7 @@ func TestPressureCoolingRecoveryChannelScopeKeepsExistingStatusPath(t *testing.T
 	assert.Equal(t, "obs", loadPressureCoolingState(channel.Id).State)
 }
 
-func TestCheckPressureCoolingChannelCoolResetsObservation(t *testing.T) {
+func TestCheckPressureCoolingChannelCoolWaitsForRecoveryWorker(t *testing.T) {
 	preparePressureCoolingGroupTest(t)
 	configurePressureCooling(t, func(setting *operation_setting.PressureCoolingSetting) {
 		setting.Enabled = true
@@ -333,6 +333,9 @@ func TestCheckPressureCoolingChannelCoolResetsObservation(t *testing.T) {
 	CheckPressureCooling(channel.Id, 10000)
 
 	state := loadPressureCoolingState(channel.Id)
+	assert.Equal(t, "cool", state.State)
+	pressureCoolingRecoveryOnce(time.Now().Unix())
+	state = loadPressureCoolingState(channel.Id)
 	assert.Equal(t, "obs", state.State)
 	assert.Zero(t, state.Violations)
 	assert.Zero(t, state.TotalRequests)
