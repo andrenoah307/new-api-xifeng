@@ -5552,6 +5552,15 @@
     "financial evidence changed; refresh and review again": "帳務依據已變化，請重新整理後重新核對",
     "financial reconciliation evidence is invalid": "財務核對憑證或金額無效",
     "financial reconciliation requires a different administrator to approve": "財務核對需由另一位管理員複核",
-    "refund payout requires a claimed attempt and verified payment evidence": "請先領取付款任務，並提交有效付款憑證"
+    "refund payout requires a claimed attempt and verified payment evidence": "請先領取付款任務，並提交有效付款憑證",
+    "Paid credit value (CNY)": "付費金額（折合￥）",
+    "Noncash credit value (CNY)": "非現金金額（折合￥）",
+    "Unexplained difference (CNY)": "未解釋差額（折合￥）",
+    "Purchased credit value (CNY)": "購買金額（折合￥）",
+    "Included bonus value (CNY)": "內含贈送金額（折合￥）",
+    "Verified additional noncash value (CNY)": "有憑證的額外贈送金額（折合￥）",
+    "Actual paid amount (CNY)": "實付金額（￥）",
+    "Collected fee (CNY)": "已收費用（￥）",
+    "Currency conversion settings unavailable": "金額換算設定不可用，請檢查系統設定"
   }
 }

@@ -5540,6 +5540,15 @@
     "financial evidence changed; refresh and review again": "会計データが変更されました。更新して再確認してください",
     "financial reconciliation evidence is invalid": "照合証憑または金額が無効です",
     "financial reconciliation requires a different administrator to approve": "別の管理者による承認が必要です",
-    "refund payout requires a claimed attempt and verified payment evidence": "支払を担当し、有効な支払証憑を登録してください"
+    "refund payout requires a claimed attempt and verified payment evidence": "支払を担当し、有効な支払証憑を登録してください",
+    "Paid credit value (CNY)": "購入枠の換算額（人民元）",
+    "Noncash credit value (CNY)": "非現金枠の換算額（人民元）",
+    "Unexplained difference (CNY)": "未説明の差額（人民元換算）",
+    "Purchased credit value (CNY)": "購入額（人民元換算）",
+    "Included bonus value (CNY)": "内包する特典額（人民元換算）",
+    "Verified additional noncash value (CNY)": "証憑のある追加特典額（人民元換算）",
+    "Actual paid amount (CNY)": "実支払額（人民元）",
+    "Collected fee (CNY)": "徴収済み手数料（人民元）",
+    "Currency conversion settings unavailable": "換算設定を利用できません。システム設定を確認してください"
   }
 }

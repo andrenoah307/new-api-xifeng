@@ -5799,6 +5799,15 @@
     "financial evidence changed; refresh and review again": "financial evidence changed; refresh and review again",
     "financial reconciliation evidence is invalid": "financial reconciliation evidence is invalid",
     "financial reconciliation requires a different administrator to approve": "financial reconciliation requires a different administrator to approve",
-    "refund payout requires a claimed attempt and verified payment evidence": "refund payout requires a claimed attempt and verified payment evidence"
+    "refund payout requires a claimed attempt and verified payment evidence": "refund payout requires a claimed attempt and verified payment evidence",
+    "Paid credit value (CNY)": "Paid credit value (CNY)",
+    "Noncash credit value (CNY)": "Noncash credit value (CNY)",
+    "Unexplained difference (CNY)": "Unexplained difference (CNY)",
+    "Purchased credit value (CNY)": "Purchased credit value (CNY)",
+    "Included bonus value (CNY)": "Included bonus value (CNY)",
+    "Verified additional noncash value (CNY)": "Verified additional noncash value (CNY)",
+    "Actual paid amount (CNY)": "Actual paid amount (CNY)",
+    "Collected fee (CNY)": "Collected fee (CNY)",
+    "Currency conversion settings unavailable": "Currency conversion settings unavailable"
   }
 }

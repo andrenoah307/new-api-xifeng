@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -65,16 +66,18 @@ type FinanceSourceOrder struct {
 }
 
 type RefundReconciliationReport struct {
-	Revision     string                  `json:"revision"`
-	Stage        string                  `json:"stage"`
-	Blockers     []FinanceBlocker        `json:"blockers"`
-	Orders       []FinanceSourceOrder    `json:"orders"`
-	PaidQuota    int64                   `json:"paid_quota"`
-	NoncashQuota int64                   `json:"noncash_quota"`
-	WalletQuota  int                     `json:"wallet_quota"`
-	UsedQuota    int                     `json:"used_quota"`
-	Difference   string                  `json:"difference"`
-	Reviews      []FinanceReconciliation `json:"reviews"`
+	QuotaPerUnit    string                  `json:"quota_per_unit"`
+	USDExchangeRate string                  `json:"usd_exchange_rate"`
+	Revision        string                  `json:"revision"`
+	Stage           string                  `json:"stage"`
+	Blockers        []FinanceBlocker        `json:"blockers"`
+	Orders          []FinanceSourceOrder    `json:"orders"`
+	PaidQuota       int64                   `json:"paid_quota"`
+	NoncashQuota    int64                   `json:"noncash_quota"`
+	WalletQuota     int                     `json:"wallet_quota"`
+	UsedQuota       int                     `json:"used_quota"`
+	Difference      string                  `json:"difference"`
+	Reviews         []FinanceReconciliation `json:"reviews"`
 }
 
 func applyFinancePaymentEvidence(orders []TopUp, plan FinanceReconciliationPlan) (int64, error) {
@@ -154,6 +157,10 @@ func refundReconciliationReportTx(tx *gorm.DB, refund TicketRefund) (*RefundReco
 		return nil, err
 	}
 	report := &RefundReconciliationReport{Stage: "awaiting_owner_confirmation", Blockers: []FinanceBlocker{}, Orders: []FinanceSourceOrder{}, Reviews: []FinanceReconciliation{}, NoncashQuota: bonus, WalletQuota: owner.Quota, UsedQuota: owner.UsedQuota}
+	if common.QuotaPerUnit > 0 && !math.IsNaN(common.QuotaPerUnit) && !math.IsInf(common.QuotaPerUnit, 0) && operation_setting.USDExchangeRate > 0 && !math.IsNaN(operation_setting.USDExchangeRate) && !math.IsInf(operation_setting.USDExchangeRate, 0) {
+		report.QuotaPerUnit = decimal.NewFromFloat(common.QuotaPerUnit).String()
+		report.USDExchangeRate = decimal.NewFromFloat(operation_setting.USDExchangeRate).String()
+	}
 	var liabilities []RefundLiability
 	if err := tx.Where("user_id = ?", refund.UserId).Order("id ASC").Find(&liabilities).Error; err != nil {
 		return nil, err
@@ -215,13 +222,15 @@ func refundReconciliationReportTx(tx *gorm.DB, refund TicketRefund) (*RefundReco
 	// Exclude review proposals from the revision: submitting a proposal must not
 	// invalidate its own source snapshot. Applied evidence changes effective orders.
 	encoded, err := common.Marshal(struct {
-		Owner       User
-		Orders      []FinanceSourceOrder
-		Bonus       int64
-		Refunds     []TicketRefund
-		Charges     []InvoiceTaxCharge
-		Liabilities []RefundLiability
-	}{owner, report.Orders, bonus, refunds, charges, liabilities})
+		Owner           User
+		Orders          []FinanceSourceOrder
+		Bonus           int64
+		Refunds         []TicketRefund
+		Charges         []InvoiceTaxCharge
+		Liabilities     []RefundLiability
+		QuotaPerUnit    string
+		USDExchangeRate string
+	}{owner, report.Orders, bonus, refunds, charges, liabilities, report.QuotaPerUnit, report.USDExchangeRate})
 	if err != nil {
 		return nil, err
 	}

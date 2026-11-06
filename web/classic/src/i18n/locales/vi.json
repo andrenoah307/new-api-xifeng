@@ -6083,6 +6083,15 @@
     "financial evidence changed; refresh and review again": "Dữ liệu đã thay đổi; hãy tải lại và đối soát",
     "financial reconciliation evidence is invalid": "Chứng từ hoặc số tiền đối soát không hợp lệ",
     "financial reconciliation requires a different administrator to approve": "Cần một quản trị viên khác phê duyệt",
-    "refund payout requires a claimed attempt and verified payment evidence": "Hãy nhận xử lý chi trả và cung cấp chứng từ hợp lệ"
+    "refund payout requires a claimed attempt and verified payment evidence": "Hãy nhận xử lý chi trả và cung cấp chứng từ hợp lệ",
+    "Paid credit value (CNY)": "Giá trị trả phí (quy đổi CNY)",
+    "Noncash credit value (CNY)": "Giá trị phi tiền mặt (quy đổi CNY)",
+    "Unexplained difference (CNY)": "Chênh lệch chưa giải thích (quy đổi CNY)",
+    "Purchased credit value (CNY)": "Giá trị đã mua (quy đổi CNY)",
+    "Included bonus value (CNY)": "Giá trị tặng đã bao gồm (quy đổi CNY)",
+    "Verified additional noncash value (CNY)": "Giá trị tặng bổ sung có chứng từ (quy đổi CNY)",
+    "Actual paid amount (CNY)": "Số tiền thực trả (CNY)",
+    "Collected fee (CNY)": "Phí đã thu (CNY)",
+    "Currency conversion settings unavailable": "Không có cấu hình quy đổi; hãy kiểm tra cài đặt hệ thống"
   }
 }

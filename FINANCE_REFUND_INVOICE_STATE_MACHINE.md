@@ -5,6 +5,18 @@ deploying code does not approve or repair historical financial records.
 
 ## Actual Payment
 
+- Reconciliation summaries, evidence inputs and review history show CNY instead
+  of raw quota. Credit value is quota / system QuotaPerUnit * USDExchangeRate,
+  labelled as converted value; it must never replace the original paid cash
+  used for refunds. Actual cash and collected fee inputs are in yuan.
+- The report supplies current conversion settings, independently of personal
+  currency preferences. Rational conversion preserves untouched quota inputs;
+  the API continues receiving integer quota and cash cents. Invalid settings
+  disable evidence submission instead of assuming a rate.
+- Conversion settings participate in the source revision. After this upgrade
+  or a rate change, stale proposals/quotes require refresh and resubmission.
+  Deploy backend and both themes together; this display change has no migration.
+
 - Actual payment is authoritative: checkout v1 uses `payment_total_cents`;
   legacy evidence must match original `money` converted to integer cents.
 - Cash refund = original paid cents * cumulative refunded purchased quota /

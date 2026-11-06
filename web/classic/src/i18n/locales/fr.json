@@ -5573,6 +5573,15 @@
     "financial evidence changed; refresh and review again": "Les données ont changé ; actualisez puis vérifiez",
     "financial reconciliation evidence is invalid": "Justificatifs ou montants invalides",
     "financial reconciliation requires a different administrator to approve": "Un autre administrateur doit approuver",
-    "refund payout requires a claimed attempt and verified payment evidence": "Prenez en charge le paiement et fournissez un justificatif valide"
+    "refund payout requires a claimed attempt and verified payment evidence": "Prenez en charge le paiement et fournissez un justificatif valide",
+    "Paid credit value (CNY)": "Crédits payés (équivalent CNY)",
+    "Noncash credit value (CNY)": "Crédits non monétaires (équivalent CNY)",
+    "Unexplained difference (CNY)": "Écart inexpliqué (équivalent CNY)",
+    "Purchased credit value (CNY)": "Crédit acheté (équivalent CNY)",
+    "Included bonus value (CNY)": "Bonus inclus (équivalent CNY)",
+    "Verified additional noncash value (CNY)": "Bonus supplémentaire justifié (équivalent CNY)",
+    "Actual paid amount (CNY)": "Montant payé (CNY)",
+    "Collected fee (CNY)": "Frais perçus (CNY)",
+    "Currency conversion settings unavailable": "Conversion indisponible : vérifiez les paramètres système"
   }
 }
