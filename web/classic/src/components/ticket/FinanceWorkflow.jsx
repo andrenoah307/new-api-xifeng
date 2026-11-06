@@ -487,16 +487,12 @@ function ReconciliationEditor({
             {t('Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.')}
           </p>
           <label className='block space-y-1'>
-            <span>{t('Source evidence (at least 10 characters)')}</span>
-            <textarea className={inputClass} value={evidence} maxLength={4000} onChange={event => setEvidence(event.target.value)} />
+            <span>{t('Source evidence (optional)')}</span>
+            <textarea className={inputClass} value={evidence} onChange={event => setEvidence(event.target.value)} />
           </label>
           <Button disabled={busy || !money.valid} onClick={() => {
         if (!amountsValid || parsedGrant === null || parsedGrant > 2147483647 || parsedGrant > 0 && BigInt(parsedGrant) > BigInt(report.difference)) {
           setError('Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.');
-          return;
-        }
-        if ([...evidence.trim()].length < 10) {
-          setError('Provide source evidence of at least 10 characters, including receipt or grant record references.');
           return;
         }
         if (!payments.length && !parsedGrant) {
