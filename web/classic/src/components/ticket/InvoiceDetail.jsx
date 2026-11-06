@@ -29,6 +29,7 @@ import {
 } from '@douyinfe/semi-ui';
 import CardTable from '../common/ui/CardTable';
 import { InvoiceTaxPayment } from './InvoiceTax';
+import { InvoiceCorrectionPanel } from './FinanceWorkflow';
 import { InvoiceAmountFormula } from './InvoiceAmountFormula';
 import { timestamp2string } from '../../helpers';
 import { getInvoiceStatusColor, getInvoiceStatusText } from './ticketUtils';
@@ -239,6 +240,7 @@ const InvoiceDetail = ({
             description={t('暂无发票信息')}
           />
         )}
+        {!readonly && invoice?.invoice_status === 2 && <InvoiceCorrectionPanel ticketId={invoice.ticket_id} />}
       </div>
     </Card>
   );

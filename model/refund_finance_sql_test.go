@@ -49,8 +49,13 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 				initCol()
 				require.NoError(t, connection.Close())
 			})
-			models := []any{&User{}, &TopUp{}, &Ticket{}, &TicketMessage{}, &TicketInvoice{}, &InvoiceTaxCharge{}, &TicketRefund{}, &RefundOrderAllocation{}, &RefundInvoiceCorrection{}, &RefundLiability{}, &Option{}, &Log{}, &CommissionRecord{}}
+			models := []any{&User{}, &TopUp{}, &Ticket{}, &TicketMessage{}, &TicketInvoice{}, &InvoiceTaxCharge{}, &TicketRefund{}, &RefundOrderAllocation{}, &RefundInvoiceCorrection{}, &FinanceReconciliation{}, &RefundPayoutAttempt{}, &RefundLiability{}, &Option{}, &Log{}, &CommissionRecord{}}
 			require.NoError(t, db.AutoMigrate(models...))
+			require.NoError(t, db.AutoMigrate(models...))
+			// Simulate the previous release's unique constraint before upgrading.
+			require.NoError(t, db.Exec("CREATE UNIQUE INDEX idx_refund_invoice_correction ON refund_invoice_corrections (refund_ticket_id, invoice_ticket_id)").Error)
+			require.NoError(t, migrateFinanceCorrectionIndex())
+			require.NoError(t, migrateFinanceCorrectionIndex())
 			require.NoError(t, db.AutoMigrate(models...))
 			var version string
 			require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
@@ -154,6 +159,10 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			assert.Equal(t, 10000, other.Quota)
 			t.Run("published_policy", TestRefundSettlementPolicyFlow)
 			t.Run("admission_and_confirmation_races", TestRefundSettlementConcurrentConfirmation)
+			t.Run("historical_reconciliation", TestReconciliationClassifiesLegacyDiscountWithoutChangingWallet)
+			t.Run("invoice_correction_phases", TestIndependentInvoiceCorrectionTracksRedAndReplacementSeparately)
+			t.Run("payout_uncertainty", TestRefundPayoutUnknownOutcomeCannotBeCancelledOrPaidTwice)
+			t.Run("proportional_refunds", TestPartialRefundsConserveActualCashFeesAndCommission)
 		})
 	}
 }

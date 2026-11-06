@@ -24,6 +24,8 @@ func TestRefundInvoiceCorrectionChain(t *testing.T) {
 	require.NoError(t, DB.Transaction(func(tx *gorm.DB) error { return createRefundInvoiceCorrectionsTx(tx, &refund, allocations) }))
 	var first RefundInvoiceCorrection
 	require.NoError(t, DB.Where("refund_ticket_id = ?", refund.TicketId).First(&first).Error)
+	// Preserve coverage of pre-upgrade corrections whose external work had started.
+	require.NoError(t, DB.Model(&first).Update("version", 0).Error)
 	assert.Equal(t, int64(1060000), first.OriginalCents)
 	assert.Equal(t, int64(530000), first.ReissueCents)
 	_, err := CompleteRefundInvoiceCorrection(first.Id, owner.Id, "RED-1", "BLUE-2", "")
@@ -54,6 +56,7 @@ func TestRefundInvoiceCorrectionChain(t *testing.T) {
 	require.NoError(t, DB.Transaction(func(tx *gorm.DB) error { return createRefundInvoiceCorrectionsTx(tx, &secondRefund, allocations) }))
 	var second RefundInvoiceCorrection
 	require.NoError(t, DB.Where("refund_ticket_id = ?", secondRefund.TicketId).First(&second).Error)
+	require.NoError(t, DB.Model(&second).Update("version", 0).Error)
 	assert.Equal(t, int64(530000), second.OriginalCents)
 	assert.Equal(t, "BLUE-2", second.OriginalReference)
 	assert.Zero(t, second.ReissueCents)

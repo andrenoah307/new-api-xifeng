@@ -33,6 +33,11 @@ import type {
   RefundFinanceDetail as FinanceData,
 } from '../refund-finance-api'
 import { refundCash, refundQuota } from '../refund-finance-format'
+import {
+  CorrectionWorkflow,
+  ReconciliationPanel,
+  RefundPayoutPanel,
+} from './finance-workflow'
 
 export function RefundFinanceDetail(props: {
   finance: FinanceData
@@ -108,7 +113,9 @@ export function RefundFinanceDetail(props: {
     return (
       <div className='space-y-3 text-sm' role='status'>
         {t(
-          'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
+          (quote ?? props.finance).waiting_reason === 'financial_reconciliation'
+            ? 'Financial reconciliation required'
+            : 'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
         )}
         <p>
           {t(
@@ -137,6 +144,9 @@ export function RefundFinanceDetail(props: {
           </div>
         )}
         {error && <p role='alert'>{t(error)}</p>}
+        {staff && props.ticketId && (
+          <ReconciliationPanel ticketId={props.ticketId} />
+        )}
       </div>
     )
   }
@@ -239,14 +249,36 @@ export function RefundFinanceDetail(props: {
           </tbody>
         </table>
       </div>
-      {props.finance.invoice_corrections.map((correction) => (
-        <InvoiceCorrectionForm
-          key={`${correction.invoice_ticket_id}:${correction.id}:${correction.status}`}
-          correction={correction}
-          editable={staff && !!props.ticketId}
-          onUpdated={props.onUpdated}
+      {props.finance.invoice_corrections.map((correction) =>
+        correction.version === 1 ? (
+          <CorrectionWorkflow
+            key={`${correction.id}:${correction.phase}:${correction.status}`}
+            correction={correction}
+            editable={staff && !!props.ticketId}
+            onUpdated={() => {
+              if (props.onUpdated) props.onUpdated()
+              else void client.invalidateQueries({ queryKey: ['tickets'] })
+            }}
+          />
+        ) : (
+          <InvoiceCorrectionForm
+            key={`${correction.invoice_ticket_id}:${correction.id}:${correction.status}`}
+            correction={correction}
+            editable={staff && !!props.ticketId}
+            onUpdated={props.onUpdated}
+          />
+        )
+      )}
+      {staff && props.ticketId && (
+        <RefundPayoutPanel
+          key={`${props.ticketId}:${props.finance.invoice_corrections.map(row=>`${row.id}:${row.status}`).join(',')}`}
+          ticketId={props.ticketId}
+          onUpdated={() => {
+            if (props.onUpdated) props.onUpdated()
+            else void client.invalidateQueries({ queryKey: ['tickets'] })
+          }}
         />
-      ))}
+      )}
     </section>
   )
 }

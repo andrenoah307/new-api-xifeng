@@ -227,9 +227,10 @@ func TestRefundClawbackInvalidQuotaRejected(t *testing.T) {
 	assert.Equal(t, 10000, affQuota)
 }
 
-func TestGetRefundCommissionInfoProportionalSuggestion(t *testing.T) {
+func TestGetRefundCommissionInfoDoesNotInferLegacyCashFromQuota(t *testing.T) {
 	truncateTables(t)
-	// 充值总额 100，返佣 5000；退款 25_000_000 quota = 50 money → 比例 0.5 → 建议 2500。
+	// Historical quota has no authoritative cash allocation, even when it
+	// happens to equal 50 units at the current exchange rate.
 	fx := seedClawbackScenario(t, 10000, 20000, 5000, 100, 25_000_000)
 
 	var refund TicketRefund
@@ -244,7 +245,7 @@ func TestGetRefundCommissionInfoProportionalSuggestion(t *testing.T) {
 	assert.Equal(t, 0, info.ClawedBackQuota)
 	assert.Equal(t, 5000, info.ClawbackableQuota)
 	assert.InDelta(t, 100, info.TotalTopUpMoney, 1e-9)
-	assert.Equal(t, 2500, info.SuggestedClawbackQuota)
+	assert.Zero(t, info.SuggestedClawbackQuota)
 	require.Len(t, info.Records, 1)
 }
 

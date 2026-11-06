@@ -331,13 +331,15 @@ func GetUserMaxRefundableQuota(userId int) (int, error) {
 
 func getUserMaxRefundableQuotaTx(tx *gorm.DB, userId int) (int, error) {
 	var totalTopUp, bonusQuota, totalRefunded, pendingRefund int64
-	if err := tx.Model(&TopUp{}).Where("user_id = ? AND status = ? AND (source IS NULL OR source = '' OR source != ?)", userId, common.TopUpStatusSuccess, "discount_bonus").
-		Select("COALESCE(SUM(quota_granted), 0)").Scan(&totalTopUp).Error; err != nil {
+	orders, bonusQuota, err := loadRefundPaymentSources(tx, userId)
+	if err != nil {
 		return 0, err
 	}
-	if err := tx.Model(&TopUp{}).Where("user_id = ? AND status = ? AND source = ?", userId, common.TopUpStatusSuccess, "discount_bonus").
-		Select("COALESCE(SUM(quota_granted), 0)").Scan(&bonusQuota).Error; err != nil {
-		return 0, err
+	for _, order := range orders {
+		if order.QuotaGranted < 0 || order.QuotaGranted > math.MaxInt64-totalTopUp {
+			return 0, ErrFinanceEvidence
+		}
+		totalTopUp += order.QuotaGranted
 	}
 	if err := tx.Model(&TicketRefund{}).Where("user_id = ? AND refund_status = ?", userId, RefundStatusRefunded).
 		Select("COALESCE(SUM(refund_quota), 0)").Scan(&totalRefunded).Error; err != nil {
@@ -390,6 +392,9 @@ func GetTicketRefundByTicketId(ticketId int) (*TicketRefund, error) {
 // 当前所有批准模式均等待结算安全证明；这些参数仅保留既有 API 协议。
 // 驳回只退回实际 FrozenQuota，等待申请不得按 RefundQuota 产生新余额。
 type UpdateRefundStatusParams struct {
+	PayoutAttemptID   int
+	PayoutReference   string
+	PayoutEvidence    string
 	TicketId          int
 	AdminId           int
 	RefundStatus      int
@@ -431,7 +436,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		default:
 			return nil, nil, 0, nil, ErrTicketRefundQuotaModeInvalid
 		}
-		if params.ClawBackCommission && params.ClawBackQuota <= 0 {
+		if params.ClawBackCommission && params.ClawBackQuota <= 0 && params.PayoutAttemptID == 0 {
 			return nil, nil, 0, nil, ErrTicketRefundClawbackQuotaInvalid
 		}
 	}
@@ -547,6 +552,12 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		// 上面的 CAS 保证每张工单最多成功扣回一次。
 		if params.RefundStatus == RefundStatusRefunded && params.ClawBackCommission {
 			var cbErr error
+			if refund.FinanceVersion == 1 {
+				params.ClawBackQuota, cbErr = refundCommissionQuotaTx(tx, &refund)
+				if cbErr != nil {
+					return cbErr
+				}
+			}
 			clawback, cbErr = applyCommissionClawback(tx, &refund, params.ClawBackQuota)
 			if cbErr != nil {
 				return cbErr

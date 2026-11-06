@@ -187,6 +187,7 @@ const TicketDetail = () => {
       {refund && (
         <RefundDetail
           refund={refund}
+          onFinanceUpdated={loadDetail}
           ticket={ticket}
           readonly
           t={t}

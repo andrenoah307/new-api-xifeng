@@ -35,6 +35,17 @@ export interface RefundAllocation {
   remaining_invoice_cents: number
 }
 export interface InvoiceCorrection {
+  version?: number
+  phase?: string
+  refund_ticket_id: number
+  documents?: {
+    issuer: string
+    original_reference: string
+    original_cents: number
+    reduction_cents: number
+    red_reference: string
+    reissue_reference: string
+  }[]
   id: number
   invoice_ticket_id: number
   original_cents: number

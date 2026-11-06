@@ -25,6 +25,7 @@ import { UserContext } from '../../context/User';
 
 import { refundCash, refundQuota } from './refundFinanceFormat';
 export { refundCash } from './refundFinanceFormat';
+import { CorrectionWorkflow, ReconciliationPanel, RefundPayoutPanel } from './FinanceWorkflow';
 
 export default function RefundFinanceDetail({
   finance,
@@ -92,9 +93,7 @@ export default function RefundFinanceDetail({
   ) {
     return (
       <div className='space-y-3 text-sm' role='status'>
-        {t(
-          'Awaiting settlement verification. The refund amount must be confirmed again after verification.',
-        )}
+        {t((quote ?? finance).waiting_reason === 'financial_reconciliation' ? 'Financial reconciliation required' : 'Awaiting settlement verification. The refund amount must be confirmed again after verification.')}
         <p>
           {t(
             'New consumption is suspended until this refund is completed or cancelled.',
@@ -124,6 +123,7 @@ export default function RefundFinanceDetail({
           </div>
         )}
         {error && <p role='alert'>{t(error)}</p>}
+        {staff && ticketId && <ReconciliationPanel ticketId={ticketId} />}
       </div>
     );
   }
@@ -223,7 +223,7 @@ export default function RefundFinanceDetail({
           </tbody>
         </table>
       </div>
-      {finance.invoice_corrections.map((correction) => (
+      {finance.invoice_corrections.map((correction) => correction.version === 1 ? <CorrectionWorkflow key={`${correction.id}:${correction.phase}:${correction.status}`} correction={correction} editable={staff && !!ticketId} onUpdated={onUpdated} /> : (
         <Correction
           key={`${correction.invoice_ticket_id}:${correction.id}:${correction.status}`}
           correction={correction}
@@ -231,6 +231,7 @@ export default function RefundFinanceDetail({
           onUpdated={onUpdated}
         />
       ))}
+      {staff && ticketId && <RefundPayoutPanel key={`${ticketId}:${finance.invoice_corrections.map(row=>`${row.id}:${row.status}`).join(',')}`} ticketId={ticketId} onUpdated={onUpdated} />}
     </section>
   );
 }

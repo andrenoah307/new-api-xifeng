@@ -58,7 +58,7 @@ func GrantTopUpCommission(topUp *TopUp, isManual bool) {
 	rate := common.TopUpCommissionRate
 	commissionBase := topUp.Money
 	if topUp.CheckoutVersion == 1 {
-		commissionBase = float64(topUp.InvoiceNetCents) / 100
+		commissionBase = float64(topUp.PaymentTotalCents) / 100
 	}
 	commissionMoney := commissionBase * (rate / 100)
 	commissionQuota, err := common.QuotaRoundStrict(commissionMoney * common.QuotaPerUnit)
@@ -230,27 +230,47 @@ func GetRefundCommissionInfo(refund *TicketRefund) (*RefundCommissionInfo, error
 	}
 	info.ClawbackableQuota = clawbackable
 
-	// 预填金额：按退款额占该用户充值总额的比例折算返佣，再夹到可扣回范围内。
-	suggested := info.ClawbackableQuota
-	if info.TotalTopUpMoney > 0 {
-		refundMoney := float64(refund.RefundQuota) / common.QuotaPerUnit
-		ratio := refundMoney / info.TotalTopUpMoney
-		if ratio > 1 {
-			ratio = 1
+	// Legacy quota is not proof of paid cash. Only allocated cash can produce
+	// a proportional suggestion; never infer money from today's quota unit.
+	if refund.FinanceVersion == 1 {
+		proportional, err := refundCommissionQuotaTx(DB, refund)
+		if err != nil {
+			return nil, err
 		}
-		if ratio < 0 {
-			ratio = 0
-		}
-		suggested = common.QuotaRound(float64(info.TotalCommissionQuota) * ratio)
+		info.SuggestedClawbackQuota = min(proportional, info.ClawbackableQuota)
 	}
-	if suggested > info.ClawbackableQuota {
-		suggested = info.ClawbackableQuota
-	}
-	if suggested < 0 {
-		suggested = 0
-	}
-	info.SuggestedClawbackQuota = suggested
 	return info, nil
+}
+
+// Recover only the commission attributable to the cash refunded from each order.
+// Cumulative rounding keeps multiple partial refunds within the original grant.
+func refundCommissionQuotaTx(tx *gorm.DB, refund *TicketRefund) (int, error) {
+	var allocations []RefundOrderAllocation
+	if err := tx.Where("refund_ticket_id = ? AND status IN ?", refund.TicketId, []string{"reserved", "committed"}).Find(&allocations).Error; err != nil {
+		return 0, err
+	}
+	var total int64
+	for _, allocation := range allocations {
+		if allocation.OriginalPaidCents <= 0 || allocation.RefundCents < 0 {
+			return 0, ErrRefundFinanceReview
+		}
+		var granted, prior int64
+		if err := tx.Model(&CommissionRecord{}).Where("user_id = ? AND top_up_id = ? AND type = ?", refund.UserId, allocation.TopUpID, CommissionTypeTopUp).Select("COALESCE(SUM(commission_quota),0)").Scan(&granted).Error; err != nil {
+			return 0, err
+		}
+		if err := tx.Model(&RefundOrderAllocation{}).Where("top_up_id = ? AND refund_ticket_id != ? AND status = ?", allocation.TopUpID, refund.TicketId, "committed").Select("COALESCE(SUM(refund_cents),0)").Scan(&prior).Error; err != nil {
+			return 0, err
+		}
+		if granted < 0 || prior < 0 || prior > allocation.OriginalPaidCents || allocation.RefundCents > allocation.OriginalPaidCents-prior {
+			return 0, ErrRefundFinanceReview
+		}
+		delta := refundProportionalCents(granted, prior+allocation.RefundCents, allocation.OriginalPaidCents) - refundProportionalCents(granted, prior, allocation.OriginalPaidCents)
+		if delta < 0 || delta > int64(common.MaxQuota)-total {
+			return 0, ErrRefundFinanceReview
+		}
+		total += delta
+	}
+	return common.QuotaFromFloatStrict(float64(total))
 }
 
 // CommissionClawbackResult 描述退款结算时实际执行的返佣扣回。

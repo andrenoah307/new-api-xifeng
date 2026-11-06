@@ -24,27 +24,28 @@ const (
 )
 
 type TicketInvoice struct {
-	VATRateBps      int               `json:"vat_rate_bps"`
-	InvoiceType     string            `json:"invoice_type" gorm:"size:16"`
-	InvoiceNetCents int64             `json:"invoice_net_cents"`
-	InvoiceTaxCents int64             `json:"invoice_tax_cents"`
-	TaxCharge       *InvoiceTaxCharge `json:"tax_charge,omitempty" gorm:"-"`
-	Id              int               `json:"id"`
-	TicketId        int               `json:"ticket_id" gorm:"uniqueIndex;not null"`
-	UserId          int               `json:"user_id" gorm:"index;not null"`
-	CompanyName     string            `json:"company_name" gorm:"type:varchar(255);not null"`
-	TaxNumber       string            `json:"tax_number" gorm:"type:varchar(64);not null"`
-	BankName        string            `json:"bank_name" gorm:"type:varchar(255)"`
-	BankAccount     string            `json:"bank_account" gorm:"type:varchar(128)"`
-	CompanyAddress  string            `json:"company_address" gorm:"type:varchar(512)"`
-	CompanyPhone    string            `json:"company_phone" gorm:"type:varchar(32)"`
-	Remark          string            `json:"remark" gorm:"type:varchar(255)"`
-	Email           string            `json:"email" gorm:"type:varchar(128);not null"`
-	TopUpOrderIds   string            `json:"topup_order_ids" gorm:"type:text;not null"`
-	TotalMoney      float64           `json:"total_money"`
-	InvoiceStatus   int               `json:"invoice_status" gorm:"type:int;default:1"`
-	IssuedTime      int64             `json:"issued_time" gorm:"bigint;default:0"`
-	CreatedTime     int64             `json:"created_time" gorm:"bigint"`
+	Corrections     []RefundInvoiceCorrection `json:"corrections" gorm:"-"`
+	VATRateBps      int                       `json:"vat_rate_bps"`
+	InvoiceType     string                    `json:"invoice_type" gorm:"size:16"`
+	InvoiceNetCents int64                     `json:"invoice_net_cents"`
+	InvoiceTaxCents int64                     `json:"invoice_tax_cents"`
+	TaxCharge       *InvoiceTaxCharge         `json:"tax_charge,omitempty" gorm:"-"`
+	Id              int                       `json:"id"`
+	TicketId        int                       `json:"ticket_id" gorm:"uniqueIndex;not null"`
+	UserId          int                       `json:"user_id" gorm:"index;not null"`
+	CompanyName     string                    `json:"company_name" gorm:"type:varchar(255);not null"`
+	TaxNumber       string                    `json:"tax_number" gorm:"type:varchar(64);not null"`
+	BankName        string                    `json:"bank_name" gorm:"type:varchar(255)"`
+	BankAccount     string                    `json:"bank_account" gorm:"type:varchar(128)"`
+	CompanyAddress  string                    `json:"company_address" gorm:"type:varchar(512)"`
+	CompanyPhone    string                    `json:"company_phone" gorm:"type:varchar(32)"`
+	Remark          string                    `json:"remark" gorm:"type:varchar(255)"`
+	Email           string                    `json:"email" gorm:"type:varchar(128);not null"`
+	TopUpOrderIds   string                    `json:"topup_order_ids" gorm:"type:text;not null"`
+	TotalMoney      float64                   `json:"total_money"`
+	InvoiceStatus   int                       `json:"invoice_status" gorm:"type:int;default:1"`
+	IssuedTime      int64                     `json:"issued_time" gorm:"bigint;default:0"`
+	CreatedTime     int64                     `json:"created_time" gorm:"bigint"`
 }
 
 type CreateInvoiceTicketParams struct {
@@ -138,6 +139,10 @@ func GetTicketInvoiceByTicketId(ticketId int) (*TicketInvoice, error) {
 		return nil, err
 	}
 	invoice.TaxCharge = charge
+	invoice.Corrections = []RefundInvoiceCorrection{}
+	if err := DB.Where("invoice_ticket_id = ?", ticketId).Order("id DESC").Find(&invoice.Corrections).Error; err != nil {
+		return nil, err
+	}
 	return &invoice, nil
 }
 
@@ -611,6 +616,9 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 			return err
 		}
 		prevStatus = ticket.Status
+		if invoice.InvoiceStatus == InvoiceStatusIssued && invoiceStatus != InvoiceStatusIssued {
+			return ErrTicketInvoiceStatusInvalid
+		}
 		if invoiceStatus != InvoiceStatusIssued {
 			var corrections int64
 			if err := tx.Model(&RefundInvoiceCorrection{}).Where("invoice_ticket_id = ? AND status IN ?", ticketId, []string{"pending", "processing", "completed"}).Count(&corrections).Error; err != nil {
