@@ -28,3 +28,12 @@ configuration, locale and other finance files are identical. Both builds, scoped
 lint and the complete Default typecheck pass. Both themes pass desktop/mobile
 action checks, including disabled issuance with unpaid tax and enabled issuance
 after payment. No production deployment was performed.
+
+Confirmation follow-up: the direct-button confirmation change lives on dev
+84fb36c84. Finance was rebased onto that commit, retaining the invoice-type
+filter fix and all finance work. The duplicate confirmation cherry-pick was
+dropped because its contents are now in the base. The rebased tree exactly
+matches the already verified pre-rebase tree at 3508fdeba. Both theme builds,
+changed-file lint, finance Default typecheck, and desktop/mobile browser checks
+passed, including cancellation/Escape without requests and the payment guard.
+Only this verification note was added after that tree comparison.
