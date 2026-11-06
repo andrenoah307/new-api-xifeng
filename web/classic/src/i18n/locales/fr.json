@@ -5520,6 +5520,11 @@
     "Consecutive cooldown limit": "Limite des refroidissements consécutifs",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Laisser vide pour hériter de la limite globale (5 par défaut). À cette limite, une reprise manuelle est requise après le refroidissement. Modifier la limite ne réactive pas les canaux suspendus.",
     "Consecutive cooldown limit must be an integer from 1 to 100": "La limite des refroidissements consécutifs doit être un entier de 1 à 100",
-    "Suspended: manual recovery required": "Suspendu : reprise manuelle requise"
+    "Suspended: manual recovery required": "Suspendu : reprise manuelle requise",
+    "Free ordinary invoices for historical payments": "Factures ordinaires gratuites pour les paiements antérieurs",
+    "Ordinary invoice fee (%)": "Frais de facture ordinaire (%)",
+    "Special invoice fee (%)": "Frais de facture spéciale (%)",
+    "The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.": "La limite est fixée à 00 h 00, heure de Pékin, à la date choisie, exclue. Laisser vide désactive l’éligibilité historique. Si la gratuité est activée, les paiements admissibles ne paient aucun supplément pour une facture ordinaire et cette règle ne donne pas droit à une facture spéciale ; sinon les règles habituelles s’appliquent.",
+    "Choose an <strong>invoice type</strong> before payment. Invoice fees follow the current settings and the confirmed quote.": "Choisissez un <strong>type de facture</strong> avant de payer. Les frais suivent les paramètres actuels et le devis confirmé."
   }
 }

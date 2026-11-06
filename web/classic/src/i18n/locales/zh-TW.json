@@ -5499,6 +5499,11 @@
     "Consecutive cooldown limit": "連續冷卻次數上限",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "留空繼承全域上限（系統預設 5 次）。達到上限後，冷卻到期仍需手動恢復。修改上限不會自動恢復已掛起的渠道。",
     "Consecutive cooldown limit must be an integer from 1 to 100": "連續冷卻次數上限必須為 1 到 100 的整數",
-    "Suspended: manual recovery required": "已掛起，需手動恢復"
+    "Suspended: manual recovery required": "已掛起，需手動恢復",
+    "Free ordinary invoices for historical payments": "歷史支付訂單免費開具普通發票",
+    "Ordinary invoice fee (%)": "普票開票費用（%）",
+    "Special invoice fee (%)": "專票開票費用（%）",
+    "The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.": "截止時間為所選日期北京時間零點，不含當天。留空關閉歷史訂單資格。開啟免費普票後，符合條件的支付訂單不收取額外開票費用，且不能憑此規則開具專票；關閉時沿用既有資格與收費規則。",
+    "Choose an <strong>invoice type</strong> before payment. Invoice fees follow the current settings and the confirmed quote.": "付款前請選擇<strong>發票類型</strong>。開票費用以目前設定及確認的報價為準。"
   }
 }

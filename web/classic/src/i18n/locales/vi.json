@@ -6030,6 +6030,11 @@
     "Consecutive cooldown limit": "Giới hạn số lần làm nguội liên tiếp",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Để trống để kế thừa giới hạn chung (mặc định: 5). Khi đạt giới hạn, cần khôi phục thủ công sau khi hết thời gian làm nguội. Đổi giới hạn không khôi phục các kênh đang bị tạm ngưng.",
     "Consecutive cooldown limit must be an integer from 1 to 100": "Giới hạn số lần làm nguội liên tiếp phải là số nguyên từ 1 đến 100",
-    "Suspended: manual recovery required": "Đã tạm ngưng: cần khôi phục thủ công"
+    "Suspended: manual recovery required": "Đã tạm ngưng: cần khôi phục thủ công",
+    "Free ordinary invoices for historical payments": "Hóa đơn thông thường miễn phí cho thanh toán trước đây",
+    "Ordinary invoice fee (%)": "Phí hóa đơn thông thường (%)",
+    "Special invoice fee (%)": "Phí hóa đơn đặc biệt (%)",
+    "The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.": "Mốc là 00:00 giờ Bắc Kinh của ngày đã chọn, không bao gồm ngày đó. Để trống để tắt quyền cho đơn hàng cũ. Khi bật miễn phí, thanh toán đủ điều kiện không phải trả thêm phí hóa đơn thông thường và không thể dùng quy tắc này để lấy hóa đơn đặc biệt; nếu tắt, áp dụng quy tắc về quyền và phí hiện có.",
+    "Choose an <strong>invoice type</strong> before payment. Invoice fees follow the current settings and the confirmed quote.": "Chọn <strong>loại hóa đơn</strong> trước khi thanh toán. Phí hóa đơn theo cấu hình hiện tại và báo giá đã xác nhận."
   }
 }

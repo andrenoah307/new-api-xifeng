@@ -1,24 +1,38 @@
-# Invoice and Refund Policy: 2026-11-09
+# Invoice and Refund Policy
 
 ## Payment and Invoices
 
-The policy boundary is **2026-11-09 00:00:00 Asia/Shanghai**, Unix timestamp
-`1794153600`. Eligibility follows successful payment completion, not order creation.
-Ordinary invoices deduct 6% of the gross payment; special invoices deduct 9%.
-Both invoice types have **6% VAT**, stored and exported independently of the fee.
-Fees round to cents first; credited cash is the gross payment minus that fee.
+As of 2026-11-06, both themes expose administrator settings for fee collection,
+ordinary/special fee percentages (0 through 99.99%), calculation mode, historical
+eligibility cutoff, and free ordinary invoices for qualifying historical payments.
+Saving clears the legacy `policy_effective_at` schedule to zero. Custom settings
+apply to new checkout quotes immediately; reads no longer overwrite those saved
+settings with the November 9 schedule. Module visibility and fee collection remain
+separate switches. Both invoice types still have **6% VAT**, stored and exported
+independently of the configurable invoice fee.
 
-The schedule is applied automatically, including to existing configuration JSON
-without the schedule field. The settings API enforces the published schedule.
-The finance module visibility switch does not disable the payment policy.
-Pre-boundary CNY payments remain eligible for free ordinary invoices, including
-orders previously marked as no-invoice. They do not qualify for free special invoices.
-Post-boundary no-invoice orders cannot acquire invoice eligibility retrospectively.
+The cutoff uses **00:00 Asia/Shanghai**, excluding that date. Eligibility follows
+successful payment completion, not order creation; unknown completion times do
+not qualify. A blank cutoff stores zero and disables historical eligibility.
+With `legacy_free_ordinary_enabled` on, qualifying CNY payments, including prior
+no-invoice payments, can obtain ordinary invoices without an additional fee.
+This exemption does not grant special invoice eligibility. Turning it off restores
+the existing eligibility and fee rules; it does not make every no-invoice order
+eligible. Previously paid fees are not automatically refunded by this switch.
 
-Checkout stores the price, quota unit and discount. Payment completion applies
-the policy for its completion time using these snapshots. Pending orders created
-by an earlier version preserve their original quota-per-net-cent ratio. Completed
-payments are idempotent and are never repriced on callback replay.
+Compatibility boundary: until an administrator saves, existing scheduled configs
+(including old JSON missing the schedule field) retain the former November 9,
+2026 Beijing midnight schedule (`1794153600`), 6%/9% fees, and historical exemption.
+The settings controls are editable even in this compatibility state. A save
+explicitly replaces that schedule; it is not a new configurable future fee start.
+
+Checkout stores fee, net credit, price, quota unit and discount snapshots. New
+custom checkout orders preserve their quoted amounts if settings later change.
+Already pending orders carrying the old schedule still settle under their stored
+schedule and completion time, preserving their original quota-per-net-cent ratio.
+Completed payments are idempotent and never repriced on callback replay. Fees
+round to cents first; credited cash is the gross payment minus that fee.
+This configuration change adds no database columns and does not alter refunds.
 
 ## Refund Workflow
 
@@ -87,6 +101,17 @@ unallocated old fees, or inconsistent mixed-source balances stay in reconciliati
 the system does not invent missing accounting history.
 
 ## Verification
+
+The configurable-policy update passes model/controller/middleware/router package
+tests, service finance tests, model/controller finance race tests, and vet across
+those five packages. New regressions cover custom values surviving saves, free
+ordinary eligibility and quotes, blank and exact cutoff boundaries, fee disable,
+and pending checkout snapshots across settings changes and callback replay.
+Both themes build, Default typecheck passes, and modified frontend files pass
+lint (Classic excludes its obsolete copyright-header rule). Desktop/mobile browser
+checks cover editing legacy configurations, custom fee percentages, Beijing dates,
+free/fee switches, saved-value reload, and clearing the cutoff. No production
+deployment or live payment was performed for this update.
 
 Regression coverage includes ordinary/special payment boundaries, callbacks across
 the cutoff and replay, historical free invoices, independent VAT exports, full and
