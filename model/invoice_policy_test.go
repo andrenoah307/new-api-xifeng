@@ -51,18 +51,22 @@ func TestInvoicePolicyUpgradeAndHistoricalFreeOrdinaryInvoice(t *testing.T) {
 	assert.Equal(t, 900, config.SpecialRateBps)
 	user := insertInvoiceTicketUser(t, 980701)
 	for _, kind := range []string{"", "none", "ordinary", "special"} {
+		invoiceType, otherType := "ordinary", "special"
+		if kind == "special" {
+			invoiceType, otherType = "special", "ordinary"
+		}
 		id := seedInvoiceTicketTopUp(t, user.Id, "policy-legacy-"+kind, 100)
 		require.NoError(t, DB.Model(&TopUp{}).Where("id = ?", id).Updates(map[string]any{"invoice_type": kind, "complete_time": InvoicePolicyEffectiveAt - 1, "payment_provider": PaymentProviderEpay}).Error)
-		quote, err := QuoteInvoiceTax(DB, user.Id, []int{id}, "ordinary")
+		quote, err := QuoteInvoiceTax(DB, user.Id, []int{id}, invoiceType)
 		require.NoError(t, err)
 		assert.Zero(t, quote.FeeCents)
 		assert.Zero(t, quote.Quota)
 		assert.Equal(t, int64(10000), quote.TotalCents)
 		assert.True(t, quote.PrepaidOnly)
-		_, err = QuoteInvoiceTax(DB, user.Id, []int{id}, "special")
+		_, err = QuoteInvoiceTax(DB, user.Id, []int{id}, otherType)
 		assert.ErrorIs(t, err, ErrTicketInvoiceOrderInvalid)
 		params := createInvoiceTicketParams(user, []int{id})
-		params.InvoiceType = "ordinary"
+		params.InvoiceType = invoiceType
 		_, invoice, _, _, err := CreateInvoiceTicket(params)
 		require.NoError(t, err)
 		assert.Equal(t, float64(100), invoice.TotalMoney)
