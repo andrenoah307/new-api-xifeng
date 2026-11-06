@@ -68,16 +68,6 @@ function useInvoiceTaxConfig() {
 export function InvoiceTaxNotice() {
   const { t } = useTranslation();
   const [config] = useInvoiceTaxConfig();
-  if (config?.module_enabled && config?.policy_effective_at) {
-    return (
-      <Banner
-        type='info'
-        description={t(
-          'From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.',
-        )}
-      />
-    );
-  }
   return config?.module_enabled && config?.enabled ? (
     <Banner
       type='warning'
@@ -411,6 +401,7 @@ export function InvoiceTaxSettings() {
     try {
       const { data } = await API.put('/api/option/invoice-tax', config);
       if (!data.success) throw new Error(data.message);
+      setConfig(data.data);
       statusDispatch({
         type: 'set',
         payload: {
@@ -425,31 +416,6 @@ export function InvoiceTaxSettings() {
       setSaving(false);
     }
   };
-  if (config.policy_effective_at) {
-    return (
-      <section className='space-y-4'>
-        <h3>{t('Invoice fees')}</h3>
-        <p>
-          {t(
-            'From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.',
-          )}
-        </p>
-        <Space>
-          <Switch
-            checked={!!config.module_enabled}
-            onChange={(module_enabled) =>
-              setConfig({ ...config, module_enabled })
-            }
-            aria-label={t('Enable finance module')}
-          />
-          <span>{t('Enable finance module')}</span>
-        </Space>
-        <Button loading={saving} onClick={save}>
-          {t('Save')}
-        </Button>
-      </section>
-    );
-  }
   return (
     <section className='space-y-4'>
       <h3>{t('Invoice tax charges')}</h3>
@@ -470,6 +436,16 @@ export function InvoiceTaxSettings() {
           aria-label={t('Collect invoice tax charges')}
         />
         <span>{t('Collect invoice tax charges')}</span>
+      </Space>
+      <Space>
+        <Switch
+          checked={!!config.legacy_free_ordinary_enabled}
+          onChange={(legacy_free_ordinary_enabled) =>
+            setConfig({ ...config, legacy_free_ordinary_enabled })
+          }
+          aria-label={t('Free ordinary invoices for historical payments')}
+        />
+        <span>{t('Free ordinary invoices for historical payments')}</span>
       </Space>
       <div className='space-y-2'>
         <label htmlFor='invoice-legacy-before'>
@@ -499,7 +475,7 @@ export function InvoiceTaxSettings() {
         />
         <p className='text-sm text-[var(--semi-color-text-2)]'>
           {t(
-            'Only historical orders completed before 00:00 Beijing time on this date can pay tax to request an invoice. Leave empty to disable.',
+            'The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.',
           )}
         </p>
       </div>
@@ -508,8 +484,8 @@ export function InvoiceTaxSettings() {
           <label>
             {t(
               type === 'ordinary'
-                ? 'Ordinary VAT invoice rate (%)'
-                : 'Special VAT invoice rate (%)',
+                ? 'Ordinary invoice fee (%)'
+                : 'Special invoice fee (%)',
             )}
           </label>
           <InputNumber

@@ -2328,7 +2328,7 @@
     "footer.columns.related.links.oneApi": "Один API",
     "footer.columns.related.title": "Связанные проекты",
     "footer.defaultCopyright": "Все права защищены.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
+    "footer.newapi.projectAttributionSuffix": "Все права защищены. Разработано участниками проекта.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Для каналов, добавленных после 10 мая 2025 г., не нужно удалять \".\" из имён моделей при развёртывании",
     "For private deployments, format: https://fastgpt.run/api/openapi": "Для частных развертываний, формат: https://fastgpt.run/api/openapi",
     "Forbidden": "Доступ запрещён",
@@ -6076,6 +6076,11 @@
     "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "С 00:00 9 ноября 2026 года по пекинскому времени из платежа удерживается сбор 6% за обычный счёт и 9% за специальный. Ставка НДС для обоих типов составляет 6%. По более ранним платежам обычный счёт выставляется бесплатно.",
     "New consumption is suspended until this refund is completed or cancelled.": "Новые расходы приостановлены до завершения или отмены возврата.",
     "Start correction": "Начать исправление",
-    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "Выберите <strong>тип счёта</strong> до оплаты. С 9 ноября 2026 года <strong>сбор за счёт удерживается</strong> из платежа; для заказов без выбранного счёта выставить его позднее нельзя. По более ранним платежам обычный счёт выставляется бесплатно."
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "Выберите <strong>тип счёта</strong> до оплаты. С 9 ноября 2026 года <strong>сбор за счёт удерживается</strong> из платежа; для заказов без выбранного счёта выставить его позднее нельзя. По более ранним платежам обычный счёт выставляется бесплатно.",
+    "Choose an <strong>invoice type</strong> before payment. Invoice fees follow the current settings and the confirmed quote.": "Выберите <strong>тип счёта-фактуры</strong> до оплаты. Сборы определяются текущими настройками и подтверждённым расчётом.",
+    "Free ordinary invoices for historical payments": "Бесплатные обычные счета-фактуры для прошлых платежей",
+    "Ordinary invoice fee (%)": "Сбор за обычный счёт-фактуру (%)",
+    "Special invoice fee (%)": "Сбор за специальный счёт-фактуру (%)",
+    "The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.": "Граница — 00:00 по пекинскому времени выбранной даты, не включая саму дату. Пустое поле отключает право для прошлых заказов. При включённой льготе подходящие платежи получают обычный счёт-фактуру без доплаты; это правило не даёт права на специальный счёт-фактуру. Иначе действуют прежние правила допуска и сборов."
   }
 }

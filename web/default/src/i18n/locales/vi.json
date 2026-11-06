@@ -2328,7 +2328,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "Các Dự Án Liên Quan",
     "footer.defaultCopyright": "Bản quyền được bảo lưu.",
-    "footer.new\u0061pi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
+    "footer.newapi.projectAttributionSuffix": "Bản quyền được bảo lưu. Được thiết kế và phát triển bởi các cộng tác viên dự án.",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "Đối với các kênh được thêm sau ngày 10 tháng 5 năm 2025, không cần loại bỏ \".\" khỏi tên mô hình trong quá trình triển khai",
     "For private deployments, format: https://fastgpt.run/api/openapi": "Đối với các triển khai riêng tư, định dạng: https://fastgpt.run/api/openapi",
     "Forbidden": "Không có quyền truy cập",
@@ -6076,6 +6076,11 @@
     "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "Từ 00:00 ngày 09/11/2026 theo giờ Bắc Kinh, phí hóa đơn thông thường là 6% và hóa đơn đặc biệt là 9% số tiền thanh toán, được khấu trừ khi thanh toán. Thuế suất VAT của cả hai loại đều là 6%. Các khoản thanh toán trước thời điểm này được xuất hóa đơn thông thường miễn phí.",
     "New consumption is suspended until this refund is completed or cancelled.": "Tạm dừng tiêu dùng mới cho đến khi hoàn tất hoặc hủy yêu cầu hoàn tiền.",
     "Start correction": "Bắt đầu điều chỉnh",
-    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "Chọn <strong>loại hóa đơn</strong> trước khi thanh toán. Từ ngày 09/11/2026, <strong>phí xuất hóa đơn được khấu trừ</strong> từ khoản thanh toán; đơn hàng không chọn hóa đơn sẽ không được xuất hóa đơn. Các khoản thanh toán trước đó được xuất hóa đơn thông thường miễn phí."
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "Chọn <strong>loại hóa đơn</strong> trước khi thanh toán. Từ ngày 09/11/2026, <strong>phí xuất hóa đơn được khấu trừ</strong> từ khoản thanh toán; đơn hàng không chọn hóa đơn sẽ không được xuất hóa đơn. Các khoản thanh toán trước đó được xuất hóa đơn thông thường miễn phí.",
+    "Choose an <strong>invoice type</strong> before payment. Invoice fees follow the current settings and the confirmed quote.": "Chọn <strong>loại hóa đơn</strong> trước khi thanh toán. Phí hóa đơn theo cấu hình hiện tại và báo giá đã xác nhận.",
+    "Free ordinary invoices for historical payments": "Hóa đơn thông thường miễn phí cho thanh toán trước đây",
+    "Ordinary invoice fee (%)": "Phí hóa đơn thông thường (%)",
+    "Special invoice fee (%)": "Phí hóa đơn đặc biệt (%)",
+    "The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.": "Mốc là 00:00 giờ Bắc Kinh của ngày đã chọn, không bao gồm ngày đó. Để trống để tắt quyền cho đơn hàng cũ. Khi bật miễn phí, thanh toán đủ điều kiện không phải trả thêm phí hóa đơn thông thường và không thể dùng quy tắc này để lấy hóa đơn đặc biệt; nếu tắt, áp dụng quy tắc về quyền và phí hiện có."
   }
 }

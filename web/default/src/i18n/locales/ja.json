@@ -2328,7 +2328,7 @@
     "footer.columns.related.links.oneApi": "1つのAPI",
     "footer.columns.related.title": "関連プロジェクト",
     "footer.defaultCopyright": "すべての権利を留保します。",
-    "footer.new\u0061pi.projectAttributionSuffix": "すべての権利を留保します。プロジェクトコントリビューターにより設計・開発されています。",
+    "footer.newapi.projectAttributionSuffix": "すべての権利を留保します。プロジェクトコントリビューターにより設計・開発されています。",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "2025 年 5 月 10 日以降に追加されたチャネルの場合、デプロイ時にモデル名から「.」を削除する必要はありません",
     "For private deployments, format: https://fastgpt.run/api/openapi": "プライベートデプロイメントの場合、形式: https://fastgpt.run/api/openapi",
     "Forbidden": "アクセス禁止",
@@ -6076,6 +6076,11 @@
     "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "北京時間2026年11月9日午前0時より、発行手数料は普通発票が支払額の6%、専用発票が9%となり、支払時に差し引かれます。いずれの発票も増値税率は6%です。それ以前の支払いは普通発票を無料で発行できます。",
     "New consumption is suspended until this refund is completed or cancelled.": "返金の完了またはキャンセルまで、新規の利用は停止されます。",
     "Start correction": "訂正処理を開始",
-    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "支払い前に<strong>発票の種類</strong>を選択してください。2026年11月9日より、支払額から<strong>発行手数料が差し引かれます</strong>。発票を選択しなかった注文では発行できません。それ以前の支払いは普通発票を無料で発行できます。"
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "支払い前に<strong>発票の種類</strong>を選択してください。2026年11月9日より、支払額から<strong>発行手数料が差し引かれます</strong>。発票を選択しなかった注文では発行できません。それ以前の支払いは普通発票を無料で発行できます。",
+    "Choose an <strong>invoice type</strong> before payment. Invoice fees follow the current settings and the confirmed quote.": "支払い前に<strong>発票の種類</strong>を選択してください。手数料は現在の設定と確認済みの見積もりに従います。",
+    "Free ordinary invoices for historical payments": "過去の支払いに普通発票を無料発行",
+    "Ordinary invoice fee (%)": "普通発票の発行手数料（%）",
+    "Special invoice fee (%)": "専用発票の発行手数料（%）",
+    "The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.": "期限は選択日の北京時間0時で、当日は含みません。空欄にすると過去の注文の対象資格を無効にします。無料発行を有効にすると対象の支払いに普通発票の追加手数料はかかりませんが、この規則では専用発票を発行できません。無効の場合は既存の資格と料金規則が適用されます。"
   }
 }

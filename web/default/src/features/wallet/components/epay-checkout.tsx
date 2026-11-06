@@ -186,7 +186,7 @@ export function EpayCheckout({
               <DialogDescription className='leading-relaxed'>
                 {step === 1 ? (
                   <Trans
-                    i18nKey='Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.'
+                    i18nKey='Choose an <strong>invoice type</strong> before payment. Invoice fees follow the current settings and the confirmed quote.'
                     components={{ strong: <strong /> }}
                   />
                 ) : (
@@ -298,13 +298,6 @@ export function EpayCheckout({
                 <p role='alert'>
                   {t(
                     'Tax quote unavailable. Refresh the selected orders and try again.'
-                  )}
-                </p>
-              )}
-              {canPay && !!quote.data?.policy_effective_at && (
-                <p className='text-muted-foreground text-sm'>
-                  {t(
-                    'From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.'
                   )}
                 </p>
               )}

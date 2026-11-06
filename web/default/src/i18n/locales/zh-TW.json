@@ -2328,7 +2328,7 @@
     "footer.columns.related.links.oneApi": "One API",
     "footer.columns.related.title": "相關項目",
     "footer.defaultCopyright": "版權所有。",
-    "footer.new\u0061pi.projectAttributionSuffix": "版權所有，由項目貢獻者設計與開發。",
+    "footer.newapi.projectAttributionSuffix": "版權所有，由項目貢獻者設計與開發。",
     "For channels added after May 10, 2025, no need to remove \".\" from model names during deployment": "對於 2025 年 5 月 10 日之後新增的渠道，在部署時無需從模型名稱中移除 \".\"",
     "For private deployments, format: https://fastgpt.run/api/openapi": "對於私有部署，格式為：https://fastgpt.run/api/openapi",
     "Forbidden": "無權存取",
@@ -6076,6 +6076,11 @@
     "From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.": "自北京時間2026年11月9日零點起，普票開票費用為支付金額的6%，專票為9%，在支付時扣除。兩類發票稅率均為6%。此前支付的訂單可免費開具普通發票。",
     "New consumption is suspended until this refund is completed or cancelled.": "退款完成或取消前，暫停新增消費。",
     "Start correction": "開始沖紅處理",
-    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "請在付款前選擇<strong>發票類型</strong>。自2026年11月9日起，支付時<strong>扣除開票費用</strong>，未選擇開票的訂單不能申請發票。此前支付的訂單可免費開具普通發票。"
+    "Choose an <strong>invoice type</strong> before payment. From 2026-11-09, <strong>invoice fees are deducted</strong> from the payment and orders without an invoice selection cannot be invoiced. Earlier payments qualify for free ordinary invoices.": "請在付款前選擇<strong>發票類型</strong>。自2026年11月9日起，支付時<strong>扣除開票費用</strong>，未選擇開票的訂單不能申請發票。此前支付的訂單可免費開具普通發票。",
+    "Choose an <strong>invoice type</strong> before payment. Invoice fees follow the current settings and the confirmed quote.": "付款前請選擇<strong>發票類型</strong>。開票費用以目前設定及確認的報價為準。",
+    "Free ordinary invoices for historical payments": "歷史支付訂單免費開具普通發票",
+    "Ordinary invoice fee (%)": "普票開票費用（%）",
+    "Special invoice fee (%)": "專票開票費用（%）",
+    "The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.": "截止時間為所選日期北京時間零點，不含當天。留空關閉歷史訂單資格。開啟免費普票後，符合條件的支付訂單不收取額外開票費用，且不能憑此規則開具專票；關閉時沿用既有資格與收費規則。"
   }
 }

@@ -6,6 +6,7 @@ export interface InvoiceTaxConfig {
   invoice_workflow_required?: boolean
   enabled: boolean
   legacy_invoice_before?: number
+  legacy_free_ordinary_enabled?: boolean
   mode: 'vat' | 'compound' | 'gross_up'
   ordinary_rate_bps: number
   special_rate_bps: number
@@ -84,4 +85,5 @@ export async function getInvoiceTaxConfig(): Promise<InvoiceTaxConfig> {
 export async function saveInvoiceTaxConfig(config: InvoiceTaxConfig) {
   const { data } = await api.put('/api/option/invoice-tax', config)
   if (!data.success) throw new Error(data.message)
+  return data.data as InvoiceTaxConfig
 }

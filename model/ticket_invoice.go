@@ -291,14 +291,14 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 	}
 	eligible := make([]*TopUp, 0, len(topUps))
 	for _, order := range topUps {
-		if config.PolicyEffectiveAt > 0 && config.AllowsLegacyInvoice(order) {
+		if config.LegacyFreeOrdinaryEnabled && config.AllowsLegacyInvoice(order) {
 			if invoiceType == "ordinary" && IsCNYInvoiceTopUp(order) {
 				eligible = append(eligible, order)
 			}
 			continue
 		}
 		if order.InvoiceType == "" {
-			if (!config.ModuleEnabled && config.PolicyEffectiveAt == 0) || (config.AllowsLegacyInvoice(order) && IsCNYInvoiceTopUp(order)) {
+			if (!config.ModuleEnabled && config.PolicyEffectiveAt == 0 && !config.LegacyFreeOrdinaryEnabled) || (config.AllowsLegacyInvoice(order) && IsCNYInvoiceTopUp(order)) {
 				eligible = append(eligible, order)
 			}
 		} else if order.InvoiceType == invoiceType {
@@ -435,7 +435,7 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 			return ErrTicketInvoiceAmountBelowMin
 		}
 		orderedTopUps = orderTopUps(orderIds, topUps)
-		advancedInvoice := config.ModuleEnabled || config.PolicyEffectiveAt > 0
+		advancedInvoice := config.ModuleEnabled || config.PolicyEffectiveAt > 0 || config.LegacyFreeOrdinaryEnabled
 		for _, order := range topUps {
 			advancedInvoice = advancedInvoice || order.InvoiceType != ""
 		}
