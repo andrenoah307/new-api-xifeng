@@ -1,11 +1,18 @@
 import React, { useMemo } from 'react';
-import { Button, Card, Descriptions, Empty, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import {
+  Button,
+  Card,
+  Descriptions,
+  Dropdown,
+  Empty,
+  Space,
+  Tag,
+  Typography,
+} from '@douyinfe/semi-ui';
+import { IconMore } from '@douyinfe/semi-icons';
 import CardTable from '../common/ui/CardTable';
 import { timestamp2string } from '../../helpers';
-import {
-  getInvoiceStatusColor,
-  getInvoiceStatusText,
-} from './ticketUtils';
+import { getInvoiceStatusColor, getInvoiceStatusText } from './ticketUtils';
 
 const { Title, Text } = Typography;
 
@@ -55,7 +62,9 @@ const InvoiceDetail = ({
       },
       {
         key: t('开具时间'),
-        value: invoice.issued_time ? timestamp2string(invoice.issued_time) : '-',
+        value: invoice.issued_time
+          ? timestamp2string(invoice.issued_time)
+          : '-',
       },
     ];
   }, [fallbackRemark, invoice, t]);
@@ -104,14 +113,30 @@ const InvoiceDetail = ({
           </div>
           {!readonly && invoice && typeof onStatusChange === 'function' && (
             <Space>
-              <Button
-                theme='light'
-                type='danger'
-                loading={loading}
-                onClick={() => onStatusChange(3)}
+              <Dropdown
+                trigger='click'
+                position='bottomRight'
+                render={
+                  <Dropdown.Menu>
+                    <Dropdown.Item
+                      type='danger'
+                      disabled={loading}
+                      onClick={() => onStatusChange(3)}
+                    >
+                      {t('驳回申请')}
+                    </Dropdown.Item>
+                  </Dropdown.Menu>
+                }
               >
-                {t('驳回申请')}
-              </Button>
+                <Button
+                  theme='borderless'
+                  type='tertiary'
+                  icon={<IconMore />}
+                  disabled={loading}
+                  aria-label={t('更多')}
+                  title={t('更多')}
+                />
+              </Dropdown>
               <Button
                 theme='solid'
                 type='primary'
