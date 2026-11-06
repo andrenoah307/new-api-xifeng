@@ -24,7 +24,7 @@ func GetInvoiceTaxConfig(c *gin.Context) {
 		return
 	}
 	var typedOrder model.TopUp
-	needsWorkflow := config.PolicyEffectiveAt > 0
+	needsWorkflow := config.PolicyEffectiveAt > 0 || config.LegacyFreeOrdinaryEnabled
 	if !config.ModuleEnabled && !needsWorkflow {
 		err := model.DB.WithContext(c.Request.Context()).Select("id").
 			Where("user_id = ? AND status = ? AND invoice_type IN ?", c.GetInt("id"), common.TopUpStatusSuccess, []string{"ordinary", "special"}).
@@ -195,13 +195,16 @@ func InvoiceTaxEpayNotify(c *gin.Context) {
 var invoiceTaxAmountPattern = regexp.MustCompile(`^[0-9]{1,12}(\.[0-9]{1,2})?$`)
 
 func UpdateInvoiceTaxConfig(c *gin.Context) {
-	config := model.InvoiceTaxConfig{PolicyEffectiveAt: model.InvoicePolicyEffectiveAt}
-	if err := c.ShouldBindJSON(&config); err != nil || !config.Valid() {
+	config := model.InvoiceTaxConfig{Mode: "vat"}
+	if err := c.ShouldBindJSON(&config); err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	config.PolicyEffectiveAt = model.InvoicePolicyEffectiveAt
-	config = config.WithInvoicePolicy()
+	config.PolicyEffectiveAt = 0
+	if !config.Valid() {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
 	if err := model.SaveInvoiceTaxConfig(config); err != nil {
 		common.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return

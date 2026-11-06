@@ -16,6 +16,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestUpdateInvoiceTaxConfigReplacesFixedPolicyWithCustomSettings(t *testing.T) {
+	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.Log{}))
+	for _, free := range []bool{true, false} {
+		config := model.InvoiceTaxConfig{PolicyEffectiveAt: model.InvoicePolicyEffectiveAt, ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 350, SpecialRateBps: 725, LegacyInvoiceBefore: model.InvoicePolicyEffectiveAt + 7*86400, LegacyFreeOrdinaryEnabled: free}
+		config.Enabled = free
+		raw, err := common.Marshal(config)
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Set("id", 1)
+		c.Request = httptest.NewRequest(http.MethodPut, "/api/option/invoice-tax", strings.NewReader(string(raw)))
+		c.Request.Header.Set("Content-Type", "application/json")
+		UpdateInvoiceTaxConfig(c)
+		var response struct {
+			Success bool `json:"success"`
+		}
+		require.NoError(t, common.Unmarshal(w.Body.Bytes(), &response))
+		require.True(t, response.Success, w.Body.String())
+		stored, err := model.GetInvoiceTaxConfig(db)
+		require.NoError(t, err)
+		config.PolicyEffectiveAt = 0
+		assert.Equal(t, config, stored)
+	}
+}
+
 func TestInvoiceTaxCallbackVerifiesAmountMerchantAndDurableSettlement(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
 	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketInvoice{}, &model.TicketMessage{}, &model.InvoiceTaxCharge{}, &model.Log{}))

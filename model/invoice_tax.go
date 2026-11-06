@@ -19,14 +19,15 @@ const InvoiceVATRateBps = 600
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
-	PolicyEffectiveAt   int64  `json:"policy_effective_at"`
-	ModuleEnabled       bool   `json:"module_enabled"`
-	LegacyTopUpsEnabled bool   `json:"legacy_topups_enabled"`
-	LegacyInvoiceBefore int64  `json:"legacy_invoice_before"`
-	Enabled             bool   `json:"enabled"`
-	Mode                string `json:"mode"`
-	OrdinaryRateBps     int    `json:"ordinary_rate_bps"`
-	SpecialRateBps      int    `json:"special_rate_bps"`
+	PolicyEffectiveAt         int64  `json:"policy_effective_at"`
+	ModuleEnabled             bool   `json:"module_enabled"`
+	LegacyTopUpsEnabled       bool   `json:"legacy_topups_enabled"`
+	LegacyInvoiceBefore       int64  `json:"legacy_invoice_before"`
+	LegacyFreeOrdinaryEnabled bool   `json:"legacy_free_ordinary_enabled"`
+	Enabled                   bool   `json:"enabled"`
+	Mode                      string `json:"mode"`
+	OrdinaryRateBps           int    `json:"ordinary_rate_bps"`
+	SpecialRateBps            int    `json:"special_rate_bps"`
 }
 
 type InvoiceTaxQuote struct {
@@ -113,7 +114,7 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	}
 	var cents, prepaidNet, prepaidTax int64
 	for _, order := range orders {
-		if config.PolicyEffectiveAt > 0 && config.AllowsLegacyInvoice(order) {
+		if config.LegacyFreeOrdinaryEnabled && config.AllowsLegacyInvoice(order) {
 			if invoiceType != "ordinary" || !IsCNYInvoiceTopUp(order) {
 				return empty, ErrTicketInvoiceOrderInvalid
 			}
@@ -151,10 +152,10 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 			}
 			continue
 		}
-		if (config.ModuleEnabled || config.PolicyEffectiveAt > 0) && !config.AllowsLegacyInvoice(order) {
+		if (config.ModuleEnabled || config.PolicyEffectiveAt > 0 || config.LegacyFreeOrdinaryEnabled) && !config.AllowsLegacyInvoice(order) {
 			return empty, ErrTicketInvoiceOrderInvalid
 		}
-		if (config.ModuleEnabled || config.PolicyEffectiveAt > 0) && !IsCNYInvoiceTopUp(order) {
+		if (config.ModuleEnabled || config.PolicyEffectiveAt > 0 || config.LegacyFreeOrdinaryEnabled) && !IsCNYInvoiceTopUp(order) {
 			return empty, ErrInvoiceTaxCurrency
 		}
 		amount, err := invoiceMoneyCents(order.Money)
@@ -338,10 +339,13 @@ func GetInvoiceTaxConfig(db *gorm.DB) (InvoiceTaxConfig, error) {
 }
 
 func (config InvoiceTaxConfig) WithInvoicePolicy() InvoiceTaxConfig {
+	// Compatibility for previously stored schedules. Administrator saves clear
+	// PolicyEffectiveAt so subsequent reads preserve all custom values.
 	if config.PolicyEffectiveAt > 0 {
 		config.Mode, config.Enabled = "gross_up", true
 		config.OrdinaryRateBps, config.SpecialRateBps = 600, 900
 		config.LegacyInvoiceBefore = config.PolicyEffectiveAt
+		config.LegacyFreeOrdinaryEnabled = true
 	}
 	return config
 }

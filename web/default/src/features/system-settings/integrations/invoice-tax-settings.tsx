@@ -40,7 +40,8 @@ export function InvoiceTaxSettings() {
   const config = draft ?? query.data
   const save = useMutation({
     mutationFn: saveInvoiceTaxConfig,
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      setDraft(saved)
       client.invalidateQueries({ queryKey: ['invoice-tax-config'] })
       client.invalidateQueries({ queryKey: ['status'] })
       toast.success(t('Saved successfully'))
@@ -48,37 +49,6 @@ export function InvoiceTaxSettings() {
   })
   if (!config) {
     return <p>{query.isError ? t('Failed to load') : t('Loading...')}</p>
-  }
-  if (config.policy_effective_at) {
-    return (
-      <section className='space-y-4 border-t pt-4'>
-        <h3 className='font-medium'>{t('Invoice fees')}</h3>
-        <p className='text-muted-foreground text-sm'>
-          {t(
-            'From 2026-11-09 00:00 Beijing time, invoice fees are 6% for ordinary invoices and 9% for special invoices, deducted from payment. Both invoice types have a 6% VAT rate. Earlier payments qualify for free ordinary invoices.'
-          )}
-        </p>
-        <div className='flex items-center gap-2'>
-          <Switch
-            id='finance-module-enabled'
-            checked={!!config.module_enabled}
-            onCheckedChange={(module_enabled) =>
-              setDraft({ ...config, module_enabled })
-            }
-          />
-          <Label htmlFor='finance-module-enabled'>
-            {t('Enable finance module')}
-          </Label>
-        </div>
-        <Button
-          type='button'
-          disabled={save.isPending}
-          onClick={() => save.mutate(config)}
-        >
-          {t('Save')}
-        </Button>
-      </section>
-    )
   }
   const legacyBefore = config.legacy_invoice_before ?? 0
   const validCutoff =
@@ -116,6 +86,18 @@ export function InvoiceTaxSettings() {
           {t('Collect invoice tax charges')}
         </Label>
       </div>
+      <div className='flex items-center gap-2'>
+        <Switch
+          id='invoice-legacy-free-ordinary'
+          checked={!!config.legacy_free_ordinary_enabled}
+          onCheckedChange={(legacy_free_ordinary_enabled) =>
+            setDraft({ ...config, legacy_free_ordinary_enabled })
+          }
+        />
+        <Label htmlFor='invoice-legacy-free-ordinary'>
+          {t('Free ordinary invoices for historical payments')}
+        </Label>
+      </div>
       <div className='space-y-2'>
         <Label htmlFor='invoice-legacy-before'>
           {t('Allow orders completed before this date to request invoices')}
@@ -143,7 +125,7 @@ export function InvoiceTaxSettings() {
         />
         <p className='text-muted-foreground text-sm'>
           {t(
-            'Only historical orders completed before 00:00 Beijing time on this date can pay tax to request an invoice. Leave empty to disable.'
+            'The cutoff is 00:00 Beijing time, excluding that date. Leave blank to disable historical eligibility. When free ordinary invoices are enabled, qualifying payments incur no additional invoice fee and cannot use this rule for special invoices; otherwise existing eligibility and fee rules apply.'
           )}
         </p>
       </div>
@@ -153,8 +135,8 @@ export function InvoiceTaxSettings() {
             <Label htmlFor={`invoice-rate-${type}`}>
               {t(
                 type === 'ordinary'
-                  ? 'Ordinary VAT invoice rate (%)'
-                  : 'Special VAT invoice rate (%)'
+                  ? 'Ordinary invoice fee (%)'
+                  : 'Special invoice fee (%)'
               )}
             </Label>
             <Input
