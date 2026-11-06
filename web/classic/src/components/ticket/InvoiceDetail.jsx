@@ -1,15 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Button,
   Card,
   Descriptions,
-  Dropdown,
+  Modal,
   Empty,
   Space,
   Tag,
   Typography,
 } from '@douyinfe/semi-ui';
-import { IconMore } from '@douyinfe/semi-icons';
 import CardTable from '../common/ui/CardTable';
 import { timestamp2string } from '../../helpers';
 import { getInvoiceStatusColor, getInvoiceStatusText } from './ticketUtils';
@@ -25,6 +24,7 @@ const InvoiceDetail = ({
   fallbackRemark = '',
   t,
 }) => {
+  const [rejectInvoiceId, setRejectInvoiceId] = useState(null);
   const descriptionRows = useMemo(() => {
     if (!invoice) {
       return [];
@@ -113,30 +113,36 @@ const InvoiceDetail = ({
           </div>
           {!readonly && invoice && typeof onStatusChange === 'function' && (
             <Space>
-              <Dropdown
-                trigger='click'
-                position='bottomRight'
-                render={
-                  <Dropdown.Menu>
-                    <Dropdown.Item
-                      type='danger'
-                      disabled={loading}
-                      onClick={() => onStatusChange(3)}
-                    >
-                      {t('驳回申请')}
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                }
+              <Button
+                theme='light'
+                type='danger'
+                disabled={loading}
+                onClick={() => setRejectInvoiceId(invoice.id)}
               >
-                <Button
-                  theme='borderless'
-                  type='tertiary'
-                  icon={<IconMore />}
-                  disabled={loading}
-                  aria-label={t('更多')}
-                  title={t('更多')}
-                />
-              </Dropdown>
+                {t('驳回申请')}
+              </Button>
+              <Modal
+                centered
+                visible={rejectInvoiceId === invoice.id}
+                title={t('驳回申请')}
+                okText={t('确认驳回')}
+                cancelText={t('取消')}
+                okButtonProps={{
+                  type: 'danger',
+                  theme: 'solid',
+                  disabled: loading,
+                }}
+                autoFocus={false}
+                onCancel={() => setRejectInvoiceId(null)}
+                onOk={() => {
+                  if (loading || rejectInvoiceId !== invoice.id) return;
+                  setRejectInvoiceId(null);
+                  onStatusChange(3);
+                }}
+              >
+                <p>{t('确认操作')}</p>
+                <p className='mt-2 break-words'>{invoice.company_name}</p>
+              </Modal>
               <Button
                 theme='solid'
                 type='primary'

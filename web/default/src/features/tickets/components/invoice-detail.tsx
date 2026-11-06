@@ -1,15 +1,10 @@
-import { MoreHorizontal } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Table,
   TableBody,
@@ -41,6 +36,7 @@ export function InvoiceDetail({
   fallbackRemark,
 }: InvoiceDetailProps) {
   const { t } = useTranslation()
+  const [rejectInvoiceId, setRejectInvoiceId] = useState<number | null>(null)
   const statusCfg = INVOICE_STATUS_CONFIG[invoice.invoice_status]
   const remark = invoice.remark?.trim() || fallbackRemark?.trim() || ''
 
@@ -155,31 +151,35 @@ export function InvoiceDetail({
             >
               {t('Mark as Issued')}
             </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                disabled={loading}
-                render={
-                  <Button
-                    variant='ghost'
-                    size='icon'
-                    className='h-8 w-8'
-                    aria-label={t('More')}
-                    title={t('More')}
-                  />
-                }
-              >
-                <MoreHorizontal className='size-4' />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align='end'>
-                <DropdownMenuItem
-                  variant='destructive'
-                  disabled={loading}
-                  onClick={() => onStatusChange?.(3)}
-                >
-                  {t('Reject Application')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              variant='destructive'
+              size='sm'
+              disabled={loading}
+              onClick={() => setRejectInvoiceId(invoice.id)}
+            >
+              {t('Reject Application')}
+            </Button>
+            <ConfirmDialog
+              open={rejectInvoiceId === invoice.id}
+              onOpenChange={(open) => {
+                if (!open) setRejectInvoiceId(null)
+              }}
+              title={t('Reject Application')}
+              desc={
+                <>
+                  {t('Are you sure?')}
+                  <p className='mt-2 break-words'>{invoice.company_name}</p>
+                </>
+              }
+              confirmText={t('Reject Application')}
+              destructive
+              disabled={loading}
+              handleConfirm={() => {
+                if (loading || rejectInvoiceId !== invoice.id) return
+                setRejectInvoiceId(null)
+                onStatusChange?.(3)
+              }}
+            />
           </div>
         )}
       </CardContent>
