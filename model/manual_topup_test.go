@@ -227,6 +227,29 @@ func TestManualTopUpLegacyReceiptReplayWithoutAccount(t *testing.T) {
 	require.NoError(t, DB.First(user, user.Id).Error)
 	assert.Equal(t, 123, user.Quota)
 	req.RequestID = "manual-legacy-0002"
+	quote, err := QuoteManualTopUp(DB, admin.Id, req)
+	require.NoError(t, err)
+	assert.Empty(t, quote.GatewayID)
+	assert.Zero(t, quote.TaxCents)
+	req.Token = quote.Token
+	createdOrder, created, err := CreateManualTopUp(admin.Id, req)
+	require.NoError(t, err)
+	assert.True(t, created)
+	assert.Equal(t, "none", createdOrder.InvoiceType)
+	_, created, err = CreateManualTopUp(admin.Id, req)
+	require.NoError(t, err)
+	assert.False(t, created)
+	require.NoError(t, DB.First(user, user.Id).Error)
+	assert.Equal(t, 123+quote.Quota, user.Quota)
+	req.RequestID = "manual-legacy-0003"
+	req.InvoiceType = "ordinary"
 	_, _, err = CreateManualTopUp(admin.Id, req)
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
+	req.InvoiceType = "special"
+	_, err = QuoteManualTopUp(DB, admin.Id, req)
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
+	req.InvoiceType = "none"
+	req.GatewayID = "unknown"
+	_, err = QuoteManualTopUp(DB, admin.Id, req)
 	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
 }

@@ -99,6 +99,7 @@ export function ManualTopupDialog({
     cents > 0 &&
     (!!pending ||
       !!quote ||
+      (invoiceType === 'none' && !gatewayID) ||
       (!accounts.isError &&
         !!accounts.data?.some((account) => account.gateway_id === gatewayID)))
   const invoiceLabels: Record<string, string> = {
@@ -232,18 +233,25 @@ export function ManualTopupDialog({
             </p>
           ) : (
             <Select
-              value={gatewayID || null}
-              onValueChange={(value) => setGatewayID(value || '')}
+              value={gatewayID ? `account:${gatewayID}` : null}
+              onValueChange={(value) =>
+                setGatewayID(
+                  value?.startsWith('account:') ? value.slice(8) : ''
+                )
+              }
               disabled={busy || accounts.isPending || accounts.isError}
             >
               <SelectTrigger id='manual-topup-account' className='w-full'>
                 <SelectValue placeholder={t('Select corporate account')} />
               </SelectTrigger>
               <SelectContent>
+                {invoiceType === 'none' && (
+                  <SelectItem value='none'>-</SelectItem>
+                )}
                 {(accounts.data || []).map((account) => (
                   <SelectItem
                     key={account.gateway_id}
-                    value={account.gateway_id}
+                    value={`account:${account.gateway_id}`}
                   >
                     <span className='min-w-0 break-words whitespace-normal'>
                       {account.account_name} ({account.gateway_name})
@@ -261,13 +269,16 @@ export function ManualTopupDialog({
               {t('Retry')}
             </Button>
           )}
-          {!quote && accounts.isSuccess && accounts.data.length === 0 && (
-            <p className='text-muted-foreground text-sm'>
-              {t(
-                'Configure a corporate account in payment gateway settings first.'
-              )}
-            </p>
-          )}
+          {!quote &&
+            invoiceType !== 'none' &&
+            accounts.isSuccess &&
+            accounts.data.length === 0 && (
+              <p className='text-muted-foreground text-sm'>
+                {t(
+                  'Configure a corporate account in payment gateway settings first.'
+                )}
+              </p>
+            )}
         </div>
         {quote && (
           <dl className='grid grid-cols-2 gap-2 text-sm'>
