@@ -135,3 +135,23 @@ checks together; locale conflicts require key-level merging; CI conflict resolut
 must retain channel-report tests as well as refund tests. Wait for frontend builds
 to finish before full Go tests because the root package embeds their generated assets.
 The development branch is unchanged. This is a source update, not a deployment.
+
+## Cooling and Audit Baseline: 2026-11-06
+
+All 33 finance commits from `172440506..389a0bddb` were replayed onto
+`origin/dev-20260712` at `bcd7722ca`. The new base includes transactional pressure
+cooling recovery, administrator-only channel automation logs, per-channel
+consecutive cooldown limits and suspension indicators in both themes. See
+`PRESSURE_COOLING_RECOVERY.md` for behavior and operational limits.
+
+Conflicts were confined to locale files and resolved by JSON key. All 15 locales
+preserve the finance values plus the four new cooling messages. Classic key order
+is retained to avoid unrelated churn. Outside locales, the resulting change from
+the original finance tip has exactly the same stable patch ID as the two new
+development commits; finance policy and refund settlement behavior are preserved.
+
+Validation: service/model/controller/middleware/router packages passed with an
+isolated ClickHouse instance; both frontend builds and Default typecheck passed.
+Targeted finance/refund/invoice/cooling race tests, core Go vet and 39 frontend
+cooling regression tests also passed.
+This update does not deploy either branch or run production migrations.
