@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { createFinanceMoney } from '../../../../../shared/finance-money'
+
 type Document = {
   localId?: string
   issuer: string
@@ -43,6 +45,8 @@ type Review = {
   plan: { payments: Payment[]; noncash_grant_quota: number; evidence: string }
 }
 type Report = {
+  quota_per_unit: string
+  usd_exchange_rate: string
   revision: string
   stage: string
   blockers: { code: string; order_id?: number }[]
@@ -59,6 +63,7 @@ type Report = {
 }
 
 const inputClass = 'w-full rounded border bg-transparent p-2 text-sm'
+const cashMoney = createFinanceMoney('100', '1')
 
 export function RefundPayoutPanel({
   ticketId,
@@ -260,7 +265,12 @@ function useFinancialQuery<T>(url: string) {
   useEffect(() => {
     const controller = new AbortController()
     api
-      .get(url, { signal: controller.signal, disableDuplicate: true, skipErrorHandler: true, skipBusinessError: true })
+      .get(url, {
+        signal: controller.signal,
+        disableDuplicate: true,
+        skipErrorHandler: true,
+        skipBusinessError: true,
+      })
       .then((response) => {
         if (!response.data.success) throw new Error(response.data.message)
         if (!controller.signal.aborted) {
@@ -660,18 +670,40 @@ function ReconciliationEditor({
 }) {
   const { t } = useTranslation()
   const user = useAuthStore((state) => state.auth.user)
-  const [payments, setPayments] = useState<Payment[]>(
+  const money = createFinanceMoney(
+    report.quota_per_unit,
+    report.usd_exchange_rate
+  )
+  const [payments, setPayments] = useState(
     report.orders
       .filter((row) => row.checkout_version === 0)
       .map((row) => ({
         top_up_id: row.id,
-        paid_cents: Math.round(row.money * 100),
-        tax_cents: 0,
-        paid_quota: row.quota,
-        bonus_quota: 0,
+        paid_cents: cashMoney.input(Math.round(row.money * 100)),
+        tax_cents: '0',
+        paid_quota: money.input(row.quota),
+        bonus_quota: '0',
       }))
   )
-  const [grant, setGrant] = useState(0)
+  const [grant, setGrant] = useState('0')
+  const parsedPayments = payments.map((row) => ({
+    top_up_id: row.top_up_id,
+    paid_cents: cashMoney.parse(row.paid_cents),
+    tax_cents: cashMoney.parse(row.tax_cents),
+    paid_quota: money.parse(row.paid_quota),
+    bonus_quota: money.parse(row.bonus_quota),
+  }))
+  const parsedGrant = money.parse(grant)
+  const amountsValid =
+    money.valid &&
+    parsedGrant !== null &&
+    parsedPayments.every(
+      (row) =>
+        row.paid_cents !== null &&
+        row.tax_cents !== null &&
+        row.paid_quota !== null &&
+        row.bonus_quota !== null
+    )
   const [evidence, setEvidence] = useState('')
   const [reviewReason, setReviewReason] = useState('')
   const [key, setKey] = useState(() => crypto.randomUUID())
@@ -698,10 +730,13 @@ function ReconciliationEditor({
     <div className='space-y-4'>
       <p>{t(phaseLabels[report.stage] ?? report.stage)}</p>
       <p>
-        {t('Paid quota')}: {report.paid_quota} · {t('Noncash quota')}:{' '}
-        {report.noncash_quota} · {t('Unexplained quota difference')}:{' '}
-        {report.difference}
+        {t('Paid credit value (CNY)')}: {money.format(report.paid_quota)} ·{' '}
+        {t('Noncash credit value (CNY)')}: {money.format(report.noncash_quota)}{' '}
+        · {t('Unexplained difference (CNY)')}: {money.format(report.difference)}
       </p>
+      {!money.valid && (
+        <p role='alert'>{t('Currency conversion settings unavailable')}</p>
+      )}
       <ul>
         {report.blockers.map((blocker) => (
           <li key={`${blocker.code}:${blocker.order_id ?? ''}`}>
@@ -711,7 +746,7 @@ function ReconciliationEditor({
         ))}
       </ul>
       {report.stage !== 'reserved' && report.stage !== 'closed' && (
-        <fieldset disabled={busy} className='space-y-3'>
+        <fieldset disabled={busy || !money.valid} className='space-y-3'>
           {payments.map((row, index) => (
             <div
               key={row.top_up_id}
@@ -732,10 +767,10 @@ function ReconciliationEditor({
                   <span>
                     {t(
                       {
-                        paid_cents: 'Actual paid amount (cents)',
-                        tax_cents: 'Collected fee (cents)',
-                        paid_quota: 'Purchased quota',
-                        bonus_quota: 'Included bonus quota',
+                        paid_cents: 'Actual paid amount (CNY)',
+                        tax_cents: 'Collected fee (CNY)',
+                        paid_quota: 'Purchased credit value (CNY)',
+                        bonus_quota: 'Included bonus value (CNY)',
                       }[field]
                     )}
                   </span>
@@ -743,13 +778,13 @@ function ReconciliationEditor({
                     className={inputClass}
                     type='number'
                     min={0}
-                    step={1}
+                    step='any'
                     value={row[field]}
                     onChange={(event) =>
                       setPayments((rows) =>
                         rows.map((entry, i) =>
                           i === index
-                            ? { ...entry, [field]: Number(event.target.value) }
+                            ? { ...entry, [field]: event.target.value }
                             : entry
                         )
                       )
@@ -760,14 +795,14 @@ function ReconciliationEditor({
             </div>
           ))}
           <label className='block space-y-1'>
-            <span>{t('Verified additional noncash quota')}</span>
+            <span>{t('Verified additional noncash value (CNY)')}</span>
             <input
               className={inputClass}
               type='number'
               min={0}
-              step={1}
+              step='any'
               value={grant}
-              onChange={(event) => setGrant(Number(event.target.value))}
+              onChange={(event) => setGrant(event.target.value)}
             />
           </label>
           <label className='block space-y-1'>
@@ -782,14 +817,19 @@ function ReconciliationEditor({
           <Button
             disabled={
               busy ||
+              !amountsValid ||
               evidence.trim().length < 10 ||
-              (!payments.length && !grant)
+              (!payments.length && !parsedGrant)
             }
             onClick={() =>
               send(`/api/ticket/refund/${ticketId}/reconciliation`, {
                 request_key: key,
                 revision: report.revision,
-                plan: { payments, noncash_grant_quota: grant, evidence },
+                plan: {
+                  payments: parsedPayments,
+                  noncash_grant_quota: parsedGrant,
+                  evidence,
+                },
               })
             }
           >
@@ -806,15 +846,17 @@ function ReconciliationEditor({
             {review.plan.evidence}
           </p>
           <p>
-            {t('Verified additional noncash quota')}:{' '}
-            {review.plan.noncash_grant_quota}
+            {t('Verified additional noncash value (CNY)')}:{' '}
+            {money.format(review.plan.noncash_grant_quota)}
           </p>
           {review.plan.payments.map((row) => (
             <p key={row.top_up_id}>
-              #{row.top_up_id} · {t('Actual paid amount (cents)')}:{' '}
-              {row.paid_cents} · {t('Collected fee (cents)')}: {row.tax_cents} ·{' '}
-              {t('Purchased quota')}: {row.paid_quota} ·{' '}
-              {t('Included bonus quota')}: {row.bonus_quota}
+              #{row.top_up_id} · {t('Actual paid amount (CNY)')}:{' '}
+              {cashMoney.format(row.paid_cents)} · {t('Collected fee (CNY)')}:{' '}
+              {cashMoney.format(row.tax_cents)} ·{' '}
+              {t('Purchased credit value (CNY)')}:{' '}
+              {money.format(row.paid_quota)} · {t('Included bonus value (CNY)')}
+              : {money.format(row.bonus_quota)}
             </p>
           ))}
           {review.status === 'submitted' &&

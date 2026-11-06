@@ -4,10 +4,38 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestReconciliationUsesCurrentCNYConversionAndInvalidatesStaleReview(t *testing.T) {
+	f := newRefundFinanceFixture(t)
+	previousRate := operation_setting.USDExchangeRate
+	previousUnit := common.QuotaPerUnit
+	t.Cleanup(func() {
+		operation_setting.USDExchangeRate = previousRate
+		common.QuotaPerUnit = previousUnit
+	})
+	common.QuotaPerUnit = 100
+	operation_setting.USDExchangeRate = 7.3
+	order := seedRefundFinanceOrder(t, f.user.Id, 1000, 900, 0, 100)
+	require.NoError(t, DB.Model(order).Update("checkout_version", 0).Error)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
+	ticket, _, _, err := CreateRefundTicket(financeRefundParams(f.user, 500))
+	require.NoError(t, err)
+	report, err := GetRefundReconciliationReport(ticket.Id)
+	require.NoError(t, err)
+	assert.Equal(t, "100", report.QuotaPerUnit)
+	assert.Equal(t, "7.3", report.USDExchangeRate)
+	plan := FinanceReconciliationPlan{Payments: []FinancePaymentEvidence{{TopUpID: order.Id, PaidCents: 900, PaidQuota: 1000}}, Evidence: "Verified original receipt"}
+	review, err := SubmitFinanceReconciliation(ticket.Id, f.finance.Id, uuid.NewString(), report.Revision, plan)
+	require.NoError(t, err)
+	operation_setting.USDExchangeRate = 7
+	_, err = ReviewFinanceReconciliation(review.Id, f.admin.Id, true, "Verified receipt")
+	require.ErrorIs(t, err, ErrFinanceRevision)
+}
 
 func TestReconciliationClassifiesLegacyDiscountWithoutChangingWallet(t *testing.T) {
 	f := newRefundFinanceFixture(t)
