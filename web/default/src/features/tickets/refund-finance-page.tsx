@@ -23,6 +23,12 @@ import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -64,9 +70,7 @@ function RefundFinanceList(props: { userId: number; role: number }) {
     },
     gcTime: 0,
   })
-  const item =
-    query.data?.items.find((row) => row.ticket_id === selected) ??
-    query.data?.items[0]
+  const item = query.data?.items.find((row) => row.ticket_id === selected)
   return (
     <SectionPageLayout>
       <SectionPageLayout.Title>
@@ -162,14 +166,35 @@ function RefundFinanceList(props: { userId: number; role: number }) {
             <p className='p-8 text-center'>{t('No data')}</p>
           )}
         </div>
-        {item?.finance && (
-          <RefundFinanceDetail
-            key={item.ticket_id}
-            finance={item.finance}
-            ticketId={item.ticket_id}
-            onUpdated={() => void query.refetch()}
-          />
-        )}
+        <Dialog
+          open={selected !== null}
+          onOpenChange={(open) => {
+            if (!open) setSelected(null)
+          }}
+        >
+          <DialogContent
+            className='max-h-[85vh] overflow-y-auto sm:max-w-6xl'
+            aria-describedby={undefined}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                {t('Refund reconciliation')} #{selected}
+              </DialogTitle>
+            </DialogHeader>
+            <div className='min-w-0'>
+              {item?.finance ? (
+                <RefundFinanceDetail
+                  key={item.ticket_id}
+                  finance={item.finance}
+                  ticketId={item.ticket_id}
+                  onUpdated={() => void query.refetch()}
+                />
+              ) : (
+                <p>{t('No data')}</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </SectionPageLayout.Content>
     </SectionPageLayout>
   )
