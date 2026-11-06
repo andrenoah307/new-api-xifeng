@@ -5590,6 +5590,7 @@
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "Vérifiez les montants : frais inférieurs au paiement, bonus inclus inférieur au total et bonus supplémentaires limités à l’écart inexpliqué.",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Fournissez au moins 10 caractères de justificatifs, avec des références de paiement ou de bonus.",
     "No new financial evidence to submit.": "Aucun nouveau justificatif financier à soumettre.",
+    "Source evidence (optional)": "Justificatif de provenance (facultatif)",
     "Quick replies": "Réponses rapides",
     "Quick replies (one per line)": "Réponses rapides (une par ligne)",
     "Custom navigation links": "Liens de navigation personnalisés",

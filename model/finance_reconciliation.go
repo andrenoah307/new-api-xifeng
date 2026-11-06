@@ -270,7 +270,7 @@ func GetRefundReconciliationReport(ticketID int) (*RefundReconciliationReport, e
 
 func SubmitFinanceReconciliation(ticketID, actorID int, key, revision string, plan FinanceReconciliationPlan) (*FinanceReconciliation, error) {
 	plan.Evidence = strings.TrimSpace(plan.Evidence)
-	if len(key) < 16 || len(key) > 64 || len(revision) != 64 || utf8.RuneCountInString(plan.Evidence) < 10 || utf8.RuneCountInString(plan.Evidence) > 4000 || len(plan.Payments) > 100 || (len(plan.Payments) == 0 && plan.NoncashGrantQuota == 0) {
+	if len(key) < 16 || len(key) > 64 || len(revision) != 64 || len(plan.Payments) > 100 || (len(plan.Payments) == 0 && plan.NoncashGrantQuota == 0) {
 		return nil, ErrFinanceEvidence
 	}
 	encoded, err := common.Marshal(plan)

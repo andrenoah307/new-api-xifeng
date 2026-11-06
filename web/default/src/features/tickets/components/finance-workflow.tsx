@@ -820,11 +820,10 @@ function ReconciliationEditor({
             )}
           </p>
           <label className='block space-y-1'>
-            <span>{t('Source evidence (at least 10 characters)')}</span>
+            <span>{t('Source evidence (optional)')}</span>
             <textarea
               className={inputClass}
               value={evidence}
-              maxLength={4000}
               onChange={(event) => setEvidence(event.target.value)}
             />
           </label>
@@ -840,12 +839,6 @@ function ReconciliationEditor({
               ) {
                 setError(
                   'Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.'
-                )
-                return
-              }
-              if ([...evidence.trim()].length < 10) {
-                setError(
-                  'Provide source evidence of at least 10 characters, including receipt or grant record references.'
                 )
                 return
               }

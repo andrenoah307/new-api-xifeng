@@ -6145,6 +6145,7 @@
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "请填写至少10个字符的来源凭证，包含收款流水或赠送记录等依据。",
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "购买金额＝到账总额－内含赠送金额；现金退款以原订单实付为准。",
     "Source evidence (at least 10 characters)": "资金来源凭证（至少10个字符）",
-    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "未解释差额不能直接认定为赠送。额外赠送金额须有记录支持，其余差额继续待查。"
+    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "未解释差额不能直接认定为赠送。额外赠送金额须有记录支持，其余差额继续待查。",
+    "Source evidence (optional)": "资金来源凭证（选填）"
   }
 }

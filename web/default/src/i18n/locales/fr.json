@@ -6145,6 +6145,7 @@
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Fournissez au moins 10 caractères de justificatifs, avec des références de paiement ou de bonus.",
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "La valeur achetée est le total crédité moins le bonus inclus. Le remboursement utilise le paiement réel enregistré.",
     "Source evidence (at least 10 characters)": "Justificatifs de provenance (10 caractères minimum)",
-    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Un écart inexpliqué ne constitue pas un bonus. Seuls les bonus documentés sont admissibles ; les autres écarts restent à examiner."
+    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Un écart inexpliqué ne constitue pas un bonus. Seuls les bonus documentés sont admissibles ; les autres écarts restent à examiner.",
+    "Source evidence (optional)": "Justificatif de provenance (facultatif)"
   }
 }

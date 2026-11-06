@@ -6145,6 +6145,7 @@
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Provide source evidence of at least 10 characters, including receipt or grant record references.",
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.",
     "Source evidence (at least 10 characters)": "Source evidence (at least 10 characters)",
-    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation."
+    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.",
+    "Source evidence (optional)": "Source evidence (optional)"
   }
 }

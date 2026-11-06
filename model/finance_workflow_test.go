@@ -1,6 +1,7 @@
 package model
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -9,6 +10,27 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestReconciliationSourceEvidenceIsOptional(t *testing.T) {
+	for name, evidence := range map[string]string{"empty": "", "whitespace": " ", "short": "已核对", "long": strings.Repeat("x", 5000)} {
+		t.Run(name, func(t *testing.T) {
+			f := newRefundFinanceFixture(t)
+			order := seedRefundFinanceOrder(t, f.user.Id, 1000, 900, 0, 100)
+			require.NoError(t, DB.Model(order).Update("checkout_version", 0).Error)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
+			ticket, _, _, err := CreateRefundTicket(financeRefundParams(f.user, 500))
+			require.NoError(t, err)
+			report, err := GetRefundReconciliationReport(ticket.Id)
+			require.NoError(t, err)
+			plan := FinanceReconciliationPlan{Payments: []FinancePaymentEvidence{{TopUpID: order.Id, PaidCents: 900, PaidQuota: 1000}}, Evidence: evidence}
+			record, err := SubmitFinanceReconciliation(ticket.Id, f.finance.Id, uuid.NewString(), report.Revision, plan)
+			require.NoError(t, err)
+			assert.Equal(t, strings.TrimSpace(evidence), record.Plan.Evidence)
+			_, err = ReviewFinanceReconciliation(record.Id, f.admin.Id, true, "verified")
+			require.NoError(t, err)
+		})
+	}
+}
 
 func TestReconciliationUsesCurrentCNYConversionAndInvalidatesStaleReview(t *testing.T) {
 	f := newRefundFinanceFixture(t)

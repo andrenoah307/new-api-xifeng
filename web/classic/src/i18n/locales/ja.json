@@ -5557,6 +5557,7 @@
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "金額を確認してください。費用は実支払額未満、特典は入金合計未満、追加特典は不明差額以下である必要があります。",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "入金明細や特典付与記録の参照を含む証拠を10文字以上で入力してください。",
     "No new financial evidence to submit.": "提出する新しい会計証拠がありません。",
+    "Source evidence (optional)": "資金の証拠（任意）",
     "Quick replies": "クイック返信",
     "Quick replies (one per line)": "定型文（1行に1件）",
     "Custom navigation links": "カスタムナビゲーションリンク",

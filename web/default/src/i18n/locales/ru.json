@@ -6145,6 +6145,7 @@
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Укажите подтверждение источника длиной от 10 символов со ссылками на платёж или начисление бонуса.",
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "Купленная сумма равна общему зачислению минус включённый бонус. Возврат рассчитывается по фактическому платежу.",
     "Source evidence (at least 10 characters)": "Подтверждение источника (не менее 10 символов)",
-    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Необъяснённая разница не считается подарком. Допустимы только подтверждённые бонусы; остальные расхождения требуют проверки."
+    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Необъяснённая разница не считается подарком. Допустимы только подтверждённые бонусы; остальные расхождения требуют проверки.",
+    "Source evidence (optional)": "Подтверждение источника (необязательно)"
   }
 }
