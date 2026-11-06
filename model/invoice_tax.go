@@ -114,7 +114,7 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	}
 	var cents, prepaidNet, prepaidTax int64
 	for _, order := range orders {
-		if config.LegacyFreeOrdinaryEnabled && config.AllowsLegacyInvoice(order) {
+		if (order.InvoiceType == "" || order.InvoiceType == "none") && config.LegacyFreeOrdinaryEnabled && config.AllowsLegacyInvoice(order) {
 			if invoiceType != "ordinary" || !IsCNYInvoiceTopUp(order) {
 				return empty, ErrTicketInvoiceOrderInvalid
 			}
