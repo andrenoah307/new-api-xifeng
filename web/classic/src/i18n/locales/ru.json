@@ -5603,6 +5603,13 @@
     "Verified additional noncash value (CNY)": "Подтверждённый дополнительный бонус (эквивалент CNY)",
     "Actual paid amount (CNY)": "Фактически уплачено (CNY)",
     "Collected fee (CNY)": "Удержанная комиссия (CNY)",
-    "Currency conversion settings unavailable": "Настройки пересчёта недоступны; проверьте настройки системы"
+    "Currency conversion settings unavailable": "Настройки пересчёта недоступны; проверьте настройки системы",
+    "Order credit total (CNY)": "Общее зачисление по заказу (CNY)",
+    "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "Купленная сумма равна общему зачислению минус включённый бонус. Возврат рассчитывается по фактическому платежу.",
+    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Необъяснённая разница не считается подарком. Допустимы только подтверждённые бонусы; остальные расхождения требуют проверки.",
+    "Source evidence (at least 10 characters)": "Подтверждение источника (не менее 10 символов)",
+    "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "Проверьте суммы: комиссия меньше платежа, включённый бонус меньше общего зачисления, дополнительные бонусы не превышают необъяснённую разницу.",
+    "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Укажите подтверждение источника длиной от 10 символов со ссылками на платёж или начисление бонуса.",
+    "No new financial evidence to submit.": "Нет новых финансовых подтверждений для отправки."
   }
 }

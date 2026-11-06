@@ -681,7 +681,7 @@ function ReconciliationEditor({
         top_up_id: row.id,
         paid_cents: cashMoney.input(Math.round(row.money * 100)),
         tax_cents: '0',
-        paid_quota: money.input(row.quota),
+        total_quota: row.quota,
         bonus_quota: '0',
       }))
   )
@@ -690,7 +690,8 @@ function ReconciliationEditor({
     top_up_id: row.top_up_id,
     paid_cents: cashMoney.parse(row.paid_cents),
     tax_cents: cashMoney.parse(row.tax_cents),
-    paid_quota: money.parse(row.paid_quota),
+    paid_quota:
+      row.total_quota - (money.parse(row.bonus_quota) ?? row.total_quota),
     bonus_quota: money.parse(row.bonus_quota),
   }))
   const parsedGrant = money.parse(grant)
@@ -701,7 +702,8 @@ function ReconciliationEditor({
       (row) =>
         row.paid_cents !== null &&
         row.tax_cents !== null &&
-        row.paid_quota !== null &&
+        row.paid_quota > 0 &&
+        row.tax_cents < row.paid_cents &&
         row.bonus_quota !== null
     )
   const [evidence, setEvidence] = useState('')
@@ -755,21 +757,23 @@ function ReconciliationEditor({
               <p className='sm:col-span-2'>
                 {t('Order number')} #{row.top_up_id}
               </p>
-              {(
-                [
-                  'paid_cents',
-                  'tax_cents',
-                  'paid_quota',
-                  'bonus_quota',
-                ] as const
-              ).map((field) => (
+              <p>
+                {t('Actual paid amount (CNY)')}:{' '}
+                {cashMoney.format(parsedPayments[index].paid_cents ?? 0)}
+              </p>
+              <p>
+                {t('Order credit total (CNY)')}: {money.format(row.total_quota)}
+              </p>
+              <p className='sm:col-span-2'>
+                {t('Purchased credit value (CNY)')}:{' '}
+                {money.format(parsedPayments[index].paid_quota)}
+              </p>
+              {(['tax_cents', 'bonus_quota'] as const).map((field) => (
                 <label key={field} className='space-y-1'>
                   <span>
                     {t(
                       {
-                        paid_cents: 'Actual paid amount (CNY)',
                         tax_cents: 'Collected fee (CNY)',
-                        paid_quota: 'Purchased credit value (CNY)',
                         bonus_quota: 'Included bonus value (CNY)',
                       }[field]
                     )}
@@ -794,6 +798,11 @@ function ReconciliationEditor({
               ))}
             </div>
           ))}
+          <p>
+            {t(
+              'Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.'
+            )}
+          </p>
           <label className='block space-y-1'>
             <span>{t('Verified additional noncash value (CNY)')}</span>
             <input
@@ -805,8 +814,13 @@ function ReconciliationEditor({
               onChange={(event) => setGrant(event.target.value)}
             />
           </label>
+          <p>
+            {t(
+              'Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.'
+            )}
+          </p>
           <label className='block space-y-1'>
-            <span>{t('Source evidence')}</span>
+            <span>{t('Source evidence (at least 10 characters)')}</span>
             <textarea
               className={inputClass}
               value={evidence}
@@ -815,13 +829,30 @@ function ReconciliationEditor({
             />
           </label>
           <Button
-            disabled={
-              busy ||
-              !amountsValid ||
-              evidence.trim().length < 10 ||
-              (!payments.length && !parsedGrant)
-            }
-            onClick={() =>
+            disabled={busy || !money.valid}
+            onClick={() => {
+              if (
+                !amountsValid ||
+                parsedGrant === null ||
+                parsedGrant > 2147483647 ||
+                (parsedGrant > 0 &&
+                  BigInt(parsedGrant) > BigInt(report.difference))
+              ) {
+                setError(
+                  'Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.'
+                )
+                return
+              }
+              if ([...evidence.trim()].length < 10) {
+                setError(
+                  'Provide source evidence of at least 10 characters, including receipt or grant record references.'
+                )
+                return
+              }
+              if (!payments.length && !parsedGrant) {
+                setError('No new financial evidence to submit.')
+                return
+              }
               send(`/api/ticket/refund/${ticketId}/reconciliation`, {
                 request_key: key,
                 revision: report.revision,
@@ -831,7 +862,7 @@ function ReconciliationEditor({
                   evidence,
                 },
               })
-            }
+            }}
           >
             {t('Submit for review')}
           </Button>

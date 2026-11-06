@@ -5,6 +5,20 @@ deploying code does not approve or repair historical financial records.
 
 ## Actual Payment
 
+- Reconciliation evidence forms show original actual payment and total credited
+  value read-only. Finance enters collected fees and documented included bonuses;
+  purchased quota is derived as original credited quota minus included bonus.
+  This identity is calculated in integer quota, not rounded display money.
+- Submission validates on click and explains missing evidence (at least ten
+  Unicode characters), invalid fees/bonuses and excessive additional gifts.
+  Unexplained differences remain pending unless supported by real records;
+  discount rate alone does not prove an included or additional bonus.
+- Read-only test-site verification of refund 11 confirmed legacy payment 9:
+  actual CNY 599.40, 333,000,000 credited quota, rate 90, no financial snapshot.
+  Current settings are 500,000 quota/USD and CNY 7.3/USD: credited value CNY
+  4,861.80 and unexplained difference CNY 321.20. These are credit valuations,
+  not the cash refund amount. No test-site evidence or approvals were written.
+
 - Reconciliation summaries, evidence inputs and review history show CNY instead
   of raw quota. Credit value is quota / system QuotaPerUnit * USDExchangeRate,
   labelled as converted value; it must never replace the original paid cash
