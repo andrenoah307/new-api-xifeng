@@ -5004,6 +5004,7 @@
     "Source Endpoint": "Point source",
     "Source evidence": "Justificatifs de provenance",
     "Source evidence (at least 10 characters)": "Justificatifs de provenance (10 caractères minimum)",
+    "Source evidence (optional)": "Justificatif de provenance (facultatif)",
     "Source Field": "Champ source",
     "Source Header": "En-tête source",
     "sources": "sources",

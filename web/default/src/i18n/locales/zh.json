@@ -5004,6 +5004,7 @@
     "Source Endpoint": "来源端点",
     "Source evidence": "资金来源凭证",
     "Source evidence (at least 10 characters)": "资金来源凭证（至少10个字符）",
+    "Source evidence (optional)": "资金来源凭证（选填）",
     "Source Field": "来源字段",
     "Source Header": "来源请求头",
     "sources": "来源",

@@ -5004,6 +5004,7 @@
     "Source Endpoint": "Исходная точка",
     "Source evidence": "Документы об источнике средств",
     "Source evidence (at least 10 characters)": "Подтверждение источника (не менее 10 символов)",
+    "Source evidence (optional)": "Подтверждение источника (необязательно)",
     "Source Field": "Исходное поле",
     "Source Header": "Исходный заголовок",
     "sources": "источники",

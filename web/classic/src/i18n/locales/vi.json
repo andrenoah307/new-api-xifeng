@@ -6099,6 +6099,7 @@
     "Source evidence (at least 10 characters)": "Chứng từ nguồn tiền (ít nhất 10 ký tự)",
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "Kiểm tra số tiền: phí nhỏ hơn thực trả, phần tặng kèm nhỏ hơn tổng cộng và quà tặng thêm không vượt chênh lệch chưa rõ.",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Nhập chứng từ nguồn tiền ít nhất 10 ký tự, kèm tham chiếu giao dịch hoặc bản ghi tặng.",
-    "No new financial evidence to submit.": "Không có chứng từ tài chính mới để gửi."
+    "No new financial evidence to submit.": "Không có chứng từ tài chính mới để gửi.",
+    "Source evidence (optional)": "Chứng từ nguồn tiền (không bắt buộc)"
   }
 }

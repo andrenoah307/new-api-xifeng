@@ -5568,6 +5568,7 @@
     "Source evidence (at least 10 characters)": "資金來源憑證（至少10個字元）",
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "請檢查金額：費用須小於實付，內含贈送須小於到帳總額，額外贈送不能超過未解釋差額。",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "請填寫至少10個字元的來源憑證，包含收款流水或贈送紀錄等依據。",
-    "No new financial evidence to submit.": "沒有可提交的新增帳務依據。"
+    "No new financial evidence to submit.": "沒有可提交的新增帳務依據。",
+    "Source evidence (optional)": "資金來源憑證（選填）"
   }
 }

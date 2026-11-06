@@ -3459,6 +3459,7 @@
     "Source evidence (at least 10 characters)": "资金来源凭证（至少10个字符）",
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "请检查金额：费用须小于实付，内含赠送须小于到账总额，额外赠送不能超过未解释差额。",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "请填写至少10个字符的来源凭证，包含收款流水或赠送记录等依据。",
-    "No new financial evidence to submit.": "没有可提交的新增账务依据。"
+    "No new financial evidence to submit.": "没有可提交的新增账务依据。",
+    "Source evidence (optional)": "资金来源凭证（选填）"
   }
 }

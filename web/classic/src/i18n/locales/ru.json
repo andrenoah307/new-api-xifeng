@@ -5610,6 +5610,7 @@
     "Source evidence (at least 10 characters)": "Подтверждение источника (не менее 10 символов)",
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "Проверьте суммы: комиссия меньше платежа, включённый бонус меньше общего зачисления, дополнительные бонусы не превышают необъяснённую разницу.",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Укажите подтверждение источника длиной от 10 символов со ссылками на платёж или начисление бонуса.",
-    "No new financial evidence to submit.": "Нет новых финансовых подтверждений для отправки."
+    "No new financial evidence to submit.": "Нет новых финансовых подтверждений для отправки.",
+    "Source evidence (optional)": "Подтверждение источника (необязательно)"
   }
 }

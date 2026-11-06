@@ -5004,6 +5004,7 @@
     "Source Endpoint": "來源端點",
     "Source evidence": "資金來源憑證",
     "Source evidence (at least 10 characters)": "資金來源憑證（至少10個字元）",
+    "Source evidence (optional)": "資金來源憑證（選填）",
     "Source Field": "來源欄位",
     "Source Header": "來源請求頭",
     "sources": "來源",

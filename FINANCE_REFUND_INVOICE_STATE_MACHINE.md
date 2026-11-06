@@ -9,8 +9,10 @@ deploying code does not approve or repair historical financial records.
   value read-only. Finance enters collected fees and documented included bonuses;
   purchased quota is derived as original credited quota minus included bonus.
   This identity is calculated in integer quota, not rounded display money.
-- Submission validates on click and explains missing evidence (at least ten
-  Unicode characters), invalid fees/bonuses and excessive additional gifts.
+- Source evidence is an optional note with no field-specific minimum or maximum
+  length in either theme or the submission API. Empty notes do not prevent
+  submission or independent review. Amount and role checks still apply.
+- Submission validates on click and explains invalid fees/bonuses and excessive additional gifts.
   Unexplained differences remain pending unless supported by real records;
   discount rate alone does not prove an included or additional bonus.
 - Read-only test-site verification of refund 11 confirmed legacy payment 9:

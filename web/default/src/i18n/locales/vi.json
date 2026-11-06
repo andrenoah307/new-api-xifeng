@@ -5004,6 +5004,7 @@
     "Source Endpoint": "Điểm nguồn",
     "Source evidence": "Chứng từ nguồn tiền",
     "Source evidence (at least 10 characters)": "Chứng từ nguồn tiền (ít nhất 10 ký tự)",
+    "Source evidence (optional)": "Chứng từ nguồn tiền (không bắt buộc)",
     "Source Field": "Trường nguồn",
     "Source Header": "Header nguồn",
     "sources": "nguồn",
