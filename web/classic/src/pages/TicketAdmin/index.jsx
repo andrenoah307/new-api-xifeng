@@ -382,6 +382,7 @@ const AdminTicketDetail = () => {
           userInvoices={userInvoices}
           loading={saving}
           onStatusChange={handleRefundStatusChange}
+          onFinanceUpdated={loadDetail}
           onSendMessage={sendSystemMessage}
           t={t}
         />

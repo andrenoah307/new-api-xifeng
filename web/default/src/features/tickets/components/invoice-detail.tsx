@@ -17,6 +17,7 @@ import { formatTimestampToDate } from '@/lib/format'
 
 import type { TicketInvoice, TicketInvoiceOrder } from '../api'
 import { INVOICE_STATUS_CONFIG } from '../constants'
+import { InvoiceCorrectionPanel } from './finance-workflow'
 import { InvoiceAmountFormula } from './invoice-amount-formula'
 import { InvoiceTaxPayment } from './invoice-tax-payment'
 
@@ -221,6 +222,9 @@ export function InvoiceDetail({
               }}
             />
           </div>
+        )}
+        {!readonly && invoice.invoice_status === 2 && (
+          <InvoiceCorrectionPanel ticketId={invoice.ticket_id} />
         )}
       </CardContent>
     </Card>

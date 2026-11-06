@@ -17,7 +17,8 @@ import (
 
 func TestRefundFinanceFreshRolesAndExport(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
-	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundOrderAllocation{}, &model.RefundInvoiceCorrection{}))
+	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundOrderAllocation{}, &model.RefundInvoiceCorrection{}, &model.FinanceReconciliation{}, &model.RefundPayoutAttempt{}, &model.TopUp{}, &model.InvoiceTaxCharge{}, &model.RefundLiability{}))
+	require.NoError(t, db.Create(&model.User{Id: 99, Username: "refund-test-owner", AffCode: "refund-test-owner"}).Error)
 	user := model.User{Username: "refund-export", Role: common.RoleFinanceUser, Status: common.UserStatusEnabled, AffCode: "refund-export"}
 	require.NoError(t, db.Create(&user).Error)
 	refund := model.TicketRefund{TicketId: 12, UserId: 99, FinanceVersion: 1, RefundCashCents: 530000, RefundStatus: model.RefundStatusPending}
@@ -28,7 +29,7 @@ func TestRefundFinanceFreshRolesAndExport(t *testing.T) {
 	require.NoError(t, db.Create(&model.RefundInvoiceCorrection{UserId: 99, RefundTicketId: 12, InvoiceTicketId: 8, OriginalCents: 1060000, RefundCents: 530000, ReissueCents: 530000, Status: "pending"}).Error)
 	for _, role := range []int{1, 3, 5, 10, 100} {
 		require.NoError(t, db.Model(&model.User{}).Where("id = ?", user.Id).Update("role", role).Error)
-		for _, handler := range []gin.HandlerFunc{ListRefundFinance, ExportRefundFinance, StartRefundInvoiceCorrection, CompleteRefundInvoiceCorrection} {
+		for _, handler := range []gin.HandlerFunc{ListRefundFinance, ExportRefundFinance, StartRefundInvoiceCorrection, CompleteRefundInvoiceCorrection, GetRefundReconciliation, SubmitRefundReconciliation, ReviewRefundReconciliation, GetInvoiceCorrections, CreateInvoiceCorrection, TransitionInvoiceCorrection, GetRefundPayouts, StartRefundPayout, ReviewRefundPayout} {
 			response := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(response)
 			c.Set("id", user.Id)
@@ -72,7 +73,7 @@ func TestRefundFinanceFreshRolesAndExport(t *testing.T) {
 
 func TestRefundEligibilityUsesAuthenticatedOwnerAndWaitingQuote(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.TicketRefund{}, &model.InvoiceTaxCharge{}))
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.TicketRefund{}, &model.InvoiceTaxCharge{}, &model.FinanceReconciliation{}))
 	owner := model.User{Username: "refund-eligibility-owner", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, AffCode: "refund-eligibility-owner", Quota: 600, UsedQuota: 400}
 	other := model.User{Username: "refund-eligibility-other", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, AffCode: "refund-eligibility-other", Quota: 900}
 	require.NoError(t, db.Create(&owner).Error)

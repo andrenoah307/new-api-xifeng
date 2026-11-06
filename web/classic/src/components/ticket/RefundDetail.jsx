@@ -74,6 +74,7 @@ const RefundDetail = ({
   loading = false,
   readonly = false,
   onStatusChange,
+  onFinanceUpdated,
   onSendMessage,
   t,
 }) => {
@@ -387,12 +388,12 @@ const RefundDetail = ({
             </Space>
             {!readonly && typeof onStatusChange === 'function' && (
               <Space wrap>
-                <Button
+                {refund.finance_version !== 1 && <Button
                   disabled={!isPending || correctionsPending}
                   onClick={() => setResolveVisible(true)}
                 >
                   {t('Complete Refund')}
-                </Button>
+                </Button>}
                 <Button
                   theme='light'
                   type='danger'
@@ -418,6 +419,7 @@ const RefundDetail = ({
               onUpdated={(id, status) => {
                 if (status === 'completed')
                   setRegisteredCorrections((items) => [...items, id]);
+                onFinanceUpdated?.();
               }}
             />
           )}

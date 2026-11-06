@@ -17,7 +17,7 @@ func TestRefundSettlementPolicyFlow(t *testing.T) {
 		{"ordinary_unused", 9400, 0, 9400, 10000, 600, 10000, 0},
 		{"ordinary_half", 9400, 4700, 4700, 10000, 600, 5000, 5000},
 		{"special_half", 9100, 4550, 4550, 10000, 900, 5000, 5000},
-		{"partial_remaining", 9400, 4700, 2350, 10000, 600, 2500, 5000},
+		{"partial_remaining", 9400, 4700, 2350, 10000, 600, 2500, 7500},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRefundFinanceFixture(t)
@@ -66,15 +66,26 @@ func TestRefundSettlementPolicyFlow(t *testing.T) {
 			assert.Equal(t, tc.reissue, correction.ReissueCents)
 			_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
 			require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
+			documents := []InvoiceCorrectionDocument{{Issuer: "Test issuer", OriginalReference: "BLUE-ORIGINAL", OriginalCents: correction.OriginalCents, ReductionCents: correction.OriginalCents - correction.ReissueCents}}
+			_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "prepare", documents, "Verified original invoice receipt")
+			require.NoError(t, err)
 			_, err = StartRefundInvoiceCorrection(correction.Id, f.finance.Id)
 			require.NoError(t, err)
 			blue := ""
 			if tc.reissue > 0 {
 				blue = "BLUE-REISSUED"
 			}
-			_, err = CompleteRefundInvoiceCorrection(correction.Id, f.finance.Id, "RED-ORIGINAL", blue, "verified")
+			documents[0].RedReference = "RED-ORIGINAL"
+			_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "red", documents, "Verified red invoice receipt")
 			require.NoError(t, err)
-			refund, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
+			if blue != "" {
+				documents[0].ReissueReference = blue
+				_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "reissue", documents, "Verified replacement invoice receipt")
+				require.NoError(t, err)
+			}
+			payout, err := StartRefundPayout(ticket.Id, f.admin.Id, "payout-test-"+tc.name)
+			require.NoError(t, err)
+			refund, err = CompleteRefundPayout(payout.Id, f.admin.Id, "BANK-TRANSFER-1", "Verified actual bank payout receipt")
 			require.NoError(t, err)
 			assert.Equal(t, tc.cash, refund.RefundCashCents)
 			var owner User

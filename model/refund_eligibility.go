@@ -1,7 +1,6 @@
 package model
 
 import (
-	"github.com/QuantumNous/new-api/common"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
@@ -50,9 +49,16 @@ func getRefundEligibilityTx(tx *gorm.DB, userID int) (*RefundEligibility, error)
 		Paid  int64
 		Bonus int64
 	}
-	if err := tx.Model(&TopUp{}).Where("user_id = ? AND status = ?", userID, common.TopUpStatusSuccess).
-		Select("COALESCE(SUM(CASE WHEN source = ? THEN 0 ELSE quota_granted END),0) AS paid, COALESCE(SUM(CASE WHEN source = ? THEN quota_granted ELSE 0 END),0) AS bonus", "discount_bonus", "discount_bonus").Scan(&credits).Error; err != nil {
+	orders, bonus, err := loadRefundPaymentSources(tx, userID)
+	if err != nil {
 		return nil, err
+	}
+	credits.Bonus = bonus
+	for _, order := range orders {
+		if order.QuotaGranted < 0 || order.QuotaGranted > maxRefundEligibilityJSONQuota-credits.Paid {
+			return nil, ErrFinanceEvidence
+		}
+		credits.Paid += order.QuotaGranted
 	}
 	var refunds struct {
 		Refunded int64

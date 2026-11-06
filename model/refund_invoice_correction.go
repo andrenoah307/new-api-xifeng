@@ -14,28 +14,33 @@ import (
 var ErrRefundInvoiceCorrection = errors.New("refund invoice correction is invalid or state changed")
 
 type RefundInvoiceCorrection struct {
-	Id                int    `json:"id"`
-	UserId            int    `json:"user_id" gorm:"index;not null"`
-	RefundTicketId    int    `json:"refund_ticket_id" gorm:"uniqueIndex:idx_refund_invoice_correction;not null"`
-	InvoiceTicketId   int    `json:"invoice_ticket_id" gorm:"uniqueIndex:idx_refund_invoice_correction;index;not null"`
-	OriginalCents     int64  `json:"original_cents" gorm:"type:bigint;not null"`
-	RefundCents       int64  `json:"refund_cents" gorm:"type:bigint;not null"`
-	ReissueCents      int64  `json:"reissue_cents" gorm:"type:bigint;not null"`
-	OriginalReference string `json:"original_reference" gorm:"size:128"`
-	RedReference      string `json:"red_reference" gorm:"size:128"`
-	ReissueReference  string `json:"reissue_reference" gorm:"size:128"`
-	Evidence          string `json:"evidence" gorm:"type:text"`
-	Status            string `json:"status" gorm:"size:16;index"`
-	HandledBy         int    `json:"handled_by"`
-	HandledTime       int64  `json:"handled_time" gorm:"type:bigint"`
-	CreatedTime       int64  `json:"created_time" gorm:"type:bigint"`
+	Id                int                         `json:"id"`
+	UserId            int                         `json:"user_id" gorm:"index;not null"`
+	RefundTicketId    int                         `json:"refund_ticket_id" gorm:"index;not null"`
+	InvoiceTicketId   int                         `json:"invoice_ticket_id" gorm:"index;not null"`
+	RequestKey        *string                     `json:"-" gorm:"size:64;uniqueIndex"`
+	Reason            string                      `json:"reason" gorm:"type:text"`
+	Phase             string                      `json:"phase" gorm:"size:32"`
+	Version           int                         `json:"version"`
+	DocumentsJSON     string                      `json:"-" gorm:"type:text"`
+	Documents         []InvoiceCorrectionDocument `json:"documents" gorm:"-"`
+	OriginalCents     int64                       `json:"original_cents" gorm:"type:bigint;not null"`
+	RefundCents       int64                       `json:"refund_cents" gorm:"type:bigint;not null"`
+	ReissueCents      int64                       `json:"reissue_cents" gorm:"type:bigint;not null"`
+	OriginalReference string                      `json:"original_reference" gorm:"size:128"`
+	RedReference      string                      `json:"red_reference" gorm:"size:128"`
+	ReissueReference  string                      `json:"reissue_reference" gorm:"size:128"`
+	Evidence          string                      `json:"evidence" gorm:"type:text"`
+	Status            string                      `json:"status" gorm:"size:16;index"`
+	HandledBy         int                         `json:"handled_by"`
+	HandledTime       int64                       `json:"handled_time" gorm:"type:bigint"`
+	CreatedTime       int64                       `json:"created_time" gorm:"type:bigint"`
 }
 
 // The caller holds the user's wallet lock throughout allocation and creation.
 // Red invoices reverse the entire active blue invoice, including untouched orders.
 func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocations []RefundOrderAllocation) error {
 	amounts := map[int]int64{}
-	adjustments := map[int]int64{}
 	orders := map[int]map[int]bool{}
 	for _, allocation := range allocations {
 		if allocation.InvoiceTicketID == 0 {
@@ -45,15 +50,6 @@ func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocat
 			return ErrRefundInvoiceCorrection
 		}
 		amounts[allocation.InvoiceTicketID] += allocation.RefundCents
-		coverage := allocation.RemainingInvoiceCents + allocation.RefundCents
-		var previousAllocation RefundOrderAllocation
-		err := tx.Where("top_up_id = ? AND invoice_ticket_id = ? AND status = ?", allocation.TopUpID, allocation.InvoiceTicketID, "committed").Order("id DESC").First(&previousAllocation).Error
-		if err == nil {
-			coverage = previousAllocation.UsedInvoiceCents
-		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-		adjustments[allocation.InvoiceTicketID] += allocation.UsedInvoiceCents - coverage
 		if orders[allocation.InvoiceTicketID] == nil {
 			orders[allocation.InvoiceTicketID] = map[int]bool{}
 		}
@@ -69,7 +65,7 @@ func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocat
 	sort.Ints(ids)
 	for _, invoiceID := range ids {
 		amount := amounts[invoiceID]
-		if amount == 0 && adjustments[invoiceID] == 0 {
+		if amount == 0 {
 			continue
 		}
 		var invoice TicketInvoice
@@ -105,14 +101,18 @@ func createRefundInvoiceCorrectionsTx(tx *gorm.DB, refund *TicketRefund, allocat
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		reissue := baseline + adjustments[invoiceID]
+		if baseline == 0 {
+			continue
+		}
+		reissue := baseline - amount
 		if baseline < 0 || reissue < 0 || (baseline > 0 && reference == "") {
 			return ErrRefundInvoiceCorrection
 		}
 		if baseline == 0 && reissue == 0 {
 			continue
 		}
-		correction := RefundInvoiceCorrection{UserId: refund.UserId, RefundTicketId: refund.TicketId, InvoiceTicketId: invoiceID, OriginalCents: baseline, RefundCents: amount, ReissueCents: reissue, OriginalReference: reference, Status: "pending", CreatedTime: common.GetTimestamp()}
+		requestKey := fmt.Sprintf("refund:%d:invoice:%d", refund.TicketId, invoiceID)
+		correction := RefundInvoiceCorrection{RequestKey: &requestKey, Version: 1, Phase: "documents_required", UserId: refund.UserId, RefundTicketId: refund.TicketId, InvoiceTicketId: invoiceID, OriginalCents: baseline, RefundCents: amount, ReissueCents: reissue, OriginalReference: reference, Status: "pending", CreatedTime: common.GetTimestamp()}
 		if err := tx.Create(&correction).Error; err != nil {
 			return err
 		}
@@ -129,6 +129,9 @@ func StartRefundInvoiceCorrection(correctionID, actorID int) (*RefundInvoiceCorr
 	var known RefundInvoiceCorrection
 	if err := DB.First(&known, correctionID).Error; err != nil {
 		return nil, err
+	}
+	if known.Version == 1 {
+		return TransitionInvoiceCorrection(correctionID, actorID, "start", nil, "")
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var owner User
@@ -175,6 +178,9 @@ func CompleteRefundInvoiceCorrection(correctionID, actorID int, redReference, re
 	var known RefundInvoiceCorrection
 	if err := DB.First(&known, correctionID).Error; err != nil {
 		return nil, err
+	}
+	if known.Version == 1 {
+		return nil, ErrRefundInvoiceCorrection
 	}
 	var result RefundInvoiceCorrection
 	err := DB.Transaction(func(tx *gorm.DB) error {

@@ -288,6 +288,9 @@ func InitLogDB() (err error) {
 }
 
 func migrateDB() error {
+	if err := migrateFinanceCorrectionIndex(); err != nil {
+		return err
+	}
 	// Migrate price_amount column from float/double to decimal for existing tables
 	migrateSubscriptionPlanPriceAmount()
 	// Migrate model_limits column from varchar to text for existing tables
@@ -332,6 +335,8 @@ func migrateDB() error {
 		&RefundOrderAllocation{},
 		&RefundLiability{},
 		&RefundInvoiceCorrection{},
+		&FinanceReconciliation{},
+		&RefundPayoutAttempt{},
 		&TicketAttachment{},
 		&SubscriptionOrder{},
 		&UserSubscription{},
@@ -387,6 +392,9 @@ func migrateDB() error {
 }
 
 func migrateDBFast() error {
+	if err := migrateFinanceCorrectionIndex(); err != nil {
+		return err
+	}
 
 	var wg sync.WaitGroup
 
@@ -424,6 +432,8 @@ func migrateDBFast() error {
 		{&RefundOrderAllocation{}, "RefundOrderAllocation"},
 		{&RefundLiability{}, "RefundLiability"},
 		{&RefundInvoiceCorrection{}, "RefundInvoiceCorrection"},
+		{&FinanceReconciliation{}, "FinanceReconciliation"},
+		{&RefundPayoutAttempt{}, "RefundPayoutAttempt"},
 		{&SubscriptionOrder{}, "SubscriptionOrder"},
 		{&UserSubscription{}, "UserSubscription"},
 		{&SubscriptionPreConsumeRecord{}, "SubscriptionPreConsumeRecord"},

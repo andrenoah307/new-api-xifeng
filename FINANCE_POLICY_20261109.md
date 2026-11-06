@@ -1,5 +1,14 @@
 # Invoice and Refund Policy
 
+## 2026-11-07 Actual-Payment Refund Workflow
+
+The current rules are specified in
+[FINANCE_REFUND_INVOICE_STATE_MACHINE.md](FINANCE_REFUND_INVOICE_STATE_MACHINE.md).
+Actual payment is the cash basis; fees and optional commission recovery are
+proportional to refunded cash / original actual payment, with cumulative rounding.
+Active invoice amounts are reduced by actual refunded cash, not replaced with
+consumption alone. These rules supersede earlier descriptions below.
+
 ## Payment and Invoices
 
 As of 2026-11-06, both themes expose administrator settings for fee collection,
@@ -79,13 +88,12 @@ pass. This update does not add schema changes or deploy to production.
 
 Cash refund = original paid cents * refunded quota / original credited quota.
 Cumulative rounding conserves cents across repeated partial refunds.
-Replacement invoices cover actual consumption **including the retained fee**.
+Replacement invoices cover the active invoice amount minus actual refunded cash.
 For paid 100, credited 94, consumed 47: refund 50 and reissue 50. If only half of
-the unused quota is refunded, refund 25 but still reissue 50, not 75.
-Zero consumption produces no replacement invoice. Merged invoices retain the
-coverage of unaffected orders. Later corrections use each affected order's last
-invoiced consumption; a previously zero replacement requires no fictitious red
-invoice reference if subsequent consumption needs a new invoice.
+the unused quota is refunded, refund 25 and reissue 75. Unrefunded payments retain
+their invoice coverage even when unused. Merged invoices retain unaffected orders.
+Later corrections use the last active replacement documents. An already fully
+reversed invoice requires no second red invoice for a subsequent cash refund.
 
 New owner endpoint: `POST /api/ticket/refund/finance-confirm`, with `ticket_id`,
 `refund_quota` and `quote_token`. Existing finance-quote GET returns a payable
@@ -142,9 +150,10 @@ Issued invoices do not expose Reject Application in the invoice UI. For refunds
 with generated correction records, finance staff use Refund reconciliation >
 Details > Invoice correction, start processing, then record external red invoice
 and (where required) reissued invoice references and evidence. Resolving the
-original invoice ticket is not completion of a refund correction. The legacy
-invoice-history warning in Default still reflects original invoice status only;
-the correction record is authoritative for whether correction work is complete.
+original invoice ticket is not completion of a refund correction. Default no
+longer labels every issued historical invoice as needing manual handling.
+Issued invoice details also provide independent reversal/reissue requests;
+the correction record is authoritative for completed external work.
 
 Invoice CSV exports in both themes now contain nine columns: email, quantity,
 unit price, total amount, company details, taxable service name, invoice type,
