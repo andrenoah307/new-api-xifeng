@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useContext, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@douyinfe/semi-ui';
+import { Button, Modal } from '@douyinfe/semi-ui';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { API } from '../../helpers';
 import { UserContext } from '../../context/User';
@@ -43,7 +43,6 @@ function RefundFinanceList() {
   const [error, setError] = useState('');
   useEffect(() => {
     const controller = new AbortController();
-    setResult({ items: [], total: 0 });
     API.get('/api/ticket/refund/finance-list', {
       params: { page, page_size: 20 },
       signal: controller.signal,
@@ -61,8 +60,7 @@ function RefundFinanceList() {
       });
     return () => controller.abort();
   }, [page, revision]);
-  const item =
-    result.items.find((row) => row.ticket_id === selected) ?? result.items[0];
+  const item = result.items.find((row) => row.ticket_id === selected);
   return (
     <main className='mx-2 mt-16 min-w-0 space-y-5 py-5'>
       <h1 className='text-xl font-semibold'>{t('Refund reconciliation')}</h1>
@@ -137,14 +135,25 @@ function RefundFinanceList() {
           <p className='p-8 text-center'>{t('No data')}</p>
         )}
       </div>
-      {item?.finance && (
-        <RefundFinanceDetail
-          key={item.ticket_id}
-          finance={item.finance}
-          ticketId={item.ticket_id}
-          onUpdated={() => setRevision((value) => value + 1)}
-        />
-      )}
+      <Modal
+        visible={selected !== null}
+        title={`${t('Refund reconciliation')} #${selected}`}
+        onCancel={() => setSelected(null)}
+        footer={null}
+        width='min(1152px, calc(100vw - 32px))'
+        bodyStyle={{ maxHeight: '75vh', overflowY: 'auto' }}
+      >
+        {item?.finance ? (
+          <RefundFinanceDetail
+            key={item.ticket_id}
+            finance={item.finance}
+            ticketId={item.ticket_id}
+            onUpdated={() => setRevision((value) => value + 1)}
+          />
+        ) : (
+          <p>{t('No data')}</p>
+        )}
+      </Modal>
     </main>
   );
 }
