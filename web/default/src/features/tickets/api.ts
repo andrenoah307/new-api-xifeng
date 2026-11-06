@@ -482,6 +482,7 @@ export function getAttachmentUrl(id: number, inline = false): string {
 
 export interface InvoiceExportItem {
   remark?: string
+  issuer_amounts?: { account_name: string; amount_cents: number }[]
   payment_routing_notes?: string
   invoice_type?: string
   tax_mode?: string
