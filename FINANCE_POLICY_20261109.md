@@ -126,12 +126,39 @@ the system does not invent missing accounting history.
 
 ## Verification
 
-Invoice CSV exports in both themes now contain eight columns: email, quantity,
+Invoice CSV exports in both themes now contain nine columns: email, quantity,
 unit price, total amount, company details, taxable service name, invoice type,
-and VAT rate. Ticket ID, fee calculation mode, supplementary payment amount,
+VAT rate, and issuer (corporate account name). Ticket ID, fee calculation mode, supplementary payment amount,
 and payment routing are omitted from the CSV. Backend records and API fields
 remain available for existing finance workflows. Output checks cover aligned
 headers/rows, empty exports, quoted multiline company details and formula safety.
+
+Each ticket expands into one CSV row per corporate account name, aggregating
+payments with the same name using integer cents. For example, a CNY 41 invoice
+with CNY 11 paid to A and CNY 30 to B exports two rows, 11/A and 30/B.
+Names come only from immutable payment routing snapshots, never current gateway
+settings. Version 1 payments use their gross payment cents (including prepaid
+invoice fees); legacy payments use their recorded money. Pagination and selection
+still operate on tickets. The API adds computed `issuer_amounts`; no migration
+or financial data mutation is involved. Both themes must ship with the backend.
+
+Unknown/private accounts, missing orders and unallocated supplementary amounts
+are grouped under the literal `-`. Orders owned by another user are never read
+into the breakdown. Duplicate order IDs are counted once. When original order
+amounts exceed the ticket total (for example after refunds), the whole ticket is
+exported under `-`: there is no reliable per-order invoice allocation snapshot,
+so amounts must not be prorated or assigned to an arbitrary issuer. Every ticket's
+exported rows sum to its recorded invoice total. Legacy API responses without a
+breakdown also produce a single `-` row. CSV formula protection remains active
+for account names; the standalone placeholder `-` is emitted literally.
+
+The export keyword filter now passes a grouped GORM expression to `Where`,
+instead of a function value that caused `model value required` on searches.
+The integration regression exercises keyword filtering with the issuer breakdown
+and verifies that a two-row export still counts as one paginated ticket.
+Validation: model/controller package tests and vet, issuer export race regression,
+both theme builds, Default typecheck, changed-file lint, and direct CSV output
+checks pass. No production deployment or database writes were performed.
 
 The configurable-policy update passes model/controller/middleware/router package
 tests, service finance tests, model/controller finance race tests, and vet across
