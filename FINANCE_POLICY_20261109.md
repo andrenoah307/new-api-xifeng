@@ -126,6 +126,26 @@ the system does not invent missing accounting history.
 
 ## Verification
 
+Refund reconciliation details now open in a dialog in both themes. Previously,
+Details only selected a panel below the entire paginated list, so clicking it
+appeared to do nothing (especially when the first row was already selected).
+No row is selected automatically; the dialog identifies the selected ticket,
+supports closing and switching records, and constrains wide tables on mobile.
+Classic refreshes retain the selected detail while the request is in flight.
+Existing finance role checks and settlement/owner confirmation rules are unchanged.
+Opening the dialog does not initiate any refund or settlement mutation.
+Both theme builds, Default typecheck, changed-file lint and Playwright checks at
+1440px and 390px pass (open/close, switching tickets, waiting-state guard and no
+mutation on inspection). Wide tables scroll within the dialog content.
+
+Issued invoices do not expose Reject Application in the invoice UI. For refunds
+with generated correction records, finance staff use Refund reconciliation >
+Details > Invoice correction, start processing, then record external red invoice
+and (where required) reissued invoice references and evidence. Resolving the
+original invoice ticket is not completion of a refund correction. The legacy
+invoice-history warning in Default still reflects original invoice status only;
+the correction record is authoritative for whether correction work is complete.
+
 Invoice CSV exports in both themes now contain nine columns: email, quantity,
 unit price, total amount, company details, taxable service name, invoice type,
 VAT rate, and issuer (corporate account name). Ticket ID, fee calculation mode, supplementary payment amount,
