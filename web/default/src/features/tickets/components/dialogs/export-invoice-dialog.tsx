@@ -68,7 +68,6 @@ function generateInvoiceCSV(
 ): string {
   const BOM = '﻿'
   const headers = [
-    '工单ID',
     '电子邮箱',
     '数量',
     '单价',
@@ -76,10 +75,7 @@ function generateInvoiceCSV(
     '公司信息',
     '应税服务名称',
     '发票类型',
-    '费用计算模式',
     '发票税率(%)',
-    '补缴金额(元)',
-    '支付渠道及开票方（订单号 | 支付方式 | 网关 | 公帐名称）',
   ]
   const lines = [headers.map(csvField).join(',')]
   for (const item of items) {
@@ -87,7 +83,6 @@ function generateInvoiceCSV(
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
       : item.company_name
     const row = [
-      item.ticket_id,
       item.email,
       '',
       '',
@@ -100,10 +95,7 @@ function generateInvoiceCSV(
           string
         >
       )[item.invoice_type ?? ''] ?? '',
-      item.tax_mode ?? '',
       item.tax_rate_bps == null ? '' : item.tax_rate_bps / 100,
-      item.tax_fee_cents == null ? '' : (item.tax_fee_cents / 100).toFixed(2),
-      item.payment_routing_notes ?? '',
     ]
     lines.push(row.map(csvField).join(','))
   }

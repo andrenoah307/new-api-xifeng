@@ -126,6 +126,13 @@ the system does not invent missing accounting history.
 
 ## Verification
 
+Invoice CSV exports in both themes now contain eight columns: email, quantity,
+unit price, total amount, company details, taxable service name, invoice type,
+and VAT rate. Ticket ID, fee calculation mode, supplementary payment amount,
+and payment routing are omitted from the CSV. Backend records and API fields
+remain available for existing finance workflows. Output checks cover aligned
+headers/rows, empty exports, quoted multiline company details and formula safety.
+
 The configurable-policy update passes model/controller/middleware/router package
 tests, service finance tests, model/controller finance race tests, and vet across
 those five packages. New regressions cover custom values surviving saves, free
