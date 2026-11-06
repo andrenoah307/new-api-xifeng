@@ -50,7 +50,7 @@ const PAGE_SIZE = 20
 
 function csvField(value: string | number): string {
   const raw = String(value ?? '')
-  const s = /^[\s]*[=+@-]/.test(raw) ? `'${raw}` : raw
+  const s = raw !== '-' && /^[\s]*[=+@-]/.test(raw) ? `'${raw}` : raw
   if (
     s.includes(',') ||
     s.includes('"') ||
@@ -76,28 +76,40 @@ function generateInvoiceCSV(
     '应税服务名称',
     '发票类型',
     '发票税率(%)',
+    '开票方（公账名称）',
   ]
   const lines = [headers.map(csvField).join(',')]
   for (const item of items) {
     const companyInfo = item.tax_number
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
       : item.company_name
-    const row = [
-      item.email,
-      '',
-      '',
-      item.total_money.toFixed(2),
-      companyInfo,
-      serviceName,
-      (
-        { special: '增值税专用发票', ordinary: '增值税普通发票' } as Record<
-          string,
-          string
-        >
-      )[item.invoice_type ?? ''] ?? '',
-      item.tax_rate_bps == null ? '' : item.tax_rate_bps / 100,
-    ]
-    lines.push(row.map(csvField).join(','))
+    const issuers = item.issuer_amounts?.length
+      ? item.issuer_amounts
+      : [
+          {
+            account_name: '-',
+            amount_cents: Math.round(item.total_money * 100),
+          },
+        ]
+    for (const issuer of issuers) {
+      const row = [
+        item.email,
+        '',
+        '',
+        (issuer.amount_cents / 100).toFixed(2),
+        companyInfo,
+        serviceName,
+        (
+          { special: '增值税专用发票', ordinary: '增值税普通发票' } as Record<
+            string,
+            string
+          >
+        )[item.invoice_type ?? ''] ?? '',
+        item.tax_rate_bps == null ? '' : item.tax_rate_bps / 100,
+        issuer.account_name,
+      ]
+      lines.push(row.map(csvField).join(','))
+    }
   }
   return `${BOM}${lines.join('\r\n')}`
 }

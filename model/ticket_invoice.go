@@ -740,21 +740,22 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 }
 
 type InvoiceExportItem struct {
-	UserId              int     `json:"-"`
-	PaymentRoutingNotes string  `json:"payment_routing_notes" gorm:"-"`
-	InvoiceType         string  `json:"invoice_type"`
-	TaxMode             string  `json:"tax_mode"`
-	TaxRateBps          int     `json:"tax_rate_bps"`
-	TaxFeeCents         int64   `json:"tax_fee_cents"`
-	TicketId            int     `json:"ticket_id" gorm:"column:ticket_id"`
-	CompanyName         string  `json:"company_name" gorm:"column:company_name"`
-	TaxNumber           string  `json:"tax_number" gorm:"column:tax_number"`
-	Email               string  `json:"email" gorm:"column:email"`
-	TotalMoney          float64 `json:"total_money" gorm:"column:total_money"`
-	TopUpOrderIds       string  `json:"-" gorm:"column:top_up_order_ids"`
-	OrderCount          int     `json:"order_count" gorm:"-"`
-	Status              int     `json:"status" gorm:"column:status"`
-	CreatedTime         int64   `json:"created_time" gorm:"column:created_time"`
+	IssuerAmounts       []InvoiceIssuerAmount `json:"issuer_amounts" gorm:"-"`
+	UserId              int                   `json:"-"`
+	PaymentRoutingNotes string                `json:"payment_routing_notes" gorm:"-"`
+	InvoiceType         string                `json:"invoice_type"`
+	TaxMode             string                `json:"tax_mode"`
+	TaxRateBps          int                   `json:"tax_rate_bps"`
+	TaxFeeCents         int64                 `json:"tax_fee_cents"`
+	TicketId            int                   `json:"ticket_id" gorm:"column:ticket_id"`
+	CompanyName         string                `json:"company_name" gorm:"column:company_name"`
+	TaxNumber           string                `json:"tax_number" gorm:"column:tax_number"`
+	Email               string                `json:"email" gorm:"column:email"`
+	TotalMoney          float64               `json:"total_money" gorm:"column:total_money"`
+	TopUpOrderIds       string                `json:"-" gorm:"column:top_up_order_ids"`
+	OrderCount          int                   `json:"order_count" gorm:"-"`
+	Status              int                   `json:"status" gorm:"column:status"`
+	CreatedTime         int64                 `json:"created_time" gorm:"column:created_time"`
 }
 
 type InvoiceExportFilter struct {
@@ -793,7 +794,7 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 			}
 			return sub
 		}
-		query = query.Where(keywordScope)
+		query = query.Where(keywordScope(DB.Session(&gorm.Session{NewDB: true})))
 	}
 	if filter.StartTime > 0 {
 		query = query.Where("t.created_time >= ?", filter.StartTime)
@@ -815,7 +816,9 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	for index, item := range items {
 		var orderIds []int
 		if strings.TrimSpace(item.TopUpOrderIds) != "" {
-			_ = common.UnmarshalJsonStr(item.TopUpOrderIds, &orderIds)
+			if err := common.UnmarshalJsonStr(item.TopUpOrderIds, &orderIds); err != nil {
+				return nil, 0, err
+			}
 		}
 		item.OrderCount = len(orderIds)
 		itemOrderIDs[index] = orderIds
@@ -835,6 +838,9 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 			}
 		}
 		item.PaymentRoutingNotes = strings.Join(rows, "\n")
+	}
+	if err := attachInvoiceIssuerAmounts(DB, items, itemOrderIDs); err != nil {
+		return nil, 0, err
 	}
 
 	return items, total, nil
