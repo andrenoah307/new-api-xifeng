@@ -6138,6 +6138,13 @@
     "Paid credit value (CNY)": "Crédits payés (équivalent CNY)",
     "Purchased credit value (CNY)": "Crédit acheté (équivalent CNY)",
     "Unexplained difference (CNY)": "Écart inexpliqué (équivalent CNY)",
-    "Verified additional noncash value (CNY)": "Bonus supplémentaire justifié (équivalent CNY)"
+    "Verified additional noncash value (CNY)": "Bonus supplémentaire justifié (équivalent CNY)",
+    "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "Vérifiez les montants : frais inférieurs au paiement, bonus inclus inférieur au total et bonus supplémentaires limités à l’écart inexpliqué.",
+    "No new financial evidence to submit.": "Aucun nouveau justificatif financier à soumettre.",
+    "Order credit total (CNY)": "Crédit total de la commande (CNY)",
+    "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Fournissez au moins 10 caractères de justificatifs, avec des références de paiement ou de bonus.",
+    "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "La valeur achetée est le total crédité moins le bonus inclus. Le remboursement utilise le paiement réel enregistré.",
+    "Source evidence (at least 10 characters)": "Justificatifs de provenance (10 caractères minimum)",
+    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Un écart inexpliqué ne constitue pas un bonus. Seuls les bonus documentés sont admissibles ; les autres écarts restent à examiner."
   }
 }

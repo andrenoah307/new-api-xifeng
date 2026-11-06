@@ -6138,6 +6138,13 @@
     "Paid credit value (CNY)": "Paid credit value (CNY)",
     "Purchased credit value (CNY)": "Purchased credit value (CNY)",
     "Unexplained difference (CNY)": "Unexplained difference (CNY)",
-    "Verified additional noncash value (CNY)": "Verified additional noncash value (CNY)"
+    "Verified additional noncash value (CNY)": "Verified additional noncash value (CNY)",
+    "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.",
+    "No new financial evidence to submit.": "No new financial evidence to submit.",
+    "Order credit total (CNY)": "Order credit total (CNY)",
+    "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Provide source evidence of at least 10 characters, including receipt or grant record references.",
+    "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.",
+    "Source evidence (at least 10 characters)": "Source evidence (at least 10 characters)",
+    "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation."
   }
 }
