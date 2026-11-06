@@ -291,7 +291,7 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 	}
 	eligible := make([]*TopUp, 0, len(topUps))
 	for _, order := range topUps {
-		if config.LegacyFreeOrdinaryEnabled && config.AllowsLegacyInvoice(order) {
+		if (order.InvoiceType == "" || order.InvoiceType == "none") && config.LegacyFreeOrdinaryEnabled && config.AllowsLegacyInvoice(order) {
 			if invoiceType == "ordinary" && IsCNYInvoiceTopUp(order) {
 				eligible = append(eligible, order)
 			}

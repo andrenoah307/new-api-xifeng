@@ -20,6 +20,17 @@ This exemption does not grant special invoice eligibility. Turning it off restor
 the existing eligibility and fee rules; it does not make every no-invoice order
 eligible. Previously paid fees are not automatically refunded by this switch.
 
+Explicit order invoice types take priority over the historical exemption:
+ordinary orders are eligible only for ordinary invoices, and special orders only
+for special invoices, even before the cutoff. Their prepaid net/fee snapshots
+remain authoritative. The historical free-ordinary fallback applies only to
+orders with an empty invoice type or `none`. Both the eligible-order list and
+the quote/create path enforce this rule, including rejection of mixed types.
+The filter regression covers both exemption switch states, prepaid snapshots and
+actual special-invoice creation. Model/controller package tests, invoice/manual
+top-up race tests and model/controller vet pass. Both themes already send the
+selected invoice type and need no frontend changes for this fix.
+
 Compatibility boundary: until an administrator saves, existing scheduled configs
 (including old JSON missing the schedule field) retain the former November 9,
 2026 Beijing midnight schedule (`1794153600`), 6%/9% fees, and historical exemption.
