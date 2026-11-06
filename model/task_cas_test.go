@@ -63,6 +63,8 @@ func TestMain(m *testing.M) {
 		&RefundOrderAllocation{},
 		&RefundLiability{},
 		&RefundInvoiceCorrection{},
+		&FinanceReconciliation{},
+		&RefundPayoutAttempt{},
 		&CommissionRecord{},
 	); err != nil {
 		panic("failed to migrate: " + err.Error())
@@ -93,6 +95,8 @@ func truncateTables(t *testing.T) {
 		DB.Exec("DELETE FROM channel_cost_report_checkpoints")
 		DB.Exec("DELETE FROM channel_cost_checkpoint_budgets")
 		DB.Exec("DELETE FROM tickets")
+		DB.Exec("DELETE FROM finance_reconciliations")
+		DB.Exec("DELETE FROM refund_payout_attempts")
 		DB.Exec("DELETE FROM ticket_messages")
 		DB.Exec("DELETE FROM ticket_invoices")
 		DB.Exec("DELETE FROM ticket_refunds")

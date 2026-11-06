@@ -41,6 +41,9 @@ type RefundOrderAllocation struct {
 }
 
 type RefundFinanceDetail struct {
+	WorkflowState      string                    `json:"workflow_state,omitempty"`
+	Blockers           []FinanceBlocker          `json:"blockers"`
+	SourceRevision     string                    `json:"source_revision,omitempty"`
 	SettlementStatus   string                    `json:"settlement_status,omitempty"`
 	WaitingReason      string                    `json:"waiting_reason,omitempty"`
 	QuoteToken         string                    `json:"quote_token,omitempty"`
@@ -85,8 +88,8 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	if quota > cap {
 		return nil, ErrTicketRefundQuotaExceed
 	}
-	var orders []TopUp
-	if err := tx.Where("user_id = ? AND status = ? AND (source IS NULL OR source != ?)", userID, common.TopUpStatusSuccess, "discount_bonus").Order("complete_time ASC, id ASC").Limit(10001).Find(&orders).Error; err != nil {
+	orders, bonus, err := loadRefundPaymentSources(tx, userID)
+	if err != nil {
 		return nil, err
 	}
 	if len(orders) == 0 || len(orders) > 10000 {
@@ -138,10 +141,7 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	if owner.Quota < 0 || owner.UsedQuota < 0 || owner.AffHistoryQuota < 0 || owner.AffQuota < 0 {
 		return nil, ErrRefundFinanceReview
 	}
-	var bonus, balanceTax int64
-	if err := tx.Model(&TopUp{}).Where("user_id = ? AND status = ? AND source = ?", userID, common.TopUpStatusSuccess, "discount_bonus").Select("COALESCE(SUM(quota_granted),0)").Scan(&bonus).Error; err != nil {
-		return nil, err
-	}
+	var balanceTax int64
 	if err := tx.Model(&InvoiceTaxCharge{}).Where("user_id = ? AND status = ? AND payment_method = ?", userID, "paid", "balance").Select("COALESCE(SUM(quota),0)").Scan(&balanceTax).Error; err != nil {
 		return nil, err
 	}
@@ -216,6 +216,17 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	if result.RefundCashCents > 9007199254740991 {
 		return nil, ErrRefundFinanceReview
 	}
+	if len(excludedTicket) > 0 {
+		var refund TicketRefund
+		if err := tx.Where("ticket_id = ? AND user_id = ?", excludedTicket[0], userID).First(&refund).Error; err != nil {
+			return nil, err
+		}
+		report, err := refundReconciliationReportTx(tx, refund)
+		if err != nil {
+			return nil, err
+		}
+		result.SourceRevision = report.Revision
+	}
 	encoded, err := common.Marshal(result)
 	if err != nil {
 		return nil, err
@@ -256,6 +267,14 @@ func QuoteRefundFinance(userID, quota int) (*RefundFinanceDetail, error) {
 			return err
 		}
 		detail, err = quoteRefundFinanceTx(tx, userID, min(quota, cap), refund.TicketId)
+		if errors.Is(err, ErrRefundFinanceReview) || errors.Is(err, ErrRefundFinancePending) {
+			report, reportErr := refundReconciliationReportTx(tx, refund)
+			if reportErr != nil {
+				return reportErr
+			}
+			detail = &RefundFinanceDetail{Version: 1, SettlementStatus: RefundSettlementWaiting, WaitingReason: "financial_reconciliation", WorkflowState: "needs_reconciliation", Blockers: report.Blockers, Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
+			return nil
+		}
 		return err
 	})
 	return detail, err
@@ -385,6 +404,9 @@ func finalizeRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params UpdateRef
 	if pending != 0 {
 		return ErrRefundFinanceCorrectionPending
 	}
+	if err := completeRefundPayoutTx(tx, refund, params); err != nil {
+		return err
+	}
 	var rows []RefundOrderAllocation
 	if err := tx.Where("refund_ticket_id = ?", refund.TicketId).Find(&rows).Error; err != nil {
 		return err
@@ -414,6 +436,13 @@ func releaseRefundFinanceTx(tx *gorm.DB, refund *TicketRefund) error {
 	if refund.FinanceVersion != 1 {
 		return nil
 	}
+	var payouts int64
+	if err := tx.Model(&RefundPayoutAttempt{}).Where("ticket_id = ? AND status != ?", refund.TicketId, "failed").Count(&payouts).Error; err != nil {
+		return err
+	}
+	if payouts > 0 {
+		return ErrRefundPayout
+	}
 	var completed int64
 	if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status IN ?", refund.TicketId, []string{"processing", "completed"}).Count(&completed).Error; err != nil {
 		return err
@@ -437,6 +466,14 @@ func AttachRefundFinance(tx *gorm.DB, refund *TicketRefund) error {
 	detail := &RefundFinanceDetail{Version: 1, RefundCashCents: refund.RefundCashCents, Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
 	if refund.RefundStatus == RefundStatusPending && !refund.SettlementVerified {
 		detail.SettlementStatus, detail.WaitingReason = RefundSettlementWaiting, "settlement_unconfirmed"
+		report, err := refundReconciliationReportTx(tx, *refund)
+		if err != nil {
+			return err
+		}
+		detail.WorkflowState, detail.Blockers = report.Stage, report.Blockers
+		if report.Stage == "needs_reconciliation" {
+			detail.WaitingReason = "financial_reconciliation"
+		}
 	}
 	if err := tx.Where("refund_ticket_id = ?", refund.TicketId).Order("id ASC").Find(&detail.Allocations).Error; err != nil {
 		return err

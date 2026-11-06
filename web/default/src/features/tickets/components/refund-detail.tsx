@@ -155,11 +155,9 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
                       copyable={false}
                     />
                   )}
-                  {(inv.invoice_status === 1 || inv.invoice_status === 2) && (
+                  {inv.invoice_status === 1 && (
                     <span className='ml-1 text-[11px] text-amber-600 dark:text-amber-400'>
-                      {t(
-                        'Needs manual handling (reject / offline red invoice)'
-                      )}
+                      {t('Pending')}
                     </span>
                   )}
                 </td>
@@ -495,12 +493,14 @@ export function RefundDetail({
 
           {!readonly && refund.refund_status === REFUND_STATUS.PENDING && (
             <div className='flex gap-2 pt-2'>
-              <Button
-                disabled={loading || correctionsPending}
-                onClick={() => setResolveOpen(true)}
-              >
-                {t('Complete Refund')}
-              </Button>
+              {refund.finance_version !== 1 && (
+                <Button
+                  disabled={loading || correctionsPending}
+                  onClick={() => setResolveOpen(true)}
+                >
+                  {t('Complete Refund')}
+                </Button>
+              )}
               <Button
                 variant='destructive'
                 size='sm'
