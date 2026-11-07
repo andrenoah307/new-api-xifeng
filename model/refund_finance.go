@@ -41,6 +41,7 @@ type RefundOrderAllocation struct {
 }
 
 type RefundFinanceDetail struct {
+	RefundOrderType    string                    `json:"refund_order_type,omitempty"`
 	WorkflowState      string                    `json:"workflow_state,omitempty"`
 	Blockers           []FinanceBlocker          `json:"blockers"`
 	SourceRevision     string                    `json:"source_revision,omitempty"`
@@ -171,6 +172,10 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 		}
 	}
 	result := &RefundFinanceDetail{Version: 1, Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
+	config, err := GetInvoiceTaxConfig(tx)
+	if err != nil {
+		return nil, err
+	}
 	used, requested := totalRemaining-int64(cap), int64(quota)
 	for _, order := range orders {
 		old := prior[order.Id]
@@ -181,6 +186,22 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 		take := min(requested, available)
 		if take == 0 {
 			continue
+		}
+		if config.SeparateRefundInvoiceTypes {
+			orderType := "without_invoice"
+			switch order.InvoiceType {
+			case "ordinary", "special":
+				orderType = "with_invoice"
+			case "", "none":
+			default:
+				return nil, ErrRefundFinanceReview
+			}
+			if result.RefundOrderType != "" && result.RefundOrderType != orderType {
+				// Stop at the FIFO boundary; never redistribute consumption by category.
+				requested = 0
+				break
+			}
+			result.RefundOrderType = orderType
 		}
 		invoice := invoiceByOrder[order.Id]
 		if invoice.InvoiceStatus == InvoiceStatusPending {
@@ -310,7 +331,11 @@ func ConfirmRefundFinance(userID, ticketID, quota int, token string) (*TicketRef
 		if err != nil {
 			return err
 		}
-		if token == "" || token != detail.QuoteToken {
+		var allocated int64
+		for _, row := range detail.Allocations {
+			allocated += row.RefundQuota
+		}
+		if token == "" || token != detail.QuoteToken || allocated != int64(quota) {
 			return ErrInvoiceTaxQuoteChanged
 		}
 		refund.RefundQuota, refund.FrozenQuota = quota, quota
@@ -359,7 +384,11 @@ func prepareRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params CreateRefu
 	if err != nil {
 		return err
 	}
-	if params.FinanceQuote != detail.QuoteToken {
+	var allocated int64
+	for _, row := range detail.Allocations {
+		allocated += row.RefundQuota
+	}
+	if params.FinanceQuote != detail.QuoteToken || allocated != int64(refund.RefundQuota) {
 		return ErrInvoiceTaxQuoteChanged
 	}
 	refund.FinanceVersion, refund.RefundCashCents = 1, detail.RefundCashCents
@@ -381,7 +410,7 @@ func refundFinanceRequired(tx *gorm.DB, userID int) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if config.ModuleEnabled {
+	if config.ModuleEnabled || config.SeparateRefundInvoiceTypes {
 		return true, nil
 	}
 	var count int64

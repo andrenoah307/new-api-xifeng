@@ -58,6 +58,7 @@ export interface InvoiceCorrection {
   evidence: string
 }
 export interface RefundFinanceDetail {
+  refund_order_type?: 'without_invoice' | 'with_invoice'
   settlement_status?: string
   waiting_reason?: string
   quote_token?: string

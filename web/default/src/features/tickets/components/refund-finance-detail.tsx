@@ -138,6 +138,15 @@ export function RefundFinanceDetail(props: {
         )}
         {quote?.quote_token && (
           <div className='flex flex-wrap items-center gap-3'>
+            {quote.refund_order_type && (
+              <p className='w-full'>
+                {t(
+                  quote.refund_order_type === 'without_invoice'
+                    ? 'This refund covers orders without invoice attributes. Apply again after completion for any remaining orders.'
+                    : 'This refund covers orders with invoice attributes. Apply again after completion for any remaining orders.'
+                )}
+              </p>
+            )}
             <span>
               {t('Cash refund')}: {refundCash(quote.refund_cash_cents)}
             </span>
