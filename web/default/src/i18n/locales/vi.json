@@ -6156,6 +6156,11 @@
     "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Điều kiện xuất hóa đơn thường miễn phí không xóa chênh lệch đối soát hoàn tiền hoặc thay đổi phí đã thu trước đây.",
     "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Khoản tặng thêm là số dư có ghi nhận được cấp ngoài các đơn nạp tiền, chẳng hạn tặng thủ công. Không nhập chênh lệch chưa rõ chỉ để cân bằng sổ sách.",
     "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "Phần tặng kèm là khoản tặng có ghi nhận trong đơn này, không phải chênh lệch giữa số dư quy đổi và thực trả. Giữ 0 nếu chưa xác nhận khoản tặng.",
-    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "Ba khoản điều chỉnh này được tính là 0 nếu để trống. Số dư quy đổi không phải tiền thực thu."
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "Ba khoản điều chỉnh này được tính là 0 nếu để trống. Số dư quy đổi không phải tiền thực thu.",
+    "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "Đã gửi và đang chờ quản trị viên khác kiểm tra. Không gửi lại; gửi không có nghĩa là đã được duyệt.",
+    "a reconciliation is awaiting independent review": "Đã có đối soát đang chờ kiểm tra độc lập",
+    "Awaiting independent accounting review": "Chờ kiểm tra sổ sách độc lập",
+    "Refund amount is ready for your confirmation": "Số tiền hoàn đã sẵn sàng, vui lòng tải lại và xác nhận",
+    "Superseded": "Đã được thay thế"
   }
 }

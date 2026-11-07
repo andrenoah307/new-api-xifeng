@@ -39,6 +39,7 @@ type Payment = {
   bonus_quota: number
 }
 type Review = {
+  source_revision: string
   id: number
   status: string
   proposed_by: number
@@ -235,6 +236,8 @@ export function RefundPayoutPanel({
   )
 }
 const phaseLabels: Record<string, string> = {
+  awaiting_review: 'Awaiting independent accounting review',
+  superseded: 'Superseded',
   documents_required: 'Original invoice evidence required',
   ready: 'Ready for correction',
   red_processing: 'Red invoice processing',
@@ -710,6 +713,11 @@ function ReconciliationEditor({
       }))
   )
   const [grant, setGrant] = useState('0')
+  const pendingReview = report.reviews.some(
+    (review) =>
+      review.status === 'submitted' &&
+      review.source_revision === report.revision
+  )
   const parsedPayments = payments.map((row) => {
     const bonus = money.parse(row.bonus_quota || '0')
     return {
@@ -775,7 +783,10 @@ function ReconciliationEditor({
         ))}
       </ul>
       {report.stage !== 'reserved' && report.stage !== 'closed' && (
-        <fieldset disabled={busy || !money.valid} className='space-y-3'>
+        <fieldset
+          disabled={busy || !money.valid || pendingReview}
+          className='space-y-3'
+        >
           {payments.map((row, index) => (
             <div
               key={row.top_up_id}
@@ -875,7 +886,7 @@ function ReconciliationEditor({
             />
           </label>
           <Button
-            disabled={busy || !money.valid}
+            disabled={busy || !money.valid || pendingReview}
             onClick={() => {
               if (
                 !amountsValid ||
@@ -907,6 +918,13 @@ function ReconciliationEditor({
             {t('Submit for review')}
           </Button>
         </fieldset>
+      )}
+      {pendingReview && (
+        <p role='status'>
+          {t(
+            'A proposal is awaiting another administrator. Do not submit it again; submission is not approval.'
+          )}
+        </p>
       )}
       {report.reviews.map((review) => (
         <section key={review.id} className='space-y-2 border-t pt-3'>

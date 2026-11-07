@@ -252,10 +252,21 @@ func handleTicketError(c *gin.Context, err error) {
 	}
 }
 
-func buildTicketDetailResponse(ticket *model.Ticket) (gin.H, error) {
+func buildTicketDetailResponse(ticket *model.Ticket, staff bool) (gin.H, error) {
 	messages, err := model.GetTicketMessagesWithAttachments(ticket.Id)
 	if err != nil {
 		return nil, err
+	}
+	if !staff {
+		visible := messages[:0]
+		for _, message := range messages {
+			// Hide legacy internal audits already written as public replies.
+			if strings.HasPrefix(message.Content, "Financial reconciliation #") && (message.Role == common.RoleFinanceUser || message.Role >= common.RoleAdminUser) {
+				continue
+			}
+			visible = append(visible, message)
+		}
+		messages = visible
 	}
 
 	resp := gin.H{
@@ -381,7 +392,7 @@ func GetUserTicket(c *gin.Context) {
 		handleTicketError(c, err)
 		return
 	}
-	resp, err := buildTicketDetailResponse(ticket)
+	resp, err := buildTicketDetailResponse(ticket, false)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -617,7 +628,7 @@ func GetTicket(c *gin.Context) {
 	if !ensureTicketAccessible(c, ticket) {
 		return
 	}
-	resp, err := buildTicketDetailResponse(ticket)
+	resp, err := buildTicketDetailResponse(ticket, true)
 	if err != nil {
 		common.ApiError(c, err)
 		return

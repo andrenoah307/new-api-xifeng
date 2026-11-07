@@ -6156,6 +6156,11 @@
     "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Право на бесплатный обычный счёт не устраняет расхождения при возврате и не изменяет ранее полученные комиссии.",
     "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Дополнительные подарки — отдельные подтверждённые начисления вне заказов пополнения, например ручной бонус. Не вводите необъяснённую разницу только для выравнивания учёта.",
     "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "Включённый бонус — подтверждённый подарок в этом заказе, а не разница между пересчитанным балансом и платежом. Без подтверждённого бонуса оставьте 0.",
-    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "Пустые поля этих трёх корректировок считаются нулевыми. Пересчитанный баланс не является полученными деньгами."
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "Пустые поля этих трёх корректировок считаются нулевыми. Пересчитанный баланс не является полученными деньгами.",
+    "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "Предложение отправлено и ожидает другого администратора. Повторная отправка не нужна; отправка не означает одобрение.",
+    "a reconciliation is awaiting independent review": "Сверка уже ожидает независимой проверки",
+    "Awaiting independent accounting review": "Ожидается независимая проверка учёта",
+    "Refund amount is ready for your confirmation": "Сумма возврата готова: обновите и подтвердите",
+    "Superseded": "Заменено"
   }
 }

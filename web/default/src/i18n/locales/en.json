@@ -6156,6 +6156,11 @@
     "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.",
     "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.",
     "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.",
-    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "These three adjustments default to zero when blank. Converted balances are not cash receipts."
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "These three adjustments default to zero when blank. Converted balances are not cash receipts.",
+    "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.",
+    "a reconciliation is awaiting independent review": "a reconciliation is awaiting independent review",
+    "Awaiting independent accounting review": "Awaiting independent accounting review",
+    "Refund amount is ready for your confirmation": "Refund amount is ready for your confirmation",
+    "Superseded": "Superseded"
   }
 }

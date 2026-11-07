@@ -15,6 +15,7 @@ import (
 )
 
 var ErrFinanceRevision = errors.New("financial evidence changed; refresh and review again")
+var ErrFinanceReviewPending = errors.New("a reconciliation is awaiting independent review")
 var ErrFinanceEvidence = errors.New("financial reconciliation evidence is invalid")
 var ErrFinanceReviewer = errors.New("financial reconciliation requires a different administrator to approve")
 
@@ -238,6 +239,12 @@ func refundReconciliationReportTx(tx *gorm.DB, refund TicketRefund) (*RefundReco
 	if len(report.Blockers) > 0 {
 		report.Stage = "needs_reconciliation"
 	}
+	for _, review := range report.Reviews {
+		if review.Status == "submitted" && review.SourceRevision == report.Revision {
+			report.Stage = "awaiting_review"
+			break
+		}
+	}
 	if len(liabilities) > 0 {
 		report.Stage = "waiting_settlement"
 	}
@@ -312,6 +319,16 @@ func SubmitFinanceReconciliation(ticketID, actorID int, key, revision string, pl
 		if report.Revision != revision {
 			return ErrFinanceRevision
 		}
+		for _, review := range report.Reviews {
+			if review.Status != "submitted" || review.SourceRevision != revision {
+				continue
+			}
+			if review.ProposedBy == actorID && review.PlanJSON == string(encoded) {
+				result = review
+				return nil
+			}
+			return ErrFinanceReviewPending
+		}
 		difference, err := decimal.NewFromString(report.Difference)
 		if err != nil || (plan.NoncashGrantQuota > 0 && decimal.NewFromInt(plan.NoncashGrantQuota).GreaterThan(difference)) {
 			return ErrFinanceEvidence
@@ -327,7 +344,8 @@ func SubmitFinanceReconciliation(ticketID, actorID int, key, revision string, pl
 		if err := tx.Create(&result).Error; err != nil {
 			return err
 		}
-		return tx.Create(&TicketMessage{TicketId: ticketID, UserId: actorID, Username: actor.Username, Role: actor.Role, Content: fmt.Sprintf("Financial reconciliation #%d submitted; evidence: %s", result.Id, plan.Evidence), CreatedTime: common.GetTimestamp()}).Error
+		// The reconciliation record is the internal audit trail, not a user reply.
+		return nil
 	})
 	result.Plan = plan
 	return &result, err
@@ -405,7 +423,11 @@ func ReviewFinanceReconciliation(id, actorID int, approve bool, reason string) (
 		if err := tx.Save(&result).Error; err != nil {
 			return err
 		}
-		return tx.Create(&TicketMessage{TicketId: result.TicketId, UserId: actorID, Username: actor.Username, Role: actor.Role, Content: fmt.Sprintf("Financial reconciliation #%d %s; review: %s", id, target, reason), CreatedTime: result.ReviewedTime}).Error
+		if approve {
+			// Older deployments allowed multiple proposals for the same source.
+			return tx.Model(&FinanceReconciliation{}).Where("user_id = ? AND id <> ? AND source_revision = ? AND status = ?", result.UserId, result.Id, result.SourceRevision, "submitted").Update("status", "superseded").Error
+		}
+		return nil
 	})
 	return &result, err
 }
