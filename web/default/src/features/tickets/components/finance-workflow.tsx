@@ -632,6 +632,7 @@ export function InvoiceCorrectionPanel({ ticketId }: { ticketId: number }) {
 }
 
 export function ReconciliationPanel({ ticketId }: { ticketId: number }) {
+  const role = useAuthStore((state) => state.auth.user?.role)
   const query = useFinancialQuery<Report>(
     `/api/ticket/refund/${ticketId}/reconciliation`
   )
@@ -648,12 +649,28 @@ export function ReconciliationPanel({ ticketId }: { ticketId: number }) {
         </p>
       )}
       {query.data && (
-        <ReconciliationEditor
-          key={query.data.revision}
-          ticketId={ticketId}
-          report={query.data}
-          onUpdated={query.reload}
-        />
+        <>
+          <p>
+            {t(
+              query.data.stage === 'needs_reconciliation'
+                ? 'Historical accounting needs administrator review. Invoice and refund amounts are not yet available.'
+                : (phaseLabels[query.data.stage] ?? query.data.stage)
+            )}
+          </p>
+          {[10, 100].includes(role ?? 0) && (
+            <details>
+              <summary className='cursor-pointer'>
+                {t('Administrator accounting repair')}
+              </summary>
+              <ReconciliationEditor
+                key={query.data.revision}
+                ticketId={ticketId}
+                report={query.data}
+                onUpdated={query.reload}
+              />
+            </details>
+          )}
+        </>
       )}
     </section>
   )
