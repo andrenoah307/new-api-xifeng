@@ -5,6 +5,30 @@ deploying code does not approve or repair historical financial records.
 
 ## Actual Payment
 
+- Optional `InvoiceTaxConfig.separate_refund_invoice_types` defaults to false,
+  including existing option JSON that omits it. Administrators can save it in
+  payment gateway invoice settings in either theme. Off preserves mixed refunds.
+  On separates empty/`none` invoice types from `ordinary`/`special` types using
+  the original order attribute, not current invoice issuance or free-fee policy.
+- Consumption remains global FIFO (`complete_time`, then order ID). A quote
+  stops at the first remaining order of the other class, even if later orders
+  match the first class. The owner sees the class and actual cash amount and
+  confirms only the allocated quota. After completing that refund, a new refund
+  processes the remaining orders. No automatic extra tickets or payouts occur.
+- The class is part of the quote hash. Changing this option invalidates an
+  unconfirmed quote; confirmation also checks allocated quota equals the request,
+  preventing freezing the original mixed amount against a partial quote.
+  Already confirmed allocations remain valid and are not recalculated.
+- This split is not a historical ledger repair. Missing payment snapshots,
+  unexplained balances and unsettled liabilities still require existing review.
+  Actual cash and collected fee refunds retain original payment proportions and
+  cumulative cent rounding. Current display exchange rates do not price refunds.
+  No schema migration is added; deploy backend and both frontends together.
+- Verified with model/controller tests, both frontend builds and Default type
+  checking, changed-file lint, and 12 desktop/mobile browser cases across both
+  themes (option off and both order classes). Browser assertions check the
+  confirmation submits only the quoted allocation total.
+
 - Reconciliation submission is not approval. Under the user's wallet lock, an
   identical pending proposal by the same actor/source revision returns its
   existing record even with a new request key; a different proposal is blocked

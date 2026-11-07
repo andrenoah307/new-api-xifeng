@@ -1,6 +1,7 @@
 import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
+  separate_refund_invoice_types?: boolean
   policy_effective_at?: number
   module_enabled: boolean
   invoice_workflow_required?: boolean
