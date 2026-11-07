@@ -89,7 +89,7 @@ func StartRefundPayout(ticketID, actorID int, key string) (*RefundPayoutAttempt,
 		if err := lockForUpdate(tx).Where("ticket_id = ?", ticketID).First(&refund).Error; err != nil {
 			return err
 		}
-		if refund.RefundStatus != RefundStatusPending || !refund.SettlementVerified || refund.FrozenQuota != refund.RefundQuota || refund.FinanceVersion != 1 {
+		if refund.RefundStatus != RefundStatusPending || !refund.hasVerifiedRefundHold() || refund.FinanceVersion != 1 {
 			return ErrRefundSettlementUnconfirmed
 		}
 		if err := verifyRefundLiabilitiesTx(tx, known.UserId); err != nil {

@@ -5576,6 +5576,13 @@
     "Separate refunds by invoice attributes": "請求書属性ごとに返金を分ける",
     "Off by default: mixed refunds remain available. When enabled, orders without an invoice type (including none) are refunded separately from ordinary or special invoice orders, in payment order. Complete one refund before requesting the remainder. Confirmed refunds are unchanged.": "初期設定はオフで、混在する返金を維持します。有効にすると、請求書種別なし（請求書不要を含む）と普通・専用請求書の注文を支払順に分けて返金します。今回の返金完了後に残りを申請してください。確認済みの返金は変更されません。",
     "This refund covers orders without invoice attributes. Apply again after completion for any remaining orders.": "今回は請求書属性のない注文のみ返金します。残りの注文は今回の返金完了後に申請してください。",
-    "This refund covers orders with invoice attributes. Apply again after completion for any remaining orders.": "今回は請求書属性のある注文のみ返金します。残りの注文は今回の返金完了後に申請してください。"
+    "This refund covers orders with invoice attributes. Apply again after completion for any remaining orders.": "今回は請求書属性のある注文のみ返金します。残りの注文は今回の返金完了後に申請してください。",
+    "Gift credit reclaimed (original value, CNY)": "回収する特典残高（注文時の換算額、CNY）",
+    "Gift credit is removed from the wallet, not deducted again from the cash refund.": "特典残高はアカウントから回収し、現金返金額から重ねて差し引きません。",
+    "Paid balance after refund (CNY)": "返金後の有償残高（CNY）",
+    "Gift balance after refund (original value, CNY)": "返金後の特典残高（注文時の換算額、CNY）",
+    "Gift recovery reason": "特典回収の理由",
+    "Earlier order gift expired": "以前の注文の特典が失効",
+    "Proportional refund recovery": "返金割合に応じた回収"
   }
 }

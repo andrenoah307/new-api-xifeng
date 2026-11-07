@@ -19,6 +19,11 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/api'
 
 export interface RefundAllocation {
+  gift_recovery_reason?: string
+  gift_policy_version?: number
+  refund_gift_value_cents?: number
+  remaining_paid_value_cents?: number
+  remaining_gift_value_cents?: number
   quota_per_unit: string
   used_invoice_cents: number
   original_tax_cents: number
@@ -58,6 +63,8 @@ export interface InvoiceCorrection {
   evidence: string
 }
 export interface RefundFinanceDetail {
+  refund_gift_value_cents?: number
+  refund_gift_quota?: number
   refund_order_type?: 'without_invoice' | 'with_invoice'
   settlement_status?: string
   waiting_reason?: string

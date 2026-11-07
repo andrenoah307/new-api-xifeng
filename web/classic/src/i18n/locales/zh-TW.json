@@ -5584,6 +5584,17 @@
     "Superseded": "已被取代",
     "Refund amount is ready for your confirmation": "退款金額已就緒，請重新整理並確認",
     "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "已提交，等待另一位管理員覆核。請勿重複提交；提交不代表核驗通過。",
-    "a reconciliation is awaiting independent review": "已有帳務核對等待獨立覆核"
+    "a reconciliation is awaiting independent review": "已有帳務核對等待獨立覆核",
+    "Gift credit reclaimed (original value, CNY)": "Gift credit reclaimed (original value, CNY)",
+    "Gift credit is removed from the wallet, not deducted again from the cash refund.": "Gift credit is removed from the wallet, not deducted again from the cash refund.",
+    "Paid balance after refund (CNY)": "Paid balance after refund (CNY)",
+    "Gift balance after refund (original value, CNY)": "Gift balance after refund (original value, CNY)",
+    "Gift recovery reason": "Gift recovery reason",
+    "Earlier order gift expired": "Earlier order gift expired",
+    "Proportional refund recovery": "Proportional refund recovery",
+    "Separate refunds by invoice attributes": "Separate refunds by invoice attributes",
+    "Off by default: mixed refunds remain available. When enabled, orders without an invoice type (including none) are refunded separately from ordinary or special invoice orders, in payment order. Complete one refund before requesting the remainder. Confirmed refunds are unchanged.": "Off by default: mixed refunds remain available. When enabled, orders without an invoice type (including none) are refunded separately from ordinary or special invoice orders, in payment order. Complete one refund before requesting the remainder. Confirmed refunds are unchanged.",
+    "This refund covers orders without invoice attributes. Apply again after completion for any remaining orders.": "This refund covers orders without invoice attributes. Apply again after completion for any remaining orders.",
+    "This refund covers orders with invoice attributes. Apply again after completion for any remaining orders.": "This refund covers orders with invoice attributes. Apply again after completion for any remaining orders."
   }
 }

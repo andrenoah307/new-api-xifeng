@@ -5,6 +5,25 @@ deploying code does not approve or repair historical financial records.
 
 ## Actual Payment
 
+- The current FIFO/gift policy is specified in [FINANCE_FIFO_CREDIT_LOTS.md](FINANCE_FIFO_CREDIT_LOTS.md).
+  All payment lots' paid credits are consumed before any gifted credits.
+  Refunds recover a proportional gift from the final refunded lot and expire
+  all remaining gifts of earlier lots. Gift-only allocation rows carry zero
+  cash, and therefore no invoice correction or commission clawback.
+- `refund_quota` remains paid credit; `refund_gift_quota` records noncash recovery;
+  `frozen_quota` holds their sum. Cancel/reject restores both, while successful
+  payout commits both. Previously confirmed refunds keep their original zero
+  gift recovery. New quotes use calculation version 2. Known gift-only balances
+  cannot create a waiting refund; gifts remain usable when no refund occurs.
+- Both themes and CSV export show cash, recovered gifts, remaining paid/gift
+  value and recovery reason separately. Gift value uses the original payment's
+  net-cash-to-paid-quota ratio for display, never today's exchange rate, and is
+  not subtracted again from cash. Old rows without this snapshot display `-`.
+- This change adds nullable bigint/snapshot columns to refund allocations and
+  tickets. Back up before upgrading and restart the backend with matching web
+  assets; after gift-bearing refunds exist, do not roll back to a binary that
+  assumes frozen quota equals only paid refund quota.
+
 - Optional `InvoiceTaxConfig.separate_refund_invoice_types` defaults to false,
   including existing option JSON that omits it. Administrators can save it in
   payment gateway invoice settings in either theme. Off preserves mixed refunds.

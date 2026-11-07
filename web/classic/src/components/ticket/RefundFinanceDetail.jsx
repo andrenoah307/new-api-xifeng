@@ -114,6 +114,8 @@ export default function RefundFinanceDetail({
             <span>
               {t('Cash refund')}: {refundCash(quote.refund_cash_cents)}
             </span>
+            {!!quote.refund_gift_quota && <p className='w-full'>{t('Gift credit reclaimed (original value, CNY)')}: {refundCash(quote.refund_gift_value_cents ?? 0)}. {t('Gift credit is removed from the wallet, not deducted again from the cash refund.')}</p>}
+            {quote.allocations.some((row) => row.gift_recovery_reason === 'prior_order_expired') && <p className='w-full'>{t('Earlier order gift expired')}: {refundCash(quote.allocations.filter((row) => row.gift_recovery_reason === 'prior_order_expired').reduce((sum, row) => sum + (row.refund_gift_value_cents ?? 0), 0))}</p>}
             <Button
               disabled={busy}
               icon={<Check size={16} />}
@@ -143,6 +145,7 @@ export default function RefundFinanceDetail({
         )}
       </div>
       <dl className='grid grid-cols-2 gap-4 text-sm'>
+        {!!finance.refund_gift_quota && <div><dt>{t('Gift credit reclaimed (original value, CNY)')}</dt><dd>{refundCash(finance.refund_gift_value_cents ?? 0)}</dd></div>}
         <div>
           <dt>{t('Cash refund')}</dt>
           <dd className='font-semibold'>
@@ -179,6 +182,10 @@ export default function RefundFinanceDetail({
                 'Cash refund',
                 'Refunded tax',
                 'Remaining invoice amount',
+                'Gift credit reclaimed (original value, CNY)',
+                'Paid balance after refund (CNY)',
+                'Gift balance after refund (original value, CNY)',
+                'Gift recovery reason',
               ].map((label) => (
                 <th
                   key={label}
@@ -208,11 +215,15 @@ export default function RefundFinanceDetail({
                   row.refund_cents,
                   row.refund_tax_cents,
                   row.remaining_invoice_cents,
+                  row.gift_policy_version ? row.refund_gift_value_cents : undefined,
+                  row.gift_policy_version ? row.remaining_paid_value_cents : undefined,
+                  row.gift_policy_version ? row.remaining_gift_value_cents : undefined,
                 ].map((value, index) => (
                   <td key={index} className='whitespace-nowrap p-2'>
-                    {refundCash(value)}
+                    {value === undefined ? '-' : refundCash(value)}
                   </td>
                 ))}
+                <td className='whitespace-nowrap p-2'>{row.gift_recovery_reason === 'prior_order_expired' ? t('Earlier order gift expired') : row.gift_recovery_reason === 'proportional_refund' ? t('Proportional refund recovery') : '-'}</td>
               </tr>
             ))}
           </tbody>

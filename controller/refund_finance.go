@@ -199,7 +199,7 @@ func ExportRefundFinance(c *gin.Context) {
 	var buffer bytes.Buffer
 	buffer.WriteString("\xef\xbb\xbf")
 	writer := csv.NewWriter(&buffer)
-	if err := writer.Write([]string{"退款工单", "用户ID", "充值订单", "原发票工单", "实付金额", "实付到账额度", "实付已用额度", "可退额度", "本次扣除额度", "退款本金", "退款税费", "退款合计", "已用部分应开发票面额", "本次退款后订单剩余票额", "原有效发票金额", "整票红冲金额", "整票重开金额", "原票凭证", "红票凭证", "重开凭证", "财务处理状态", "财务处理凭证", "退款状态"}); err != nil {
+	if err := writer.Write([]string{"退款工单", "用户ID", "充值订单", "原发票工单", "实付金额", "实付到账额度", "实付已用额度", "可退额度", "本次扣除额度", "退款本金", "退款税费", "退款合计", "已用部分应开发票面额", "本次退款后订单剩余票额", "原有效发票金额", "整票红冲金额", "整票重开金额", "原票凭证", "红票凭证", "重开凭证", "财务处理状态", "财务处理凭证", "退款状态", "回收赠送额度（按原订单折合人民币）", "退款后剩余实付金额", "退款后剩余赠送（按原订单折合人民币）", "赠送回收原因"}); err != nil {
 		common.ApiError(c, err)
 		return
 	}
@@ -208,6 +208,15 @@ func ExportRefundFinance(c *gin.Context) {
 		values := []string{strconv.Itoa(id), strconv.Itoa(refund.UserId), row.TradeNo, strconv.Itoa(row.InvoiceTicketID), refundCentsText(row.OriginalPaidCents), strconv.FormatInt(row.OriginalQuota, 10), strconv.FormatInt(row.UsedQuota, 10), strconv.FormatInt(row.RefundableQuota, 10), strconv.FormatInt(row.RefundQuota, 10), refundCentsText(row.RefundCents - row.RefundTaxCents), refundCentsText(row.RefundTaxCents), refundCentsText(row.RefundCents), refundCentsText(row.UsedInvoiceCents), refundCentsText(row.RemainingInvoiceCents), refundCentsText(correction.OriginalCents), refundCentsText(correction.OriginalCents), refundCentsText(correction.ReissueCents), correction.OriginalReference, correction.RedReference, correction.ReissueReference, correction.Status, correction.Evidence}
 		status := map[int]string{model.RefundStatusPending: "等待结算核验", model.RefundStatusRefunded: "已退款", model.RefundStatusRejected: "已驳回", model.RefundStatusCancelled: "已取消"}
 		values = append(values, status[refund.RefundStatus])
+		if row.GiftPolicyVersion > 0 {
+			reason := "按退款比例回收"
+			if row.GiftRecoveryReason == "prior_order_expired" {
+				reason = "前序订单赠送失效"
+			}
+			values = append(values, refundCentsText(row.RefundGiftValueCents), refundCentsText(row.RemainingPaidValueCents), refundCentsText(row.RemainingGiftValueCents), reason)
+		} else {
+			values = append(values, "-", "-", "-", "-")
+		}
 		denominator, err := decimal.NewFromString(row.QuotaPerUnit)
 		if err != nil || !denominator.IsPositive() {
 			common.ApiError(c, model.ErrRefundFinanceReview)

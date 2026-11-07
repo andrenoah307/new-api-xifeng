@@ -47,6 +47,10 @@ export function RefundFinanceDetail(props: {
   onUpdated?: () => void
 }) {
   const { t } = useTranslation()
+  const giftRecoveryLabels: Record<string, string> = {
+    prior_order_expired: t('Earlier order gift expired'),
+    proportional_refund: t('Proportional refund recovery'),
+  }
   const client = useQueryClient()
   const userId = useAuthStore((state) => state.auth.user?.id)
   const [quote, setQuote] = useState<FinanceData | null>(null)
@@ -150,6 +154,33 @@ export function RefundFinanceDetail(props: {
             <span>
               {t('Cash refund')}: {refundCash(quote.refund_cash_cents)}
             </span>
+            {!!quote.refund_gift_quota && (
+              <p className='w-full'>
+                {t('Gift credit reclaimed (original value, CNY)')}:{' '}
+                {refundCash(quote.refund_gift_value_cents ?? 0)}.{' '}
+                {t(
+                  'Gift credit is removed from the wallet, not deducted again from the cash refund.'
+                )}
+              </p>
+            )}
+            {quote.allocations.some(
+              (row) => row.gift_recovery_reason === 'prior_order_expired'
+            ) && (
+              <p className='w-full'>
+                {t('Earlier order gift expired')}:{' '}
+                {refundCash(
+                  quote.allocations
+                    .filter(
+                      (row) =>
+                        row.gift_recovery_reason === 'prior_order_expired'
+                    )
+                    .reduce(
+                      (sum, row) => sum + (row.refund_gift_value_cents ?? 0),
+                      0
+                    )
+                )}
+              </p>
+            )}
             <Button disabled={busy} onClick={() => confirmAmount(true)}>
               <Check />
               {t('Confirm')}
@@ -175,6 +206,12 @@ export function RefundFinanceDetail(props: {
         )}
       </div>
       <dl className='grid grid-cols-2 gap-4 text-sm'>
+        {!!props.finance.refund_gift_quota && (
+          <div>
+            <dt>{t('Gift credit reclaimed (original value, CNY)')}</dt>
+            <dd>{refundCash(props.finance.refund_gift_value_cents ?? 0)}</dd>
+          </div>
+        )}
         <div>
           <dt>{t('Cash refund')}</dt>
           <dd className='font-semibold'>
@@ -223,6 +260,10 @@ export function RefundFinanceDetail(props: {
                 'Cash refund',
                 'Refunded tax',
                 'Remaining invoice amount',
+                'Gift credit reclaimed (original value, CNY)',
+                'Paid balance after refund (CNY)',
+                'Gift balance after refund (original value, CNY)',
+                'Gift recovery reason',
               ].map((label) => (
                 <th
                   key={label}
@@ -255,12 +296,25 @@ export function RefundFinanceDetail(props: {
                     'refund_cents',
                     'refund_tax_cents',
                     'remaining_invoice_cents',
+                    'refund_gift_value_cents',
+                    'remaining_paid_value_cents',
+                    'remaining_gift_value_cents',
                   ] as const
                 ).map((key) => (
                   <td key={key} className='p-2 whitespace-nowrap'>
-                    {refundCash(row[key])}
+                    {!row.gift_policy_version &&
+                    [
+                      'refund_gift_value_cents',
+                      'remaining_paid_value_cents',
+                      'remaining_gift_value_cents',
+                    ].includes(key)
+                      ? '-'
+                      : refundCash(row[key] ?? 0)}
                   </td>
                 ))}
+                <td className='p-2 whitespace-nowrap'>
+                  {giftRecoveryLabels[row.gift_recovery_reason ?? ''] ?? '-'}
+                </td>
               </tr>
             ))}
           </tbody>

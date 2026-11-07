@@ -5747,6 +5747,17 @@
     "Superseded": "已被替代",
     "Refund amount is ready for your confirmation": "退款金额已就绪，请刷新并确认",
     "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "已提交，等待另一位管理员复核。请勿重复提交；提交不代表核验通过。",
-    "a reconciliation is awaiting independent review": "已有账务核对等待独立复核"
+    "a reconciliation is awaiting independent review": "已有账务核对等待独立复核",
+    "Gift credit reclaimed (original value, CNY)": "回收赠送额度（按原订单折合￥）",
+    "Gift credit is removed from the wallet, not deducted again from the cash refund.": "赠送额度从账户余额中回收，不再从现金退款中扣除。",
+    "Paid balance after refund (CNY)": "退款后剩余实付金额（￥）",
+    "Gift balance after refund (original value, CNY)": "退款后剩余赠送（按原订单折合￥）",
+    "Gift recovery reason": "赠送回收原因",
+    "Earlier order gift expired": "前序订单赠送失效",
+    "Proportional refund recovery": "按退款比例回收",
+    "Separate refunds by invoice attributes": "按发票属性分开退款",
+    "Off by default: mixed refunds remain available. When enabled, orders without an invoice type (including none) are refunded separately from ordinary or special invoice orders, in payment order. Complete one refund before requesting the remainder. Confirmed refunds are unchanged.": "默认关闭，保留混合退款。开启后，无发票类型（含不开发票）的订单与普票、专票订单按支付顺序分开退款。本次退款完成后再申请剩余部分，已确认退款不受影响。",
+    "This refund covers orders without invoice attributes. Apply again after completion for any remaining orders.": "本次退款仅处理无发票属性订单。如有剩余订单，请在本次退款完成后再次申请。",
+    "This refund covers orders with invoice attributes. Apply again after completion for any remaining orders.": "本次退款仅处理带发票属性订单。如有剩余订单，请在本次退款完成后再次申请。"
   }
 }
