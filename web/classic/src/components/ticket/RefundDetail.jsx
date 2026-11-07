@@ -274,6 +274,11 @@ const RefundDetail = ({
   }
 
   const isPending = refund.refund_status === REFUND_STATUS_PENDING;
+  const waitingLabels = {
+    financial_reconciliation: 'Financial reconciliation required',
+    awaiting_review: 'Awaiting independent accounting review',
+    awaiting_owner_confirmation: 'Refund amount is ready for your confirmation',
+  };
   const frozenAmount = formatAmount(refund.frozen_quota ?? 0);
   const requestedAmount = formatAmount(refund.refund_quota);
   const snapshotAmount = formatAmount(refund.user_quota_snapshot);
@@ -382,7 +387,7 @@ const RefundDetail = ({
                 shape='circle'
               >
                 {isPending && !refund.settlement_verified
-                  ? t('Awaiting settlement verification')
+                  ? t(waitingLabels[refund.finance?.waiting_reason] ?? 'Awaiting settlement verification')
                   : getRefundStatusText(refund.refund_status, t)}
               </Tag>
             </Space>

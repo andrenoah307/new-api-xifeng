@@ -273,6 +273,9 @@ func QuoteRefundFinance(userID, quota int) (*RefundFinanceDetail, error) {
 				return reportErr
 			}
 			detail = &RefundFinanceDetail{Version: 1, SettlementStatus: RefundSettlementWaiting, WaitingReason: "financial_reconciliation", WorkflowState: "needs_reconciliation", Blockers: report.Blockers, Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
+			if report.Stage == "awaiting_review" {
+				detail.WorkflowState, detail.WaitingReason = report.Stage, report.Stage
+			}
 			return nil
 		}
 		return err
@@ -473,6 +476,9 @@ func AttachRefundFinance(tx *gorm.DB, refund *TicketRefund) error {
 		detail.WorkflowState, detail.Blockers = report.Stage, report.Blockers
 		if report.Stage == "needs_reconciliation" {
 			detail.WaitingReason = "financial_reconciliation"
+		}
+		if report.Stage == "awaiting_review" || report.Stage == "awaiting_owner_confirmation" {
+			detail.WaitingReason = report.Stage
 		}
 	}
 	if err := tx.Where("refund_ticket_id = ?", refund.TicketId).Order("id ASC").Find(&detail.Allocations).Error; err != nil {

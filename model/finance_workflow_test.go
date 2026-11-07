@@ -72,6 +72,45 @@ func TestReconciliationSourceEvidenceIsOptional(t *testing.T) {
 	}
 }
 
+func TestReconciliationPendingDeduplicationAndIndependentReview(t *testing.T) {
+	f := newRefundFinanceFixture(t)
+	order := seedRefundFinanceOrder(t, f.user.Id, 1000, 900, 0, 100)
+	require.NoError(t, DB.Model(order).Update("checkout_version", 0).Error)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
+	ticket, _, _, err := CreateRefundTicket(financeRefundParams(f.user, 500))
+	require.NoError(t, err)
+	report, err := GetRefundReconciliationReport(ticket.Id)
+	require.NoError(t, err)
+	plan := FinanceReconciliationPlan{Payments: []FinancePaymentEvidence{{TopUpID: order.Id, PaidCents: 900, PaidQuota: 1000}}}
+	first, err := SubmitFinanceReconciliation(ticket.Id, f.admin.Id, uuid.NewString(), report.Revision, plan)
+	require.NoError(t, err)
+	retry, err := SubmitFinanceReconciliation(ticket.Id, f.admin.Id, uuid.NewString(), report.Revision, plan)
+	require.NoError(t, err)
+	assert.Equal(t, first.Id, retry.Id)
+	changed := plan
+	changed.Evidence = "different proposal"
+	_, err = SubmitFinanceReconciliation(ticket.Id, f.admin.Id, uuid.NewString(), report.Revision, changed)
+	require.ErrorIs(t, err, ErrFinanceReviewPending)
+	current, err := GetTicketRefundByTicketId(ticket.Id)
+	require.NoError(t, err)
+	assert.Equal(t, "awaiting_review", current.Finance.WaitingReason)
+	_, err = ReviewFinanceReconciliation(first.Id, f.admin.Id, true, "self review")
+	require.ErrorIs(t, err, ErrFinanceReviewer)
+	duplicate := *first
+	duplicate.Id, duplicate.RequestKey = 0, uuid.NewString()
+	require.NoError(t, DB.Create(&duplicate).Error)
+	_, err = ReviewFinanceReconciliation(first.Id, f.root.Id, true, "independent verification")
+	require.NoError(t, err)
+	require.NoError(t, DB.First(&duplicate, duplicate.Id).Error)
+	assert.Equal(t, "superseded", duplicate.Status)
+	current, err = GetTicketRefundByTicketId(ticket.Id)
+	require.NoError(t, err)
+	assert.Equal(t, "awaiting_owner_confirmation", current.Finance.WaitingReason)
+	var publicAudits int64
+	require.NoError(t, DB.Model(&TicketMessage{}).Where("ticket_id = ? AND content LIKE ?", ticket.Id, "Financial reconciliation #%").Count(&publicAudits).Error)
+	assert.Zero(t, publicAudits)
+}
+
 func TestReconciliationUsesCurrentCNYConversionAndInvalidatesStaleReview(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	previousRate := operation_setting.USDExchangeRate
