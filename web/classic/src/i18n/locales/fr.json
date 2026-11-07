@@ -5594,6 +5594,9 @@
     "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "Comptabilité historique à vérifier par un administrateur. Montants de facture et de remboursement indisponibles.",
     "Administrator accounting repair": "Correction comptable administrateur",
     "Invoice amount to reverse": "Montant à annuler",
-    "Consumed actual payment": "Paiement réel consommé"
+    "Consumed actual payment": "Paiement réel consommé",
+    "Collected invoice service fee (CNY)": "Frais de facturation encaissés (CNY)",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "L’éligibilité à une facture ordinaire gratuite ne résout pas les écarts comptables de remboursement et ne modifie pas les frais déjà encaissés.",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Uniquement les frais de facturation déjà encaissés, hors montant de recharge et consommation."
   }
 }

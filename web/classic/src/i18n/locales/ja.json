@@ -5561,6 +5561,9 @@
     "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "過去の会計データは管理者の確認待ちです。請求・返金額はまだ確定できません。",
     "Administrator accounting repair": "管理者による会計修正",
     "Invoice amount to reverse": "今回の取消請求額",
-    "Consumed actual payment": "消費済み実支払額"
+    "Consumed actual payment": "消費済み実支払額",
+    "Collected invoice service fee (CNY)": "受領済み請求書発行手数料（人民元）",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "普通請求書の無料発行資格は返金会計の差額を解消せず、過去に受領した発行手数料も変更しません。",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "受領済みの請求書発行手数料のみです。チャージの実支払総額や消費額ではありません。"
   }
 }

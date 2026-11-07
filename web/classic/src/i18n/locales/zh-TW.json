@@ -5573,6 +5573,9 @@
     "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "待管理員核查歷史帳務，系統暫不能確定開票及退款金額。",
     "Administrator accounting repair": "管理員帳務修復",
     "Invoice amount to reverse": "本次需沖紅金額",
-    "Consumed actual payment": "已消費抵扣實付"
+    "Consumed actual payment": "已消費抵扣實付",
+    "Collected invoice service fee (CNY)": "已收開票服務費（￥）",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "免費普票資格不消除退款帳務差額，也不改變歷史已收取的開票服務費。",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "僅指已收取的開票服務費，不是充值實付總額，也不是已消費金額。"
   }
 }

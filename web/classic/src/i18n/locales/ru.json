@@ -5615,6 +5615,9 @@
     "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "Требуется проверка исторических данных администратором. Суммы счетов и возврата пока не определены.",
     "Administrator accounting repair": "Исправление учёта администратором",
     "Invoice amount to reverse": "Сумма сторнирования",
-    "Consumed actual payment": "Израсходованный фактический платёж"
+    "Consumed actual payment": "Израсходованный фактический платёж",
+    "Collected invoice service fee (CNY)": "Полученная комиссия за выставление счёта (CNY)",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Право на бесплатный обычный счёт не устраняет расхождения при возврате и не изменяет ранее полученные комиссии.",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Только уже полученная комиссия за счёт, не общая сумма пополнения и не стоимость использования."
   }
 }

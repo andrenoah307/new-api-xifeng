@@ -5,6 +5,18 @@ deploying code does not approve or repair historical financial records.
 
 ## Actual Payment
 
+- The reconciliation field is labelled "Collected invoice service fee (CNY)":
+  historical invoice service charges only, never gateway gross payment or usage.
+  Free ordinary-invoice eligibility concerns issuing an invoice; it cannot prove
+  the provenance of a refund balance or erase fees already collected.
+- Read-only test-site verification confirmed legacy free ordinary invoices are
+  enabled before 2026-11-09 00:00 Beijing time (1794153600), with fee collection
+  currently disabled. Order 9 has no original invoice type and was completed
+  before the cutoff, so it qualifies for that invoice policy. Refund 11 remains
+  blocked by missing payment allocation history and a ledger mismatch, not an
+  unpaid invoice service fee. Orders 11 and 12 retain historical fee snapshots
+  of CNY 6.66 and CNY 6.00; changing current policy does not rewrite these.
+
 - Finance's normal refund view is read-only for calculation inputs: it shows
   consumed actual payment, cash refund, remaining invoice amount, full invoice
   reversal and reissue amounts returned by the existing allocation/correction

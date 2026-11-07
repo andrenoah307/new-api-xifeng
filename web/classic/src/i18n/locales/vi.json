@@ -6104,6 +6104,9 @@
     "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "Đang chờ quản trị viên kiểm tra sổ sách cũ. Chưa thể xác định số tiền hóa đơn và hoàn tiền.",
     "Administrator accounting repair": "Điều chỉnh sổ sách của quản trị viên",
     "Invoice amount to reverse": "Số tiền cần điều chỉnh giảm",
-    "Consumed actual payment": "Thực trả đã sử dụng"
+    "Consumed actual payment": "Thực trả đã sử dụng",
+    "Collected invoice service fee (CNY)": "Phí xuất hóa đơn đã thu (CNY)",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Điều kiện xuất hóa đơn thường miễn phí không xóa chênh lệch đối soát hoàn tiền hoặc thay đổi phí đã thu trước đây.",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Chỉ là phí xuất hóa đơn đã thu, không phải tổng thực trả khi nạp tiền hay số tiền đã sử dụng."
   }
 }
