@@ -146,7 +146,7 @@ func StartRefundInvoiceCorrection(correctionID, actorID int) (*RefundInvoiceCorr
 		if err := lockForUpdate(tx).Where("ticket_id = ? AND user_id = ? AND refund_status = ?", known.RefundTicketId, known.UserId, RefundStatusPending).First(&refund).Error; err != nil {
 			return ErrRefundInvoiceCorrection
 		}
-		if !refund.SettlementVerified || refund.FrozenQuota != refund.RefundQuota {
+		if !refund.hasVerifiedRefundHold() {
 			return ErrRefundSettlementUnconfirmed
 		}
 		if err := verifyRefundLiabilitiesTx(tx, known.UserId); err != nil {

@@ -85,7 +85,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			if err := tx.Where("ticket_id = ? AND refund_status = ?", result.RefundTicketId, RefundStatusPending).First(&refund).Error; err != nil {
 				return ErrRefundInvoiceCorrection
 			}
-			if !refund.SettlementVerified || refund.FrozenQuota != refund.RefundQuota {
+			if !refund.hasVerifiedRefundHold() {
 				return ErrRefundSettlementUnconfirmed
 			}
 			if action == "start" {

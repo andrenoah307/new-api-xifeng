@@ -54,6 +54,9 @@ func getRefundEligibilityTx(tx *gorm.DB, userID int) (*RefundEligibility, error)
 		return nil, err
 	}
 	credits.Bonus = bonus
+	if credits.Bonus > maxRefundEligibilityJSONQuota {
+		return nil, ErrRefundFinanceReview
+	}
 	for _, order := range orders {
 		if order.QuotaGranted < 0 || order.QuotaGranted > maxRefundEligibilityJSONQuota-credits.Paid {
 			return nil, ErrFinanceEvidence
@@ -65,7 +68,7 @@ func getRefundEligibilityTx(tx *gorm.DB, userID int) (*RefundEligibility, error)
 		Frozen   int64
 	}
 	if err := tx.Model(&TicketRefund{}).Where("user_id = ?", userID).
-		Select("COALESCE(SUM(CASE WHEN refund_status = ? THEN refund_quota ELSE 0 END),0) AS refunded, COALESCE(SUM(CASE WHEN refund_status = ? THEN frozen_quota ELSE 0 END),0) AS frozen", RefundStatusRefunded, RefundStatusPending).Scan(&refunds).Error; err != nil {
+		Select("COALESCE(SUM(CASE WHEN refund_status = ? THEN refund_quota + COALESCE(refund_gift_quota,0) ELSE 0 END),0) AS refunded, COALESCE(SUM(CASE WHEN refund_status = ? THEN frozen_quota ELSE 0 END),0) AS frozen", RefundStatusRefunded, RefundStatusPending).Scan(&refunds).Error; err != nil {
 		return nil, err
 	}
 	if refunds.Frozen > maxRefundEligibilityJSONQuota {
@@ -84,6 +87,44 @@ func getRefundEligibilityTx(tx *gorm.DB, userID int) (*RefundEligibility, error)
 		result.MaxRefundableQuota = min(result.WalletQuota, max(0, maximum))
 	}
 	result.NonRefundableQuota = result.WalletQuota - result.MaxRefundableQuota
+	complete := len(orders) > 0
+	for _, order := range orders {
+		if order.CheckoutVersion != 1 {
+			complete = false
+		}
+	}
+	if valid && complete {
+		lots, err := refundCreditLotsTx(tx, userID, orders)
+		if err != nil {
+			return nil, err
+		}
+		var held, linkedGift, giftRemaining, consumed int64
+		for _, order := range orders {
+			lot := lots[order.Id]
+			held += lot.RefundedPaid + lot.RecoveredGift
+			linkedGift += order.RefundGiftQuota
+			giftRemaining += lot.GiftRemaining
+			consumed += lot.UsedPaid + order.RefundGiftQuota - lot.RecoveredGift - lot.GiftRemaining
+		}
+		// Only replace conservative legacy eligibility when every removed credit
+		// has an allocation. Proven remaining gifts cannot open a waiting refund.
+		if held == refunds.Refunded+refunds.Frozen && linkedGift <= credits.Bonus {
+			spentOutsideLots := max(int64(0), int64(owner.UsedQuota)+balanceTax-consumed)
+			unlinkedGift := credits.Bonus - linkedGift
+			giftRemaining += max(int64(0), unlinkedGift-spentOutsideLots)
+			inviteRemaining := max(int64(0), invitation-max(int64(0), spentOutsideLots-unlinkedGift))
+			if giftRemaining+inviteRemaining == int64(result.NonRefundableQuota) {
+				if giftRemaining > 0 {
+					result.Reasons = append(result.Reasons, RefundExclusion{Code: "gift_balance", Quota: int(giftRemaining)})
+				}
+				if inviteRemaining > 0 {
+					result.Reasons = append(result.Reasons, RefundExclusion{Code: "invite_reward_balance", Quota: int(inviteRemaining)})
+				}
+				result.RequestableQuota = result.MaxRefundableQuota
+				return result, nil
+			}
+		}
+	}
 	remaining := result.NonRefundableQuota
 	if valid {
 		// Each lower bound assumes every known expense could have consumed this

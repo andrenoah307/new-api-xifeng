@@ -15,6 +15,7 @@ import (
 )
 
 type TopUp struct {
+	RefundGiftQuota           int64   `json:"-" gorm:"-"`
 	CheckoutPolicyEffectiveAt int64   `json:"checkout_policy_effective_at" gorm:"type:bigint"`
 	CheckoutUnitPrice         string  `json:"-" gorm:"type:text"`
 	CheckoutQuotaPerUnit      string  `json:"-" gorm:"size:32"`
