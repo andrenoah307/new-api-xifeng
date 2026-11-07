@@ -48,6 +48,7 @@ var (
 )
 
 type TicketRefund struct {
+	RefundGiftQuota    int64                `json:"refund_gift_quota" gorm:"type:bigint"`
 	SettlementStatus   string               `json:"settlement_status,omitempty" gorm:"-"`
 	SettlementVerified bool                 `json:"settlement_verified"`
 	SettlementQuote    string               `json:"-" gorm:"size:64"`
@@ -356,6 +357,29 @@ func getUserMaxRefundableQuotaTx(tx *gorm.DB, userId int) (int, error) {
 	if totalTopUp < 0 || bonusQuota < 0 || totalRefunded < 0 || pendingRefund < 0 {
 		return 0, ErrTicketRefundQuotaInvalid
 	}
+	complete := true
+	for _, order := range orders {
+		if order.CheckoutVersion != 1 {
+			complete = false
+		}
+	}
+	if complete {
+		lots, err := refundCreditLotsTx(tx, userId, orders)
+		if err != nil {
+			return 0, err
+		}
+		var available, allocated int64
+		for _, lot := range lots {
+			if lot.PaidRemaining > math.MaxInt64-available || lot.RefundedPaid > math.MaxInt64-allocated {
+				return 0, ErrRefundFinanceReview
+			}
+			available += lot.PaidRemaining
+			allocated += lot.RefundedPaid
+		}
+		if allocated >= totalRefunded {
+			return int(min(max(int64(0), int64(user.Quota)), available)), nil
+		}
+	}
 	cap := max(int64(0), totalTopUp-totalRefunded)
 	cap = max(int64(0), cap-pendingRefund)
 	// Subtract only nonnegative bounded quantities, without overflowing intermediate sums.
@@ -471,7 +495,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		if refund.RefundQuota <= 0 {
 			return ErrTicketRefundQuotaInvalid
 		}
-		if params.RefundStatus == RefundStatusRefunded && (!refund.SettlementVerified || refund.FrozenQuota != refund.RefundQuota) {
+		if params.RefundStatus == RefundStatusRefunded && !refund.hasVerifiedRefundHold() {
 			return ErrRefundSettlementUnconfirmed
 		}
 		if params.RefundStatus == RefundStatusRefunded {
@@ -479,7 +503,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 				return err
 			}
 		}
-		if refund.FrozenQuota < 0 || refund.FrozenQuota > refund.RefundQuota {
+		if !refund.hasValidRefundHold() {
 			return ErrTicketRefundQuotaInvalid
 		}
 		originalFrozenQuota = refund.FrozenQuota
@@ -584,6 +608,10 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 
 	// 4) 写审计日志（账户变更 + 工单动作）。
 	adminInfo := map[string]interface{}{"admin_id": params.AdminId}
+	adminInfo["refund_cash_cents"] = refund.RefundCashCents
+	adminInfo["refund_paid_quota"] = refund.RefundQuota
+	adminInfo["refund_gift_quota"] = refund.RefundGiftQuota
+	adminInfo["frozen_quota_before_action"] = originalFrozenQuota
 	switch params.RefundStatus {
 	case RefundStatusRefunded:
 		var logContent string
@@ -684,7 +712,7 @@ func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) error {
 	if err := releaseRefundFinanceTx(tx, &refund); err != nil {
 		return err
 	}
-	if refund.FrozenQuota < 0 || refund.FrozenQuota > refund.RefundQuota {
+	if !refund.hasValidRefundHold() {
 		return ErrTicketRefundQuotaInvalid
 	}
 	if refund.FrozenQuota > 0 {

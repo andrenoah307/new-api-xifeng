@@ -185,7 +185,8 @@ func TestReconciliationClassifiesLegacyDiscountWithoutChangingWallet(t *testing.
 	require.Error(t, err)
 	confirmed, err := ConfirmRefundFinance(f.user.Id, ticket.Id, 500, quote.QuoteToken)
 	require.NoError(t, err)
-	assert.Equal(t, 500, confirmed.FrozenQuota)
+	assert.Equal(t, 625, confirmed.FrozenQuota)
+	assert.Equal(t, int64(125), confirmed.RefundGiftQuota)
 	_, err = SubmitFinanceReconciliation(ticket.Id, f.admin.Id, uuid.NewString(), report.Revision, plan)
 	require.Error(t, err)
 }

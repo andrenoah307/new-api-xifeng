@@ -6165,6 +6165,13 @@
     "a reconciliation is awaiting independent review": "Сверка уже ожидает независимой проверки",
     "Awaiting independent accounting review": "Ожидается независимая проверка учёта",
     "Refund amount is ready for your confirmation": "Сумма возврата готова: обновите и подтвердите",
-    "Superseded": "Заменено"
+    "Superseded": "Заменено",
+    "Earlier order gift expired": "Бонусы предыдущих заказов аннулированы",
+    "Gift balance after refund (original value, CNY)": "Бонусный остаток после возврата (исходная стоимость, CNY)",
+    "Gift credit is removed from the wallet, not deducted again from the cash refund.": "Бонусные кредиты списываются с баланса, без повторного удержания из денежного возврата.",
+    "Gift credit reclaimed (original value, CNY)": "Возврат бонусных кредитов (исходная стоимость, CNY)",
+    "Gift recovery reason": "Причина списания бонусов",
+    "Paid balance after refund (CNY)": "Оплаченный остаток после возврата (CNY)",
+    "Proportional refund recovery": "Списание пропорционально возврату"
   }
 }

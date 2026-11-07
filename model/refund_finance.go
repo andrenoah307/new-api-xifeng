@@ -20,39 +20,49 @@ var ErrRefundSettlementUnconfirmed = errors.New("refund is waiting for settlemen
 const RefundSettlementWaiting = "waiting"
 
 type RefundOrderAllocation struct {
-	ID                    int    `json:"id"`
-	RefundTicketID        int    `json:"refund_ticket_id" gorm:"uniqueIndex:idx_refund_order;index"`
-	TopUpID               int    `json:"top_up_id" gorm:"uniqueIndex:idx_refund_order;index"`
-	UserID                int    `json:"user_id" gorm:"index"`
-	TradeNo               string `json:"trade_no" gorm:"size:255"`
-	InvoiceTicketID       int    `json:"invoice_ticket_id"`
-	OriginalQuota         int64  `json:"original_quota" gorm:"type:bigint"`
-	QuotaPerUnit          string `json:"quota_per_unit" gorm:"size:32"`
-	UsedQuota             int64  `json:"used_quota" gorm:"type:bigint"`
-	RefundableQuota       int64  `json:"refundable_quota" gorm:"type:bigint"`
-	RefundQuota           int64  `json:"refund_quota" gorm:"type:bigint"`
-	OriginalPaidCents     int64  `json:"original_paid_cents" gorm:"type:bigint"`
-	OriginalTaxCents      int64  `json:"original_tax_cents" gorm:"type:bigint"`
-	RefundCents           int64  `json:"refund_cents" gorm:"type:bigint"`
-	RefundTaxCents        int64  `json:"refund_tax_cents" gorm:"type:bigint"`
-	RemainingInvoiceCents int64  `json:"remaining_invoice_cents" gorm:"type:bigint"`
-	UsedInvoiceCents      int64  `json:"used_invoice_cents" gorm:"type:bigint"`
-	Status                string `json:"status" gorm:"size:16;index"`
+	GiftRecoveryReason      string `json:"gift_recovery_reason" gorm:"size:32"`
+	RemainingPaidValueCents int64  `json:"remaining_paid_value_cents" gorm:"type:bigint"`
+	RemainingGiftValueCents int64  `json:"remaining_gift_value_cents" gorm:"type:bigint"`
+	RefundGiftValueCents    int64  `json:"refund_gift_value_cents" gorm:"type:bigint"`
+	GiftPolicyVersion       int    `json:"gift_policy_version"`
+	OriginalGiftQuota       int64  `json:"original_gift_quota" gorm:"type:bigint"`
+	RefundGiftQuota         int64  `json:"refund_gift_quota" gorm:"type:bigint"`
+	ID                      int    `json:"id"`
+	RefundTicketID          int    `json:"refund_ticket_id" gorm:"uniqueIndex:idx_refund_order;index"`
+	TopUpID                 int    `json:"top_up_id" gorm:"uniqueIndex:idx_refund_order;index"`
+	UserID                  int    `json:"user_id" gorm:"index"`
+	TradeNo                 string `json:"trade_no" gorm:"size:255"`
+	InvoiceTicketID         int    `json:"invoice_ticket_id"`
+	OriginalQuota           int64  `json:"original_quota" gorm:"type:bigint"`
+	QuotaPerUnit            string `json:"quota_per_unit" gorm:"size:32"`
+	UsedQuota               int64  `json:"used_quota" gorm:"type:bigint"`
+	RefundableQuota         int64  `json:"refundable_quota" gorm:"type:bigint"`
+	RefundQuota             int64  `json:"refund_quota" gorm:"type:bigint"`
+	OriginalPaidCents       int64  `json:"original_paid_cents" gorm:"type:bigint"`
+	OriginalTaxCents        int64  `json:"original_tax_cents" gorm:"type:bigint"`
+	RefundCents             int64  `json:"refund_cents" gorm:"type:bigint"`
+	RefundTaxCents          int64  `json:"refund_tax_cents" gorm:"type:bigint"`
+	RemainingInvoiceCents   int64  `json:"remaining_invoice_cents" gorm:"type:bigint"`
+	UsedInvoiceCents        int64  `json:"used_invoice_cents" gorm:"type:bigint"`
+	Status                  string `json:"status" gorm:"size:16;index"`
 }
 
 type RefundFinanceDetail struct {
-	RefundOrderType    string                    `json:"refund_order_type,omitempty"`
-	WorkflowState      string                    `json:"workflow_state,omitempty"`
-	Blockers           []FinanceBlocker          `json:"blockers"`
-	SourceRevision     string                    `json:"source_revision,omitempty"`
-	SettlementStatus   string                    `json:"settlement_status,omitempty"`
-	WaitingReason      string                    `json:"waiting_reason,omitempty"`
-	QuoteToken         string                    `json:"quote_token,omitempty"`
-	Version            int                       `json:"version"`
-	RefundCashCents    int64                     `json:"refund_cash_cents"`
-	RefundTaxCents     int64                     `json:"refund_tax_cents"`
-	Allocations        []RefundOrderAllocation   `json:"allocations"`
-	InvoiceCorrections []RefundInvoiceCorrection `json:"invoice_corrections"`
+	RefundGiftValueCents int64                     `json:"refund_gift_value_cents"`
+	CalculationVersion   int                       `json:"calculation_version,omitempty"`
+	RefundGiftQuota      int64                     `json:"refund_gift_quota"`
+	RefundOrderType      string                    `json:"refund_order_type,omitempty"`
+	WorkflowState        string                    `json:"workflow_state,omitempty"`
+	Blockers             []FinanceBlocker          `json:"blockers"`
+	SourceRevision       string                    `json:"source_revision,omitempty"`
+	SettlementStatus     string                    `json:"settlement_status,omitempty"`
+	WaitingReason        string                    `json:"waiting_reason,omitempty"`
+	QuoteToken           string                    `json:"quote_token,omitempty"`
+	Version              int                       `json:"version"`
+	RefundCashCents      int64                     `json:"refund_cash_cents"`
+	RefundTaxCents       int64                     `json:"refund_tax_cents"`
+	Allocations          []RefundOrderAllocation   `json:"allocations"`
+	InvoiceCorrections   []RefundInvoiceCorrection `json:"invoice_corrections"`
 }
 
 // Cumulative rounding makes repeated partial refunds conserve the original cents.
@@ -104,9 +114,14 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 		return nil, ErrRefundFinanceReview
 	}
 	prior := map[int]RefundOrderAllocation{}
+	var recoveredGift int64
 	for _, row := range previous {
+		if row.RefundGiftQuota < 0 || row.RefundGiftQuota > math.MaxInt64-recoveredGift {
+			return nil, ErrRefundFinanceReview
+		}
+		recoveredGift += row.RefundGiftQuota
 		old := prior[row.TopUpID]
-		if row.RefundQuota <= 0 || row.RefundCents < 0 || row.RefundTaxCents < 0 || old.RefundQuota > math.MaxInt64-row.RefundQuota || old.RefundCents > math.MaxInt64-row.RefundCents || old.RefundTaxCents > math.MaxInt64-row.RefundTaxCents {
+		if row.RefundQuota < 0 || (row.RefundQuota == 0 && (row.RefundGiftQuota == 0 || row.RefundCents != 0 || row.RefundTaxCents != 0)) || row.RefundCents < 0 || row.RefundTaxCents < 0 || old.RefundQuota > math.MaxInt64-row.RefundQuota || old.RefundCents > math.MaxInt64-row.RefundCents || old.RefundTaxCents > math.MaxInt64-row.RefundTaxCents {
 			return nil, ErrRefundFinanceReview
 		}
 		old.RefundQuota += row.RefundQuota
@@ -149,6 +164,10 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	if bonus < 0 || balanceTax < 0 {
 		return nil, ErrRefundFinanceReview
 	}
+	if recoveredGift > bonus {
+		return nil, ErrRefundFinanceReview
+	}
+	bonus -= recoveredGift
 	known := decimal.NewFromInt(totalRemaining).Add(decimal.NewFromInt(bonus)).Add(decimal.NewFromInt(max(int64(0), int64(owner.AffHistoryQuota)-int64(owner.AffQuota))))
 	accounted := decimal.NewFromInt(int64(owner.Quota)).Add(decimal.NewFromInt(int64(owner.UsedQuota))).Add(decimal.NewFromInt(balanceTax))
 	if !known.Equal(accounted) {
@@ -171,18 +190,20 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 			invoiceByOrder[id] = invoice
 		}
 	}
-	result := &RefundFinanceDetail{Version: 1, Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
+	result := &RefundFinanceDetail{Version: 1, CalculationVersion: 2, Allocations: []RefundOrderAllocation{}, InvoiceCorrections: []RefundInvoiceCorrection{}}
+	lots, err := refundCreditLotsTx(tx, userID, orders)
+	if err != nil {
+		return nil, err
+	}
 	config, err := GetInvoiceTaxConfig(tx)
 	if err != nil {
 		return nil, err
 	}
-	used, requested := totalRemaining-int64(cap), int64(quota)
+	requested := int64(quota)
 	for _, order := range orders {
 		old := prior[order.Id]
-		remaining := order.QuotaGranted - old.RefundQuota
-		consumed := min(used, remaining)
-		used -= consumed
-		available := remaining - consumed
+		lot := lots[order.Id]
+		consumed, available := lot.UsedPaid, lot.PaidRemaining
 		take := min(requested, available)
 		if take == 0 {
 			continue
@@ -223,6 +244,7 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 		}
 		row := RefundOrderAllocation{TopUpID: order.Id, UserID: userID, TradeNo: order.TradeNo, InvoiceTicketID: invoice.TicketId, OriginalQuota: order.QuotaGranted, UsedQuota: consumed, RefundableQuota: available, RefundQuota: take, OriginalPaidCents: order.PaymentTotalCents, OriginalTaxCents: order.InvoiceTaxCents, RefundCents: cash, RefundTaxCents: tax, RemainingInvoiceCents: order.PaymentTotalCents - old.RefundCents - cash, UsedInvoiceCents: refundProportionalCents(order.PaymentTotalCents, consumed, order.QuotaGranted), Status: "reserved"}
 		row.QuotaPerUnit = decimal.NewFromFloat(common.QuotaPerUnit).String()
+		row.RemainingPaidValueCents = refundProportionalCents(order.PaymentTotalCents, old.RefundQuota+available, order.QuotaGranted) - old.RefundCents - cash
 		result.Allocations = append(result.Allocations, row)
 		result.RefundCashCents += cash
 		result.RefundTaxCents += tax
@@ -233,6 +255,9 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	}
 	if requested != 0 {
 		return nil, ErrTicketRefundQuotaExceed
+	}
+	if err := applyRefundGiftRecovery(orders, lots, result); err != nil {
+		return nil, err
 	}
 	if result.RefundCashCents > 9007199254740991 {
 		return nil, ErrRefundFinanceReview
@@ -339,6 +364,11 @@ func ConfirmRefundFinance(userID, ticketID, quota int, token string) (*TicketRef
 			return ErrInvoiceTaxQuoteChanged
 		}
 		refund.RefundQuota, refund.FrozenQuota = quota, quota
+		if detail.RefundGiftQuota > int64(owner.Quota)-int64(quota) {
+			return ErrTicketRefundQuotaExceed
+		}
+		refund.RefundGiftQuota = detail.RefundGiftQuota
+		refund.FrozenQuota += int(detail.RefundGiftQuota)
 		refund.FinanceVersion, refund.RefundCashCents = 1, detail.RefundCashCents
 		for i := range detail.Allocations {
 			detail.Allocations[i].RefundTicketID = ticketID
@@ -349,15 +379,15 @@ func ConfirmRefundFinance(userID, ticketID, quota int, token string) (*TicketRef
 		if err := createRefundInvoiceCorrectionsTx(tx, &refund, detail.Allocations); err != nil {
 			return err
 		}
-		if err := applyRefundWalletDeltaTx(tx, userID, -quota); err != nil {
+		if err := applyRefundWalletDeltaTx(tx, userID, -refund.FrozenQuota); err != nil {
 			return err
 		}
 		refund.SettlementVerified = true
 		refund.SettlementQuote = token
-		if err := tx.Model(&refund).Updates(map[string]any{"refund_quota": quota, "frozen_quota": quota, "finance_version": 1, "refund_cash_cents": detail.RefundCashCents, "settlement_verified": true, "settlement_quote": token}).Error; err != nil {
+		if err := tx.Model(&refund).Updates(map[string]any{"refund_quota": quota, "refund_gift_quota": refund.RefundGiftQuota, "frozen_quota": refund.FrozenQuota, "finance_version": 1, "refund_cash_cents": detail.RefundCashCents, "settlement_verified": true, "settlement_quote": token}).Error; err != nil {
 			return err
 		}
-		if err := tx.Create(&TicketMessage{TicketId: ticketID, UserId: userID, Username: owner.Username, Role: owner.Role, Content: fmt.Sprintf("Refund amount confirmed: %d cents; frozen quota: %d", detail.RefundCashCents, quota), CreatedTime: common.GetTimestamp()}).Error; err != nil {
+		if err := tx.Create(&TicketMessage{TicketId: ticketID, UserId: userID, Username: owner.Username, Role: owner.Role, Content: fmt.Sprintf("Refund amount confirmed: %d cents; frozen quota: %d", detail.RefundCashCents, refund.FrozenQuota), CreatedTime: common.GetTimestamp()}).Error; err != nil {
 			return err
 		}
 		return AttachRefundFinance(tx, &refund)
@@ -392,6 +422,7 @@ func prepareRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params CreateRefu
 		return ErrInvoiceTaxQuoteChanged
 	}
 	refund.FinanceVersion, refund.RefundCashCents = 1, detail.RefundCashCents
+	refund.RefundGiftQuota = detail.RefundGiftQuota
 	for i := range detail.Allocations {
 		detail.Allocations[i].RefundTicketID = refund.TicketId
 	}
@@ -443,15 +474,19 @@ func finalizeRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params UpdateRef
 	if err := tx.Where("refund_ticket_id = ?", refund.TicketId).Find(&rows).Error; err != nil {
 		return err
 	}
-	var quota, cash int64
+	var quota, cash, gift int64
 	for _, row := range rows {
-		if row.Status != "reserved" || row.RefundQuota <= 0 || row.RefundCents < 0 || quota > math.MaxInt64-row.RefundQuota || cash > math.MaxInt64-row.RefundCents {
+		if row.RefundGiftQuota < 0 || row.RefundGiftQuota > math.MaxInt64-gift {
+			return ErrRefundFinanceReview
+		}
+		gift += row.RefundGiftQuota
+		if row.Status != "reserved" || row.RefundQuota < 0 || (row.RefundQuota == 0 && (row.RefundGiftQuota == 0 || row.RefundCents != 0 || row.RefundTaxCents != 0)) || row.RefundCents < 0 || quota > math.MaxInt64-row.RefundQuota || cash > math.MaxInt64-row.RefundCents {
 			return ErrRefundFinanceReview
 		}
 		quota += row.RefundQuota
 		cash += row.RefundCents
 	}
-	if len(rows) == 0 || quota != int64(refund.RefundQuota) || cash != refund.RefundCashCents {
+	if len(rows) == 0 || quota != int64(refund.RefundQuota) || cash != refund.RefundCashCents || gift != refund.RefundGiftQuota {
 		return ErrRefundFinanceReview
 	}
 	result := tx.Model(&RefundOrderAllocation{}).Where("refund_ticket_id = ? AND status = ?", refund.TicketId, "reserved").Update("status", "committed")
@@ -518,6 +553,8 @@ func AttachRefundFinance(tx *gorm.DB, refund *TicketRefund) error {
 	}
 	for _, row := range detail.Allocations {
 		detail.RefundTaxCents += row.RefundTaxCents
+		detail.RefundGiftQuota += row.RefundGiftQuota
+		detail.RefundGiftValueCents += row.RefundGiftValueCents
 	}
 	refund.Finance = detail
 	return nil

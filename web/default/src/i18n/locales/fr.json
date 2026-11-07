@@ -6165,6 +6165,13 @@
     "a reconciliation is awaiting independent review": "Un rapprochement attend une vérification indépendante",
     "Awaiting independent accounting review": "Vérification comptable indépendante en attente",
     "Refund amount is ready for your confirmation": "Montant du remboursement prêt : actualisez et confirmez",
-    "Superseded": "Remplacé"
+    "Superseded": "Remplacé",
+    "Earlier order gift expired": "Crédits offerts des commandes antérieures expirés",
+    "Gift balance after refund (original value, CNY)": "Solde offert après remboursement (valeur initiale, CNY)",
+    "Gift credit is removed from the wallet, not deducted again from the cash refund.": "Les crédits offerts sont retirés du solde, sans nouvelle déduction du remboursement en espèces.",
+    "Gift credit reclaimed (original value, CNY)": "Crédits offerts repris (valeur initiale, CNY)",
+    "Gift recovery reason": "Motif de reprise des crédits offerts",
+    "Paid balance after refund (CNY)": "Solde payé après remboursement (CNY)",
+    "Proportional refund recovery": "Reprise proportionnelle au remboursement"
   }
 }

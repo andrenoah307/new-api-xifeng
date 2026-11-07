@@ -6165,6 +6165,13 @@
     "a reconciliation is awaiting independent review": "a reconciliation is awaiting independent review",
     "Awaiting independent accounting review": "Awaiting independent accounting review",
     "Refund amount is ready for your confirmation": "Refund amount is ready for your confirmation",
-    "Superseded": "Superseded"
+    "Superseded": "Superseded",
+    "Earlier order gift expired": "Earlier order gift expired",
+    "Gift balance after refund (original value, CNY)": "Gift balance after refund (original value, CNY)",
+    "Gift credit is removed from the wallet, not deducted again from the cash refund.": "Gift credit is removed from the wallet, not deducted again from the cash refund.",
+    "Gift credit reclaimed (original value, CNY)": "Gift credit reclaimed (original value, CNY)",
+    "Gift recovery reason": "Gift recovery reason",
+    "Paid balance after refund (CNY)": "Paid balance after refund (CNY)",
+    "Proportional refund recovery": "Proportional refund recovery"
   }
 }

@@ -6165,6 +6165,13 @@
     "a reconciliation is awaiting independent review": "会計照合は独立した確認待ちです",
     "Awaiting independent accounting review": "独立した会計確認待ち",
     "Refund amount is ready for your confirmation": "返金額を確認できます。更新して確定してください",
-    "Superseded": "置き換え済み"
+    "Superseded": "置き換え済み",
+    "Earlier order gift expired": "以前の注文の特典が失効",
+    "Gift balance after refund (original value, CNY)": "返金後の特典残高（注文時の換算額、CNY）",
+    "Gift credit is removed from the wallet, not deducted again from the cash refund.": "特典残高はアカウントから回収し、現金返金額から重ねて差し引きません。",
+    "Gift credit reclaimed (original value, CNY)": "回収する特典残高（注文時の換算額、CNY）",
+    "Gift recovery reason": "特典回収の理由",
+    "Paid balance after refund (CNY)": "返金後の有償残高（CNY）",
+    "Proportional refund recovery": "返金割合に応じた回収"
   }
 }

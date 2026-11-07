@@ -6165,6 +6165,13 @@
     "a reconciliation is awaiting independent review": "Đã có đối soát đang chờ kiểm tra độc lập",
     "Awaiting independent accounting review": "Chờ kiểm tra sổ sách độc lập",
     "Refund amount is ready for your confirmation": "Số tiền hoàn đã sẵn sàng, vui lòng tải lại và xác nhận",
-    "Superseded": "Đã được thay thế"
+    "Superseded": "Đã được thay thế",
+    "Earlier order gift expired": "Tín dụng tặng của đơn trước hết hiệu lực",
+    "Gift balance after refund (original value, CNY)": "Số dư tặng sau hoàn tiền (giá trị gốc, CNY)",
+    "Gift credit is removed from the wallet, not deducted again from the cash refund.": "Tín dụng tặng được thu hồi từ số dư, không bị trừ thêm vào tiền hoàn.",
+    "Gift credit reclaimed (original value, CNY)": "Thu hồi tín dụng tặng (giá trị gốc, CNY)",
+    "Gift recovery reason": "Lý do thu hồi tín dụng tặng",
+    "Paid balance after refund (CNY)": "Số dư đã trả sau hoàn tiền (CNY)",
+    "Proportional refund recovery": "Thu hồi theo tỷ lệ hoàn tiền"
   }
 }

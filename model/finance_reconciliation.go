@@ -56,6 +56,7 @@ type FinanceBlocker struct {
 }
 
 type FinanceSourceOrder struct {
+	GiftQuota       int64   `json:"gift_quota"`
 	ID              int     `json:"id"`
 	Source          string  `json:"source"`
 	CheckoutVersion int     `json:"checkout_version"`
@@ -105,6 +106,7 @@ func applyFinancePaymentEvidence(orders []TopUp, plan FinanceReconciliationPlan)
 		order.CheckoutVersion, order.PaymentTotalCents = 1, entry.PaidCents
 		order.InvoiceTaxCents, order.InvoiceNetCents = entry.TaxCents, entry.PaidCents-entry.TaxCents
 		order.QuotaGranted = entry.PaidQuota
+		order.RefundGiftQuota = entry.BonusQuota
 		extra += entry.BonusQuota
 	}
 	return extra, nil
@@ -135,6 +137,12 @@ func loadRefundPaymentSources(tx *gorm.DB, userID int) ([]TopUp, int64, error) {
 		bonus += additional
 	}
 	paid := make([]TopUp, 0, len(orders))
+	gifts := map[string]TopUp{}
+	for _, order := range orders {
+		if order.Source == "discount_bonus" {
+			gifts[order.TradeNo] = order
+		}
+	}
 	for _, order := range orders {
 		if order.Source == "discount_bonus" {
 			if order.QuotaGranted < 0 || order.QuotaGranted > math.MaxInt64-bonus {
@@ -142,6 +150,12 @@ func loadRefundPaymentSources(tx *gorm.DB, userID int) ([]TopUp, int64, error) {
 			}
 			bonus += order.QuotaGranted
 		} else {
+			if gift, exists := gifts[order.TradeNo+"_bonus"]; exists {
+				if gift.DiscountCodeId != order.DiscountCodeId || gift.QuotaGranted < 0 || order.RefundGiftQuota != 0 {
+					return nil, 0, ErrFinanceEvidence
+				}
+				order.RefundGiftQuota = gift.QuotaGranted
+			}
 			paid = append(paid, order)
 		}
 	}
@@ -174,7 +188,7 @@ func refundReconciliationReportTx(tx *gorm.DB, refund TicketRefund) (*RefundReco
 			return nil, ErrFinanceEvidence
 		}
 		report.PaidQuota += order.QuotaGranted
-		report.Orders = append(report.Orders, FinanceSourceOrder{ID: order.Id, Source: order.Source, CheckoutVersion: order.CheckoutVersion, Money: order.Money, PaidCents: order.PaymentTotalCents, TaxCents: order.InvoiceTaxCents, Quota: order.QuotaGranted, DiscountRate: order.DiscountRate})
+		report.Orders = append(report.Orders, FinanceSourceOrder{ID: order.Id, Source: order.Source, CheckoutVersion: order.CheckoutVersion, Money: order.Money, PaidCents: order.PaymentTotalCents, TaxCents: order.InvoiceTaxCents, Quota: order.QuotaGranted, GiftQuota: order.RefundGiftQuota, DiscountRate: order.DiscountRate})
 		if order.CheckoutVersion != 1 {
 			report.Blockers = append(report.Blockers, FinanceBlocker{Code: "legacy_payment_snapshot_missing", OrderID: order.Id})
 		}
@@ -189,7 +203,7 @@ func refundReconciliationReportTx(tx *gorm.DB, refund TicketRefund) (*RefundReco
 	known := decimal.NewFromInt(report.PaidQuota).Add(decimal.NewFromInt(bonus)).Add(decimal.NewFromInt(max(0, int64(owner.AffHistoryQuota)-int64(owner.AffQuota))))
 	for _, row := range refunds {
 		if row.RefundStatus == RefundStatusRefunded {
-			known = known.Sub(decimal.NewFromInt(int64(row.RefundQuota)))
+			known = known.Sub(decimal.NewFromInt(int64(row.RefundQuota))).Sub(decimal.NewFromInt(row.RefundGiftQuota))
 			if row.FinanceVersion == 0 {
 				report.Blockers = append(report.Blockers, FinanceBlocker{Code: "legacy_refund_unallocated"})
 			}

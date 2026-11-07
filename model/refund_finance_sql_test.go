@@ -163,6 +163,10 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("invoice_correction_phases", TestIndependentInvoiceCorrectionTracksRedAndReplacementSeparately)
 			t.Run("payout_uncertainty", TestRefundPayoutUnknownOutcomeCannotBeCancelledOrPaidTwice)
 			t.Run("proportional_refunds", TestPartialRefundsConserveActualCashFeesAndCommission)
+			t.Run("gift_hold_and_release", TestRefundCreditLotCashFirstAndCancellation)
+			t.Run("gift_fifo_expiry", TestRefundCreditLotTwoDiscountOrdersExpireEarlierGift)
+			t.Run("gift_rounding", TestRefundCreditLotPartialPayoutConservesGift)
+			t.Run("gift_legacy_upgrade", TestRefundGiftUpgradePreservesExistingAllocations)
 		})
 	}
 }
