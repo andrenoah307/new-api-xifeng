@@ -6153,6 +6153,9 @@
     "Source evidence (optional)": "Justificatif de provenance (facultatif)",
     "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Uniquement les frais de facturation déjà encaissés, hors montant de recharge et consommation.",
     "Collected invoice service fee (CNY)": "Frais de facturation encaissés (CNY)",
-    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "L’éligibilité à une facture ordinaire gratuite ne résout pas les écarts comptables de remboursement et ne modifie pas les frais déjà encaissés."
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "L’éligibilité à une facture ordinaire gratuite ne résout pas les écarts comptables de remboursement et ne modifie pas les frais déjà encaissés.",
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Les cadeaux supplémentaires sont des crédits documentés hors commandes de recharge, par exemple un crédit manuel. Ne saisissez pas l’écart inexpliqué uniquement pour équilibrer le compte.",
+    "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "Le bonus inclus est un cadeau documenté dans cette commande, pas la différence entre solde converti et paiement réel. Conservez zéro sans bonus confirmé.",
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "Ces trois ajustements valent zéro si laissés vides. Les soldes convertis ne sont pas des encaissements."
   }
 }

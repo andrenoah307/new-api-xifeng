@@ -6153,6 +6153,9 @@
     "Source evidence (optional)": "資金來源憑證（選填）",
     "Already collected invoice service fees only; excludes recharge principal and usage charges.": "僅指已收取的開票服務費，不是充值實付總額，也不是已消費金額。",
     "Collected invoice service fee (CNY)": "已收開票服務費（￥）",
-    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "免費普票資格不消除退款帳務差額，也不改變歷史已收取的開票服務費。"
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "免費普票資格不消除退款帳務差額，也不改變歷史已收取的開票服務費。",
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "額外贈送指充值訂單之外另行發放且有紀錄的餘額，例如後台手動贈送。不能為了對平帳目而直接填入未解釋差額。",
+    "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "內含贈送指本訂單中有紀錄的贈送，不是折合餘額減實付的差額。未確認有此類贈送時保持0。",
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "這三個調整項留空按0處理。折合餘額不等於實收現金。"
   }
 }

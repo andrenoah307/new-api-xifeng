@@ -6153,6 +6153,9 @@
     "Source evidence (optional)": "Chứng từ nguồn tiền (không bắt buộc)",
     "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Chỉ là phí xuất hóa đơn đã thu, không phải tổng thực trả khi nạp tiền hay số tiền đã sử dụng.",
     "Collected invoice service fee (CNY)": "Phí xuất hóa đơn đã thu (CNY)",
-    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Điều kiện xuất hóa đơn thường miễn phí không xóa chênh lệch đối soát hoàn tiền hoặc thay đổi phí đã thu trước đây."
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Điều kiện xuất hóa đơn thường miễn phí không xóa chênh lệch đối soát hoàn tiền hoặc thay đổi phí đã thu trước đây.",
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Khoản tặng thêm là số dư có ghi nhận được cấp ngoài các đơn nạp tiền, chẳng hạn tặng thủ công. Không nhập chênh lệch chưa rõ chỉ để cân bằng sổ sách.",
+    "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "Phần tặng kèm là khoản tặng có ghi nhận trong đơn này, không phải chênh lệch giữa số dư quy đổi và thực trả. Giữ 0 nếu chưa xác nhận khoản tặng.",
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "Ba khoản điều chỉnh này được tính là 0 nếu để trống. Số dư quy đổi không phải tiền thực thu."
   }
 }

@@ -419,15 +419,18 @@ function ReconciliationEditor({
     bonus_quota: '0'
   })));
   const [grant, setGrant] = useState('0');
-  const parsedPayments = payments.map(row => ({
-    top_up_id: row.top_up_id,
-    paid_cents: cashMoney.parse(row.paid_cents),
-    tax_cents: cashMoney.parse(row.tax_cents),
-    paid_quota: row.total_quota - (money.parse(row.bonus_quota) ?? row.total_quota),
-    bonus_quota: money.parse(row.bonus_quota)
-  }));
-  const parsedGrant = money.parse(grant);
-  const amountsValid = money.valid && parsedGrant !== null && parsedPayments.every(row => row.paid_cents !== null && row.tax_cents !== null && row.paid_quota > 0 && row.tax_cents < row.paid_cents && row.bonus_quota !== null);
+  const parsedPayments = payments.map(row => {
+    const bonus = money.parse(row.bonus_quota || '0');
+    return {
+      top_up_id: row.top_up_id,
+      paid_cents: cashMoney.parse(row.paid_cents),
+      tax_cents: cashMoney.parse(row.tax_cents || '0'),
+      paid_quota: bonus === null ? null : row.total_quota - bonus,
+      bonus_quota: bonus
+    };
+  });
+  const parsedGrant = money.parse(grant || '0');
+  const amountsValid = money.valid && parsedGrant !== null && parsedPayments.every(row => row.paid_cents !== null && row.tax_cents !== null && row.paid_quota !== null && row.paid_quota > 0 && row.tax_cents < row.paid_cents && row.bonus_quota !== null);
   const [evidence, setEvidence] = useState('');
   const [reviewReason, setReviewReason] = useState('');
   const [key, setKey] = useState(() => crypto.randomUUID());
@@ -476,33 +479,39 @@ function ReconciliationEditor({
               </p>
               <p className='sm:col-span-2'>
                 {t('Purchased credit value (CNY)')}:{' '}
-                {money.format(parsedPayments[index].paid_quota)}
+                {money.format(parsedPayments[index].paid_quota ?? '-')}
               </p>
-              {['tax_cents', 'bonus_quota'].map(field => <label key={field} className='space-y-1'>
+              {['tax_cents', 'bonus_quota'].map(field => <label key={field} className='flex min-w-0 flex-col justify-end gap-1'>
                   <span>
                     {t({
               tax_cents: 'Collected invoice service fee (CNY)',
               bonus_quota: 'Included bonus value (CNY)'
             }[field])}
                   </span>
-                  {field === 'tax_cents' && <p>
-                      {t('Already collected invoice service fees only; excludes recharge principal and usage charges.')}
-                    </p>}
-                  <input className={inputClass} type='number' min={0} step='any' value={row[field]} onChange={event => setPayments(rows => rows.map((entry, i) => i === index ? {
+                  <input className={`${inputClass} h-10`} type='number' min={0} step='any' placeholder='0' value={row[field]} onChange={event => setPayments(rows => rows.map((entry, i) => i === index ? {
             ...entry,
             [field]: event.target.value
           } : entry))} />
                 </label>)}
+              <p className='sm:col-span-2'>
+                {t('Already collected invoice service fees only; excludes recharge principal and usage charges.')}
+              </p>
+              <p className='sm:col-span-2'>
+                {t('Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.')}
+              </p>
             </div>)}
           <p>
             {t('Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.')}
           </p>
+          <p>
+            {t('These three adjustments default to zero when blank. Converted balances are not cash receipts.')}
+          </p>
           <label className='block space-y-1'>
             <span>{t('Verified additional noncash value (CNY)')}</span>
-            <input className={inputClass} type='number' min={0} step='any' value={grant} onChange={event => setGrant(event.target.value)} />
+            <input className={inputClass} type='number' min={0} step='any' placeholder='0' value={grant} onChange={event => setGrant(event.target.value)} />
           </label>
           <p>
-            {t('Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.')}
+            {t('Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.')}
           </p>
           <label className='block space-y-1'>
             <span>{t('Source evidence (optional)')}</span>
