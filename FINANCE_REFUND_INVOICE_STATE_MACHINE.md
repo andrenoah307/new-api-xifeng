@@ -5,6 +5,19 @@ deploying code does not approve or repair historical financial records.
 
 ## Actual Payment
 
+- Service-fee and included-bonus inputs share aligned rows; explanations sit
+  below the paired inputs. Empty adjustment inputs explicitly mean zero;
+  clearing the bonus input no longer falsely displays zero purchased balance.
+  Invalid numeric entries remain invalid, rather than silently becoming cash.
+- Included bonus is a documented gift within that recharge; additional gifts
+  are separate grants outside recorded recharge orders. Neither is computed by
+  subtracting original cash payment from today's converted balance. The latter
+  mixes historical payment with a current display valuation and is not a gift.
+- A read-only follow-up of test refund 11 found reconciliation proposal 1 already
+  submitted by user 3: paid 59940 cents, fee 0, purchased quota 333000000,
+  included bonus 0, additional grant 0. It awaits independent review; the agent
+  did not submit or approve it. The separate ledger mismatch remains unresolved.
+
 - The reconciliation field is labelled "Collected invoice service fee (CNY)":
   historical invoice service charges only, never gateway gross payment or usage.
   Free ordinary-invoice eligibility concerns issuing an invoice; it cannot prove

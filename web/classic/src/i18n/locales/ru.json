@@ -5618,6 +5618,9 @@
     "Consumed actual payment": "Израсходованный фактический платёж",
     "Collected invoice service fee (CNY)": "Полученная комиссия за выставление счёта (CNY)",
     "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Право на бесплатный обычный счёт не устраняет расхождения при возврате и не изменяет ранее полученные комиссии.",
-    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Только уже полученная комиссия за счёт, не общая сумма пополнения и не стоимость использования."
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Только уже полученная комиссия за счёт, не общая сумма пополнения и не стоимость использования.",
+    "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "Включённый бонус — подтверждённый подарок в этом заказе, а не разница между пересчитанным балансом и платежом. Без подтверждённого бонуса оставьте 0.",
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "Пустые поля этих трёх корректировок считаются нулевыми. Пересчитанный баланс не является полученными деньгами.",
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Дополнительные подарки — отдельные подтверждённые начисления вне заказов пополнения, например ручной бонус. Не вводите необъяснённую разницу только для выравнивания учёта."
   }
 }

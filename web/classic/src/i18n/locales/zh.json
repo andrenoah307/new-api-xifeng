@@ -3467,6 +3467,9 @@
     "Consumed actual payment": "已消费抵扣实付",
     "Collected invoice service fee (CNY)": "已收开票服务费（￥）",
     "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "免费普票资格不消除退款账务差额，也不改变历史已收取的开票服务费。",
-    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "仅指已收取的开票服务费，不是充值实付总额，也不是已消费金额。"
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "仅指已收取的开票服务费，不是充值实付总额，也不是已消费金额。",
+    "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "内含赠送指本订单中有记录的赠送，不是折合余额减实付的差额。未确认有此类赠送时保持0。",
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "这三个调整项留空按0处理。折合余额不等于实收现金。",
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "额外赠送指充值订单之外另行发放且有记录的余额，例如后台手动赠送。不能为了对平账目而直接填入未解释差额。"
   }
 }

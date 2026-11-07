@@ -5564,6 +5564,9 @@
     "Consumed actual payment": "消費済み実支払額",
     "Collected invoice service fee (CNY)": "受領済み請求書発行手数料（人民元）",
     "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "普通請求書の無料発行資格は返金会計の差額を解消せず、過去に受領した発行手数料も変更しません。",
-    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "受領済みの請求書発行手数料のみです。チャージの実支払総額や消費額ではありません。"
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "受領済みの請求書発行手数料のみです。チャージの実支払総額や消費額ではありません。",
+    "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "内含特典はこの注文に記録された付与分です。換算残高と実支払額の差ではありません。確認できた特典がなければ0のままにします。",
+    "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "この3つの調整項目は空欄なら0です。換算残高は現金の入金額ではありません。",
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "追加特典はチャージ注文とは別に記録された付与残高（手動付与など）です。帳尻を合わせるために不明差額を入力しないでください。"
   }
 }
