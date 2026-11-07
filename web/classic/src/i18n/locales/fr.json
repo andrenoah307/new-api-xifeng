@@ -5600,6 +5600,11 @@
     "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Uniquement les frais de facturation déjà encaissés, hors montant de recharge et consommation.",
     "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "Le bonus inclus est un cadeau documenté dans cette commande, pas la différence entre solde converti et paiement réel. Conservez zéro sans bonus confirmé.",
     "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "Ces trois ajustements valent zéro si laissés vides. Les soldes convertis ne sont pas des encaissements.",
-    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Les cadeaux supplémentaires sont des crédits documentés hors commandes de recharge, par exemple un crédit manuel. Ne saisissez pas l’écart inexpliqué uniquement pour équilibrer le compte."
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Les cadeaux supplémentaires sont des crédits documentés hors commandes de recharge, par exemple un crédit manuel. Ne saisissez pas l’écart inexpliqué uniquement pour équilibrer le compte.",
+    "Awaiting independent accounting review": "Vérification comptable indépendante en attente",
+    "Superseded": "Remplacé",
+    "Refund amount is ready for your confirmation": "Montant du remboursement prêt : actualisez et confirmez",
+    "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "Proposition soumise, en attente d’un autre administrateur. Ne la soumettez pas à nouveau ; elle n’est pas encore approuvée.",
+    "a reconciliation is awaiting independent review": "Un rapprochement attend une vérification indépendante"
   }
 }

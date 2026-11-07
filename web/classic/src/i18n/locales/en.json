@@ -5826,6 +5826,11 @@
     "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Already collected invoice service fees only; excludes recharge principal and usage charges.",
     "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.",
     "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "These three adjustments default to zero when blank. Converted balances are not cash receipts.",
-    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account."
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.",
+    "Awaiting independent accounting review": "Awaiting independent accounting review",
+    "Superseded": "Superseded",
+    "Refund amount is ready for your confirmation": "Refund amount is ready for your confirmation",
+    "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.",
+    "a reconciliation is awaiting independent review": "a reconciliation is awaiting independent review"
   }
 }

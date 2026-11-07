@@ -5567,6 +5567,11 @@
     "Already collected invoice service fees only; excludes recharge principal and usage charges.": "受領済みの請求書発行手数料のみです。チャージの実支払総額や消費額ではありません。",
     "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "内含特典はこの注文に記録された付与分です。換算残高と実支払額の差ではありません。確認できた特典がなければ0のままにします。",
     "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "この3つの調整項目は空欄なら0です。換算残高は現金の入金額ではありません。",
-    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "追加特典はチャージ注文とは別に記録された付与残高（手動付与など）です。帳尻を合わせるために不明差額を入力しないでください。"
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "追加特典はチャージ注文とは別に記録された付与残高（手動付与など）です。帳尻を合わせるために不明差額を入力しないでください。",
+    "Awaiting independent accounting review": "独立した会計確認待ち",
+    "Superseded": "置き換え済み",
+    "Refund amount is ready for your confirmation": "返金額を確認できます。更新して確定してください",
+    "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "提出済みで別の管理者による確認待ちです。再提出しないでください。提出は承認を意味しません。",
+    "a reconciliation is awaiting independent review": "会計照合は独立した確認待ちです"
   }
 }

@@ -5579,6 +5579,11 @@
     "Already collected invoice service fees only; excludes recharge principal and usage charges.": "僅指已收取的開票服務費，不是充值實付總額，也不是已消費金額。",
     "Included bonus means a documented gift within this order, not the difference between converted balance and actual payment. Leave zero when no such gift is confirmed.": "內含贈送指本訂單中有紀錄的贈送，不是折合餘額減實付的差額。未確認有此類贈送時保持0。",
     "These three adjustments default to zero when blank. Converted balances are not cash receipts.": "這三個調整項留空按0處理。折合餘額不等於實收現金。",
-    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "額外贈送指充值訂單之外另行發放且有紀錄的餘額，例如後台手動贈送。不能為了對平帳目而直接填入未解釋差額。"
+    "Additional gifts are separate credits outside recorded recharge orders, such as a documented manual grant. Do not enter the unexplained difference merely to balance the account.": "額外贈送指充值訂單之外另行發放且有紀錄的餘額，例如後台手動贈送。不能為了對平帳目而直接填入未解釋差額。",
+    "Awaiting independent accounting review": "等待獨立帳務覆核",
+    "Superseded": "已被取代",
+    "Refund amount is ready for your confirmation": "退款金額已就緒，請重新整理並確認",
+    "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "已提交，等待另一位管理員覆核。請勿重複提交；提交不代表核驗通過。",
+    "a reconciliation is awaiting independent review": "已有帳務核對等待獨立覆核"
   }
 }

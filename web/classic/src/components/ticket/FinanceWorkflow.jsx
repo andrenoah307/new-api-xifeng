@@ -111,6 +111,8 @@ export function RefundPayoutPanel({
     </section>;
 }
 const phaseLabels = {
+  awaiting_review: 'Awaiting independent accounting review',
+  superseded: 'Superseded',
   documents_required: 'Original invoice evidence required',
   ready: 'Ready for correction',
   red_processing: 'Red invoice processing',
@@ -419,6 +421,7 @@ function ReconciliationEditor({
     bonus_quota: '0'
   })));
   const [grant, setGrant] = useState('0');
+  const pendingReview = report.reviews.some(review => review.status === 'submitted' && review.source_revision === report.revision);
   const parsedPayments = payments.map(row => {
     const bonus = money.parse(row.bonus_quota || '0');
     return {
@@ -465,7 +468,7 @@ function ReconciliationEditor({
             {blocker.order_id ? `#${blocker.order_id}` : ''}
           </li>)}
       </ul>
-      {report.stage !== 'reserved' && report.stage !== 'closed' && <fieldset disabled={busy || !money.valid} className='space-y-3'>
+      {report.stage !== 'reserved' && report.stage !== 'closed' && <fieldset disabled={busy || !money.valid || pendingReview} className='space-y-3'>
           {payments.map((row, index) => <div key={row.top_up_id} className='grid gap-2 border-b pb-3 sm:grid-cols-2'>
               <p className='sm:col-span-2'>
                 {t('Order number')} #{row.top_up_id}
@@ -517,7 +520,7 @@ function ReconciliationEditor({
             <span>{t('Source evidence (optional)')}</span>
             <textarea className={inputClass} value={evidence} onChange={event => setEvidence(event.target.value)} />
           </label>
-          <Button disabled={busy || !money.valid} onClick={() => {
+          <Button disabled={busy || !money.valid || pendingReview} onClick={() => {
         if (!amountsValid || parsedGrant === null || parsedGrant > 2147483647 || parsedGrant > 0 && BigInt(parsedGrant) > BigInt(report.difference)) {
           setError('Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.');
           return;
@@ -539,6 +542,9 @@ function ReconciliationEditor({
             {t('Submit for review')}
           </Button>
         </fieldset>}
+      {pendingReview && <p role='status'>
+          {t('A proposal is awaiting another administrator. Do not submit it again; submission is not approval.')}
+        </p>}
       {report.reviews.map(review => <section key={review.id} className='space-y-2 border-t pt-3'>
           <h4>
             #{review.id} · {t(phaseLabels[review.status] ?? review.status)}

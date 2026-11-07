@@ -5,6 +5,24 @@ deploying code does not approve or repair historical financial records.
 
 ## Actual Payment
 
+- Reconciliation submission is not approval. Under the user's wallet lock, an
+  identical pending proposal by the same actor/source revision returns its
+  existing record even with a new request key; a different proposal is blocked
+  until independent review. Approving one legacy duplicate supersedes other
+  pending records for that user/source revision, preserving their audit history.
+- Reconciliation records are internal audits, not public ticket replies. New
+  submissions/reviews no longer write public messages; the user ticket endpoint
+  filters legacy staff messages beginning with `Financial reconciliation #`.
+  Admin ticket views retain old audit messages. No database migration is needed.
+- Pending accounting review and ready-for-owner-confirmation now have distinct
+  refund status text. Approval only applies evidence; remaining ledger problems
+  still block a quote. After reconciliation and liabilities are clear, the owner
+  refreshes and confirms the quote; invoice correction and payout then proceed.
+- Read-only investigation found test refund 11 proposals 1 and 2 identical,
+  both submitted by actor 3 and neither reviewed. No test-site approval or
+  account correction was performed. Another administrator must review a
+  proposal; its zero additional grant does not resolve the separate difference.
+
 - Service-fee and included-bonus inputs share aligned rows; explanations sit
   below the paired inputs. Empty adjustment inputs explicitly mean zero;
   clearing the bonus input no longer falsely displays zero purchased balance.

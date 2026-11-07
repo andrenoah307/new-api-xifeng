@@ -263,6 +263,11 @@ export function RefundDetail({
 }: RefundDetailProps) {
   const { t } = useTranslation()
   const statusCfg = REFUND_STATUS_CONFIG[refund.refund_status]
+  const waitingLabels: Record<string, string> = {
+    financial_reconciliation: 'Financial reconciliation required',
+    awaiting_review: 'Awaiting independent accounting review',
+    awaiting_owner_confirmation: 'Refund amount is ready for your confirmation',
+  }
   const correctionsPending =
     !refund.settlement_verified ||
     (refund.finance_version === 1 &&
@@ -410,7 +415,8 @@ export function RefundDetail({
               label={t(
                 refund.refund_status === REFUND_STATUS.PENDING &&
                   !refund.settlement_verified
-                  ? 'Awaiting settlement verification'
+                  ? (waitingLabels[refund.finance?.waiting_reason ?? ''] ??
+                      'Awaiting settlement verification')
                   : statusCfg.labelKey
               )}
               variant={statusCfg.variant}

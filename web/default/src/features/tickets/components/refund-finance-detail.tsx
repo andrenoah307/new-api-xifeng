@@ -53,6 +53,11 @@ export function RefundFinanceDetail(props: {
   const [busy, setBusy] = useState(false)
   const role = useAuthStore((state) => state.auth.user?.role)
   const staff = [3, 10, 100].includes(role ?? 0)
+  const waitingLabels: Record<string, string> = {
+    financial_reconciliation: 'Financial reconciliation required',
+    awaiting_review: 'Awaiting independent accounting review',
+    awaiting_owner_confirmation: 'Refund amount is ready for your confirmation',
+  }
   const [error, setError] = useState('')
   async function confirmAmount(confirm: boolean) {
     if (busy) return
@@ -113,9 +118,8 @@ export function RefundFinanceDetail(props: {
     return (
       <div className='space-y-3 text-sm' role='status'>
         {t(
-          (quote ?? props.finance).waiting_reason === 'financial_reconciliation'
-            ? 'Financial reconciliation required'
-            : 'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
+          waitingLabels[(quote ?? props.finance).waiting_reason ?? ''] ??
+            'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
         )}
         <p>
           {t(

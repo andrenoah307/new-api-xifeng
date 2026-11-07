@@ -15,6 +15,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestUserTicketHidesLegacyReconciliationAudits(t *testing.T) {
+	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketMessage{}, &model.TicketAttachment{}))
+	ticket := model.Ticket{UserId: 99, Type: model.TicketTypeGeneral, Status: model.TicketStatusOpen}
+	require.NoError(t, db.Create(&ticket).Error)
+	for _, content := range []string{"Public support reply", "Financial reconciliation #1 submitted; evidence: private receipt"} {
+		require.NoError(t, db.Create(&model.TicketMessage{TicketId: ticket.Id, UserId: 3, Role: common.RoleRootUser, Content: content}).Error)
+	}
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Set("id", 99)
+	c.Params = gin.Params{{Key: "id", Value: strconv.Itoa(ticket.Id)}}
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/ticket/"+strconv.Itoa(ticket.Id), nil)
+	GetUserTicket(c)
+	assert.Contains(t, response.Body.String(), "Public support reply")
+	assert.NotContains(t, response.Body.String(), "private receipt")
+	assert.NotContains(t, response.Body.String(), "Financial reconciliation")
+	adminResponse, err := buildTicketDetailResponse(&ticket, true)
+	require.NoError(t, err)
+	assert.Len(t, adminResponse["messages"], 2)
+}
+
 func TestRefundFinanceFreshRolesAndExport(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
 	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundOrderAllocation{}, &model.RefundInvoiceCorrection{}, &model.FinanceReconciliation{}, &model.RefundPayoutAttempt{}, &model.TopUp{}, &model.InvoiceTaxCharge{}, &model.RefundLiability{}))
