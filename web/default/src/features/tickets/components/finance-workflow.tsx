@@ -657,6 +657,13 @@ export function ReconciliationPanel({ ticketId }: { ticketId: number }) {
                 : (phaseLabels[query.data.stage] ?? query.data.stage)
             )}
           </p>
+          {query.data.stage === 'needs_reconciliation' && (
+            <p>
+              {t(
+                'Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.'
+              )}
+            </p>
+          )}
           {[10, 100].includes(role ?? 0) && (
             <details>
               <summary className='cursor-pointer'>
@@ -790,11 +797,18 @@ function ReconciliationEditor({
                   <span>
                     {t(
                       {
-                        tax_cents: 'Collected fee (CNY)',
+                        tax_cents: 'Collected invoice service fee (CNY)',
                         bonus_quota: 'Included bonus value (CNY)',
                       }[field]
                     )}
                   </span>
+                  {field === 'tax_cents' && (
+                    <p>
+                      {t(
+                        'Already collected invoice service fees only; excludes recharge principal and usage charges.'
+                      )}
+                    </p>
+                  )}
                   <input
                     className={inputClass}
                     type='number'
@@ -893,7 +907,8 @@ function ReconciliationEditor({
           {review.plan.payments.map((row) => (
             <p key={row.top_up_id}>
               #{row.top_up_id} · {t('Actual paid amount (CNY)')}:{' '}
-              {cashMoney.format(row.paid_cents)} · {t('Collected fee (CNY)')}:{' '}
+              {cashMoney.format(row.paid_cents)} ·{' '}
+              {t('Collected invoice service fee (CNY)')}:{' '}
               {cashMoney.format(row.tax_cents)} ·{' '}
               {t('Purchased credit value (CNY)')}:{' '}
               {money.format(row.paid_quota)} · {t('Included bonus value (CNY)')}
