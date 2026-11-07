@@ -22,6 +22,7 @@ func TestUpdateInvoiceTaxConfigReplacesFixedPolicyWithCustomSettings(t *testing.
 	for _, free := range []bool{true, false} {
 		config := model.InvoiceTaxConfig{PolicyEffectiveAt: model.InvoicePolicyEffectiveAt, ModuleEnabled: true, Enabled: true, Mode: "vat", OrdinaryRateBps: 350, SpecialRateBps: 725, LegacyInvoiceBefore: model.InvoicePolicyEffectiveAt + 7*86400, LegacyFreeOrdinaryEnabled: free}
 		config.Enabled = free
+		config.SeparateRefundInvoiceTypes = free
 		raw, err := common.Marshal(config)
 		require.NoError(t, err)
 		w := httptest.NewRecorder()

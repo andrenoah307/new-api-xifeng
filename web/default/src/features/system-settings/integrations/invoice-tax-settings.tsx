@@ -66,6 +66,23 @@ export function InvoiceTaxSettings() {
       <h3 className='font-medium'>{t('Invoice tax charges')}</h3>
       <div className='flex items-center gap-2'>
         <Switch
+          id='separate-refund-invoice-types'
+          checked={!!config.separate_refund_invoice_types}
+          onCheckedChange={(separate_refund_invoice_types) =>
+            setDraft({ ...config, separate_refund_invoice_types })
+          }
+        />
+        <Label htmlFor='separate-refund-invoice-types'>
+          {t('Separate refunds by invoice attributes')}
+        </Label>
+      </div>
+      <p className='text-muted-foreground text-sm'>
+        {t(
+          'Off by default: mixed refunds remain available. When enabled, orders without an invoice type (including none) are refunded separately from ordinary or special invoice orders, in payment order. Complete one refund before requesting the remainder. Confirmed refunds are unchanged.'
+        )}
+      </p>
+      <div className='flex items-center gap-2'>
+        <Switch
           id='finance-module-enabled'
           checked={!!config.module_enabled}
           onCheckedChange={(module_enabled) =>

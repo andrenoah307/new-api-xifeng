@@ -19,15 +19,16 @@ const InvoiceVATRateBps = 600
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
-	PolicyEffectiveAt         int64  `json:"policy_effective_at"`
-	ModuleEnabled             bool   `json:"module_enabled"`
-	LegacyTopUpsEnabled       bool   `json:"legacy_topups_enabled"`
-	LegacyInvoiceBefore       int64  `json:"legacy_invoice_before"`
-	LegacyFreeOrdinaryEnabled bool   `json:"legacy_free_ordinary_enabled"`
-	Enabled                   bool   `json:"enabled"`
-	Mode                      string `json:"mode"`
-	OrdinaryRateBps           int    `json:"ordinary_rate_bps"`
-	SpecialRateBps            int    `json:"special_rate_bps"`
+	SeparateRefundInvoiceTypes bool   `json:"separate_refund_invoice_types"`
+	PolicyEffectiveAt          int64  `json:"policy_effective_at"`
+	ModuleEnabled              bool   `json:"module_enabled"`
+	LegacyTopUpsEnabled        bool   `json:"legacy_topups_enabled"`
+	LegacyInvoiceBefore        int64  `json:"legacy_invoice_before"`
+	LegacyFreeOrdinaryEnabled  bool   `json:"legacy_free_ordinary_enabled"`
+	Enabled                    bool   `json:"enabled"`
+	Mode                       string `json:"mode"`
+	OrdinaryRateBps            int    `json:"ordinary_rate_bps"`
+	SpecialRateBps             int    `json:"special_rate_bps"`
 }
 
 type InvoiceTaxQuote struct {
