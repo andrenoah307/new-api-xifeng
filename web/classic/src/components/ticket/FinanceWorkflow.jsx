@@ -388,6 +388,9 @@ export function ReconciliationPanel({
           <p>
             {t(query.data.stage === 'needs_reconciliation' ? 'Historical accounting needs administrator review. Invoice and refund amounts are not yet available.' : phaseLabels[query.data.stage] ?? query.data.stage)}
           </p>
+          {query.data.stage === 'needs_reconciliation' && <p>
+              {t('Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.')}
+            </p>}
           {[10, 100].includes(role ?? 0) && <details>
               <summary className='cursor-pointer'>
                 {t('Administrator accounting repair')}
@@ -478,10 +481,13 @@ function ReconciliationEditor({
               {['tax_cents', 'bonus_quota'].map(field => <label key={field} className='space-y-1'>
                   <span>
                     {t({
-              tax_cents: 'Collected fee (CNY)',
+              tax_cents: 'Collected invoice service fee (CNY)',
               bonus_quota: 'Included bonus value (CNY)'
             }[field])}
                   </span>
+                  {field === 'tax_cents' && <p>
+                      {t('Already collected invoice service fees only; excludes recharge principal and usage charges.')}
+                    </p>}
                   <input className={inputClass} type='number' min={0} step='any' value={row[field]} onChange={event => setPayments(rows => rows.map((entry, i) => i === index ? {
             ...entry,
             [field]: event.target.value
@@ -537,7 +543,8 @@ function ReconciliationEditor({
           </p>
           {review.plan.payments.map(row => <p key={row.top_up_id}>
               #{row.top_up_id} · {t('Actual paid amount (CNY)')}:{' '}
-              {cashMoney.format(row.paid_cents)} · {t('Collected fee (CNY)')}:{' '}
+              {cashMoney.format(row.paid_cents)} ·{' '}
+              {t('Collected invoice service fee (CNY)')}:{' '}
               {cashMoney.format(row.tax_cents)} ·{' '}
               {t('Purchased credit value (CNY)')}:{' '}
               {money.format(row.paid_quota)} · {t('Included bonus value (CNY)')}

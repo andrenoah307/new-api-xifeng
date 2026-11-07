@@ -6150,6 +6150,9 @@
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.",
     "Source evidence (at least 10 characters)": "Source evidence (at least 10 characters)",
     "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.",
-    "Source evidence (optional)": "Source evidence (optional)"
+    "Source evidence (optional)": "Source evidence (optional)",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Already collected invoice service fees only; excludes recharge principal and usage charges.",
+    "Collected invoice service fee (CNY)": "Collected invoice service fee (CNY)",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees."
   }
 }

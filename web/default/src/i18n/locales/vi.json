@@ -6150,6 +6150,9 @@
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "Giá trị mua bằng tổng số dư được cộng trừ phần tặng kèm. Hoàn tiền dựa trên số tiền thực trả đã ghi nhận.",
     "Source evidence (at least 10 characters)": "Chứng từ nguồn tiền (ít nhất 10 ký tự)",
     "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Chênh lệch chưa rõ không mặc nhiên là quà tặng. Chỉ ghi nhận khoản tặng có chứng từ; phần còn lại tiếp tục chờ xác minh.",
-    "Source evidence (optional)": "Chứng từ nguồn tiền (không bắt buộc)"
+    "Source evidence (optional)": "Chứng từ nguồn tiền (không bắt buộc)",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Chỉ là phí xuất hóa đơn đã thu, không phải tổng thực trả khi nạp tiền hay số tiền đã sử dụng.",
+    "Collected invoice service fee (CNY)": "Phí xuất hóa đơn đã thu (CNY)",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "Điều kiện xuất hóa đơn thường miễn phí không xóa chênh lệch đối soát hoàn tiền hoặc thay đổi phí đã thu trước đây."
   }
 }

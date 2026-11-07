@@ -6150,6 +6150,9 @@
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "La valeur achetée est le total crédité moins le bonus inclus. Le remboursement utilise le paiement réel enregistré.",
     "Source evidence (at least 10 characters)": "Justificatifs de provenance (10 caractères minimum)",
     "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "Un écart inexpliqué ne constitue pas un bonus. Seuls les bonus documentés sont admissibles ; les autres écarts restent à examiner.",
-    "Source evidence (optional)": "Justificatif de provenance (facultatif)"
+    "Source evidence (optional)": "Justificatif de provenance (facultatif)",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "Uniquement les frais de facturation déjà encaissés, hors montant de recharge et consommation.",
+    "Collected invoice service fee (CNY)": "Frais de facturation encaissés (CNY)",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "L’éligibilité à une facture ordinaire gratuite ne résout pas les écarts comptables de remboursement et ne modifie pas les frais déjà encaissés."
   }
 }

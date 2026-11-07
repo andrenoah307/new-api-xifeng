@@ -6150,6 +6150,9 @@
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "購入分は入金残高合計から含まれる特典を差し引いた額です。現金返金は記録された実際の支払額に基づきます。",
     "Source evidence (at least 10 characters)": "資金の証拠（10文字以上）",
     "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "不明な差額は自動的に特典とはなりません。記録のある追加特典のみ入力でき、その他の差額は調査対象のままです。",
-    "Source evidence (optional)": "資金の証拠（任意）"
+    "Source evidence (optional)": "資金の証拠（任意）",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "受領済みの請求書発行手数料のみです。チャージの実支払総額や消費額ではありません。",
+    "Collected invoice service fee (CNY)": "受領済み請求書発行手数料（人民元）",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "普通請求書の無料発行資格は返金会計の差額を解消せず、過去に受領した発行手数料も変更しません。"
   }
 }

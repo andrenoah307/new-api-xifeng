@@ -6150,6 +6150,9 @@
     "Purchased value equals order total minus included bonus. Cash refunds use the recorded actual payment.": "購買金額＝到帳總額－內含贈送金額；現金退款以原訂單實付為準。",
     "Source evidence (at least 10 characters)": "資金來源憑證（至少10個字元）",
     "Unexplained differences are not automatically gifts. Only enter additional gifts supported by records; other differences remain pending investigation.": "未解釋差額不能直接認定為贈送。額外贈送金額須有紀錄支持，其餘差額繼續待查。",
-    "Source evidence (optional)": "資金來源憑證（選填）"
+    "Source evidence (optional)": "資金來源憑證（選填）",
+    "Already collected invoice service fees only; excludes recharge principal and usage charges.": "僅指已收取的開票服務費，不是充值實付總額，也不是已消費金額。",
+    "Collected invoice service fee (CNY)": "已收開票服務費（￥）",
+    "Free ordinary invoice eligibility does not clear refund accounting discrepancies or change previously collected service fees.": "免費普票資格不消除退款帳務差額，也不改變歷史已收取的開票服務費。"
   }
 }
