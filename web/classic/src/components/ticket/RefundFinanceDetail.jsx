@@ -23,7 +23,7 @@ import { Check, Download, RefreshCw, Play } from 'lucide-react';
 import { API } from '../../helpers';
 import { UserContext } from '../../context/User';
 
-import { refundCash, refundQuota } from './refundFinanceFormat';
+import { refundCash } from './refundFinanceFormat';
 export { refundCash } from './refundFinanceFormat';
 import { CorrectionWorkflow, ReconciliationPanel, RefundPayoutPanel } from './FinanceWorkflow';
 
@@ -152,6 +152,14 @@ export default function RefundFinanceDetail({
           <dt>{t('Refunded tax')}</dt>
           <dd>{refundCash(finance.refund_tax_cents)}</dd>
         </div>
+        <div>
+          <dt>{t('Invoice amount to reverse')}</dt>
+          <dd>{refundCash(finance.invoice_corrections.filter(row => row.status !== 'cancelled').reduce((sum, row) => sum + row.original_cents, 0))}</dd>
+        </div>
+        <div>
+          <dt>{t('Reissued invoice amount')}</dt>
+          <dd>{refundCash(finance.invoice_corrections.filter(row => row.status !== 'cancelled').reduce((sum, row) => sum + row.reissue_cents, 0))}</dd>
+        </div>
       </dl>
       {error && (
         <p role='alert' className='text-red-600'>
@@ -166,11 +174,7 @@ export default function RefundFinanceDetail({
                 'Order number',
                 'Paid amount',
                 'Original tax',
-                'Used invoice amount',
-                'Original quota',
-                'Used quota',
-                'Refundable quota',
-                'Refund quota',
+                'Consumed actual payment',
                 'Cash refund',
                 'Refunded tax',
                 'Remaining invoice amount',
@@ -197,16 +201,6 @@ export default function RefundFinanceDetail({
                 ].map((value, index) => (
                   <td key={index} className='whitespace-nowrap p-2'>
                     {refundCash(value)}
-                  </td>
-                ))}
-                {[
-                  row.original_quota,
-                  row.used_quota,
-                  row.refundable_quota,
-                  row.refund_quota,
-                ].map((value, index) => (
-                  <td key={index} className='whitespace-nowrap p-2'>
-                    {refundQuota(value, row.quota_per_unit)}
                   </td>
                 ))}
                 {[

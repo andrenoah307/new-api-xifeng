@@ -32,7 +32,7 @@ import type {
   InvoiceCorrection,
   RefundFinanceDetail as FinanceData,
 } from '../refund-finance-api'
-import { refundCash, refundQuota } from '../refund-finance-format'
+import { refundCash } from '../refund-finance-format'
 import {
   CorrectionWorkflow,
   ReconciliationPanel,
@@ -172,6 +172,26 @@ export function RefundFinanceDetail(props: {
           <dt>{t('Refunded tax')}</dt>
           <dd>{refundCash(props.finance.refund_tax_cents)}</dd>
         </div>
+        <div>
+          <dt>{t('Invoice amount to reverse')}</dt>
+          <dd>
+            {refundCash(
+              props.finance.invoice_corrections
+                .filter((row) => row.status !== 'cancelled')
+                .reduce((sum, row) => sum + row.original_cents, 0)
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>{t('Reissued invoice amount')}</dt>
+          <dd>
+            {refundCash(
+              props.finance.invoice_corrections
+                .filter((row) => row.status !== 'cancelled')
+                .reduce((sum, row) => sum + row.reissue_cents, 0)
+            )}
+          </dd>
+        </div>
       </dl>
       {error && (
         <p role='alert' className='text-destructive'>
@@ -186,11 +206,7 @@ export function RefundFinanceDetail(props: {
                 'Order number',
                 'Paid amount',
                 'Original tax',
-                'Used invoice amount',
-                'Original quota',
-                'Used quota',
-                'Refundable quota',
-                'Refund quota',
+                'Consumed actual payment',
                 'Cash refund',
                 'Refunded tax',
                 'Remaining invoice amount',
@@ -219,18 +235,6 @@ export function RefundFinanceDetail(props: {
                 ).map((key) => (
                   <td key={key} className='p-2 whitespace-nowrap'>
                     {refundCash(row[key])}
-                  </td>
-                ))}
-                {(
-                  [
-                    'original_quota',
-                    'used_quota',
-                    'refundable_quota',
-                    'refund_quota',
-                  ] as const
-                ).map((key) => (
-                  <td key={key} className='p-2 whitespace-nowrap'>
-                    {refundQuota(row[key], row.quota_per_unit)}
                   </td>
                 ))}
                 {(
@@ -271,7 +275,7 @@ export function RefundFinanceDetail(props: {
       )}
       {staff && props.ticketId && (
         <RefundPayoutPanel
-          key={`${props.ticketId}:${props.finance.invoice_corrections.map(row=>`${row.id}:${row.status}`).join(',')}`}
+          key={`${props.ticketId}:${props.finance.invoice_corrections.map((row) => `${row.id}:${row.status}`).join(',')}`}
           ticketId={props.ticketId}
           onUpdated={() => {
             if (props.onUpdated) props.onUpdated()
