@@ -3460,6 +3460,10 @@
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "请检查金额：费用须小于实付，内含赠送须小于到账总额，额外赠送不能超过未解释差额。",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "请填写至少10个字符的来源凭证，包含收款流水或赠送记录等依据。",
     "No new financial evidence to submit.": "没有可提交的新增账务依据。",
-    "Source evidence (optional)": "资金来源凭证（选填）"
+    "Source evidence (optional)": "资金来源凭证（选填）",
+    "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "待管理员核查历史账务，系统暂不能确定开票及退款金额。",
+    "Administrator accounting repair": "管理员账务修复",
+    "Invoice amount to reverse": "本次需冲红金额",
+    "Consumed actual payment": "已消费抵扣实付"
   }
 }

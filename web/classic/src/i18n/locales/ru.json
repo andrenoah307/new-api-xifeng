@@ -5611,6 +5611,10 @@
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "Проверьте суммы: комиссия меньше платежа, включённый бонус меньше общего зачисления, дополнительные бонусы не превышают необъяснённую разницу.",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Укажите подтверждение источника длиной от 10 символов со ссылками на платёж или начисление бонуса.",
     "No new financial evidence to submit.": "Нет новых финансовых подтверждений для отправки.",
-    "Source evidence (optional)": "Подтверждение источника (необязательно)"
+    "Source evidence (optional)": "Подтверждение источника (необязательно)",
+    "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "Требуется проверка исторических данных администратором. Суммы счетов и возврата пока не определены.",
+    "Administrator accounting repair": "Исправление учёта администратором",
+    "Invoice amount to reverse": "Сумма сторнирования",
+    "Consumed actual payment": "Израсходованный фактический платёж"
   }
 }

@@ -9,7 +9,47 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
+
+func TestDiscountedUsageAutomaticallyDeterminesInvoiceCorrection(t *testing.T) {
+	f := newRefundFinanceFixture(t)
+	first := seedRefundFinanceOrder(t, f.user.Id, 100, 9000, 540, 100)
+	second := seedRefundFinanceOrder(t, f.user.Id, 100, 6000, 0, 200)
+	require.NoError(t, DB.Model(first).Update("discount_rate", 90).Error)
+	require.NoError(t, DB.Create(&TopUp{UserId: f.user.Id, TradeNo: uuid.NewString(), Source: "discount_bonus", Status: common.TopUpStatusSuccess, QuotaGranted: 20}).Error)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": 180, "used_quota": 40}).Error)
+	ticket := Ticket{UserId: f.user.Id, Type: TicketTypeInvoice, Status: TicketStatusResolved}
+	require.NoError(t, DB.Create(&ticket).Error)
+	ids, err := common.Marshal([]int{first.Id, second.Id})
+	require.NoError(t, err)
+	invoice := TicketInvoice{TicketId: ticket.Id, UserId: f.user.Id, InvoiceStatus: InvoiceStatusIssued, TotalMoney: 150, TopUpOrderIds: string(ids)}
+	require.NoError(t, DB.Create(&invoice).Error)
+	quote, err := quoteRefundFinanceTx(DB, f.user.Id, 60)
+	require.NoError(t, err)
+	require.Len(t, quote.Allocations, 1)
+	assert.Equal(t, int64(3600), quote.Allocations[0].UsedInvoiceCents)
+	assert.Equal(t, int64(5400), quote.RefundCashCents)
+	assert.Equal(t, int64(324), quote.RefundTaxCents)
+	assert.Equal(t, int64(3600), quote.Allocations[0].RemainingInvoiceCents)
+	previousUnit, previousRate := common.QuotaPerUnit, operation_setting.USDExchangeRate
+	t.Cleanup(func() {
+		common.QuotaPerUnit, operation_setting.USDExchangeRate = previousUnit, previousRate
+	})
+	common.QuotaPerUnit, operation_setting.USDExchangeRate = 123456, 9.9
+	repriced, err := quoteRefundFinanceTx(DB, f.user.Id, 60)
+	require.NoError(t, err)
+	assert.Equal(t, quote.RefundCashCents, repriced.RefundCashCents)
+	assert.Equal(t, quote.RefundTaxCents, repriced.RefundTaxCents)
+	assert.Equal(t, quote.Allocations[0].UsedInvoiceCents, repriced.Allocations[0].UsedInvoiceCents)
+	refund := TicketRefund{TicketId: ticket.Id + 1, UserId: f.user.Id, RefundStatus: RefundStatusPending}
+	require.NoError(t, DB.Transaction(func(tx *gorm.DB) error { return createRefundInvoiceCorrectionsTx(tx, &refund, quote.Allocations) }))
+	var correction RefundInvoiceCorrection
+	require.NoError(t, DB.Where("refund_ticket_id = ?", refund.TicketId).First(&correction).Error)
+	assert.Equal(t, int64(15000), correction.OriginalCents)
+	assert.Equal(t, int64(5400), correction.RefundCents)
+	assert.Equal(t, int64(9600), correction.ReissueCents, "retain consumed payment and the untouched second order")
+}
 
 func TestReconciliationSourceEvidenceIsOptional(t *testing.T) {
 	for name, evidence := range map[string]string{"empty": "", "whitespace": " ", "short": "已核对", "long": strings.Repeat("x", 5000)} {

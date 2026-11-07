@@ -5,6 +5,23 @@ deploying code does not approve or repair historical financial records.
 
 ## Actual Payment
 
+- Finance's normal refund view is read-only for calculation inputs: it shows
+  consumed actual payment, cash refund, remaining invoice amount, full invoice
+  reversal and reissue amounts returned by the existing allocation/correction
+  engine. Raw quota columns are removed from this view. Historical repair forms
+  are collapsed behind an administrator-only UI entry; an unresolved history
+  displays a pending administrator review state, never fabricated zero amounts.
+- Consumption allocation remains FIFO across paid orders. For each order,
+  consumption and refund quota map proportionally onto its original paid cents;
+  current quota units/exchange rates cannot reprice historical cash. Separate
+  bonus records are noncash. Invoice reversal covers the entire active invoice;
+  reissue equals active invoice minus refund cash, retaining untouched orders.
+- Regression example: a discounted CNY 90 order has 40% consumed and 60%
+  refunded: CNY 36 consumed, CNY 54 refunded. A combined CNY 150 invoice with an
+  untouched CNY 60 order is reversed for CNY 150 and reissued for CNY 96. A
+  CNY 5.40 collected fee allocates CNY 3.24 to the refund. Separate gift credit
+  and changes to present-day exchange settings do not add refundable cash.
+
 - Reconciliation evidence forms show original actual payment and total credited
   value read-only. Finance enters collected fees and documented included bonuses;
   purchased quota is derived as original credited quota minus included bonus.

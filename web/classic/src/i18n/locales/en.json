@@ -5816,6 +5816,10 @@
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "Provide source evidence of at least 10 characters, including receipt or grant record references.",
     "No new financial evidence to submit.": "No new financial evidence to submit.",
-    "Source evidence (optional)": "Source evidence (optional)"
+    "Source evidence (optional)": "Source evidence (optional)",
+    "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.",
+    "Administrator accounting repair": "Administrator accounting repair",
+    "Invoice amount to reverse": "Invoice amount to reverse",
+    "Consumed actual payment": "Consumed actual payment"
   }
 }

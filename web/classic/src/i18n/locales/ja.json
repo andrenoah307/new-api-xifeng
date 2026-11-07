@@ -5557,6 +5557,10 @@
     "Check amounts: fees must be below payment, included bonus below order total, and additional gifts cannot exceed the unexplained difference.": "金額を確認してください。費用は実支払額未満、特典は入金合計未満、追加特典は不明差額以下である必要があります。",
     "Provide source evidence of at least 10 characters, including receipt or grant record references.": "入金明細や特典付与記録の参照を含む証拠を10文字以上で入力してください。",
     "No new financial evidence to submit.": "提出する新しい会計証拠がありません。",
-    "Source evidence (optional)": "資金の証拠（任意）"
+    "Source evidence (optional)": "資金の証拠（任意）",
+    "Historical accounting needs administrator review. Invoice and refund amounts are not yet available.": "過去の会計データは管理者の確認待ちです。請求・返金額はまだ確定できません。",
+    "Administrator accounting repair": "管理者による会計修正",
+    "Invoice amount to reverse": "今回の取消請求額",
+    "Consumed actual payment": "消費済み実支払額"
   }
 }
