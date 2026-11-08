@@ -69,6 +69,12 @@ type Report = {
 const inputClass = 'w-full rounded border bg-transparent p-2 text-sm'
 const cashMoney = createFinanceMoney('100', '1')
 
+export function LegacyRefundRecovery({ ticketId }: { ticketId: number }) {
+  const role = useAuthStore((state) => state.auth.user?.role)
+  if (![3, 10, 100].includes(role ?? 0)) return null
+  return <RefundPayoutPanel key={ticketId} ticketId={ticketId} />
+}
+
 export function RefundPayoutPanel({
   ticketId,
   onUpdated,
@@ -88,6 +94,7 @@ export function RefundPayoutPanel({
     ready: boolean
     cash_cents: number
     refund_status: number
+    corrections: Correction[]
   }>(`/api/ticket/refund/${ticketId}/payout`)
   const [key, setKey] = useState(() => crypto.randomUUID())
   const [reference, setReference] = useState('')
@@ -128,6 +135,7 @@ export function RefundPayoutPanel({
       setKey(crypto.randomUUID())
       query.reload()
       onUpdated?.()
+      if (status === 'succeeded') window.location.reload()
     } catch (failure) {
       setError(
         failure instanceof Error ? failure.message : t('Operation failed')
@@ -146,6 +154,14 @@ export function RefundPayoutPanel({
   }
   return (
     <section className='space-y-3 border-t pt-4'>
+      <h3 className='font-semibold'>{t('Legacy refund recovery')}</h3>
+      {query.data?.corrections.map((correction) => (
+        <CorrectionWorkflow
+          key={`${correction.id}:${correction.phase}:${correction.status}`}
+          correction={correction}
+          onUpdated={query.reload}
+        />
+      ))}
       <h3 className='font-semibold'>{t('Refund payout')}</h3>
       {query.data && (
         <p>
@@ -326,17 +342,32 @@ export function CorrectionWorkflow({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const phase = correction.phase || correction.status
-  const preparing = correction.status === 'pending'
+  const preparing =
+    correction.status === 'pending' ||
+    (!correction.version && correction.status === 'processing')
   const complete =
     correction.status === 'completed' || correction.status === 'cancelled'
   async function transition(action: string) {
     if (busy || !editable) return
+    if (
+      action === 'abort' &&
+      !window.confirm(
+        t('Confirm no red invoice was issued and return to pending?')
+      )
+    ) {
+      return
+    }
     setBusy(true)
     setError('')
     try {
       const response = await api.post(
         `/api/ticket/refund/invoice-corrections/${correction.id}/transition`,
-        { action, documents, evidence }
+        {
+          action,
+          documents,
+          evidence,
+          confirm_no_red_invoice: action === 'abort',
+        }
       )
       if (!response.data.success) throw new Error(response.data.message)
       setCorrection(response.data.data)
@@ -356,7 +387,7 @@ export function CorrectionWorkflow({
       setBusy(false)
     }
   }
-  if (correction.version !== 1) {
+  if (correction.version !== 1 && complete) {
     return (
       <section className='space-y-2 border-t pt-4'>
         <h4>
@@ -523,6 +554,16 @@ export function CorrectionWorkflow({
                 {t('Register red invoice')}
               </Button>
             )}
+            {correction.status === 'processing' &&
+              (phase === 'red_processing' || !correction.version) && (
+                <Button
+                  variant='outline'
+                  disabled={busy || !evidence.trim()}
+                  onClick={() => transition('abort')}
+                >
+                  {t('Confirm no red invoice was issued')}
+                </Button>
+              )}
             {phase === 'reissue_pending' && (
               <Button
                 disabled={busy || !evidence.trim()}
@@ -624,7 +665,7 @@ export function InvoiceCorrectionPanel({ ticketId }: { ticketId: number }) {
         <CorrectionWorkflow
           key={`${row.id}:${row.phase}:${row.status}`}
           correction={row}
-          editable={row.version === 1}
+          editable
           onUpdated={query.reload}
         />
       ))}

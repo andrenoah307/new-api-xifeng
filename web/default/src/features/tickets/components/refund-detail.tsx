@@ -46,6 +46,7 @@ import {
   PAYEE_TYPE_LABELS,
   INVOICE_STATUS_CONFIG,
 } from '../constants'
+import { LegacyRefundRecovery } from './finance-workflow'
 import { RefundInvoiceExports } from './refund-invoice-exports'
 
 interface RefundDetailProps {
@@ -61,6 +62,7 @@ interface RefundDetailProps {
       actual_refund_quota?: number
       claw_back_commission?: boolean
       claw_back_quota?: number
+      rejection_reason?: string
     }
   ) => void
   onSendMessage?: (content: string) => void
@@ -261,7 +263,6 @@ export function RefundDetail({
   readonly,
   loading,
   onStatusChange,
-  onSendMessage,
 }: RefundDetailProps) {
   const { t } = useTranslation()
   const statusCfg = REFUND_STATUS_CONFIG[refund.refund_status]
@@ -384,10 +385,7 @@ export function RefundDetail({
 
   const handleReject = () => {
     const reason = rejectReason.trim()
-    if (reason) {
-      onSendMessage?.(`${t('Rejection reason')}:\n${reason}`)
-    }
-    onStatusChange?.(REFUND_STATUS.REJECTED)
+    onStatusChange?.(REFUND_STATUS.REJECTED, { rejection_reason: reason })
     setRejectOpen(false)
     setRejectReason('')
   }
@@ -407,6 +405,11 @@ export function RefundDetail({
         </CardHeader>
         <CardContent className='space-y-4'>
           {!readonly && <RefundInvoiceExports ticketId={refund.ticket_id} />}
+          {!readonly &&
+            refund.finance_version === 1 &&
+            refund.refund_status === REFUND_STATUS.PENDING && (
+              <LegacyRefundRecovery ticketId={refund.ticket_id} />
+            )}
           {userInvoices && userInvoices.length > 0 && (
             <InvoiceHistoryAlert invoices={userInvoices} />
           )}

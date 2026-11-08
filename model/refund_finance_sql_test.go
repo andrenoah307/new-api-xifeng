@@ -176,6 +176,8 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("gift_legacy_upgrade", TestRefundGiftUpgradePreservesExistingAllocations)
 			t.Run("original_exports", TestOriginalRefundInvoiceExportsAcrossOrdersAndInvoices)
 			t.Run("original_adjustment", TestOriginalRefundRejectionAndAdjustedApproval)
+			t.Run("recovery_unissued", TestRefundRecoveryUnissuedCorrection)
+			t.Run("recovery_issued", TestRefundRecoveryIssuedCorrectionCompletesOnce)
 		})
 	}
 }

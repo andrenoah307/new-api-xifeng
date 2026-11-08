@@ -1,4 +1,5 @@
 import RefundInvoiceExports from '../../components/ticket/RefundInvoiceExports';
+import { LegacyRefundRecovery } from '../../components/ticket/FinanceWorkflow';
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -138,6 +139,9 @@ function RefundFinanceList() {
         width='min(1152px, calc(100vw - 32px))'
         bodyStyle={{ maxHeight: '75vh', overflowY: 'auto' }}
       >
+        {item?.finance_version === 1 && item.refund_status === 1 && (
+          <LegacyRefundRecovery ticketId={item.ticket_id} />
+        )}
         {item ? (
           <RefundInvoiceExports ticketId={item.ticket_id} />
         ) : (
