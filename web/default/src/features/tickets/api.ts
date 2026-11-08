@@ -482,6 +482,9 @@ export function getAttachmentUrl(id: number, inline = false): string {
 
 export interface InvoiceExportItem {
   remark?: string
+  correction_rows?: InvoiceExportItem[]
+  order_numbers?: string[]
+  invoice_color?: 'red' | 'blue'
   issuer_amounts?: { account_name: string; amount_cents: number }[]
   payment_routing_notes?: string
   invoice_type?: string
@@ -516,6 +519,7 @@ export interface RefundConflictCheck {
 }
 
 export interface InvoiceExportListParams {
+  kind?: 'refund'
   p: number
   page_size: number
   keyword?: string

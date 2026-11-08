@@ -11,6 +11,7 @@ import { useMemo, useEffect, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { useAuthStore } from '@/stores/auth-store'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   DataTableToolbar,
@@ -64,11 +65,13 @@ export default function TicketAdminListPage() {
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const viewerIsAdmin = useIsAdmin()
+  const viewerRole = useAuthStore((state) => state.auth.user?.role)
 
   const search = route.useSearch()
   const routeNavigate = route.useNavigate()
 
   const [exportOpen, setExportOpen] = useState(false)
+  const [reversalExportOpen, setReversalExportOpen] = useState(false)
   const queryClient = useQueryClient()
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [batchStatus, setBatchStatus] = useState('2')
@@ -297,6 +300,14 @@ export default function TicketAdminListPage() {
                     <Download className='mr-1.5 h-4 w-4' />
                     {t('Export Invoice')}
                   </Button>
+                {[3, 10, 100].includes(viewerRole ?? 0) && <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReversalExportOpen(true)}
+                >
+                  <Download className="mr-1.5 h-4 w-4" />
+                  {t('Export Reversal Invoices')}
+                </Button>}
                   <Select
                     value={search.unread || '__all__'}
                     onValueChange={(value) => {
@@ -393,6 +404,7 @@ export default function TicketAdminListPage() {
                 >
                   {t('Clear selection')}
                 </Button>
+
               </div>
             )}
             {isMobile && (
@@ -467,6 +479,7 @@ export default function TicketAdminListPage() {
         </SectionPageLayout.Content>
       </SectionPageLayout>
       <ExportInvoiceDialog open={exportOpen} onOpenChange={setExportOpen} />
+      <ExportInvoiceDialog refund open={reversalExportOpen} onOpenChange={setReversalExportOpen} />
       <ConfirmDialog
         open={confirmation !== null}
         onOpenChange={(open) => {

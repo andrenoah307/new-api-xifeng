@@ -56,7 +56,7 @@ function csvField(value) {
   return s;
 }
 
-function generateInvoiceCSV(items, serviceName) {
+function generateInvoiceCSV(items, serviceName, refund = false) {
   const BOM = '﻿';
   const headers = [
     '电子邮箱',
@@ -69,8 +69,14 @@ function generateInvoiceCSV(items, serviceName) {
     '发票税率(%)',
     '开票方（公账名称）',
   ];
+  if (refund) {
+    headers.splice(5, 1);
+    headers.push('关联充值订单号', '发票类型（红字/蓝字）');
+  }
   const lines = [headers.map(csvField).join(',')];
-  for (const item of items) {
+  for (const item of refund
+    ? items.flatMap((i) => i.correction_rows ?? [])
+    : items) {
     const companyInfo = item.tax_number
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
       : item.company_name;
@@ -98,6 +104,15 @@ function generateInvoiceCSV(items, serviceName) {
         item.tax_rate_bps == null ? '' : item.tax_rate_bps / 100,
         issuer.account_name,
       ];
+      if (refund) {
+        row.splice(5, 1);
+        row.push(
+          (item.order_numbers ?? []).join(';'),
+          item.invoice_color === 'red'
+            ? '红字发票（需冲红）'
+            : '蓝字发票（需重开）',
+        );
+      }
       lines.push(row.map(csvField).join(','));
     }
   }
@@ -129,7 +144,11 @@ const statusLabel = (s, t) => {
   }
 };
 
-export default function ExportInvoiceDialog({ visible, onClose }) {
+export default function ExportInvoiceDialog({
+  visible,
+  onClose,
+  refund = false,
+}) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -147,6 +166,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
       setLoading(true);
       try {
         const params = new URLSearchParams();
+        if (refund) params.set('kind', 'refund');
         params.set('p', String(p));
         params.set('page_size', String(PAGE_SIZE));
         if (kw) params.set('keyword', kw);
@@ -170,7 +190,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
       }
       setLoading(false);
     },
-    [t],
+    [t, refund],
   );
 
   useEffect(() => {
@@ -254,18 +274,28 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
       showError(t('请至少选择一张发票'));
       return;
     }
-    if (!serviceName.trim()) {
+    if (!refund && !serviceName.trim()) {
       showError(t('请输入应税服务名称'));
       return;
     }
     const csv = generateInvoiceCSV(
       Array.from(selected.values()),
       serviceName.trim(),
+      refund,
     );
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    downloadCSV(csv, `发票登记_${date}.csv`);
-    showSuccess(t('已导出 {{count}} 张发票', { count: selected.size }));
-  }, [selected, serviceName, t]);
+    downloadCSV(csv, `${refund ? '冲红重开发票' : '发票登记'}_${date}.csv`);
+    showSuccess(
+      t('已导出 {{count}} 张发票', {
+        count: refund
+          ? [...selected.values()].reduce(
+              (sum, item) => sum + (item.correction_rows?.length ?? 0),
+              0,
+            )
+          : selected.size,
+      }),
+    );
+  }, [selected, serviceName, t, refund]);
 
   const columns = useMemo(
     () => [
@@ -281,7 +311,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
         ),
       },
       {
-        title: 'ID',
+        title: refund ? t('Refund ticket') : 'ID',
         dataIndex: 'ticket_id',
         width: 70,
         render: (v) => (
@@ -334,7 +364,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
         ),
       },
     ],
-    [t, allOnPageSelected, toggleAll, selected, toggleItem],
+    [t, allOnPageSelected, toggleAll, selected, toggleItem, refund],
   );
 
   const datePresets = useMemo(
@@ -403,7 +433,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
 
   return (
     <Modal
-      title={t('导出发票列表')}
+      title={refund ? t('Export Reversal Invoices') : t('导出发票列表')}
       visible={visible}
       onCancel={onClose}
       centered
@@ -433,20 +463,27 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
             }}
           >
             <Typography.Text type='tertiary' size='small'>
-              {t('已选择 {{count}} 张发票', { count: selected.size })}
+              {t(
+                refund
+                  ? 'Selected {{count}} refund tickets'
+                  : '已选择 {{count}} 张发票',
+                { count: selected.size },
+              )}
             </Typography.Text>
-            <Input
-              placeholder={t('应税服务名称')}
-              value={serviceName}
-              onChange={setServiceName}
-              style={{ width: 180, height: 32 }}
-            />
+            {!refund && (
+              <Input
+                placeholder={t('应税服务名称')}
+                value={serviceName}
+                onChange={setServiceName}
+                style={{ width: 180, height: 32 }}
+              />
+            )}
           </div>
           <Button
             icon={<IconDownload />}
             theme='solid'
             onClick={handleExport}
-            disabled={selected.size === 0 || !serviceName.trim()}
+            disabled={selected.size === 0 || (!refund && !serviceName.trim())}
           >
             {t('导出')}
           </Button>

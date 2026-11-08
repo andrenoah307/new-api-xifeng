@@ -64,7 +64,8 @@ function csvField(value: string | number): string {
 
 function generateInvoiceCSV(
   items: InvoiceExportItem[],
-  serviceName: string
+  serviceName: string,
+  refund = false
 ): string {
   const BOM = '﻿'
   const headers = [
@@ -78,8 +79,14 @@ function generateInvoiceCSV(
     '发票税率(%)',
     '开票方（公账名称）',
   ]
+  if (refund) {
+    headers.splice(5, 1)
+    headers.push('关联充值订单号', '发票类型（红字/蓝字）')
+  }
   const lines = [headers.map(csvField).join(',')]
-  for (const item of items) {
+  for (const item of refund
+    ? items.flatMap((i) => i.correction_rows ?? [])
+    : items) {
     const companyInfo = item.tax_number
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
       : item.company_name
@@ -108,6 +115,15 @@ function generateInvoiceCSV(
         item.tax_rate_bps == null ? '' : item.tax_rate_bps / 100,
         issuer.account_name,
       ]
+      if (refund) {
+        row.splice(5, 1)
+        row.push(
+          (item.order_numbers ?? []).join(';'),
+          item.invoice_color === 'red'
+            ? '红字发票（需冲红）'
+            : '蓝字发票（需重开）'
+        )
+      }
       lines.push(row.map(csvField).join(','))
     }
   }
@@ -125,11 +141,13 @@ function downloadCSV(csv: string, filename: string) {
 }
 
 interface ExportInvoiceDialogProps {
+  refund?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function ExportInvoiceDialog({
+  refund = false,
   open,
   onOpenChange,
 }: ExportInvoiceDialogProps) {
@@ -158,6 +176,7 @@ export function ExportInvoiceDialog({
 
   const queryParams = useMemo(
     () => ({
+      kind: refund ? ('refund' as const) : undefined,
       p: page,
       page_size: PAGE_SIZE,
       keyword: searchKeyword || undefined,
@@ -169,7 +188,7 @@ export function ExportInvoiceDialog({
         ? Math.floor(dateRange.end.getTime() / 1000)
         : undefined,
     }),
-    [page, searchKeyword, statusFilter, dateRange]
+    [page, searchKeyword, statusFilter, dateRange, refund]
   )
 
   const { data, isLoading } = useQuery({
@@ -250,15 +269,28 @@ export function ExportInvoiceDialog({
       toast.error(t('Please select at least one invoice'))
       return
     }
-    if (!serviceName.trim()) {
+    if (!refund && !serviceName.trim()) {
       toast.error(t('Please enter taxable service name'))
       return
     }
-    const csv = generateInvoiceCSV([...selected.values()], serviceName.trim())
+    const csv = generateInvoiceCSV(
+      [...selected.values()],
+      serviceName.trim(),
+      refund
+    )
     const date = new Date().toISOString().slice(0, 10).replaceAll('-', '')
-    downloadCSV(csv, `发票登记_${date}.csv`)
-    toast.success(t('Exported {{count}} invoices', { count: selected.size }))
-  }, [selected, serviceName, t])
+    downloadCSV(csv, `${refund ? '冲红重开发票' : '发票登记'}_${date}.csv`)
+    toast.success(
+      t('Exported {{count}} invoices', {
+        count: refund
+          ? [...selected.values()].reduce(
+              (sum, item) => sum + (item.correction_rows?.length ?? 0),
+              0
+            )
+          : selected.size,
+      })
+    )
+  }, [selected, serviceName, t, refund])
 
   const table = useReactTable({
     data: items,
@@ -285,9 +317,11 @@ export function ExportInvoiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-3xl'>
+      <DialogContent className='max-h-[85vh] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-3xl'>
         <DialogHeader>
-          <DialogTitle>{t('Export Invoice List')}</DialogTitle>
+          <DialogTitle>
+            {refund ? t('Export Reversal Invoices') : t('Export Invoice List')}
+          </DialogTitle>
         </DialogHeader>
 
         <div className='flex flex-wrap items-center gap-2 py-2'>
@@ -323,7 +357,7 @@ export function ExportInvoiceDialog({
           />
         </div>
 
-        <div className='rounded-md border'>
+        <div className='min-w-0 rounded-md border'>
           <Table>
             <TableHeader>
               <TableRow>
@@ -333,7 +367,9 @@ export function ExportInvoiceDialog({
                     onCheckedChange={toggleAll}
                   />
                 </TableHead>
-                <TableHead className='w-16'>ID</TableHead>
+                <TableHead className='w-16'>
+                  {refund ? t('Refund ticket') : 'ID'}
+                </TableHead>
                 <TableHead>{t('Company Name')}</TableHead>
                 <TableHead>{t('Email')}</TableHead>
                 <TableHead className='text-right'>{t('Amount')}</TableHead>
@@ -399,20 +435,27 @@ export function ExportInvoiceDialog({
         <DialogFooter className='flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <div className='flex flex-wrap items-center gap-2'>
             <span className='text-muted-foreground text-sm'>
-              {t('Selected {{count}} invoices', {
-                count: selected.size,
-              })}
+              {t(
+                refund
+                  ? 'Selected {{count}} refund tickets'
+                  : 'Selected {{count}} invoices',
+                {
+                  count: selected.size,
+                }
+              )}
             </span>
-            <Input
-              placeholder={t('Taxable Service Name')}
-              value={serviceName}
-              onChange={(e) => setServiceName(e.target.value)}
-              className='h-8 w-[180px]'
-            />
+            {!refund && (
+              <Input
+                placeholder={t('Taxable Service Name')}
+                value={serviceName}
+                onChange={(e) => setServiceName(e.target.value)}
+                className='h-8 w-[180px]'
+              />
+            )}
           </div>
           <Button
             onClick={handleExport}
-            disabled={selected.size === 0 || !serviceName.trim()}
+            disabled={selected.size === 0 || (!refund && !serviceName.trim())}
           >
             <Download className='mr-1.5 h-4 w-4' />
             {t('Export')}

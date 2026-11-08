@@ -447,6 +447,7 @@ const TicketAdmin = () => {
   const scopeParam = searchParams.get('scope') || (viewerIsAdmin ? '' : 'mine');
   const [keyword, setKeyword] = useState(searchKeyword);
   const [exportOpen, setExportOpen] = useState(false);
+  const [reversalExportOpen, setReversalExportOpen] = useState(false);
   const unreadFilter = searchParams.get('unread') || '';
   const [selectedIds, setSelectedIds] = useState([]);
   const [batchStatus, setBatchStatus] = useState(2);
@@ -722,6 +723,7 @@ const TicketAdmin = () => {
                 >
                   {t('导出发票')}
                 </Button>
+                {viewerIsAdmin && <Button icon={<IconDownload />} onClick={() => setReversalExportOpen(true)}>{t('Export Reversal Invoices')}</Button>}
               </Space>
             </div>
             {selectedIds.length > 0 && (
@@ -764,6 +766,7 @@ const TicketAdmin = () => {
         visible={exportOpen}
         onClose={() => setExportOpen(false)}
       />
+      <ExportInvoiceDialog refund visible={reversalExportOpen} onClose={() => setReversalExportOpen(false)} />
       <Modal
         visible={batchConfirmation !== null}
         title={t('Confirm Batch Update')}
