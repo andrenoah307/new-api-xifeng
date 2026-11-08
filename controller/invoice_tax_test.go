@@ -39,6 +39,7 @@ func TestUpdateInvoiceTaxConfigReplacesFixedPolicyWithCustomSettings(t *testing.
 		stored, err := model.GetInvoiceTaxConfig(db)
 		require.NoError(t, err)
 		config.PolicyEffectiveAt = 0
+		config.ReconciliationReviewCount = 1
 		assert.Equal(t, config, stored)
 	}
 }

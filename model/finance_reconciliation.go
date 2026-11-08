@@ -15,7 +15,7 @@ import (
 )
 
 var ErrFinanceRevision = errors.New("financial evidence changed; refresh and review again")
-var ErrFinanceReviewPending = errors.New("a reconciliation is awaiting independent review")
+var ErrFinanceReviewPending = errors.New("Financial reconciliation required")
 var ErrFinanceEvidence = errors.New("financial reconciliation evidence is invalid")
 var ErrFinanceReviewer = errors.New("financial reconciliation requires a different administrator to approve")
 
@@ -35,19 +35,27 @@ type FinanceReconciliationPlan struct {
 }
 
 type FinanceReconciliation struct {
-	Id             int                       `json:"id"`
-	UserId         int                       `json:"user_id" gorm:"index;not null"`
-	TicketId       int                       `json:"ticket_id" gorm:"index;not null"`
-	RequestKey     string                    `json:"request_key" gorm:"size:64;uniqueIndex;not null"`
-	SourceRevision string                    `json:"source_revision" gorm:"size:64;not null"`
-	PlanJSON       string                    `json:"-" gorm:"type:text;not null"`
-	Plan           FinanceReconciliationPlan `json:"plan" gorm:"-"`
-	Status         string                    `json:"status" gorm:"size:16;index;not null"`
-	ProposedBy     int                       `json:"proposed_by"`
-	ReviewedBy     int                       `json:"reviewed_by"`
-	ReviewReason   string                    `json:"review_reason" gorm:"type:text"`
-	CreatedTime    int64                     `json:"created_time"`
-	ReviewedTime   int64                     `json:"reviewed_time"`
+	ApprovalsJSON  string                          `json:"-" gorm:"type:text"`
+	Approvals      []FinanceReconciliationApproval `json:"approvals" gorm:"-"`
+	Id             int                             `json:"id"`
+	UserId         int                             `json:"user_id" gorm:"index;not null"`
+	TicketId       int                             `json:"ticket_id" gorm:"index;not null"`
+	RequestKey     string                          `json:"request_key" gorm:"size:64;uniqueIndex;not null"`
+	SourceRevision string                          `json:"source_revision" gorm:"size:64;not null"`
+	PlanJSON       string                          `json:"-" gorm:"type:text;not null"`
+	Plan           FinanceReconciliationPlan       `json:"plan" gorm:"-"`
+	Status         string                          `json:"status" gorm:"size:16;index;not null"`
+	ProposedBy     int                             `json:"proposed_by"`
+	ReviewedBy     int                             `json:"reviewed_by"`
+	ReviewReason   string                          `json:"review_reason" gorm:"type:text"`
+	CreatedTime    int64                           `json:"created_time"`
+	ReviewedTime   int64                           `json:"reviewed_time"`
+}
+
+type FinanceReconciliationApproval struct {
+	AdminID     int    `json:"admin_id"`
+	Reason      string `json:"reason"`
+	CreatedTime int64  `json:"created_time"`
 }
 
 type FinanceBlocker struct {
@@ -68,6 +76,8 @@ type FinanceSourceOrder struct {
 }
 
 type RefundReconciliationReport struct {
+	ReviewEnabled   bool                    `json:"review_enabled"`
+	ReviewCount     int                     `json:"review_count"`
 	QuotaPerUnit    string                  `json:"quota_per_unit"`
 	USDExchangeRate string                  `json:"usd_exchange_rate"`
 	Revision        string                  `json:"revision"`
@@ -233,7 +243,17 @@ func refundReconciliationReportTx(tx *gorm.DB, refund TicketRefund) (*RefundReco
 		if err := common.UnmarshalJsonStr(report.Reviews[i].PlanJSON, &report.Reviews[i].Plan); err != nil {
 			return nil, err
 		}
+		if report.Reviews[i].ApprovalsJSON != "" {
+			if err := common.UnmarshalJsonStr(report.Reviews[i].ApprovalsJSON, &report.Reviews[i].Approvals); err != nil {
+				return nil, err
+			}
+		}
 	}
+	config, err := GetInvoiceTaxConfig(tx)
+	if err != nil {
+		return nil, err
+	}
+	report.ReviewEnabled, report.ReviewCount = config.ReconciliationReviewEnabled, config.ReconciliationReviewCount
 	// Exclude review proposals from the revision: submitting a proposal must not
 	// invalidate its own source snapshot. Applied evidence changes effective orders.
 	encoded, err := common.Marshal(struct {
@@ -298,28 +318,40 @@ func SubmitFinanceReconciliation(ticketID, actorID int, key, revision string, pl
 	if err != nil {
 		return nil, err
 	}
+	var known TicketRefund
+	if err := DB.Where("ticket_id = ?", ticketID).First(&known).Error; err != nil {
+		return nil, err
+	}
 	var result FinanceReconciliation
 	err = DB.Transaction(func(tx *gorm.DB) error {
+		// Acquire the wallet lock before any snapshot reads, including on MySQL
+		// REPEATABLE READ, so concurrent submissions see the previous repair.
+		var owner User
+		if err := lockForUpdate(tx).First(&owner, known.UserId).Error; err != nil {
+			return err
+		}
 		var actor User
 		if err := tx.Where("id = ? AND status = ? AND role IN ?", actorID, common.UserStatusEnabled, []int{common.RoleFinanceUser, common.RoleAdminUser, common.RoleRootUser}).First(&actor).Error; err != nil {
 			return ErrTicketForbidden
 		}
 		var refund TicketRefund
-		if err := tx.Where("ticket_id = ?", ticketID).First(&refund).Error; err != nil {
-			return err
-		}
-		var owner User
-		if err := lockForUpdate(tx).First(&owner, refund.UserId).Error; err != nil {
-			return err
-		}
 		if err := lockForUpdate(tx).Where("ticket_id = ?", ticketID).First(&refund).Error; err != nil {
 			return err
+		}
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
+			return err
+		}
+		if !config.ReconciliationReviewEnabled && actor.Role != common.RoleAdminUser && actor.Role != common.RoleRootUser {
+			return ErrTicketForbidden
 		}
 		if err := tx.Where("request_key = ?", key).First(&result).Error; err == nil {
 			if result.TicketId != ticketID || result.ProposedBy != actorID || result.SourceRevision != revision || result.PlanJSON != string(encoded) {
 				return ErrFinanceRevision
 			}
-			return nil
+			if result.Status != "submitted" || config.ReconciliationReviewEnabled {
+				return nil
+			}
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
@@ -339,9 +371,14 @@ func SubmitFinanceReconciliation(ticketID, actorID int, key, revision string, pl
 			}
 			if review.ProposedBy == actorID && review.PlanJSON == string(encoded) {
 				result = review
-				return nil
+				if config.ReconciliationReviewEnabled {
+					return nil
+				}
+				break
 			}
-			return ErrFinanceReviewPending
+			if config.ReconciliationReviewEnabled {
+				return ErrFinanceReviewPending
+			}
 		}
 		difference, err := decimal.NewFromString(report.Difference)
 		if err != nil || (plan.NoncashGrantQuota > 0 && decimal.NewFromInt(plan.NoncashGrantQuota).GreaterThan(difference)) {
@@ -354,9 +391,18 @@ func SubmitFinanceReconciliation(ticketID, actorID int, key, revision string, pl
 		if _, err = applyFinancePaymentEvidence(orders, plan); err != nil {
 			return err
 		}
-		result = FinanceReconciliation{UserId: refund.UserId, TicketId: ticketID, RequestKey: key, SourceRevision: revision, PlanJSON: string(encoded), Status: "submitted", ProposedBy: actorID, CreatedTime: common.GetTimestamp()}
-		if err := tx.Create(&result).Error; err != nil {
+		if result.Id == 0 {
+			result = FinanceReconciliation{UserId: refund.UserId, TicketId: ticketID, RequestKey: key, SourceRevision: revision, PlanJSON: string(encoded), Status: "submitted", ProposedBy: actorID, CreatedTime: common.GetTimestamp()}
+		}
+		if !config.ReconciliationReviewEnabled {
+			result.Status, result.ReviewedBy, result.ReviewedTime = "applied", actorID, common.GetTimestamp()
+			result.ReviewReason = "Applied on administrator submission; review disabled"
+		}
+		if err := tx.Save(&result).Error; err != nil {
 			return err
+		}
+		if result.Status == "applied" {
+			return tx.Model(&FinanceReconciliation{}).Where("user_id = ? AND id <> ? AND source_revision = ? AND status = ?", result.UserId, result.Id, result.SourceRevision, "submitted").Update("status", "superseded").Error
 		}
 		// The reconciliation record is the internal audit trail, not a user reply.
 		return nil
@@ -387,8 +433,17 @@ func ReviewFinanceReconciliation(id, actorID int, approve bool, reason string) (
 		if err := lockForUpdate(tx).First(&result, id).Error; err != nil {
 			return err
 		}
-		if actorID == result.ProposedBy {
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
+			return err
+		}
+		if config.ReconciliationReviewEnabled && actorID == result.ProposedBy {
 			return ErrFinanceReviewer
+		}
+		if result.ApprovalsJSON != "" {
+			if err := common.UnmarshalJsonStr(result.ApprovalsJSON, &result.Approvals); err != nil {
+				return err
+			}
 		}
 		if err := common.UnmarshalJsonStr(result.PlanJSON, &result.Plan); err != nil {
 			return err
@@ -399,6 +454,19 @@ func ReviewFinanceReconciliation(id, actorID int, approve bool, reason string) (
 		}
 		if result.Status == target && result.ReviewedBy == actorID && result.ReviewReason == reason {
 			return nil
+		}
+		alreadyApproved := false
+		for _, approval := range result.Approvals {
+			if approval.AdminID == actorID {
+				alreadyApproved = true
+				if approve && result.Status == "submitted" && (!config.ReconciliationReviewEnabled || len(result.Approvals) >= config.ReconciliationReviewCount) {
+					break
+				}
+				if approve && approval.Reason == reason && (result.Status == "submitted" || result.Status == "applied") {
+					return nil
+				}
+				return ErrFinanceRevision
+			}
 		}
 		if result.Status != "submitted" {
 			return ErrFinanceRevision
@@ -433,11 +501,24 @@ func ReviewFinanceReconciliation(id, actorID int, approve bool, reason string) (
 				return err
 			}
 		}
+		if approve {
+			if !alreadyApproved {
+				result.Approvals = append(result.Approvals, FinanceReconciliationApproval{AdminID: actorID, Reason: reason, CreatedTime: common.GetTimestamp()})
+			}
+			encoded, err := common.Marshal(result.Approvals)
+			if err != nil {
+				return err
+			}
+			result.ApprovalsJSON = string(encoded)
+			if config.ReconciliationReviewEnabled && len(result.Approvals) < config.ReconciliationReviewCount {
+				target = "submitted"
+			}
+		}
 		result.Status, result.ReviewedBy, result.ReviewReason, result.ReviewedTime = target, actorID, reason, common.GetTimestamp()
 		if err := tx.Save(&result).Error; err != nil {
 			return err
 		}
-		if approve {
+		if target == "applied" {
 			// Older deployments allowed multiple proposals for the same source.
 			return tx.Model(&FinanceReconciliation{}).Where("user_id = ? AND id <> ? AND source_revision = ? AND status = ?", result.UserId, result.Id, result.SourceRevision, "submitted").Update("status", "superseded").Error
 		}

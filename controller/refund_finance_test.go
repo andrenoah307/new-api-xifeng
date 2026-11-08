@@ -39,6 +39,7 @@ func TestUserTicketHidesLegacyReconciliationAudits(t *testing.T) {
 
 func TestRefundFinanceFreshRolesAndExport(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Option{}))
 	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundOrderAllocation{}, &model.RefundInvoiceCorrection{}, &model.FinanceReconciliation{}, &model.RefundPayoutAttempt{}, &model.TopUp{}, &model.InvoiceTaxCharge{}, &model.RefundLiability{}))
 	require.NoError(t, db.Create(&model.User{Id: 99, Username: "refund-test-owner", AffCode: "refund-test-owner"}).Error)
 	user := model.User{Username: "refund-export", Role: common.RoleFinanceUser, Status: common.UserStatusEnabled, AffCode: "refund-export"}

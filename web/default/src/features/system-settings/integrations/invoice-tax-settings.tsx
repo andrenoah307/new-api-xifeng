@@ -58,12 +58,57 @@ export function InvoiceTaxSettings() {
     (legacyBefore === 0 || (legacyBefore + 28800) % 86400 === 0)
   const valid =
     validCutoff &&
+    (!config.reconciliation_review_enabled ||
+      (Number.isInteger(config.reconciliation_review_count) &&
+        (config.reconciliation_review_count ?? 0) >= 1)) &&
     [config.ordinary_rate_bps, config.special_rate_bps].every(
       (rate) => Number.isInteger(rate) && rate >= 0 && rate < 10000
     )
   return (
     <section className='space-y-4 border-t pt-4'>
       <h3 className='font-medium'>{t('Invoice tax charges')}</h3>
+      <div className='flex items-center gap-2'>
+        <Switch
+          id='reconciliation-review-enabled'
+          checked={!!config.reconciliation_review_enabled}
+          onCheckedChange={(reconciliation_review_enabled) =>
+            setDraft({
+              ...config,
+              reconciliation_review_enabled,
+              reconciliation_review_count:
+                config.reconciliation_review_count ?? 1,
+            })
+          }
+        />
+        <Label htmlFor='reconciliation-review-enabled'>
+          {t('Require accounting repair review')}
+        </Label>
+      </div>
+      {config.reconciliation_review_enabled && (
+        <div className='space-y-2'>
+          <Label htmlFor='reconciliation-review-count'>
+            {t('Required reviewing administrators')}
+          </Label>
+          <Input
+            id='reconciliation-review-count'
+            type='number'
+            min={1}
+            step={1}
+            value={config.reconciliation_review_count ?? 1}
+            onChange={(event) =>
+              setDraft({
+                ...config,
+                reconciliation_review_count: Number(event.target.value),
+              })
+            }
+          />
+        </div>
+      )}
+      <p className='text-muted-foreground text-sm'>
+        {t(
+          'Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.'
+        )}
+      </p>
       <div className='flex items-center gap-2'>
         <Switch
           id='separate-refund-invoice-types'

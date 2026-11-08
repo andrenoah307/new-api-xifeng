@@ -19,16 +19,18 @@ const InvoiceVATRateBps = 600
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
-	SeparateRefundInvoiceTypes bool   `json:"separate_refund_invoice_types"`
-	PolicyEffectiveAt          int64  `json:"policy_effective_at"`
-	ModuleEnabled              bool   `json:"module_enabled"`
-	LegacyTopUpsEnabled        bool   `json:"legacy_topups_enabled"`
-	LegacyInvoiceBefore        int64  `json:"legacy_invoice_before"`
-	LegacyFreeOrdinaryEnabled  bool   `json:"legacy_free_ordinary_enabled"`
-	Enabled                    bool   `json:"enabled"`
-	Mode                       string `json:"mode"`
-	OrdinaryRateBps            int    `json:"ordinary_rate_bps"`
-	SpecialRateBps             int    `json:"special_rate_bps"`
+	ReconciliationReviewEnabled bool   `json:"reconciliation_review_enabled"`
+	ReconciliationReviewCount   int    `json:"reconciliation_review_count"`
+	SeparateRefundInvoiceTypes  bool   `json:"separate_refund_invoice_types"`
+	PolicyEffectiveAt           int64  `json:"policy_effective_at"`
+	ModuleEnabled               bool   `json:"module_enabled"`
+	LegacyTopUpsEnabled         bool   `json:"legacy_topups_enabled"`
+	LegacyInvoiceBefore         int64  `json:"legacy_invoice_before"`
+	LegacyFreeOrdinaryEnabled   bool   `json:"legacy_free_ordinary_enabled"`
+	Enabled                     bool   `json:"enabled"`
+	Mode                        string `json:"mode"`
+	OrdinaryRateBps             int    `json:"ordinary_rate_bps"`
+	SpecialRateBps              int    `json:"special_rate_bps"`
 }
 
 type InvoiceTaxQuote struct {
@@ -302,7 +304,9 @@ func syncInvoiceTaxQuotaCache(userID, delta int) {
 }
 
 func (config InvoiceTaxConfig) Valid() bool {
-	return (config.PolicyEffectiveAt == 0 || config.PolicyEffectiveAt == InvoicePolicyEffectiveAt) &&
+	return config.ReconciliationReviewCount >= 0 && config.ReconciliationReviewCount <= math.MaxInt32 &&
+		(!config.ReconciliationReviewEnabled || config.ReconciliationReviewCount >= 1) &&
+		(config.PolicyEffectiveAt == 0 || config.PolicyEffectiveAt == InvoicePolicyEffectiveAt) &&
 		config.LegacyInvoiceBefore >= 0 && config.LegacyInvoiceBefore <= 253402271999 &&
 		(config.LegacyInvoiceBefore == 0 || (config.LegacyInvoiceBefore+8*3600)%86400 == 0) &&
 		(config.Mode == "vat" || config.Mode == "compound" || config.Mode == "gross_up") &&
@@ -319,7 +323,7 @@ func (config InvoiceTaxConfig) AllowsLegacyInvoice(order *TopUp) bool {
 func GetInvoiceTaxConfig(db *gorm.DB) (InvoiceTaxConfig, error) {
 	// Missing fields in pre-policy configuration adopt the announced schedule.
 	// Explicit zero retains the legacy calculation API for existing integrations.
-	config := InvoiceTaxConfig{Mode: "vat", PolicyEffectiveAt: InvoicePolicyEffectiveAt}
+	config := InvoiceTaxConfig{Mode: "vat", PolicyEffectiveAt: InvoicePolicyEffectiveAt, ReconciliationReviewCount: 1}
 	var option Option
 	err := db.Where(Option{Key: InvoiceTaxConfigKey}).Take(&option).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -340,6 +344,9 @@ func GetInvoiceTaxConfig(db *gorm.DB) (InvoiceTaxConfig, error) {
 }
 
 func (config InvoiceTaxConfig) WithInvoicePolicy() InvoiceTaxConfig {
+	if !config.ReconciliationReviewEnabled && config.ReconciliationReviewCount == 0 {
+		config.ReconciliationReviewCount = 1
+	}
 	// Compatibility for previously stored schedules. Administrator saves clear
 	// PolicyEffectiveAt so subsequent reads preserve all custom values.
 	if config.PolicyEffectiveAt > 0 {

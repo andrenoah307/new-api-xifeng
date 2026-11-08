@@ -1,6 +1,8 @@
 import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
+  reconciliation_review_enabled?: boolean
+  reconciliation_review_count?: number
   separate_refund_invoice_types?: boolean
   policy_effective_at?: number
   module_enabled: boolean

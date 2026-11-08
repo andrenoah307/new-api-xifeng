@@ -195,7 +195,7 @@ func InvoiceTaxEpayNotify(c *gin.Context) {
 var invoiceTaxAmountPattern = regexp.MustCompile(`^[0-9]{1,12}(\.[0-9]{1,2})?$`)
 
 func UpdateInvoiceTaxConfig(c *gin.Context) {
-	config := model.InvoiceTaxConfig{Mode: "vat"}
+	config := model.InvoiceTaxConfig{Mode: "vat", ReconciliationReviewCount: 1}
 	if err := c.ShouldBindJSON(&config); err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
@@ -205,6 +205,7 @@ func UpdateInvoiceTaxConfig(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	config = config.WithInvoicePolicy()
 	if err := model.SaveInvoiceTaxConfig(config); err != nil {
 		common.ApiErrorI18n(c, i18n.MsgDatabaseError)
 		return

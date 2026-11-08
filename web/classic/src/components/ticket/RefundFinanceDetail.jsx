@@ -93,7 +93,7 @@ export default function RefundFinanceDetail({
   ) {
     return (
       <div className='space-y-3 text-sm' role='status'>
-        {t(({financial_reconciliation: 'Financial reconciliation required', awaiting_review: 'Awaiting independent accounting review', awaiting_owner_confirmation: 'Refund amount is ready for your confirmation'})[(quote ?? finance).waiting_reason] ?? 'Awaiting settlement verification. The refund amount must be confirmed again after verification.')}
+        {t(({financial_reconciliation: 'Financial reconciliation required', awaiting_review: 'Financial reconciliation required', awaiting_owner_confirmation: 'Refund amount is ready for your confirmation'})[(quote ?? finance).waiting_reason] ?? 'Awaiting settlement verification. The refund amount must be confirmed again after verification.')}
         <p>
           {t(
             'New consumption is suspended until this refund is completed or cancelled.',

@@ -55,6 +55,7 @@ func TestReconciliationSourceEvidenceIsOptional(t *testing.T) {
 	for name, evidence := range map[string]string{"empty": "", "whitespace": " ", "short": "已核对", "long": strings.Repeat("x", 5000)} {
 		t.Run(name, func(t *testing.T) {
 			f := newRefundFinanceFixture(t)
+			require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat", ReconciliationReviewEnabled: true, ReconciliationReviewCount: 1}))
 			order := seedRefundFinanceOrder(t, f.user.Id, 1000, 900, 0, 100)
 			require.NoError(t, DB.Model(order).Update("checkout_version", 0).Error)
 			require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
@@ -74,6 +75,7 @@ func TestReconciliationSourceEvidenceIsOptional(t *testing.T) {
 
 func TestReconciliationPendingDeduplicationAndIndependentReview(t *testing.T) {
 	f := newRefundFinanceFixture(t)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat", ReconciliationReviewEnabled: true, ReconciliationReviewCount: 1}))
 	order := seedRefundFinanceOrder(t, f.user.Id, 1000, 900, 0, 100)
 	require.NoError(t, DB.Model(order).Update("checkout_version", 0).Error)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
@@ -94,13 +96,20 @@ func TestReconciliationPendingDeduplicationAndIndependentReview(t *testing.T) {
 	current, err := GetTicketRefundByTicketId(ticket.Id)
 	require.NoError(t, err)
 	assert.Equal(t, "awaiting_review", current.Finance.WaitingReason)
-	_, err = ReviewFinanceReconciliation(first.Id, f.admin.Id, true, "self review")
-	require.ErrorIs(t, err, ErrFinanceReviewer)
 	duplicate := *first
 	duplicate.Id, duplicate.RequestKey = 0, uuid.NewString()
 	require.NoError(t, DB.Create(&duplicate).Error)
-	_, err = ReviewFinanceReconciliation(first.Id, f.root.Id, true, "independent verification")
+	_, err = ReviewFinanceReconciliation(first.Id, f.admin.Id, true, "verified receipt")
+	require.ErrorIs(t, err, ErrFinanceReviewer)
+	applied, err := ReviewFinanceReconciliation(first.Id, f.root.Id, true, "verified receipt")
 	require.NoError(t, err)
+	assert.Equal(t, f.admin.Id, applied.ProposedBy)
+	assert.Equal(t, f.root.Id, applied.ReviewedBy)
+	assert.Equal(t, "applied", applied.Status)
+	_, err = ReviewFinanceReconciliation(first.Id, f.root.Id, true, "verified receipt")
+	require.NoError(t, err)
+	_, err = ReviewFinanceReconciliation(first.Id, f.root.Id, false, "changed decision")
+	require.ErrorIs(t, err, ErrFinanceRevision)
 	require.NoError(t, DB.First(&duplicate, duplicate.Id).Error)
 	assert.Equal(t, "superseded", duplicate.Status)
 	current, err = GetTicketRefundByTicketId(ticket.Id)
@@ -113,6 +122,7 @@ func TestReconciliationPendingDeduplicationAndIndependentReview(t *testing.T) {
 
 func TestReconciliationUsesCurrentCNYConversionAndInvalidatesStaleReview(t *testing.T) {
 	f := newRefundFinanceFixture(t)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat", ReconciliationReviewEnabled: true, ReconciliationReviewCount: 1}))
 	previousRate := operation_setting.USDExchangeRate
 	previousUnit := common.QuotaPerUnit
 	t.Cleanup(func() {
@@ -140,6 +150,7 @@ func TestReconciliationUsesCurrentCNYConversionAndInvalidatesStaleReview(t *test
 
 func TestReconciliationClassifiesLegacyDiscountWithoutChangingWallet(t *testing.T) {
 	f := newRefundFinanceFixture(t)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat", ReconciliationReviewEnabled: true, ReconciliationReviewCount: 1}))
 	order := seedRefundFinanceOrder(t, f.user.Id, 1000, 900, 0, 100)
 	require.NoError(t, DB.Model(order).Updates(map[string]any{"checkout_version": 0, "payment_total_cents": 0, "invoice_net_cents": 0, "discount_code_id": 1, "discount_rate": 90}).Error)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1100).Error)
@@ -162,7 +173,7 @@ func TestReconciliationClassifiesLegacyDiscountWithoutChangingWallet(t *testing.
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.finance.Id).Update("role", common.RoleAdminUser).Error)
 	_, err = ReviewFinanceReconciliation(record.Id, f.finance.Id, true, "verified source receipts")
 	require.ErrorIs(t, err, ErrFinanceReviewer)
-	_, err = ReviewFinanceReconciliation(record.Id, f.admin.Id, true, "independent receipt verification")
+	_, err = ReviewFinanceReconciliation(record.Id, f.admin.Id, true, "verified source receipts")
 	require.NoError(t, err)
 	report, err = GetRefundReconciliationReport(ticket.Id)
 	require.NoError(t, err)
@@ -226,6 +237,7 @@ func TestPartialRefundsConserveActualCashFeesAndCommission(t *testing.T) {
 
 func TestReconciliationRejectsStaleOrInventedPaymentEvidence(t *testing.T) {
 	f := newRefundFinanceFixture(t)
+	require.NoError(t, SaveInvoiceTaxConfig(InvoiceTaxConfig{Mode: "vat", ReconciliationReviewEnabled: true, ReconciliationReviewCount: 1}))
 	order := seedRefundFinanceOrder(t, f.user.Id, 1000, 900, 0, 100)
 	require.NoError(t, DB.Model(order).Update("checkout_version", 0).Error)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)

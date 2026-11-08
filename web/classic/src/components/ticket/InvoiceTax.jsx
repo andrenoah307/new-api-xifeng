@@ -23,6 +23,7 @@ import { RefreshCw } from 'lucide-react';
 import {
   Banner,
   Button,
+  Input,
   InputNumber,
   Select,
   Space,
@@ -374,6 +375,8 @@ export function InvoiceTaxSettings() {
     (legacyBefore === 0 || (legacyBefore + 28800) % 86400 === 0);
   const valid =
     validCutoff &&
+    (!config.reconciliation_review_enabled ||
+      (Number.isInteger(config.reconciliation_review_count) && config.reconciliation_review_count >= 1)) &&
     [config.ordinary_rate_bps, config.special_rate_bps].every(
       (rate) => Number.isInteger(rate) && rate >= 0 && rate < 10000,
     );
@@ -419,6 +422,18 @@ export function InvoiceTaxSettings() {
   return (
     <section className='space-y-4'>
       <h3>{t('Invoice tax charges')}</h3>
+      <Space>
+        <Switch checked={!!config.reconciliation_review_enabled}
+          onChange={(reconciliation_review_enabled) => setConfig({ ...config, reconciliation_review_enabled, reconciliation_review_count: config.reconciliation_review_count ?? 1 })}
+          aria-label={t('Require accounting repair review')} />
+        <span>{t('Require accounting repair review')}</span>
+      </Space>
+      {config.reconciliation_review_enabled && <label className='block space-y-2'>
+        <span>{t('Required reviewing administrators')}</span>
+        <Input type='number' min={1} step={1} value={config.reconciliation_review_count ?? 1}
+          onChange={(value) => setConfig({ ...config, reconciliation_review_count: Number(value) })} />
+      </label>}
+      <p>{t('Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.')}</p>
       <Space>
         <Switch checked={!!config.separate_refund_invoice_types}
           onChange={(separate_refund_invoice_types) => setConfig({ ...config, separate_refund_invoice_types })}

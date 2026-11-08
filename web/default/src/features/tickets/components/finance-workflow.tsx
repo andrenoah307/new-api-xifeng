@@ -39,6 +39,7 @@ type Payment = {
   bonus_quota: number
 }
 type Review = {
+  approvals?: { admin_id: number; reason: string; created_time: number }[]
   source_revision: string
   id: number
   status: string
@@ -46,6 +47,8 @@ type Review = {
   plan: { payments: Payment[]; noncash_grant_quota: number; evidence: string }
 }
 type Report = {
+  review_enabled?: boolean
+  review_count?: number
   quota_per_unit: string
   usd_exchange_rate: string
   revision: string
@@ -236,7 +239,7 @@ export function RefundPayoutPanel({
   )
 }
 const phaseLabels: Record<string, string> = {
-  awaiting_review: 'Awaiting independent accounting review',
+  awaiting_review: 'Financial reconciliation required',
   superseded: 'Superseded',
   documents_required: 'Original invoice evidence required',
   ready: 'Ready for correction',
@@ -718,6 +721,8 @@ function ReconciliationEditor({
       review.status === 'submitted' &&
       review.source_revision === report.revision
   )
+  const reviewEnabled = report.review_enabled !== false
+  const submissionBlocked = reviewEnabled && pendingReview
   const parsedPayments = payments.map((row) => {
     const bonus = money.parse(row.bonus_quota || '0')
     return {
@@ -784,7 +789,7 @@ function ReconciliationEditor({
       </ul>
       {report.stage !== 'reserved' && report.stage !== 'closed' && (
         <fieldset
-          disabled={busy || !money.valid || pendingReview}
+          disabled={busy || !money.valid || submissionBlocked}
           className='space-y-3'
         >
           {payments.map((row, index) => (
@@ -886,7 +891,7 @@ function ReconciliationEditor({
             />
           </label>
           <Button
-            disabled={busy || !money.valid || pendingReview}
+            disabled={busy || !money.valid || submissionBlocked}
             onClick={() => {
               if (
                 !amountsValid ||
@@ -915,22 +920,33 @@ function ReconciliationEditor({
               })
             }}
           >
-            {t('Submit for review')}
+            {reviewEnabled
+              ? t('Submit for review')
+              : t('Apply accounting repair')}
           </Button>
         </fieldset>
-      )}
-      {pendingReview && (
-        <p role='status'>
-          {t(
-            'A proposal is awaiting another administrator. Do not submit it again; submission is not approval.'
-          )}
-        </p>
       )}
       {report.reviews.map((review) => (
         <section key={review.id} className='space-y-2 border-t pt-3'>
           <h4>
             #{review.id} · {t(phaseLabels[review.status] ?? review.status)}
           </h4>
+          {review.status === 'submitted' && reviewEnabled && (
+            <p>
+              {t('Administrator approvals: {{approved}} / {{required}}', {
+                approved: review.approvals?.length ?? 0,
+                required: report.review_count ?? 1,
+              })}
+            </p>
+          )}
+          {review.approvals?.map((approval) => (
+            <p
+              key={approval.admin_id}
+              className='break-words whitespace-pre-wrap'
+            >
+              {t('Administrator')} #{approval.admin_id}: {approval.reason}
+            </p>
+          ))}
           <p className='break-words whitespace-pre-wrap'>
             {review.plan.evidence}
           </p>
@@ -952,7 +968,13 @@ function ReconciliationEditor({
           {review.status === 'submitted' &&
             user &&
             [10, 100].includes(user.role) &&
-            user.id !== review.proposed_by && (
+            (!reviewEnabled ||
+              (user.id !== review.proposed_by &&
+                (!review.approvals?.some(
+                  (approval) => approval.admin_id === user.id
+                ) ||
+                  (review.approvals?.length ?? 0) >=
+                    (report.review_count ?? 1)))) && (
               <>
                 <label className='block space-y-1'>
                   <span>{t('Review evidence')}</span>
@@ -974,7 +996,9 @@ function ReconciliationEditor({
                       )
                     }
                   >
-                    {t('Approve reconciliation')}
+                    {reviewEnabled
+                      ? t('Approve reconciliation')
+                      : t('Apply accounting repair')}
                   </Button>
                   <Button
                     variant='outline'

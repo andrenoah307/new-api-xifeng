@@ -276,7 +276,7 @@ const RefundDetail = ({
   const isPending = refund.refund_status === REFUND_STATUS_PENDING;
   const waitingLabels = {
     financial_reconciliation: 'Financial reconciliation required',
-    awaiting_review: 'Awaiting independent accounting review',
+    awaiting_review: 'Financial reconciliation required',
     awaiting_owner_confirmation: 'Refund amount is ready for your confirmation',
   };
   const frozenAmount = formatAmount(refund.frozen_quota ?? 0);
