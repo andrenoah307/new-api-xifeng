@@ -66,13 +66,43 @@ type RefundExportData struct {
 
 type RefundInvoiceExportItem struct {
 	InvoiceExportItem
-	OrderNumbers []string
+	OrderNumbers       []string
+	issuerOrderNumbers map[string][]string
 }
 
-// RefundInvoiceExportItems uses the same issuer attribution as invoice management.
-// Resolve every linked order, including orders not touched by this refund.
+// RefundInvoiceExportItems exports only issuer invoices reduced by this refund.
+// The internal projection retains untouched balances for subsequent FIFO refunds.
 func RefundInvoiceExportItems(ticketID int, data *RefundExportData, reissue bool) ([]RefundInvoiceExportItem, error) {
-	return refundInvoiceExportItemsTx(DB, ticketID, data, reissue)
+	red, err := refundInvoiceExportItemsTx(DB, ticketID, data, false)
+	if err != nil {
+		return nil, err
+	}
+	blue, err := refundInvoiceExportItemsTx(DB, ticketID, data, true)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]RefundInvoiceExportItem, 0)
+	for i := range red {
+		for j, issuer := range red[i].IssuerAmounts {
+			if issuer.AmountCents == blue[i].IssuerAmounts[j].AmountCents {
+				continue
+			}
+			item := red[i]
+			if reissue {
+				item = blue[i]
+				issuer = blue[i].IssuerAmounts[j]
+			}
+			item.OrderNumbers = item.issuerOrderNumbers[issuer.AccountName]
+			// Historical unattributed invoices may combine otherwise known accounts.
+			if len(red[i].IssuerAmounts) == 1 && issuer.AccountName == "-" {
+				item.OrderNumbers = red[i].OrderNumbers
+			}
+			item.IssuerAmounts = []InvoiceIssuerAmount{issuer}
+			item.TotalMoney = float64(issuer.AmountCents) / 100
+			items = append(items, item)
+		}
+	}
+	return items, nil
 }
 
 func refundInvoiceExportItemsTx(db *gorm.DB, ticketID int, data *RefundExportData, reissue bool) ([]RefundInvoiceExportItem, error) {
@@ -130,12 +160,18 @@ func refundInvoiceExportItemsTx(db *gorm.DB, ticketID int, data *RefundExportDat
 				orderIssuers[order.Id] = name
 			}
 		}
+		items[i].issuerOrderNumbers = map[string][]string{}
 		for _, id := range invoice.OrderIDs {
 			number := numbers[id]
 			if number == "" {
 				number = "-"
 			}
 			items[i].OrderNumbers = append(items[i].OrderNumbers, number)
+			issuer := orderIssuers[id]
+			if issuer == "" {
+				issuer = "-"
+			}
+			items[i].issuerOrderNumbers[issuer] = append(items[i].issuerOrderNumbers[issuer], number)
 		}
 	}
 	if err := attachInvoiceIssuerAmounts(db, invoiceItems, orderIDs); err != nil {
