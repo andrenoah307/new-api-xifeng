@@ -87,7 +87,7 @@ func ListRefundCorrectionsForExport(filter InvoiceExportFilter, page *common.Pag
 			return nil, 0, err
 		}
 		item := RefundCorrectionExportItem{InvoiceExportItem: InvoiceExportItem{TicketId: plan.TicketID, CompanyName: name, Email: email, TotalMoney: float64(plan.CashCents) / 100, OrderCount: len(orders), Status: plan.Status, CreatedTime: plan.CreatedTime}}
-		for i := range invoices {
+		for i := range red {
 			for j, issuer := range red[i].IssuerAmounts {
 				redRow, blueRow := red[i].InvoiceExportItem, blue[i].InvoiceExportItem
 				redRow.IssuerAmounts = []InvoiceIssuerAmount{issuer}
