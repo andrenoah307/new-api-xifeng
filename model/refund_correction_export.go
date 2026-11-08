@@ -56,7 +56,7 @@ func ListRefundCorrectionsForExport(filter InvoiceExportFilter, page *common.Pag
 		var names, emails []string
 		orders := map[int]bool{}
 		for _, invoice := range data.Invoices {
-			if invoice.OriginalCents <= 0 || invoice.RefundCents <= 0 {
+			if (invoice.OriginalCents <= 0 && invoice.ReissueCents <= 0) || invoice.RefundCents <= 0 {
 				continue
 			}
 			invoices = append(invoices, invoice)
@@ -71,10 +71,6 @@ func ListRefundCorrectionsForExport(filter InvoiceExportFilter, page *common.Pag
 		}
 		name, email := strings.Join(names, "; "), strings.Join(emails, "; ")
 		if keyword != "" && !strings.Contains(strings.ToLower(name+" "+email), keyword) && keyword != strconv.Itoa(plan.TicketID) && (amountErr != nil || keywordAmount != float64(plan.CashCents)/100) {
-			continue
-		}
-		total++
-		if total <= int64(page.GetStartIdx()) || len(items) >= page.GetPageSize() {
 			continue
 		}
 		data.Invoices = invoices
@@ -94,15 +90,23 @@ func ListRefundCorrectionsForExport(filter InvoiceExportFilter, page *common.Pag
 				blueRow.IssuerAmounts = []InvoiceIssuerAmount{blue[i].IssuerAmounts[j]}
 				redRow.TotalMoney = float64(issuer.AmountCents) / 100
 				blueRow.TotalMoney = float64(blue[i].IssuerAmounts[j].AmountCents) / 100
-				item.CorrectionRows = append(item.CorrectionRows,
-					RefundCorrectionExportRow{InvoiceExportItem: redRow, OrderNumbers: red[i].OrderNumbers, InvoiceColor: "red"})
+				if issuer.AmountCents > 0 {
+					item.CorrectionRows = append(item.CorrectionRows,
+						RefundCorrectionExportRow{InvoiceExportItem: redRow, OrderNumbers: red[i].OrderNumbers, InvoiceColor: "red"})
+				}
 				if blue[i].IssuerAmounts[j].AmountCents > 0 {
 					item.CorrectionRows = append(item.CorrectionRows,
 						RefundCorrectionExportRow{InvoiceExportItem: blueRow, OrderNumbers: blue[i].OrderNumbers, InvoiceColor: "blue"})
 				}
 			}
 		}
-		items = append(items, item)
+		if len(item.CorrectionRows) == 0 {
+			continue
+		}
+		total++
+		if total > int64(page.GetStartIdx()) && len(items) < page.GetPageSize() {
+			items = append(items, item)
+		}
 	}
 	return items, total, nil
 }
