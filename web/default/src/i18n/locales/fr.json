@@ -6172,6 +6172,12 @@
     "Gift credit reclaimed (original value, CNY)": "Crédits offerts repris (valeur initiale, CNY)",
     "Gift recovery reason": "Motif de reprise des crédits offerts",
     "Paid balance after refund (CNY)": "Solde payé après remboursement (CNY)",
-    "Proportional refund recovery": "Reprise proportionnelle au remboursement"
+    "Proportional refund recovery": "Reprise proportionnelle au remboursement",
+    "Administrator": "Administrateur",
+    "Administrator approvals: {{approved}} / {{required}}": "Approbations : {{approved}} / {{required}}",
+    "Apply accounting repair": "Appliquer la correction comptable",
+    "Require accounting repair review": "Exiger une validation des corrections comptables",
+    "Required reviewing administrators": "Nombre de validateurs requis",
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "Désactivé par défaut : les corrections soumises par un administrateur prennent effet immédiatement. Si activé, au moins un autre administrateur distinct doit les approuver. Modifier ce réglage ne valide pas automatiquement les dossiers en attente."
   }
 }

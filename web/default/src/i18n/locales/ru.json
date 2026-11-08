@@ -6172,6 +6172,12 @@
     "Gift credit reclaimed (original value, CNY)": "Возврат бонусных кредитов (исходная стоимость, CNY)",
     "Gift recovery reason": "Причина списания бонусов",
     "Paid balance after refund (CNY)": "Оплаченный остаток после возврата (CNY)",
-    "Proportional refund recovery": "Списание пропорционально возврату"
+    "Proportional refund recovery": "Списание пропорционально возврату",
+    "Administrator": "Администратор",
+    "Administrator approvals: {{approved}} / {{required}}": "Одобрения администраторов: {{approved}} / {{required}}",
+    "Apply accounting repair": "Применить исправление учета",
+    "Require accounting repair review": "Требовать проверку исправлений учета",
+    "Required reviewing administrators": "Число проверяющих администраторов",
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "По умолчанию выключено: исправления администратора применяются сразу после отправки. При включении требуется одобрение хотя бы одного другого администратора. Изменение настройки не одобряет ожидающие записи автоматически."
   }
 }

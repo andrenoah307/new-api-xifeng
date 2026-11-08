@@ -6172,6 +6172,12 @@
     "Gift credit reclaimed (original value, CNY)": "Thu hồi tín dụng tặng (giá trị gốc, CNY)",
     "Gift recovery reason": "Lý do thu hồi tín dụng tặng",
     "Paid balance after refund (CNY)": "Số dư đã trả sau hoàn tiền (CNY)",
-    "Proportional refund recovery": "Thu hồi theo tỷ lệ hoàn tiền"
+    "Proportional refund recovery": "Thu hồi theo tỷ lệ hoàn tiền",
+    "Administrator": "Quản trị viên",
+    "Administrator approvals: {{approved}} / {{required}}": "Quản trị viên đã duyệt: {{approved}} / {{required}}",
+    "Apply accounting repair": "Gửi và áp dụng điều chỉnh kế toán",
+    "Require accounting repair review": "Yêu cầu duyệt điều chỉnh kế toán",
+    "Required reviewing administrators": "Số quản trị viên cần duyệt",
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "Mặc định tắt: điều chỉnh do quản trị viên gửi có hiệu lực ngay. Khi bật, cần ít nhất một quản trị viên khác với người gửi phê duyệt; mỗi người chỉ được tính một lần. Thay đổi cài đặt không tự động duyệt các bản ghi đang chờ."
   }
 }

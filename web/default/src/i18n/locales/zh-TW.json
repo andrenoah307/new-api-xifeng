@@ -6172,6 +6172,12 @@
     "Gift credit reclaimed (original value, CNY)": "Gift credit reclaimed (original value, CNY)",
     "Gift recovery reason": "Gift recovery reason",
     "Paid balance after refund (CNY)": "Paid balance after refund (CNY)",
-    "Proportional refund recovery": "Proportional refund recovery"
+    "Proportional refund recovery": "Proportional refund recovery",
+    "Administrator": "管理員",
+    "Administrator approvals: {{approved}} / {{required}}": "管理員批准人數：{{approved}} / {{required}}",
+    "Apply accounting repair": "提交並套用帳務修復",
+    "Require accounting repair review": "帳務修復需要覆核",
+    "Required reviewing administrators": "所需覆核管理員人數",
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "預設關閉：管理員提交帳務修復後立即生效。開啟後，需至少一位非提交人的不同管理員批准。修改設定不會自動批准待處理記錄。"
   }
 }

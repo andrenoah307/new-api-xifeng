@@ -6172,6 +6172,12 @@
     "Gift credit reclaimed (original value, CNY)": "Gift credit reclaimed (original value, CNY)",
     "Gift recovery reason": "Gift recovery reason",
     "Paid balance after refund (CNY)": "Paid balance after refund (CNY)",
-    "Proportional refund recovery": "Proportional refund recovery"
+    "Proportional refund recovery": "Proportional refund recovery",
+    "Administrator": "Administrator",
+    "Administrator approvals: {{approved}} / {{required}}": "Administrator approvals: {{approved}} / {{required}}",
+    "Apply accounting repair": "Apply accounting repair",
+    "Require accounting repair review": "Require accounting repair review",
+    "Required reviewing administrators": "Required reviewing administrators",
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records."
   }
 }

@@ -59,7 +59,7 @@ export function RefundFinanceDetail(props: {
   const staff = [3, 10, 100].includes(role ?? 0)
   const waitingLabels: Record<string, string> = {
     financial_reconciliation: 'Financial reconciliation required',
-    awaiting_review: 'Awaiting independent accounting review',
+    awaiting_review: 'Financial reconciliation required',
     awaiting_owner_confirmation: 'Refund amount is ready for your confirmation',
   }
   const [error, setError] = useState('')
