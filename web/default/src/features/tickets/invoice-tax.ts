@@ -2,6 +2,7 @@ import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
   refund_settlement_guard_enabled?: boolean
+  refund_gift_recovery_policy?: 'prior_expiry' | 'proportional' | 'none'
   reconciliation_review_enabled?: boolean
   reconciliation_review_count?: number
   separate_refund_invoice_types?: boolean

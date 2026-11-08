@@ -93,10 +93,19 @@ func projectRefundCreditLots(spent int64, orders []TopUp, rows []RefundOrderAllo
 	return lots, nil
 }
 
-// A refund reaching a later payment expires remaining gifts from earlier payments.
+const (
+	RefundGiftPriorExpiry  = "prior_expiry"
+	RefundGiftProportional = "proportional"
+	RefundGiftNone         = "none"
+)
+
+// Gift recovery is independent of cash and invoice amounts.
 // Gift-only allocations carry no cash or invoice correction, but are held and
 // released in the same transaction as the paid refund.
-func applyRefundGiftRecovery(orders []TopUp, lots map[int]RefundCreditLot, detail *RefundFinanceDetail) error {
+func applyRefundGiftRecovery(orders []TopUp, lots map[int]RefundCreditLot, detail *RefundFinanceDetail, policy string) error {
+	if policy != RefundGiftPriorExpiry && policy != RefundGiftProportional && policy != RefundGiftNone {
+		return ErrInvoiceTaxInvalid
+	}
 	if len(detail.Allocations) == 0 {
 		return ErrTicketRefundQuotaInvalid
 	}
@@ -109,14 +118,20 @@ func applyRefundGiftRecovery(orders []TopUp, lots map[int]RefundCreditLot, detai
 	for _, order := range orders {
 		lot := lots[order.Id]
 		row, exists := selected[order.Id]
-		if !exists && lot.GiftRemaining == 0 {
+		if !exists && (lot.GiftRemaining == 0 || policy != RefundGiftPriorExpiry) {
 			continue
 		}
 		if !exists {
 			row = RefundOrderAllocation{TopUpID: order.Id, UserID: order.UserId, TradeNo: order.TradeNo, OriginalQuota: order.QuotaGranted, OriginalPaidCents: order.PaymentTotalCents, OriginalTaxCents: order.InvoiceTaxCents, UsedQuota: lot.UsedPaid, UsedInvoiceCents: refundProportionalCents(order.PaymentTotalCents, lot.UsedPaid, order.QuotaGranted), RemainingInvoiceCents: order.PaymentTotalCents - lot.RefundedCash, Status: "reserved", QuotaPerUnit: decimal.NewFromFloat(common.QuotaPerUnit).String()}
 		}
 		row.GiftPolicyVersion, row.OriginalGiftQuota = 1, order.RefundGiftQuota
-		if order.Id == lastID {
+		if policy == RefundGiftNone {
+			row.GiftPolicyVersion, row.RefundGiftQuota = 0, 0
+			row.GiftRecoveryReason = "none"
+		} else if order.Id == lastID || policy == RefundGiftProportional {
+			if policy == RefundGiftProportional {
+				row.GiftPolicyVersion = 2
+			}
 			row.GiftRecoveryReason = "proportional_refund"
 			row.RefundGiftQuota = refundProportionalCents(order.RefundGiftQuota, lot.GiftPolicyCash+row.RefundCents, order.PaymentTotalCents) - lot.RecoveredGift
 		} else {

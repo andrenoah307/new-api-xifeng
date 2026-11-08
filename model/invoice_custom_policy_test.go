@@ -40,6 +40,7 @@ func TestCustomInvoicePolicyPreservesSettingsAndHistoricalSwitch(t *testing.T) {
 	loaded, err := GetInvoiceTaxConfig(DB)
 	require.NoError(t, err)
 	config.ReconciliationReviewCount = 1
+	config.RefundGiftRecoveryPolicy = RefundGiftPriorExpiry
 	assert.Equal(t, config, loaded)
 	for _, tc := range []struct {
 		kind string

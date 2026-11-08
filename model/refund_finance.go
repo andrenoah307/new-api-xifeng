@@ -264,7 +264,7 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	if requested != 0 {
 		return nil, ErrTicketRefundQuotaExceed
 	}
-	if err := applyRefundGiftRecovery(orders, lots, result); err != nil {
+	if err := applyRefundGiftRecovery(orders, lots, result, RefundGiftPriorExpiry); err != nil {
 		return nil, err
 	}
 	if result.RefundCashCents > 9007199254740991 {

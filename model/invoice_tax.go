@@ -19,6 +19,7 @@ const InvoiceVATRateBps = 600
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
+	RefundGiftRecoveryPolicy     string `json:"refund_gift_recovery_policy"`
 	RefundSettlementGuardEnabled bool   `json:"refund_settlement_guard_enabled"`
 	ReconciliationReviewEnabled  bool   `json:"reconciliation_review_enabled"`
 	ReconciliationReviewCount    int    `json:"reconciliation_review_count"`
@@ -305,7 +306,8 @@ func syncInvoiceTaxQuotaCache(userID, delta int) {
 }
 
 func (config InvoiceTaxConfig) Valid() bool {
-	return config.ReconciliationReviewCount >= 0 && config.ReconciliationReviewCount <= math.MaxInt32 &&
+	return (config.RefundGiftRecoveryPolicy == "" || config.RefundGiftRecoveryPolicy == RefundGiftPriorExpiry || config.RefundGiftRecoveryPolicy == RefundGiftProportional || config.RefundGiftRecoveryPolicy == RefundGiftNone) &&
+		config.ReconciliationReviewCount >= 0 && config.ReconciliationReviewCount <= math.MaxInt32 &&
 		(!config.ReconciliationReviewEnabled || config.ReconciliationReviewCount >= 1) &&
 		(config.PolicyEffectiveAt == 0 || config.PolicyEffectiveAt == InvoicePolicyEffectiveAt) &&
 		config.LegacyInvoiceBefore >= 0 && config.LegacyInvoiceBefore <= 253402271999 &&
@@ -345,6 +347,9 @@ func GetInvoiceTaxConfig(db *gorm.DB) (InvoiceTaxConfig, error) {
 }
 
 func (config InvoiceTaxConfig) WithInvoicePolicy() InvoiceTaxConfig {
+	if config.RefundGiftRecoveryPolicy == "" {
+		config.RefundGiftRecoveryPolicy = RefundGiftPriorExpiry
+	}
 	if !config.ReconciliationReviewEnabled && config.ReconciliationReviewCount == 0 {
 		config.ReconciliationReviewCount = 1
 	}

@@ -557,7 +557,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 				return ErrTicketRefundQuotaInvalid
 			}
 			var err error
-			exportData, err = saveRefundInvoiceExportTx(tx, &exportRefund, params.AdminId)
+			exportData, err = saveRefundInvoiceExportTx(tx, &exportRefund, params.AdminId, mode == RefundQuotaModeOverride)
 			if err != nil {
 				return err
 			}
@@ -570,17 +570,12 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		if exportData != nil {
 			refundUpdates["finance_version"] = 2
-			refundUpdates["refund_gift_quota"] = 0
+			refundUpdates["refund_gift_quota"] = exportData.RefundGiftQuota
 			refundUpdates["settlement_verified"] = true
 			refundUpdates["settlement_quote"] = ""
 			refundUpdates["refund_cash_cents"] = exportData.CashCents
 			refund.RefundCashCents = exportData.CashCents
-			if mode == RefundQuotaModeSubtract {
-				refundUpdates["refund_quota"] = params.ActualRefundQuota
-			}
-			if mode == RefundQuotaModeOverride {
-				refundUpdates["refund_quota"] = user.Quota + originalFrozenQuota - params.ActualRefundQuota
-			}
+			refundUpdates["refund_quota"] = int(exportData.PaidQuota)
 		}
 		ticketUpdates := map[string]interface{}{
 			"updated_time": now,
@@ -608,7 +603,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			}
 			if exportData != nil {
 				for _, payment := range exportData.Payments {
-					allocation := RefundOrderAllocation{RefundTicketID: refund.TicketId, UserID: refund.UserId, TopUpID: payment.OrderID, TradeNo: payment.TradeNo, OriginalQuota: payment.OriginalQuota, RefundQuota: payment.RefundQuota, OriginalPaidCents: payment.PaidCents, RefundCents: payment.RefundCents, OriginalTaxCents: payment.OriginalTaxCents, RefundTaxCents: payment.RefundTaxCents, Status: "committed"}
+					allocation := RefundOrderAllocation{RefundTicketID: refund.TicketId, UserID: refund.UserId, TopUpID: payment.OrderID, TradeNo: payment.TradeNo, OriginalQuota: payment.OriginalQuota, RefundQuota: payment.RefundQuota, OriginalPaidCents: payment.PaidCents, RefundCents: payment.RefundCents, OriginalTaxCents: payment.OriginalTaxCents, RefundTaxCents: payment.RefundTaxCents, GiftPolicyVersion: payment.GiftPolicyVersion, OriginalGiftQuota: payment.OriginalGiftQuota, RefundGiftQuota: payment.RefundGiftQuota, Status: "committed"}
 					for _, invoice := range exportData.Invoices {
 						for _, orderID := range invoice.OrderIDs {
 							if orderID == payment.OrderID {
@@ -620,7 +615,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 					if err := tx.Where("refund_ticket_id = ? AND top_up_id = ?", refund.TicketId, payment.OrderID).Assign(allocation).FirstOrCreate(&existing).Error; err != nil {
 						return err
 					}
-					if err := tx.Model(&existing).Updates(map[string]interface{}{"gift_policy_version": 0, "original_gift_quota": 0, "refund_gift_quota": 0, "refund_gift_value_cents": 0, "remaining_paid_value_cents": 0, "remaining_gift_value_cents": 0, "gift_recovery_reason": ""}).Error; err != nil {
+					if err := tx.Model(&existing).Updates(map[string]interface{}{"gift_policy_version": payment.GiftPolicyVersion, "original_gift_quota": payment.OriginalGiftQuota, "refund_gift_quota": payment.RefundGiftQuota, "refund_gift_value_cents": 0, "remaining_paid_value_cents": 0, "remaining_gift_value_cents": 0, "gift_recovery_reason": ""}).Error; err != nil {
 						return err
 					}
 				}
@@ -635,11 +630,14 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			}
 		}
 		delta := 0
-		if params.OriginalWorkflow && params.RefundStatus == RefundStatusRefunded {
-			delta = originalFrozenQuota - originalQuota
-		}
 		if params.RefundStatus == RefundStatusRejected {
 			delta = originalFrozenQuota
+		} else if exportData != nil {
+			delta = originalFrozenQuota - int(exportData.PaidQuota+exportData.RefundGiftQuota)
+			if mode == RefundQuotaModeOverride {
+				oldQuotaForOverride = user.Quota + originalFrozenQuota
+				finalQuotaForOverride = params.ActualRefundQuota
+			}
 		} else if mode == RefundQuotaModeSubtract {
 			delta = originalFrozenQuota - params.ActualRefundQuota
 		} else if mode == RefundQuotaModeOverride {
@@ -684,7 +682,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		refund.RefundStatus = params.RefundStatus
 		if exportData != nil {
-			refund.FinanceVersion, refund.RefundGiftQuota, refund.SettlementVerified, refund.SettlementQuote = 2, 0, true, ""
+			refund.FinanceVersion, refund.RefundGiftQuota, refund.SettlementVerified, refund.SettlementQuote = 2, exportData.RefundGiftQuota, true, ""
 		}
 		if quota, ok := refundUpdates["refund_quota"].(int); ok {
 			refund.RefundQuota = quota

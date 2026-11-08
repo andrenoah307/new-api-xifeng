@@ -87,18 +87,17 @@ func ListRefundCorrectionsForExport(filter InvoiceExportFilter, page *common.Pag
 			return nil, 0, err
 		}
 		item := RefundCorrectionExportItem{InvoiceExportItem: InvoiceExportItem{TicketId: plan.TicketID, CompanyName: name, Email: email, TotalMoney: float64(plan.CashCents) / 100, OrderCount: len(orders), Status: plan.Status, CreatedTime: plan.CreatedTime}}
-		for i, invoice := range invoices {
-			// Each invoice produces exactly one red/blue pair. Multiple or
-			// uncertain issuers cannot be silently assigned to one account.
-			issuer := "-"
-			if len(red[i].IssuerAmounts) == 1 {
-				issuer = red[i].IssuerAmounts[0].AccountName
+		for i := range invoices {
+			for j, issuer := range red[i].IssuerAmounts {
+				redRow, blueRow := red[i].InvoiceExportItem, blue[i].InvoiceExportItem
+				redRow.IssuerAmounts = []InvoiceIssuerAmount{issuer}
+				blueRow.IssuerAmounts = []InvoiceIssuerAmount{blue[i].IssuerAmounts[j]}
+				redRow.TotalMoney = float64(issuer.AmountCents) / 100
+				blueRow.TotalMoney = float64(blue[i].IssuerAmounts[j].AmountCents) / 100
+				item.CorrectionRows = append(item.CorrectionRows,
+					RefundCorrectionExportRow{InvoiceExportItem: redRow, OrderNumbers: red[i].OrderNumbers, InvoiceColor: "red"},
+					RefundCorrectionExportRow{InvoiceExportItem: blueRow, OrderNumbers: blue[i].OrderNumbers, InvoiceColor: "blue"})
 			}
-			red[i].IssuerAmounts = []InvoiceIssuerAmount{{AccountName: issuer, AmountCents: invoice.OriginalCents}}
-			blue[i].IssuerAmounts = []InvoiceIssuerAmount{{AccountName: issuer, AmountCents: invoice.ReissueCents}}
-			item.CorrectionRows = append(item.CorrectionRows,
-				RefundCorrectionExportRow{InvoiceExportItem: red[i].InvoiceExportItem, OrderNumbers: red[i].OrderNumbers, InvoiceColor: "red"},
-				RefundCorrectionExportRow{InvoiceExportItem: blue[i].InvoiceExportItem, OrderNumbers: blue[i].OrderNumbers, InvoiceColor: "blue"})
 		}
 		items = append(items, item)
 	}

@@ -40,6 +40,7 @@ func TestUpdateInvoiceTaxConfigReplacesFixedPolicyWithCustomSettings(t *testing.
 		require.NoError(t, err)
 		config.PolicyEffectiveAt = 0
 		config.ReconciliationReviewCount = 1
+		config.RefundGiftRecoveryPolicy = model.RefundGiftPriorExpiry
 		assert.Equal(t, config, stored)
 	}
 }

@@ -80,8 +80,8 @@ func TestOriginalRefundInvoiceExportsAcrossOrdersAndInvoices(t *testing.T) {
 	assert.Equal(t, "ordinary", listed[0].CorrectionRows[1].InvoiceType)
 	assert.Equal(t, 600, listed[0].CorrectionRows[1].TaxRateBps)
 	assert.Equal(t, []string{orders[2].TradeNo}, listed[0].CorrectionRows[1].OrderNumbers)
-	assert.Equal(t, "-", listed[0].CorrectionRows[0].IssuerAmounts[0].AccountName)
-	assert.Equal(t, "-", listed[0].CorrectionRows[1].IssuerAmounts[0].AccountName)
+	assert.Equal(t, "Company account", listed[0].CorrectionRows[0].IssuerAmounts[0].AccountName)
+	assert.Equal(t, "Company account", listed[0].CorrectionRows[1].IssuerAmounts[0].AccountName)
 	listed, total, err = ListRefundCorrectionsForExport(InvoiceExportFilter{}, &common.PageInfo{Page: 2, PageSize: 1})
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), total)
@@ -150,7 +150,7 @@ func TestOriginalRefundRejectionAndAdjustedApproval(t *testing.T) {
 	assert.Equal(t, common.UserStatusEnabled, owner.Status)
 }
 
-func TestOriginalRefundReleasesLegacyGiftHold(t *testing.T) {
+func TestOriginalRefundPreservesLegacyGiftRecovery(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	require.NoError(t, DB.AutoMigrate(&RefundInvoiceExport{}))
 	require.NoError(t, DB.Where("1=1").Delete(&RefundInvoiceExport{}).Error)
@@ -177,12 +177,12 @@ func TestOriginalRefundReleasesLegacyGiftHold(t *testing.T) {
 	require.NoError(t, err)
 	var owner User
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)
-	assert.Equal(t, 55000, owner.Quota)
+	assert.Equal(t, 50000, owner.Quota)
 	require.NoError(t, DB.First(&refund, refund.Id).Error)
-	assert.Zero(t, refund.RefundGiftQuota)
+	assert.Equal(t, int64(5000), refund.RefundGiftQuota)
 	assert.Equal(t, 2, refund.FinanceVersion)
 	require.NoError(t, DB.First(&allocation, allocation.ID).Error)
 	assert.Equal(t, "committed", allocation.Status)
-	assert.Zero(t, allocation.GiftPolicyVersion)
-	assert.Zero(t, allocation.RefundGiftQuota)
+	assert.Equal(t, 1, allocation.GiftPolicyVersion)
+	assert.Equal(t, int64(5000), allocation.RefundGiftQuota)
 }
