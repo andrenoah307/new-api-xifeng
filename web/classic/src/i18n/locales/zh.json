@@ -3485,7 +3485,7 @@
     "Paid balance after refund (CNY)": "退款后剩余实付金额（￥）",
     "Gift balance after refund (original value, CNY)": "退款后剩余赠送（按原订单折合￥）",
     "Gift recovery reason": "赠送回收原因",
-    "Earlier order gift expired": "前序订单赠送失效",
+    "Earlier order gift expired": "赠送额度失效",
     "Proportional refund recovery": "按退款比例回收",
     "Require accounting repair review": "账务修复需要复核",
     "Required reviewing administrators": "所需复核管理员人数",

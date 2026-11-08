@@ -5582,7 +5582,7 @@
     "Paid balance after refund (CNY)": "返金後の有償残高（CNY）",
     "Gift balance after refund (original value, CNY)": "返金後の特典残高（注文時の換算額、CNY）",
     "Gift recovery reason": "特典回収の理由",
-    "Earlier order gift expired": "以前の注文の特典が失効",
+    "Earlier order gift expired": "特典クレジットが失効",
     "Proportional refund recovery": "返金割合に応じた回収",
     "Require accounting repair review": "会計修正の承認を必須にする",
     "Required reviewing administrators": "必要な承認管理者数",

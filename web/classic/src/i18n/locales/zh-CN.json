@@ -5753,7 +5753,7 @@
     "Paid balance after refund (CNY)": "退款后剩余实付金额（￥）",
     "Gift balance after refund (original value, CNY)": "退款后剩余赠送（按原订单折合￥）",
     "Gift recovery reason": "赠送回收原因",
-    "Earlier order gift expired": "前序订单赠送失效",
+    "Earlier order gift expired": "赠送额度失效",
     "Proportional refund recovery": "按退款比例回收",
     "Separate refunds by invoice attributes": "按发票属性分开退款",
     "Off by default: mixed refunds remain available. When enabled, orders without an invoice type (including none) are refunded separately from ordinary or special invoice orders, in payment order. Complete one refund before requesting the remainder. Confirmed refunds are unchanged.": "默认关闭，保留混合退款。开启后，无发票类型（含不开发票）的订单与普票、专票订单按支付顺序分开退款。本次退款完成后再申请剩余部分，已确认退款不受影响。",

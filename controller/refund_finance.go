@@ -239,7 +239,7 @@ func ExportRefundFinance(c *gin.Context) {
 		if row.GiftPolicyVersion > 0 {
 			reason := "按退款比例回收"
 			if row.GiftRecoveryReason == "prior_order_expired" {
-				reason = "前序订单赠送失效"
+				reason = "赠送额度失效"
 			}
 			values = append(values, refundCentsText(row.RefundGiftValueCents), refundCentsText(row.RemainingPaidValueCents), refundCentsText(row.RemainingGiftValueCents), reason)
 		} else {
