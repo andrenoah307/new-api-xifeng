@@ -121,7 +121,7 @@ func EpayCheckoutNotify(c *gin.Context) {
 		return
 	}
 	amount, err := decimal.NewFromString(params["money"])
-	if err != nil {
+	if err != nil || !amount.IsPositive() || amount.GreaterThan(decimal.NewFromInt(1000000000)) {
 		c.String(200, "fail")
 		return
 	}

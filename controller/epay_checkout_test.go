@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"errors"
 	"net/http/httptest"
 	"net/url"
@@ -57,6 +58,7 @@ func TestEpayCheckoutCallbackPinsMerchantAndAcknowledgesCommit(t *testing.T) {
 		{"wrong merchant", "100.00", "other", "invoice-secret", "alipay", "fail", false},
 		{"wrong signature", "100.00", "invoice-merchant", "other", "alipay", "fail", false},
 		{"wrong amount", "99.99", "invoice-merchant", "invoice-secret", "alipay", "fail", false},
+		{"amount above checkout limit", "1000000000.01", "invoice-merchant", "invoice-secret", "alipay", "fail", false},
 		{"wrong method", "100.00", "invoice-merchant", "invoice-secret", "wxpay", "fail", false},
 		{"database failure", "100.00", "invoice-merchant", "invoice-secret", "alipay", "fail", true},
 		{"paid", "100.00", "invoice-merchant", "invoice-secret", "alipay", "success", false},
@@ -93,6 +95,80 @@ func TestEpayCheckoutCallbackPinsMerchantAndAcknowledgesCommit(t *testing.T) {
 	raw, err := common.Marshal(order)
 	require.NoError(t, err)
 	assert.NotContains(t, string(raw), "invoice-secret")
+}
+
+func TestEpayCheckoutLargePaymentHTTP(t *testing.T) {
+	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.Log{}))
+	confirmPaymentComplianceForTest(t)
+	oldUnit, oldPrice, oldMin := common.QuotaPerUnit, operation_setting.Price, operation_setting.MinTopUp
+	oldDiscounts := operation_setting.GetPaymentSetting().AmountDiscount
+	common.QuotaPerUnit, operation_setting.Price, operation_setting.MinTopUp = 500000, 1, 50
+	operation_setting.GetPaymentSetting().AmountDiscount = map[int]float64{}
+	t.Cleanup(func() {
+		common.QuotaPerUnit, operation_setting.Price, operation_setting.MinTopUp = oldUnit, oldPrice, oldMin
+		operation_setting.GetPaymentSetting().AmountDiscount = oldDiscounts
+	})
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{ModuleEnabled: true, Enabled: true, Mode: "gross_up", OrdinaryRateBps: 600}))
+	require.NoError(t, model.SaveInvoiceEpayConfig(model.InvoiceEpayConfig{
+		Strategy: "round_robin", PrivateBelowCents: 500000, PrivateGatewayName: "Private", Gateways: []model.InvoiceEpayGateway{
+			{ID: "corporate", Name: "Corporate", AccountName: "Issuer", Address: "https://payment.example.test", PartnerID: "corporate", Key: "test-key", PaymentMethods: []string{"alipay"}},
+		},
+	}))
+	user := model.User{Username: "large-checkout-http", Password: "hashed", Status: common.UserStatusEnabled, Group: "default"}
+	require.NoError(t, db.Create(&user).Error)
+	req := model.EpayCheckoutRequest{TotalCents: 10000001, InvoiceType: "ordinary", PaymentMethod: "alipay", RequestID: "large-checkout-http"}
+	raw, err := common.Marshal(req)
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Set("id", user.Id)
+	c.Request = httptest.NewRequest("POST", "/api/user/epay/checkout/quote", bytes.NewReader(raw))
+	QuoteEpayCheckout(c)
+	var quoted struct {
+		Success bool                    `json:"success"`
+		Data    model.EpayCheckoutQuote `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(w.Body.Bytes(), &quoted))
+	require.True(t, quoted.Success, w.Body.String())
+	assert.Equal(t, 47000005000, quoted.Data.Quota)
+	assert.Equal(t, "94000.01", quoted.Data.CreditAmount)
+	req.Token = quoted.Data.Token
+	raw, err = common.Marshal(req)
+	require.NoError(t, err)
+	w = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(w)
+	c.Set("id", user.Id)
+	c.Request = httptest.NewRequest("POST", "/api/user/epay/checkout/pay", bytes.NewReader(raw))
+	RequestEpayCheckout(c)
+	var payment struct {
+		Success bool `json:"success"`
+		Data    struct {
+			URL    string            `json:"url"`
+			Params map[string]string `json:"params"`
+		} `json:"data"`
+	}
+	require.NoError(t, common.Unmarshal(w.Body.Bytes(), &payment))
+	require.True(t, payment.Success, w.Body.String())
+	assert.Equal(t, "https://payment.example.test/submit.php", payment.Data.URL)
+	assert.Equal(t, "100000.01", payment.Data.Params["money"])
+	assert.Equal(t, "corporate", payment.Data.Params["pid"])
+	params := epay.GenerateParams(map[string]string{"pid": "corporate", "out_trade_no": payment.Data.Params["out_trade_no"], "type": "alipay", "trade_status": "TRADE_SUCCESS", "money": "100000.01"}, "test-key")
+	values := url.Values{}
+	for key, value := range params {
+		values.Set(key, value)
+	}
+	for _, attempt := range []string{"paid", "replay"} {
+		t.Run(attempt, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest("GET", "/api/user/epay/checkout/notify?"+values.Encode(), nil)
+			EpayCheckoutNotify(c)
+			assert.Equal(t, "success", w.Body.String())
+			require.NoError(t, db.First(&user, user.Id).Error)
+			assert.Equal(t, 47000005000, user.Quota)
+		})
+	}
 }
 
 func TestLegacyEpayCallbackRejectsAmountMismatchAndWriteFailure(t *testing.T) {

@@ -25,6 +25,9 @@ func TestRechargeQuotaFromDecimal(t *testing.T) {
 		{decimal.NewFromInt(int64(limit)).Add(decimal.NewFromInt(1)), 0, false},
 		{decimal.RequireFromString("0.9"), 0, false},
 		{decimal.NewFromInt(-1), 0, false},
+		{decimal.RequireFromString("50000005000.5"), 50000005000, true},
+		{decimal.RequireFromString("9007199254740993"), 9007199254740993, true},
+		{decimal.RequireFromString("9223372036854775806"), 9223372036854775806, true},
 	} {
 		t.Run(test.value.String(), func(t *testing.T) {
 			got, err := RechargeQuotaFromDecimal(test.value)

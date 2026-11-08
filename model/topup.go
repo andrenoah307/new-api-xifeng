@@ -31,9 +31,10 @@ type TopUp struct {
 	CheckoutQuota             int     `json:"checkout_quota"`
 	EpayCredentials           string  `json:"-" gorm:"type:text;<-:create"`
 	CheckoutToken             string  `json:"-" gorm:"size:40"`
+	CheckoutRequestID         *string `json:"-" gorm:"size:48;uniqueIndex:,composite:checkout_request,priority:2"`
 	CheckoutCreditAmount      string  `json:"checkout_credit_amount" gorm:"size:32"`
 	Id                        int     `json:"id"`
-	UserId                    int     `json:"user_id" gorm:"index"`
+	UserId                    int     `json:"user_id" gorm:"index;uniqueIndex:,composite:checkout_request,priority:1"`
 	Amount                    int64   `json:"amount"`
 	Money                     float64 `json:"money"`
 	QuotaGranted              int64   `json:"quota_granted" gorm:"default:0"`
@@ -986,12 +987,14 @@ func grantDiscountCodeBonusTx(tx *gorm.DB, topUp *TopUp) (int, error) {
 
 	bonusTradeNo := topUp.TradeNo + "_bonus"
 
-	dPaid := decimal.NewFromInt(topUp.QuotaGranted)
-	dRate := decimal.NewFromInt(int64(rate))
-	dHundred := decimal.NewFromInt(100)
-	bonusQuota := common.QuotaFromDecimal(dPaid.Mul(dHundred).Div(dRate).Sub(dPaid))
+	var bonusQuota int
 	if topUp.CheckoutVersion == 1 {
 		bonusQuota = topUp.CheckoutQuota - topUp.CheckoutBaseQuota
+	} else {
+		dPaid := decimal.NewFromInt(topUp.QuotaGranted)
+		dRate := decimal.NewFromInt(int64(rate))
+		dHundred := decimal.NewFromInt(100)
+		bonusQuota = common.QuotaFromDecimal(dPaid.Mul(dHundred).Div(dRate).Sub(dPaid))
 	}
 	if bonusQuota <= 0 {
 		return 0, nil
