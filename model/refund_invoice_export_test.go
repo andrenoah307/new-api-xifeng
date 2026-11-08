@@ -113,3 +113,40 @@ func TestOriginalRefundRejectionAndAdjustedApproval(t *testing.T) {
 	assert.Equal(t, float64(90), order.Money)
 	assert.Equal(t, common.UserStatusEnabled, owner.Status)
 }
+
+func TestOriginalRefundReleasesLegacyGiftHold(t *testing.T) {
+	f := newRefundFinanceFixture(t)
+	require.NoError(t, DB.AutoMigrate(&RefundInvoiceExport{}))
+	require.NoError(t, DB.Where("1=1").Delete(&RefundInvoiceExport{}).Error)
+	t.Cleanup(func() { require.NoError(t, DB.Where("1=1").Delete(&RefundInvoiceExport{}).Error) })
+	order := seedRefundFinanceOrder(t, f.user.Id, 90000, 9000, 0, 1)
+	bonus := TopUp{UserId: f.user.Id, TradeNo: order.TradeNo + "_bonus", Source: "discount_bonus", QuotaGranted: 10000, Status: common.TopUpStatusSuccess}
+	require.NoError(t, DB.Create(&bonus).Error)
+	require.NoError(t, DB.Model(&f.user).Update("quota", 50000).Error)
+	ticket := Ticket{UserId: f.user.Id, Type: TicketTypeRefund, Status: TicketStatusOpen}
+	require.NoError(t, DB.Create(&ticket).Error)
+	refund := TicketRefund{TicketId: ticket.Id, UserId: f.user.Id, RefundStatus: RefundStatusPending, RefundQuota: 45000, FrozenQuota: 50000, RefundGiftQuota: 5000, FinanceVersion: 1, SettlementVerified: true}
+	require.NoError(t, DB.Create(&refund).Error)
+	allocation := RefundOrderAllocation{RefundTicketID: ticket.Id, TopUpID: order.Id, UserID: f.user.Id, OriginalQuota: 90000, RefundQuota: 45000, OriginalPaidCents: 9000, RefundCents: 4500, RefundGiftQuota: 5000, OriginalGiftQuota: 10000, GiftPolicyVersion: 1, Status: "reserved"}
+	require.NoError(t, DB.Create(&allocation).Error)
+	attempt := RefundPayoutAttempt{TicketId: ticket.Id, UserId: f.user.Id, RequestKey: uuid.NewString(), Status: "unknown", CashCents: 4500}
+	require.NoError(t, DB.Create(&attempt).Error)
+	_, _, _, _, err := UpdateRefundStatus(UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
+	require.ErrorIs(t, err, ErrRefundPayout)
+	require.NoError(t, DB.First(&refund, refund.Id).Error)
+	assert.Equal(t, 1, refund.FinanceVersion)
+	assert.Equal(t, RefundStatusPending, refund.RefundStatus)
+	require.NoError(t, DB.Model(&attempt).Update("status", "failed").Error)
+	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
+	require.NoError(t, err)
+	var owner User
+	require.NoError(t, DB.First(&owner, f.user.Id).Error)
+	assert.Equal(t, 55000, owner.Quota)
+	require.NoError(t, DB.First(&refund, refund.Id).Error)
+	assert.Zero(t, refund.RefundGiftQuota)
+	assert.Equal(t, 2, refund.FinanceVersion)
+	require.NoError(t, DB.First(&allocation, allocation.ID).Error)
+	assert.Equal(t, "committed", allocation.Status)
+	assert.Zero(t, allocation.GiftPolicyVersion)
+	assert.Zero(t, allocation.RefundGiftQuota)
+}

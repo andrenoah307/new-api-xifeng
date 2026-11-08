@@ -564,6 +564,10 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			"frozen_quota":   0,
 		}
 		if exportData != nil {
+			refundUpdates["finance_version"] = 2
+			refundUpdates["refund_gift_quota"] = 0
+			refundUpdates["settlement_verified"] = true
+			refundUpdates["settlement_quote"] = ""
 			refundUpdates["refund_cash_cents"] = exportData.CashCents
 			refund.RefundCashCents = exportData.CashCents
 			if mode == RefundQuotaModeSubtract {
@@ -609,6 +613,9 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 					}
 					var existing RefundOrderAllocation
 					if err := tx.Where("refund_ticket_id = ? AND top_up_id = ?", refund.TicketId, payment.OrderID).Assign(allocation).FirstOrCreate(&existing).Error; err != nil {
+						return err
+					}
+					if err := tx.Model(&existing).Updates(map[string]interface{}{"gift_policy_version": 0, "original_gift_quota": 0, "refund_gift_quota": 0, "refund_gift_value_cents": 0, "remaining_paid_value_cents": 0, "remaining_gift_value_cents": 0, "gift_recovery_reason": ""}).Error; err != nil {
 						return err
 					}
 				}
@@ -671,6 +678,9 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			}
 		}
 		refund.RefundStatus = params.RefundStatus
+		if exportData != nil {
+			refund.FinanceVersion, refund.RefundGiftQuota, refund.SettlementVerified, refund.SettlementQuote = 2, 0, true, ""
+		}
 		if quota, ok := refundUpdates["refund_quota"].(int); ok {
 			refund.RefundQuota = quota
 		}
