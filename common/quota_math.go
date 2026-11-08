@@ -8,8 +8,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// RechargeQuotaFromDecimal preserves bigint wallet credits used by legacy
-// recharge orders. Unlike relay charges, these must not saturate at MaxQuota:
+// RechargeQuotaFromDecimal truncates bigint wallet credits without float64.
+// Callers that require rounding must round the decimal before conversion.
+// Unlike relay charges, these must not saturate at MaxQuota:
 // reject overflow before IntPart, and let callers bound balance + credit in SQL.
 func RechargeQuotaFromDecimal(amount decimal.Decimal) (int, error) {
 	amount = amount.Truncate(0)
@@ -19,10 +20,9 @@ func RechargeQuotaFromDecimal(amount decimal.Decimal) (int, error) {
 	return int(amount.IntPart()), nil
 }
 
-// Quota conversions are centralized here so every billing path shares one
-// saturation + logging policy. Quota columns (user/token/log) are 32-bit
-// integers in the database, so an oversized product must clamp to the int32
-// range instead of wrapping around and turning a charge into a credit.
+// Single-request relay charges retain their int32 saturation + logging policy.
+// Bigint wallet credits use RechargeQuotaFromDecimal instead; do not widen
+// this charge limit to accommodate account balances or recharge orders.
 const (
 	MaxQuota = math.MaxInt32
 	MinQuota = math.MinInt32
