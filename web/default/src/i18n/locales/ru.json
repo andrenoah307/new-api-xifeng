@@ -6191,6 +6191,7 @@
     "refund invoice export requires a valid cash amount and complete payment history": "Недостаточно данных о платежах или счетах. Требуется проверка администратора.",
     "Refund invoice exports": "Экспорт счетов по возвратам",
     "Refund request submitted. The requested amount is frozen pending review.": "Заявка отправлена. Запрошенная сумма заморожена до проверки.",
-    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "Сумма замораживается при подаче и освобождается при отмене или отклонении. После аннулирования допускается только обычный счёт по НДС со ставкой 6%; название, налоговый номер и email берутся из исходного счёта."
+    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "Сумма замораживается при подаче и освобождается при отмене или отклонении. После аннулирования допускается только обычный счёт по НДС со ставкой 6%; название, налоговый номер и email берутся из исходного счёта.",
+    "Historical invoice tickets": "Предыдущие заявки на счета"
   }
 }

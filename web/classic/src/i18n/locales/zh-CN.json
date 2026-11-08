@@ -5778,6 +5778,7 @@
     "Refund request submitted. The requested amount is frozen pending review.": "退款申请已提交，申请金额已冻结，等待审核。",
     "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "提交后冻结申请金额，取消或驳回后解冻。退款涉及红冲时，重开发票仅可开具税率为6%的增值税普通发票，发票抬头、税号和邮箱沿用原发票工单。",
     "refund invoice export requires a valid cash amount and complete payment history": "历史支付或发票记录不足，无法准确计算退款发票导出，请管理员核查。",
+    "Historical invoice tickets": "历史发票工单",
     "Quick replies": "快捷回复",
     "Quick replies (one per line)": "快捷短语（每行一条）",
     "Custom navigation links": "自定义导航链接",

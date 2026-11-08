@@ -6146,6 +6146,7 @@
     "Refund request submitted. The requested amount is frozen pending review.": "Đã gửi yêu cầu hoàn tiền. Số tiền yêu cầu được giữ chờ duyệt.",
     "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "Số tiền được giữ khi gửi và giải phóng khi hủy hoặc từ chối. Sau điều chỉnh giảm, chỉ được phát hành lại hóa đơn GTGT thông thường với thuế suất 6%; tên, mã số thuế và email lấy từ hóa đơn gốc.",
     "refund invoice export requires a valid cash amount and complete payment history": "Thiếu lịch sử thanh toán hoặc hóa đơn. Quản trị viên cần kiểm tra.",
+    "Historical invoice tickets": "Yêu cầu hóa đơn trước đây",
     "Quick replies": "Trả lời nhanh",
     "Quick replies (one per line)": "Mẫu trả lời (mỗi dòng một mẫu)",
     "Custom navigation links": "Liên kết điều hướng tùy chỉnh",

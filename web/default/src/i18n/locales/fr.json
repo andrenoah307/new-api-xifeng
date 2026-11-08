@@ -6191,6 +6191,7 @@
     "refund invoice export requires a valid cash amount and complete payment history": "Historique des paiements ou factures incomplet. Un administrateur doit vérifier les données.",
     "Refund invoice exports": "Export des factures de remboursement",
     "Refund request submitted. The requested amount is frozen pending review.": "Demande envoyée. Le montant demandé est gelé en attente de vérification.",
-    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "Le montant demandé est gelé à la soumission et libéré en cas d’annulation ou de rejet. Après annulation de la facture, seule une facture TVA ordinaire au taux de 6 % peut être réémise ; le nom, le numéro fiscal et l’e-mail sont repris de la facture initiale."
+    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "Le montant demandé est gelé à la soumission et libéré en cas d’annulation ou de rejet. Après annulation de la facture, seule une facture TVA ordinaire au taux de 6 % peut être réémise ; le nom, le numéro fiscal et l’e-mail sont repris de la facture initiale.",
+    "Historical invoice tickets": "Anciens tickets de facturation"
   }
 }

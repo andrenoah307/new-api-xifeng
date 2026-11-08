@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
@@ -53,6 +54,53 @@ type RefundExportData struct {
 	CashCents int64                 `json:"cash_cents"`
 	Payments  []RefundExportPayment `json:"payments"`
 	Invoices  []RefundExportInvoice `json:"invoices"`
+}
+
+type RefundInvoiceExportItem struct {
+	InvoiceExportItem
+	OrderNumbers []string
+}
+
+// RefundInvoiceExportItems uses the same issuer attribution as invoice management.
+// Resolve every linked order, including orders not touched by this refund.
+func RefundInvoiceExportItems(ticketID int, data *RefundExportData, reissue bool) ([]RefundInvoiceExportItem, error) {
+	var refund TicketRefund
+	if err := DB.Where("ticket_id = ?", ticketID).First(&refund).Error; err != nil {
+		return nil, err
+	}
+	items := make([]RefundInvoiceExportItem, len(data.Invoices))
+	invoiceItems := make([]*InvoiceExportItem, len(items))
+	orderIDs := make([][]int, len(items))
+	for i, invoice := range data.Invoices {
+		amount, invoiceType, rate := invoice.OriginalCents, invoice.InvoiceType, invoice.VATRateBps
+		if reissue {
+			amount, invoiceType, rate = invoice.ReissueCents, "ordinary", InvoiceVATRateBps
+		}
+		items[i].InvoiceExportItem = InvoiceExportItem{UserId: refund.UserId, CompanyName: invoice.CompanyName, TaxNumber: invoice.TaxNumber, Email: invoice.Email, InvoiceType: invoiceType, TaxRateBps: rate, TotalMoney: float64(amount) / 100}
+		invoiceItems[i] = &items[i].InvoiceExportItem
+		orderIDs[i] = invoice.OrderIDs
+		var orders []TopUp
+		if len(invoice.OrderIDs) > 0 {
+			if err := DB.Select("id", "trade_no").Where("user_id = ? AND id IN ?", refund.UserId, invoice.OrderIDs).Find(&orders).Error; err != nil {
+				return nil, err
+			}
+		}
+		numbers := make(map[int]string, len(orders))
+		for _, order := range orders {
+			numbers[order.Id] = strings.TrimSpace(order.TradeNo)
+		}
+		for _, id := range invoice.OrderIDs {
+			number := numbers[id]
+			if number == "" {
+				number = "-"
+			}
+			items[i].OrderNumbers = append(items[i].OrderNumbers, number)
+		}
+	}
+	if err := attachInvoiceIssuerAmounts(DB, invoiceItems, orderIDs); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 func GetRefundInvoiceExport(ticketID int) (*RefundExportData, error) {

@@ -14,6 +14,9 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
   const { t } = useTranslation()
   const [amount, setAmount] = useState('')
   const [saved, setSaved] = useState(false)
+  const [invoices, setInvoices] = useState<
+    { invoice_ticket_id: number; company_name: string }[]
+  >([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -28,6 +31,7 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
         if (active && data.success) {
           setAmount((data.data.cash_cents / 100).toFixed(2))
           setSaved(true)
+          setInvoices(data.data.invoices ?? [])
         }
       })
       .catch(() => {})
@@ -48,6 +52,7 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
       if (!data.success) throw new Error(data.message)
       setAmount((data.data.cash_cents / 100).toFixed(2))
       setSaved(true)
+      setInvoices(data.data.invoices ?? [])
     } catch (e) {
       setError(e instanceof Error ? t(e.message) : t('Operation failed'))
     } finally {
@@ -91,7 +96,7 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
         <Button disabled={busy} onClick={() => void recalculate()}>
           {t('Recalculate')}
         </Button>
-        {['history', 'red', 'reissue'].map((kind, i) => (
+        {['red', 'reissue'].map((kind, i) => (
           <Button
             key={kind}
             disabled={!saved || busy}
@@ -99,7 +104,6 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
           >
             {t(
               [
-                'Export issued invoices',
                 'Export invoices to reverse',
                 'Export recalculated reissued invoices',
               ][i]
@@ -107,6 +111,25 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
           </Button>
         ))}
       </div>
+      {saved && invoices.length > 0 && (
+        <details>
+          <summary className='cursor-pointer'>
+            {t('Historical invoice tickets')} ({invoices.length})
+          </summary>
+          <ul className='mt-2 space-y-2'>
+            {invoices.map((invoice) => (
+              <li key={invoice.invoice_ticket_id}>
+                <a
+                  className='text-primary break-all underline'
+                  href={`/ticket-admin/${invoice.invoice_ticket_id}`}
+                >
+                  #{invoice.invoice_ticket_id} {invoice.company_name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {error && <p role='alert'>{error}</p>}
     </section>
   )

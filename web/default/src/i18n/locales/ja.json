@@ -6191,6 +6191,7 @@
     "refund invoice export requires a valid cash amount and complete payment history": "支払いまたは請求書の履歴が不足しています。管理者による確認が必要です。",
     "Refund invoice exports": "返金関連請求書の出力",
     "Refund request submitted. The requested amount is frozen pending review.": "返金申請を送信しました。申請額は審査完了まで保留されます。",
-    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "申請額は送信時に保留され、取消・却下時に解除されます。訂正後の再発行は税率6%の増値税普通発票のみとなり、宛名・納税者番号・メールアドレスは元の請求書を引き継ぎます。"
+    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "申請額は送信時に保留され、取消・却下時に解除されます。訂正後の再発行は税率6%の増値税普通発票のみとなり、宛名・納税者番号・メールアドレスは元の請求書を引き継ぎます。",
+    "Historical invoice tickets": "過去の請求書チケット"
   }
 }
