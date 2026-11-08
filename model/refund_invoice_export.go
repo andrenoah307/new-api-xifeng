@@ -362,6 +362,10 @@ func SaveRefundInvoiceExport(ticketID, actorID int) (*RefundExportData, error) {
 }
 
 func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, quotaIncludesGift ...bool) (*RefundExportData, error) {
+	return buildRefundInvoiceExportTx(tx, refund, actorID, true, quotaIncludesGift...)
+}
+
+func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, persist bool, quotaIncludesGift ...bool) (*RefundExportData, error) {
 	if refund.FinanceVersion == 1 {
 		var external int64
 		if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status IN ?", refund.TicketId, []string{"processing", "completed"}).Count(&external).Error; err != nil {
@@ -640,6 +644,9 @@ func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, q
 	}
 	if err := applyConsumedInvoiceAmounts(result, orders, lots); err != nil {
 		return nil, err
+	}
+	if !persist {
+		return result, nil
 	}
 	raw, err := common.Marshal(result)
 	if err != nil {

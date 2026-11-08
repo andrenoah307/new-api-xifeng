@@ -179,6 +179,7 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("issuer_identity_exports", TestRefundExportsPreserveInvoiceTitlesAndIssuerAmounts)
 			t.Run("issuer_partial_exports", TestRefundExportsPreserveIssuersAcrossPartialRefunds)
 			t.Run("consumed_replacement_invoices", TestRefundReplacementInvoicesContainOnlyConsumedCash)
+			t.Run("pending_invoice_refund_lock", TestPendingInvoiceRefundLock)
 			t.Run("original_adjustment", TestOriginalRefundRejectionAndAdjustedApproval)
 			t.Run("recovery_unissued", TestRefundRecoveryUnissuedCorrection)
 			t.Run("recovery_close_restart", TestAdminCloseUnissuedRefundAllowsNewApplication)
