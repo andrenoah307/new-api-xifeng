@@ -5623,6 +5623,8 @@
     "Apply accounting repair": "Appliquer la correction comptable",
     "Administrator approvals: {{approved}} / {{required}}": "Approbations : {{approved}} / {{required}}",
     "Administrator": "Administrateur",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "Demande de remboursement envoyée. Les crédits demandés sont gelés en attente de vérification.",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "L’envoi gèle les crédits demandés et suspend toute nouvelle consommation. Après vérification, confirmez le remboursement final : le gel sera ajusté de la différence, y compris les bonus à récupérer. Une annulation ou un rejet libère les crédits réellement gelés.",
     "Quick replies": "Réponses rapides",
     "Quick replies (one per line)": "Réponses rapides (une par ligne)",
     "Custom navigation links": "Liens de navigation personnalisés",

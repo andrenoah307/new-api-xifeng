@@ -44,7 +44,7 @@ func TestRefundFinanceFreshRolesAndExport(t *testing.T) {
 	require.NoError(t, db.Create(&model.User{Id: 99, Username: "refund-test-owner", AffCode: "refund-test-owner"}).Error)
 	user := model.User{Username: "refund-export", Role: common.RoleFinanceUser, Status: common.UserStatusEnabled, AffCode: "refund-export"}
 	require.NoError(t, db.Create(&user).Error)
-	refund := model.TicketRefund{TicketId: 12, UserId: 99, FinanceVersion: 1, RefundCashCents: 530000, RefundStatus: model.RefundStatusPending}
+	refund := model.TicketRefund{TicketId: 12, UserId: 99, FinanceVersion: 1, RefundQuota: 2500000000, FrozenQuota: 2500000000, RefundCashCents: 530000, RefundStatus: model.RefundStatusPending}
 	require.NoError(t, db.Create(&refund).Error)
 	for _, id := range []int{1, 2} {
 		require.NoError(t, db.Create(&model.RefundOrderAllocation{RefundTicketID: 12, TopUpID: id, UserID: 99, TradeNo: "=SUM(1,2)", InvoiceTicketID: 8, OriginalQuota: 2500000000, QuotaPerUnit: "500000", UsedQuota: 1250000000, RefundableQuota: 1250000000, RefundQuota: 1250000000, OriginalPaidCents: 530000, RefundCents: 265000, RefundTaxCents: 15000, UsedInvoiceCents: 265000, RemainingInvoiceCents: 265000, Status: "reserved"}).Error)

@@ -228,7 +228,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
         if (res.data?.success) {
           showSuccess(
             t(
-              'Refund request registered; awaiting settlement verification. No balance has been frozen.',
+              'Refund request submitted. The requested credits are frozen pending settlement verification.',
             ),
           );
           // 通知全局：用户额度已变化，已订阅的组件（如个人中心）可据此刷新。
@@ -479,7 +479,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
                 type='warning'
                 closeIcon={null}
                 description={t(
-                  'Submitting registers a request awaiting settlement verification. Your balance will not be frozen and API usage can continue. The refundable amount must be confirmed again after verification.',
+                  'Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.',
                 )}
                 className='!mb-3'
               />

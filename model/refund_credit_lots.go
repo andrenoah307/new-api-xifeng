@@ -162,3 +162,7 @@ func (refund *TicketRefund) hasValidRefundHold() bool {
 	total, valid := refund.heldRefundQuota()
 	return valid && refund.FrozenQuota >= 0 && int64(refund.FrozenQuota) <= total
 }
+
+func (refund *TicketRefund) hasProvisionalRefundHold() bool {
+	return !refund.SettlementVerified && refund.RefundQuota > 0 && refund.RefundGiftQuota == 0 && refund.hasValidRefundHold()
+}

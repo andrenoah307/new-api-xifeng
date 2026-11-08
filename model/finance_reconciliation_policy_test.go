@@ -123,7 +123,7 @@ func TestReconciliationReviewPolicy(t *testing.T) {
 			assert.Empty(t, report.Blockers)
 			var owner User
 			require.NoError(t, DB.First(&owner, f.user.Id).Error)
-			assert.Equal(t, 1000, owner.Quota)
+			assert.Equal(t, 500, owner.Quota)
 			var publicAudits int64
 			require.NoError(t, DB.Model(&TicketMessage{}).Where("ticket_id = ? AND content LIKE ?", ticket.Id, "Financial reconciliation #%").Count(&publicAudits).Error)
 			assert.Zero(t, publicAudits)
@@ -181,7 +181,7 @@ func TestReconciliationReviewUpgrade(t *testing.T) {
 	assert.Empty(t, report.Blockers)
 	var owner User
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)
-	assert.Equal(t, 1000, owner.Quota)
+	assert.Equal(t, 500, owner.Quota)
 }
 
 func TestReconciliationConcurrentDirectSubmission(t *testing.T) {
@@ -222,6 +222,6 @@ func TestReconciliationConcurrentDirectSubmission(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, report.Blockers)
 	assert.Equal(t, int64(100), report.NoncashQuota)
-	assert.Equal(t, 1100, report.WalletQuota)
+	assert.Equal(t, 600, report.WalletQuota)
 	require.Len(t, report.Reviews, 1)
 }

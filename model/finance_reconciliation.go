@@ -292,14 +292,21 @@ func refundReconciliationReportTx(tx *gorm.DB, refund TicketRefund) (*RefundReco
 }
 
 func GetRefundReconciliationReport(ticketID int) (*RefundReconciliationReport, error) {
+	if err := SynchronizeRefundHold(ticketID); err != nil {
+		return nil, err
+	}
+	var known TicketRefund
+	if err := DB.Select("user_id").Where("ticket_id = ?", ticketID).First(&known).Error; err != nil {
+		return nil, err
+	}
 	var result *RefundReconciliationReport
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		var refund TicketRefund
-		if err := tx.Where("ticket_id = ?", ticketID).First(&refund).Error; err != nil {
+		var owner User
+		if err := lockForUpdate(tx).Select("id").First(&owner, known.UserId).Error; err != nil {
 			return err
 		}
-		var owner User
-		if err := lockForUpdate(tx).Select("id").First(&owner, refund.UserId).Error; err != nil {
+		var refund TicketRefund
+		if err := tx.Where("ticket_id = ?", ticketID).First(&refund).Error; err != nil {
 			return err
 		}
 		var err error
@@ -355,7 +362,7 @@ func SubmitFinanceReconciliation(ticketID, actorID int, key, revision string, pl
 		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
 		}
-		if refund.RefundStatus != RefundStatusPending || refund.SettlementVerified || refund.FrozenQuota != 0 {
+		if refund.RefundStatus != RefundStatusPending || !refund.hasProvisionalRefundHold() {
 			return ErrTicketRefundNotPending
 		}
 		report, err := refundReconciliationReportTx(tx, refund)
@@ -479,7 +486,7 @@ func ReviewFinanceReconciliation(id, actorID int, approve bool, reason string) (
 			return err
 		}
 		if approve {
-			if refund.RefundStatus != RefundStatusPending || refund.SettlementVerified || refund.FrozenQuota != 0 {
+			if refund.RefundStatus != RefundStatusPending || !refund.hasProvisionalRefundHold() {
 				return ErrTicketRefundNotPending
 			}
 			report, err := refundReconciliationReportTx(tx, refund)

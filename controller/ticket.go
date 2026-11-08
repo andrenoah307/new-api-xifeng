@@ -287,7 +287,7 @@ func buildTicketDetailResponse(ticket *model.Ticket, staff bool) (gin.H, error) 
 		}
 	}
 	if ticket.Type == model.TicketTypeRefund {
-		refund, err := model.GetTicketRefundByTicketId(ticket.Id)
+		refund, err := model.GetTicketRefundForView(ticket.Id)
 		if err != nil && !errors.Is(err, model.ErrTicketRefundNotFound) {
 			return nil, err
 		}
@@ -1030,7 +1030,7 @@ func GetTicketRefund(c *gin.Context) {
 	if !ensureTicketAccessible(c, existing) {
 		return
 	}
-	refund, err := model.GetTicketRefundByTicketId(ticketId)
+	refund, err := model.GetTicketRefundForView(ticketId)
 	if err != nil {
 		handleTicketError(c, err)
 		return

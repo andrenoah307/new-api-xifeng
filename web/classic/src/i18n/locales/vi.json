@@ -6133,6 +6133,8 @@
     "Apply accounting repair": "Gửi và áp dụng điều chỉnh kế toán",
     "Administrator approvals: {{approved}} / {{required}}": "Quản trị viên đã duyệt: {{approved}} / {{required}}",
     "Administrator": "Quản trị viên",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "Đã gửi yêu cầu hoàn tiền. Hạn mức yêu cầu đã được đóng băng để chờ xác minh quyết toán.",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Gửi yêu cầu sẽ đóng băng hạn mức yêu cầu và tạm dừng sử dụng mới. Sau xác minh, hãy xác nhận số tiền hoàn cuối cùng; hệ thống sẽ điều chỉnh phần chênh lệch, gồm hạn mức tặng cần thu hồi. Hủy hoặc từ chối sẽ giải phóng hạn mức thực tế đã đóng băng.",
     "Quick replies": "Trả lời nhanh",
     "Quick replies (one per line)": "Mẫu trả lời (mỗi dòng một mẫu)",
     "Custom navigation links": "Liên kết điều hướng tùy chỉnh",

@@ -153,7 +153,7 @@ func buildRefundSummaryMessage(params CreateRefundTicketParams) string {
 	return strings.Join(lines, "\n")
 }
 
-// CreateRefundTicket records an idempotent waiting application without reserving funds.
+// CreateRefundTicket reserves the requested quota while settlement remains unverified.
 // Fail-open forwarding cannot currently prove that all admitted wallet liabilities
 // have settled, including zero-preconsume requests on another instance.
 func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund, *TicketMessage, error) {
@@ -261,7 +261,7 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 			TicketId:          ticket.Id,
 			UserId:            params.UserId,
 			RefundQuota:       params.RefundQuota,
-			FrozenQuota:       0,
+			FrozenQuota:       params.RefundQuota,
 			FinanceVersion:    1,
 			UserQuotaSnapshot: userQuota,
 			PayeeType:         payeeType,
@@ -280,13 +280,16 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 		if err := tx.Create(refund).Error; err != nil {
 			return err
 		}
+		if err := applyRefundWalletDeltaTx(tx, params.UserId, -refund.FrozenQuota); err != nil {
+			return err
+		}
 
 		message = &TicketMessage{
 			TicketId:    ticket.Id,
 			UserId:      params.UserId,
 			Username:    strings.TrimSpace(params.Username),
 			Role:        common.RoleCommonUser,
-			Content:     buildRefundSummaryMessage(params) + "\n退款等待结算核验，尚未冻结余额；金额变化后须重新确认。",
+			Content:     buildRefundSummaryMessage(params) + "\n已冻结申请额度，等待结算核验；确认最终金额后按差额调整冻结。",
 			CreatedTime: now,
 		}
 		if err := tx.Create(message).Error; err != nil {
@@ -301,13 +304,14 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 		refund.CreationReplayed = true
 		return ticket, refund, message, nil
 	}
+	_ = InvalidateUserCache(params.UserId)
 	RecordLog(params.UserId, LogTypeSystem,
-		fmt.Sprintf("提交退款申请 %s（工单 #%d，等待结算核验，未冻结余额）",
+		fmt.Sprintf("提交退款申请 %s（工单 #%d，已冻结申请额度，等待结算核验）",
 			logger.LogQuota(params.RefundQuota), ticket.Id))
 	return ticket, refund, message, nil
 }
 
-// SumUserPendingRefundQuota sums funds actually removed from the wallet, excluding waiting requests.
+// SumUserPendingRefundQuota sums actual holds, including unverified applications.
 func SumUserPendingRefundQuota(userId int) (int64, error) {
 	var total int64
 	err := DB.Model(&TicketRefund{}).
@@ -330,7 +334,7 @@ func GetUserMaxRefundableQuota(userId int) (int, error) {
 	return getUserMaxRefundableQuotaTx(DB, userId)
 }
 
-func getUserMaxRefundableQuotaTx(tx *gorm.DB, userId int) (int, error) {
+func getUserMaxRefundableQuotaTx(tx *gorm.DB, userId int, excludedTicket ...int) (int, error) {
 	var totalTopUp, bonusQuota, totalRefunded, pendingRefund int64
 	orders, bonusQuota, err := loadRefundPaymentSources(tx, userId)
 	if err != nil {
@@ -357,6 +361,15 @@ func getUserMaxRefundableQuotaTx(tx *gorm.DB, userId int) (int, error) {
 	if totalTopUp < 0 || bonusQuota < 0 || totalRefunded < 0 || pendingRefund < 0 {
 		return 0, ErrTicketRefundQuotaInvalid
 	}
+	held, err := refundProvisionalHoldTx(tx, userId, excludedTicket...)
+	if err != nil {
+		return 0, err
+	}
+	if int64(user.Quota) > math.MaxInt64-int64(held) || int64(held) > pendingRefund {
+		return 0, ErrTicketRefundQuotaInvalid
+	}
+	user.Quota += held
+	pendingRefund -= int64(held)
 	complete := true
 	for _, order := range orders {
 		if order.CheckoutVersion != 1 {

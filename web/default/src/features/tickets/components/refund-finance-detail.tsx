@@ -85,6 +85,7 @@ export function RefundFinanceDetail(props: {
       if (confirm) {
         setQuote(null)
         await client.invalidateQueries({ queryKey: ['tickets'] })
+        await client.invalidateQueries({ queryKey: ['user'] })
         props.onUpdated?.()
       } else setQuote(response.data.data)
     } catch (failure) {

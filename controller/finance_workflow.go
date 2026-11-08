@@ -160,12 +160,8 @@ func GetRefundPayouts(c *gin.Context) {
 		common.ApiError(c, model.ErrRefundPayout)
 		return
 	}
-	var refund model.TicketRefund
-	if err := model.DB.Where("ticket_id = ?", id).First(&refund).Error; err != nil {
-		common.ApiError(c, err)
-		return
-	}
-	if err := model.AttachRefundFinance(model.DB, &refund); err != nil {
+	refund, err := model.GetTicketRefundForView(id)
+	if err != nil {
 		common.ApiError(c, err)
 		return
 	}

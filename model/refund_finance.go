@@ -92,7 +92,7 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	if legacy != 0 {
 		return nil, ErrRefundFinanceReview
 	}
-	cap, err := getUserMaxRefundableQuotaTx(tx, userID)
+	cap, err := getUserMaxRefundableQuotaTx(tx, userID, excludedTicket...)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +154,14 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	if err := tx.Select("quota, used_quota, aff_history, aff_quota").First(&owner, userID).Error; err != nil {
 		return nil, err
 	}
+	held, err := refundProvisionalHoldTx(tx, userID, excludedTicket...)
+	if err != nil {
+		return nil, err
+	}
+	if int64(owner.Quota) > math.MaxInt64-int64(held) {
+		return nil, ErrRefundFinanceReview
+	}
+	owner.Quota += held
 	if owner.Quota < 0 || owner.UsedQuota < 0 || owner.AffHistoryQuota < 0 || owner.AffQuota < 0 {
 		return nil, ErrRefundFinanceReview
 	}
@@ -308,7 +316,7 @@ func QuoteRefundFinance(userID, quota int) (*RefundFinanceDetail, error) {
 			}
 			return err
 		}
-		cap, err := getUserMaxRefundableQuotaTx(tx, userID)
+		cap, err := getUserMaxRefundableQuotaTx(tx, userID, refund.TicketId)
 		if err != nil {
 			return err
 		}
@@ -346,7 +354,7 @@ func ConfirmRefundFinance(userID, ticketID, quota int, token string) (*TicketRef
 			}
 			return AttachRefundFinance(tx, &refund)
 		}
-		if refund.FrozenQuota != 0 {
+		if !refund.hasProvisionalRefundHold() {
 			return ErrRefundFinanceReview
 		}
 		if err := verifyRefundLiabilitiesTx(tx, userID); err != nil {
@@ -363,10 +371,15 @@ func ConfirmRefundFinance(userID, ticketID, quota int, token string) (*TicketRef
 		if token == "" || token != detail.QuoteToken || allocated != int64(quota) {
 			return ErrInvoiceTaxQuoteChanged
 		}
-		refund.RefundQuota, refund.FrozenQuota = quota, quota
-		if detail.RefundGiftQuota > int64(owner.Quota)-int64(quota) {
+		previousHold := refund.FrozenQuota
+		if int64(owner.Quota) > math.MaxInt64-int64(previousHold) {
+			return ErrRefundFinanceReview
+		}
+		available := int64(owner.Quota) + int64(previousHold)
+		if int64(quota) > available || detail.RefundGiftQuota > available-int64(quota) {
 			return ErrTicketRefundQuotaExceed
 		}
+		refund.RefundQuota, refund.FrozenQuota = quota, quota
 		refund.RefundGiftQuota = detail.RefundGiftQuota
 		refund.FrozenQuota += int(detail.RefundGiftQuota)
 		refund.FinanceVersion, refund.RefundCashCents = 1, detail.RefundCashCents
@@ -379,7 +392,7 @@ func ConfirmRefundFinance(userID, ticketID, quota int, token string) (*TicketRef
 		if err := createRefundInvoiceCorrectionsTx(tx, &refund, detail.Allocations); err != nil {
 			return err
 		}
-		if err := applyRefundWalletDeltaTx(tx, userID, -refund.FrozenQuota); err != nil {
+		if err := applyRefundWalletDeltaTx(tx, userID, previousHold-refund.FrozenQuota); err != nil {
 			return err
 		}
 		refund.SettlementVerified = true
@@ -397,6 +410,22 @@ func ConfirmRefundFinance(userID, ticketID, quota int, token string) (*TicketRef
 	}
 	_ = InvalidateUserCache(userID)
 	return &refund, nil
+}
+
+// Only the current unverified ticket may include its own hold in a quote.
+// No wallet credit is issued while reading or recalculating the quote.
+func refundProvisionalHoldTx(tx *gorm.DB, userID int, ticketIDs ...int) (int, error) {
+	if len(ticketIDs) == 0 {
+		return 0, nil
+	}
+	var refund TicketRefund
+	if err := tx.Where("ticket_id = ? AND user_id = ? AND refund_status = ?", ticketIDs[0], userID, RefundStatusPending).First(&refund).Error; err != nil {
+		return 0, err
+	}
+	if !refund.hasProvisionalRefundHold() {
+		return 0, ErrRefundFinanceReview
+	}
+	return refund.FrozenQuota, nil
 }
 
 func prepareRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params CreateRefundTicketParams) error {
