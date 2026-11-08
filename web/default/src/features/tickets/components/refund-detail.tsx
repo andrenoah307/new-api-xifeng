@@ -46,7 +46,7 @@ import {
   PAYEE_TYPE_LABELS,
   INVOICE_STATUS_CONFIG,
 } from '../constants'
-import { RefundFinanceDetail } from './refund-finance-detail'
+import { RefundInvoiceExports } from './refund-invoice-exports'
 
 interface RefundDetailProps {
   refund: TicketRefund
@@ -155,9 +155,11 @@ function InvoiceHistoryAlert({ invoices }: { invoices: TicketInvoice[] }) {
                       copyable={false}
                     />
                   )}
-                  {inv.invoice_status === 1 && (
+                  {(inv.invoice_status === 1 || inv.invoice_status === 2) && (
                     <span className='ml-1 text-[11px] text-amber-600 dark:text-amber-400'>
-                      {t('Pending')}
+                      {t(
+                        'Needs manual handling (reject / offline red invoice)'
+                      )}
                     </span>
                   )}
                 </td>
@@ -263,18 +265,6 @@ export function RefundDetail({
 }: RefundDetailProps) {
   const { t } = useTranslation()
   const statusCfg = REFUND_STATUS_CONFIG[refund.refund_status]
-  const waitingLabels: Record<string, string> = {
-    financial_reconciliation: 'Financial reconciliation required',
-    awaiting_review: 'Financial reconciliation required',
-    awaiting_owner_confirmation: 'Refund amount is ready for your confirmation',
-  }
-  const correctionsPending =
-    !refund.settlement_verified ||
-    (refund.finance_version === 1 &&
-      (!refund.finance ||
-        refund.finance.invoice_corrections.some(
-          (item) => item.status !== 'completed'
-        )))
 
   const [resolveOpen, setResolveOpen] = useState(false)
   const [rejectOpen, setRejectOpen] = useState(false)
@@ -342,7 +332,6 @@ export function RefundDetail({
   const parsedClawbackQuota = parseQuotaInput(clawbackAmount)
 
   const isResolveEnabled = useMemo(() => {
-    if (correctionsPending) return false
     if (
       clawbackAvailable &&
       clawbackEnabled &&
@@ -363,7 +352,6 @@ export function RefundDetail({
     return parsedCustomQuota >= 0
   }, [
     quotaMode,
-    correctionsPending,
     parsedCustomQuota,
     targetUserQuota,
     frozenQ,
@@ -373,16 +361,15 @@ export function RefundDetail({
   ])
 
   const handleResolve = () => {
-    if (correctionsPending) return
     const extra: {
       quota_mode: string
       actual_refund_quota?: number
       claw_back_commission?: boolean
       claw_back_quota?: number
     } = {
-      quota_mode: refund.finance_version === 1 ? 'write_off' : quotaMode,
+      quota_mode: quotaMode,
     }
-    if (refund.finance_version !== 1 && quotaMode !== 'write_off') {
+    if (quotaMode !== 'write_off') {
       extra.actual_refund_quota = parsedCustomQuota ?? 0
     }
     if (clawbackAvailable) {
@@ -412,36 +399,14 @@ export function RefundDetail({
           <CardTitle className='text-base'>{t('Refund Detail')}</CardTitle>
           {statusCfg && (
             <StatusBadge
-              label={t(
-                refund.refund_status === REFUND_STATUS.PENDING &&
-                  !refund.settlement_verified
-                  ? (waitingLabels[refund.finance?.waiting_reason ?? ''] ??
-                      'Awaiting settlement verification')
-                  : statusCfg.labelKey
-              )}
+              label={t(statusCfg.labelKey)}
               variant={statusCfg.variant}
               copyable={false}
             />
           )}
         </CardHeader>
         <CardContent className='space-y-4'>
-          {refund.refund_status === REFUND_STATUS.PENDING &&
-            !refund.settlement_verified &&
-            !refund.finance && (
-              <p role='status'>
-                {t(
-                  'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
-                )}
-              </p>
-            )}
-          {refund.finance && (
-            <RefundFinanceDetail
-              finance={refund.finance}
-              ticketId={refund.ticket_id}
-              userId={refund.user_id}
-              requestedQuota={refund.refund_quota}
-            />
-          )}
+          {!readonly && <RefundInvoiceExports ticketId={refund.ticket_id} />}
           {userInvoices && userInvoices.length > 0 && (
             <InvoiceHistoryAlert invoices={userInvoices} />
           )}
@@ -499,21 +464,20 @@ export function RefundDetail({
 
           {!readonly && refund.refund_status === REFUND_STATUS.PENDING && (
             <div className='flex gap-2 pt-2'>
-              {refund.finance_version !== 1 && (
-                <Button
-                  disabled={loading || correctionsPending}
-                  onClick={() => setResolveOpen(true)}
-                >
-                  {t('Complete Refund')}
-                </Button>
-              )}
+              <Button
+                size='sm'
+                disabled={loading}
+                onClick={() => setResolveOpen(true)}
+              >
+                {t('Complete Refund')}
+              </Button>
               <Button
                 variant='destructive'
                 size='sm'
                 disabled={loading}
                 onClick={() => setRejectOpen(true)}
               >
-                {t('Reject')}
+                {t('Reject and Unfreeze')}
               </Button>
             </div>
           )}
@@ -586,12 +550,8 @@ export function RefundDetail({
                   <SelectItem value='write_off'>
                     {t('Write Off (Recommended)')}
                   </SelectItem>
-                  {refund.finance_version !== 1 && (
-                    <SelectItem value='subtract'>{t('Subtract')}</SelectItem>
-                  )}
-                  {refund.finance_version !== 1 && (
-                    <SelectItem value='override'>{t('Override')}</SelectItem>
-                  )}
+                  <SelectItem value='subtract'>{t('Subtract')}</SelectItem>
+                  <SelectItem value='override'>{t('Override')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

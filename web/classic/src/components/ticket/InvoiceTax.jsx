@@ -423,25 +423,6 @@ export function InvoiceTaxSettings() {
     <section className='space-y-4'>
       <h3>{t('Invoice tax charges')}</h3>
       <Space>
-        <Switch checked={!!config.reconciliation_review_enabled}
-          onChange={(reconciliation_review_enabled) => setConfig({ ...config, reconciliation_review_enabled, reconciliation_review_count: config.reconciliation_review_count ?? 1 })}
-          aria-label={t('Require accounting repair review')} />
-        <span>{t('Require accounting repair review')}</span>
-      </Space>
-      {config.reconciliation_review_enabled && <label className='block space-y-2'>
-        <span>{t('Required reviewing administrators')}</span>
-        <Input type='number' min={1} step={1} value={config.reconciliation_review_count ?? 1}
-          onChange={(value) => setConfig({ ...config, reconciliation_review_count: Number(value) })} />
-      </label>}
-      <p>{t('Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.')}</p>
-      <Space>
-        <Switch checked={!!config.separate_refund_invoice_types}
-          onChange={(separate_refund_invoice_types) => setConfig({ ...config, separate_refund_invoice_types })}
-          aria-label={t('Separate refunds by invoice attributes')} />
-        <span>{t('Separate refunds by invoice attributes')}</span>
-      </Space>
-      <p>{t('Off by default: mixed refunds remain available. When enabled, orders without an invoice type (including none) are refunded separately from ordinary or special invoice orders, in payment order. Complete one refund before requesting the remainder. Confirmed refunds are unchanged.')}</p>
-      <Space>
         <Switch
           checked={!!config.module_enabled}
           onChange={(module_enabled) =>

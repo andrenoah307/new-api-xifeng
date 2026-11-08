@@ -33,7 +33,7 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { TicketRefund } from './api'
-import { RefundFinanceDetail } from './components/refund-finance-detail'
+import { RefundInvoiceExports } from './components/refund-invoice-exports'
 import { refundCash } from './refund-finance-format'
 
 export function RefundFinancePage() {
@@ -74,7 +74,7 @@ function RefundFinanceList(props: { userId: number; role: number }) {
   return (
     <SectionPageLayout>
       <SectionPageLayout.Title>
-        {t('Refund reconciliation')}
+        {t('Refund invoice exports')}
       </SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <div className='mb-4 flex items-center justify-end gap-2'>
@@ -139,15 +139,13 @@ function RefundFinanceList(props: { userId: number; role: number }) {
                   <td className='p-3'>#{row.ticket_id}</td>
                   <td className='p-3'>{row.user_id}</td>
                   <td className='p-3'>
-                    {row.settlement_status === 'waiting'
+                    {!row.refund_cash_cents
                       ? '-'
                       : refundCash(row.refund_cash_cents ?? 0)}
                   </td>
                   <td className='p-3'>
                     {t(
-                      row.refund_status === 1
-                        ? 'Awaiting settlement verification'
-                        : 'Processed'
+                      row.refund_status === 1 ? 'Pending review' : 'Processed'
                     )}
                   </td>
                   <td className='p-3'>
@@ -178,19 +176,15 @@ function RefundFinanceList(props: { userId: number; role: number }) {
           >
             <DialogHeader>
               <DialogTitle>
-                {t('Refund reconciliation')} #{selected}
+                {t('Refund invoice exports')} #{selected}
               </DialogTitle>
             </DialogHeader>
             <div className='min-w-0'>
-              {item?.finance ? (
-                <RefundFinanceDetail
+              {item && (
+                <RefundInvoiceExports
                   key={item.ticket_id}
-                  finance={item.finance}
                   ticketId={item.ticket_id}
-                  onUpdated={() => void query.refetch()}
                 />
-              ) : (
-                <p>{t('No data')}</p>
               )}
             </div>
           </DialogContent>

@@ -75,19 +75,20 @@ type TicketRefund struct {
 }
 
 type CreateRefundTicketParams struct {
-	FinanceQuote string
-	RequestKey   string
-	UserId       int
-	Username     string
-	Subject      string
-	Priority     int
-	RefundQuota  int
-	PayeeType    string
-	PayeeName    string
-	PayeeAccount string
-	PayeeBank    string
-	Contact      string
-	Reason       string
+	OriginalWorkflow bool
+	FinanceQuote     string
+	RequestKey       string
+	UserId           int
+	Username         string
+	Subject          string
+	Priority         int
+	RefundQuota      int
+	PayeeType        string
+	PayeeName        string
+	PayeeAccount     string
+	PayeeBank        string
+	Contact          string
+	Reason           string
 }
 
 func (refund *TicketRefund) BeforeCreate(tx *gorm.DB) error {
@@ -179,6 +180,9 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 	if strings.TrimSpace(params.Contact) == "" {
 		return nil, nil, nil, ErrTicketRefundContactEmpty
 	}
+	if params.OriginalWorkflow && params.RequestKey == "" {
+		params.RequestKey = uuid.NewString()
+	}
 	if _, err := uuid.Parse(params.RequestKey); err != nil || len(params.RequestKey) != 36 {
 		return nil, nil, nil, ErrTicketRefundQuotaInvalid
 	}
@@ -234,7 +238,13 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 		if pending != 0 {
 			return ErrRefundFinancePending
 		}
-		eligibility, err := getRefundEligibilityTx(tx, params.UserId)
+		var eligibility *RefundEligibility
+		var err error
+		if params.OriginalWorkflow {
+			eligibility, err = originalRefundEligibilityTx(tx, params.UserId)
+		} else {
+			eligibility, err = getRefundEligibilityTx(tx, params.UserId)
+		}
 		if err != nil {
 			return err
 		}
@@ -272,6 +282,10 @@ func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund
 			Reason:            strings.TrimSpace(params.Reason),
 			RefundStatus:      RefundStatusPending,
 			CreatedTime:       now,
+		}
+		if params.OriginalWorkflow {
+			refund.FinanceVersion = 2
+			refund.SettlementVerified = true
 		}
 		if params.RequestKey != "" {
 			key := fmt.Sprintf("%d:%s", params.UserId, params.RequestKey)
@@ -429,6 +443,7 @@ func GetTicketRefundByTicketId(ticketId int) (*TicketRefund, error) {
 // 当前所有批准模式均等待结算安全证明；这些参数仅保留既有 API 协议。
 // 驳回只退回实际 FrozenQuota，等待申请不得按 RefundQuota 产生新余额。
 type UpdateRefundStatusParams struct {
+	OriginalWorkflow  bool
 	PayoutAttemptID   int
 	PayoutReference   string
 	PayoutEvidence    string
@@ -508,7 +523,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		if refund.RefundQuota <= 0 {
 			return ErrTicketRefundQuotaInvalid
 		}
-		if params.RefundStatus == RefundStatusRefunded && !refund.hasVerifiedRefundHold() {
+		if params.RefundStatus == RefundStatusRefunded && !params.OriginalWorkflow && !refund.hasVerifiedRefundHold() {
 			return ErrRefundSettlementUnconfirmed
 		}
 		if params.RefundStatus == RefundStatusRefunded {
@@ -521,11 +536,42 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		originalFrozenQuota = refund.FrozenQuota
 		prevStatus, originalQuota = ticket.Status, refund.RefundQuota
+		var exportData *RefundExportData
+		if params.OriginalWorkflow && params.RefundStatus == RefundStatusRefunded {
+			exportRefund := refund
+			if mode == RefundQuotaModeSubtract {
+				exportRefund.RefundQuota = params.ActualRefundQuota
+			}
+			if mode == RefundQuotaModeOverride {
+				if user.Quota < 0 || int64(user.Quota) > math.MaxInt64-int64(originalFrozenQuota) {
+					return ErrTicketRefundQuotaInvalid
+				}
+				exportRefund.RefundQuota = user.Quota + originalFrozenQuota - params.ActualRefundQuota
+			}
+			if exportRefund.RefundQuota <= 0 {
+				return ErrTicketRefundQuotaInvalid
+			}
+			var err error
+			exportData, err = saveRefundInvoiceExportTx(tx, &exportRefund, params.AdminId)
+			if err != nil {
+				return err
+			}
+		}
 		now := common.GetTimestamp()
 		refundUpdates := map[string]interface{}{
 			"refund_status":  params.RefundStatus,
 			"processed_time": now,
 			"frozen_quota":   0,
+		}
+		if exportData != nil {
+			refundUpdates["refund_cash_cents"] = exportData.CashCents
+			refund.RefundCashCents = exportData.CashCents
+			if mode == RefundQuotaModeSubtract {
+				refundUpdates["refund_quota"] = params.ActualRefundQuota
+			}
+			if mode == RefundQuotaModeOverride {
+				refundUpdates["refund_quota"] = user.Quota + originalFrozenQuota - params.ActualRefundQuota
+			}
 		}
 		ticketUpdates := map[string]interface{}{
 			"updated_time": now,
@@ -546,7 +592,28 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			// 并发保护：已被其他管理员处理过。
 			return ErrTicketRefundNotPending
 		}
-		if params.RefundStatus == RefundStatusRefunded {
+		if params.OriginalWorkflow {
+			// Historical externally started payouts/corrections must not be discarded.
+			if err := releaseRefundFinanceTx(tx, &refund); err != nil {
+				return err
+			}
+			if exportData != nil {
+				for _, payment := range exportData.Payments {
+					allocation := RefundOrderAllocation{RefundTicketID: refund.TicketId, UserID: refund.UserId, TopUpID: payment.OrderID, TradeNo: payment.TradeNo, OriginalQuota: payment.OriginalQuota, RefundQuota: payment.RefundQuota, OriginalPaidCents: payment.PaidCents, RefundCents: payment.RefundCents, OriginalTaxCents: payment.OriginalTaxCents, RefundTaxCents: payment.RefundTaxCents, Status: "committed"}
+					for _, invoice := range exportData.Invoices {
+						for _, orderID := range invoice.OrderIDs {
+							if orderID == payment.OrderID {
+								allocation.InvoiceTicketID = invoice.InvoiceTicketID
+							}
+						}
+					}
+					var existing RefundOrderAllocation
+					if err := tx.Where("refund_ticket_id = ? AND top_up_id = ?", refund.TicketId, payment.OrderID).Assign(allocation).FirstOrCreate(&existing).Error; err != nil {
+						return err
+					}
+				}
+			}
+		} else if params.RefundStatus == RefundStatusRefunded {
 			if err := finalizeRefundFinanceTx(tx, &refund, params); err != nil {
 				return err
 			}
@@ -556,10 +623,13 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			}
 		}
 		delta := 0
+		if params.OriginalWorkflow && params.RefundStatus == RefundStatusRefunded {
+			delta = originalFrozenQuota - originalQuota
+		}
 		if params.RefundStatus == RefundStatusRejected {
 			delta = originalFrozenQuota
 		} else if mode == RefundQuotaModeSubtract {
-			delta = originalQuota - params.ActualRefundQuota
+			delta = originalFrozenQuota - params.ActualRefundQuota
 		} else if mode == RefundQuotaModeOverride {
 			if int64(user.Quota) > math.MaxInt64-int64(originalQuota) {
 				return ErrTicketRefundQuotaInvalid
@@ -589,7 +659,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		// 上面的 CAS 保证每张工单最多成功扣回一次。
 		if params.RefundStatus == RefundStatusRefunded && params.ClawBackCommission {
 			var cbErr error
-			if refund.FinanceVersion == 1 {
+			if refund.FinanceVersion == 1 && !params.OriginalWorkflow {
 				params.ClawBackQuota, cbErr = refundCommissionQuotaTx(tx, &refund)
 				if cbErr != nil {
 					return cbErr
@@ -601,6 +671,9 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			}
 		}
 		refund.RefundStatus = params.RefundStatus
+		if quota, ok := refundUpdates["refund_quota"].(int); ok {
+			refund.RefundQuota = quota
+		}
 		refund.ProcessedTime = now
 		refund.FrozenQuota = 0
 		if status, ok := ticketUpdates["status"].(int); ok {
@@ -608,6 +681,10 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		ticket.AdminId = params.AdminId
 		ticket.UpdatedTime = now
+		if params.OriginalWorkflow {
+			refund.Finance = nil
+			return nil
+		}
 		return AttachRefundFinance(tx, &refund)
 	})
 	if txErr != nil {

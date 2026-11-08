@@ -287,7 +287,7 @@ func buildTicketDetailResponse(ticket *model.Ticket, staff bool) (gin.H, error) 
 		}
 	}
 	if ticket.Type == model.TicketTypeRefund {
-		refund, err := model.GetTicketRefundForView(ticket.Id)
+		refund, err := model.RefundOriginalView(ticket.Id)
 		if err != nil && !errors.Is(err, model.ErrTicketRefundNotFound) {
 			return nil, err
 		}
@@ -983,19 +983,20 @@ func CreateRefundTicket(c *gin.Context) {
 	}
 
 	ticket, refund, message, err := model.CreateRefundTicket(model.CreateRefundTicketParams{
-		FinanceQuote: req.FinanceQuote,
-		RequestKey:   req.RequestKey,
-		UserId:       currentUser.Id,
-		Username:     currentUser.Username,
-		Subject:      req.Subject,
-		Priority:     req.Priority,
-		RefundQuota:  req.RefundQuota,
-		PayeeType:    req.PayeeType,
-		PayeeName:    req.PayeeName,
-		PayeeAccount: req.PayeeAccount,
-		PayeeBank:    req.PayeeBank,
-		Contact:      req.Contact,
-		Reason:       req.Reason,
+		OriginalWorkflow: true,
+		FinanceQuote:     req.FinanceQuote,
+		RequestKey:       req.RequestKey,
+		UserId:           currentUser.Id,
+		Username:         currentUser.Username,
+		Subject:          req.Subject,
+		Priority:         req.Priority,
+		RefundQuota:      req.RefundQuota,
+		PayeeType:        req.PayeeType,
+		PayeeName:        req.PayeeName,
+		PayeeAccount:     req.PayeeAccount,
+		PayeeBank:        req.PayeeBank,
+		Contact:          req.Contact,
+		Reason:           req.Reason,
 	})
 	if err != nil {
 		handleTicketError(c, err)
@@ -1030,7 +1031,7 @@ func GetTicketRefund(c *gin.Context) {
 	if !ensureTicketAccessible(c, existing) {
 		return
 	}
-	refund, err := model.GetTicketRefundForView(ticketId)
+	refund, err := model.RefundOriginalView(ticketId)
 	if err != nil {
 		handleTicketError(c, err)
 		return
@@ -1071,10 +1072,11 @@ func UpdateRefundStatus(c *gin.Context) {
 	}
 
 	params := model.UpdateRefundStatusParams{
-		TicketId:     ticketId,
-		AdminId:      c.GetInt("id"),
-		RefundStatus: req.RefundStatus,
-		QuotaMode:    req.QuotaMode,
+		OriginalWorkflow: true,
+		TicketId:         ticketId,
+		AdminId:          c.GetInt("id"),
+		RefundStatus:     req.RefundStatus,
+		QuotaMode:        req.QuotaMode,
 	}
 	if req.ActualRefundQuota != nil {
 		params.ActualRefundQuota = *req.ActualRefundQuota

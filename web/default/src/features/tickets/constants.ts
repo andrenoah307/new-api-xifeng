@@ -101,7 +101,7 @@ export const REFUND_STATUS_CONFIG: Record<
   number,
   { labelKey: string; variant: StatusVariant }
 > = {
-  1: { labelKey: 'Awaiting settlement verification', variant: 'warning' },
+  1: { labelKey: 'Pending Review', variant: 'warning' },
   2: { labelKey: 'Refunded', variant: 'success' },
   3: { labelKey: 'Rejected', variant: 'danger' },
   4: { labelKey: 'Cancelled', variant: 'neutral' },

@@ -60,11 +60,7 @@ import {
 import { PAYEE_TYPE_OPTIONS, humanFileSize } from '../../constants'
 import { useTicketAttachments } from '../../hooks/use-ticket-attachments'
 import { ticketQueryKeys } from '../../lib/ticket-actions'
-import {
-  getRefundEligibility,
-  quoteRefundFinance,
-} from '../../refund-finance-api'
-import { RefundFinanceDetail } from '../refund-finance-detail'
+import { getRefundEligibility } from '../../refund-finance-api'
 import { CreateInvoiceTicketDialog } from './create-invoice-ticket-dialog'
 
 const generalSchema = z.object({
@@ -162,25 +158,6 @@ export function CreateTicketDialog({
   })
 
   const payeeType = form.watch('payee_type')
-  const refundAmount = form.watch('refund_amount')
-  const requestedQuota = parseQuotaFromDollars(Number(refundAmount) || 0)
-  const [quoteQuota, setQuoteQuota] = useState(0)
-  useEffect(() => {
-    const timer = setTimeout(() => setQuoteQuota(requestedQuota), 1100)
-    return () => clearTimeout(timer)
-  }, [requestedQuota])
-  const financeQuote = useQuery({
-    queryKey: ['tickets', 'refund-finance-quote', userId, quoteQuota],
-    queryFn: ({ signal }) => quoteRefundFinance(quoteQuota, signal),
-    enabled:
-      open &&
-      step === 'details' &&
-      ticketType === 'refund' &&
-      quoteQuota > 0 &&
-      quoteQuota === requestedQuota,
-    gcTime: 0,
-    retry: false,
-  })
 
   useEffect(() => {
     if (!open) {
@@ -211,14 +188,11 @@ export function CreateTicketDialog({
     mutationFn: createRefundTicket,
     onError: (error) => {
       toast.error(t(error.message))
-      if (error.message === 'invoice tax quote changed') {
-        void financeQuote.refetch()
-      }
     },
     onSuccess: (data) => {
       toast.success(
         t(
-          'Refund request submitted. The requested credits are frozen pending settlement verification.'
+          'Refund request submitted. The requested amount is frozen pending review.'
         )
       )
       queryClient.invalidateQueries({
@@ -297,7 +271,6 @@ export function CreateTicketDialog({
           return
         }
         const payload = {
-          finance_quote: financeQuote.data?.quote_token,
           subject: values.subject?.trim() || t('Refund Ticket'),
           priority: values.priority,
           refund_quota: parseQuotaFromDollars(amount),
@@ -332,19 +305,12 @@ export function CreateTicketDialog({
       form,
       payeeType,
       invoiceConflictAcked,
-      financeQuote.data,
     ]
   )
 
   const isSubmitDisabled =
     isLimited ||
     isPending ||
-    (ticketType === 'refund' &&
-      requestedQuota > 0 &&
-      (quoteQuota !== requestedQuota ||
-        financeQuote.isPending ||
-        financeQuote.isFetching ||
-        financeQuote.isError)) ||
     (ticketType === 'refund' && (quotaLoading || maxRefundDollars == null)) ||
     (ticketType === 'refund' &&
       invoiceConflict?.has_active_invoices &&
@@ -496,7 +462,7 @@ export function CreateTicketDialog({
                 <Alert variant='warning'>
                   <AlertDescription>
                     {t(
-                      'Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.'
+                      'The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.'
                     )}{' '}
                     {t('Requested quota is not the final cash refund amount.')}
                   </AlertDescription>
@@ -603,17 +569,6 @@ export function CreateTicketDialog({
 
               {ticketType === 'refund' ? (
                 <>
-                  {financeQuote.data && quoteQuota === requestedQuota && (
-                    <RefundFinanceDetail finance={financeQuote.data} />
-                  )}
-                  {financeQuote.isError && (
-                    <p role='alert' className='text-destructive'>
-                      {t(
-                        financeQuote.error.message ||
-                          'Unable to calculate refund'
-                      )}
-                    </p>
-                  )}
                   <FormField
                     control={form.control}
                     name='refund_amount'

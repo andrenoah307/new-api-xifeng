@@ -1,3 +1,4 @@
+import RefundInvoiceExports from '../../components/ticket/RefundInvoiceExports';
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -23,9 +24,7 @@ import { Button, Modal } from '@douyinfe/semi-ui';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { API } from '../../helpers';
 import { UserContext } from '../../context/User';
-import RefundFinanceDetail, {
-  refundCash,
-} from '../../components/ticket/RefundFinanceDetail';
+import { refundCash } from '../../components/ticket/RefundFinanceDetail';
 
 export default function RefundFinancePage() {
   const [state] = useContext(UserContext);
@@ -63,7 +62,7 @@ function RefundFinanceList() {
   const item = result.items.find((row) => row.ticket_id === selected);
   return (
     <main className='mx-2 mt-16 min-w-0 space-y-5 py-5'>
-      <h1 className='text-xl font-semibold'>{t('Refund reconciliation')}</h1>
+      <h1 className='text-xl font-semibold'>{t('Refund invoice exports')}</h1>
       <div className='flex items-center justify-end gap-2'>
         <Button
           title={t('Refresh')}
@@ -111,16 +110,12 @@ function RefundFinanceList() {
                 <td className='p-3'>#{row.ticket_id}</td>
                 <td className='p-3'>{row.user_id}</td>
                 <td className='p-3'>
-                  {row.settlement_status === 'waiting'
+                  {!row.refund_cash_cents
                     ? '-'
                     : refundCash(row.refund_cash_cents ?? 0)}
                 </td>
                 <td className='p-3'>
-                  {t(
-                    row.refund_status === 1
-                      ? 'Awaiting settlement verification'
-                      : 'Processed',
-                  )}
+                  {t(row.refund_status === 1 ? 'Pending review' : 'Processed')}
                 </td>
                 <td className='p-3'>
                   <Button onClick={() => setSelected(row.ticket_id)}>
@@ -137,19 +132,14 @@ function RefundFinanceList() {
       </div>
       <Modal
         visible={selected !== null}
-        title={`${t('Refund reconciliation')} #${selected}`}
+        title={`${t('Refund invoice exports')} #${selected}`}
         onCancel={() => setSelected(null)}
         footer={null}
         width='min(1152px, calc(100vw - 32px))'
         bodyStyle={{ maxHeight: '75vh', overflowY: 'auto' }}
       >
-        {item?.finance ? (
-          <RefundFinanceDetail
-            key={item.ticket_id}
-            finance={item.finance}
-            ticketId={item.ticket_id}
-            onUpdated={() => setRevision((value) => value + 1)}
-          />
+        {item ? (
+          <RefundInvoiceExports ticketId={item.ticket_id} />
         ) : (
           <p>{t('No data')}</p>
         )}

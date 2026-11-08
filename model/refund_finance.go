@@ -612,6 +612,7 @@ func adjustInvoiceOrdersForRefunds(tx *gorm.DB, orders []*TopUp) ([]*TopUp, erro
 		return nil, err
 	}
 	paid, taxes := map[int]int64{}, map[int]int64{}
+	originalTaxes := map[int]int64{}
 	reserved := map[int]bool{}
 	for _, row := range allocations {
 		if row.Status == "reserved" {
@@ -623,6 +624,7 @@ func adjustInvoiceOrdersForRefunds(tx *gorm.DB, orders []*TopUp) ([]*TopUp, erro
 		}
 		paid[row.TopUpID] += row.RefundCents
 		taxes[row.TopUpID] += row.RefundTaxCents
+		originalTaxes[row.TopUpID] = max(originalTaxes[row.TopUpID], row.OriginalTaxCents)
 	}
 	result := make([]*TopUp, 0, len(orders))
 	for _, order := range orders {
@@ -633,10 +635,18 @@ func adjustInvoiceOrdersForRefunds(tx *gorm.DB, orders []*TopUp) ([]*TopUp, erro
 			result = append(result, order)
 			continue
 		}
-		if paid[order.Id] > order.PaymentTotalCents || taxes[order.Id] > order.InvoiceTaxCents {
+		copyOrder := *order
+		if copyOrder.CheckoutVersion == 0 && copyOrder.PaymentTotalCents == 0 {
+			amount, err := invoiceMoneyCents(copyOrder.Money)
+			if err != nil {
+				return nil, err
+			}
+			copyOrder.PaymentTotalCents = amount
+			copyOrder.InvoiceTaxCents = originalTaxes[order.Id]
+		}
+		if paid[order.Id] > copyOrder.PaymentTotalCents || taxes[order.Id] > copyOrder.InvoiceTaxCents || copyOrder.InvoiceTaxCents > copyOrder.PaymentTotalCents {
 			return nil, ErrRefundFinanceReview
 		}
-		copyOrder := *order
 		copyOrder.PaymentTotalCents -= paid[order.Id]
 		copyOrder.InvoiceTaxCents -= taxes[order.Id]
 		copyOrder.InvoiceNetCents = copyOrder.PaymentTotalCents - copyOrder.InvoiceTaxCents
