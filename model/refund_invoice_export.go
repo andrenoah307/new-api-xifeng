@@ -40,18 +40,25 @@ type RefundExportPayment struct {
 }
 
 type RefundExportInvoice struct {
-	IssuerAmounts   []InvoiceIssuerAmount `json:"issuer_amounts,omitempty"`
-	InvoiceTicketID int                   `json:"invoice_ticket_id"`
-	CompanyName     string                `json:"company_name"`
-	TaxNumber       string                `json:"tax_number"`
-	Email           string                `json:"email"`
-	InvoiceType     string                `json:"invoice_type"`
-	VATRateBps      int                   `json:"vat_rate_bps"`
-	OrderIDs        []int                 `json:"order_ids"`
-	PaidCents       int64                 `json:"paid_cents"`
-	OriginalCents   int64                 `json:"original_cents"`
-	RefundCents     int64                 `json:"refund_cents"`
-	ReissueCents    int64                 `json:"reissue_cents"`
+	ReissueIssuerAmounts []InvoiceIssuerAmount              `json:"reissue_issuer_amounts,omitempty"`
+	IssuerInvoiceTypes   map[string]RefundIssuerInvoiceType `json:"issuer_invoice_types,omitempty"`
+	IssuerAmounts        []InvoiceIssuerAmount              `json:"issuer_amounts,omitempty"`
+	InvoiceTicketID      int                                `json:"invoice_ticket_id"`
+	CompanyName          string                             `json:"company_name"`
+	TaxNumber            string                             `json:"tax_number"`
+	Email                string                             `json:"email"`
+	InvoiceType          string                             `json:"invoice_type"`
+	VATRateBps           int                                `json:"vat_rate_bps"`
+	OrderIDs             []int                              `json:"order_ids"`
+	PaidCents            int64                              `json:"paid_cents"`
+	OriginalCents        int64                              `json:"original_cents"`
+	RefundCents          int64                              `json:"refund_cents"`
+	ReissueCents         int64                              `json:"reissue_cents"`
+}
+
+type RefundIssuerInvoiceType struct {
+	InvoiceType string `json:"invoice_type"`
+	VATRateBps  int    `json:"vat_rate_bps"`
 }
 
 type RefundExportData struct {
@@ -68,6 +75,7 @@ type RefundInvoiceExportItem struct {
 	InvoiceExportItem
 	OrderNumbers       []string
 	issuerOrderNumbers map[string][]string
+	issuerInvoiceTypes map[string]RefundIssuerInvoiceType
 }
 
 // RefundInvoiceExportItems exports only issuer invoices reduced by this refund.
@@ -88,6 +96,9 @@ func RefundInvoiceExportItems(ticketID int, data *RefundExportData, reissue bool
 				continue
 			}
 			item := red[i]
+			if kind, exists := item.issuerInvoiceTypes[issuer.AccountName]; exists {
+				item.InvoiceType, item.TaxRateBps = kind.InvoiceType, kind.VATRateBps
+			}
 			if reissue {
 				item = blue[i]
 				issuer = blue[i].IssuerAmounts[j]
@@ -123,6 +134,7 @@ func refundInvoiceExportItemsTx(db *gorm.DB, ticketID int, data *RefundExportDat
 			return nil, ErrRefundExport
 		}
 		items[i].InvoiceExportItem = InvoiceExportItem{UserId: refund.UserId, CompanyName: invoice.CompanyName, TaxNumber: invoice.TaxNumber, Email: invoice.Email, InvoiceType: invoiceType, TaxRateBps: rate, TotalMoney: float64(invoice.OriginalCents) / 100}
+		items[i].issuerInvoiceTypes = invoice.IssuerInvoiceTypes
 		if len(invoice.IssuerAmounts) == 0 {
 			invoiceItems = append(invoiceItems, &items[i].InvoiceExportItem)
 			orderIDs = append(orderIDs, invoice.OrderIDs)
@@ -180,6 +192,28 @@ func refundInvoiceExportItemsTx(db *gorm.DB, ticketID int, data *RefundExportDat
 	if reissue {
 		for i, invoice := range data.Invoices {
 			items[i].TotalMoney = float64(invoice.ReissueCents) / 100
+			if len(invoice.ReissueIssuerAmounts) > 0 {
+				remaining := map[string]int64{}
+				var total int64
+				for _, issuer := range invoice.ReissueIssuerAmounts {
+					if _, exists := remaining[issuer.AccountName]; exists || issuer.AmountCents < 0 || issuer.AmountCents > invoice.ReissueCents-total {
+						return nil, ErrRefundExport
+					}
+					remaining[issuer.AccountName] = issuer.AmountCents
+					total += issuer.AmountCents
+				}
+				if total != invoice.ReissueCents || len(remaining) != len(items[i].IssuerAmounts) {
+					return nil, ErrRefundExport
+				}
+				for j, issuer := range items[i].IssuerAmounts {
+					amount, exists := remaining[issuer.AccountName]
+					if !exists || amount > issuer.AmountCents {
+						return nil, ErrRefundExport
+					}
+					items[i].IssuerAmounts[j].AmountCents = amount
+				}
+				continue
+			}
 			if len(items[i].IssuerAmounts) == 1 {
 				items[i].IssuerAmounts[0].AmountCents = invoice.ReissueCents
 				continue
@@ -351,6 +385,7 @@ func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, q
 	var previousAllocations []RefundOrderAllocation
 	invoiceRemaining := map[int]int64{}
 	invoiceIssuers := map[int][]InvoiceIssuerAmount{}
+	invoiceTypes := map[int]map[string]RefundIssuerInvoiceType{}
 	covered := map[int]bool{}
 	for _, plan := range prior {
 		var other TicketRefund
@@ -372,12 +407,32 @@ func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, q
 		if err != nil {
 			return nil, err
 		}
+		previousRed, err := refundInvoiceExportItemsTx(tx, plan.TicketID, &data, false)
+		if err != nil {
+			return nil, err
+		}
 		for _, row := range data.Payments {
 			previousAllocations = append(previousAllocations, RefundOrderAllocation{TopUpID: row.OrderID, OriginalQuota: row.OriginalQuota, RefundQuota: row.RefundQuota, RefundCents: row.RefundCents, GiftPolicyVersion: row.GiftPolicyVersion, OriginalGiftQuota: row.OriginalGiftQuota, RefundGiftQuota: row.RefundGiftQuota})
 		}
 		for i, row := range data.Invoices {
 			invoiceRemaining[row.InvoiceTicketID] = row.ReissueCents
 			invoiceIssuers[row.InvoiceTicketID] = previousBlue[i].IssuerAmounts
+			if invoiceTypes[row.InvoiceTicketID] == nil {
+				invoiceTypes[row.InvoiceTicketID] = map[string]RefundIssuerInvoiceType{}
+			}
+			for j, issuer := range previousRed[i].IssuerAmounts {
+				kind, exists := row.IssuerInvoiceTypes[issuer.AccountName]
+				if !exists {
+					kind, exists = invoiceTypes[row.InvoiceTicketID][issuer.AccountName]
+					if !exists {
+						kind = RefundIssuerInvoiceType{row.InvoiceType, row.VATRateBps}
+					}
+				}
+				if issuer.AmountCents > previousBlue[i].IssuerAmounts[j].AmountCents {
+					kind = RefundIssuerInvoiceType{"ordinary", InvoiceVATRateBps}
+				}
+				invoiceTypes[row.InvoiceTicketID][issuer.AccountName] = kind
+			}
 		}
 	}
 	var historical []TicketRefund
@@ -554,6 +609,7 @@ func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, q
 		}
 		result.Invoices = append(result.Invoices, RefundExportInvoice{InvoiceTicketID: invoice.TicketId, CompanyName: invoice.CompanyName, TaxNumber: invoice.TaxNumber, Email: invoice.Email, InvoiceType: invoice.InvoiceType, VATRateBps: invoice.VATRateBps, OrderIDs: ids, PaidCents: totalPaid, OriginalCents: baseline, RefundCents: reduction, ReissueCents: baseline - reduction})
 		result.Invoices[len(result.Invoices)-1].IssuerAmounts = invoiceIssuers[invoice.TicketId]
+		result.Invoices[len(result.Invoices)-1].IssuerInvoiceTypes = invoiceTypes[invoice.TicketId]
 	}
 	red, err := refundInvoiceExportItemsTx(tx, refund.TicketId, result, false)
 	if err != nil {
@@ -561,6 +617,13 @@ func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, q
 	}
 	for i := range result.Invoices {
 		result.Invoices[i].IssuerAmounts = red[i].IssuerAmounts
+	}
+	blue, err := refundInvoiceExportItemsTx(tx, refund.TicketId, result, true)
+	if err != nil {
+		return nil, err
+	}
+	for i := range result.Invoices {
+		result.Invoices[i].ReissueIssuerAmounts = blue[i].IssuerAmounts
 	}
 	raw, err := common.Marshal(result)
 	if err != nil {
