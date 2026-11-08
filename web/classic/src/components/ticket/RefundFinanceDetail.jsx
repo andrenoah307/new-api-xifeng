@@ -82,7 +82,8 @@ export default function RefundFinanceDetail({
         if (active) setQuote({ scope: quoteScope, data: data.data });
       })
       .catch((failure) => {
-        if (active) setError(failure.response?.data?.message || failure.message);
+        if (active)
+          setError(failure.response?.data?.message || failure.message);
       })
       .finally(() => {
         if (active) {
@@ -372,23 +373,24 @@ export default function RefundFinanceDetail({
           </tbody>
         </table>
       </div>
-      {finance.invoice_corrections.map((correction) =>
-        correction.version === 1 ? (
-          <CorrectionWorkflow
-            key={`${correction.id}:${correction.phase}:${correction.status}`}
-            correction={correction}
-            editable={staff && !!ticketId}
-            onUpdated={onUpdated}
-          />
-        ) : (
-          <Correction
-            key={`${correction.invoice_ticket_id}:${correction.id}:${correction.status}`}
-            correction={correction}
-            editable={staff && !!ticketId}
-            onUpdated={onUpdated}
-          />
-        ),
-      )}
+      {staff &&
+        finance.invoice_corrections.map((correction) =>
+          correction.version === 1 ? (
+            <CorrectionWorkflow
+              key={`${correction.id}:${correction.phase}:${correction.status}`}
+              correction={correction}
+              editable={staff && !!ticketId}
+              onUpdated={onUpdated}
+            />
+          ) : (
+            <Correction
+              key={`${correction.invoice_ticket_id}:${correction.id}:${correction.status}`}
+              correction={correction}
+              editable={staff && !!ticketId}
+              onUpdated={onUpdated}
+            />
+          ),
+        )}
       {staff && ticketId && (
         <RefundPayoutPanel
           key={`${ticketId}:${finance.invoice_corrections.map((row) => `${row.id}:${row.status}`).join(',')}`}
