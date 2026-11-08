@@ -5851,6 +5851,8 @@
     "Administrator": "Administrator",
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "Refund request submitted. The requested credits are frozen pending settlement verification.",
     "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.",
+    "Confirm the refund amount to continue processing.": "Confirm the refund amount to continue processing.",
+    "Processing can continue after the applicant confirms the refund amount.": "Processing can continue after the applicant confirms the refund amount.",
     "Quick replies": "Quick replies",
     "Quick replies (one per line)": "Quick replies (one per line)",
     "Custom navigation links": "Custom navigation links",

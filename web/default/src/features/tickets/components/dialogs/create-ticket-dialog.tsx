@@ -166,7 +166,7 @@ export function CreateTicketDialog({
   const requestedQuota = parseQuotaFromDollars(Number(refundAmount) || 0)
   const [quoteQuota, setQuoteQuota] = useState(0)
   useEffect(() => {
-    const timer = setTimeout(() => setQuoteQuota(requestedQuota), 500)
+    const timer = setTimeout(() => setQuoteQuota(requestedQuota), 1100)
     return () => clearTimeout(timer)
   }, [requestedQuota])
   const financeQuote = useQuery({

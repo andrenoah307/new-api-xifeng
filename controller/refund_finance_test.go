@@ -37,6 +37,51 @@ func TestUserTicketHidesLegacyReconciliationAudits(t *testing.T) {
 	assert.Len(t, adminResponse["messages"], 2)
 }
 
+func TestRefundTicketQuoteAuthorization(t *testing.T) {
+	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}))
+	owner := model.User{Username: "quote-owner", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, AffCode: "quote-owner"}
+	viewer := model.User{Username: "quote-viewer", Role: common.RoleAdminUser, Status: common.UserStatusEnabled, AffCode: "quote-viewer"}
+	require.NoError(t, db.Create(&owner).Error)
+	require.NoError(t, db.Create(&viewer).Error)
+	// A verified ticket must be rejected as no longer awaiting confirmation,
+	// rather than accidentally quoting the administrator's own empty wallet.
+	refund := model.TicketRefund{TicketId: 91, UserId: owner.Id, RefundStatus: model.RefundStatusPending, RefundQuota: 400, FrozenQuota: 400, SettlementVerified: true}
+	require.NoError(t, db.Create(&refund).Error)
+	for _, tc := range []struct {
+		name         string
+		role, status int
+		allowed      bool
+	}{
+		{"admin", common.RoleAdminUser, common.UserStatusEnabled, true},
+		{"root", common.RoleRootUser, common.UserStatusEnabled, true},
+		{"finance", common.RoleFinanceUser, common.UserStatusEnabled, true},
+		{"ordinary", common.RoleCommonUser, common.UserStatusEnabled, false},
+		{"disabled", common.RoleRootUser, common.UserStatusDisabled, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NoError(t, db.Model(&viewer).Updates(map[string]any{"role": tc.role, "status": tc.status}).Error)
+			response := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(response)
+			c.Set("id", viewer.Id)
+			c.Set("role", common.RoleRootUser)
+			c.Request = httptest.NewRequest(http.MethodGet, "/api/ticket/refund/finance-quote?ticket_id=91&refund_quota=1", nil)
+			QuoteRefundFinance(c)
+			if !tc.allowed {
+				assert.Equal(t, http.StatusForbidden, response.Code)
+				return
+			}
+			var result struct {
+				Success bool   `json:"success"`
+				Message string `json:"message"`
+			}
+			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
+			assert.False(t, result.Success)
+			assert.Equal(t, model.ErrTicketRefundNotPending.Error(), result.Message)
+		})
+	}
+}
+
 func TestRefundFinanceFreshRolesAndExport(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
 	require.NoError(t, db.AutoMigrate(&model.Option{}))
