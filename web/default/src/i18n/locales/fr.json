@@ -6210,9 +6210,7 @@
     "Recover gifts proportionally per order": "Récupérer au prorata de chaque commande",
     "Refund gift recovery policy": "Récupération des bonus au remboursement",
     "Calculation details unavailable in this historical snapshot": "Détails absents de cet instantané historique",
-    "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "Remboursement = arrondi({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
     "Consumed paid amount": "Montant payé consommé",
-    "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "Montant consommé = {{paid}} × {{percent}}% ≈ {{used}}",
     "Original cash paid": "Montant payé initial",
     "Previously refunded cash": "Montant déjà remboursé",
     "Recharge order ID": "ID de recharge",
@@ -6220,6 +6218,7 @@
     "Refunded invoice service fee included": "Dont frais de facturation remboursés",
     "Remaining paid amount after refund": "Solde payé après remboursement",
     "Remaining paid amount before refund": "Solde payé avant remboursement",
-    "Refund calculation": "Calcul du remboursement"
+    "Refund calculation": "Calcul du remboursement",
+    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Ce remboursement : {{principal}} + frais de facturation {{fee}} = {{refund}}"
   }
 }

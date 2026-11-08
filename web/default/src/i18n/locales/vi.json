@@ -6210,9 +6210,7 @@
     "Recover gifts proportionally per order": "Thu hồi theo tỷ lệ hoàn từng đơn",
     "Refund gift recovery policy": "Quy tắc thu hồi thưởng khi hoàn tiền",
     "Calculation details unavailable in this historical snapshot": "Bản chụp lịch sử này không có chi tiết tính toán",
-    "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "Hoàn tiền = làm tròn({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
     "Consumed paid amount": "Tiền thực trả đã sử dụng",
-    "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "Tiền thực trả đã dùng = {{paid}} × {{percent}}% ≈ {{used}}",
     "Original cash paid": "Số tiền thực trả ban đầu",
     "Previously refunded cash": "Tiền thực trả đã hoàn",
     "Recharge order ID": "ID đơn nạp",
@@ -6220,6 +6218,7 @@
     "Refunded invoice service fee included": "Trong đó phí xuất hóa đơn được hoàn",
     "Remaining paid amount after refund": "Tiền thực trả còn lại sau hoàn",
     "Remaining paid amount before refund": "Tiền thực trả còn lại trước hoàn",
-    "Refund calculation": "Tính hoàn tiền"
+    "Refund calculation": "Tính hoàn tiền",
+    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Hoàn lần này: {{principal}} + phí xuất hóa đơn {{fee}} = {{refund}}"
   }
 }

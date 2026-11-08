@@ -6210,9 +6210,7 @@
     "Recover gifts proportionally per order": "按各筆退款比例回收",
     "Refund gift recovery policy": "退款贈金回收規則",
     "Calculation details unavailable in this historical snapshot": "Calculation details unavailable in this historical snapshot",
-    "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
     "Consumed paid amount": "Consumed paid amount",
-    "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}",
     "Original cash paid": "Original cash paid",
     "Previously refunded cash": "Previously refunded cash",
     "Recharge order ID": "Recharge order ID",
@@ -6220,6 +6218,7 @@
     "Refunded invoice service fee included": "Refunded invoice service fee included",
     "Remaining paid amount after refund": "Remaining paid amount after refund",
     "Remaining paid amount before refund": "Remaining paid amount before refund",
-    "Refund calculation": "退款核算"
+    "Refund calculation": "退款核算",
+    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "本次退款：{{principal}} + 開票服務費{{fee}} = {{refund}}"
   }
 }
