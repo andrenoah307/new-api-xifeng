@@ -64,8 +64,14 @@ export function getCustomGeneralItems(
     })
   }
 
-  if ([ROLE.FINANCE, ROLE.ADMIN, ROLE.SUPER_ADMIN].includes(role as 3 | 10 | 100)) {
-    items.push({ title: t('Refund reconciliation'), url: '/refund-finance', icon: History })
+  if (
+    [ROLE.FINANCE, ROLE.ADMIN, ROLE.SUPER_ADMIN].includes(role as 3 | 10 | 100)
+  ) {
+    items.push({
+      title: t('Refund invoice exports'),
+      url: '/refund-finance',
+      icon: History,
+    })
   }
 
   return items

@@ -6182,6 +6182,15 @@
     "Required reviewing administrators": "Required reviewing administrators",
     "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.",
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "Refund request submitted. The requested credits are frozen pending settlement verification.",
-    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold."
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.",
+    "Export invoices to reverse": "Export invoices to reverse",
+    "Export issued invoices": "Export issued invoices",
+    "Export recalculated reissued invoices": "Export recalculated reissued invoices",
+    "Pending review": "Pending review",
+    "Recalculate": "Recalculate",
+    "refund invoice export requires a valid cash amount and complete payment history": "refund invoice export requires a valid cash amount and complete payment history",
+    "Refund invoice exports": "Refund invoice exports",
+    "Refund request submitted. The requested amount is frozen pending review.": "Refund request submitted. The requested amount is frozen pending review.",
+    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice."
   }
 }

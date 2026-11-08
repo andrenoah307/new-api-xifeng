@@ -152,7 +152,7 @@ export const canCloseTicket = (ticket) => Number(ticket?.status) !== 4;
 export const getRefundStatusText = (status, t) => {
   switch (Number(status)) {
     case 1:
-      return t('Awaiting settlement verification');
+      return t('待审核');
     case 2:
       return t('已退款');
     case 3:

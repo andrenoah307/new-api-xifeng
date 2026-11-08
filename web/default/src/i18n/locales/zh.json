@@ -6182,6 +6182,15 @@
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "退款申请已提交，申请额度已冻结，等待结算核验。",
     "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "提交后冻结申请额度并暂停新增消费。核验后请确认最终退款金额，系统按差额调整冻结，包含需回收的赠送额度。取消或驳回将退回实际冻结额度。",
     "Confirm the refund amount to continue processing.": "请确认退款金额，确认后才能继续处理。",
-    "Processing can continue after the applicant confirms the refund amount.": "申请人确认退款金额后才能继续处理。"
+    "Processing can continue after the applicant confirms the refund amount.": "申请人确认退款金额后才能继续处理。",
+    "Export invoices to reverse": "导出待冲红记录",
+    "Export issued invoices": "导出历史已开发票",
+    "Export recalculated reissued invoices": "导出重开发票",
+    "Pending review": "待审核",
+    "Recalculate": "重新计算",
+    "refund invoice export requires a valid cash amount and complete payment history": "历史支付或发票记录不足，无法准确计算退款发票导出，请管理员核查。",
+    "Refund invoice exports": "退款发票导出",
+    "Refund request submitted. The requested amount is frozen pending review.": "退款申请已提交，申请金额已冻结，等待审核。",
+    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "提交后冻结申请金额，取消或驳回后解冻。退款涉及红冲时，重开发票仅可开具税率为6%的增值税普通发票，发票抬头、税号和邮箱沿用原发票工单。"
   }
 }

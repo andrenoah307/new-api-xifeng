@@ -51,6 +51,7 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			})
 			models := []any{&User{}, &TopUp{}, &Ticket{}, &TicketMessage{}, &TicketInvoice{}, &InvoiceTaxCharge{}, &TicketRefund{}, &RefundOrderAllocation{}, &RefundInvoiceCorrection{}, &FinanceReconciliation{}, &RefundPayoutAttempt{}, &RefundLiability{}, &Option{}, &Log{}, &CommissionRecord{}}
 			require.NoError(t, db.AutoMigrate(models...))
+			require.NoError(t, db.AutoMigrate(&RefundInvoiceExport{}))
 			require.NoError(t, db.AutoMigrate(models...))
 			// Simulate the previous release's unique constraint before upgrading.
 			require.NoError(t, db.Exec("CREATE UNIQUE INDEX idx_refund_invoice_correction ON refund_invoice_corrections (refund_ticket_id, invoice_ticket_id)").Error)
@@ -173,6 +174,8 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("gift_fifo_expiry", TestRefundCreditLotTwoDiscountOrdersExpireEarlierGift)
 			t.Run("gift_rounding", TestRefundCreditLotPartialPayoutConservesGift)
 			t.Run("gift_legacy_upgrade", TestRefundGiftUpgradePreservesExistingAllocations)
+			t.Run("original_exports", TestOriginalRefundInvoiceExportsAcrossOrdersAndInvoices)
+			t.Run("original_adjustment", TestOriginalRefundRejectionAndAdjustedApproval)
 		})
 	}
 }

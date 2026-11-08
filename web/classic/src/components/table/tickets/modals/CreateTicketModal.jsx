@@ -7,7 +7,6 @@ import {
   Wallet,
 } from 'lucide-react';
 import CreateInvoiceTicketModal from './CreateInvoiceTicketModal';
-import RefundFinanceDetail from '../../../ticket/RefundFinanceDetail';
 import {
   Banner,
   Button,
@@ -53,47 +52,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
   const [limitStatus, setLimitStatus] = useState(null);
   const formApiRef = useRef(null);
   const refundRequest = useRef({ signature: '', key: '' });
-  const [refundAmount, setRefundAmount] = useState('');
-  const [financeQuote, setFinanceQuote] = useState(null);
-  const [quoteError, setQuoteError] = useState('');
-  const [quoteLoading, setQuoteLoading] = useState(false);
-  const [quoteRevision, setQuoteRevision] = useState(0);
-  useEffect(() => {
-    setFinanceQuote(null);
-    setQuoteError('');
-    const quota = displayAmountToQuota(Number(refundAmount) || 0);
-    if (
-      !visible ||
-      step !== 'details' ||
-      ticketType !== 'refund' ||
-      !Number.isFinite(quota) ||
-      quota <= 0
-    ) {
-      setQuoteLoading(false);
-      return;
-    }
-    setQuoteLoading(true);
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const response = await API.get('/api/ticket/refund/finance-quote', {
-          params: { refund_quota: quota },
-          signal: controller.signal,
-          disableDuplicate: true,
-        });
-        if (!response.data.success) throw new Error(response.data.message);
-        if (!controller.signal.aborted) setFinanceQuote(response.data.data);
-      } catch (failure) {
-        if (!controller.signal.aborted) setQuoteError(failure.response?.data?.message || failure.message);
-      } finally {
-        if (!controller.signal.aborted) setQuoteLoading(false);
-      }
-    }, 1100);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [visible, step, ticketType, refundAmount, quoteRevision]);
   const {
     config,
     attachments,
@@ -143,7 +101,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
     if (!visible) {
       setStep('choose');
       refundRequest.current = { signature: '', key: '' };
-      setRefundAmount('');
       setTicketType('general');
       setPayeeType('alipay');
       setLimitStatus(null);
@@ -206,7 +163,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
           return;
         }
         const payload = {
-          finance_quote: financeQuote?.quote_token,
           subject: values.subject,
           priority: values.priority,
           refund_quota: refundQuota,
@@ -228,7 +184,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
         if (res.data?.success) {
           showSuccess(
             t(
-              'Refund request submitted. The requested credits are frozen pending settlement verification.',
+              'Refund request submitted. The requested amount is frozen pending review.',
             ),
           );
           // 通知全局：用户额度已变化，已订阅的组件（如个人中心）可据此刷新。
@@ -240,8 +196,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
           onSuccess?.(res.data?.data);
           onClose?.();
         } else {
-          if (res.data?.message === 'invoice tax quote changed')
-            setQuoteRevision((value) => value + 1);
           showError(t(res.data?.message || '工单创建失败'));
         }
         return;
@@ -319,8 +273,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
               theme='solid'
               loading={loading || uploading}
               disabled={
-                quoteLoading ||
-                !!quoteError ||
                 limitStatus?.limited ||
                 (ticketType === 'refund' &&
                   (quotaLoading ||
@@ -338,8 +290,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
       }
       okButtonProps={{
         disabled:
-          quoteLoading ||
-          !!quoteError ||
           limitStatus?.limited ||
           (invoiceConflict?.has_active_invoices && !invoiceConflictAcked),
       }}
@@ -431,7 +381,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
             formApiRef.current = api;
           }}
           onValueChange={(values) => {
-            setRefundAmount(values?.refund_amount ?? '');
             if (values?.type && values.type !== ticketType) {
               setTicketType(values.type);
             }
@@ -443,12 +392,6 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
         >
           {ticketType === 'refund' && (
             <>
-              {financeQuote && <RefundFinanceDetail finance={financeQuote} />}
-              {quoteError && (
-                <p role='alert' className='text-red-600'>
-                  {t(quoteError)}
-                </p>
-              )}
               <Banner
                 type='info'
                 closeIcon={null}
@@ -479,7 +422,7 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
                 type='warning'
                 closeIcon={null}
                 description={t(
-                  'Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.',
+                  'The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.',
                 )}
                 className='!mb-3'
               />

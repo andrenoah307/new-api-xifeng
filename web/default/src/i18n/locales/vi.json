@@ -6182,6 +6182,15 @@
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "Đã gửi yêu cầu hoàn tiền. Hạn mức yêu cầu đã được đóng băng để chờ xác minh quyết toán.",
     "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Gửi yêu cầu sẽ đóng băng hạn mức yêu cầu và tạm dừng sử dụng mới. Sau xác minh, hãy xác nhận số tiền hoàn cuối cùng; hệ thống sẽ điều chỉnh phần chênh lệch, gồm hạn mức tặng cần thu hồi. Hủy hoặc từ chối sẽ giải phóng hạn mức thực tế đã đóng băng.",
     "Confirm the refund amount to continue processing.": "Vui lòng xác nhận số tiền hoàn để tiếp tục xử lý.",
-    "Processing can continue after the applicant confirms the refund amount.": "Có thể tiếp tục xử lý sau khi người yêu cầu xác nhận số tiền hoàn."
+    "Processing can continue after the applicant confirms the refund amount.": "Có thể tiếp tục xử lý sau khi người yêu cầu xác nhận số tiền hoàn.",
+    "Export invoices to reverse": "Xuất hóa đơn cần điều chỉnh giảm",
+    "Export issued invoices": "Xuất hóa đơn đã phát hành",
+    "Export recalculated reissued invoices": "Xuất hóa đơn cần phát hành lại",
+    "Pending review": "Chờ duyệt",
+    "Recalculate": "Tính lại",
+    "refund invoice export requires a valid cash amount and complete payment history": "Thiếu lịch sử thanh toán hoặc hóa đơn. Quản trị viên cần kiểm tra.",
+    "Refund invoice exports": "Xuất hóa đơn hoàn tiền",
+    "Refund request submitted. The requested amount is frozen pending review.": "Đã gửi yêu cầu hoàn tiền. Số tiền yêu cầu được giữ chờ duyệt.",
+    "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "Số tiền được giữ khi gửi và giải phóng khi hủy hoặc từ chối. Sau điều chỉnh giảm, chỉ được phát hành lại hóa đơn GTGT thông thường với thuế suất 6%; tên, mã số thuế và email lấy từ hóa đơn gốc."
   }
 }

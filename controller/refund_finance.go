@@ -100,7 +100,7 @@ func GetRefundEligibility(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	eligibility, err := model.GetRefundEligibility(user.Id)
+	eligibility, err := model.OriginalRefundEligibility(user.Id)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -122,7 +122,7 @@ func ListRefundFinance(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	query := model.DB.WithContext(c.Request.Context()).Model(&model.TicketRefund{}).Where("finance_version = ?", 1)
+	query := model.DB.WithContext(c.Request.Context()).Model(&model.TicketRefund{})
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
 		common.ApiError(c, err)
@@ -134,7 +134,7 @@ func ListRefundFinance(c *gin.Context) {
 		return
 	}
 	for i := range items {
-		refund, err := model.GetTicketRefundForView(items[i].TicketId)
+		refund, err := model.RefundOriginalView(items[i].TicketId)
 		if err != nil {
 			common.ApiError(c, err)
 			return

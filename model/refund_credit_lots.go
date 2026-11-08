@@ -38,6 +38,10 @@ func refundCreditLotsTx(tx *gorm.DB, userID int, orders []TopUp) (map[int]Refund
 	if len(rows) > 100000 {
 		return nil, ErrRefundFinanceReview
 	}
+	return projectRefundCreditLots(spent, orders, rows)
+}
+
+func projectRefundCreditLots(spent int64, orders []TopUp, rows []RefundOrderAllocation) (map[int]RefundCreditLot, error) {
 	sources := map[int]TopUp{}
 	for _, order := range orders {
 		sources[order.Id] = order

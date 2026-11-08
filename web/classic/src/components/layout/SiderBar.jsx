@@ -148,7 +148,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
     let refundFinanceRole = 0;
     try { refundFinanceRole = JSON.parse(localStorage.getItem('user') || '{}').role; } catch {}
     const items = [
-      ...([3,10,100].includes(refundFinanceRole) ? [{ text: t('Refund reconciliation'), itemKey: 'refund_finance', to: '/console/refund-finance' }] : []),
+      ...([3,10,100].includes(refundFinanceRole) ? [{ text: t('Refund invoice exports'), itemKey: 'refund_finance', to: '/console/refund-finance' }] : []),
       {
         text: t('钱包管理'),
         itemKey: 'topup',
