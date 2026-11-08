@@ -6208,6 +6208,18 @@
     "Expire earlier gifts": "Expire earlier gifts",
     "Only applies to unprocessed refunds.": "Only applies to unprocessed refunds.",
     "Recover gifts proportionally per order": "Recover gifts proportionally per order",
-    "Refund gift recovery policy": "Refund gift recovery policy"
+    "Refund gift recovery policy": "Refund gift recovery policy",
+    "Calculation details unavailable in this historical snapshot": "Calculation details unavailable in this historical snapshot",
+    "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
+    "Consumed paid amount": "Consumed paid amount",
+    "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}",
+    "FIFO refund calculation": "FIFO refund calculation",
+    "Original cash paid": "Original cash paid",
+    "Previously refunded cash": "Previously refunded cash",
+    "Recharge order ID": "Recharge order ID",
+    "Recharge order number": "Recharge order number",
+    "Refunded invoice service fee included": "Refunded invoice service fee included",
+    "Remaining paid amount after refund": "Remaining paid amount after refund",
+    "Remaining paid amount before refund": "Remaining paid amount before refund"
   }
 }

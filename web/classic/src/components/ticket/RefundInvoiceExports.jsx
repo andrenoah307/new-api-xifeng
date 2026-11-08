@@ -1,9 +1,28 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import { useContext } from 'react';
 import { UserContext } from '../../context/User';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@douyinfe/semi-ui';
 import { API as api } from '../../helpers/api';
+import { RefundCalculationDetails } from './RefundCalculationDetails';
 export default function RefundInvoiceExports({ ticketId }) {
   const [state] = useContext(UserContext);
   if (![3, 10, 100].includes(state.user?.role)) return null;
@@ -13,6 +32,8 @@ function RefundInvoiceExportPanel({ ticketId }) {
   const { t } = useTranslation();
   const [amount, setAmount] = useState('');
   const [saved, setSaved] = useState(false);
+  const [state] = useContext(UserContext);
+  const [payments, setPayments] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -29,6 +50,7 @@ function RefundInvoiceExportPanel({ ticketId }) {
           setAmount((data.data.cash_cents / 100).toFixed(2));
           setSaved(true);
           setInvoices(data.data.invoices ?? []);
+          setPayments(data.data.payments ?? []);
         }
       })
       .catch(() => {});
@@ -50,6 +72,7 @@ function RefundInvoiceExportPanel({ ticketId }) {
       setAmount((data.data.cash_cents / 100).toFixed(2));
       setSaved(true);
       setInvoices(data.data.invoices ?? []);
+      setPayments(data.data.payments ?? []);
     } catch (e) {
       setError(e instanceof Error ? t(e.message) : t('Operation failed'));
     } finally {
@@ -128,6 +151,9 @@ function RefundInvoiceExportPanel({ ticketId }) {
         </details>
       )}
       {error && <p role='alert'>{error}</p>}
+      {saved && [10, 100].includes(state.user?.role) && (
+        <RefundCalculationDetails payments={payments} />
+      )}
     </section>
   );
 }

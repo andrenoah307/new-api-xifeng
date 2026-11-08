@@ -34,6 +34,16 @@ func RefundInvoiceExport(c *gin.Context) {
 	}
 	kind := c.Query("kind")
 	if kind == "" {
+		actor, err := getTicketCurrentUser(c)
+		if err != nil || actor.Status != common.UserStatusEnabled {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+		if actor.Role != common.RoleAdminUser && actor.Role != common.RoleRootUser {
+			for i := range data.Payments {
+				data.Payments[i].Calculation = nil
+			}
+		}
 		common.ApiSuccess(c, data)
 		return
 	}

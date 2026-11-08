@@ -6208,6 +6208,18 @@
     "Expire earlier gifts": "前序贈金失效",
     "Only applies to unprocessed refunds.": "僅適用於尚未處理的退款工單。",
     "Recover gifts proportionally per order": "按各筆退款比例回收",
-    "Refund gift recovery policy": "退款贈金回收規則"
+    "Refund gift recovery policy": "退款贈金回收規則",
+    "Calculation details unavailable in this historical snapshot": "Calculation details unavailable in this historical snapshot",
+    "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
+    "Consumed paid amount": "Consumed paid amount",
+    "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}",
+    "FIFO refund calculation": "FIFO refund calculation",
+    "Original cash paid": "Original cash paid",
+    "Previously refunded cash": "Previously refunded cash",
+    "Recharge order ID": "Recharge order ID",
+    "Recharge order number": "Recharge order number",
+    "Refunded invoice service fee included": "Refunded invoice service fee included",
+    "Remaining paid amount after refund": "Remaining paid amount after refund",
+    "Remaining paid amount before refund": "Remaining paid amount before refund"
   }
 }

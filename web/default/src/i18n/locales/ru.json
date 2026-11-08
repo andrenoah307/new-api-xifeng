@@ -6208,6 +6208,18 @@
     "Expire earlier gifts": "Аннулировать предыдущие бонусы",
     "Only applies to unprocessed refunds.": "Только для необработанных заявок на возврат.",
     "Recover gifts proportionally per order": "Возвращать пропорционально по заказам",
-    "Refund gift recovery policy": "Возврат бонусов при возврате средств"
+    "Refund gift recovery policy": "Возврат бонусов при возврате средств",
+    "Calculation details unavailable in this historical snapshot": "В этом историческом снимке нет расчёта",
+    "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "Возврат = округление({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
+    "Consumed paid amount": "Израсходованная оплаченная сумма",
+    "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "Израсходовано = {{paid}} × {{percent}}% ≈ {{used}}",
+    "FIFO refund calculation": "Расчёт возврата FIFO",
+    "Original cash paid": "Исходная сумма оплаты",
+    "Previously refunded cash": "Ранее возвращённая сумма",
+    "Recharge order ID": "ID пополнения",
+    "Recharge order number": "Номер пополнения",
+    "Refunded invoice service fee included": "В том числе возвращённая комиссия за счёт",
+    "Remaining paid amount after refund": "Оплаченный остаток после возврата",
+    "Remaining paid amount before refund": "Оплаченный остаток до возврата"
   }
 }

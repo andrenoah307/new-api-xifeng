@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 )
 
@@ -26,19 +27,29 @@ type RefundInvoiceExport struct {
 }
 
 type RefundExportPayment struct {
-	UsedQuota         int64  `json:"used_quota,omitempty"`
-	UsedCents         int64  `json:"used_cents,omitempty"`
-	GiftPolicyVersion int    `json:"gift_policy_version,omitempty"`
-	OriginalGiftQuota int64  `json:"original_gift_quota,omitempty"`
-	RefundGiftQuota   int64  `json:"refund_gift_quota,omitempty"`
-	OriginalTaxCents  int64  `json:"original_tax_cents"`
-	RefundTaxCents    int64  `json:"refund_tax_cents"`
-	OriginalQuota     int64  `json:"original_quota"`
-	RefundQuota       int64  `json:"refund_quota"`
-	OrderID           int    `json:"order_id"`
-	TradeNo           string `json:"trade_no"`
-	PaidCents         int64  `json:"paid_cents"`
-	RefundCents       int64  `json:"refund_cents"`
+	Calculation       *RefundPaymentCalculation `json:"calculation,omitempty"`
+	UsedQuota         int64                     `json:"used_quota,omitempty"`
+	UsedCents         int64                     `json:"used_cents,omitempty"`
+	GiftPolicyVersion int                       `json:"gift_policy_version,omitempty"`
+	OriginalGiftQuota int64                     `json:"original_gift_quota,omitempty"`
+	RefundGiftQuota   int64                     `json:"refund_gift_quota,omitempty"`
+	OriginalTaxCents  int64                     `json:"original_tax_cents"`
+	RefundTaxCents    int64                     `json:"refund_tax_cents"`
+	OriginalQuota     int64                     `json:"original_quota"`
+	RefundQuota       int64                     `json:"refund_quota"`
+	OrderID           int                       `json:"order_id"`
+	TradeNo           string                    `json:"trade_no"`
+	PaidCents         int64                     `json:"paid_cents"`
+	RefundCents       int64                     `json:"refund_cents"`
+}
+
+// Stored with the allocation: subsequent consumption must not rewrite this basis.
+type RefundPaymentCalculation struct {
+	PreviouslyRefundedCents int64  `json:"previously_refunded_cents"`
+	RemainingBeforeCents    int64  `json:"remaining_before_cents"`
+	RemainingAfterCents     int64  `json:"remaining_after_cents"`
+	UsedPercent             string `json:"used_percent"`
+	CumulativeRefundPercent string `json:"cumulative_refund_percent"`
 }
 
 type RefundExportInvoice struct {
@@ -303,6 +314,16 @@ func calculateOriginalRefundPayments(orders []TopUp, lots map[int]RefundCreditLo
 			row.GiftPolicyVersion = 0
 		}
 		result.Payments = append(result.Payments, RefundExportPayment{UsedQuota: lots[row.TopUpID].UsedPaid, UsedCents: refundProportionalCents(row.OriginalPaidCents, lots[row.TopUpID].UsedPaid, row.OriginalQuota), OrderID: row.TopUpID, TradeNo: row.TradeNo, PaidCents: row.OriginalPaidCents, RefundCents: row.RefundCents, OriginalQuota: row.OriginalQuota, RefundQuota: row.RefundQuota, OriginalTaxCents: row.OriginalTaxCents, RefundTaxCents: row.RefundTaxCents, GiftPolicyVersion: row.GiftPolicyVersion, OriginalGiftQuota: row.OriginalGiftQuota, RefundGiftQuota: row.RefundGiftQuota})
+		payment := &result.Payments[len(result.Payments)-1]
+		lot := lots[row.TopUpID]
+		before := payment.PaidCents - lot.RefundedCash - payment.UsedCents
+		payment.Calculation = &RefundPaymentCalculation{
+			PreviouslyRefundedCents: lot.RefundedCash,
+			RemainingBeforeCents:    max(int64(0), before),
+			RemainingAfterCents:     max(int64(0), before-payment.RefundCents),
+			UsedPercent:             decimal.NewFromInt(lot.UsedPaid).Mul(decimal.NewFromInt(100)).Div(decimal.NewFromInt(row.OriginalQuota)).String(),
+			CumulativeRefundPercent: decimal.NewFromInt(lot.RefundedPaid + row.RefundQuota).Mul(decimal.NewFromInt(100)).Div(decimal.NewFromInt(row.OriginalQuota)).String(),
+		}
 	}
 	return result, nil
 }

@@ -29,7 +29,7 @@ func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 	require.NoError(t, db.Create(&model.TopUp{Id: 11, UserId: viewer.Id, TradeNo: "PAY-B-002", Money: 50, Status: common.TopUpStatusSuccess, EpayCredentials: `{"gateway_id":"b","account_name":"Account B"}`}).Error)
 	require.NoError(t, db.Create(&model.TicketRefund{TicketId: 99, UserId: viewer.Id, RefundStatus: model.RefundStatusPending, RefundQuota: 50, FrozenQuota: 50}).Error)
 	data := model.RefundExportData{TicketID: 99, CashCents: 5000, Invoices: []model.RefundExportInvoice{{InvoiceTicketID: 88, CompanyName: "=original", TaxNumber: "001234567890", Email: "original@example.com", InvoiceType: "special", VATRateBps: 1300, OrderIDs: []int{10, 11}, PaidCents: 15000, OriginalCents: 15000, RefundCents: 5000, ReissueCents: 10000}}}
-	data.Payments = []model.RefundExportPayment{{OrderID: 10, RefundCents: 5000}}
+	data.Payments = []model.RefundExportPayment{{OrderID: 10, RefundCents: 5000, Calculation: &model.RefundPaymentCalculation{RemainingBeforeCents: 10000, RemainingAfterCents: 5000}}}
 	raw, err := common.Marshal(data)
 	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.RefundInvoiceExport{TicketID: 99, UserID: viewer.Id, CashCents: 5000, DataJSON: string(raw)}).Error)
@@ -39,6 +39,18 @@ func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 	}{{common.RoleCommonUser, false}, {common.RoleCustomerServiceUser, false}, {common.RoleFinanceUser, true}, {common.RoleAdminUser, true}, {common.RoleRootUser, true}} {
 		t.Run(strconv.Itoa(tc.role), func(t *testing.T) {
 			require.NoError(t, db.Model(&viewer).Update("role", tc.role).Error)
+			jsonResponse := httptest.NewRecorder()
+			jsonContext, _ := gin.CreateTestContext(jsonResponse)
+			jsonContext.Set("id", viewer.Id)
+			jsonContext.Set("role", common.RoleRootUser)
+			jsonContext.Params = gin.Params{{Key: "id", Value: "99"}}
+			jsonContext.Request = httptest.NewRequest(http.MethodGet, "/api/ticket/refund/99/invoice-export", nil)
+			RefundInvoiceExport(jsonContext)
+			if tc.role == common.RoleAdminUser || tc.role == common.RoleRootUser {
+				assert.Contains(t, jsonResponse.Body.String(), `"remaining_after_cents":5000`)
+			} else {
+				assert.NotContains(t, jsonResponse.Body.String(), `"calculation"`)
+			}
 			listResponse := httptest.NewRecorder()
 			listContext, _ := gin.CreateTestContext(listResponse)
 			listContext.Set("id", viewer.Id)

@@ -6208,6 +6208,18 @@
     "Expire earlier gifts": "Annuler les bonus antérieurs",
     "Only applies to unprocessed refunds.": "Uniquement pour les remboursements non traités.",
     "Recover gifts proportionally per order": "Récupérer au prorata de chaque commande",
-    "Refund gift recovery policy": "Récupération des bonus au remboursement"
+    "Refund gift recovery policy": "Récupération des bonus au remboursement",
+    "Calculation details unavailable in this historical snapshot": "Détails absents de cet instantané historique",
+    "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "Remboursement = arrondi({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
+    "Consumed paid amount": "Montant payé consommé",
+    "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "Montant consommé = {{paid}} × {{percent}}% ≈ {{used}}",
+    "FIFO refund calculation": "Calcul du remboursement FIFO",
+    "Original cash paid": "Montant payé initial",
+    "Previously refunded cash": "Montant déjà remboursé",
+    "Recharge order ID": "ID de recharge",
+    "Recharge order number": "Numéro de recharge",
+    "Refunded invoice service fee included": "Dont frais de facturation remboursés",
+    "Remaining paid amount after refund": "Solde payé après remboursement",
+    "Remaining paid amount before refund": "Solde payé avant remboursement"
   }
 }

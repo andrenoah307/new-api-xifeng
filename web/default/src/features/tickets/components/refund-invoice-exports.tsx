@@ -5,6 +5,11 @@ import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
+import {
+  RefundCalculationDetails,
+  type RefundCalculationPayment,
+} from './refund-calculation-details'
+
 export function RefundInvoiceExports({ ticketId }: { ticketId: number }) {
   const role = useAuthStore((state) => state.auth.user?.role)
   if (![3, 10, 100].includes(role ?? 0)) return null
@@ -14,6 +19,8 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
   const { t } = useTranslation()
   const [amount, setAmount] = useState('')
   const [saved, setSaved] = useState(false)
+  const role = useAuthStore((state) => state.auth.user?.role)
+  const [payments, setPayments] = useState<RefundCalculationPayment[]>([])
   const [invoices, setInvoices] = useState<
     { invoice_ticket_id: number; company_name: string }[]
   >([])
@@ -32,6 +39,7 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
           setAmount((data.data.cash_cents / 100).toFixed(2))
           setSaved(true)
           setInvoices(data.data.invoices ?? [])
+          setPayments(data.data.payments ?? [])
         }
       })
       .catch(() => {})
@@ -53,6 +61,7 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
       setAmount((data.data.cash_cents / 100).toFixed(2))
       setSaved(true)
       setInvoices(data.data.invoices ?? [])
+      setPayments(data.data.payments ?? [])
     } catch (e) {
       setError(e instanceof Error ? t(e.message) : t('Operation failed'))
     } finally {
@@ -131,6 +140,9 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
         </details>
       )}
       {error && <p role='alert'>{error}</p>}
+      {saved && [10, 100].includes(role ?? 0) && (
+        <RefundCalculationDetails payments={payments} />
+      )}
     </section>
   )
 }
