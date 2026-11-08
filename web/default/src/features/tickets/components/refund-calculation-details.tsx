@@ -71,23 +71,12 @@ export function RefundCalculationDetails(props: {
               </dl>
               <p className='text-sm break-words'>
                 {t(
-                  'Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}',
+                  'This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}',
                   {
-                    paid: money(payment.paid_cents),
-                    percent: payment.calculation.used_percent,
-                    used: money(payment.used_cents),
-                  }
-                )}
-              </p>
-              <p className='text-sm break-words'>
-                {t(
-                  'Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}',
-                  {
-                    paid: money(payment.paid_cents),
-                    percent: payment.calculation.cumulative_refund_percent,
-                    previous: money(
-                      payment.calculation.previously_refunded_cents
+                    principal: money(
+                      payment.refund_cents - payment.refund_tax_cents
                     ),
+                    fee: money(payment.refund_tax_cents),
                     refund: money(payment.refund_cents),
                   }
                 )}

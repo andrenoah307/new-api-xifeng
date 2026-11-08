@@ -41,6 +41,11 @@ func TestOriginalRefundInvoiceExportsAcrossOrdersAndInvoices(t *testing.T) {
 	require.Len(t, plan.Payments, 3)
 	assert.Equal(t, int64(18000), plan.CashCents)
 	assert.Equal(t, []int64{4500, 9000, 4500}, []int64{plan.Payments[0].RefundCents, plan.Payments[1].RefundCents, plan.Payments[2].RefundCents})
+	for i, payment := range plan.Payments {
+		require.NotNil(t, payment.Calculation)
+		assert.Equal(t, []int64{0, 0, 4500}[i], payment.Calculation.RemainingAfterCents)
+		assert.Equal(t, payment.PaidCents, payment.UsedCents+payment.Calculation.PreviouslyRefundedCents+payment.RefundCents+payment.Calculation.RemainingAfterCents)
+	}
 	require.Len(t, plan.Invoices, 2)
 	assert.Equal(t, int64(18000), plan.Invoices[0].OriginalCents)
 	assert.Equal(t, int64(4500), plan.Invoices[0].ReissueCents)
@@ -65,6 +70,9 @@ func TestOriginalRefundInvoiceExportsAcrossOrdersAndInvoices(t *testing.T) {
 	require.Len(t, remaining.Payments, 1)
 	assert.Equal(t, orders[2].Id, remaining.Payments[0].OrderID)
 	assert.Equal(t, int64(4500), remaining.CashCents)
+	require.NotNil(t, remaining.Payments[0].Calculation)
+	assert.Equal(t, int64(4500), remaining.Payments[0].Calculation.PreviouslyRefundedCents)
+	assert.Zero(t, remaining.Payments[0].Calculation.RemainingAfterCents)
 	require.Len(t, remaining.Invoices, 1)
 	assert.Zero(t, remaining.Invoices[0].OriginalCents)
 	assert.Zero(t, remaining.Invoices[0].ReissueCents)
