@@ -69,16 +69,21 @@ func RefundInvoiceExportItems(ticketID int, data *RefundExportData, reissue bool
 		return nil, err
 	}
 	items := make([]RefundInvoiceExportItem, len(data.Invoices))
-	invoiceItems := make([]*InvoiceExportItem, len(items))
-	orderIDs := make([][]int, len(items))
+	invoiceItems := make([]*InvoiceExportItem, 0, len(items))
+	orderIDs := make([][]int, 0, len(items))
 	for i, invoice := range data.Invoices {
 		amount, invoiceType, rate := invoice.OriginalCents, invoice.InvoiceType, invoice.VATRateBps
 		if reissue {
 			amount, invoiceType, rate = invoice.ReissueCents, "ordinary", InvoiceVATRateBps
 		}
+		if amount < 0 {
+			return nil, ErrRefundExport
+		}
 		items[i].InvoiceExportItem = InvoiceExportItem{UserId: refund.UserId, CompanyName: invoice.CompanyName, TaxNumber: invoice.TaxNumber, Email: invoice.Email, InvoiceType: invoiceType, TaxRateBps: rate, TotalMoney: float64(amount) / 100}
-		invoiceItems[i] = &items[i].InvoiceExportItem
-		orderIDs[i] = invoice.OrderIDs
+		if amount > 0 {
+			invoiceItems = append(invoiceItems, &items[i].InvoiceExportItem)
+			orderIDs = append(orderIDs, invoice.OrderIDs)
+		}
 		var orders []TopUp
 		if len(invoice.OrderIDs) > 0 {
 			if err := DB.Select("id", "trade_no").Where("user_id = ? AND id IN ?", refund.UserId, invoice.OrderIDs).Find(&orders).Error; err != nil {

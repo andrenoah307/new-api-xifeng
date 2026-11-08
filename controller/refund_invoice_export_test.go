@@ -18,12 +18,13 @@ import (
 
 func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
-	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundInvoiceExport{}, &model.TopUp{}, &model.Option{}))
+	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundInvoiceExport{}, &model.TopUp{}, &model.Option{}, &model.Ticket{}))
 	previousService := operation_setting.InvoiceServiceName
 	operation_setting.InvoiceServiceName = "=API service"
 	t.Cleanup(func() { operation_setting.InvoiceServiceName = previousService })
 	viewer := model.User{Username: "export-viewer", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, AffCode: "export-viewer"}
 	require.NoError(t, db.Create(&viewer).Error)
+	require.NoError(t, db.Create(&model.Ticket{Id: 99, UserId: viewer.Id, Type: model.TicketTypeRefund, Status: model.TicketStatusOpen, Subject: "Refund"}).Error)
 	require.NoError(t, db.Create(&model.TopUp{Id: 10, UserId: viewer.Id, TradeNo: "PAY-A-001", Money: 100, Status: common.TopUpStatusSuccess, EpayCredentials: `{"gateway_id":"a","account_name":"Account A"}`}).Error)
 	require.NoError(t, db.Create(&model.TopUp{Id: 11, UserId: viewer.Id, TradeNo: "PAY-B-002", Money: 50, Status: common.TopUpStatusSuccess, EpayCredentials: `{"gateway_id":"b","account_name":"Account B"}`}).Error)
 	require.NoError(t, db.Create(&model.TicketRefund{TicketId: 99, UserId: viewer.Id, RefundStatus: model.RefundStatusPending, RefundQuota: 50, FrozenQuota: 50}).Error)
@@ -34,9 +35,24 @@ func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 	for _, tc := range []struct {
 		role    int
 		allowed bool
-	}{{common.RoleCommonUser, false}, {common.RoleFinanceUser, true}, {common.RoleAdminUser, true}, {common.RoleRootUser, true}} {
+	}{{common.RoleCommonUser, false}, {common.RoleCustomerServiceUser, false}, {common.RoleFinanceUser, true}, {common.RoleAdminUser, true}, {common.RoleRootUser, true}} {
 		t.Run(strconv.Itoa(tc.role), func(t *testing.T) {
 			require.NoError(t, db.Model(&viewer).Update("role", tc.role).Error)
+			listResponse := httptest.NewRecorder()
+			listContext, _ := gin.CreateTestContext(listResponse)
+			listContext.Set("id", viewer.Id)
+			listContext.Set("role", common.RoleRootUser)
+			listContext.Request = httptest.NewRequest(http.MethodGet, "/api/ticket/admin/invoice/export-list?kind=refund", nil)
+			GetInvoiceExportList(listContext)
+			if tc.allowed {
+				assert.Equal(t, http.StatusOK, listResponse.Code)
+				assert.Contains(t, listResponse.Body.String(), `"invoice_color":"red"`)
+				assert.Contains(t, listResponse.Body.String(), `"invoice_color":"blue"`)
+				assert.Equal(t, "no-store", listResponse.Header().Get("Cache-Control"))
+			} else {
+				assert.Equal(t, http.StatusForbidden, listResponse.Code)
+				assert.NotContains(t, listResponse.Body.String(), "original@example.com")
+			}
 			response := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(response)
 			c.Set("id", viewer.Id)

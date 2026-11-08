@@ -10,6 +10,7 @@ import {
 import { useMediaQuery } from '@/hooks'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { useIsAdmin } from '@/hooks/use-admin'
+import { useAuthStore } from '@/stores/auth-store'
 import {
   Table,
   TableBody,
@@ -53,11 +54,13 @@ export default function TicketAdminListPage() {
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 640px)')
   const viewerIsAdmin = useIsAdmin()
+  const viewerRole = useAuthStore((state) => state.auth.user?.role)
 
   const search = route.useSearch()
   const routeNavigate = route.useNavigate()
 
   const [exportOpen, setExportOpen] = useState(false)
+  const [reversalExportOpen, setReversalExportOpen] = useState(false)
 
   const scope = search.scope ?? (viewerIsAdmin ? 'all' : 'mine')
   const statusFilter = search.status || '__all__'
@@ -262,12 +265,21 @@ export default function TicketAdminListPage() {
                   <Download className="mr-1.5 h-4 w-4" />
                   {t('Export Invoice')}
                 </Button>
+                {[3, 10, 100].includes(viewerRole ?? 0) && <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setReversalExportOpen(true)}
+                >
+                  <Download className="mr-1.5 h-4 w-4" />
+                  {t('Export Reversal Invoices')}
+                </Button>}
               </div>
             }
           />
-          {isMobile ? (
+          {isMobile && (
             <MobileCardList table={table} isLoading={isLoading} onRowClick={(row) => handleRowClick(row.original.id)} />
-          ) : isLoading && items.length === 0 ? (
+          )}
+          {!isMobile && isLoading && items.length === 0 && (
             <div className="rounded-md border">
               <Table>
                 <TableBody>
@@ -275,7 +287,8 @@ export default function TicketAdminListPage() {
                 </TableBody>
               </Table>
             </div>
-          ) : items.length === 0 ? (
+          )}
+          {!isMobile && !isLoading && items.length === 0 && (
             <div className="rounded-md border">
               <Table>
                 <TableBody>
@@ -283,7 +296,8 @@ export default function TicketAdminListPage() {
                 </TableBody>
               </Table>
             </div>
-          ) : (
+          )}
+          {!isMobile && items.length > 0 && (
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -327,6 +341,7 @@ export default function TicketAdminListPage() {
       </SectionPageLayout.Content>
     </SectionPageLayout>
       <ExportInvoiceDialog open={exportOpen} onOpenChange={setExportOpen} />
+      <ExportInvoiceDialog refund open={reversalExportOpen} onOpenChange={setReversalExportOpen} />
     </>
   )
 }

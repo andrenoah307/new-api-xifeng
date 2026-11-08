@@ -433,6 +433,7 @@ const TicketAdmin = () => {
   const scopeParam = searchParams.get('scope') || (viewerIsAdmin ? '' : 'mine');
   const [keyword, setKeyword] = useState(searchKeyword);
   const [exportOpen, setExportOpen] = useState(false);
+  const [reversalExportOpen, setReversalExportOpen] = useState(false);
 
   const updateSearchParams = useCallback(
     (patch) => {
@@ -640,6 +641,12 @@ const TicketAdmin = () => {
               >
                 {t('导出发票')}
               </Button>
+              {viewerIsAdmin && <Button
+                icon={<IconDownload />}
+                onClick={() => setReversalExportOpen(true)}
+              >
+                {t('Export Reversal Invoices')}
+              </Button>}
             </Space>
           </div>
         </div>
@@ -649,6 +656,7 @@ const TicketAdmin = () => {
       visible={exportOpen}
       onClose={() => setExportOpen(false)}
     />
+    <ExportInvoiceDialog refund visible={reversalExportOpen} onClose={() => setReversalExportOpen(false)} />
     </div>
   );
 };

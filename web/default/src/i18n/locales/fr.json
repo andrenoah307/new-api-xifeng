@@ -6192,6 +6192,9 @@
     "Refund invoice exports": "Export des factures de remboursement",
     "Refund request submitted. The requested amount is frozen pending review.": "Demande envoyée. Le montant demandé est gelé en attente de vérification.",
     "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "Le montant demandé est gelé à la soumission et libéré en cas d’annulation ou de rejet. Après annulation de la facture, seule une facture TVA ordinaire au taux de 6 % peut être réémise ; le nom, le numéro fiscal et l’e-mail sont repris de la facture initiale.",
-    "Historical invoice tickets": "Anciens tickets de facturation"
+    "Historical invoice tickets": "Anciens tickets de facturation",
+    "Export Reversal Invoices": "Exporter les factures rectificatives",
+    "Refund ticket": "Ticket de remboursement",
+    "Selected {{count}} refund tickets": "{{count}} tickets de remboursement sélectionnés"
   }
 }

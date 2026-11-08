@@ -6192,6 +6192,9 @@
     "Refund invoice exports": "Refund invoice exports",
     "Refund request submitted. The requested amount is frozen pending review.": "Refund request submitted. The requested amount is frozen pending review.",
     "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.": "The requested amount is frozen on submission. Cancellation or rejection releases the frozen amount. Reissued invoices can only be VAT ordinary invoices at 6%; the title, tax number and email are copied from the original invoice.",
-    "Historical invoice tickets": "Historical invoice tickets"
+    "Historical invoice tickets": "Historical invoice tickets",
+    "Export Reversal Invoices": "Export Reversal Invoices",
+    "Refund ticket": "Refund ticket",
+    "Selected {{count}} refund tickets": "Selected {{count}} refund tickets"
   }
 }

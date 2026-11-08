@@ -1233,6 +1233,20 @@ func GetInvoiceExportList(c *gin.Context) {
 		filter.EndTime = v
 	}
 
+	if c.Query("kind") == "refund" {
+		if !authorizeRefundFinance(c) {
+			return
+		}
+		items, total, err := model.ListRefundCorrectionsForExport(filter, pageInfo)
+		if err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		pageInfo.SetTotal(int(total))
+		pageInfo.SetItems(items)
+		common.ApiSuccess(c, pageInfo)
+		return
+	}
 	items, total, err := model.ListInvoicesForExport(filter, pageInfo)
 	if err != nil {
 		common.ApiError(c, err)

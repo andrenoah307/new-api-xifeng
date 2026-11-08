@@ -19,6 +19,9 @@ func TestOriginalRefundInvoiceExportsAcrossOrdersAndInvoices(t *testing.T) {
 		seedRefundFinanceOrder(t, f.user.Id, 10000, 9000, 0, 2),
 		seedRefundFinanceOrder(t, f.user.Id, 10000, 9000, 0, 3),
 	}
+	for _, order := range orders {
+		require.NoError(t, DB.Table("top_ups").Where("id = ?", order.Id).Update("epay_credentials", `{"gateway_id":"public","account_name":"Company account"}`).Error)
+	}
 	require.NoError(t, DB.Model(&f.user).Updates(map[string]interface{}{"quota": 25000, "used_quota": 5000}).Error)
 	for i, ids := range [][]int{{orders[0].Id, orders[1].Id}, {orders[2].Id}} {
 		invoice := TicketInvoice{TicketId: 800 + i, UserId: f.user.Id, CompanyName: "Original title", TaxNumber: "Original tax", Email: "original@example.com", InvoiceType: "special", VATRateBps: 600, InvoiceStatus: InvoiceStatusIssued, TotalMoney: float64(len(ids) * 90)}
@@ -64,6 +67,39 @@ func TestOriginalRefundInvoiceExportsAcrossOrdersAndInvoices(t *testing.T) {
 	require.Len(t, remaining.Invoices, 1)
 	assert.Equal(t, int64(4500), remaining.Invoices[0].OriginalCents)
 	assert.Zero(t, remaining.Invoices[0].ReissueCents)
+	listed, total, err := ListRefundCorrectionsForExport(InvoiceExportFilter{Keyword: "original@example.com"}, &common.PageInfo{Page: 1, PageSize: 1})
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	require.Len(t, listed, 1)
+	assert.Equal(t, second.Id, listed[0].TicketId)
+	require.Len(t, listed[0].CorrectionRows, 2)
+	assert.Equal(t, "red", listed[0].CorrectionRows[0].InvoiceColor)
+	assert.Equal(t, "blue", listed[0].CorrectionRows[1].InvoiceColor)
+	assert.Equal(t, float64(45), listed[0].CorrectionRows[0].TotalMoney)
+	assert.Zero(t, listed[0].CorrectionRows[1].TotalMoney)
+	assert.Equal(t, "ordinary", listed[0].CorrectionRows[1].InvoiceType)
+	assert.Equal(t, 600, listed[0].CorrectionRows[1].TaxRateBps)
+	assert.Equal(t, []string{orders[2].TradeNo}, listed[0].CorrectionRows[1].OrderNumbers)
+	assert.Equal(t, "-", listed[0].CorrectionRows[0].IssuerAmounts[0].AccountName)
+	assert.Equal(t, "-", listed[0].CorrectionRows[1].IssuerAmounts[0].AccountName)
+	listed, total, err = ListRefundCorrectionsForExport(InvoiceExportFilter{}, &common.PageInfo{Page: 2, PageSize: 1})
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	require.Len(t, listed, 1)
+	assert.Equal(t, ticket.Id, listed[0].TicketId)
+	require.Len(t, listed[0].CorrectionRows, 4)
+	assert.Equal(t, "Company account", listed[0].CorrectionRows[0].IssuerAmounts[0].AccountName)
+	assert.Equal(t, "Company account", listed[0].CorrectionRows[1].IssuerAmounts[0].AccountName)
+	assert.Equal(t, []string{"red", "blue", "red", "blue"}, []string{listed[0].CorrectionRows[0].InvoiceColor, listed[0].CorrectionRows[1].InvoiceColor, listed[0].CorrectionRows[2].InvoiceColor, listed[0].CorrectionRows[3].InvoiceColor})
+	listed, total, err = ListRefundCorrectionsForExport(InvoiceExportFilter{TicketStatus: TicketStatusClosed, StartTime: common.GetTimestamp() + 100}, &common.PageInfo{Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	assert.Zero(t, total)
+	assert.Empty(t, listed)
+	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: second.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRejected})
+	require.NoError(t, err)
+	_, total, err = ListRefundCorrectionsForExport(InvoiceExportFilter{}, &common.PageInfo{Page: 1, PageSize: 20})
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total)
 	var invoices []TicketInvoice
 	require.NoError(t, DB.Where("user_id = ?", f.user.Id).Find(&invoices).Error)
 	for _, invoice := range invoices {
