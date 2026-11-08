@@ -5871,6 +5871,8 @@
     "Confirm no red invoice was issued and return to pending?": "Confirm no red invoice was issued and return to pending?",
     "Resolve legacy invoice and payment operations in refund recovery before continuing": "Resolve legacy invoice and payment operations in refund recovery before continuing",
     "Complete or reject the pending refund before resolving the ticket": "Complete or reject the pending refund before resolving the ticket",
+    "Correction notes (optional)": "Correction notes (optional)",
+    "Enter the red invoice reference for each invoice.": "Enter the red invoice reference for each invoice.",
     "Quick replies": "Quick replies",
     "Quick replies (one per line)": "Quick replies (one per line)",
     "Custom navigation links": "Custom navigation links",

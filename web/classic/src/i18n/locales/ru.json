@@ -5666,6 +5666,8 @@
     "Confirm no red invoice was issued and return to pending?": "Подтвердить отсутствие корректировочного счёта и вернуть в ожидание?",
     "Resolve legacy invoice and payment operations in refund recovery before continuing": "Перед продолжением проверьте прежние операции со счетами и выплатами в разделе обработки возвратов",
     "Complete or reject the pending refund before resolving the ticket": "Завершите или отклоните ожидающий возврат перед закрытием заявки как решённой",
+    "Correction notes (optional)": "Примечания (необязательно)",
+    "Enter the red invoice reference for each invoice.": "Укажите номер корректировочного счёта для каждого счёта.",
     "Quick replies": "Быстрые ответы",
     "Quick replies (one per line)": "Шаблоны ответов (по одному на строку)",
     "Custom navigation links": "Пользовательские ссылки навигации",

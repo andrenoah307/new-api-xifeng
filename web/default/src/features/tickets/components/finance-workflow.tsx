@@ -349,6 +349,10 @@ export function CorrectionWorkflow({
     correction.status === 'completed' || correction.status === 'cancelled'
   async function transition(action: string) {
     if (busy || !editable) return
+    if (action === 'red' && documents.some((doc) => !doc.red_reference.trim())) {
+      setError(t('Enter the red invoice reference for each invoice.'))
+      return
+    }
     if (
       action === 'abort' &&
       !window.confirm(
@@ -523,7 +527,7 @@ export function CorrectionWorkflow({
             </Button>
           )}
           <label className='block space-y-1'>
-            <span>{t('Correction evidence')}</span>
+            <span>{t('Correction notes (optional)')}</span>
             <textarea
               className={inputClass}
               value={evidence}
@@ -535,7 +539,7 @@ export function CorrectionWorkflow({
           <div className='flex flex-wrap gap-2'>
             {preparing && (
               <Button
-                disabled={busy || !evidence.trim()}
+                disabled={busy}
                 onClick={() => transition('prepare')}
               >
                 {t('Save invoice evidence')}
@@ -548,7 +552,7 @@ export function CorrectionWorkflow({
             )}
             {phase === 'red_processing' && (
               <Button
-                disabled={busy || !evidence.trim()}
+                disabled={busy}
                 onClick={() => transition('red')}
               >
                 {t('Register red invoice')}
@@ -558,7 +562,7 @@ export function CorrectionWorkflow({
               (phase === 'red_processing' || !correction.version) && (
                 <Button
                   variant='outline'
-                  disabled={busy || !evidence.trim()}
+                  disabled={busy}
                   onClick={() => transition('abort')}
                 >
                   {t('Confirm no red invoice was issued')}
@@ -566,7 +570,7 @@ export function CorrectionWorkflow({
               )}
             {phase === 'reissue_pending' && (
               <Button
-                disabled={busy || !evidence.trim()}
+                disabled={busy}
                 onClick={() => transition('reissue')}
               >
                 {t('Register replacement invoice')}
@@ -575,7 +579,7 @@ export function CorrectionWorkflow({
             {preparing && !correction.refund_ticket_id && (
               <Button
                 variant='outline'
-                disabled={busy || !evidence.trim()}
+                disabled={busy}
                 onClick={() => transition('cancel')}
               >
                 {t('Cancel correction')}

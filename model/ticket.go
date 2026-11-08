@@ -626,7 +626,11 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 				ticket.ClosedTime = now
 
 				if ticket.Type == TicketTypeRefund {
-					if err := CancelPendingRefund(tx, ticket.Id, ticket.UserId); err != nil {
+					var actor User
+					if err := tx.Select("id", "role").First(&actor, adminId).Error; err != nil {
+						return err
+					}
+					if err := CancelPendingRefund(tx, ticket.Id, ticket.UserId, actor.Role >= common.RoleAdminUser); err != nil {
 						return err
 					}
 				}
@@ -655,6 +659,9 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 	}
 	if ticket.Type == TicketTypeRefund {
 		_ = InvalidateUserCache(ticket.UserId)
+		if ticket.Status == TicketStatusClosed && prevStatus != TicketStatusClosed {
+			RecordLogWithAdminInfo(ticket.UserId, LogTypeManage, "Refund ticket closed by administrator", map[string]interface{}{"admin_id": adminId, "ticket_id": ticket.Id})
+		}
 	}
 	return &ticket, prevStatus, nil
 }

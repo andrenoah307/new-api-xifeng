@@ -603,7 +603,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		if params.OriginalWorkflow {
 			// Historical externally started payouts/corrections must not be discarded.
-			if err := releaseRefundFinanceTx(tx, &refund); err != nil {
+			if err := releaseRefundFinanceTx(tx, &refund, false); err != nil {
 				return err
 			}
 			if exportData != nil {
@@ -630,7 +630,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 				return err
 			}
 		} else {
-			if err := releaseRefundFinanceTx(tx, &refund); err != nil {
+			if err := releaseRefundFinanceTx(tx, &refund, false); err != nil {
 				return err
 			}
 		}
@@ -794,7 +794,7 @@ func applyRefundWalletDeltaTx(tx *gorm.DB, userId, delta int) error {
 // CancelPendingRefund 取消指定工单的待审核退款，将冻结额度退还给用户。
 // 仅当 refund_status == RefundStatusPending 时生效；CAS 保证幂等，并发安全。
 // 设计用于用户主动关闭退款工单或管理员关闭退款工单场景。
-func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) error {
+func CancelPendingRefund(tx *gorm.DB, ticketId, userId int, cancelUnissued ...bool) error {
 	var user User
 	if err := lockForUpdate(tx).Select("id").First(&user, userId).Error; err != nil {
 		return err
@@ -823,7 +823,7 @@ func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) error {
 		return nil
 	}
 
-	if err := releaseRefundFinanceTx(tx, &refund); err != nil {
+	if err := releaseRefundFinanceTx(tx, &refund, len(cancelUnissued) == 1 && cancelUnissued[0]); err != nil {
 		return err
 	}
 	if !refund.hasValidRefundHold() {

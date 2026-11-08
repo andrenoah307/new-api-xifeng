@@ -537,7 +537,7 @@ func finalizeRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params UpdateRef
 	return nil
 }
 
-func releaseRefundFinanceTx(tx *gorm.DB, refund *TicketRefund) error {
+func releaseRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, cancelUnissued bool) error {
 	if refund.FinanceVersion != 1 {
 		return nil
 	}
@@ -548,14 +548,21 @@ func releaseRefundFinanceTx(tx *gorm.DB, refund *TicketRefund) error {
 	if payouts > 0 {
 		return ErrRefundPayout
 	}
-	var completed int64
-	if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status IN ?", refund.TicketId, []string{"processing", "completed"}).Count(&completed).Error; err != nil {
+	var corrections []RefundInvoiceCorrection
+	if err := tx.Where("refund_ticket_id = ? AND status IN ?", refund.TicketId, []string{"pending", "processing", "completed"}).Find(&corrections).Error; err != nil {
 		return err
 	}
-	if completed != 0 {
-		return ErrRefundFinanceCorrectionPending
+	for _, correction := range corrections {
+		if correction.Status == "completed" || (correction.Status == "processing" && (!cancelUnissued || (correction.Version != 0 && correction.Phase != "red_processing"))) || correction.RedReference != "" || correction.ReissueReference != "" {
+			return ErrRefundFinanceCorrectionPending
+		}
+		for _, document := range correction.Documents {
+			if document.RedReference != "" || document.ReissueReference != "" {
+				return ErrRefundFinanceCorrectionPending
+			}
+		}
 	}
-	if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status = ?", refund.TicketId, "pending").Updates(map[string]interface{}{"status": "cancelled", "phase": "cancelled"}).Error; err != nil {
+	if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status IN ?", refund.TicketId, []string{"pending", "processing"}).Updates(map[string]interface{}{"status": "cancelled", "phase": "cancelled"}).Error; err != nil {
 		return err
 	}
 	return tx.Model(&RefundOrderAllocation{}).Where("refund_ticket_id = ? AND status = ?", refund.TicketId, "reserved").Update("status", "released").Error

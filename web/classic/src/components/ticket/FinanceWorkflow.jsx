@@ -200,6 +200,10 @@ export function CorrectionWorkflow({
   const complete = correction.status === 'completed' || correction.status === 'cancelled';
   async function transition(action) {
     if (busy || !editable) return;
+    if (action === 'red' && documents.some((doc) => !doc.red_reference.trim())) {
+      setError(t('Enter the red invoice reference for each invoice.'));
+      return;
+    }
     if (action === 'abort' && !window.confirm(t('Confirm no red invoice was issued and return to pending?'))) return;
     setBusy(true);
     setError('');
@@ -296,26 +300,26 @@ export function CorrectionWorkflow({
               {t('Add invoice document')}
             </Button>}
           <label className='block space-y-1'>
-            <span>{t('Correction evidence')}</span>
+            <span>{t('Correction notes (optional)')}</span>
             <textarea className={inputClass} value={evidence} maxLength={4000} disabled={busy} onChange={event => setEvidence(event.target.value)} />
           </label>
           <div className='flex flex-wrap gap-2'>
-            {preparing && <Button disabled={busy || !evidence.trim()} onClick={() => transition('prepare')}>
+            {preparing && <Button disabled={busy} onClick={() => transition('prepare')}>
                 {t('Save invoice evidence')}
               </Button>}
             {phase === 'ready' && <Button disabled={busy} onClick={() => transition('start')}>
                 {t('Start correction')}
               </Button>}
-            {phase === 'red_processing' && <Button disabled={busy || !evidence.trim()} onClick={() => transition('red')}>
+            {phase === 'red_processing' && <Button disabled={busy} onClick={() => transition('red')}>
                 {t('Register red invoice')}
               </Button>}
-            {correction.status === 'processing' && (phase === 'red_processing' || !correction.version) && <Button variant='outline' disabled={busy || !evidence.trim()} onClick={() => transition('abort')}>
+            {correction.status === 'processing' && (phase === 'red_processing' || !correction.version) && <Button variant='outline' disabled={busy} onClick={() => transition('abort')}>
               {t('Confirm no red invoice was issued')}
             </Button>}
-            {phase === 'reissue_pending' && <Button disabled={busy || !evidence.trim()} onClick={() => transition('reissue')}>
+            {phase === 'reissue_pending' && <Button disabled={busy} onClick={() => transition('reissue')}>
                 {t('Register replacement invoice')}
               </Button>}
-            {preparing && !correction.refund_ticket_id && <Button variant='outline' disabled={busy || !evidence.trim()} onClick={() => transition('cancel')}>
+            {preparing && !correction.refund_ticket_id && <Button variant='outline' disabled={busy} onClick={() => transition('cancel')}>
                 {t('Cancel correction')}
               </Button>}
           </div>
