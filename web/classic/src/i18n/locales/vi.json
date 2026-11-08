@@ -6155,6 +6155,8 @@
     "Confirm no red invoice was issued and return to pending?": "Xác nhận chưa xuất hóa đơn điều chỉnh giảm và chuyển về chờ xử lý?",
     "Resolve legacy invoice and payment operations in refund recovery before continuing": "Xử lý các thao tác hóa đơn và thanh toán hiện có trong mục hoàn tiền cũ trước khi tiếp tục",
     "Complete or reject the pending refund before resolving the ticket": "Hoàn tất hoặc từ chối khoản hoàn tiền đang chờ trước khi đánh dấu yêu cầu đã giải quyết",
+    "Correction notes (optional)": "Ghi chú xử lý (không bắt buộc)",
+    "Enter the red invoice reference for each invoice.": "Nhập số hóa đơn điều chỉnh giảm cho từng hóa đơn.",
     "Quick replies": "Trả lời nhanh",
     "Quick replies (one per line)": "Mẫu trả lời (mỗi dòng một mẫu)",
     "Custom navigation links": "Liên kết điều hướng tùy chỉnh",

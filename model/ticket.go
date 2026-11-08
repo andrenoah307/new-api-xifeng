@@ -660,7 +660,11 @@ func updateTicketStatus(db *gorm.DB, ticketId int, adminId int, status *int, pri
 				ticket.ClosedTime = now
 
 				if ticket.Type == TicketTypeRefund {
-					quota, err := CancelPendingRefund(tx, ticket.Id, ticket.UserId)
+					var actor User
+					if err := tx.Select("id", "role").First(&actor, adminId).Error; err != nil {
+						return err
+					}
+					quota, err := CancelPendingRefund(tx, ticket.Id, ticket.UserId, actor.Role >= common.RoleAdminUser)
 					if err != nil {
 						return err
 					}
@@ -691,6 +695,9 @@ func updateTicketStatus(db *gorm.DB, ticketId int, adminId int, status *int, pri
 	}
 	if ticket.Type == TicketTypeRefund {
 		_ = InvalidateUserCache(ticket.UserId)
+		if ticket.Status == TicketStatusClosed && prevStatus != TicketStatusClosed {
+			RecordLogWithAdminInfo(ticket.UserId, LogTypeManage, "Refund ticket closed by administrator", map[string]interface{}{"admin_id": adminId, "ticket_id": ticket.Id})
+		}
 	}
 	return &ticket, prevStatus, nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func seedLegacyRecoveryRefund(t *testing.T, version int) (refundFinanceFixture, Ticket, RefundInvoiceCorrection, []InvoiceCorrectionDocument) {
@@ -44,8 +45,6 @@ func TestRefundRecoveryUnissuedCorrection(t *testing.T) {
 				closed, resolved := TicketStatusClosed, TicketStatusResolved
 				_, _, err = UpdateTicketStatus(ticket.Id, f.admin.Id, &resolved, nil)
 				require.Error(t, err)
-				_, _, err = UpdateTicketStatus(ticket.Id, f.admin.Id, &closed, nil)
-				require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
 				_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRejected, RejectionReason: "Wrong payment details"})
 				require.Error(t, err)
 				var messages int64
@@ -55,10 +54,8 @@ func TestRefundRecoveryUnissuedCorrection(t *testing.T) {
 				require.ErrorIs(t, err, ErrTicketForbidden)
 				_, err = TransitionInvoiceCorrection(correction.Id, f.admin.Id, "abort", nil, "Checked issuer; no red invoice exists")
 				require.Error(t, err)
-				_, err = TransitionInvoiceCorrection(correction.Id, f.admin.Id, "abort", nil, "", true)
-				require.Error(t, err)
 				for i := 0; i < 2; i++ {
-					row, err := TransitionInvoiceCorrection(correction.Id, f.admin.Id, "abort", nil, "Checked issuer; no red invoice exists", true)
+					row, err := TransitionInvoiceCorrection(correction.Id, f.admin.Id, "abort", nil, "", true)
 					require.NoError(t, err)
 					assert.Equal(t, "pending", row.Status)
 				}
@@ -85,6 +82,47 @@ func TestRefundRecoveryUnissuedCorrection(t *testing.T) {
 	}
 }
 
+func TestAdminCloseUnissuedRefundAllowsNewApplication(t *testing.T) {
+	for _, version := range []int{0, 1} {
+		t.Run(fmt.Sprintf("version_%d", version), func(t *testing.T) {
+			f, ticket, correction, docs := seedLegacyRecoveryRefund(t, version)
+			if version == 1 {
+				_, err := TransitionInvoiceCorrection(correction.Id, f.finance.Id, "prepare", docs, "")
+				require.NoError(t, err)
+			}
+			_, err := StartRefundInvoiceCorrection(correction.Id, f.finance.Id)
+			require.NoError(t, err)
+			// A user's ordinary cancellation must not cancel finance work in progress.
+			err = DB.Transaction(func(tx *gorm.DB) error { return CancelPendingRefund(tx, ticket.Id, f.user.Id) })
+			require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
+			closed := TicketStatusClosed
+			_, _, err = UpdateTicketStatus(ticket.Id, f.finance.Id, &closed, nil)
+			require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
+			for i := 0; i < 2; i++ {
+				_, _, err = UpdateTicketStatus(ticket.Id, f.admin.Id, &closed, nil)
+				require.NoError(t, err)
+			}
+			var owner User
+			require.NoError(t, DB.First(&owner, f.user.Id).Error)
+			assert.Equal(t, 10000, owner.Quota)
+			var refund TicketRefund
+			require.NoError(t, DB.Where("ticket_id = ?", ticket.Id).First(&refund).Error)
+			assert.Equal(t, RefundStatusCancelled, refund.RefundStatus)
+			assert.Zero(t, refund.FrozenQuota)
+			require.NoError(t, DB.First(&correction, correction.Id).Error)
+			assert.Equal(t, "cancelled", correction.Status)
+			assert.Equal(t, "cancelled", correction.Phase)
+			var reserved int64
+			require.NoError(t, DB.Model(&RefundOrderAllocation{}).Where("refund_ticket_id = ? AND status = ?", ticket.Id, "reserved").Count(&reserved).Error)
+			assert.Zero(t, reserved)
+			_, next, _, err := CreateRefundTicket(CreateRefundTicketParams{OriginalWorkflow: true, UserId: f.user.Id, Username: f.user.Username, RefundQuota: 1000, PayeeType: "alipay", PayeeName: "payee", PayeeAccount: "account", Contact: "contact", RequestKey: uuid.NewString()})
+			require.NoError(t, err)
+			assert.Equal(t, RefundStatusPending, next.RefundStatus)
+			assert.Equal(t, 1000, next.FrozenQuota)
+		})
+	}
+}
+
 func TestRefundRecoveryIssuedCorrectionCompletesOnce(t *testing.T) {
 	for _, version := range []int{0, 1} {
 		t.Run(fmt.Sprintf("version_%d", version), func(t *testing.T) {
@@ -93,20 +131,27 @@ func TestRefundRecoveryIssuedCorrectionCompletesOnce(t *testing.T) {
 				_, err := StartRefundInvoiceCorrection(correction.Id, f.finance.Id)
 				require.NoError(t, err)
 			}
-			row, err := TransitionInvoiceCorrection(correction.Id, f.finance.Id, "prepare", docs, "Verified original invoice")
+			row, err := TransitionInvoiceCorrection(correction.Id, f.finance.Id, "prepare", docs, "")
 			require.NoError(t, err)
 			assert.Equal(t, 1, row.Version)
 			_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "start", nil, "")
 			require.NoError(t, err)
+			_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "red", docs, "")
+			require.ErrorIs(t, err, ErrFinanceEvidence)
 			docs[0].RedReference = "RED-1"
-			_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "red", docs, "Verified issued red invoice")
-			require.NoError(t, err)
+			for i := 0; i < 2; i++ {
+				_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "red", docs, "")
+				require.NoError(t, err)
+			}
 			_, err = TransitionInvoiceCorrection(correction.Id, f.admin.Id, "abort", nil, "Cannot discard actual red invoice", true)
 			require.Error(t, err)
+			closedAfterRed := TicketStatusClosed
+			_, _, err = UpdateTicketStatus(ticket.Id, f.admin.Id, &closedAfterRed, nil)
+			require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
 			_, err = StartRefundPayout(ticket.Id, f.admin.Id, uuid.NewString())
 			require.ErrorIs(t, err, ErrRefundFinanceCorrectionPending)
 			docs[0].ReissueReference = "BLUE-2"
-			_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "reissue", docs, "Verified reissued invoice")
+			_, err = TransitionInvoiceCorrection(correction.Id, f.finance.Id, "reissue", docs, "")
 			require.NoError(t, err)
 			_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
 			require.ErrorIs(t, err, ErrRefundLegacyWorkflow)

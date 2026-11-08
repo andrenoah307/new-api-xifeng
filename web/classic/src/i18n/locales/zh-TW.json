@@ -5624,6 +5624,8 @@
     "Confirm no red invoice was issued and return to pending?": "確認未實際開出紅票，並退回待處理狀態？",
     "Resolve legacy invoice and payment operations in refund recovery before continuing": "請先在歷史退款處理中核實並處理既有的發票和付款操作",
     "Complete or reject the pending refund before resolving the ticket": "請先完成或駁回待處理退款，再將工單標記為已解決",
+    "Correction notes (optional)": "處理備註（選填）",
+    "Enter the red invoice reference for each invoice.": "請填寫每張發票對應的紅字發票號碼。",
     "Quick replies": "快速回覆",
     "Quick replies (one per line)": "快捷短語（每行一條）",
     "Custom navigation links": "自訂導覽連結",

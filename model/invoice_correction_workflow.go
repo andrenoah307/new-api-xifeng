@@ -63,7 +63,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			return ErrRefundInvoiceCorrection
 		}
 		legacyPreparing := result.Version == 0 && action == "prepare" && (result.Status == "pending" || result.Status == "processing") && result.RedReference == "" && result.ReissueReference == ""
-		if action == "abort" && len(confirmedNoRed) == 1 && confirmedNoRed[0] && evidence != "" && result.Status == "pending" && strings.HasSuffix(result.Evidence, "\nNo red invoice issued: "+evidence) {
+		if action == "abort" && len(confirmedNoRed) == 1 && confirmedNoRed[0] && result.Status == "pending" && strings.HasSuffix(result.Evidence, "\nNo red invoice issued: "+evidence) {
 			return nil
 		}
 		// A retried evidence submission must not advance the state a second time.
@@ -72,7 +72,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			if action == "reissue" {
 				marker = "\nReplacement evidence: "
 			}
-			if evidence == "" || len(documents) != len(result.Documents) || !strings.Contains(result.Evidence, marker+evidence) {
+			if len(documents) != len(result.Documents) || !strings.Contains(result.Evidence, marker+evidence) {
 				return ErrFinanceEvidence
 			}
 			for i, doc := range documents {
@@ -102,7 +102,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 		previous := result.Phase
 		switch action {
 		case "abort":
-			if len(confirmedNoRed) != 1 || !confirmedNoRed[0] || evidence == "" || result.Status != "processing" || (result.Version == 1 && result.Phase != "red_processing") || result.RedReference != "" || result.ReissueReference != "" {
+			if len(confirmedNoRed) != 1 || !confirmedNoRed[0] || result.Status != "processing" || (result.Version == 1 && result.Phase != "red_processing") || result.RedReference != "" || result.ReissueReference != "" {
 				return ErrRefundInvoiceCorrection
 			}
 			for _, document := range result.Documents {
@@ -116,7 +116,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			}
 			result.Evidence += "\nNo red invoice issued: " + evidence
 		case "prepare":
-			if (result.Status != "pending" && !legacyPreparing) || evidence == "" || len(documents) == 0 || result.RedReference != "" || result.ReissueReference != "" {
+			if (result.Status != "pending" && !legacyPreparing) || len(documents) == 0 || result.RedReference != "" || result.ReissueReference != "" {
 				return ErrRefundInvoiceCorrection
 			}
 			for _, document := range result.Documents {
@@ -180,7 +180,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			}
 			result.Status, result.Phase = "processing", "red_processing"
 		case "red":
-			if result.Status != "processing" || result.Phase != "red_processing" || evidence == "" || len(documents) != len(result.Documents) {
+			if result.Status != "processing" || result.Phase != "red_processing" || len(documents) == 0 || len(documents) != len(result.Documents) {
 				return ErrRefundInvoiceCorrection
 			}
 			seen := map[string]bool{}
@@ -200,7 +200,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			}
 			result.Evidence += "\nRed invoice evidence: " + evidence
 		case "reissue":
-			if result.Status != "processing" || result.Phase != "reissue_pending" || evidence == "" || len(documents) != len(result.Documents) {
+			if result.Status != "processing" || result.Phase != "reissue_pending" || len(documents) == 0 || len(documents) != len(result.Documents) {
 				return ErrRefundInvoiceCorrection
 			}
 			seen := map[string]bool{}
@@ -217,7 +217,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			result.Phase, result.Status = "completed", "completed"
 			result.Evidence += "\nReplacement evidence: " + evidence
 		case "cancel":
-			if result.RefundTicketId != 0 || result.Status != "pending" || evidence == "" {
+			if result.RefundTicketId != 0 || result.Status != "pending" {
 				return ErrRefundInvoiceCorrection
 			}
 			result.Phase, result.Status = "cancelled", "cancelled"

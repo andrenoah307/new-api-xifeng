@@ -177,6 +177,7 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("original_exports", TestOriginalRefundInvoiceExportsAcrossOrdersAndInvoices)
 			t.Run("original_adjustment", TestOriginalRefundRejectionAndAdjustedApproval)
 			t.Run("recovery_unissued", TestRefundRecoveryUnissuedCorrection)
+			t.Run("recovery_close_restart", TestAdminCloseUnissuedRefundAllowsNewApplication)
 			t.Run("recovery_issued", TestRefundRecoveryIssuedCorrectionCompletesOnce)
 		})
 	}
