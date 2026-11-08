@@ -6213,13 +6213,13 @@
     "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "今回の返金 = 小数第2位に丸める({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
     "Consumed paid amount": "消費済み実支払額",
     "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "消費済み実支払額 = {{paid}} × {{percent}}% ≈ {{used}}",
-    "FIFO refund calculation": "FIFO返金計算",
     "Original cash paid": "当初の実支払額",
     "Previously refunded cash": "過去の返金額",
     "Recharge order ID": "チャージ注文ID",
     "Recharge order number": "チャージ注文番号",
     "Refunded invoice service fee included": "うち返金される請求書発行手数料",
     "Remaining paid amount after refund": "返金後の実支払残高",
-    "Remaining paid amount before refund": "返金前の実支払残高"
+    "Remaining paid amount before refund": "返金前の実支払残高",
+    "Refund calculation": "返金計算"
   }
 }

@@ -24,7 +24,7 @@ export function RefundCalculationDetails(props) {
   const { t } = useTranslation();
   return (
     <div className='flex min-w-0 flex-col gap-4'>
-      <h3 className='text-sm font-semibold'>{t('FIFO refund calculation')}</h3>
+      <h3 className='text-sm font-semibold'>{t('Refund calculation')}</h3>
       {props.payments.map((payment) => (
         <div key={payment.order_id} className='min-w-0 border-t pt-3'>
           <h4 className='font-medium'>

@@ -6213,13 +6213,13 @@
     "Cash refund = round({{paid}} × {{percent}}%) − {{previous}} = {{refund}}": "Hoàn tiền = làm tròn({{paid}} × {{percent}}%) − {{previous}} = {{refund}}",
     "Consumed paid amount": "Tiền thực trả đã sử dụng",
     "Consumed paid amount = {{paid}} × {{percent}}% ≈ {{used}}": "Tiền thực trả đã dùng = {{paid}} × {{percent}}% ≈ {{used}}",
-    "FIFO refund calculation": "Tính hoàn tiền FIFO",
     "Original cash paid": "Số tiền thực trả ban đầu",
     "Previously refunded cash": "Tiền thực trả đã hoàn",
     "Recharge order ID": "ID đơn nạp",
     "Recharge order number": "Mã đơn nạp",
     "Refunded invoice service fee included": "Trong đó phí xuất hóa đơn được hoàn",
     "Remaining paid amount after refund": "Tiền thực trả còn lại sau hoàn",
-    "Remaining paid amount before refund": "Tiền thực trả còn lại trước hoàn"
+    "Remaining paid amount before refund": "Tiền thực trả còn lại trước hoàn",
+    "Refund calculation": "Tính hoàn tiền"
   }
 }
