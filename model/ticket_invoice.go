@@ -616,6 +616,15 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 			return err
 		}
 		prevStatus = ticket.Status
+		if invoiceStatus != InvoiceStatusRejected {
+			locked, err := invoiceRefundLocked(tx, &invoice)
+			if err != nil {
+				return err
+			}
+			if locked {
+				return ErrRefundFinancePending
+			}
+		}
 		if invoice.InvoiceStatus == InvoiceStatusIssued && invoiceStatus != InvoiceStatusIssued {
 			return ErrTicketInvoiceStatusInvalid
 		}
@@ -811,10 +820,26 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 		query = query.Where("t.created_time <= ?", filter.EndTime)
 	}
 
+	var pending []TicketInvoice
+	if err := query.Session(&gorm.Session{}).Select("ti.*").Where("ti.invoice_status = ?", InvoiceStatusPending).Find(&pending).Error; err != nil {
+		return nil, 0, err
+	}
+	var lockedIDs []int
+	for i := range pending {
+		locked, err := invoiceRefundLocked(DB, &pending[i])
+		if err != nil {
+			return nil, 0, err
+		}
+		if locked {
+			lockedIDs = append(lockedIDs, pending[i].TicketId)
+		}
+	}
+	if len(lockedIDs) > 0 {
+		query = query.Where("t.id NOT IN ?", lockedIDs)
+	}
 	if err := query.Session(&gorm.Session{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-
 	if err := query.Order("t.id DESC").Limit(pageInfo.GetPageSize()).Offset(pageInfo.GetStartIdx()).Find(&items).Error; err != nil {
 		return nil, 0, err
 	}

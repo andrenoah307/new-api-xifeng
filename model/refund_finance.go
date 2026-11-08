@@ -610,6 +610,13 @@ func adjustInvoiceOrdersForRefunds(tx *gorm.DB, orders []*TopUp) ([]*TopUp, erro
 	if len(orders) == 0 {
 		return orders, nil
 	}
+	locked, all, err := pendingRefundInvoiceOrders(tx, orders[0].UserId)
+	if err != nil {
+		return nil, err
+	}
+	if all {
+		return []*TopUp{}, nil
+	}
 	ids := make([]int, 0, len(orders))
 	for _, order := range orders {
 		ids = append(ids, order.Id)
@@ -635,7 +642,7 @@ func adjustInvoiceOrdersForRefunds(tx *gorm.DB, orders []*TopUp) ([]*TopUp, erro
 	}
 	result := make([]*TopUp, 0, len(orders))
 	for _, order := range orders {
-		if reserved[order.Id] {
+		if reserved[order.Id] || locked[order.Id] {
 			continue
 		}
 		if paid[order.Id] == 0 {
