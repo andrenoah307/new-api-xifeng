@@ -6203,6 +6203,11 @@
     "Confirm no red invoice was issued": "Confirm no red invoice was issued",
     "Confirm no red invoice was issued and return to pending?": "Confirm no red invoice was issued and return to pending?",
     "Legacy refund recovery": "Legacy refund recovery",
-    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Resolve legacy invoice and payment operations in refund recovery before continuing"
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Resolve legacy invoice and payment operations in refund recovery before continuing",
+    "Do not recover gifts": "Do not recover gifts",
+    "Expire earlier gifts": "Expire earlier gifts",
+    "Only applies to unprocessed refunds.": "Only applies to unprocessed refunds.",
+    "Recover gifts proportionally per order": "Recover gifts proportionally per order",
+    "Refund gift recovery policy": "Refund gift recovery policy"
   }
 }

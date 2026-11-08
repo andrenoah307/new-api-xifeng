@@ -6203,6 +6203,11 @@
     "Confirm no red invoice was issued": "赤字請求書が未発行であることを確認",
     "Confirm no red invoice was issued and return to pending?": "赤字請求書が未発行であることを確認し、処理待ちに戻しますか？",
     "Legacy refund recovery": "過去の返金処理",
-    "Resolve legacy invoice and payment operations in refund recovery before continuing": "続行する前に過去の返金処理で既存の請求書と支払い操作を確認してください"
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "続行する前に過去の返金処理で既存の請求書と支払い操作を確認してください",
+    "Do not recover gifts": "ボーナスを回収しない",
+    "Expire earlier gifts": "以前のボーナスを失効",
+    "Only applies to unprocessed refunds.": "未処理の返金申請にのみ適用されます。",
+    "Recover gifts proportionally per order": "注文ごとの返金割合で回収",
+    "Refund gift recovery policy": "返金時のボーナス回収ルール"
   }
 }

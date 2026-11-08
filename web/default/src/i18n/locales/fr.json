@@ -6203,6 +6203,11 @@
     "Confirm no red invoice was issued": "Confirmer qu’aucun avoir n’a été émis",
     "Confirm no red invoice was issued and return to pending?": "Confirmer qu’aucun avoir n’a été émis et remettre en attente ?",
     "Legacy refund recovery": "Traitement des anciens remboursements",
-    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Traitez les opérations de facturation et de paiement existantes dans les anciens remboursements avant de continuer"
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Traitez les opérations de facturation et de paiement existantes dans les anciens remboursements avant de continuer",
+    "Do not recover gifts": "Ne pas récupérer les bonus",
+    "Expire earlier gifts": "Annuler les bonus antérieurs",
+    "Only applies to unprocessed refunds.": "Uniquement pour les remboursements non traités.",
+    "Recover gifts proportionally per order": "Récupérer au prorata de chaque commande",
+    "Refund gift recovery policy": "Récupération des bonus au remboursement"
   }
 }

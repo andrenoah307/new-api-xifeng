@@ -422,6 +422,23 @@ export function InvoiceTaxSettings() {
   return (
     <section className='space-y-4'>
       <h3>{t('Invoice tax charges')}</h3>
+      <div className='space-y-2'>
+        <div id='refund-gift-policy-label'>{t('Refund gift recovery policy')}</div>
+        <Select
+          aria-labelledby='refund-gift-policy-label'
+          style={{ width: '100%' }}
+          value={config.refund_gift_recovery_policy ?? 'prior_expiry'}
+          onChange={(refund_gift_recovery_policy) =>
+            setConfig({ ...config, refund_gift_recovery_policy })
+          }
+          optionList={[
+            { value: 'prior_expiry', label: t('Expire earlier gifts') },
+            { value: 'proportional', label: t('Recover gifts proportionally per order') },
+            { value: 'none', label: t('Do not recover gifts') },
+          ]}
+        />
+        <div>{t('Only applies to unprocessed refunds.')}</div>
+      </div>
       <Space>
         <Switch
           checked={!!config.refund_settlement_guard_enabled}

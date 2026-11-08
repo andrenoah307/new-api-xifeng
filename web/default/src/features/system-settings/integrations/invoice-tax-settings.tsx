@@ -67,6 +67,39 @@ export function InvoiceTaxSettings() {
   return (
     <section className='space-y-4 border-t pt-4'>
       <h3 className='font-medium'>{t('Invoice tax charges')}</h3>
+      <div className='space-y-2'>
+        <Label htmlFor='refund-gift-policy'>
+          {t('Refund gift recovery policy')}
+        </Label>
+        <Select
+          value={config.refund_gift_recovery_policy ?? 'prior_expiry'}
+          onValueChange={(value) => {
+            if (
+              value === 'prior_expiry' ||
+              value === 'proportional' ||
+              value === 'none'
+            ) {
+              setDraft({ ...config, refund_gift_recovery_policy: value })
+            }
+          }}
+        >
+          <SelectTrigger id='refund-gift-policy' className='w-full'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='prior_expiry'>
+              {t('Expire earlier gifts')}
+            </SelectItem>
+            <SelectItem value='proportional'>
+              {t('Recover gifts proportionally per order')}
+            </SelectItem>
+            <SelectItem value='none'>{t('Do not recover gifts')}</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className='text-sm text-muted-foreground'>
+          {t('Only applies to unprocessed refunds.')}
+        </p>
+      </div>
       <div className='flex items-center gap-2'>
         <Switch
           id='refund-settlement-guard-enabled'

@@ -6203,6 +6203,11 @@
     "Confirm no red invoice was issued": "Подтвердить, что корректировочный счёт не выпущен",
     "Confirm no red invoice was issued and return to pending?": "Подтвердить отсутствие корректировочного счёта и вернуть в ожидание?",
     "Legacy refund recovery": "Обработка прежних возвратов",
-    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Перед продолжением проверьте прежние операции со счетами и выплатами в разделе обработки возвратов"
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Перед продолжением проверьте прежние операции со счетами и выплатами в разделе обработки возвратов",
+    "Do not recover gifts": "Не возвращать бонусы",
+    "Expire earlier gifts": "Аннулировать предыдущие бонусы",
+    "Only applies to unprocessed refunds.": "Только для необработанных заявок на возврат.",
+    "Recover gifts proportionally per order": "Возвращать пропорционально по заказам",
+    "Refund gift recovery policy": "Возврат бонусов при возврате средств"
   }
 }

@@ -12,6 +12,23 @@ type InvoiceIssuerAmount struct {
 	AmountCents int64  `json:"amount_cents"`
 }
 
+func invoiceOrderIssuerName(order TopUp) (string, error) {
+	var snapshot struct {
+		GatewayID   string `json:"gateway_id"`
+		AccountName string `json:"account_name"`
+	}
+	if order.EpayCredentials != "" {
+		if err := common.UnmarshalJsonStr(order.EpayCredentials, &snapshot); err != nil {
+			return "", err
+		}
+	}
+	name := strings.TrimSpace(snapshot.AccountName)
+	if snapshot.GatewayID == "" || snapshot.GatewayID == "private" || name == "" {
+		return "-", nil
+	}
+	return name, nil
+}
+
 func attachInvoiceIssuerAmounts(db *gorm.DB, items []*InvoiceExportItem, itemOrderIDs [][]int) error {
 	ids := make([]int, 0)
 	seen := map[int]bool{}
@@ -61,18 +78,11 @@ func attachInvoiceIssuerAmounts(db *gorm.DB, items []*InvoiceExportItem, itemOrd
 				break
 			}
 			orderTotal += amount
-			var snapshot struct {
-				GatewayID   string `json:"gateway_id"`
-				AccountName string `json:"account_name"`
-			}
-			if order.EpayCredentials == "" {
-				continue
-			}
-			if err := common.UnmarshalJsonStr(order.EpayCredentials, &snapshot); err != nil {
+			name, err := invoiceOrderIssuerName(order)
+			if err != nil {
 				return err
 			}
-			name := strings.TrimSpace(snapshot.AccountName)
-			if snapshot.GatewayID == "" || snapshot.GatewayID == "private" || name == "" || name == "-" {
+			if name == "-" {
 				continue
 			}
 			position, exists := positions[name]

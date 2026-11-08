@@ -6203,6 +6203,11 @@
     "Confirm no red invoice was issued": "Xác nhận chưa xuất hóa đơn điều chỉnh giảm",
     "Confirm no red invoice was issued and return to pending?": "Xác nhận chưa xuất hóa đơn điều chỉnh giảm và chuyển về chờ xử lý?",
     "Legacy refund recovery": "Xử lý hoàn tiền cũ",
-    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Xử lý các thao tác hóa đơn và thanh toán hiện có trong mục hoàn tiền cũ trước khi tiếp tục"
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Xử lý các thao tác hóa đơn và thanh toán hiện có trong mục hoàn tiền cũ trước khi tiếp tục",
+    "Do not recover gifts": "Không thu hồi thưởng",
+    "Expire earlier gifts": "Hủy thưởng của các đơn trước",
+    "Only applies to unprocessed refunds.": "Chỉ áp dụng cho yêu cầu hoàn tiền chưa xử lý.",
+    "Recover gifts proportionally per order": "Thu hồi theo tỷ lệ hoàn từng đơn",
+    "Refund gift recovery policy": "Quy tắc thu hồi thưởng khi hoàn tiền"
   }
 }

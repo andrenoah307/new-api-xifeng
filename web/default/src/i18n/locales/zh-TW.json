@@ -6203,6 +6203,11 @@
     "Confirm no red invoice was issued": "確認未實際開紅票",
     "Confirm no red invoice was issued and return to pending?": "確認未實際開出紅票，並退回待處理狀態？",
     "Legacy refund recovery": "歷史退款處理",
-    "Resolve legacy invoice and payment operations in refund recovery before continuing": "請先在歷史退款處理中核實並處理既有的發票和付款操作"
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "請先在歷史退款處理中核實並處理既有的發票和付款操作",
+    "Do not recover gifts": "不回收贈金",
+    "Expire earlier gifts": "前序贈金失效",
+    "Only applies to unprocessed refunds.": "僅適用於尚未處理的退款工單。",
+    "Recover gifts proportionally per order": "按各筆退款比例回收",
+    "Refund gift recovery policy": "退款贈金回收規則"
   }
 }

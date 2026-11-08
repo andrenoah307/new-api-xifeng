@@ -29,6 +29,7 @@ func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 	require.NoError(t, db.Create(&model.TopUp{Id: 11, UserId: viewer.Id, TradeNo: "PAY-B-002", Money: 50, Status: common.TopUpStatusSuccess, EpayCredentials: `{"gateway_id":"b","account_name":"Account B"}`}).Error)
 	require.NoError(t, db.Create(&model.TicketRefund{TicketId: 99, UserId: viewer.Id, RefundStatus: model.RefundStatusPending, RefundQuota: 50, FrozenQuota: 50}).Error)
 	data := model.RefundExportData{TicketID: 99, CashCents: 5000, Invoices: []model.RefundExportInvoice{{InvoiceTicketID: 88, CompanyName: "=original", TaxNumber: "001234567890", Email: "original@example.com", InvoiceType: "special", VATRateBps: 1300, OrderIDs: []int{10, 11}, PaidCents: 15000, OriginalCents: 15000, RefundCents: 5000, ReissueCents: 10000}}}
+	data.Payments = []model.RefundExportPayment{{OrderID: 10, RefundCents: 5000}}
 	raw, err := common.Marshal(data)
 	require.NoError(t, err)
 	require.NoError(t, db.Create(&model.RefundInvoiceExport{TicketID: 99, UserID: viewer.Id, CashCents: 5000, DataJSON: string(raw)}).Error)
@@ -69,15 +70,17 @@ func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 			assert.Equal(t, "no-store", response.Header().Get("Cache-Control"))
 			rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(response.Body.String(), "\xef\xbb\xbf"))).ReadAll()
 			require.NoError(t, err)
-			require.Len(t, rows, 2)
+			require.Len(t, rows, 3)
 			assert.Equal(t, []string{"电子邮箱", "数量", "单价", "金额合计", "公司信息", "应税服务名称", "发票类型", "发票税率(%)", "开票方（公账名称）", "关联充值订单号"}, rows[0])
 			assert.Equal(t, "original@example.com", rows[1][0])
-			assert.Equal(t, "100.00", rows[1][3])
+			assert.Equal(t, "50.00", rows[1][3])
+			assert.Equal(t, "50.00", rows[2][3])
 			assert.Equal(t, "发票抬头\n=original\n购方税号\n001234567890", rows[1][4])
 			assert.Equal(t, "'=API service", rows[1][5])
 			assert.Equal(t, "增值税普通发票", rows[1][6])
 			assert.Equal(t, "6", rows[1][7])
-			assert.Equal(t, "-", rows[1][8]) // Unknown allocation must not be assigned to an issuer.
+			assert.Equal(t, "Account A", rows[1][8])
+			assert.Equal(t, "Account B", rows[2][8])
 			assert.Equal(t, "PAY-A-001;PAY-B-002", rows[1][9])
 		})
 	}

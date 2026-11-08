@@ -63,6 +63,9 @@ func RefundInvoiceExport(c *gin.Context) {
 		}
 		label := map[string]string{"ordinary": "增值税普通发票", "special": "增值税专用发票"}[invoice.InvoiceType]
 		for _, issuer := range invoice.IssuerAmounts {
+			if issuer.AmountCents == 0 {
+				continue
+			}
 			row := []string{invoice.Email, "", "", refundCentsText(issuer.AmountCents), companyInfo, strings.TrimSpace(operation_setting.InvoiceServiceName), label, strconv.FormatFloat(float64(invoice.TaxRateBps)/100, 'f', -1, 64), issuer.AccountName, strings.Join(invoice.OrderNumbers, ";")}
 			for i, value := range row {
 				trimmed := strings.TrimLeft(value, " \t\r\n")
