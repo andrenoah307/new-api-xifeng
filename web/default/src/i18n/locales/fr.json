@@ -6164,7 +6164,7 @@
     "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "Proposition soumise, en attente d’un autre administrateur. Ne la soumettez pas à nouveau ; elle n’est pas encore approuvée.",
     "a reconciliation is awaiting independent review": "Un rapprochement attend une vérification indépendante",
     "Awaiting independent accounting review": "Vérification comptable indépendante en attente",
-    "Refund amount is ready for your confirmation": "Montant du remboursement prêt : actualisez et confirmez",
+    "Refund amount is ready for your confirmation": "Le montant du remboursement est prêt à être confirmé",
     "Superseded": "Remplacé",
     "Earlier order gift expired": "Crédits offerts des commandes antérieures expirés",
     "Gift balance after refund (original value, CNY)": "Solde offert après remboursement (valeur initiale, CNY)",
@@ -6180,6 +6180,8 @@
     "Required reviewing administrators": "Nombre de validateurs requis",
     "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "Désactivé par défaut : les corrections soumises par un administrateur prennent effet immédiatement. Si activé, au moins un autre administrateur distinct doit les approuver. Modifier ce réglage ne valide pas automatiquement les dossiers en attente.",
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "Demande de remboursement envoyée. Les crédits demandés sont gelés en attente de vérification.",
-    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "L’envoi gèle les crédits demandés et suspend toute nouvelle consommation. Après vérification, confirmez le remboursement final : le gel sera ajusté de la différence, y compris les bonus à récupérer. Une annulation ou un rejet libère les crédits réellement gelés."
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "L’envoi gèle les crédits demandés et suspend toute nouvelle consommation. Après vérification, confirmez le remboursement final : le gel sera ajusté de la différence, y compris les bonus à récupérer. Une annulation ou un rejet libère les crédits réellement gelés.",
+    "Confirm the refund amount to continue processing.": "Confirmez le montant du remboursement pour poursuivre le traitement.",
+    "Processing can continue after the applicant confirms the refund amount.": "Le traitement pourra continuer après confirmation du montant par le demandeur."
   }
 }

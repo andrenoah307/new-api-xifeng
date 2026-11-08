@@ -160,3 +160,16 @@ func TestRefundLegacyWaitingWithoutHoldStillConfirms(t *testing.T) {
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)
 	assert.Equal(t, 600, owner.Quota)
 }
+
+func TestRefundQuoteBindsRequestedTicket(t *testing.T) {
+	f := newRefundFinanceFixture(t)
+	seedRefundFinanceOrder(t, f.user.Id, 1000, 10000, 0, 100)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1000).Error)
+	ticket, _, _, err := CreateRefundTicket(financeRefundParams(f.user, 400))
+	require.NoError(t, err)
+	quote, err := QuoteRefundFinance(f.user.Id, 1, ticket.Id)
+	require.NoError(t, err)
+	assert.Equal(t, int64(4000), quote.RefundCashCents, "ticket views quote the stored request, not arbitrary query amounts")
+	_, err = QuoteRefundFinance(f.user.Id, 400, ticket.Id+1)
+	assert.ErrorIs(t, err, ErrTicketRefundNotPending)
+}

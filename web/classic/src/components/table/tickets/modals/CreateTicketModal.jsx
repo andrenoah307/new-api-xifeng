@@ -84,11 +84,11 @@ const CreateTicketModal = ({ visible, onClose, onSuccess, t }) => {
         if (!response.data.success) throw new Error(response.data.message);
         if (!controller.signal.aborted) setFinanceQuote(response.data.data);
       } catch (failure) {
-        if (!controller.signal.aborted) setQuoteError(failure.message);
+        if (!controller.signal.aborted) setQuoteError(failure.response?.data?.message || failure.message);
       } finally {
         if (!controller.signal.aborted) setQuoteLoading(false);
       }
-    }, 500);
+    }, 1100);
     return () => {
       clearTimeout(timer);
       controller.abort();

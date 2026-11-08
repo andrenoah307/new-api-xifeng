@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { isAxiosError } from 'axios'
+
 import { api } from '@/lib/api'
 
 export interface RefundAllocation {
@@ -93,12 +95,26 @@ export async function getRefundEligibility(signal?: AbortSignal) {
   if (!response.data.success) throw new Error(response.data.message)
   return response.data.data as RefundEligibility
 }
-export async function quoteRefundFinance(quota: number, signal?: AbortSignal) {
-  const response = await api.get('/api/ticket/refund/finance-quote', {
-    params: { refund_quota: quota },
-    signal,
-    disableDuplicate: true,
-  })
-  if (!response.data.success) throw new Error(response.data.message)
-  return response.data.data as RefundFinanceDetail | null
+export async function quoteRefundFinance(
+  quota: number,
+  signal?: AbortSignal,
+  ticketId?: number
+) {
+  try {
+    const response = await api.get('/api/ticket/refund/finance-quote', {
+      params: { refund_quota: quota, ticket_id: ticketId },
+      signal,
+      disableDuplicate: true,
+    })
+    if (!response.data.success) throw new Error(response.data.message)
+    return response.data.data as RefundFinanceDetail | null
+  } catch (error) {
+    if (
+      isAxiosError<{ message?: unknown }>(error) &&
+      typeof error.response?.data?.message === 'string'
+    ) {
+      throw new Error(error.response.data.message)
+    }
+    throw error
+  }
 }

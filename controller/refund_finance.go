@@ -30,12 +30,38 @@ func QuoteRefundFinance(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if user.Status != common.UserStatusEnabled {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "permission denied"})
+		return
+	}
 	quota, err := strconv.Atoi(c.Query("refund_quota"))
 	if err != nil || quota <= 0 {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	detail, err := model.QuoteRefundFinance(user.Id, quota)
+	ownerID := user.Id
+	var ticketIDs []int
+	if rawID := c.Query("ticket_id"); rawID != "" {
+		ticketID, err := strconv.Atoi(rawID)
+		if err != nil || ticketID <= 0 {
+			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
+		var refund model.TicketRefund
+		if err := model.DB.WithContext(c.Request.Context()).Where("ticket_id = ?", ticketID).First(&refund).Error; err != nil {
+			common.ApiError(c, model.ErrTicketRefundNotFound)
+			return
+		}
+		if refund.UserId != user.Id && !authorizeRefundFinance(c) {
+			return
+		}
+		if err := model.SynchronizeRefundHold(ticketID); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		ownerID, ticketIDs = refund.UserId, []int{ticketID}
+	}
+	detail, err := model.QuoteRefundFinance(ownerID, quota, ticketIDs...)
 	if err != nil {
 		common.ApiError(c, err)
 		return

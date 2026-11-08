@@ -6164,7 +6164,7 @@
     "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "Đã gửi và đang chờ quản trị viên khác kiểm tra. Không gửi lại; gửi không có nghĩa là đã được duyệt.",
     "a reconciliation is awaiting independent review": "Đã có đối soát đang chờ kiểm tra độc lập",
     "Awaiting independent accounting review": "Chờ kiểm tra sổ sách độc lập",
-    "Refund amount is ready for your confirmation": "Số tiền hoàn đã sẵn sàng, vui lòng tải lại và xác nhận",
+    "Refund amount is ready for your confirmation": "Số tiền hoàn đã sẵn sàng để xác nhận",
     "Superseded": "Đã được thay thế",
     "Earlier order gift expired": "Tín dụng tặng của đơn trước hết hiệu lực",
     "Gift balance after refund (original value, CNY)": "Số dư tặng sau hoàn tiền (giá trị gốc, CNY)",
@@ -6180,6 +6180,8 @@
     "Required reviewing administrators": "Số quản trị viên cần duyệt",
     "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "Mặc định tắt: điều chỉnh do quản trị viên gửi có hiệu lực ngay. Khi bật, cần ít nhất một quản trị viên khác với người gửi phê duyệt; mỗi người chỉ được tính một lần. Thay đổi cài đặt không tự động duyệt các bản ghi đang chờ.",
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "Đã gửi yêu cầu hoàn tiền. Hạn mức yêu cầu đã được đóng băng để chờ xác minh quyết toán.",
-    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Gửi yêu cầu sẽ đóng băng hạn mức yêu cầu và tạm dừng sử dụng mới. Sau xác minh, hãy xác nhận số tiền hoàn cuối cùng; hệ thống sẽ điều chỉnh phần chênh lệch, gồm hạn mức tặng cần thu hồi. Hủy hoặc từ chối sẽ giải phóng hạn mức thực tế đã đóng băng."
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Gửi yêu cầu sẽ đóng băng hạn mức yêu cầu và tạm dừng sử dụng mới. Sau xác minh, hãy xác nhận số tiền hoàn cuối cùng; hệ thống sẽ điều chỉnh phần chênh lệch, gồm hạn mức tặng cần thu hồi. Hủy hoặc từ chối sẽ giải phóng hạn mức thực tế đã đóng băng.",
+    "Confirm the refund amount to continue processing.": "Vui lòng xác nhận số tiền hoàn để tiếp tục xử lý.",
+    "Processing can continue after the applicant confirms the refund amount.": "Có thể tiếp tục xử lý sau khi người yêu cầu xác nhận số tiền hoàn."
   }
 }

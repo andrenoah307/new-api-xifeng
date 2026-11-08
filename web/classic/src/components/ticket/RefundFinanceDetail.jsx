@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@douyinfe/semi-ui';
 import { Check, Download, RefreshCw, Play } from 'lucide-react';
@@ -25,7 +25,11 @@ import { UserContext } from '../../context/User';
 
 import { refundCash } from './refundFinanceFormat';
 export { refundCash } from './refundFinanceFormat';
-import { CorrectionWorkflow, ReconciliationPanel, RefundPayoutPanel } from './FinanceWorkflow';
+import {
+  CorrectionWorkflow,
+  ReconciliationPanel,
+  RefundPayoutPanel,
+} from './FinanceWorkflow';
 
 export default function RefundFinanceDetail({
   finance,
@@ -38,35 +42,87 @@ export default function RefundFinanceDetail({
   const [state] = useContext(UserContext);
   const role = state.user?.role;
   const staff = [3, 10, 100].includes(role);
+  const isOwner = !!userId && userId === state.user?.id;
   const [error, setError] = useState('');
-  const [quote, setQuote] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [quoteResult, setQuote] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  const [loadingQuote, setLoadingQuote] = useState(false);
+  const [refreshCooling, setRefreshCooling] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const canQuote =
+    !!state.user?.id &&
+    (isOwner || staff) &&
+    !!ticketId &&
+    !!requestedQuota &&
+    finance.settlement_status === 'waiting' &&
+    finance.allocations.length === 0;
+  const quoteScope = `${ticketId}:${userId}:${state.user?.id}:${requestedQuota}`;
+  const quote =
+    canQuote && quoteResult?.scope === quoteScope ? quoteResult.data : null;
+  const busy = confirming || loadingQuote;
+  useEffect(() => {
+    setQuote(null);
+    setError('');
+    if (!canQuote) {
+      setLoadingQuote(false);
+      return;
+    }
+    let active = true;
+    let cooldownTimer;
+    const controller = new AbortController();
+    setLoadingQuote(true);
+    setRefreshCooling(true);
+    API.get('/api/ticket/refund/finance-quote', {
+      params: { refund_quota: requestedQuota, ticket_id: ticketId },
+      signal: controller.signal,
+      disableDuplicate: true,
+    })
+      .then(({ data }) => {
+        if (!data.success) throw new Error(data.message);
+        if (active) setQuote({ scope: quoteScope, data: data.data });
+      })
+      .catch((failure) => {
+        if (active) setError(failure.response?.data?.message || failure.message);
+      })
+      .finally(() => {
+        if (active) {
+          setLoadingQuote(false);
+          cooldownTimer = setTimeout(() => setRefreshCooling(false), 1500);
+        }
+      });
+    return () => {
+      active = false;
+      clearTimeout(cooldownTimer);
+      controller.abort();
+    };
+  }, [canQuote, quoteScope, requestedQuota, refreshVersion, ticketId]);
   async function confirmAmount(confirm) {
     if (busy) return;
-    setBusy(true);
     setError('');
+    if (!confirm) {
+      if (refreshCooling) return;
+      setQuote(null);
+      setRefreshVersion((version) => version + 1);
+      return;
+    }
+    if (!quote?.quote_token || !canQuote || !isOwner) return;
+    setConfirming(true);
     try {
-      const response =
-        confirm && quote
-          ? await API.post('/api/ticket/refund/finance-confirm', {
-              ticket_id: ticketId,
-              refund_quota: quote.allocations.reduce(
-                (sum, row) => sum + row.refund_quota,
-                0,
-              ),
-              quote_token: quote.quote_token,
-            })
-          : await API.get('/api/ticket/refund/finance-quote', {
-              params: { refund_quota: requestedQuota },
-            });
+      const response = await API.post('/api/ticket/refund/finance-confirm', {
+        ticket_id: ticketId,
+        refund_quota: quote.allocations.reduce(
+          (sum, row) => sum + row.refund_quota,
+          0,
+        ),
+        quote_token: quote.quote_token,
+      });
       if (!response.data.success) throw new Error(response.data.message);
-      if (confirm) window.location.reload();
-      else setQuote(response.data.data);
+      window.location.reload();
     } catch (failure) {
       setQuote(null);
       setError(failure.message);
     } finally {
-      setBusy(false);
+      setConfirming(false);
     }
   }
   async function download() {
@@ -93,16 +149,31 @@ export default function RefundFinanceDetail({
   ) {
     return (
       <div className='space-y-3 text-sm' role='status'>
-        {t(({financial_reconciliation: 'Financial reconciliation required', awaiting_review: 'Financial reconciliation required', awaiting_owner_confirmation: 'Refund amount is ready for your confirmation'})[(quote ?? finance).waiting_reason] ?? 'Awaiting settlement verification. The refund amount must be confirmed again after verification.')}
+        {t(
+          quote?.quote_token
+            ? 'Refund amount is ready for your confirmation'
+            : ({
+                financial_reconciliation: 'Financial reconciliation required',
+                awaiting_review: 'Financial reconciliation required',
+                awaiting_owner_confirmation:
+                  'Refund amount is ready for your confirmation',
+              }[(quote ?? finance).waiting_reason] ??
+                'Awaiting settlement verification. The refund amount must be confirmed again after verification.'),
+        )}
         <p>
           {t(
             'New consumption is suspended until this refund is completed or cancelled.',
           )}
         </p>
-        {userId === state.user?.id && ticketId && (
+        {canQuote && (
           <Button
-            disabled={busy}
-            icon={<RefreshCw size={16} />}
+            disabled={busy || refreshCooling}
+            icon={
+              <RefreshCw
+                size={16}
+                className={loadingQuote ? 'animate-spin' : undefined}
+              />
+            }
             onClick={() => confirmAmount(false)}
           >
             {t('Refresh')}
@@ -110,21 +181,64 @@ export default function RefundFinanceDetail({
         )}
         {quote?.quote_token && (
           <div className='flex flex-wrap items-center gap-3'>
-            {quote.refund_order_type && <p className='w-full'>{t(quote.refund_order_type === 'without_invoice' ? 'This refund covers orders without invoice attributes. Apply again after completion for any remaining orders.' : 'This refund covers orders with invoice attributes. Apply again after completion for any remaining orders.')}</p>}
+            <p className='w-full font-medium'>
+              {isOwner
+                ? t('Confirm the refund amount to continue processing.')
+                : t(
+                    'Processing can continue after the applicant confirms the refund amount.',
+                  )}
+            </p>
+            {quote.refund_order_type && (
+              <p className='w-full'>
+                {t(
+                  quote.refund_order_type === 'without_invoice'
+                    ? 'This refund covers orders without invoice attributes. Apply again after completion for any remaining orders.'
+                    : 'This refund covers orders with invoice attributes. Apply again after completion for any remaining orders.',
+                )}
+              </p>
+            )}
             <span>
               {t('Cash refund')}: {refundCash(quote.refund_cash_cents)}
             </span>
-            {!!quote.refund_gift_quota && <p className='w-full'>{t('Gift credit reclaimed (original value, CNY)')}: {refundCash(quote.refund_gift_value_cents ?? 0)}. {t('Gift credit is removed from the wallet, not deducted again from the cash refund.')}</p>}
-            {quote.allocations.some((row) => row.gift_recovery_reason === 'prior_order_expired') && <p className='w-full'>{t('Earlier order gift expired')}: {refundCash(quote.allocations.filter((row) => row.gift_recovery_reason === 'prior_order_expired').reduce((sum, row) => sum + (row.refund_gift_value_cents ?? 0), 0))}</p>}
-            <Button
-              disabled={busy}
-              icon={<Check size={16} />}
-              onClick={() => confirmAmount(true)}
-            >
-              {t('Confirm')}
-            </Button>
+            {!!quote.refund_gift_quota && (
+              <p className='w-full'>
+                {t('Gift credit reclaimed (original value, CNY)')}:{' '}
+                {refundCash(quote.refund_gift_value_cents ?? 0)}.{' '}
+                {t(
+                  'Gift credit is removed from the wallet, not deducted again from the cash refund.',
+                )}
+              </p>
+            )}
+            {quote.allocations.some(
+              (row) => row.gift_recovery_reason === 'prior_order_expired',
+            ) && (
+              <p className='w-full'>
+                {t('Earlier order gift expired')}:{' '}
+                {refundCash(
+                  quote.allocations
+                    .filter(
+                      (row) =>
+                        row.gift_recovery_reason === 'prior_order_expired',
+                    )
+                    .reduce(
+                      (sum, row) => sum + (row.refund_gift_value_cents ?? 0),
+                      0,
+                    ),
+                )}
+              </p>
+            )}
+            {isOwner && (
+              <Button
+                disabled={busy}
+                icon={<Check size={16} />}
+                onClick={() => confirmAmount(true)}
+              >
+                {t('Confirm')}
+              </Button>
+            )}
           </div>
         )}
+        {loadingQuote && canQuote && <p>{t('Loading...')}</p>}
         {error && <p role='alert'>{t(error)}</p>}
         {staff && ticketId && <ReconciliationPanel ticketId={ticketId} />}
       </div>
@@ -145,7 +259,12 @@ export default function RefundFinanceDetail({
         )}
       </div>
       <dl className='grid grid-cols-2 gap-4 text-sm'>
-        {!!finance.refund_gift_quota && <div><dt>{t('Gift credit reclaimed (original value, CNY)')}</dt><dd>{refundCash(finance.refund_gift_value_cents ?? 0)}</dd></div>}
+        {!!finance.refund_gift_quota && (
+          <div>
+            <dt>{t('Gift credit reclaimed (original value, CNY)')}</dt>
+            <dd>{refundCash(finance.refund_gift_value_cents ?? 0)}</dd>
+          </div>
+        )}
         <div>
           <dt>{t('Cash refund')}</dt>
           <dd className='font-semibold'>
@@ -158,11 +277,23 @@ export default function RefundFinanceDetail({
         </div>
         <div>
           <dt>{t('Invoice amount to reverse')}</dt>
-          <dd>{refundCash(finance.invoice_corrections.filter(row => row.status !== 'cancelled').reduce((sum, row) => sum + row.original_cents, 0))}</dd>
+          <dd>
+            {refundCash(
+              finance.invoice_corrections
+                .filter((row) => row.status !== 'cancelled')
+                .reduce((sum, row) => sum + row.original_cents, 0),
+            )}
+          </dd>
         </div>
         <div>
           <dt>{t('Reissued invoice amount')}</dt>
-          <dd>{refundCash(finance.invoice_corrections.filter(row => row.status !== 'cancelled').reduce((sum, row) => sum + row.reissue_cents, 0))}</dd>
+          <dd>
+            {refundCash(
+              finance.invoice_corrections
+                .filter((row) => row.status !== 'cancelled')
+                .reduce((sum, row) => sum + row.reissue_cents, 0),
+            )}
+          </dd>
         </div>
       </dl>
       {error && (
@@ -215,29 +346,56 @@ export default function RefundFinanceDetail({
                   row.refund_cents,
                   row.refund_tax_cents,
                   row.remaining_invoice_cents,
-                  row.gift_policy_version ? row.refund_gift_value_cents : undefined,
-                  row.gift_policy_version ? row.remaining_paid_value_cents : undefined,
-                  row.gift_policy_version ? row.remaining_gift_value_cents : undefined,
+                  row.gift_policy_version
+                    ? row.refund_gift_value_cents
+                    : undefined,
+                  row.gift_policy_version
+                    ? row.remaining_paid_value_cents
+                    : undefined,
+                  row.gift_policy_version
+                    ? row.remaining_gift_value_cents
+                    : undefined,
                 ].map((value, index) => (
                   <td key={index} className='whitespace-nowrap p-2'>
                     {value === undefined ? '-' : refundCash(value)}
                   </td>
                 ))}
-                <td className='whitespace-nowrap p-2'>{row.gift_recovery_reason === 'prior_order_expired' ? t('Earlier order gift expired') : row.gift_recovery_reason === 'proportional_refund' ? t('Proportional refund recovery') : '-'}</td>
+                <td className='whitespace-nowrap p-2'>
+                  {row.gift_recovery_reason === 'prior_order_expired'
+                    ? t('Earlier order gift expired')
+                    : row.gift_recovery_reason === 'proportional_refund'
+                      ? t('Proportional refund recovery')
+                      : '-'}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {finance.invoice_corrections.map((correction) => correction.version === 1 ? <CorrectionWorkflow key={`${correction.id}:${correction.phase}:${correction.status}`} correction={correction} editable={staff && !!ticketId} onUpdated={onUpdated} /> : (
-        <Correction
-          key={`${correction.invoice_ticket_id}:${correction.id}:${correction.status}`}
-          correction={correction}
-          editable={staff && !!ticketId}
+      {finance.invoice_corrections.map((correction) =>
+        correction.version === 1 ? (
+          <CorrectionWorkflow
+            key={`${correction.id}:${correction.phase}:${correction.status}`}
+            correction={correction}
+            editable={staff && !!ticketId}
+            onUpdated={onUpdated}
+          />
+        ) : (
+          <Correction
+            key={`${correction.invoice_ticket_id}:${correction.id}:${correction.status}`}
+            correction={correction}
+            editable={staff && !!ticketId}
+            onUpdated={onUpdated}
+          />
+        ),
+      )}
+      {staff && ticketId && (
+        <RefundPayoutPanel
+          key={`${ticketId}:${finance.invoice_corrections.map((row) => `${row.id}:${row.status}`).join(',')}`}
+          ticketId={ticketId}
           onUpdated={onUpdated}
         />
-      ))}
-      {staff && ticketId && <RefundPayoutPanel key={`${ticketId}:${finance.invoice_corrections.map(row=>`${row.id}:${row.status}`).join(',')}`} ticketId={ticketId} onUpdated={onUpdated} />}
+      )}
     </section>
   );
 }

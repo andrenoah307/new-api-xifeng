@@ -6164,7 +6164,7 @@
     "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "已提交，等待另一位管理员复核。请勿重复提交；提交不代表核验通过。",
     "a reconciliation is awaiting independent review": "已有账务核对等待独立复核",
     "Awaiting independent accounting review": "等待独立账务复核",
-    "Refund amount is ready for your confirmation": "退款金额已就绪，请刷新并确认",
+    "Refund amount is ready for your confirmation": "退款金额已就绪，请确认",
     "Superseded": "已被替代",
     "Earlier order gift expired": "前序订单赠送失效",
     "Gift balance after refund (original value, CNY)": "退款后剩余赠送（按原订单折合￥）",
@@ -6180,6 +6180,8 @@
     "Required reviewing administrators": "所需复核管理员人数",
     "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "默认关闭：管理员提交账务修复后立即生效。开启后，需至少一位非提交人的不同管理员批准。修改设置不会自动批准待处理记录。",
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "退款申请已提交，申请额度已冻结，等待结算核验。",
-    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "提交后冻结申请额度并暂停新增消费。核验后请确认最终退款金额，系统按差额调整冻结，包含需回收的赠送额度。取消或驳回将退回实际冻结额度。"
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "提交后冻结申请额度并暂停新增消费。核验后请确认最终退款金额，系统按差额调整冻结，包含需回收的赠送额度。取消或驳回将退回实际冻结额度。",
+    "Confirm the refund amount to continue processing.": "请确认退款金额，确认后才能继续处理。",
+    "Processing can continue after the applicant confirms the refund amount.": "申请人确认退款金额后才能继续处理。"
   }
 }

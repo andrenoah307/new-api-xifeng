@@ -289,7 +289,7 @@ func quoteRefundFinanceTx(tx *gorm.DB, userID, quota int, excludedTicket ...int)
 	return result, nil
 }
 
-func QuoteRefundFinance(userID, quota int) (*RefundFinanceDetail, error) {
+func QuoteRefundFinance(userID, quota int, ticketIDs ...int) (*RefundFinanceDetail, error) {
 	if quota <= 0 {
 		return nil, ErrTicketRefundQuotaInvalid
 	}
@@ -302,10 +302,19 @@ func QuoteRefundFinance(userID, quota int) (*RefundFinanceDetail, error) {
 		var refund TicketRefund
 		err := tx.Where("user_id = ? AND refund_status = ?", userID, RefundStatusPending).First(&refund).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			if len(ticketIDs) > 0 {
+				return ErrTicketRefundNotPending
+			}
 			return nil
 		}
 		if err != nil {
 			return err
+		}
+		if len(ticketIDs) > 0 {
+			if refund.TicketId != ticketIDs[0] {
+				return ErrTicketRefundNotPending
+			}
+			quota = refund.RefundQuota
 		}
 		if refund.SettlementVerified {
 			return ErrTicketRefundNotPending

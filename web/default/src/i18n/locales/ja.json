@@ -6164,7 +6164,7 @@
     "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "提出済みで別の管理者による確認待ちです。再提出しないでください。提出は承認を意味しません。",
     "a reconciliation is awaiting independent review": "会計照合は独立した確認待ちです",
     "Awaiting independent accounting review": "独立した会計確認待ち",
-    "Refund amount is ready for your confirmation": "返金額を確認できます。更新して確定してください",
+    "Refund amount is ready for your confirmation": "返金額を確認して確定してください",
     "Superseded": "置き換え済み",
     "Earlier order gift expired": "以前の注文の特典が失効",
     "Gift balance after refund (original value, CNY)": "返金後の特典残高（注文時の換算額、CNY）",
@@ -6180,6 +6180,8 @@
     "Required reviewing administrators": "必要な承認管理者数",
     "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "既定では無効です。管理者が提出した会計修正は即時反映されます。有効にすると、提出者以外の異なる管理者による1件以上の承認が必要です。設定変更だけでは保留中の記録は承認されません。",
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "返金申請を送信しました。申請額に相当するクレジットを凍結し、決済確認を待っています。",
-    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "送信すると申請分のクレジットを凍結し、新たな利用を停止します。確認後に最終返金額を確定すると、回収対象のボーナスを含めて凍結額を差額調整します。キャンセルまたは却下時には実際の凍結分を解除します。"
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "送信すると申請分のクレジットを凍結し、新たな利用を停止します。確認後に最終返金額を確定すると、回収対象のボーナスを含めて凍結額を差額調整します。キャンセルまたは却下時には実際の凍結分を解除します。",
+    "Confirm the refund amount to continue processing.": "処理を続けるには、返金額を確認して確定してください。",
+    "Processing can continue after the applicant confirms the refund amount.": "申請者が返金額を確定すると、処理を続行できます。"
   }
 }

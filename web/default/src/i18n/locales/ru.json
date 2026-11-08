@@ -6164,7 +6164,7 @@
     "A proposal is awaiting another administrator. Do not submit it again; submission is not approval.": "Предложение отправлено и ожидает другого администратора. Повторная отправка не нужна; отправка не означает одобрение.",
     "a reconciliation is awaiting independent review": "Сверка уже ожидает независимой проверки",
     "Awaiting independent accounting review": "Ожидается независимая проверка учёта",
-    "Refund amount is ready for your confirmation": "Сумма возврата готова: обновите и подтвердите",
+    "Refund amount is ready for your confirmation": "Сумма возврата готова к подтверждению",
     "Superseded": "Заменено",
     "Earlier order gift expired": "Бонусы предыдущих заказов аннулированы",
     "Gift balance after refund (original value, CNY)": "Бонусный остаток после возврата (исходная стоимость, CNY)",
@@ -6180,6 +6180,8 @@
     "Required reviewing administrators": "Число проверяющих администраторов",
     "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "По умолчанию выключено: исправления администратора применяются сразу после отправки. При включении требуется одобрение хотя бы одного другого администратора. Изменение настройки не одобряет ожидающие записи автоматически.",
     "Refund request submitted. The requested credits are frozen pending settlement verification.": "Заявка на возврат отправлена. Запрошенные средства заморожены до проверки расчётов.",
-    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Подача заявки замораживает запрошенные средства и приостанавливает новое потребление. После проверки подтвердите итоговый возврат: заморозка будет скорректирована на разницу, включая возврат бонусов. Отмена или отклонение освобождает фактически замороженные средства."
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Подача заявки замораживает запрошенные средства и приостанавливает новое потребление. После проверки подтвердите итоговый возврат: заморозка будет скорректирована на разницу, включая возврат бонусов. Отмена или отклонение освобождает фактически замороженные средства.",
+    "Confirm the refund amount to continue processing.": "Подтвердите сумму возврата, чтобы продолжить обработку.",
+    "Processing can continue after the applicant confirms the refund amount.": "Обработка продолжится после подтверждения суммы возврата заявителем."
   }
 }

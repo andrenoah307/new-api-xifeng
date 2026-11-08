@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, Check, RefreshCw, Play } from 'lucide-react'
 /*
 Copyright (C) 2023-2026 QuantumNous
@@ -18,7 +18,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
@@ -28,9 +28,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
-import type {
-  InvoiceCorrection,
-  RefundFinanceDetail as FinanceData,
+import {
+  type InvoiceCorrection,
+  type RefundFinanceDetail as FinanceData,
+  quoteRefundFinance,
 } from '../refund-finance-api'
 import { refundCash } from '../refund-finance-format'
 import {
@@ -53,10 +54,52 @@ export function RefundFinanceDetail(props: {
   }
   const client = useQueryClient()
   const userId = useAuthStore((state) => state.auth.user?.id)
-  const [quote, setQuote] = useState<FinanceData | null>(null)
-  const [busy, setBusy] = useState(false)
   const role = useAuthStore((state) => state.auth.user?.role)
   const staff = [3, 10, 100].includes(role ?? 0)
+  const isOwner = !!userId && props.userId === userId
+  const [confirming, setConfirming] = useState(false)
+  const [refreshCooling, setRefreshCooling] = useState(false)
+  const canQuote =
+    !!userId &&
+    (isOwner || staff) &&
+    !!props.ticketId &&
+    !!props.requestedQuota &&
+    props.finance.settlement_status === 'waiting' &&
+    props.finance.allocations.length === 0
+  const quoteKey = [
+    'refund-confirmation-quote',
+    props.ticketId,
+    userId,
+    props.requestedQuota,
+  ]
+  const quoteQuery = useQuery({
+    queryKey: quoteKey,
+    queryFn: ({ signal }) =>
+      quoteRefundFinance(props.requestedQuota ?? 0, signal, props.ticketId),
+    enabled: canQuote,
+    retry: false,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+  const quote =
+    canQuote && !quoteQuery.isFetching && !quoteQuery.isError
+      ? quoteQuery.data
+      : null
+  const busy = confirming || quoteQuery.isFetching
+  useEffect(() => {
+    if (!canQuote) return
+    setRefreshCooling(true)
+    if (quoteQuery.isFetching) return
+    const timer = setTimeout(() => setRefreshCooling(false), 1500)
+    return () => clearTimeout(timer)
+  }, [
+    canQuote,
+    quoteQuery.isFetching,
+    quoteQuery.dataUpdatedAt,
+    quoteQuery.errorUpdatedAt,
+  ])
   const waitingLabels: Record<string, string> = {
     financial_reconciliation: 'Financial reconciliation required',
     awaiting_review: 'Financial reconciliation required',
@@ -65,36 +108,35 @@ export function RefundFinanceDetail(props: {
   const [error, setError] = useState('')
   async function confirmAmount(confirm: boolean) {
     if (busy) return
-    setBusy(true)
     setError('')
+    if (!confirm) {
+      if (refreshCooling) return
+      await quoteQuery.refetch()
+      return
+    }
+    if (!quote?.quote_token || !canQuote || !isOwner) return
+    setConfirming(true)
     try {
-      const response =
-        confirm && quote
-          ? await api.post('/api/ticket/refund/finance-confirm', {
-              ticket_id: props.ticketId,
-              refund_quota: quote.allocations.reduce(
-                (sum, row) => sum + row.refund_quota,
-                0
-              ),
-              quote_token: quote.quote_token,
-            })
-          : await api.get('/api/ticket/refund/finance-quote', {
-              params: { refund_quota: props.requestedQuota },
-            })
+      const response = await api.post('/api/ticket/refund/finance-confirm', {
+        ticket_id: props.ticketId,
+        refund_quota: quote.allocations.reduce(
+          (sum, row) => sum + row.refund_quota,
+          0
+        ),
+        quote_token: quote.quote_token,
+      })
       if (!response.data.success) throw new Error(response.data.message)
-      if (confirm) {
-        setQuote(null)
-        await client.invalidateQueries({ queryKey: ['tickets'] })
-        await client.invalidateQueries({ queryKey: ['user'] })
-        props.onUpdated?.()
-      } else setQuote(response.data.data)
+      client.setQueryData(quoteKey, null)
+      await client.invalidateQueries({ queryKey: ['tickets'] })
+      await client.invalidateQueries({ queryKey: ['user'] })
+      props.onUpdated?.()
     } catch (failure) {
-      setQuote(null)
+      client.setQueryData(quoteKey, null)
       setError(
         failure instanceof Error ? failure.message : t('Operation failed')
       )
     } finally {
-      setBusy(false)
+      setConfirming(false)
     }
   }
   async function download() {
@@ -123,26 +165,37 @@ export function RefundFinanceDetail(props: {
     return (
       <div className='space-y-3 text-sm' role='status'>
         {t(
-          waitingLabels[(quote ?? props.finance).waiting_reason ?? ''] ??
-            'Awaiting settlement verification. The refund amount must be confirmed again after verification.'
+          quote?.quote_token
+            ? 'Refund amount is ready for your confirmation'
+            : (waitingLabels[(quote ?? props.finance).waiting_reason ?? ''] ??
+                'Awaiting settlement verification. The refund amount must be confirmed again after verification.')
         )}
         <p>
           {t(
             'New consumption is suspended until this refund is completed or cancelled.'
           )}
         </p>
-        {props.userId === userId && props.ticketId && (
+        {canQuote && (
           <Button
             variant='outline'
-            disabled={busy}
+            disabled={busy || refreshCooling}
             onClick={() => confirmAmount(false)}
           >
-            <RefreshCw />
+            <RefreshCw
+              className={quoteQuery.isFetching ? 'animate-spin' : undefined}
+            />
             {t('Refresh')}
           </Button>
         )}
         {quote?.quote_token && (
           <div className='flex flex-wrap items-center gap-3'>
+            <p className='w-full font-medium'>
+              {isOwner
+                ? t('Confirm the refund amount to continue processing.')
+                : t(
+                    'Processing can continue after the applicant confirms the refund amount.'
+                  )}
+            </p>
             {quote.refund_order_type && (
               <p className='w-full'>
                 {t(
@@ -182,13 +235,18 @@ export function RefundFinanceDetail(props: {
                 )}
               </p>
             )}
-            <Button disabled={busy} onClick={() => confirmAmount(true)}>
-              <Check />
-              {t('Confirm')}
-            </Button>
+            {isOwner && (
+              <Button disabled={busy} onClick={() => confirmAmount(true)}>
+                <Check />
+                {t('Confirm')}
+              </Button>
+            )}
           </div>
         )}
-        {error && <p role='alert'>{t(error)}</p>}
+        {quoteQuery.isFetching && canQuote && <p>{t('Loading...')}</p>}
+        {(error || quoteQuery.error) && (
+          <p role='alert'>{t(error || quoteQuery.error?.message || '')}</p>
+        )}
         {staff && props.ticketId && (
           <ReconciliationPanel ticketId={props.ticketId} />
         )}
