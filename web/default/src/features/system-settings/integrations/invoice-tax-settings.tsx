@@ -69,6 +69,18 @@ export function InvoiceTaxSettings() {
       <h3 className='font-medium'>{t('Invoice tax charges')}</h3>
       <div className='flex items-center gap-2'>
         <Switch
+          id='refund-settlement-guard-enabled'
+          checked={!!config.refund_settlement_guard_enabled}
+          onCheckedChange={(refund_settlement_guard_enabled) =>
+            setDraft({ ...config, refund_settlement_guard_enabled })
+          }
+        />
+        <Label htmlFor='refund-settlement-guard-enabled'>
+          {t('Pause API consumption while a refund is pending')}
+        </Label>
+      </div>
+      <div className='flex items-center gap-2'>
+        <Switch
           id='finance-module-enabled'
           checked={!!config.module_enabled}
           onCheckedChange={(module_enabled) =>

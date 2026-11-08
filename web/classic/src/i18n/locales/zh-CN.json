@@ -5789,6 +5789,7 @@
     "Complete or reject the pending refund before resolving the ticket": "请先完成或驳回待处理退款，再将工单标记为已解决",
     "Correction notes (optional)": "处理备注（选填）",
     "Enter the red invoice reference for each invoice.": "请填写每张发票对应的红字发票号码。",
+    "Pause API consumption while a refund is pending": "退款待处理期间暂停 API 消费",
     "Quick replies": "快捷回复",
     "Quick replies (one per line)": "快捷短语（每行一条）",
     "Custom navigation links": "自定义导航链接",

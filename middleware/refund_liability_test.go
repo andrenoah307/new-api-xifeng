@@ -17,7 +17,7 @@ import (
 func TestRefundLiabilityAdmissionFailsClosed(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "guard.db")), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TicketRefund{}, &model.RefundLiability{}))
+	require.NoError(t, db.AutoMigrate(&model.User{}, &model.TicketRefund{}, &model.RefundLiability{}, &model.Option{}))
 	prior := model.DB
 	model.DB = db
 	t.Cleanup(func() {
@@ -60,8 +60,31 @@ func TestRefundLiabilityAdmissionFailsClosed(t *testing.T) {
 	called := false
 	router.POST("/relay", func(c *gin.Context) { called = true })
 	require.NoError(t, db.Create(&model.TicketRefund{UserId: owner.Id, TicketId: 1, RefundStatus: model.RefundStatusPending}).Error)
+	// Missing configuration and legacy JSON both leave pending-refund blocking off.
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/relay", nil))
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.True(t, called)
+	require.NoError(t, db.Create(&model.Option{Key: model.InvoiceTaxConfigKey, Value: `{"mode":"vat"}`}).Error)
+	for _, enabled := range []bool{false, true, false, true} {
+		config, err := model.GetInvoiceTaxConfig(db)
+		require.NoError(t, err)
+		config.RefundSettlementGuardEnabled = enabled
+		raw, err := common.Marshal(config)
+		require.NoError(t, err)
+		require.NoError(t, db.Model(&model.Option{}).Where("key = ?", model.InvoiceTaxConfigKey).Update("value", string(raw)).Error)
+		called = false
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/relay", nil))
+		if enabled {
+			assert.Equal(t, http.StatusServiceUnavailable, response.Code)
+			assert.False(t, called)
+			assert.Contains(t, response.Body.String(), "refund_settlement_guard")
+		} else {
+			assert.Equal(t, http.StatusOK, response.Code)
+			assert.True(t, called)
+		}
+	}
 	assert.Equal(t, http.StatusServiceUnavailable, response.Code)
 	assert.False(t, called)
 	require.NoError(t, db.Where("1 = 1").Delete(&model.TicketRefund{}).Error)

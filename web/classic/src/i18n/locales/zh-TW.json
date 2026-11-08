@@ -5626,6 +5626,7 @@
     "Complete or reject the pending refund before resolving the ticket": "請先完成或駁回待處理退款，再將工單標記為已解決",
     "Correction notes (optional)": "處理備註（選填）",
     "Enter the red invoice reference for each invoice.": "請填寫每張發票對應的紅字發票號碼。",
+    "Pause API consumption while a refund is pending": "退款待處理期間暫停 API 消費",
     "Quick replies": "快速回覆",
     "Quick replies (one per line)": "快捷短語（每行一條）",
     "Custom navigation links": "自訂導覽連結",
