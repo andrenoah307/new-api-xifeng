@@ -5644,6 +5644,8 @@
     "Apply accounting repair": "Применить исправление учета",
     "Administrator approvals: {{approved}} / {{required}}": "Одобрения администраторов: {{approved}} / {{required}}",
     "Administrator": "Администратор",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "Заявка на возврат отправлена. Запрошенные средства заморожены до проверки расчётов.",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Подача заявки замораживает запрошенные средства и приостанавливает новое потребление. После проверки подтвердите итоговый возврат: заморозка будет скорректирована на разницу, включая возврат бонусов. Отмена или отклонение освобождает фактически замороженные средства.",
     "Quick replies": "Быстрые ответы",
     "Quick replies (one per line)": "Шаблоны ответов (по одному на строку)",
     "Custom navigation links": "Пользовательские ссылки навигации",

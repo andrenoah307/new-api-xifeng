@@ -6178,6 +6178,8 @@
     "Apply accounting repair": "Gửi và áp dụng điều chỉnh kế toán",
     "Require accounting repair review": "Yêu cầu duyệt điều chỉnh kế toán",
     "Required reviewing administrators": "Số quản trị viên cần duyệt",
-    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "Mặc định tắt: điều chỉnh do quản trị viên gửi có hiệu lực ngay. Khi bật, cần ít nhất một quản trị viên khác với người gửi phê duyệt; mỗi người chỉ được tính một lần. Thay đổi cài đặt không tự động duyệt các bản ghi đang chờ."
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "Mặc định tắt: điều chỉnh do quản trị viên gửi có hiệu lực ngay. Khi bật, cần ít nhất một quản trị viên khác với người gửi phê duyệt; mỗi người chỉ được tính một lần. Thay đổi cài đặt không tự động duyệt các bản ghi đang chờ.",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "Đã gửi yêu cầu hoàn tiền. Hạn mức yêu cầu đã được đóng băng để chờ xác minh quyết toán.",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Gửi yêu cầu sẽ đóng băng hạn mức yêu cầu và tạm dừng sử dụng mới. Sau xác minh, hãy xác nhận số tiền hoàn cuối cùng; hệ thống sẽ điều chỉnh phần chênh lệch, gồm hạn mức tặng cần thu hồi. Hủy hoặc từ chối sẽ giải phóng hạn mức thực tế đã đóng băng."
   }
 }

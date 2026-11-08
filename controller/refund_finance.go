@@ -108,10 +108,12 @@ func ListRefundFinance(c *gin.Context) {
 		return
 	}
 	for i := range items {
-		if err := model.AttachRefundFinance(model.DB.WithContext(c.Request.Context()), &items[i]); err != nil {
+		refund, err := model.GetTicketRefundForView(items[i].TicketId)
+		if err != nil {
 			common.ApiError(c, err)
 			return
 		}
+		items[i] = *refund
 	}
 	if !authorizeRefundFinance(c) {
 		return
@@ -178,7 +180,7 @@ func ExportRefundFinance(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
-	refund, err := model.GetTicketRefundByTicketId(id)
+	refund, err := model.GetTicketRefundForView(id)
 	if err != nil {
 		common.ApiError(c, err)
 		return

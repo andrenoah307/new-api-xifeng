@@ -82,7 +82,7 @@ func recordHistoricalRefund(t *testing.T, userID, quota int) *RefundFinanceDetai
 	}))
 	return detail
 }
-func TestRefundWaitingPreservesWalletAndBlocksEveryApprovalMode(t *testing.T) {
+func TestRefundWaitingReservesWalletAndBlocksEveryApprovalMode(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	seedRefundFinanceOrder(t, f.user.Id, 10000, 1060000, 60000, 100)
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": 5000, "used_quota": 5000}).Error)
@@ -95,7 +95,7 @@ func TestRefundWaitingPreservesWalletAndBlocksEveryApprovalMode(t *testing.T) {
 	params := financeRefundParams(f.user, 5000)
 	ticket, refund, _, err := CreateRefundTicket(params)
 	require.NoError(t, err)
-	assert.Zero(t, refund.FrozenQuota)
+	assert.Equal(t, 5000, refund.FrozenQuota)
 	assert.Zero(t, refund.RefundCashCents)
 	assert.Empty(t, refund.Finance.Allocations)
 	assert.Empty(t, refund.Finance.InvoiceCorrections)
@@ -111,7 +111,7 @@ func TestRefundWaitingPreservesWalletAndBlocksEveryApprovalMode(t *testing.T) {
 	assert.Equal(t, ticket.Id, replay.Id)
 	var owner User
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)
-	assert.Equal(t, 4000, owner.Quota)
+	assert.Equal(t, -1000, owner.Quota)
 	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRejected})
 	require.NoError(t, err)
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)
@@ -178,10 +178,10 @@ func TestRefundWaitingAlsoAppliesWhenInvoiceModuleDisabled(t *testing.T) {
 	_, refund, _, err := CreateRefundTicket(params)
 	require.NoError(t, err)
 	assert.Equal(t, 1, refund.FinanceVersion)
-	assert.Zero(t, refund.FrozenQuota)
+	assert.Equal(t, 400, refund.FrozenQuota)
 }
 
-func TestRefundWaitingAcceptsUnsettledPreconsumeWithoutFreezing(t *testing.T) {
+func TestRefundWaitingReservesAvailableBalanceDuringPreconsume(t *testing.T) {
 	f := newRefundFinanceFixture(t)
 	seedRefundFinanceOrder(t, f.user.Id, 1000, 10600, 600, 100)
 	// The request has preconsumed 200; UsedQuota has not been settled yet.
@@ -196,7 +196,7 @@ func TestRefundWaitingAcceptsUnsettledPreconsumeWithoutFreezing(t *testing.T) {
 	assert.Equal(t, RefundSettlementWaiting, quote.SettlementStatus)
 	ticket, refund, _, err := CreateRefundTicket(financeRefundParams(f.user, 800))
 	require.NoError(t, err)
-	assert.Zero(t, refund.FrozenQuota)
+	assert.Equal(t, 800, refund.FrozenQuota)
 	// Finishing the charge does not automatically prove that no other request is in flight.
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("used_quota", 200).Error)
 	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})

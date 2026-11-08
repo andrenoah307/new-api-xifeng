@@ -6178,6 +6178,8 @@
     "Apply accounting repair": "会計修正を提出して適用",
     "Require accounting repair review": "会計修正の承認を必須にする",
     "Required reviewing administrators": "必要な承認管理者数",
-    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "既定では無効です。管理者が提出した会計修正は即時反映されます。有効にすると、提出者以外の異なる管理者による1件以上の承認が必要です。設定変更だけでは保留中の記録は承認されません。"
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "既定では無効です。管理者が提出した会計修正は即時反映されます。有効にすると、提出者以外の異なる管理者による1件以上の承認が必要です。設定変更だけでは保留中の記録は承認されません。",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "返金申請を送信しました。申請額に相当するクレジットを凍結し、決済確認を待っています。",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "送信すると申請分のクレジットを凍結し、新たな利用を停止します。確認後に最終返金額を確定すると、回収対象のボーナスを含めて凍結額を差額調整します。キャンセルまたは却下時には実際の凍結分を解除します。"
   }
 }

@@ -69,7 +69,7 @@ func TestRefundConcurrentCreateRespectsWalletAndRefundCap(t *testing.T) {
 	assert.Equal(t, 1, successes)
 	var user User
 	require.NoError(t, DB.First(&user, params.UserId).Error)
-	assert.Equal(t, 1000, user.Quota)
+	assert.Equal(t, 300, user.Quota)
 }
 
 func legacyFrozenRefundFixture(t *testing.T, params CreateRefundTicketParams) *Ticket {
@@ -77,7 +77,6 @@ func legacyFrozenRefundFixture(t *testing.T, params CreateRefundTicketParams) *T
 	ticket, _, _, err := CreateRefundTicket(params)
 	require.NoError(t, err)
 	require.NoError(t, DB.Model(&TicketRefund{}).Where("ticket_id = ?", ticket.Id).Updates(map[string]any{"finance_version": 0, "frozen_quota": params.RefundQuota}).Error)
-	require.NoError(t, DB.Model(&User{}).Where("id = ?", params.UserId).Update("quota", gorm.Expr("quota - ?", params.RefundQuota)).Error)
 	return ticket
 }
 
@@ -245,10 +244,10 @@ func TestRefundRequestReplayPreservesBalanceAndRejectsChangedPayload(t *testing.
 	assert.Equal(t, message.Id, replayedMessage.Id)
 	var user User
 	require.NoError(t, DB.First(&user, params.UserId).Error)
-	assert.Equal(t, 1000, user.Quota)
+	assert.Equal(t, 600, user.Quota)
 	params.PayeeAccount = "changed"
 	_, _, _, err = CreateRefundTicket(params)
 	require.ErrorIs(t, err, ErrTicketRefundQuotaInvalid)
 	require.NoError(t, DB.First(&user, params.UserId).Error)
-	assert.Equal(t, 1000, user.Quota)
+	assert.Equal(t, 600, user.Quota)
 }

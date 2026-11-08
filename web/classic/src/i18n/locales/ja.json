@@ -5590,6 +5590,8 @@
     "Apply accounting repair": "会計修正を提出して適用",
     "Administrator approvals: {{approved}} / {{required}}": "管理者の承認：{{approved}} / {{required}}",
     "Administrator": "管理者",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "返金申請を送信しました。申請額に相当するクレジットを凍結し、決済確認を待っています。",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "送信すると申請分のクレジットを凍結し、新たな利用を停止します。確認後に最終返金額を確定すると、回収対象のボーナスを含めて凍結額を差額調整します。キャンセルまたは却下時には実際の凍結分を解除します。",
     "Quick replies": "クイック返信",
     "Quick replies (one per line)": "定型文（1行に1件）",
     "Custom navigation links": "カスタムナビゲーションリンク",

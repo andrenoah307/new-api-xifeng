@@ -6178,6 +6178,8 @@
     "Apply accounting repair": "Применить исправление учета",
     "Require accounting repair review": "Требовать проверку исправлений учета",
     "Required reviewing administrators": "Число проверяющих администраторов",
-    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "По умолчанию выключено: исправления администратора применяются сразу после отправки. При включении требуется одобрение хотя бы одного другого администратора. Изменение настройки не одобряет ожидающие записи автоматически."
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "По умолчанию выключено: исправления администратора применяются сразу после отправки. При включении требуется одобрение хотя бы одного другого администратора. Изменение настройки не одобряет ожидающие записи автоматически.",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "Заявка на возврат отправлена. Запрошенные средства заморожены до проверки расчётов.",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Подача заявки замораживает запрошенные средства и приостанавливает новое потребление. После проверки подтвердите итоговый возврат: заморозка будет скорректирована на разницу, включая возврат бонусов. Отмена или отклонение освобождает фактически замороженные средства."
   }
 }

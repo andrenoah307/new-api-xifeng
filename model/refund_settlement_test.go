@@ -33,7 +33,7 @@ func TestRefundSettlementPolicyFlow(t *testing.T) {
 			require.NoError(t, err)
 			ticket, refund, _, err := CreateRefundTicket(financeRefundParams(f.user, tc.requested))
 			require.NoError(t, err)
-			assert.Zero(t, refund.FrozenQuota)
+			assert.Equal(t, tc.requested, refund.FrozenQuota)
 			_, err = BeginRefundLiability(f.user.Id, "blocked-request")
 			require.ErrorIs(t, err, ErrRefundConsumptionFrozen)
 			quote, err := QuoteRefundFinance(f.user.Id, tc.requested)

@@ -156,7 +156,7 @@ func TestReconciliationClassifiesLegacyDiscountWithoutChangingWallet(t *testing.
 	require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Update("quota", 1100).Error)
 	ticket, refund, _, err := CreateRefundTicket(financeRefundParams(f.user, 500))
 	require.NoError(t, err)
-	assert.Zero(t, refund.FrozenQuota)
+	assert.Equal(t, 500, refund.FrozenQuota)
 	report, err := GetRefundReconciliationReport(ticket.Id)
 	require.NoError(t, err)
 	assert.Equal(t, "100", report.Difference)
@@ -188,7 +188,7 @@ func TestReconciliationClassifiesLegacyDiscountWithoutChangingWallet(t *testing.
 	assert.Equal(t, int64(1000), original.QuotaGranted)
 	var owner User
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)
-	assert.Equal(t, 1100, owner.Quota)
+	assert.Equal(t, 600, owner.Quota)
 	quote, err := QuoteRefundFinance(f.user.Id, 500)
 	require.NoError(t, err)
 	assert.Equal(t, int64(563), quote.RefundCashCents)

@@ -5849,6 +5849,8 @@
     "Apply accounting repair": "Apply accounting repair",
     "Administrator approvals: {{approved}} / {{required}}": "Administrator approvals: {{approved}} / {{required}}",
     "Administrator": "Administrator",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "Refund request submitted. The requested credits are frozen pending settlement verification.",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.",
     "Quick replies": "Quick replies",
     "Quick replies (one per line)": "Quick replies (one per line)",
     "Custom navigation links": "Custom navigation links",

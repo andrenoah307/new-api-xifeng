@@ -5765,6 +5765,8 @@
     "Apply accounting repair": "提交并应用账务修复",
     "Administrator approvals: {{approved}} / {{required}}": "管理员批准人数：{{approved}} / {{required}}",
     "Administrator": "管理员",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "退款申请已提交，申请额度已冻结，等待结算核验。",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "提交后冻结申请额度并暂停新增消费。核验后请确认最终退款金额，系统按差额调整冻结，包含需回收的赠送额度。取消或驳回将退回实际冻结额度。",
     "Quick replies": "快捷回复",
     "Quick replies (one per line)": "快捷短语（每行一条）",
     "Custom navigation links": "自定义导航链接",

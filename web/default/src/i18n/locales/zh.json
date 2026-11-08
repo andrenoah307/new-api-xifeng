@@ -6178,6 +6178,8 @@
     "Apply accounting repair": "提交并应用账务修复",
     "Require accounting repair review": "账务修复需要复核",
     "Required reviewing administrators": "所需复核管理员人数",
-    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "默认关闭：管理员提交账务修复后立即生效。开启后，需至少一位非提交人的不同管理员批准。修改设置不会自动批准待处理记录。"
+    "Review is off by default: administrator submissions take effect immediately. When enabled, at least one distinct administrator other than the submitter must approve. Changing this setting does not automatically approve pending records.": "默认关闭：管理员提交账务修复后立即生效。开启后，需至少一位非提交人的不同管理员批准。修改设置不会自动批准待处理记录。",
+    "Refund request submitted. The requested credits are frozen pending settlement verification.": "退款申请已提交，申请额度已冻结，等待结算核验。",
+    "Submitting freezes the requested credits and suspends new consumption. After verification, confirm the final refund amount; the hold will be adjusted by the difference, including any gift recovery. Cancellation or rejection releases the actual hold.": "提交后冻结申请额度并暂停新增消费。核验后请确认最终退款金额，系统按差额调整冻结，包含需回收的赠送额度。取消或驳回将退回实际冻结额度。"
   }
 }
