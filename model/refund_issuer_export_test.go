@@ -45,23 +45,28 @@ func TestRefundExportsPreserveInvoiceTitlesAndIssuerAmounts(t *testing.T) {
 	listed, total, err := ListRefundCorrectionsForExport(InvoiceExportFilter{}, &common.PageInfo{Page: 1, PageSize: 20})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), total)
-	require.Len(t, listed[0].CorrectionRows, 8)
+	require.Len(t, listed[0].CorrectionRows, 7)
 	row := 0
 	for i := range red {
 		for j, issuer := range red[i].IssuerAmounts {
-			redRow, blueRow := listed[0].CorrectionRows[row], listed[0].CorrectionRows[row+1]
+			redRow := listed[0].CorrectionRows[row]
 			assert.Equal(t, "red", redRow.InvoiceColor)
-			assert.Equal(t, "blue", blueRow.InvoiceColor)
 			assert.Equal(t, []InvoiceIssuerAmount{issuer}, redRow.IssuerAmounts)
-			assert.Equal(t, []InvoiceIssuerAmount{blue[i].IssuerAmounts[j]}, blueRow.IssuerAmounts)
 			assert.Equal(t, red[i].CompanyName, redRow.CompanyName)
+			assert.Equal(t, float64(issuer.AmountCents)/100, redRow.TotalMoney)
+			row++
+			if blue[i].IssuerAmounts[j].AmountCents == 0 {
+				continue
+			}
+			blueRow := listed[0].CorrectionRows[row]
+			assert.Equal(t, "blue", blueRow.InvoiceColor)
+			assert.Equal(t, []InvoiceIssuerAmount{blue[i].IssuerAmounts[j]}, blueRow.IssuerAmounts)
 			assert.Equal(t, red[i].TaxNumber, blueRow.TaxNumber)
 			assert.Equal(t, red[i].Email, blueRow.Email)
-			assert.Equal(t, float64(issuer.AmountCents)/100, redRow.TotalMoney)
 			assert.Equal(t, float64(blue[i].IssuerAmounts[j].AmountCents)/100, blueRow.TotalMoney)
 			assert.Equal(t, "ordinary", blueRow.InvoiceType)
 			assert.Equal(t, InvoiceVATRateBps, blueRow.TaxRateBps)
-			row += 2
+			row++
 		}
 	}
 	// Missing per-order allocation must not silently assign a partial refund to a known issuer.
