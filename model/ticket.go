@@ -30,6 +30,7 @@ var (
 	ErrTicketSubjectEmpty           = errors.New("ticket subject empty")
 	ErrTicketContentEmpty           = errors.New("ticket content empty")
 	ErrTicketInvalidStatus          = errors.New("ticket invalid status")
+	ErrRefundTicketPending          = errors.New("Complete or reject the pending refund before resolving the ticket")
 	ErrTicketInvalidType            = errors.New("ticket invalid type")
 	ErrTicketAssigneeInvalid        = errors.New("ticket assignee invalid")
 	ErrTicketInvoiceNotFound        = errors.New("ticket invoice not found")
@@ -594,6 +595,15 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 		if status != nil {
 			if !IsValidTicketStatus(*status) {
 				return ErrTicketInvalidStatus
+			}
+			if ticket.Type == TicketTypeRefund && *status == TicketStatusResolved {
+				var pending int64
+				if err := tx.Model(&TicketRefund{}).Where("ticket_id = ? AND refund_status = ?", ticket.Id, RefundStatusPending).Count(&pending).Error; err != nil {
+					return err
+				}
+				if pending > 0 {
+					return ErrRefundTicketPending
+				}
 			}
 			if ticket.Type == TicketTypeInvoice && prevStatus == TicketStatusClosed && *status != TicketStatusClosed {
 				var err error

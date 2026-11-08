@@ -6195,6 +6195,11 @@
     "Historical invoice tickets": "過去の請求書チケット",
     "Export Reversal Invoices": "訂正請求書をエクスポート",
     "Refund ticket": "返金チケット",
-    "Selected {{count}} refund tickets": "{{count}} 件の返金チケットを選択中"
+    "Selected {{count}} refund tickets": "{{count}} 件の返金チケットを選択中",
+    "Complete or reject the pending refund before resolving the ticket": "チケットを解決済みにする前に、保留中の返金を完了または却下してください",
+    "Confirm no red invoice was issued": "赤字請求書が未発行であることを確認",
+    "Confirm no red invoice was issued and return to pending?": "赤字請求書が未発行であることを確認し、処理待ちに戻しますか？",
+    "Legacy refund recovery": "過去の返金処理",
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "続行する前に過去の返金処理で既存の請求書と支払い操作を確認してください"
   }
 }

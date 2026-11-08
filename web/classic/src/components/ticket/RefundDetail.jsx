@@ -1,4 +1,5 @@
 import RefundInvoiceExports from './RefundInvoiceExports';
+import { LegacyRefundRecovery } from './FinanceWorkflow';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Banner,
@@ -73,7 +74,6 @@ const RefundDetail = ({
   loading = false,
   readonly = false,
   onStatusChange,
-  onSendMessage,
   t,
 }) => {
   const [resolveVisible, setResolveVisible] = useState(false);
@@ -233,10 +233,7 @@ const RefundDetail = ({
     setRejectLoading(true);
     try {
       const reason = String(rejectReason || '').trim();
-      if (reason && typeof onSendMessage === 'function') {
-        await onSendMessage(`${t('驳回理由')}：\n${reason}`);
-      }
-      await onStatusChange?.(REFUND_STATUS_REJECTED, {});
+      await onStatusChange?.(REFUND_STATUS_REJECTED, { rejection_reason: reason });
       setRejectVisible(false);
       setRejectReason('');
     } finally {
@@ -266,6 +263,7 @@ const RefundDetail = ({
   return (
     <>
       {!readonly && <RefundInvoiceExports ticketId={refund.ticket_id} />}
+      {!readonly && refund.finance_version === 1 && refund.refund_status === 1 && <LegacyRefundRecovery ticketId={refund.ticket_id} />}
       {userInvoices && userInvoices.length > 0 && (
         <Banner
           type='warning'

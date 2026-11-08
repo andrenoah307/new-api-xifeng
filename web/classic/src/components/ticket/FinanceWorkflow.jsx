@@ -12,6 +12,11 @@ function Button({
 import { createFinanceMoney } from '../../../../shared/finance-money';
 const inputClass = 'w-full rounded border bg-transparent p-2 text-sm';
 const cashMoney = createFinanceMoney('100', '1');
+export function LegacyRefundRecovery({ ticketId }) {
+  const [state] = useContext(UserContext);
+  if (![3, 10, 100].includes(state.user?.role)) return null;
+  return <RefundPayoutPanel key={ticketId} ticketId={ticketId} />;
+}
 export function RefundPayoutPanel({
   ticketId,
   onUpdated
@@ -51,6 +56,7 @@ export function RefundPayoutPanel({
       setKey(crypto.randomUUID());
       query.reload();
       onUpdated?.();
+      if (status === 'succeeded') window.location.reload();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : t('Operation failed'));
     } finally {
@@ -66,6 +72,8 @@ export function RefundPayoutPanel({
     failed: 'Failed'
   };
   return <section className='space-y-3 border-t pt-4'>
+      <h3 className='font-semibold'>{t('Legacy refund recovery')}</h3>
+      {query.data?.corrections?.map(correction => <CorrectionWorkflow key={`${correction.id}:${correction.phase}:${correction.status}`} correction={correction} onUpdated={query.reload} />)}
       <h3 className='font-semibold'>{t('Refund payout')}</h3>
       {query.data && <p>
           {t('Cash refund')}: ¥{(query.data.cash_cents / 100).toFixed(2)} ·{' '}
@@ -188,17 +196,19 @@ export function CorrectionWorkflow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const phase = correction.phase || correction.status;
-  const preparing = correction.status === 'pending';
+  const preparing = correction.status === 'pending' || (!correction.version && correction.status === 'processing');
   const complete = correction.status === 'completed' || correction.status === 'cancelled';
   async function transition(action) {
     if (busy || !editable) return;
+    if (action === 'abort' && !window.confirm(t('Confirm no red invoice was issued and return to pending?'))) return;
     setBusy(true);
     setError('');
     try {
       const response = await api.post(`/api/ticket/refund/invoice-corrections/${correction.id}/transition`, {
         action,
         documents,
-        evidence
+        evidence,
+        confirm_no_red_invoice: action === 'abort'
       });
       if (!response.data.success) throw new Error(response.data.message);
       setCorrection(response.data.data);
@@ -214,7 +224,7 @@ export function CorrectionWorkflow({
       setBusy(false);
     }
   }
-  if (correction.version !== 1) {
+  if (correction.version !== 1 && complete) {
     return <section className='space-y-2 border-t pt-4'>
         <h4>
           {t('Invoice correction')} #{correction.invoice_ticket_id} ·{' '}
@@ -299,6 +309,9 @@ export function CorrectionWorkflow({
             {phase === 'red_processing' && <Button disabled={busy || !evidence.trim()} onClick={() => transition('red')}>
                 {t('Register red invoice')}
               </Button>}
+            {correction.status === 'processing' && (phase === 'red_processing' || !correction.version) && <Button variant='outline' disabled={busy || !evidence.trim()} onClick={() => transition('abort')}>
+              {t('Confirm no red invoice was issued')}
+            </Button>}
             {phase === 'reissue_pending' && <Button disabled={busy || !evidence.trim()} onClick={() => transition('reissue')}>
                 {t('Register replacement invoice')}
               </Button>}
@@ -363,7 +376,7 @@ export function InvoiceCorrectionPanel({
             {t('Request invoice correction')}
           </Button>
         </div>}
-      {query.data?.corrections.map(row => <CorrectionWorkflow key={`${row.id}:${row.phase}:${row.status}`} correction={row} editable={row.version === 1} onUpdated={query.reload} />)}
+      {query.data?.corrections.map(row => <CorrectionWorkflow key={`${row.id}:${row.phase}:${row.status}`} correction={row} editable onUpdated={query.reload} />)}
       {(error || query.error) && <p role='alert' className='text-red-600'>
           {t(error || query.error)}
         </p>}

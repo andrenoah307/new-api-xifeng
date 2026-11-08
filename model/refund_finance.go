@@ -555,7 +555,7 @@ func releaseRefundFinanceTx(tx *gorm.DB, refund *TicketRefund) error {
 	if completed != 0 {
 		return ErrRefundFinanceCorrectionPending
 	}
-	if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status = ?", refund.TicketId, "pending").Update("status", "cancelled").Error; err != nil {
+	if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status = ?", refund.TicketId, "pending").Updates(map[string]interface{}{"status": "cancelled", "phase": "cancelled"}).Error; err != nil {
 		return err
 	}
 	return tx.Model(&RefundOrderAllocation{}).Where("refund_ticket_id = ? AND status = ?", refund.TicketId, "reserved").Update("status", "released").Error

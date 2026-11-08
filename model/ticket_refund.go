@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
@@ -443,6 +444,7 @@ func GetTicketRefundByTicketId(ticketId int) (*TicketRefund, error) {
 // 当前所有批准模式均等待结算安全证明；这些参数仅保留既有 API 协议。
 // 驳回只退回实际 FrozenQuota，等待申请不得按 RefundQuota 产生新余额。
 type UpdateRefundStatusParams struct {
+	RejectionReason   string
 	OriginalWorkflow  bool
 	PayoutAttemptID   int
 	PayoutReference   string
@@ -466,6 +468,9 @@ type UpdateRefundStatusParams struct {
 // 第三个返回值是更新前的工单主状态，供调用方判断是否需要发出状态变更通知；
 // 第四个返回值是实际执行的返佣扣回结果（未勾选或无可扣时 ClawedQuota 为 0）。
 func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket, int, *CommissionClawbackResult, error) {
+	if utf8.RuneCountInString(params.RejectionReason) > 4000 {
+		return nil, nil, 0, nil, ErrFinanceEvidence
+	}
 	if params.RefundStatus != RefundStatusRefunded && params.RefundStatus != RefundStatusRejected {
 		return nil, nil, 0, nil, ErrTicketRefundStatusInvalid
 	}
@@ -686,6 +691,15 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		refund.ProcessedTime = now
 		refund.FrozenQuota = 0
+		if params.RefundStatus == RefundStatusRejected && strings.TrimSpace(params.RejectionReason) != "" {
+			var actor User
+			if err := tx.First(&actor, params.AdminId).Error; err != nil {
+				return err
+			}
+			if err := tx.Create(&TicketMessage{TicketId: ticket.Id, UserId: actor.Id, Username: actor.Username, Role: actor.Role, Content: "驳回理由:\n" + strings.TrimSpace(params.RejectionReason), CreatedTime: now}).Error; err != nil {
+				return err
+			}
+		}
 		if status, ok := ticketUpdates["status"].(int); ok {
 			ticket.Status = status
 		}

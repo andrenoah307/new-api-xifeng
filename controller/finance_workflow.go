@@ -134,16 +134,17 @@ func TransitionInvoiceCorrection(c *gin.Context) {
 		return
 	}
 	var request struct {
-		Action    string                            `json:"action"`
-		Documents []model.InvoiceCorrectionDocument `json:"documents"`
-		Evidence  string                            `json:"evidence"`
+		Action       string                            `json:"action"`
+		ConfirmNoRed bool                              `json:"confirm_no_red_invoice"`
+		Documents    []model.InvoiceCorrectionDocument `json:"documents"`
+		Evidence     string                            `json:"evidence"`
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 65536)
 	if err := common.DecodeJson(c.Request.Body, &request); err != nil {
 		common.ApiError(c, model.ErrFinanceEvidence)
 		return
 	}
-	data, err := model.TransitionInvoiceCorrection(id, c.GetInt("id"), request.Action, request.Documents, request.Evidence)
+	data, err := model.TransitionInvoiceCorrection(id, c.GetInt("id"), request.Action, request.Documents, request.Evidence, request.ConfirmNoRed)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -160,7 +161,7 @@ func GetRefundPayouts(c *gin.Context) {
 		common.ApiError(c, model.ErrRefundPayout)
 		return
 	}
-	refund, err := model.GetTicketRefundForView(id)
+	refund, err := model.RefundOriginalView(id)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -170,15 +171,18 @@ func GetRefundPayouts(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	ready := refund.Finance != nil && refund.SettlementVerified && refund.RefundStatus == model.RefundStatusPending
-	if refund.Finance != nil {
-		for _, correction := range refund.Finance.InvoiceCorrections {
-			if correction.Status != "completed" {
-				ready = false
-			}
+	corrections := []model.RefundInvoiceCorrection{}
+	if err := model.DB.Where("refund_ticket_id = ?", id).Order("id ASC").Find(&corrections).Error; err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	ready := refund.FinanceVersion == 1 && refund.SettlementVerified && refund.RefundStatus == model.RefundStatusPending
+	for _, correction := range corrections {
+		if correction.Status != "completed" {
+			ready = false
 		}
 	}
-	common.ApiSuccess(c, gin.H{"items": items, "ready": ready, "cash_cents": refund.RefundCashCents, "refund_status": refund.RefundStatus})
+	common.ApiSuccess(c, gin.H{"items": items, "corrections": corrections, "ready": ready, "cash_cents": refund.RefundCashCents, "refund_status": refund.RefundStatus})
 }
 
 func StartRefundPayout(c *gin.Context) {

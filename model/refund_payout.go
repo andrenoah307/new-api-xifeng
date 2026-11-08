@@ -32,6 +32,9 @@ func CompleteRefundPayout(id, actorID int, reference, evidence string, clawback 
 	}
 	deduct := len(clawback) == 0 || clawback[0]
 	refund, _, _, _, err := UpdateRefundStatus(UpdateRefundStatusParams{TicketId: attempt.TicketId, AdminId: actorID, RefundStatus: RefundStatusRefunded, PayoutAttemptID: id, PayoutReference: reference, PayoutEvidence: evidence, ClawBackCommission: deduct})
+	if err == nil {
+		RecordLogWithAdminInfo(attempt.UserId, LogTypeManage, fmt.Sprintf("Refund payout #%d succeeded", id), map[string]interface{}{"admin_id": actorID, "ticket_id": attempt.TicketId, "reference": reference, "evidence": evidence})
+	}
 	if errors.Is(err, ErrTicketRefundNotPending) {
 		var completed RefundPayoutAttempt
 		if readErr := DB.First(&completed, id).Error; readErr == nil && completed.Status == "succeeded" && completed.PaymentReference == strings.TrimSpace(reference) && completed.Evidence == strings.TrimSpace(evidence) {
@@ -112,8 +115,11 @@ func StartRefundPayout(ticketID, actorID int, key string) (*RefundPayoutAttempt,
 		if err := tx.Create(&result).Error; err != nil {
 			return err
 		}
-		return tx.Create(&TicketMessage{TicketId: ticketID, UserId: actorID, Username: actor.Username, Role: actor.Role, Content: fmt.Sprintf("Refund payout #%d claimed: %d cents", result.Id, result.CashCents), CreatedTime: result.CreatedTime}).Error
+		return nil
 	})
+	if err == nil {
+		RecordLogWithAdminInfo(known.UserId, LogTypeManage, fmt.Sprintf("Refund payout #%d claimed", result.Id), map[string]interface{}{"admin_id": actorID, "ticket_id": ticketID, "cash_cents": result.CashCents})
+	}
 	return &result, err
 }
 
@@ -149,8 +155,11 @@ func RecordRefundPayoutReview(id, actorID int, status, evidence string) (*Refund
 		if err := tx.Save(&result).Error; err != nil {
 			return err
 		}
-		return tx.Create(&TicketMessage{TicketId: result.TicketId, UserId: actorID, Username: actor.Username, Role: actor.Role, Content: fmt.Sprintf("Refund payout #%d %s: %s", id, status, evidence), CreatedTime: result.HandledTime}).Error
+		return nil
 	})
+	if err == nil {
+		RecordLogWithAdminInfo(known.UserId, LogTypeManage, fmt.Sprintf("Refund payout #%d %s", id, status), map[string]interface{}{"admin_id": actorID, "ticket_id": result.TicketId, "evidence": evidence})
+	}
 	return &result, err
 }
 
@@ -173,5 +182,5 @@ func completeRefundPayoutTx(tx *gorm.DB, refund *TicketRefund, params UpdateRefu
 	if err := tx.Save(&attempt).Error; err != nil {
 		return err
 	}
-	return tx.Create(&TicketMessage{TicketId: refund.TicketId, UserId: params.AdminId, Role: common.RoleAdminUser, Content: fmt.Sprintf("Refund payout #%d succeeded: %d cents; reference %s; %s", attempt.Id, attempt.CashCents, reference, evidence), CreatedTime: attempt.HandledTime}).Error
+	return nil
 }

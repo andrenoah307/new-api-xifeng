@@ -6195,6 +6195,11 @@
     "Historical invoice tickets": "Yêu cầu hóa đơn trước đây",
     "Export Reversal Invoices": "Xuất hóa đơn điều chỉnh",
     "Refund ticket": "Yêu cầu hoàn tiền",
-    "Selected {{count}} refund tickets": "Đã chọn {{count}} yêu cầu hoàn tiền"
+    "Selected {{count}} refund tickets": "Đã chọn {{count}} yêu cầu hoàn tiền",
+    "Complete or reject the pending refund before resolving the ticket": "Hoàn tất hoặc từ chối khoản hoàn tiền đang chờ trước khi đánh dấu yêu cầu đã giải quyết",
+    "Confirm no red invoice was issued": "Xác nhận chưa xuất hóa đơn điều chỉnh giảm",
+    "Confirm no red invoice was issued and return to pending?": "Xác nhận chưa xuất hóa đơn điều chỉnh giảm và chuyển về chờ xử lý?",
+    "Legacy refund recovery": "Xử lý hoàn tiền cũ",
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Xử lý các thao tác hóa đơn và thanh toán hiện có trong mục hoàn tiền cũ trước khi tiếp tục"
   }
 }

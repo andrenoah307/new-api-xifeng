@@ -11,6 +11,7 @@ import (
 )
 
 var ErrRefundExport = errors.New("refund invoice export requires a valid cash amount and complete payment history")
+var ErrRefundLegacyWorkflow = errors.New("Resolve legacy invoice and payment operations in refund recovery before continuing")
 
 // RefundInvoiceExport preserves the cash allocation and invoice identity used by finance.
 // It does not move wallet funds or mark invoices as reversed/issued.
@@ -163,6 +164,21 @@ func SaveRefundInvoiceExport(ticketID, actorID int) (*RefundExportData, error) {
 }
 
 func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int) (*RefundExportData, error) {
+	if refund.FinanceVersion == 1 {
+		var external int64
+		if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status IN ?", refund.TicketId, []string{"processing", "completed"}).Count(&external).Error; err != nil {
+			return nil, err
+		}
+		if external > 0 {
+			return nil, ErrRefundLegacyWorkflow
+		}
+		if err := tx.Model(&RefundPayoutAttempt{}).Where("ticket_id = ? AND status != ?", refund.TicketId, "failed").Count(&external).Error; err != nil {
+			return nil, err
+		}
+		if external > 0 {
+			return nil, ErrRefundLegacyWorkflow
+		}
+	}
 	var result *RefundExportData
 	var owner User
 	if err := tx.First(&owner, refund.UserId).Error; err != nil {
@@ -360,6 +376,9 @@ func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int) (
 			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, err
 			}
+		}
+		if baseline == 0 {
+			continue // A fully reversed invoice has no active blue amount to reverse again.
 		}
 		if baseline < reduction {
 			return nil, ErrRefundExport

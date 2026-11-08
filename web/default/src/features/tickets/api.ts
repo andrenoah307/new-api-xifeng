@@ -422,6 +422,7 @@ export async function updateRefundStatus(
     actual_refund_quota?: number
     claw_back_commission?: boolean
     claw_back_quota?: number
+    rejection_reason?: string
   }
 ): Promise<boolean> {
   const res = await api.put(`/api/ticket/admin/${ticketId}/refund/status`, {

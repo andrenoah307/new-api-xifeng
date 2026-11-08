@@ -33,6 +33,7 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { TicketRefund } from './api'
+import { LegacyRefundRecovery } from './components/finance-workflow'
 import { RefundInvoiceExports } from './components/refund-invoice-exports'
 import { refundCash } from './refund-finance-format'
 
@@ -171,7 +172,7 @@ function RefundFinanceList(props: { userId: number; role: number }) {
           }}
         >
           <DialogContent
-            className='max-h-[85vh] overflow-y-auto sm:max-w-6xl'
+            className='max-h-[85vh] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-6xl'
             aria-describedby={undefined}
           >
             <DialogHeader>
@@ -180,6 +181,9 @@ function RefundFinanceList(props: { userId: number; role: number }) {
               </DialogTitle>
             </DialogHeader>
             <div className='min-w-0'>
+              {item?.finance_version === 1 && item.refund_status === 1 && (
+                <LegacyRefundRecovery ticketId={item.ticket_id} />
+              )}
               {item && (
                 <RefundInvoiceExports
                   key={item.ticket_id}

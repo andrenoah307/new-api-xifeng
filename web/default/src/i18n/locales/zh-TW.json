@@ -6195,6 +6195,11 @@
     "Historical invoice tickets": "歷史發票工單",
     "Export Reversal Invoices": "匯出沖紅發票",
     "Refund ticket": "退款工單",
-    "Selected {{count}} refund tickets": "已選擇 {{count}} 個退款工單"
+    "Selected {{count}} refund tickets": "已選擇 {{count}} 個退款工單",
+    "Complete or reject the pending refund before resolving the ticket": "請先完成或駁回待處理退款，再將工單標記為已解決",
+    "Confirm no red invoice was issued": "確認未實際開紅票",
+    "Confirm no red invoice was issued and return to pending?": "確認未實際開出紅票，並退回待處理狀態？",
+    "Legacy refund recovery": "歷史退款處理",
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "請先在歷史退款處理中核實並處理既有的發票和付款操作"
   }
 }

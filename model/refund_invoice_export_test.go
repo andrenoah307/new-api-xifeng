@@ -168,7 +168,7 @@ func TestOriginalRefundReleasesLegacyGiftHold(t *testing.T) {
 	attempt := RefundPayoutAttempt{TicketId: ticket.Id, UserId: f.user.Id, RequestKey: uuid.NewString(), Status: "unknown", CashCents: 4500}
 	require.NoError(t, DB.Create(&attempt).Error)
 	_, _, _, _, err := UpdateRefundStatus(UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
-	require.ErrorIs(t, err, ErrRefundPayout)
+	require.ErrorIs(t, err, ErrRefundLegacyWorkflow)
 	require.NoError(t, DB.First(&refund, refund.Id).Error)
 	assert.Equal(t, 1, refund.FinanceVersion)
 	assert.Equal(t, RefundStatusPending, refund.RefundStatus)

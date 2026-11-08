@@ -6195,6 +6195,11 @@
     "Historical invoice tickets": "Anciens tickets de facturation",
     "Export Reversal Invoices": "Exporter les factures rectificatives",
     "Refund ticket": "Ticket de remboursement",
-    "Selected {{count}} refund tickets": "{{count}} tickets de remboursement sélectionnés"
+    "Selected {{count}} refund tickets": "{{count}} tickets de remboursement sélectionnés",
+    "Complete or reject the pending refund before resolving the ticket": "Terminez ou rejetez le remboursement en attente avant de résoudre le ticket",
+    "Confirm no red invoice was issued": "Confirmer qu’aucun avoir n’a été émis",
+    "Confirm no red invoice was issued and return to pending?": "Confirmer qu’aucun avoir n’a été émis et remettre en attente ?",
+    "Legacy refund recovery": "Traitement des anciens remboursements",
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Traitez les opérations de facturation et de paiement existantes dans les anciens remboursements avant de continuer"
   }
 }

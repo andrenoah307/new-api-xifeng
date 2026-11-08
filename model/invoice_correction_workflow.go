@@ -34,9 +34,9 @@ func (correction *RefundInvoiceCorrection) AfterFind(tx *gorm.DB) error {
 	return nil
 }
 
-// Old rows keep their v0 completion protocol. New rows record red and replacement
-// phases separately so failed replacement work cannot resurrect a reversed invoice.
-func TransitionInvoiceCorrection(id, actorID int, action string, documents []InvoiceCorrectionDocument, evidence string) (*RefundInvoiceCorrection, error) {
+// Legacy pending/processing rows can adopt per-document evidence. Recorded red
+// invoices are irreversible here; failed replacement work resumes in place.
+func TransitionInvoiceCorrection(id, actorID int, action string, documents []InvoiceCorrectionDocument, evidence string, confirmedNoRed ...bool) (*RefundInvoiceCorrection, error) {
 	evidence = strings.TrimSpace(evidence)
 	if len(documents) > 100 || utf8.RuneCountInString(evidence) > 4000 {
 		return nil, ErrFinanceEvidence
@@ -46,6 +46,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 		return nil, err
 	}
 	var result RefundInvoiceCorrection
+	var audit string
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var owner User
 		if err := lockForUpdate(tx).First(&owner, known.UserId).Error; err != nil {
@@ -58,8 +59,12 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 		if err := lockForUpdate(tx).First(&result, id).Error; err != nil {
 			return err
 		}
-		if result.Version != 1 {
+		if result.Version != 1 && result.Version != 0 {
 			return ErrRefundInvoiceCorrection
+		}
+		legacyPreparing := result.Version == 0 && action == "prepare" && (result.Status == "pending" || result.Status == "processing") && result.RedReference == "" && result.ReissueReference == ""
+		if action == "abort" && len(confirmedNoRed) == 1 && confirmedNoRed[0] && evidence != "" && result.Status == "pending" && strings.HasSuffix(result.Evidence, "\nNo red invoice issued: "+evidence) {
+			return nil
 		}
 		// A retried evidence submission must not advance the state a second time.
 		if (action == "red" && (result.Phase == "reissue_pending" || result.Phase == "completed")) || (action == "reissue" && result.Phase == "completed") {
@@ -85,7 +90,7 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			if err := tx.Where("ticket_id = ? AND refund_status = ?", result.RefundTicketId, RefundStatusPending).First(&refund).Error; err != nil {
 				return ErrRefundInvoiceCorrection
 			}
-			if !refund.hasVerifiedRefundHold() {
+			if action != "abort" && !refund.hasVerifiedRefundHold() {
 				return ErrRefundSettlementUnconfirmed
 			}
 			if action == "start" {
@@ -96,9 +101,28 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 		}
 		previous := result.Phase
 		switch action {
-		case "prepare":
-			if result.Status != "pending" || evidence == "" || len(documents) == 0 {
+		case "abort":
+			if len(confirmedNoRed) != 1 || !confirmedNoRed[0] || evidence == "" || result.Status != "processing" || (result.Version == 1 && result.Phase != "red_processing") || result.RedReference != "" || result.ReissueReference != "" {
 				return ErrRefundInvoiceCorrection
+			}
+			for _, document := range result.Documents {
+				if document.RedReference != "" || document.ReissueReference != "" {
+					return ErrRefundInvoiceCorrection
+				}
+			}
+			result.Status, result.Phase = "pending", "ready"
+			if len(result.Documents) == 0 {
+				result.Phase = "documents_required"
+			}
+			result.Evidence += "\nNo red invoice issued: " + evidence
+		case "prepare":
+			if (result.Status != "pending" && !legacyPreparing) || evidence == "" || len(documents) == 0 || result.RedReference != "" || result.ReissueReference != "" {
+				return ErrRefundInvoiceCorrection
+			}
+			for _, document := range result.Documents {
+				if document.RedReference != "" || document.ReissueReference != "" {
+					return ErrRefundInvoiceCorrection
+				}
 			}
 			var original, reduction int64
 			seen := map[string]bool{}
@@ -143,6 +167,10 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			result.Documents = documents
 			result.Evidence = evidence
 			result.Phase = "ready"
+			if legacyPreparing && result.Status == "processing" {
+				result.Phase = "red_processing"
+			}
+			result.Version = 1
 		case "start":
 			if result.Status == "processing" && result.Phase == "red_processing" {
 				return nil
@@ -223,16 +251,12 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 		if err := tx.Save(&result).Error; err != nil {
 			return err
 		}
-		content := fmt.Sprintf("Invoice correction #%d: %s -> %s; actor %d; %s", id, previous, result.Phase, actorID, evidence)
-		for _, ticketID := range []int{result.InvoiceTicketId, result.RefundTicketId} {
-			if ticketID > 0 {
-				if err := tx.Create(&TicketMessage{TicketId: ticketID, UserId: actorID, Username: actor.Username, Role: actor.Role, Content: content, CreatedTime: result.HandledTime}).Error; err != nil {
-					return err
-				}
-			}
-		}
+		audit = fmt.Sprintf("Invoice correction #%d: %s -> %s", id, previous, result.Phase)
 		return nil
 	})
+	if err == nil && audit != "" {
+		RecordLogWithAdminInfo(result.UserId, LogTypeManage, audit, map[string]interface{}{"admin_id": actorID, "invoice_ticket_id": result.InvoiceTicketId, "refund_ticket_id": result.RefundTicketId, "action": action, "evidence": evidence})
+	}
 	return &result, err
 }
 

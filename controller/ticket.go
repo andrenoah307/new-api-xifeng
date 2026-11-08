@@ -96,6 +96,7 @@ type CreateRefundTicketRequest struct {
 }
 
 type UpdateRefundStatusRequest struct {
+	RejectionReason    string `json:"rejection_reason"`
 	RefundStatus       int    `json:"refund_status"`
 	QuotaMode          string `json:"quota_mode"`
 	ActualRefundQuota  *int   `json:"actual_refund_quota,omitempty"`
@@ -1017,6 +1018,7 @@ func UpdateRefundStatus(c *gin.Context) {
 	}
 
 	params := model.UpdateRefundStatusParams{
+		RejectionReason:  req.RejectionReason,
 		OriginalWorkflow: true,
 		TicketId:         ticketId,
 		AdminId:          c.GetInt("id"),

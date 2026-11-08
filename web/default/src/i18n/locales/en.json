@@ -6195,6 +6195,11 @@
     "Historical invoice tickets": "Historical invoice tickets",
     "Export Reversal Invoices": "Export Reversal Invoices",
     "Refund ticket": "Refund ticket",
-    "Selected {{count}} refund tickets": "Selected {{count}} refund tickets"
+    "Selected {{count}} refund tickets": "Selected {{count}} refund tickets",
+    "Complete or reject the pending refund before resolving the ticket": "Complete or reject the pending refund before resolving the ticket",
+    "Confirm no red invoice was issued": "Confirm no red invoice was issued",
+    "Confirm no red invoice was issued and return to pending?": "Confirm no red invoice was issued and return to pending?",
+    "Legacy refund recovery": "Legacy refund recovery",
+    "Resolve legacy invoice and payment operations in refund recovery before continuing": "Resolve legacy invoice and payment operations in refund recovery before continuing"
   }
 }
