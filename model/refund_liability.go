@@ -27,12 +27,18 @@ func BeginRefundLiability(userID int, requestID string) (*common.RefundLiability
 		if err := lockForUpdate(tx).Select("id").First(&owner, userID).Error; err != nil {
 			return err
 		}
-		var pending int64
-		if err := tx.Model(&TicketRefund{}).Where("user_id = ? AND refund_status = ?", userID, RefundStatusPending).Count(&pending).Error; err != nil {
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
 			return err
 		}
-		if pending != 0 {
-			return ErrRefundConsumptionFrozen
+		if config.RefundSettlementGuardEnabled {
+			var pending int64
+			if err := tx.Model(&TicketRefund{}).Where("user_id = ? AND refund_status = ?", userID, RefundStatusPending).Count(&pending).Error; err != nil {
+				return err
+			}
+			if pending != 0 {
+				return ErrRefundConsumptionFrozen
+			}
 		}
 		return tx.Create(&record).Error
 	})

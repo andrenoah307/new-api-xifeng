@@ -3817,6 +3817,7 @@
     "Path Regex (one per line)": "Regex du chemin (un par ligne)",
     "Path:": "Chemin :",
     "Pause": "Suspendre",
+    "Pause API consumption while a refund is pending": "Suspendre la consommation API pendant un remboursement en attente",
     "Paused": "En pause",
     "pay": "payer",
     "Pay": "Pay",

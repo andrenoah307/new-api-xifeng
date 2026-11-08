@@ -5668,6 +5668,7 @@
     "Complete or reject the pending refund before resolving the ticket": "Завершите или отклоните ожидающий возврат перед закрытием заявки как решённой",
     "Correction notes (optional)": "Примечания (необязательно)",
     "Enter the red invoice reference for each invoice.": "Укажите номер корректировочного счёта для каждого счёта.",
+    "Pause API consumption while a refund is pending": "Приостановить использование API на время обработки возврата",
     "Quick replies": "Быстрые ответы",
     "Quick replies (one per line)": "Шаблоны ответов (по одному на строку)",
     "Custom navigation links": "Пользовательские ссылки навигации",

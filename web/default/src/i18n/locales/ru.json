@@ -3817,6 +3817,7 @@
     "Path Regex (one per line)": "Регулярное выражение пути (по одному на строку)",
     "Path:": "Путь:",
     "Pause": "Приостановить",
+    "Pause API consumption while a refund is pending": "Приостановить использование API на время обработки возврата",
     "Paused": "Приостановлено",
     "pay": "оплата",
     "Pay": "Pay",

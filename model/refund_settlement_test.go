@@ -21,6 +21,10 @@ func TestRefundSettlementPolicyFlow(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRefundFinanceFixture(t)
+			config, err := GetInvoiceTaxConfig(DB)
+			require.NoError(t, err)
+			config.RefundSettlementGuardEnabled = true
+			require.NoError(t, SaveInvoiceTaxConfig(config))
 			require.NoError(t, DB.Where("1 = 1").Delete(&RefundLiability{}).Error)
 			order := seedRefundFinanceOrder(t, f.user.Id, int64(tc.quota), tc.paid, tc.fee, InvoicePolicyEffectiveAt)
 			require.NoError(t, DB.Model(&User{}).Where("id = ?", f.user.Id).Updates(map[string]any{"quota": tc.quota - tc.used, "used_quota": tc.used}).Error)

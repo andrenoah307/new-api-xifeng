@@ -15,7 +15,7 @@ import (
 
 func TestTaskSettlementRetainsLiabilityUntilFundingSucceeds(t *testing.T) {
 	truncate(t)
-	require.NoError(t, model.DB.AutoMigrate(&model.RefundLiability{}, &model.TicketRefund{}))
+	require.NoError(t, model.DB.AutoMigrate(&model.RefundLiability{}, &model.TicketRefund{}, &model.Option{}))
 	t.Cleanup(func() { require.NoError(t, model.DB.Where("1 = 1").Delete(&model.RefundLiability{}).Error) })
 	seedUser(t, 995001, 8000)
 	require.NoError(t, model.DB.Model(&model.User{}).Where("id = ?", 995001).Update("used_quota", 2000).Error)

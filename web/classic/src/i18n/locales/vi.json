@@ -6157,6 +6157,7 @@
     "Complete or reject the pending refund before resolving the ticket": "Hoàn tất hoặc từ chối khoản hoàn tiền đang chờ trước khi đánh dấu yêu cầu đã giải quyết",
     "Correction notes (optional)": "Ghi chú xử lý (không bắt buộc)",
     "Enter the red invoice reference for each invoice.": "Nhập số hóa đơn điều chỉnh giảm cho từng hóa đơn.",
+    "Pause API consumption while a refund is pending": "Tạm dừng sử dụng API khi yêu cầu hoàn tiền đang chờ xử lý",
     "Quick replies": "Trả lời nhanh",
     "Quick replies (one per line)": "Mẫu trả lời (mỗi dòng một mẫu)",
     "Custom navigation links": "Liên kết điều hướng tùy chỉnh",

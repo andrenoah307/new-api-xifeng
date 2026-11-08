@@ -3817,6 +3817,7 @@
     "Path Regex (one per line)": "Regex đường dẫn (mỗi dòng một mục)",
     "Path:": "Đường dẫn:",
     "Pause": "Tạm dừng",
+    "Pause API consumption while a refund is pending": "Tạm dừng sử dụng API khi yêu cầu hoàn tiền đang chờ xử lý",
     "Paused": "Đã tạm dừng",
     "pay": "thanh toán",
     "Pay": "Pay",

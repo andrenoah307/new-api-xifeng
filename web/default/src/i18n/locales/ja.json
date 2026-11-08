@@ -3817,6 +3817,7 @@
     "Path Regex (one per line)": "パス正規表現（1行に1つ）",
     "Path:": "パス：",
     "Pause": "一時停止",
+    "Pause API consumption while a refund is pending": "返金処理中は API の利用を一時停止",
     "Paused": "一時停止中",
     "pay": "支払い",
     "Pay": "Pay",

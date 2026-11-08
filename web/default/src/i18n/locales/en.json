@@ -3818,6 +3818,7 @@
     "Path Regex (one per line)": "Path Regex (one per line)",
     "Path:": "Path:",
     "Pause": "Pause",
+    "Pause API consumption while a refund is pending": "Pause API consumption while a refund is pending",
     "Paused": "Paused",
     "pay": "pay",
     "Pay": "Pay",

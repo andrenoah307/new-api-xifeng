@@ -424,6 +424,16 @@ export function InvoiceTaxSettings() {
       <h3>{t('Invoice tax charges')}</h3>
       <Space>
         <Switch
+          checked={!!config.refund_settlement_guard_enabled}
+          onChange={(refund_settlement_guard_enabled) =>
+            setConfig({ ...config, refund_settlement_guard_enabled })
+          }
+          aria-label={t('Pause API consumption while a refund is pending')}
+        />
+        <span>{t('Pause API consumption while a refund is pending')}</span>
+      </Space>
+      <Space>
+        <Switch
           checked={!!config.module_enabled}
           onChange={(module_enabled) =>
             setConfig({ ...config, module_enabled })

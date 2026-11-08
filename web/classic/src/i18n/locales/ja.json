@@ -5614,6 +5614,7 @@
     "Complete or reject the pending refund before resolving the ticket": "チケットを解決済みにする前に、保留中の返金を完了または却下してください",
     "Correction notes (optional)": "処理メモ（任意）",
     "Enter the red invoice reference for each invoice.": "各請求書に対応する赤字請求書番号を入力してください。",
+    "Pause API consumption while a refund is pending": "返金処理中は API の利用を一時停止",
     "Quick replies": "クイック返信",
     "Quick replies (one per line)": "定型文（1行に1件）",
     "Custom navigation links": "カスタムナビゲーションリンク",

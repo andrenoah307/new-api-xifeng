@@ -3817,6 +3817,7 @@
     "Path Regex (one per line)": "路径正则（每行一个）",
     "Path:": "路径：",
     "Pause": "暂停",
+    "Pause API consumption while a refund is pending": "退款待处理期间暂停 API 消费",
     "Paused": "已暂停",
     "pay": "支付",
     "Pay": "支付",
