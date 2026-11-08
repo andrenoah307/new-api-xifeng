@@ -9,6 +9,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 )
 
@@ -36,47 +37,43 @@ func RefundInvoiceExport(c *gin.Context) {
 		common.ApiSuccess(c, data)
 		return
 	}
-	if kind != "history" && kind != "red" && kind != "reissue" {
-		c.Status(http.StatusBadRequest)
+	if kind != "red" && kind != "reissue" {
+		c.AbortWithStatus(http.StatusBadRequest)
+		return
+	}
+	items, err := model.RefundInvoiceExportItems(id, data, kind == "reissue")
+	if err != nil {
+		common.ApiError(c, err)
 		return
 	}
 	var buffer bytes.Buffer
 	buffer.WriteString("\xef\xbb\xbf")
 	w := csv.NewWriter(&buffer)
-	if err := w.Write([]string{"原发票工单", "关联充值订单", "关联充值实付金额", "发票抬头", "税号", "邮箱", "发票类型", "税率", "金额", "本次退款关联金额"}); err != nil {
+	if err := w.Write([]string{"电子邮箱", "数量", "单价", "金额合计", "公司信息", "应税服务名称", "发票类型", "发票税率(%)", "开票方（公账名称）", "关联充值订单号"}); err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	for _, invoice := range data.Invoices {
-		amount, invoiceType, rate := invoice.OriginalCents, invoice.InvoiceType, invoice.VATRateBps
-		if kind == "reissue" {
-			amount, invoiceType, rate = invoice.ReissueCents, "ordinary", 600
-		}
-		if amount == 0 {
+	for _, invoice := range items {
+		if invoice.TotalMoney == 0 {
 			continue
 		}
-		ids := make([]string, len(invoice.OrderIDs))
-		for i, id := range invoice.OrderIDs {
-			ids[i] = strconv.Itoa(id)
+		companyInfo := invoice.CompanyName
+		if invoice.TaxNumber != "" {
+			companyInfo = "发票抬头\n" + invoice.CompanyName + "\n购方税号\n" + invoice.TaxNumber
 		}
-		label := map[string]string{"ordinary": "增值税普通发票", "special": "增值税专用发票"}[invoiceType]
-		if label == "" {
-			label = "-"
-		}
-		rateText := "-"
-		if rate > 0 {
-			rateText = refundCentsText(int64(rate)) + "%"
-		}
-		row := []string{strconv.Itoa(invoice.InvoiceTicketID), strings.Join(ids, ";"), refundCentsText(invoice.PaidCents), invoice.CompanyName, invoice.TaxNumber, invoice.Email, label, rateText, refundCentsText(amount), refundCentsText(invoice.RefundCents)}
-		for i, value := range row {
-			trimmed := strings.TrimLeft(value, " \t\r\n")
-			if len(trimmed) > 0 && strings.ContainsRune("=+-@", rune(trimmed[0])) {
-				row[i] = "'" + value
+		label := map[string]string{"ordinary": "增值税普通发票", "special": "增值税专用发票"}[invoice.InvoiceType]
+		for _, issuer := range invoice.IssuerAmounts {
+			row := []string{invoice.Email, "", "", refundCentsText(issuer.AmountCents), companyInfo, strings.TrimSpace(operation_setting.InvoiceServiceName), label, strconv.FormatFloat(float64(invoice.TaxRateBps)/100, 'f', -1, 64), issuer.AccountName, strings.Join(invoice.OrderNumbers, ";")}
+			for i, value := range row {
+				trimmed := strings.TrimLeft(value, " \t\r\n")
+				if value != "-" && len(trimmed) > 0 && strings.ContainsRune("=+-@", rune(trimmed[0])) {
+					row[i] = "'" + value
+				}
 			}
-		}
-		if err := w.Write(row); err != nil {
-			common.ApiError(c, err)
-			return
+			if err := w.Write(row); err != nil {
+				common.ApiError(c, err)
+				return
+			}
 		}
 	}
 	w.Flush()

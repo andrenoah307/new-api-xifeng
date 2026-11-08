@@ -10,6 +10,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,9 +18,14 @@ import (
 
 func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
-	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundInvoiceExport{}))
+	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundInvoiceExport{}, &model.TopUp{}, &model.Option{}))
+	previousService := operation_setting.InvoiceServiceName
+	operation_setting.InvoiceServiceName = "=API service"
+	t.Cleanup(func() { operation_setting.InvoiceServiceName = previousService })
 	viewer := model.User{Username: "export-viewer", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, AffCode: "export-viewer"}
 	require.NoError(t, db.Create(&viewer).Error)
+	require.NoError(t, db.Create(&model.TopUp{Id: 10, UserId: viewer.Id, TradeNo: "PAY-A-001", Money: 100, Status: common.TopUpStatusSuccess, EpayCredentials: `{"gateway_id":"a","account_name":"Account A"}`}).Error)
+	require.NoError(t, db.Create(&model.TopUp{Id: 11, UserId: viewer.Id, TradeNo: "PAY-B-002", Money: 50, Status: common.TopUpStatusSuccess, EpayCredentials: `{"gateway_id":"b","account_name":"Account B"}`}).Error)
 	require.NoError(t, db.Create(&model.TicketRefund{TicketId: 99, UserId: viewer.Id, RefundStatus: model.RefundStatusPending, RefundQuota: 50, FrozenQuota: 50}).Error)
 	data := model.RefundExportData{TicketID: 99, CashCents: 5000, Invoices: []model.RefundExportInvoice{{InvoiceTicketID: 88, CompanyName: "=original", TaxNumber: "001234567890", Email: "original@example.com", InvoiceType: "special", VATRateBps: 1300, OrderIDs: []int{10, 11}, PaidCents: 15000, OriginalCents: 15000, RefundCents: 5000, ReissueCents: 10000}}}
 	raw, err := common.Marshal(data)
@@ -48,12 +54,44 @@ func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 			rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(response.Body.String(), "\xef\xbb\xbf"))).ReadAll()
 			require.NoError(t, err)
 			require.Len(t, rows, 2)
-			assert.Equal(t, "'=original", rows[1][3])
-			assert.Equal(t, "001234567890", rows[1][4])
-			assert.Equal(t, "original@example.com", rows[1][5])
+			assert.Equal(t, []string{"电子邮箱", "数量", "单价", "金额合计", "公司信息", "应税服务名称", "发票类型", "发票税率(%)", "开票方（公账名称）", "关联充值订单号"}, rows[0])
+			assert.Equal(t, "original@example.com", rows[1][0])
+			assert.Equal(t, "100.00", rows[1][3])
+			assert.Equal(t, "发票抬头\n=original\n购方税号\n001234567890", rows[1][4])
+			assert.Equal(t, "'=API service", rows[1][5])
 			assert.Equal(t, "增值税普通发票", rows[1][6])
-			assert.Equal(t, "6.00%", rows[1][7])
-			assert.Equal(t, "100.00", rows[1][8])
+			assert.Equal(t, "6", rows[1][7])
+			assert.Equal(t, "-", rows[1][8]) // Unknown allocation must not be assigned to an issuer.
+			assert.Equal(t, "PAY-A-001;PAY-B-002", rows[1][9])
 		})
 	}
+	for _, kind := range []string{"red", "history"} {
+		response := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(response)
+		c.Set("id", viewer.Id)
+		c.Params = gin.Params{{Key: "id", Value: "99"}}
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/ticket/refund/99/invoice-export?kind="+kind, nil)
+		RefundInvoiceExport(c)
+		if kind == "history" {
+			assert.Equal(t, http.StatusBadRequest, response.Code)
+			continue
+		}
+		assert.Equal(t, http.StatusOK, response.Code)
+		rows, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(response.Body.String(), "\xef\xbb\xbf"))).ReadAll()
+		require.NoError(t, err)
+		require.Len(t, rows, 3)
+		assert.Equal(t, "100.00", rows[1][3])
+		assert.Equal(t, "50.00", rows[2][3])
+		assert.Equal(t, "Account A", rows[1][8])
+		assert.Equal(t, "Account B", rows[2][8])
+		assert.Equal(t, "增值税专用发票", rows[1][6])
+		assert.Equal(t, "13", rows[1][7])
+		assert.Equal(t, "PAY-A-001;PAY-B-002", rows[2][9])
+	}
+	require.NoError(t, db.Model(&model.TopUp{}).Where("id = ?", 11).Update("user_id", viewer.Id+1).Error)
+	items, err := model.RefundInvoiceExportItems(99, &data, false)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, []string{"PAY-A-001", "-"}, items[0].OrderNumbers)
+	assert.Equal(t, []model.InvoiceIssuerAmount{{AccountName: "Account A", AmountCents: 10000}, {AccountName: "-", AmountCents: 5000}}, items[0].IssuerAmounts)
 }
