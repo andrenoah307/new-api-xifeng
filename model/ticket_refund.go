@@ -603,7 +603,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			}
 			if exportData != nil {
 				for _, payment := range exportData.Payments {
-					allocation := RefundOrderAllocation{RefundTicketID: refund.TicketId, UserID: refund.UserId, TopUpID: payment.OrderID, TradeNo: payment.TradeNo, OriginalQuota: payment.OriginalQuota, RefundQuota: payment.RefundQuota, OriginalPaidCents: payment.PaidCents, RefundCents: payment.RefundCents, OriginalTaxCents: payment.OriginalTaxCents, RefundTaxCents: payment.RefundTaxCents, GiftPolicyVersion: payment.GiftPolicyVersion, OriginalGiftQuota: payment.OriginalGiftQuota, RefundGiftQuota: payment.RefundGiftQuota, Status: "committed"}
+					allocation := RefundOrderAllocation{UsedQuota: payment.UsedQuota, UsedInvoiceCents: payment.UsedCents, RefundTicketID: refund.TicketId, UserID: refund.UserId, TopUpID: payment.OrderID, TradeNo: payment.TradeNo, OriginalQuota: payment.OriginalQuota, RefundQuota: payment.RefundQuota, OriginalPaidCents: payment.PaidCents, RefundCents: payment.RefundCents, OriginalTaxCents: payment.OriginalTaxCents, RefundTaxCents: payment.RefundTaxCents, GiftPolicyVersion: payment.GiftPolicyVersion, OriginalGiftQuota: payment.OriginalGiftQuota, RefundGiftQuota: payment.RefundGiftQuota, Status: "committed"}
 					for _, invoice := range exportData.Invoices {
 						for _, orderID := range invoice.OrderIDs {
 							if orderID == payment.OrderID {
@@ -615,7 +615,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 					if err := tx.Where("refund_ticket_id = ? AND top_up_id = ?", refund.TicketId, payment.OrderID).Assign(allocation).FirstOrCreate(&existing).Error; err != nil {
 						return err
 					}
-					if err := tx.Model(&existing).Updates(map[string]interface{}{"gift_policy_version": payment.GiftPolicyVersion, "original_gift_quota": payment.OriginalGiftQuota, "refund_gift_quota": payment.RefundGiftQuota, "refund_gift_value_cents": 0, "remaining_paid_value_cents": 0, "remaining_gift_value_cents": 0, "gift_recovery_reason": ""}).Error; err != nil {
+					if err := tx.Model(&existing).Updates(map[string]interface{}{"used_quota": payment.UsedQuota, "used_invoice_cents": payment.UsedCents, "refund_quota": payment.RefundQuota, "refund_cents": payment.RefundCents, "refund_tax_cents": payment.RefundTaxCents, "gift_policy_version": payment.GiftPolicyVersion, "original_gift_quota": payment.OriginalGiftQuota, "refund_gift_quota": payment.RefundGiftQuota, "refund_gift_value_cents": 0, "remaining_paid_value_cents": 0, "remaining_gift_value_cents": 0, "gift_recovery_reason": ""}).Error; err != nil {
 						return err
 					}
 				}
