@@ -95,8 +95,11 @@ func ListRefundCorrectionsForExport(filter InvoiceExportFilter, page *common.Pag
 				redRow.TotalMoney = float64(issuer.AmountCents) / 100
 				blueRow.TotalMoney = float64(blue[i].IssuerAmounts[j].AmountCents) / 100
 				item.CorrectionRows = append(item.CorrectionRows,
-					RefundCorrectionExportRow{InvoiceExportItem: redRow, OrderNumbers: red[i].OrderNumbers, InvoiceColor: "red"},
-					RefundCorrectionExportRow{InvoiceExportItem: blueRow, OrderNumbers: blue[i].OrderNumbers, InvoiceColor: "blue"})
+					RefundCorrectionExportRow{InvoiceExportItem: redRow, OrderNumbers: red[i].OrderNumbers, InvoiceColor: "red"})
+				if blue[i].IssuerAmounts[j].AmountCents > 0 {
+					item.CorrectionRows = append(item.CorrectionRows,
+						RefundCorrectionExportRow{InvoiceExportItem: blueRow, OrderNumbers: blue[i].OrderNumbers, InvoiceColor: "blue"})
+				}
 			}
 		}
 		items = append(items, item)
