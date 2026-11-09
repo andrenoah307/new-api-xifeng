@@ -59,6 +59,7 @@ function csvField(value) {
 function generateInvoiceCSV(items, serviceName, refund = false) {
   const BOM = '﻿';
   const headers = [
+    '工单ID',
     '电子邮箱',
     '数量',
     '单价',
@@ -70,12 +71,17 @@ function generateInvoiceCSV(items, serviceName, refund = false) {
     '开票方（公账名称）',
   ];
   if (refund) {
-    headers.splice(5, 1);
+    headers.splice(6, 1);
     headers.push('关联充值订单号', '发票类型（红字/蓝字）');
   }
   const lines = [headers.map(csvField).join(',')];
   for (const item of refund
-    ? items.flatMap((i) => i.correction_rows ?? [])
+    ? items.flatMap((i) =>
+        (i.correction_rows ?? []).map((row) => ({
+          ...row,
+          ticket_id: i.ticket_id,
+        })),
+      )
     : items) {
     const companyInfo = item.tax_number
       ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
@@ -90,6 +96,7 @@ function generateInvoiceCSV(items, serviceName, refund = false) {
         ];
     for (const issuer of issuers) {
       const row = [
+        item.ticket_id,
         item.email,
         '',
         '',
@@ -105,7 +112,7 @@ function generateInvoiceCSV(items, serviceName, refund = false) {
         issuer.account_name,
       ];
       if (refund) {
-        row.splice(5, 1);
+        row.splice(6, 1);
         row.push(
           (item.order_numbers ?? []).join(';'),
           item.invoice_color === 'red'
