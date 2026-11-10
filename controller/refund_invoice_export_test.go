@@ -16,6 +16,50 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRefundRecalculationDiagnosticOnlyForFinanceAndAdministrators(t *testing.T) {
+	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundInvoiceExport{}, &model.RefundOrderAllocation{}))
+	actor := model.User{Username: "diagnostic-actor", Role: common.RoleCommonUser, Status: common.UserStatusEnabled, AffCode: "diagnostic-actor"}
+	require.NoError(t, db.Create(&actor).Error)
+	require.NoError(t, db.Create(&model.TicketRefund{TicketId: 7001, UserId: actor.Id, RefundStatus: model.RefundStatusRefunded, RefundQuota: 10}).Error)
+	require.NoError(t, db.Create(&model.TicketRefund{TicketId: 7002, UserId: actor.Id, RefundStatus: model.RefundStatusPending, RefundQuota: 10, FrozenQuota: 10}).Error)
+	for _, role := range []int{common.RoleCommonUser, common.RoleCustomerServiceUser, common.RoleFinanceUser, common.RoleAdminUser, common.RoleRootUser} {
+		t.Run(strconv.Itoa(role), func(t *testing.T) {
+			require.NoError(t, db.Model(&actor).Update("role", role).Error)
+			response := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(response)
+			c.Set("id", actor.Id)
+			c.Set("role", common.RoleRootUser)
+			c.Params = gin.Params{{Key: "id", Value: "7002"}}
+			c.Request = httptest.NewRequest(http.MethodPost, "/api/ticket/refund/7002/invoice-export", strings.NewReader("{}"))
+			RefundInvoiceExport(c)
+			if role == common.RoleCommonUser || role == common.RoleCustomerServiceUser {
+				assert.Equal(t, http.StatusForbidden, response.Code)
+				assert.NotContains(t, response.Body.String(), "diagnostic")
+				assert.NotContains(t, response.Body.String(), "7001")
+				return
+			}
+			assert.Equal(t, http.StatusOK, response.Code)
+			assert.Equal(t, "no-store", response.Header().Get("Cache-Control"))
+			var body struct {
+				Success    bool                         `json:"success"`
+				Diagnostic model.RefundCalculationError `json:"diagnostic"`
+			}
+			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &body))
+			assert.False(t, body.Success)
+			assert.Equal(t, "missing_history", body.Diagnostic.Code)
+			assert.Equal(t, 7001, body.Diagnostic.TicketID)
+		})
+	}
+	response := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(response)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/ticket/7002", nil)
+	handleTicketError(c, &model.RefundCalculationError{Code: "missing_history", TicketID: 7001, Amounts: map[string]string{"shortfall": "19.848446"}})
+	assert.NotContains(t, response.Body.String(), "diagnostic")
+	assert.NotContains(t, response.Body.String(), "7001")
+	assert.NotContains(t, response.Body.String(), "19.848446")
+}
+
 func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
 	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundInvoiceExport{}, &model.TopUp{}, &model.Option{}, &model.Ticket{}))

@@ -385,7 +385,11 @@ func SaveRefundInvoiceExport(ticketID, actorID int) (*RefundExportData, error) {
 }
 
 func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, quotaIncludesGift ...bool) (*RefundExportData, error) {
-	return buildRefundInvoiceExportTx(tx, refund, actorID, true, quotaIncludesGift...)
+	data, err := buildRefundInvoiceExportTx(tx, refund, actorID, true, quotaIncludesGift...)
+	if errors.Is(err, ErrRefundExport) || errors.Is(err, ErrRefundFinanceReview) {
+		return nil, refundCalculationError(err, "payment_allocation", refund.TicketId, 0)
+	}
+	return data, err
 }
 
 func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, persist bool, quotaIncludesGift ...bool) (*RefundExportData, error) {
@@ -420,7 +424,7 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 		return result, err
 	}
 	if refund.RefundStatus == RefundStatusRefunded {
-		return nil, ErrRefundExport
+		return nil, refundCalculationError(ErrRefundExport, "completed_without_snapshot", refund.TicketId, 0)
 	}
 	var prior []RefundInvoiceExport
 	if err := tx.Where("user_id = ? AND ticket_id != ?", refund.UserId, refund.TicketId).Order("id ASC").Find(&prior).Error; err != nil {
@@ -440,7 +444,7 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 			continue
 		}
 		if saved.ID > 0 && plan.ID > saved.ID {
-			return nil, ErrRefundExport
+			return nil, refundCalculationError(ErrRefundExport, "later_refund", plan.TicketID, 0)
 		}
 		covered[plan.TicketID] = true
 		var data RefundExportData
@@ -498,12 +502,15 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 			return nil, err
 		}
 		if len(allocations) == 0 {
-			return nil, fmt.Errorf("%w: historical refund #%d has no cash allocation", ErrRefundExport, old.TicketId)
+			return nil, refundCalculationError(ErrRefundExport, "missing_history", old.TicketId, 0)
 		}
 		previousAllocations = append(previousAllocations, allocations...)
 	}
 	orders, _, err := loadRefundPaymentSources(tx, refund.UserId)
 	if err != nil {
+		if errors.Is(err, ErrFinanceEvidence) || errors.Is(err, ErrRefundFinanceReview) {
+			return nil, refundCalculationError(err, "payment_evidence", refund.TicketId, 0)
+		}
 		return nil, err
 	}
 	paidOrders := orders[:0]
@@ -515,17 +522,17 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 		if order.CheckoutVersion == 0 {
 			order.PaymentTotalCents, err = invoiceMoneyCents(order.Money)
 			if err != nil {
-				return nil, err
+				return nil, refundCalculationError(err, "invalid_order", 0, order.Id)
 			}
 		}
 		if order.PaymentTotalCents < 0 || order.QuotaGranted < 0 {
-			return nil, ErrRefundExport
+			return nil, refundCalculationError(ErrRefundExport, "invalid_order", 0, order.Id)
 		}
 		if order.PaymentTotalCents == 0 {
 			continue
 		}
 		if !IsCNYInvoiceTopUp(order) || order.PaymentTotalCents > 1000000000000000 || order.QuotaGranted == 0 {
-			return nil, ErrRefundExport
+			return nil, refundCalculationError(ErrRefundExport, "invalid_order", 0, order.Id)
 		}
 		paidOrders = append(paidOrders, *order)
 	}
@@ -539,7 +546,7 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 	}
 	lots, err := projectRefundCreditLots(int64(owner.UsedQuota)+feeQuota, orders, previousAllocations)
 	if err != nil {
-		return nil, err
+		return nil, refundCalculationError(err, "allocation_mismatch", refund.TicketId, 0)
 	}
 	requested := int64(refund.RefundQuota)
 	config, err := GetInvoiceTaxConfig(tx)
@@ -583,7 +590,7 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 		}
 		result, err = calculateOriginalRefundPayments(orders, lots, requested, config.RefundGiftRecoveryPolicy)
 		if err != nil {
-			return nil, err
+			return nil, refundCalculationError(err, "payment_allocation", refund.TicketId, 0)
 		}
 		if overdraft != nil && result.RefundGiftQuota != 0 {
 			return nil, ErrRefundExport
@@ -639,11 +646,11 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 			return nil, err
 		}
 		if pendingCorrections > 0 {
-			return nil, ErrRefundFinanceCorrectionPending
+			return nil, refundCalculationError(ErrRefundFinanceCorrectionPending, "invoice_pending", invoice.TicketId, 0)
 		}
 		for _, id := range ids {
 			if allocated[id] > 0 && linked[id] {
-				return nil, ErrRefundExport
+				return nil, refundCalculationError(ErrRefundExport, "duplicate_invoice", invoice.TicketId, id)
 			}
 			linked[id] = true
 		}
@@ -671,13 +678,13 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 	}
 	red, err := refundInvoiceExportItemsTx(tx, refund.TicketId, result, false)
 	if err != nil {
-		return nil, err
+		return nil, refundCalculationError(err, "invoice_allocation", refund.TicketId, 0)
 	}
 	for i := range result.Invoices {
 		result.Invoices[i].IssuerAmounts = red[i].IssuerAmounts
 	}
 	if err := applyConsumedInvoiceAmounts(result, orders, lots); err != nil {
-		return nil, err
+		return nil, refundCalculationError(err, "invoice_allocation", refund.TicketId, 0)
 	}
 	if !persist {
 		return result, nil

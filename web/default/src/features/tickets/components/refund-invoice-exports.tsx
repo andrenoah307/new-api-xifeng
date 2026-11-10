@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
+import {
+  refundDiagnosticLines,
+  type RefundDiagnostic,
+} from '../../../../../shared/refund-diagnostics.mjs'
 import {
   RefundCalculationDetails,
   type RefundCalculationPayment,
@@ -26,16 +30,18 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
   >([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [diagnostic, setDiagnostic] = useState<RefundDiagnostic | null>(null)
+  const requestVersion = useRef(0)
+  const recalculating = useRef(false)
   useEffect(() => {
     let active = true
-    setAmount('')
-    setSaved(false)
+    const version = requestVersion.current
     api
       .get(`/api/ticket/refund/${ticketId}/invoice-export`, {
         skipBusinessError: true,
       })
       .then(({ data }) => {
-        if (active && data.success) {
+        if (active && version === requestVersion.current && data.success) {
           setAmount((data.data.cash_cents / 100).toFixed(2))
           setSaved(true)
           setInvoices(data.data.invoices ?? [])
@@ -48,15 +54,23 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
     }
   }, [ticketId])
   async function recalculate() {
-    if (busy) return
+    if (busy || recalculating.current) return
+    recalculating.current = true
+    requestVersion.current += 1
     setBusy(true)
     setError('')
+    setDiagnostic(null)
     setSaved(false)
     try {
       const { data } = await api.post(
         `/api/ticket/refund/${ticketId}/invoice-export`,
-        {}
+        {},
+        { skipBusinessError: true }
       )
+      if (!data.success && data.diagnostic) {
+        setDiagnostic(data.diagnostic)
+        return
+      }
       if (!data.success) throw new Error(data.message)
       setAmount((data.data.cash_cents / 100).toFixed(2))
       setSaved(true)
@@ -65,6 +79,7 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
     } catch (e) {
       setError(e instanceof Error ? t(e.message) : t('Operation failed'))
     } finally {
+      recalculating.current = false
       setBusy(false)
     }
   }
@@ -140,6 +155,39 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
         </details>
       )}
       {error && <p role='alert'>{error}</p>}
+      {diagnostic && (
+        <div
+          role='alert'
+          className='space-y-2 border-l-2 border-amber-500 pl-3 text-sm break-words'
+        >
+          {refundDiagnosticLines(diagnostic, t).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+          {!!diagnostic.ticket_id && (
+            <a
+              className='text-primary underline'
+              href={`/ticket-admin/${diagnostic.ticket_id}`}
+            >
+              {t('Ticket ID')}: #{diagnostic.ticket_id}
+            </a>
+          )}
+          {!!diagnostic.order_id && (
+            <p>
+              {t('Order ID')}: {diagnostic.order_id}
+            </p>
+          )}
+          {diagnostic.amounts && (
+            <details>
+              <summary className='cursor-pointer'>{t('Exact amounts')}</summary>
+              {refundDiagnosticLines(diagnostic, t, true)
+                .slice(0, 3)
+                .map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+            </details>
+          )}
+        </div>
+      )}
       {saved && [10, 100].includes(role ?? 0) && (
         <RefundCalculationDetails payments={payments} />
       )}
