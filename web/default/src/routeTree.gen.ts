@@ -20,6 +20,7 @@ import { Route as PricingIndexRouteImport } from './routes/pricing/index'
 import { Route as MonitoringIndexRouteImport } from './routes/monitoring/index'
 import { Route as AboutIndexRouteImport } from './routes/about/index'
 import { Route as OauthProviderRouteImport } from './routes/oauth/$provider'
+import { Route as LinksLinkIdRouteImport } from './routes/links/$linkId'
 import { Route as ConsoleTopupRouteImport } from './routes/console/topup'
 import { Route as ConsoleLogRouteImport } from './routes/console/log'
 import { Route as AuthenticatedChat2linkRouteImport } from './routes/_authenticated/chat2link'
@@ -134,6 +135,11 @@ const AboutIndexRoute = AboutIndexRouteImport.update({
 const OauthProviderRoute = OauthProviderRouteImport.update({
   id: '/oauth/$provider',
   path: '/oauth/$provider',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LinksLinkIdRoute = LinksLinkIdRouteImport.update({
+  id: '/links/$linkId',
+  path: '/links/$linkId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConsoleTopupRoute = ConsoleTopupRouteImport.update({
@@ -508,6 +514,7 @@ export interface FileRoutesByFullPath {
   '/chat2link': typeof AuthenticatedChat2linkRoute
   '/console/log': typeof ConsoleLogRoute
   '/console/topup': typeof ConsoleTopupRoute
+  '/links/$linkId': typeof LinksLinkIdRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
   '/monitoring/': typeof MonitoringIndexRoute
@@ -580,6 +587,7 @@ export interface FileRoutesByTo {
   '/chat2link': typeof AuthenticatedChat2linkRoute
   '/console/log': typeof ConsoleLogRoute
   '/console/topup': typeof ConsoleTopupRoute
+  '/links/$linkId': typeof LinksLinkIdRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about': typeof AboutIndexRoute
   '/monitoring': typeof MonitoringIndexRoute
@@ -656,6 +664,7 @@ export interface FileRoutesById {
   '/_authenticated/chat2link': typeof AuthenticatedChat2linkRoute
   '/console/log': typeof ConsoleLogRoute
   '/console/topup': typeof ConsoleTopupRoute
+  '/links/$linkId': typeof LinksLinkIdRoute
   '/oauth/$provider': typeof OauthProviderRoute
   '/about/': typeof AboutIndexRoute
   '/monitoring/': typeof MonitoringIndexRoute
@@ -731,6 +740,7 @@ export interface FileRouteTypes {
     | '/chat2link'
     | '/console/log'
     | '/console/topup'
+    | '/links/$linkId'
     | '/oauth/$provider'
     | '/about/'
     | '/monitoring/'
@@ -803,6 +813,7 @@ export interface FileRouteTypes {
     | '/chat2link'
     | '/console/log'
     | '/console/topup'
+    | '/links/$linkId'
     | '/oauth/$provider'
     | '/about'
     | '/monitoring'
@@ -878,6 +889,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chat2link'
     | '/console/log'
     | '/console/topup'
+    | '/links/$linkId'
     | '/oauth/$provider'
     | '/about/'
     | '/monitoring/'
@@ -945,6 +957,7 @@ export interface RootRouteChildren {
   errors503Route: typeof errors503Route
   ConsoleLogRoute: typeof ConsoleLogRoute
   ConsoleTopupRoute: typeof ConsoleTopupRoute
+  LinksLinkIdRoute: typeof LinksLinkIdRoute
   OauthProviderRoute: typeof OauthProviderRoute
   AboutIndexRoute: typeof AboutIndexRoute
   MonitoringIndexRoute: typeof MonitoringIndexRoute
@@ -1031,6 +1044,13 @@ declare module '@tanstack/react-router' {
       path: '/oauth/$provider'
       fullPath: '/oauth/$provider'
       preLoaderRoute: typeof OauthProviderRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/links/$linkId': {
+      id: '/links/$linkId'
+      path: '/links/$linkId'
+      fullPath: '/links/$linkId'
+      preLoaderRoute: typeof LinksLinkIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/console/topup': {
@@ -1642,6 +1662,7 @@ const rootRouteChildren: RootRouteChildren = {
   errors503Route: errors503Route,
   ConsoleLogRoute: ConsoleLogRoute,
   ConsoleTopupRoute: ConsoleTopupRoute,
+  LinksLinkIdRoute: LinksLinkIdRoute,
   OauthProviderRoute: OauthProviderRoute,
   AboutIndexRoute: AboutIndexRoute,
   MonitoringIndexRoute: MonitoringIndexRoute,

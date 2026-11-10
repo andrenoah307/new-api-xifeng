@@ -118,8 +118,9 @@ export default function TicketAdminDetailPage({
       content: string
       attachmentIds: number[]
     }) => sendAdminMessage(ticketId, content, attachmentIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
+    onSuccess: async (success) => {
+      if (!success) return
+      await queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
       })
       queryClient.invalidateQueries({
@@ -201,7 +202,7 @@ export default function TicketAdminDetailPage({
 
   const handleReply = useCallback(
     async (content: string, attachmentIds: number[]) => {
-      await replyMutation.mutateAsync({ content, attachmentIds })
+      return replyMutation.mutateAsync({ content, attachmentIds })
     },
     [replyMutation]
   )
@@ -404,6 +405,8 @@ export default function TicketAdminDetailPage({
 
           {canReply(ticket.status) && (
             <TicketReplyBox
+              key={ticketId}
+              quickReplies={data?.quick_replies}
               onSubmit={handleReply}
               loading={replyMutation.isPending}
               placeholder={t('Admin reply...')}

@@ -1170,7 +1170,7 @@
     "发票详情加载失败": "",
     "发行者 URL（Issuer URL）": "URL phát hành (Issuer URL)",
     "发起检测": "",
-    "发送回复": "",
+    "发送回复": "Gửi trả lời",
     "发送测试邮件失败": "",
     "发送测试邮件至当前管理员": "",
     "取消": "Hủy",
@@ -5843,6 +5843,17 @@
     "Consecutive cooldown limit": "Giới hạn số lần làm nguội liên tiếp",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Để trống để kế thừa giới hạn chung (mặc định: 5). Khi đạt giới hạn, cần khôi phục thủ công sau khi hết thời gian làm nguội. Đổi giới hạn không khôi phục các kênh đang bị tạm ngưng.",
     "Consecutive cooldown limit must be an integer from 1 to 100": "Giới hạn số lần làm nguội liên tiếp phải là số nguyên từ 1 đến 100",
-    "Suspended: manual recovery required": "Đã tạm ngưng: cần khôi phục thủ công"
+    "Suspended: manual recovery required": "Đã tạm ngưng: cần khôi phục thủ công",
+    "Quick replies": "Trả lời nhanh",
+    "Quick replies (one per line)": "Mẫu trả lời (mỗi dòng một mẫu)",
+    "Custom navigation links": "Liên kết điều hướng tùy chỉnh",
+    "Open mode": "Cách mở",
+    "Open in new tab": "Mở trong thẻ mới",
+    "Embed in page": "Nhúng vào trang",
+    "Top navigation": "Thanh điều hướng trên",
+    "User sidebar": "Thanh bên người dùng",
+    "Move up": "Di chuyển lên",
+    "Move down": "Di chuyển xuống",
+    "Not found": "Không tìm thấy"
   }
 }

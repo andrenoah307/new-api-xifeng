@@ -5882,6 +5882,14 @@
     "Zero-charge guard applied": "ゼロ課金ガードが作動しました",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V 4",
-    "Zoom": "ズーム"
+    "Zoom": "ズーム",
+    "Quick replies": "クイック返信",
+    "Quick replies (one per line)": "定型文（1行に1件）",
+    "Custom navigation links": "カスタムナビゲーションリンク",
+    "Open mode": "表示方法",
+    "Embed in page": "ページ内に埋め込む",
+    "Top navigation": "上部ナビゲーション",
+    "User sidebar": "ユーザーサイドバー",
+    "Not found": "見つかりません"
   }
 }

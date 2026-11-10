@@ -3207,6 +3207,18 @@
     "Consecutive cooldown limit": "连续冷却次数上限",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "留空继承全局上限（系统默认 5 次）。达到上限后，冷却到期仍需手动恢复。修改上限不会自动恢复已挂起的渠道。",
     "Consecutive cooldown limit must be an integer from 1 to 100": "连续冷却次数上限必须为 1 到 100 的整数",
-    "Suspended: manual recovery required": "已挂起，需手动恢复"
+    "Suspended: manual recovery required": "已挂起，需手动恢复",
+    "Quick replies": "快捷回复",
+    "Quick replies (one per line)": "快捷短语（每行一条）",
+    "Custom navigation links": "自定义导航链接",
+    "Open mode": "打开方式",
+    "Open in new tab": "在新标签页打开",
+    "Embed in page": "站内嵌入",
+    "Top navigation": "顶部导航",
+    "User sidebar": "用户侧栏",
+    "Move up": "上移",
+    "Move down": "下移",
+    "Not found": "未找到",
+    "发送回复": "发送回复"
   }
 }

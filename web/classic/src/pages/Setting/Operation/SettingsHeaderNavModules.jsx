@@ -30,6 +30,7 @@ import {
 import { API, showError, showSuccess } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../../context/Status';
+import CustomNavigationSettings from '../../../components/settings/CustomNavigationSettings';
 
 const { Text } = Typography;
 
@@ -384,6 +385,7 @@ export default function SettingsHeaderNavModules(props) {
           </Button>
         </div>
       </Form.Section>
+      <CustomNavigationSettings key={props.options?.CustomNavigationLinks || '[]'} value={props.options?.CustomNavigationLinks} />
     </Card>
   );
 }

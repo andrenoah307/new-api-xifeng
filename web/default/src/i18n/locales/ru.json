@@ -5882,6 +5882,14 @@
     "Zero-charge guard applied": "Защита от нулевого списания сработала",
     "Zhipu": "Zhipu",
     "Zhipu V4": "Zhipu V4",
-    "Zoom": "Zoom"
+    "Zoom": "Zoom",
+    "Quick replies": "Быстрые ответы",
+    "Quick replies (one per line)": "Шаблоны ответов (по одному на строку)",
+    "Custom navigation links": "Пользовательские ссылки навигации",
+    "Open mode": "Способ открытия",
+    "Embed in page": "Встроить в страницу",
+    "Top navigation": "Верхняя навигация",
+    "User sidebar": "Боковая панель пользователя",
+    "Not found": "Не найдено"
   }
 }

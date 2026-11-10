@@ -1206,7 +1206,7 @@
     "发票详情加载失败": "",
     "发行者 URL（Issuer URL）": "Issuer URL",
     "发起检测": "",
-    "发送回复": "",
+    "发送回复": "Send reply",
     "发送测试邮件失败": "",
     "发送测试邮件至当前管理员": "",
     "取消": "Cancel",
@@ -5559,6 +5559,17 @@
     "Consecutive cooldown limit": "Consecutive cooldown limit",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.",
     "Consecutive cooldown limit must be an integer from 1 to 100": "Consecutive cooldown limit must be an integer from 1 to 100",
-    "Suspended: manual recovery required": "Suspended: manual recovery required"
+    "Suspended: manual recovery required": "Suspended: manual recovery required",
+    "Quick replies": "Quick replies",
+    "Quick replies (one per line)": "Quick replies (one per line)",
+    "Custom navigation links": "Custom navigation links",
+    "Open mode": "Open mode",
+    "Open in new tab": "Open in new tab",
+    "Embed in page": "Embed in page",
+    "Top navigation": "Top navigation",
+    "User sidebar": "User sidebar",
+    "Move up": "Move up",
+    "Move down": "Move down",
+    "Not found": "Not found"
   }
 }

@@ -35,6 +35,7 @@ import {
   Tabs,
   Tag,
   Typography,
+  TextArea,
 } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 import { Plus, Users, Mail, Paperclip, Share2 } from 'lucide-react';
@@ -359,6 +360,11 @@ const TicketSetting = () => {
     <Spin spinning={loading} size='large'>
       <Card style={{ marginTop: '10px' }}>
         <Tabs type='card' defaultActiveKey='assignment' contentStyle={{ paddingTop: 24 }}>
+          <Tabs.TabPane tab={t('Quick replies')} itemKey='quick-replies'>
+            <label htmlFor='ticket-quick-replies'>{t('Quick replies (one per line)')}</label>
+            <TextArea id='ticket-quick-replies' rows={8} maxLength={200000} value={inputs.TicketQuickReplies || ''} onChange={(value) => setInputs((previous) => ({ ...previous, TicketQuickReplies: value }))} />
+            <Button className='mt-4' onClick={() => updateOptions([{ key: 'TicketQuickReplies', value: inputs.TicketQuickReplies || '' }])}>{t('保存设置')}</Button>
+          </Tabs.TabPane>
           {/* ============ 分配规则 Tab ============ */}
           <Tabs.TabPane
             itemKey='assignment'

@@ -151,6 +151,7 @@ interface TicketListResponse {
 }
 
 interface TicketDetailResponse {
+  quick_replies?: string[]
   ticket: Ticket
   messages: TicketMessage[]
   invoice?: TicketInvoice

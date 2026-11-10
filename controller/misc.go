@@ -120,8 +120,9 @@ func GetStatus(c *gin.Context) {
 		"rate_limit_capacity_enabled": setting.IsRateLimitCapacityEnabled(),
 
 		// 模块管理配置
-		"HeaderNavModules":    common.OptionMap["HeaderNavModules"],
-		"SidebarModulesAdmin": common.OptionMap["SidebarModulesAdmin"],
+		"HeaderNavModules":      common.OptionMap["HeaderNavModules"],
+		"CustomNavigationLinks": common.OptionMap["CustomNavigationLinks"],
+		"SidebarModulesAdmin":   common.OptionMap["SidebarModulesAdmin"],
 
 		"oidc_enabled":                          system_setting.GetOIDCSettings().Enabled,
 		"oidc_client_id":                        system_setting.GetOIDCSettings().ClientId,

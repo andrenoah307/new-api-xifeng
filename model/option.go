@@ -82,6 +82,8 @@ func InitOptionMap() {
 	common.OptionMap["SMTPForceAuthLogin"] = strconv.FormatBool(common.SMTPForceAuthLogin)
 	common.OptionMap["TicketNotifyEnabled"] = strconv.FormatBool(common.TicketNotifyEnabled)
 	common.OptionMap["TicketAdminEmail"] = common.TicketAdminEmail
+	common.OptionMap["TicketQuickReplies"] = ""
+	common.OptionMap["CustomNavigationLinks"] = "[]"
 	common.OptionMap["TicketAttachmentEnabled"] = strconv.FormatBool(setting.TicketAttachmentEnabled)
 	common.OptionMap["TicketAttachmentMaxSize"] = strconv.FormatInt(setting.TicketAttachmentMaxSize, 10)
 	common.OptionMap["TicketAttachmentMaxCount"] = strconv.Itoa(setting.TicketAttachmentMaxCount)

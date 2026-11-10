@@ -70,6 +70,7 @@ const Home = lazy(() => import('./pages/Home'));
 const ChannelFinance = lazy(() => import('./pages/ChannelFinance'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
+const CustomLink = lazy(() => import('./pages/CustomLink'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 
@@ -468,6 +469,10 @@ function App() {
               </Suspense>
             </AdminRoute>
           }
+        />
+        <Route
+          path='/links/:linkId'
+          element={<Suspense fallback={<Loading />}><CustomLink /></Suspense>}
         />
         <Route
           path='/about'

@@ -1190,7 +1190,7 @@
     "发票详情加载失败": "",
     "发行者 URL（Issuer URL）": "URL издателя (Issuer URL)",
     "发起检测": "",
-    "发送回复": "",
+    "发送回复": "Отправить ответ",
     "发送测试邮件失败": "",
     "发送测试邮件至当前管理员": "",
     "取消": "Отмена",
@@ -5354,6 +5354,17 @@
     "Consecutive cooldown limit": "Лимит последовательных охлаждений",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "Оставьте пустым для наследования общего лимита (по умолчанию: 5). При достижении лимита после охлаждения требуется ручное восстановление. Изменение лимита не возобновляет работу приостановленных каналов.",
     "Consecutive cooldown limit must be an integer from 1 to 100": "Лимит последовательных охлаждений должен быть целым числом от 1 до 100",
-    "Suspended: manual recovery required": "Приостановлено: требуется ручное восстановление"
+    "Suspended: manual recovery required": "Приостановлено: требуется ручное восстановление",
+    "Quick replies": "Быстрые ответы",
+    "Quick replies (one per line)": "Шаблоны ответов (по одному на строку)",
+    "Custom navigation links": "Пользовательские ссылки навигации",
+    "Open mode": "Способ открытия",
+    "Open in new tab": "Открыть в новой вкладке",
+    "Embed in page": "Встроить в страницу",
+    "Top navigation": "Верхняя навигация",
+    "User sidebar": "Боковая панель пользователя",
+    "Move up": "Переместить вверх",
+    "Move down": "Переместить вниз",
+    "Not found": "Не найдено"
   }
 }

@@ -18,8 +18,9 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import { useMemo } from 'react';
+import { parseCustomNavigationLinks, customNavigationHref } from '../../helpers/custom-navigation';
 
-export const useNavigation = (t, docsLink, headerNavModules, userState) => {
+export const useNavigation = (t, docsLink, headerNavModules, userState, customLinks) => {
   const mainNavLinks = useMemo(() => {
     // 默认配置，如果没有传入配置则显示所有模块
     const defaultModules = {
@@ -98,8 +99,8 @@ export const useNavigation = (t, docsLink, headerNavModules, userState) => {
         return user && typeof user.role === 'number' && user.role >= 10;
       }
       return modules[link.itemKey] === true;
-    });
-  }, [t, docsLink, headerNavModules, userState]);
+    }).concat(parseCustomNavigationLinks(customLinks).filter((link) => link.header).map((link) => ({ text: link.title, itemKey: `custom-${link.id}`, to: customNavigationHref(link), isExternal: link.mode === 'external', externalLink: link.url })));
+  }, [t, docsLink, headerNavModules, userState, customLinks]);
 
   return {
     mainNavLinks,

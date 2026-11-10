@@ -21,6 +21,7 @@ import {
   Box,
   CreditCard,
   FileText,
+  ExternalLink,
   FlaskConical,
   Key,
   LayoutDashboard,
@@ -37,13 +38,19 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-import { useAuthStore } from '@/stores/auth-store'
 import type { SidebarData } from '@/components/layout/types'
+import {
+  parseCustomNavigationLinks,
+  customNavigationHref,
+} from '@/lib/custom-navigation'
 import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
+
 import {
   getCustomAdminItems,
   getCustomGeneralItems,
 } from './use-custom-sidebar-items'
+import { useStatus } from './use-status'
 
 /**
  * Root navigation groups for the application sidebar.
@@ -54,6 +61,7 @@ import {
 export function useSidebarData(): SidebarData {
   const { t } = useTranslation()
   const userRole = useAuthStore((s) => s.auth.user?.role ?? 0)
+  const { status } = useStatus()
 
   return {
     navGroups: [
@@ -105,6 +113,14 @@ export function useSidebarData(): SidebarData {
             icon: ListTodo,
           },
           ...getCustomGeneralItems(t, userRole),
+          ...parseCustomNavigationLinks(status?.CustomNavigationLinks)
+            .filter((link) => link.sidebar)
+            .map((link) => ({
+              title: link.title,
+              url: customNavigationHref(link),
+              external: link.mode === 'external',
+              icon: ExternalLink,
+            })),
         ],
       },
       {

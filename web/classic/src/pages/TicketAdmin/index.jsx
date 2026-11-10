@@ -61,6 +61,7 @@ const AdminTicketDetail = () => {
   const [replying, setReplying] = useState(false);
   const [ticket, setTicket] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [quickReplies, setQuickReplies] = useState([]);
   const [invoice, setInvoice] = useState(null);
   const [orders, setOrders] = useState([]);
   const [refund, setRefund] = useState(null);
@@ -100,6 +101,7 @@ const AdminTicketDetail = () => {
       const data = res.data?.data || {};
       setTicket(data.ticket || null);
       setMessages(data.messages || []);
+      setQuickReplies(data.quick_replies || []);
       setStatusValue(Number(data.ticket?.status || 1));
       setPriorityValue(Number(data.ticket?.priority || 2));
 
@@ -395,6 +397,8 @@ const AdminTicketDetail = () => {
       />
 
       <TicketReplyBox
+        key={id}
+        quickReplies={quickReplies}
         title={t('管理员回复')}
         disabled={!canReplyTicket(ticket)}
         loading={saving || replying}

@@ -613,6 +613,16 @@ func GetTicket(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	common.OptionMapRWMutex.RLock()
+	rawReplies := common.OptionMap["TicketQuickReplies"]
+	common.OptionMapRWMutex.RUnlock()
+	quickReplies := []string{}
+	for _, phrase := range strings.Split(rawReplies, "\n") {
+		if phrase = strings.TrimSpace(phrase); phrase != "" {
+			quickReplies = append(quickReplies, phrase)
+		}
+	}
+	resp["quick_replies"] = quickReplies
 	common.ApiSuccess(c, resp)
 }
 

@@ -145,6 +145,16 @@ func applyOptionUpdate(c *gin.Context, key string, value any) error {
 		}
 	}
 	switch option.Key {
+	case "TicketQuickReplies":
+		option.Value, err = setting.NormalizeTicketQuickReplies(option.Value.(string))
+		if err != nil {
+			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
+		}
+	case "CustomNavigationLinks":
+		option.Value, err = setting.NormalizeCustomNavigationLinks(option.Value.(string))
+		if err != nil {
+			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
+		}
 	case "group_monitoring_setting.excluded_channel_ids", "group_monitoring_setting.excluded_user_ids":
 		var ids []int
 		if common.UnmarshalJsonStr(option.Value.(string), &ids) != nil || len(ids) > 10000 {

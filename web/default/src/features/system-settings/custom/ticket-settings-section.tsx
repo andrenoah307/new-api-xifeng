@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -62,6 +63,7 @@ interface Props {
 export function TicketSettingsSection({ settings }: Props) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
+  const [quickReplies, setQuickReplies] = useState(settings.TicketQuickReplies ?? '')
 
   const { data: staffList = [] } = useQuery({
     queryKey: ['ticket-staff'],
@@ -240,7 +242,8 @@ export function TicketSettingsSection({ settings }: Props) {
       description={t('Configure ticket system settings')}
     >
       <Tabs defaultValue='assignment'>
-        <TabsList>
+        <TabsList className='max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
+          <TabsTrigger value='quick-replies'>{t('Quick replies')}</TabsTrigger>
           <TabsTrigger value='assignment'>
             {t('Assignment Rules')}
           </TabsTrigger>
@@ -252,6 +255,24 @@ export function TicketSettingsSection({ settings }: Props) {
           </TabsTrigger>
           <TabsTrigger value='invoice'>{t('Invoice Settings')}</TabsTrigger>
         </TabsList>
+        <TabsContent value='quick-replies' className='space-y-4 pt-4'>
+          <Label htmlFor='ticket-quick-replies'>
+            {t('Quick replies (one per line)')}
+          </Label>
+          <Textarea
+            id='ticket-quick-replies'
+            value={quickReplies}
+            onChange={(event) => setQuickReplies(event.target.value)}
+            rows={8}
+            maxLength={200000}
+          />
+          <Button
+            disabled={updateOption.isPending}
+            onClick={() => updateOption.mutate({ key: 'TicketQuickReplies', value: quickReplies })}
+          >
+            {t('Save')}
+          </Button>
+        </TabsContent>
 
         <TabsContent value='assignment' className='space-y-4 pt-4'>
           <div className='flex items-center justify-between rounded-lg border p-4'>

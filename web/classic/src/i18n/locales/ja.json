@@ -1169,7 +1169,7 @@
     "发票详情加载失败": "",
     "发行者 URL（Issuer URL）": "発行者URL（Issuer URL）",
     "发起检测": "",
-    "发送回复": "",
+    "发送回复": "返信を送信",
     "发送测试邮件失败": "",
     "发送测试邮件至当前管理员": "",
     "取消": "キャンセル",
@@ -5300,6 +5300,17 @@
     "Consecutive cooldown limit": "連続クールダウン回数の上限",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "空欄の場合は全体設定を継承します（初期値：5回）。上限に達すると、クールダウン終了後も手動復旧が必要です。上限を変更しても停止中のチャネルは復旧しません。",
     "Consecutive cooldown limit must be an integer from 1 to 100": "連続クールダウン回数の上限は1から100の整数で指定してください",
-    "Suspended: manual recovery required": "停止中：手動復旧が必要"
+    "Suspended: manual recovery required": "停止中：手動復旧が必要",
+    "Quick replies": "クイック返信",
+    "Quick replies (one per line)": "定型文（1行に1件）",
+    "Custom navigation links": "カスタムナビゲーションリンク",
+    "Open mode": "表示方法",
+    "Open in new tab": "新しいタブで開く",
+    "Embed in page": "ページ内に埋め込む",
+    "Top navigation": "上部ナビゲーション",
+    "User sidebar": "ユーザーサイドバー",
+    "Move up": "上へ移動",
+    "Move down": "下へ移動",
+    "Not found": "見つかりません"
   }
 }

@@ -19,10 +19,12 @@ For commercial licensing, please contact support@quantumnous.com
 
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { UserContext } from '../../context/User';
+import { StatusContext } from '../../context/Status';
+import { parseCustomNavigationLinks, customNavigationHref } from '../../helpers/custom-navigation';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getLucideIcon } from '../../helpers/render';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ExternalLink } from 'lucide-react';
 import { useSidebarCollapsed } from '../../hooks/common/useSidebarCollapsed';
 import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
@@ -64,6 +66,8 @@ const routerMap = {
 const SiderBar = ({ onNavigate = () => {} }) => {
   const { t } = useTranslation();
   const [userState] = useContext(UserContext);
+  const [statusState] = useContext(StatusContext);
+  const customLinks = parseCustomNavigationLinks(statusState?.status?.CustomNavigationLinks).filter((link) => link.sidebar);
   const isFinanceRoot = userState.user?.role === 100;
   const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const {
@@ -491,6 +495,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
           hoverStyle='sidebar-nav-item:hover'
           selectedStyle='sidebar-nav-item-selected'
           renderWrapper={({ itemElement, props }) => {
+            const custom = customLinks.find((link) => `custom-${link.id}` === props.itemKey);
+            if (custom) {
+              return custom.mode === 'external'
+                ? <a href={custom.url} target='_blank' rel='noopener noreferrer' onClick={onNavigate}>{itemElement}</a>
+                : <Link to={customNavigationHref(custom)} onClick={onNavigate}>{itemElement}</Link>;
+            }
             const to =
               routerMapState[props.itemKey] || routerMap[props.itemKey];
 
@@ -544,6 +554,7 @@ const SiderBar = ({ onNavigate = () => {} }) => {
           )}
 
           {/* 个人中心区域 */}
+          {customLinks.map((link) => <Nav.Item key={link.id} itemKey={`custom-${link.id}`} text={link.title} icon={<ExternalLink size={18} />} />)}
           {hasSectionVisibleModules('personal') && (
             <>
               <Divider className='sidebar-divider' />

@@ -22,11 +22,13 @@ const TicketReplyBox = ({
   submitText,
   disabled = false,
   loading = false,
+  quickReplies = [],
   onSubmit,
   t,
 }) => {
   const [content, setContent] = useState('');
   const submittingRef = useRef(false);
+  const [busy, setBusy] = useState(false);
   const {
     config,
     attachments,
@@ -42,6 +44,7 @@ const TicketReplyBox = ({
   const handleSubmit = async () => {
     if (!canReply || loading || uploading || submittingRef.current) return;
     submittingRef.current = true;
+    setBusy(true);
     try {
       const ids = attachments.map((a) => a.id);
       const ok = await onSubmit?.(content.trim(), ids);
@@ -51,13 +54,28 @@ const TicketReplyBox = ({
       }
     } finally {
       submittingRef.current = false;
+      setBusy(false);
+    }
+  };
+
+  const handleQuickReply = async (phrase) => {
+    if (disabled || loading || uploading || submittingRef.current) return;
+    submittingRef.current = true;
+    setBusy(true);
+    const started = Date.now();
+    try {
+      await onSubmit?.(phrase, []);
+    } finally {
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, 2000 - (Date.now() - started))));
+      submittingRef.current = false;
+      setBusy(false);
     }
   };
 
   // 粘贴拦截器：把 Ctrl/⌘+V 带过来的文件塞进 Upload 队列。
   // 只拦截 file 类 item；纯文本粘贴不干预 TextArea 默认行为。
   const onPasteCapture = (e) => {
-    if (!config.enabled || disabled || loading) return;
+    if (!config.enabled || disabled || loading || busy) return;
     handlePaste(e);
   };
 
@@ -72,21 +90,28 @@ const TicketReplyBox = ({
             <Text type='tertiary'>{t('当前工单已关闭，如需继续处理请先调整状态')}</Text>
           )}
         </div>
+        {quickReplies.length > 0 && (
+          <div className='flex flex-wrap gap-2 max-h-48 overflow-y-auto w-full' aria-label={t('Quick replies')}>
+            {quickReplies.map((phrase) => (
+              <Button key={phrase} disabled={disabled || loading || busy || uploading} style={{ height: 'auto', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'left' }} onClick={() => handleQuickReply(phrase)}>{phrase}</Button>
+            ))}
+          </div>
+        )}
         <TextArea
           value={content}
           onChange={setContent}
           autosize={{ minRows: 4, maxRows: 8 }}
           maxLength={5000}
           showClear
-          disabled={disabled || loading}
+          disabled={disabled || loading || busy}
           placeholder={
             placeholder ||
             t('请输入回复内容（支持 Ctrl/⌘+V 粘贴截图或文件）')
           }
         />
         {config.enabled && (
-          <Upload {...uploadProps} ref={uploadRef} disabled={disabled || loading}>
-            <Button icon={<IconUpload />} disabled={disabled || loading}>
+          <Upload {...uploadProps} ref={uploadRef} disabled={disabled || loading || busy}>
+            <Button icon={<IconUpload />} disabled={disabled || loading || busy}>
               {t('上传附件')}
             </Button>
             <Text type='tertiary' className='ml-2'>
@@ -101,8 +126,8 @@ const TicketReplyBox = ({
           <Button
             theme='solid'
             type='primary'
-            loading={loading || uploading}
-            disabled={disabled || !canReply}
+            loading={loading || uploading || busy}
+            disabled={disabled || !canReply || busy}
             onClick={handleSubmit}
           >
             {submitText || t('发送回复')}

@@ -20,11 +20,17 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useStatus } from '@/hooks/use-status'
+import {
+  parseCustomNavigationLinks,
+  customNavigationHref,
+} from '@/lib/custom-navigation'
 import { parseHeaderNavModulesFromStatus } from '@/lib/nav-modules'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
 
 export type TopNavLink = {
+  id?: string
+  custom?: boolean
   title: string
   href: string
   disabled?: boolean
@@ -108,5 +114,16 @@ export function useTopNavLinks(): TopNavLink[] {
     links.push({ title: t('About'), href: '/about' })
   }
 
-  return links
+  return [
+    ...links,
+    ...parseCustomNavigationLinks(status?.CustomNavigationLinks)
+      .filter((link) => link.header)
+      .map((link) => ({
+        id: link.id,
+        title: link.title,
+        href: customNavigationHref(link),
+        external: link.mode === 'external',
+        custom: true,
+      })),
+  ]
 }

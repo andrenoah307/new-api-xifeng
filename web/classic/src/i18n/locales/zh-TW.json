@@ -1167,7 +1167,7 @@
     "发票详情加载失败": "",
     "发行者 URL（Issuer URL）": "",
     "发起检测": "",
-    "发送回复": "",
+    "发送回复": "傳送回覆",
     "发送测试邮件失败": "",
     "发送测试邮件至当前管理员": "",
     "取消": "取消",
@@ -5312,6 +5312,17 @@
     "Consecutive cooldown limit": "連續冷卻次數上限",
     "Leave blank to inherit the global limit (system default: 5). At the limit, manual recovery is required after cooldown expires. Changing the limit does not resume suspended channels.": "留空繼承全域上限（系統預設 5 次）。達到上限後，冷卻到期仍需手動恢復。修改上限不會自動恢復已掛起的渠道。",
     "Consecutive cooldown limit must be an integer from 1 to 100": "連續冷卻次數上限必須為 1 到 100 的整數",
-    "Suspended: manual recovery required": "已掛起，需手動恢復"
+    "Suspended: manual recovery required": "已掛起，需手動恢復",
+    "Quick replies": "快速回覆",
+    "Quick replies (one per line)": "快捷短語（每行一條）",
+    "Custom navigation links": "自訂導覽連結",
+    "Open mode": "開啟方式",
+    "Open in new tab": "在新分頁開啟",
+    "Embed in page": "站內嵌入",
+    "Top navigation": "頂部導覽",
+    "User sidebar": "使用者側欄",
+    "Move up": "上移",
+    "Move down": "下移",
+    "Not found": "找不到"
   }
 }
