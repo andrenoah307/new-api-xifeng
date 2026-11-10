@@ -10,7 +10,7 @@ export default function CustomLink() {
   const [state] = useContext(StatusContext);
   const { t } = useTranslation();
   const link = parseCustomNavigationLinks(state?.status?.CustomNavigationLinks).find(
-    (item) => item.id === linkId && (item.header || item.sidebar),
+    (item) => item.id === linkId && (item.header || item.sidebar || item.home),
   );
   const canEmbed = link?.mode === "iframe" && new URL(link.url).origin !== window.location.origin;
   const [frameLoading, setFrameLoading] = useState(true);

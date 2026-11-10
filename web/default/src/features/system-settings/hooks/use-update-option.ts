@@ -32,6 +32,7 @@ const STATUS_RELATED_KEYS = new Set([
   'theme.frontend',
   'HeaderNavModules',
   'CustomNavigationLinks',
+  'HeaderNavStyle',
   'SidebarModulesAdmin',
   'Notice',
   'LogConsumeEnabled',
@@ -64,7 +65,7 @@ export function invalidateOptionQueries(
   if (optionKeys.length === 0) return
   void queryClient.invalidateQueries({ queryKey: ['system-options'] })
 
-  if (!optionKeys.some(key => STATUS_RELATED_KEYS.has(key))) return
+  if (!optionKeys.some((key) => STATUS_RELATED_KEYS.has(key))) return
 
   void queryClient.invalidateQueries({ queryKey: ['status'] })
   try {
@@ -101,7 +102,10 @@ export function useUpdateOptions() {
     mutationFn: (request: UpdateOptionsRequest) => updateSystemOptions(request),
     onSuccess: (data, variables) => {
       if (data.success) {
-        invalidateOptionQueries(queryClient, variables.options.map(option => option.key))
+        invalidateOptionQueries(
+          queryClient,
+          variables.options.map((option) => option.key)
+        )
         toast.success(i18next.t('Setting updated successfully'))
       } else {
         toast.error(data.message || i18next.t('Failed to update setting'))

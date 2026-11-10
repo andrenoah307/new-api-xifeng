@@ -17,6 +17,7 @@ type CustomNavigationLink struct {
 	Mode    string `json:"mode"`
 	Header  bool   `json:"header"`
 	Sidebar bool   `json:"sidebar"`
+	Home    bool   `json:"home"`
 }
 
 var navigationLinkID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)

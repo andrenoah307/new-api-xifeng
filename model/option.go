@@ -84,6 +84,7 @@ func InitOptionMap() {
 	common.OptionMap["TicketAdminEmail"] = common.TicketAdminEmail
 	common.OptionMap["TicketQuickReplies"] = ""
 	common.OptionMap["CustomNavigationLinks"] = "[]"
+	common.OptionMap["HeaderNavStyle"] = "default"
 	common.OptionMap["TicketAttachmentEnabled"] = strconv.FormatBool(setting.TicketAttachmentEnabled)
 	common.OptionMap["TicketAttachmentMaxSize"] = strconv.FormatInt(setting.TicketAttachmentMaxSize, 10)
 	common.OptionMap["TicketAttachmentMaxCount"] = strconv.Itoa(setting.TicketAttachmentMaxCount)

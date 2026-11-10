@@ -5890,6 +5890,10 @@
     "Embed in page": "Встроить в страницу",
     "Top navigation": "Верхняя навигация",
     "User sidebar": "Боковая панель пользователя",
-    "Not found": "Не найдено"
+    "Not found": "Не найдено",
+    "Top navigation style": "Стиль верхней навигации",
+    "Default style": "Стандартный стиль",
+    "Packy style": "Стиль Packy",
+    "Homepage (after Docs)": "Главная (после документации)"
   }
 }

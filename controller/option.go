@@ -155,6 +155,10 @@ func applyOptionUpdate(c *gin.Context, key string, value any) error {
 		if err != nil {
 			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
 		}
+	case "HeaderNavStyle":
+		if option.Value != "default" && option.Value != "packy" {
+			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
+		}
 	case "group_monitoring_setting.excluded_channel_ids", "group_monitoring_setting.excluded_user_ids":
 		var ids []int
 		if common.UnmarshalJsonStr(option.Value.(string), &ids) != nil || len(ids) > 10000 {

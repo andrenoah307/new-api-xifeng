@@ -5486,6 +5486,10 @@
     "User sidebar": "用户侧栏",
     "Move up": "上移",
     "Move down": "下移",
-    "Not found": "未找到"
+    "Not found": "未找到",
+    "Top navigation style": "顶部导航样式",
+    "Default style": "默认样式",
+    "Packy style": "Packy 风格",
+    "Homepage (after Docs)": "首页文档按钮右侧"
   }
 }

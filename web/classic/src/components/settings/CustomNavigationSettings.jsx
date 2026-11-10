@@ -98,6 +98,9 @@ export default function CustomNavigationSettings({ value }) {
                 >
                   {t("User sidebar")}
                 </Checkbox>
+                <Checkbox checked={link.home === true} onChange={(event) => change(index, { home: event.target.checked })}>
+                  {t("Homepage (after Docs)")}
+                </Checkbox>
                 <div className="ml-auto flex gap-1">
                   <Button
                     htmlType="button"

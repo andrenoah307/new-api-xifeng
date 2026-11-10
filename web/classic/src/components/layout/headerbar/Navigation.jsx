@@ -18,7 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import SkeletonWrapper from '../components/SkeletonWrapper';
 
 const Navigation = ({
@@ -28,6 +29,7 @@ const Navigation = ({
   userState,
   pricingRequireAuth,
 }) => {
+  const { pathname } = useLocation();
   const renderNavLinks = () => {
     const baseClasses =
       'flex-shrink-0 flex items-center gap-1 font-semibold rounded-md transition-all duration-200 ease-in-out';
@@ -37,7 +39,7 @@ const Navigation = ({
     const commonLinkClasses = `${baseClasses} ${spacingClasses} ${hoverClasses}`;
 
     return mainNavLinks.map((link) => {
-      const linkContent = <span>{link.text}</span>;
+      const linkContent = <><Sparkles className='header-nav-symbol' aria-hidden='true' /><span>{link.text}</span></>;
 
       if (link.isExternal) {
         return (
@@ -62,7 +64,7 @@ const Navigation = ({
       }
 
       return (
-        <Link key={link.itemKey} to={targetPath} className={commonLinkClasses}>
+        <Link key={link.itemKey} to={targetPath} aria-current={pathname === link.to ? 'page' : undefined} className={commonLinkClasses}>
           {linkContent}
         </Link>
       );
@@ -70,7 +72,7 @@ const Navigation = ({
   };
 
   return (
-    <nav className='flex flex-1 items-center gap-1 lg:gap-2 mx-2 md:mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide'>
+    <nav data-header-links data-header-align='end' className='flex min-w-0 flex-1 items-center gap-1 lg:gap-2 mx-2 md:mx-4 overflow-x-auto whitespace-nowrap scrollbar-hide'>
       <SkeletonWrapper
         loading={isLoading}
         type='navigation'

@@ -37,6 +37,7 @@ const defaultSiteSettings: SiteSettings = {
   'legal.privacy_policy': '',
   HeaderNavModules: '',
   CustomNavigationLinks: '[]',
+  HeaderNavStyle: 'default',
   SidebarModulesAdmin: '',
 }
 

@@ -39,6 +39,8 @@ import {
   IconCopy,
 } from '@douyinfe/semi-icons';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
+import { customNavigationHref, parseCustomNavigationLinks } from '../../helpers/custom-navigation';
 import NoticeModal from '../../components/layout/NoticeModal';
 import {
   Moonshot,
@@ -212,7 +214,7 @@ const Home = () => {
                 </div>
 
                 {/* 操作按钮 */}
-                <div className='flex flex-row gap-4 justify-center items-center'>
+                <div data-home-actions className='flex flex-row flex-wrap gap-4 justify-center items-center'>
                   <Link to='/console'>
                     <Button
                       theme='solid'
@@ -250,6 +252,13 @@ const Home = () => {
                       </Button>
                     )
                   )}
+                  {parseCustomNavigationLinks(statusState?.status?.CustomNavigationLinks).filter((link) => link.home).map((link) => {
+                    const className = 'inline-flex min-h-10 max-w-full items-center gap-2 rounded-3xl border border-[var(--semi-color-border)] px-6 py-2 text-sm text-[var(--semi-color-text-0)] hover:bg-[var(--semi-color-fill-0)]';
+                    const content = <><span className='min-w-0 break-words'>{link.title}</span><ArrowRight size={16} className='shrink-0' /></>;
+                    return link.mode === 'external'
+                      ? <a key={link.id} className={className} href={link.url} target='_blank' rel='noopener noreferrer'>{content}</a>
+                      : <Link key={link.id} className={className} to={customNavigationHref(link)}>{content}</Link>;
+                  })}
                 </div>
 
                 {/* 框架兼容性图标 */}

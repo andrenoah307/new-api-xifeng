@@ -5365,6 +5365,10 @@
     "User sidebar": "Боковая панель пользователя",
     "Move up": "Переместить вверх",
     "Move down": "Переместить вниз",
-    "Not found": "Не найдено"
+    "Not found": "Не найдено",
+    "Top navigation style": "Стиль верхней навигации",
+    "Default style": "Стандартный стиль",
+    "Packy style": "Стиль Packy",
+    "Homepage (after Docs)": "Главная (после документации)"
   }
 }

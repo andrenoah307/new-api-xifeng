@@ -131,6 +131,15 @@ export function CustomNavigationSection(props: { value: string }) {
                   />
                   {t('User sidebar')}
                 </Label>
+                <Label>
+                  <Checkbox
+                    checked={link.home === true}
+                    onCheckedChange={(checked) =>
+                      change(index, { home: checked === true })
+                    }
+                  />
+                  {t('Homepage (after Docs)')}
+                </Label>
                 <div className='ml-auto flex gap-1'>
                   <Button
                     type='button'

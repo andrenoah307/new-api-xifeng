@@ -52,6 +52,7 @@ func TestCustomNavigationLinksValidation(t *testing.T) {
 	}
 	second := valid
 	second.ID, second.Mode, second.URL = "docs", "external", "http://example.com/docs"
+	second.Header, second.Sidebar, second.Home = false, false, true
 	raw, err := common.Marshal([]CustomNavigationLink{valid, second})
 	require.NoError(t, err)
 	normalized, err := NormalizeCustomNavigationLinks(string(raw))

@@ -30,6 +30,7 @@ import { ThemeProvider } from './context/Theme';
 import PageLayout from './components/layout/PageLayout';
 import './i18n/i18n';
 import './index.css';
+import '../../shared/header-navigation.css';
 import { LocaleProvider } from '@douyinfe/semi-ui';
 import { useTranslation } from 'react-i18next';
 import zh_CN from '@douyinfe/semi-ui/lib/es/locale/source/zh_CN';

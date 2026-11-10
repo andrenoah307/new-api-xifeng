@@ -5,6 +5,7 @@ export interface CustomNavigationLink {
   mode: 'external' | 'iframe'
   header: boolean
   sidebar: boolean
+  home?: boolean
 }
 
 export function parseCustomNavigationLinks(

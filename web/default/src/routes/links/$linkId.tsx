@@ -17,7 +17,7 @@ function CustomLinkPage() {
   const { status, loading } = useStatus()
   const { t } = useTranslation()
   const link = parseCustomNavigationLinks(status?.CustomNavigationLinks).find(
-    (item) => item.id === linkId && (item.header || item.sidebar)
+    (item) => item.id === linkId && (item.header || item.sidebar || item.home)
   )
   const canEmbed =
     link?.mode === 'iframe' &&

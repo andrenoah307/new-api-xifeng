@@ -23,6 +23,10 @@ import { useTranslation } from 'react-i18next'
 
 import { Button } from '@/components/ui/button'
 import { useStatus } from '@/hooks/use-status'
+import {
+  customNavigationHref,
+  parseCustomNavigationLinks,
+} from '@/lib/custom-navigation'
 
 import { HeroTerminalDemo } from '../hero-terminal-demo'
 
@@ -135,6 +139,7 @@ export function Hero(props: HeroProps) {
 
           <div
             className='landing-animate-fade-up mt-8 flex flex-wrap items-center gap-3 opacity-0'
+            data-home-actions
             style={{ animationDelay: '180ms' }}
           >
             {props.isAuthenticated ? (
@@ -167,6 +172,29 @@ export function Hero(props: HeroProps) {
                 {renderDocsButton()}
               </>
             )}
+            {parseCustomNavigationLinks(status?.CustomNavigationLinks)
+              .filter((link) => link.home)
+              .map((link) => (
+                <Button
+                  key={link.id}
+                  variant='outline'
+                  className='h-auto min-h-11 max-w-full rounded-lg px-5 py-2 text-sm whitespace-normal'
+                  render={
+                    link.mode === 'external' ? (
+                      <a
+                        href={link.url}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                      />
+                    ) : (
+                      <Link to={customNavigationHref(link)} />
+                    )
+                  }
+                >
+                  <span className='min-w-0 break-words'>{link.title}</span>
+                  <ArrowRight className='size-4 shrink-0' />
+                </Button>
+              ))}
           </div>
 
           {/* Supported Apps (参考图二样式，进行卡片化和信息扩充设计，增加视觉高度) */}

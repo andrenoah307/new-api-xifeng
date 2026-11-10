@@ -5311,6 +5311,10 @@
     "User sidebar": "ユーザーサイドバー",
     "Move up": "上へ移動",
     "Move down": "下へ移動",
-    "Not found": "見つかりません"
+    "Not found": "見つかりません",
+    "Top navigation style": "上部ナビゲーションのスタイル",
+    "Default style": "標準スタイル",
+    "Packy style": "Packy スタイル",
+    "Homepage (after Docs)": "ホーム（ドキュメントの右側）"
   }
 }

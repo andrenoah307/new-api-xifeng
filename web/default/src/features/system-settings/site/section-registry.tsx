@@ -23,8 +23,9 @@ import {
   serializeHeaderNavModules,
   serializeSidebarModulesAdmin,
 } from '../maintenance/config'
-import { HeaderNavigationSection } from '../maintenance/header-navigation-section'
 import { CustomNavigationSection } from '../maintenance/custom-navigation-section'
+import { HeaderNavigationSection } from '../maintenance/header-navigation-section'
+import { HeaderStyleSection } from '../maintenance/header-style-section'
 import { NoticeSection } from '../maintenance/notice-section'
 import { SidebarModulesSection } from '../maintenance/sidebar-modules-section'
 import type { SiteSettings } from '../types'
@@ -32,9 +33,24 @@ import { createSectionRegistry } from '../utils/section-registry'
 
 const SITE_SECTIONS = [
   {
+    id: 'header-style',
+    titleKey: 'Top navigation style',
+    build: (settings: SiteSettings) => (
+      <HeaderStyleSection
+        key={settings.HeaderNavStyle}
+        value={settings.HeaderNavStyle}
+      />
+    ),
+  },
+  {
     id: 'custom-navigation',
     titleKey: 'Custom navigation links',
-    build: (settings: SiteSettings) => <CustomNavigationSection key={settings.CustomNavigationLinks} value={settings.CustomNavigationLinks} />,
+    build: (settings: SiteSettings) => (
+      <CustomNavigationSection
+        key={settings.CustomNavigationLinks}
+        value={settings.CustomNavigationLinks}
+      />
+    ),
   },
   {
     id: 'system-info',

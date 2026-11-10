@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
-import { Menu } from 'lucide-react'
+import { Menu, Sparkles } from 'lucide-react'
 import { useMemo } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -96,6 +96,8 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
 
       {/* 桌面端水平导航 */}
       <nav
+        data-header-links
+        data-header-align='end'
         className={cn(
           'hidden min-w-0 items-center space-x-4 overflow-x-auto whitespace-nowrap lg:flex lg:space-x-4 xl:space-x-6 [&>a]:shrink-0',
           className
@@ -112,15 +114,18 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
                 rel='noopener noreferrer'
                 className={`hover:text-primary text-sm font-medium transition-colors ${isActive ? '' : 'text-muted-foreground'}`}
               >
+                <Sparkles className='header-nav-symbol' aria-hidden='true' />
                 {title}
               </a>
             ) : (
               <Link
                 key={id ?? href}
                 to={href}
+                aria-current={isActive ? 'page' : undefined}
                 disabled={disabled}
                 className={`hover:text-primary text-sm font-medium transition-colors ${isActive ? '' : 'text-muted-foreground'}`}
               >
+                <Sparkles className='header-nav-symbol' aria-hidden='true' />
                 {title}
               </Link>
             )

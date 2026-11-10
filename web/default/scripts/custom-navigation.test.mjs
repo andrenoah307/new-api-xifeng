@@ -8,6 +8,7 @@ for (const [theme, navigation] of [['default', defaultNavigation], ['classic', c
     const links = [
       { id: 'form', title: 'Business', url: 'https://example.com/form', mode: 'iframe', header: true, sidebar: false },
       { id: 'docs', title: 'Docs', url: 'http://example.com/docs', mode: 'external', header: false, sidebar: true },
+      { id: 'home', title: 'Business form', url: 'https://example.com/form', mode: 'iframe', header: false, sidebar: false, home: true },
     ]
     assert.deepEqual(navigation.parseCustomNavigationLinks(JSON.stringify(links)), links)
     assert.equal(navigation.customNavigationHref(links[0]), '/links/form')

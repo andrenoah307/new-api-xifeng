@@ -5854,6 +5854,10 @@
     "User sidebar": "Thanh bên người dùng",
     "Move up": "Di chuyển lên",
     "Move down": "Di chuyển xuống",
-    "Not found": "Không tìm thấy"
+    "Not found": "Không tìm thấy",
+    "Top navigation style": "Kiểu điều hướng trên cùng",
+    "Default style": "Kiểu mặc định",
+    "Packy style": "Kiểu Packy",
+    "Homepage (after Docs)": "Trang chủ (sau Tài liệu)"
   }
 }

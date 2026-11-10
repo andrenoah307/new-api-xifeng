@@ -5890,6 +5890,10 @@
     "Embed in page": "ページ内に埋め込む",
     "Top navigation": "上部ナビゲーション",
     "User sidebar": "ユーザーサイドバー",
-    "Not found": "見つかりません"
+    "Not found": "見つかりません",
+    "Top navigation style": "上部ナビゲーションのスタイル",
+    "Default style": "標準スタイル",
+    "Packy style": "Packy スタイル",
+    "Homepage (after Docs)": "ホーム（ドキュメントの右側）"
   }
 }

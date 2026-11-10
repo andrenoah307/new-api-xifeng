@@ -132,6 +132,7 @@ export type SiteSettings = {
   'legal.privacy_policy': string
   HeaderNavModules: string
   CustomNavigationLinks: string
+  HeaderNavStyle: string
   SidebarModulesAdmin: string
 }
 

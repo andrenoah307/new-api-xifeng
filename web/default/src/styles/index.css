@@ -29,6 +29,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 @import './theme.css';
 @import './theme-presets.css';
+@import '../../../shared/header-navigation.css';
 
 @theme {
   --animate-consent-shake: consent-shake 0.4s ease-in-out;

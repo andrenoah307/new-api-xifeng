@@ -5890,6 +5890,10 @@
     "Embed in page": "Nhúng vào trang",
     "Top navigation": "Thanh điều hướng trên",
     "User sidebar": "Thanh bên người dùng",
-    "Not found": "Không tìm thấy"
+    "Not found": "Không tìm thấy",
+    "Top navigation style": "Kiểu điều hướng trên cùng",
+    "Default style": "Kiểu mặc định",
+    "Packy style": "Kiểu Packy",
+    "Homepage (after Docs)": "Trang chủ (sau Tài liệu)"
   }
 }

@@ -5323,6 +5323,10 @@
     "User sidebar": "使用者側欄",
     "Move up": "上移",
     "Move down": "下移",
-    "Not found": "找不到"
+    "Not found": "找不到",
+    "Top navigation style": "頂部導覽樣式",
+    "Default style": "預設樣式",
+    "Packy style": "Packy 風格",
+    "Homepage (after Docs)": "首頁文件按鈕右側"
   }
 }
