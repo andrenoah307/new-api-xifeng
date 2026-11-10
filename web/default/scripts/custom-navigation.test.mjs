@@ -6,7 +6,7 @@ import * as classicNavigation from '../../classic/src/helpers/custom-navigation.
 for (const [theme, navigation] of [['default', defaultNavigation], ['classic', classicNavigation]]) {
   test(`${theme}: configured order, placement and opening mode survive parsing`, () => {
     const links = [
-      { id: 'form', title: 'Business', url: 'https://example.com/form', mode: 'iframe', header: true, sidebar: false },
+      { id: 'form', title: 'Business', url: 'https://example.com/form', mode: 'iframe', header: true, sidebar: false, headerStyle: 'packy' },
       { id: 'docs', title: 'Docs', url: 'http://example.com/docs', mode: 'external', header: false, sidebar: true },
       { id: 'home', title: 'Business form', url: 'https://example.com/form', mode: 'iframe', header: false, sidebar: false, home: true },
     ]

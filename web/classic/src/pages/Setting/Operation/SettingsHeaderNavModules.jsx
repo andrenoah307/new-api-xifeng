@@ -31,7 +31,6 @@ import { API, showError, showSuccess } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../../context/Status';
 import CustomNavigationSettings from '../../../components/settings/CustomNavigationSettings';
-import HeaderStyleSettings from '../../../components/settings/HeaderStyleSettings';
 
 const { Text } = Typography;
 
@@ -227,7 +226,6 @@ export default function SettingsHeaderNavModules(props) {
 
   return (
     <Card>
-      <HeaderStyleSettings key={props.options?.HeaderNavStyle || 'default'} value={props.options?.HeaderNavStyle} />
       <Form.Section
         text={t('顶栏管理')}
         extraText={t('控制顶栏模块显示状态，全局生效')}

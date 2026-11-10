@@ -6,6 +6,7 @@ export interface CustomNavigationLink {
   header: boolean
   sidebar: boolean
   home?: boolean
+  headerStyle?: 'default' | 'packy'
 }
 
 export function parseCustomNavigationLinks(

@@ -105,10 +105,20 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
         {...props}
       >
         {normalizedLinks.map(
-          ({ id, title, href, isActive, disabled, external }) =>
+          ({
+            id,
+            title,
+            href,
+            isActive,
+            disabled,
+            external,
+            custom,
+            headerStyle,
+          }) =>
             external ? (
               <a
                 key={id ?? href}
+                data-header-custom-link={custom ? headerStyle : undefined}
                 href={href}
                 target='_blank'
                 rel='noopener noreferrer'
@@ -120,6 +130,7 @@ export function TopNav({ className, links, ...props }: TopNavProps) {
             ) : (
               <Link
                 key={id ?? href}
+                data-header-custom-link={custom ? headerStyle : undefined}
                 to={href}
                 aria-current={isActive ? 'page' : undefined}
                 disabled={disabled}

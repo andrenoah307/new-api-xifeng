@@ -94,6 +94,7 @@ export type SidebarData = {
 export type TopNavLink = {
   id?: string
   custom?: boolean
+  headerStyle?: 'default' | 'packy'
   title: string
   href: string
   isActive?: boolean

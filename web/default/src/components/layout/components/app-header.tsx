@@ -22,7 +22,6 @@ import { NotificationPopover } from '@/components/notification-popover'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { useNotifications } from '@/hooks/use-notifications'
-import { useStatus } from '@/hooks/use-status'
 import { useTopNavLinks } from '@/hooks/use-top-nav-links'
 
 import { defaultTopNavLinks } from '../config/top-nav.config'
@@ -106,18 +105,13 @@ export function AppHeader({
 }: AppHeaderProps) {
   // Prioritize dynamically generated links from backend
   const dynamicLinks = useTopNavLinks()
-  const { status } = useStatus()
   const links = dynamicLinks.length > 0 ? dynamicLinks : navLinks
 
   // Notifications hook
   const notifications = useNotifications()
 
   return (
-    <Header
-      data-header-style={
-        status?.HeaderNavStyle === 'packy' ? 'packy' : 'default'
-      }
-    >
+    <Header>
       <SystemBrand variant='inline' />
 
       {leftContent ? (

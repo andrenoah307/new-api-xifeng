@@ -45,6 +45,7 @@ const Navigation = ({
         return (
           <a
             key={link.itemKey}
+            data-header-custom-link={link.itemKey.startsWith('custom-') ? link.headerStyle : undefined}
             href={link.externalLink}
             target='_blank'
             rel='noopener noreferrer'
@@ -64,7 +65,7 @@ const Navigation = ({
       }
 
       return (
-        <Link key={link.itemKey} to={targetPath} aria-current={pathname === link.to ? 'page' : undefined} className={commonLinkClasses}>
+        <Link key={link.itemKey} data-header-custom-link={link.itemKey.startsWith('custom-') ? link.headerStyle : undefined} to={targetPath} aria-current={pathname === link.to ? 'page' : undefined} className={commonLinkClasses}>
           {linkContent}
         </Link>
       );

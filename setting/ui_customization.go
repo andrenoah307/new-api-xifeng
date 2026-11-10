@@ -11,13 +11,14 @@ import (
 )
 
 type CustomNavigationLink struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	URL     string `json:"url"`
-	Mode    string `json:"mode"`
-	Header  bool   `json:"header"`
-	Sidebar bool   `json:"sidebar"`
-	Home    bool   `json:"home"`
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	URL         string `json:"url"`
+	Mode        string `json:"mode"`
+	Header      bool   `json:"header"`
+	Sidebar     bool   `json:"sidebar"`
+	Home        bool   `json:"home"`
+	HeaderStyle string `json:"headerStyle,omitempty"`
 }
 
 var navigationLinkID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
@@ -58,6 +59,9 @@ func NormalizeCustomNavigationLinks(raw string) (string, error) {
 	seen := make(map[string]bool)
 	for i := range links {
 		link := &links[i]
+		if link.HeaderStyle != "" && link.HeaderStyle != "default" && link.HeaderStyle != "packy" {
+			return "", errors.New("invalid navigation link style")
+		}
 		link.Title = strings.TrimSpace(link.Title)
 		link.URL = strings.TrimSpace(link.URL)
 		u, err := url.Parse(link.URL)

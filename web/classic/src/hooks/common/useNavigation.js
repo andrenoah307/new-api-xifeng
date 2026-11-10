@@ -99,7 +99,7 @@ export const useNavigation = (t, docsLink, headerNavModules, userState, customLi
         return user && typeof user.role === 'number' && user.role >= 10;
       }
       return modules[link.itemKey] === true;
-    }).concat(parseCustomNavigationLinks(customLinks).filter((link) => link.header).map((link) => ({ text: link.title, itemKey: `custom-${link.id}`, to: customNavigationHref(link), isExternal: link.mode === 'external', externalLink: link.url })));
+    }).concat(parseCustomNavigationLinks(customLinks).filter((link) => link.header).map((link) => ({ text: link.title, itemKey: `custom-${link.id}`, to: customNavigationHref(link), isExternal: link.mode === 'external', externalLink: link.url, headerStyle: link.headerStyle })));
   }, [t, docsLink, headerNavModules, userState, customLinks]);
 
   return {

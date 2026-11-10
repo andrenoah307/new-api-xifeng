@@ -5315,6 +5315,7 @@
     "Top navigation style": "上部ナビゲーションのスタイル",
     "Default style": "標準スタイル",
     "Packy style": "Packy スタイル",
-    "Homepage (after Docs)": "ホーム（ドキュメントの右側）"
+    "Homepage (after Docs)": "ホーム（ドキュメントの右側）",
+    "Custom header link style": "ヘッダーのカスタムリンクのスタイル"
   }
 }

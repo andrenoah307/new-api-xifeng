@@ -29,7 +29,6 @@ import { ThemeSwitch } from '@/components/theme-switch'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useNotifications } from '@/hooks/use-notifications'
-import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
 import { useTopNavLinks } from '@/hooks/use-top-nav-links'
 import { cn } from '@/lib/utils'
@@ -91,9 +90,7 @@ export function PublicHeader(props: PublicHeaderProps) {
     logoLoaded,
   } = useSystemConfig()
   const dynamicLinks = useTopNavLinks()
-  const { status } = useStatus()
-  const headerStyle = status?.HeaderNavStyle === 'packy' ? 'packy' : 'default'
-  const compact = scrolled && headerStyle === 'default'
+  const compact = scrolled
   const notifications = useNotifications()
   const routerState = useRouterState()
   const pathname = routerState.location.pathname
@@ -180,10 +177,7 @@ export function PublicHeader(props: PublicHeaderProps) {
 
   return (
     <>
-      <header
-        data-header-style={headerStyle}
-        className='pointer-events-none fixed inset-x-0 top-0 z-50'
-      >
+      <header className='pointer-events-none fixed inset-x-0 top-0 z-50'>
         <div
           className={cn(
             'pointer-events-auto mx-auto transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
@@ -233,6 +227,9 @@ export function PublicHeader(props: PublicHeaderProps) {
                     return (
                       <a
                         key={link.id ?? link.href}
+                        data-header-custom-link={
+                          link.custom ? link.headerStyle : undefined
+                        }
                         href={link.href}
                         target='_blank'
                         rel='noopener noreferrer'
@@ -255,6 +252,9 @@ export function PublicHeader(props: PublicHeaderProps) {
                   return (
                     <Link
                       key={link.id ?? link.href}
+                      data-header-custom-link={
+                        link.custom ? link.headerStyle : undefined
+                      }
                       to={link.href}
                       aria-current={isActive ? 'page' : undefined}
                       disabled={link.disabled}
@@ -359,7 +359,6 @@ export function PublicHeader(props: PublicHeaderProps) {
 
       {/* Mobile full-screen overlay */}
       <div
-        data-header-style={headerStyle}
         className={cn(
           'bg-background/98 fixed inset-0 z-40 backdrop-blur-2xl transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] sm:pointer-events-none sm:hidden',
           mobileOpen
@@ -389,6 +388,9 @@ export function PublicHeader(props: PublicHeaderProps) {
                 return (
                   <a
                     key={link.id ?? link.href}
+                    data-header-custom-link={
+                      link.custom ? link.headerStyle : undefined
+                    }
                     href={link.href}
                     target='_blank'
                     rel='noopener noreferrer'
@@ -409,6 +411,9 @@ export function PublicHeader(props: PublicHeaderProps) {
               return (
                 <Link
                   key={link.id ?? link.href}
+                  data-header-custom-link={
+                    link.custom ? link.headerStyle : undefined
+                  }
                   to={link.href}
                   aria-current={isActive ? 'page' : undefined}
                   disabled={link.disabled}

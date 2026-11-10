@@ -113,6 +113,27 @@ export function CustomNavigationSection(props: { value: string }) {
                     <SelectItem value='iframe'>{t('Embed in page')}</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select
+                  value={link.headerStyle === 'packy' ? 'packy' : 'default'}
+                  onValueChange={(headerStyle: string | null) => {
+                    if (headerStyle === 'default' || headerStyle === 'packy') {
+                      change(index, { headerStyle })
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    className='w-48'
+                    aria-label={t('Custom header link style')}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='default'>
+                      {t('Default style')}
+                    </SelectItem>
+                    <SelectItem value='packy'>{t('Packy style')}</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Label>
                   <Checkbox
                     checked={link.header}

@@ -31,6 +31,7 @@ import { useAuthStore } from '@/stores/auth-store'
 export type TopNavLink = {
   id?: string
   custom?: boolean
+  headerStyle?: 'default' | 'packy'
   title: string
   href: string
   disabled?: boolean
@@ -124,6 +125,7 @@ export function useTopNavLinks(): TopNavLink[] {
         href: customNavigationHref(link),
         external: link.mode === 'external',
         custom: true,
+        headerStyle: link.headerStyle,
       })),
   ]
 }

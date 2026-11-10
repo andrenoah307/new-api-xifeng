@@ -37,6 +37,7 @@ func TestCustomNavigationLinksValidation(t *testing.T) {
 		{"credentials", func(l *CustomNavigationLink) { l.URL = "https://user:secret@example.com" }},
 		{"insecure frame", func(l *CustomNavigationLink) { l.URL = "http://example.com" }},
 		{"invalid mode", func(l *CustomNavigationLink) { l.Mode = "script" }},
+		{"invalid style", func(l *CustomNavigationLink) { l.HeaderStyle = "custom-css" }},
 		{"empty title", func(l *CustomNavigationLink) { l.Title = " " }},
 		{"route injection", func(l *CustomNavigationLink) { l.ID = "../admin" }},
 	}
@@ -53,6 +54,7 @@ func TestCustomNavigationLinksValidation(t *testing.T) {
 	second := valid
 	second.ID, second.Mode, second.URL = "docs", "external", "http://example.com/docs"
 	second.Header, second.Sidebar, second.Home = false, false, true
+	second.HeaderStyle = "packy"
 	raw, err := common.Marshal([]CustomNavigationLink{valid, second})
 	require.NoError(t, err)
 	normalized, err := NormalizeCustomNavigationLinks(string(raw))

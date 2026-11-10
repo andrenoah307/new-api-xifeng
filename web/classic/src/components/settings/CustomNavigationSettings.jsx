@@ -92,6 +92,17 @@ export default function CustomNavigationSettings({ value }) {
                 >
                   {t("Top navigation")}
                 </Checkbox>
+                <span id={`${link.id}-style-label`} className="sr-only">{t("Custom header link style")}</span>
+                <Select
+                  aria-labelledby={`${link.id}-style-label`}
+                  value={link.headerStyle === "packy" ? "packy" : "default"}
+                  disabled={saving}
+                  onChange={(headerStyle) => change(index, { headerStyle })}
+                  optionList={[
+                    { value: "default", label: t("Default style") },
+                    { value: "packy", label: t("Packy style") },
+                  ]}
+                />
                 <Checkbox
                   checked={link.sidebar}
                   onChange={(event) => change(index, { sidebar: event.target.checked })}
