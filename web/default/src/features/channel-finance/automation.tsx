@@ -25,6 +25,7 @@ type Config = {
   periods: string[]
   mail_enabled: boolean
   mail_period: string
+  mail_periods?: string[]
   recipients: string[]
   subject: string
   body: string
@@ -41,11 +42,12 @@ type Response = {
 }
 type Editor = Omit<Config, 'recipients'> & { recipientsText: string }
 const periods = [
-  ['day', 'Previous day'],
-  ['week', 'Previous week'],
-  ['month', 'Previous month'],
-  ['quarter', 'Previous quarter'],
-  ['year', 'Previous year'],
+  ['day', 'Previous calendar day'],
+  ['week', 'Previous calendar week'],
+  ['half_month', 'Previous calendar half-month'],
+  ['month', 'Previous calendar month'],
+  ['quarter', 'Previous calendar quarter'],
+  ['year', 'Previous calendar year'],
 ] as const
 const metrics = [
   ['consumption', 'Consumption'],
@@ -55,10 +57,11 @@ const metrics = [
 ] as const
 const cadences = [
   ['day', 'Daily'],
-  ['week', 'Weekly'],
-  ['month', 'Monthly'],
-  ['quarter', 'Quarterly'],
-  ['year', 'Yearly'],
+  ['week', 'Every Monday'],
+  ['half_month', 'On the 1st and 16th'],
+  ['month', 'On the 1st of each month'],
+  ['quarter', 'On the first day of each quarter'],
+  ['year', 'On January 1st'],
 ] as const
 
 function date(value: number) {
@@ -100,6 +103,9 @@ function AutomationEditor(props: { data: Response; userId: number }) {
   const form = useForm<Editor>({
     defaultValues: {
       ...props.data.config,
+      mail_periods: props.data.config.mail_periods ?? [
+        props.data.config.mail_period,
+      ],
       recipientsText: props.data.config.recipients.join('\n'),
     },
   })
@@ -222,16 +228,21 @@ function AutomationEditor(props: { data: Response; userId: number }) {
             <input type='checkbox' {...form.register('mail_enabled')} />
             {t('Enabled')}
           </label>
-          <label className='block space-y-2'>
-            <span>{t('Mail cadence')}</span>
-            <NativeSelect {...form.register('mail_period')}>
+          <fieldset className='space-y-2'>
+            <legend>{t('Mail cadence')}</legend>
+            <div className='flex flex-wrap gap-4'>
               {cadences.map(([key, label]) => (
-                <option key={key} value={key}>
+                <label key={key} className='flex items-center gap-2'>
+                  <input
+                    type='checkbox'
+                    value={key}
+                    {...form.register('mail_periods')}
+                  />
                   {t(label)}
-                </option>
+                </label>
               ))}
-            </NativeSelect>
-          </label>
+            </div>
+          </fieldset>
           <label className='block space-y-2'>
             <span>{t('Recipients')}</span>
             <Textarea rows={3} {...form.register('recipientsText')} />

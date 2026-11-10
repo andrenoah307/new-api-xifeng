@@ -18,6 +18,12 @@ func TestRevenueCalendarWindows(t *testing.T) {
 		days                   int
 	}{
 		{"2024-03-01", "month", "2024-02-01", "2024-03-01", 1},
+		{"2024-03-01", "half_month", "2024-02-16", "2024-03-01", 1},
+		{"2025-03-01", "half_month", "2025-02-16", "2025-03-01", 1},
+		{"2026-01-01", "half_month", "2025-12-16", "2026-01-01", 1},
+		{"2026-11-15", "half_month", "2026-10-16", "2026-11-01", 1},
+		{"2026-11-16", "half_month", "2026-11-01", "2026-11-16", 1},
+		{"2026-11-30", "half_month", "2026-11-01", "2026-11-16", 1},
 		{"2026-01-01", "week", "2025-12-22", "2025-12-29", 1},
 		{"2026-01-01", "year", "2025-01-01", "2026-01-01", 1},
 		{"2026-01-01", "quarter", "2025-10-01", "2026-01-01", 1},
@@ -56,6 +62,50 @@ func TestRevenueConfigurationValidation(t *testing.T) {
 	c.Fields = c.Fields[:1]
 	c.Recipients = []string{"finance@example.com\r\nBcc: leak@example.com"}
 	require.Error(t, ValidateRevenueAutomationConfig(c))
+}
+
+func TestRevenueMailCalendarCadences(t *testing.T) {
+	c := DefaultRevenueAutomationConfig()
+	c.MailEnabled = true
+	c.Recipients = []string{"finance@example.com"}
+	c.MailPeriods = []string{"week", "half_month", "month", "quarter", "year"}
+	c.Periods = []string{"day", "week", "half_month", "month", "quarter", "year"}
+	require.NoError(t, ValidateRevenueAutomationConfig(c))
+	for _, tc := range []struct {
+		at      string
+		periods []string
+	}{
+		{"2026-11-15T15:59:59Z", nil},
+		{"2026-11-15T16:00:00Z", []string{"week", "half_month"}},
+		{"2026-11-30T20:00:00Z", []string{"half_month", "month"}},
+		{"2026-12-31T20:00:00Z", []string{"half_month", "month", "quarter", "year"}},
+	} {
+		t.Run(tc.at, func(t *testing.T) {
+			at, err := time.Parse(time.RFC3339, tc.at)
+			require.NoError(t, err)
+			var due []string
+			for _, period := range c.MailPeriods {
+				if RevenuePeriodDue(period, at) {
+					due = append(due, period)
+				}
+			}
+			assert.Equal(t, tc.periods, due)
+			assert.Equal(t, len(tc.periods) > 0, RevenueMailDue(c, at))
+		})
+	}
+	at, err := time.Parse(time.RFC3339, "2026-11-15T20:00:00Z")
+	require.NoError(t, err)
+	c.MailPeriods = []string{"month"}
+	c.MailPeriod = "week"
+	assert.False(t, RevenueMailDue(c, at), "new list overrides legacy single cadence")
+	c.MailPeriods = nil
+	assert.True(t, RevenueMailDue(c, at), "legacy weekly cadence remains supported")
+	c.MailEnabled = false
+	assert.False(t, RevenueMailDue(c, at))
+	for _, periods := range [][]string{{}, {"week", "week"}, {"days"}, {"invalid"}} {
+		c.MailPeriods = periods
+		require.Error(t, ValidateRevenueAutomationConfig(c))
+	}
 }
 
 func TestRevenueFieldKeys(t *testing.T) {

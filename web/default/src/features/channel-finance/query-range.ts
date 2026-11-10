@@ -34,6 +34,11 @@ export function financePeriod(period: string, now = Date.now()) {
     end =
       Date.UTC(year, month, day - ((date.getUTCDay() + 6) % 7)) / 1000 - 28800
     start = end - 7 * 86400
+  } else if (period === 'half_month') {
+    end = Date.UTC(year, month, day >= 16 ? 16 : 1) / 1000 - 28800
+    start =
+      Date.UTC(year, day >= 16 ? month : month - 1, day >= 16 ? 1 : 16) / 1000 -
+      28800
   } else if (period === 'month') {
     end = Date.UTC(year, month, 1) / 1000 - 28800
     start = Date.UTC(year, month - 1, 1) / 1000 - 28800

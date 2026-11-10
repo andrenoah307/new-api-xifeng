@@ -126,6 +126,8 @@ func TestRevenueAutomationReusesReportsAndNeverReplaysUncertainDelivery(t *testi
 	c.Fingerprint = preview.Fingerprint
 	c.Periods = nil
 	c.MailEnabled = true
+	c.MailPeriods = []string{"day", "week", "half_month"}
+	c.MailPeriod = "year" // The new cadence list takes precedence over the legacy field.
 	c.Recipients = []string{"finance@example.com"}
 	c.Fields = []model.RevenueField{{Key: "昨日利润", Metric: "profit", Period: "day"}, {Key: "margin", Metric: "profit_margin", Period: "day"}}
 	c.Subject = "昨日利润 {{fields.昨日利润.value}}"

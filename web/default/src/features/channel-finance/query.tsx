@@ -21,7 +21,9 @@ import { isAxiosError } from 'axios'
 import { Calculator, Search } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+
 import { api } from '@/lib/api'
+
 import { FinanceCharts } from './charts'
 import { formatReportAmount as amount } from './format'
 import { financePeriod, financeTime } from './query-range'
@@ -109,7 +111,7 @@ export function FinanceQuery(props: {
     }
   }
   return (
-    <div className='space-y-5 min-w-0'>
+    <div className='min-w-0 space-y-5'>
       <form
         onSubmit={submit}
         className='flex flex-wrap items-end gap-3 border-b pb-5'
@@ -132,6 +134,9 @@ export function FinanceQuery(props: {
             <option value='recent'>{t('Last 24 complete hours')}</option>
             <option value='day'>{t('Previous calendar day')}</option>
             <option value='week'>{t('Previous calendar week')}</option>
+            <option value='half_month'>
+              {t('Previous calendar half-month')}
+            </option>
             <option value='month'>{t('Previous calendar month')}</option>
             <option value='quarter'>{t('Previous calendar quarter')}</option>
             <option value='year'>{t('Previous calendar year')}</option>
@@ -142,7 +147,7 @@ export function FinanceQuery(props: {
           {t('Start time')} (UTC+8)
           <input
             aria-label={t('Start time')}
-            className='h-9 min-w-0 max-w-full rounded-md border bg-transparent px-2'
+            className='h-9 max-w-full min-w-0 rounded-md border bg-transparent px-2'
             type='datetime-local'
             step='1'
             required
@@ -157,7 +162,7 @@ export function FinanceQuery(props: {
           {t('End time')} (UTC+8)
           <input
             aria-label={t('End time')}
-            className='h-9 min-w-0 max-w-full rounded-md border bg-transparent px-2'
+            className='h-9 max-w-full min-w-0 rounded-md border bg-transparent px-2'
             type='datetime-local'
             step='1'
             required
@@ -264,7 +269,7 @@ export function FinanceQuery(props: {
                         context: key === 'cost' ? 'finance' : undefined,
                       })}
                     </dt>
-                    <dd className='mt-1 break-all text-lg font-semibold tabular-nums'>
+                    <dd className='mt-1 text-lg font-semibold break-all tabular-nums'>
                       {amount(result.data?.total?.[key] ?? null, key)}
                     </dd>
                   </div>
@@ -299,7 +304,7 @@ export function FinanceQuery(props: {
                   <tbody>
                     {rows.map((row) => (
                       <tr key={row.channel_id} className='border-t'>
-                        <th className='min-w-40 max-w-60 break-words p-3 text-left font-medium'>
+                        <th className='max-w-60 min-w-40 p-3 text-left font-medium break-words'>
                           {row.channel_name || '-'} #{row.channel_id}
                         </th>
                         {metrics.map(([key]) => (

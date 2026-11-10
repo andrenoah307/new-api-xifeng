@@ -148,6 +148,7 @@ export function FinanceQuery(props) {
             <option value='recent'>{t('Last 24 complete hours')}</option>
             <option value='day'>{t('Previous calendar day')}</option>
             <option value='week'>{t('Previous calendar week')}</option>
+            <option value='half_month'>{t('Previous calendar half-month')}</option>
             <option value='month'>{t('Previous calendar month')}</option>
             <option value='quarter'>{t('Previous calendar quarter')}</option>
             <option value='year'>{t('Previous calendar year')}</option>

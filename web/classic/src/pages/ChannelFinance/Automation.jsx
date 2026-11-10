@@ -7,11 +7,12 @@ import CostConfirmation from './CostConfirmation';
 import './automation.css';
 
 const periods = [
-  ['day', 'Previous day'],
-  ['week', 'Previous week'],
-  ['month', 'Previous month'],
-  ['quarter', 'Previous quarter'],
-  ['year', 'Previous year'],
+  ['day', 'Previous calendar day'],
+  ['week', 'Previous calendar week'],
+  ['half_month', 'Previous calendar half-month'],
+  ['month', 'Previous calendar month'],
+  ['quarter', 'Previous calendar quarter'],
+  ['year', 'Previous calendar year'],
 ];
 const metrics = [
   ['consumption', 'Consumption'],
@@ -21,10 +22,11 @@ const metrics = [
 ];
 const cadences = [
   ['day', 'Daily'],
-  ['week', 'Weekly'],
-  ['month', 'Monthly'],
-  ['quarter', 'Quarterly'],
-  ['year', 'Yearly'],
+  ['week', 'Every Monday'],
+  ['half_month', 'On the 1st and 16th'],
+  ['month', 'On the 1st of each month'],
+  ['quarter', 'On the first day of each quarter'],
+  ['year', 'On January 1st'],
 ];
 const formatTime = (value) =>
   new Date(value * 1000).toLocaleString('zh-CN', {
@@ -82,7 +84,7 @@ export default function FinanceAutomation({ userId }) {
 
 function AutomationEditor({ data, userId, reload }) {
   const { t } = useTranslation();
-  const [config, setConfig] = useState(data.config);
+  const [config, setConfig] = useState(() => ({ ...data.config, mail_periods: data.config.mail_periods ?? [data.config.mail_period] }));
   const [recipients, setRecipients] = useState(
     data.config.recipients.join('\n'),
   );
@@ -244,19 +246,17 @@ function AutomationEditor({ data, userId, reload }) {
             />
             {t('Enabled')}
           </label>
-          <label>
-            {t('Mail cadence')}
-            <select
-              value={config.mail_period}
-              onChange={(event) => update('mail_period', event.target.value)}
-            >
+          <fieldset>
+            <legend>{t('Mail cadence')}</legend>
+            <div className='flex flex-wrap gap-4'>
               {cadences.map(([key, label]) => (
-                <option key={key} value={key}>
+                <label key={key} className='revenue-check'>
+                  <input type='checkbox' checked={config.mail_periods.includes(key)} onChange={(event) => update('mail_periods', event.target.checked ? [...config.mail_periods, key] : config.mail_periods.filter((period) => period !== key))} />
                   {t(label)}
-                </option>
+                </label>
               ))}
-            </select>
-          </label>
+            </div>
+          </fieldset>
           <label>
             {t('Recipients')}
             <textarea
