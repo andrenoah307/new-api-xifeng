@@ -18,7 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useContext } from 'react';
 import { UserContext } from '../../context/User';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { refundDiagnosticLines } from '../../../../shared/refund-diagnostics.mjs';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@douyinfe/semi-ui';
 import { API as api } from '../../helpers/api';
@@ -37,16 +38,18 @@ function RefundInvoiceExportPanel({ ticketId }) {
   const [invoices, setInvoices] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [diagnostic, setDiagnostic] = useState(null);
+  const requestVersion = useRef(0);
+  const recalculating = useRef(false);
   useEffect(() => {
     let active = true;
-    setAmount('');
-    setSaved(false);
+    const version = requestVersion.current;
     api
       .get(`/api/ticket/refund/${ticketId}/invoice-export`, {
         skipBusinessError: true,
       })
       .then(({ data }) => {
-        if (active && data.success) {
+        if (active && version === requestVersion.current && data.success) {
           setAmount((data.data.cash_cents / 100).toFixed(2));
           setSaved(true);
           setInvoices(data.data.invoices ?? []);
@@ -59,15 +62,23 @@ function RefundInvoiceExportPanel({ ticketId }) {
     };
   }, [ticketId]);
   async function recalculate() {
-    if (busy) return;
+    if (busy || recalculating.current) return;
+    recalculating.current = true;
+    requestVersion.current += 1;
     setBusy(true);
     setError('');
+    setDiagnostic(null);
     setSaved(false);
     try {
       const { data } = await api.post(
         `/api/ticket/refund/${ticketId}/invoice-export`,
         {},
+        { skipBusinessError: true },
       );
+      if (!data.success && data.diagnostic) {
+        setDiagnostic(data.diagnostic);
+        return;
+      }
       if (!data.success) throw new Error(data.message);
       setAmount((data.data.cash_cents / 100).toFixed(2));
       setSaved(true);
@@ -76,6 +87,7 @@ function RefundInvoiceExportPanel({ ticketId }) {
     } catch (e) {
       setError(e instanceof Error ? t(e.message) : t('Operation failed'));
     } finally {
+      recalculating.current = false;
       setBusy(false);
     }
   }
@@ -151,6 +163,39 @@ function RefundInvoiceExportPanel({ ticketId }) {
         </details>
       )}
       {error && <p role='alert'>{error}</p>}
+      {diagnostic && (
+        <div
+          role='alert'
+          className='space-y-2 border-l-2 border-amber-500 pl-3 text-sm break-words'
+        >
+          {refundDiagnosticLines(diagnostic, t).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+          {!!diagnostic.ticket_id && (
+            <a
+              className='underline'
+              href={`/console/ticket_admin/${diagnostic.ticket_id}`}
+            >
+              {t('Ticket ID')}: #{diagnostic.ticket_id}
+            </a>
+          )}
+          {!!diagnostic.order_id && (
+            <p>
+              {t('Order ID')}: {diagnostic.order_id}
+            </p>
+          )}
+          {diagnostic.amounts && (
+            <details>
+              <summary className='cursor-pointer'>{t('Exact amounts')}</summary>
+              {refundDiagnosticLines(diagnostic, t, true)
+                .slice(0, 3)
+                .map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+            </details>
+          )}
+        </div>
+      )}
       {saved && [10, 100].includes(state.user?.role) && (
         <RefundCalculationDetails payments={payments} />
       )}

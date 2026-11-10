@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -29,6 +30,28 @@ func RefundInvoiceExport(c *gin.Context) {
 		data, err = model.GetRefundInvoiceExport(id)
 	}
 	if err != nil {
+		if errors.Is(err, model.ErrTicketRefundNotPending) || errors.Is(err, model.ErrTicketForbidden) {
+			handleTicketError(c, err)
+			return
+		}
+		if errors.Is(err, model.ErrRefundLegacyWorkflow) {
+			common.ApiError(c, err)
+			return
+		}
+		var diagnostic *model.RefundCalculationError
+		hasDiagnostic := errors.As(err, &diagnostic)
+		if c.Request.Method == http.MethodPost && !hasDiagnostic {
+			common.SysError("refund recalculation failed: " + err.Error())
+			diagnostic = &model.RefundCalculationError{Code: "calculation_failed", TicketID: id}
+			hasDiagnostic = true
+		}
+		if hasDiagnostic {
+			if !authorizeRefundFinance(c) {
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"success": false, "message": model.ErrRefundExport.Error(), "diagnostic": diagnostic})
+			return
+		}
 		common.ApiError(c, err)
 		return
 	}

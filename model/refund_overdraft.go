@@ -34,17 +34,26 @@ func applyRefundConsumptionOverdraft(orders []TopUp, lots map[int]RefundCreditLo
 		return nil, nil, nil
 	}
 	if limitCents <= 0 || limitCents > 1000 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
-		return nil, nil, ErrRefundExport
+		return nil, nil, refundShortfallError("grace_unavailable", orders, lots, refund, owner, available, limitCents)
 	}
 	limit, clamp := common.QuotaFromDecimalChecked(decimal.NewFromInt(limitCents).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Div(decimal.NewFromInt(100)))
 	// Only a fully frozen existing request can use this allowance. It must be
 	// real wallet debt, not a positive gift balance lacking cash backing.
-	if clamp != nil || limit <= 0 || refund.RefundStatus != RefundStatusPending || refund.FrozenQuota != refund.RefundQuota || refund.RefundGiftQuota != 0 || owner.Quota >= 0 || int64(owner.Quota) < -int64(limit) || needed > -int64(owner.Quota) {
-		return nil, nil, ErrRefundExport
+	if clamp != nil || limit <= 0 {
+		return nil, nil, refundShortfallError("grace_unavailable", orders, lots, refund, owner, available, limitCents)
+	}
+	if refund.RefundStatus != RefundStatusPending || refund.FrozenQuota != refund.RefundQuota || refund.RefundGiftQuota != 0 {
+		return nil, nil, refundShortfallError("hold_not_eligible", orders, lots, refund, owner, available, limitCents)
+	}
+	if int64(owner.Quota) < -int64(limit) || needed > int64(limit) {
+		return nil, nil, refundShortfallError("grace_exceeded", orders, lots, refund, owner, available, limitCents)
+	}
+	if owner.Quota >= 0 || needed > -int64(owner.Quota) {
+		return nil, nil, refundShortfallError("unbacked_credit", orders, lots, refund, owner, available, limitCents)
 	}
 	for _, lot := range lots {
 		if lot.GiftRemaining > 0 {
-			return nil, nil, ErrRefundExport
+			return nil, nil, refundShortfallError("gift_balance", orders, lots, refund, owner, available, limitCents)
 		}
 	}
 	remaining := needed
@@ -67,7 +76,7 @@ func applyRefundConsumptionOverdraft(orders []TopUp, lots map[int]RefundCreditLo
 		value.Add(&value, new(big.Rat).SetFrac(new(big.Int).Mul(big.NewInt(order.PaymentTotalCents), big.NewInt(take)), big.NewInt(order.QuotaGranted)))
 	}
 	if remaining != 0 || value.Cmp(new(big.Rat).SetInt64(limitCents)) > 0 {
-		return nil, nil, ErrRefundExport
+		return nil, nil, refundShortfallError("funding_limit", orders, lots, refund, owner, available, limitCents)
 	}
 	for id, quota := range deferred {
 		lot := lots[id]
