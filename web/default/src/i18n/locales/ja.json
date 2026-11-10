@@ -6221,6 +6221,12 @@
     "Refund calculation": "返金計算",
     "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "今回の返金：{{principal}} + 請求書発行手数料{{fee}} = {{refund}}",
     "Amount must be between CNY 0 and 10, with at most two decimal places.": "金額は0～10人民元、小数点以下2桁以内で指定してください。",
-    "Refund grace amount (CNY, 0 to disable)": "返金時の許容額（人民元、0で無効）"
+    "Refund grace amount (CNY, 0 to disable)": "返金時の許容額（人民元、0で無効）",
+    "Previous calendar half-month": "前の暦半月",
+    "Every Monday": "毎週月曜日",
+    "On the 1st and 16th": "毎月1日と16日",
+    "On the 1st of each month": "毎月1日",
+    "On the first day of each quarter": "各四半期の初日",
+    "On January 1st": "毎年1月1日"
   }
 }

@@ -6221,6 +6221,12 @@
     "Refund calculation": "退款核算",
     "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "本次退款：{{principal}} + 開票服務費{{fee}} = {{refund}}",
     "Amount must be between CNY 0 and 10, with at most two decimal places.": "金額須介於人民幣 0 至 10 元，最多兩位小數。",
-    "Refund grace amount (CNY, 0 to disable)": "退款寬限金額（人民幣元，0 為關閉）"
+    "Refund grace amount (CNY, 0 to disable)": "退款寬限金額（人民幣元，0 為關閉）",
+    "Previous calendar half-month": "上一個自然半月",
+    "Every Monday": "每週一",
+    "On the 1st and 16th": "每月1日和16日",
+    "On the 1st of each month": "每月1日",
+    "On the first day of each quarter": "每季度首日",
+    "On January 1st": "每年1月1日"
   }
 }

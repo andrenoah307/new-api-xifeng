@@ -6221,6 +6221,12 @@
     "Refund calculation": "Refund calculation",
     "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}",
     "Amount must be between CNY 0 and 10, with at most two decimal places.": "Amount must be between CNY 0 and 10, with at most two decimal places.",
-    "Refund grace amount (CNY, 0 to disable)": "Refund grace amount (CNY, 0 to disable)"
+    "Refund grace amount (CNY, 0 to disable)": "Refund grace amount (CNY, 0 to disable)",
+    "Previous calendar half-month": "Previous calendar half-month",
+    "Every Monday": "Every Monday",
+    "On the 1st and 16th": "On the 1st and 16th",
+    "On the 1st of each month": "On the 1st of each month",
+    "On the first day of each quarter": "On the first day of each quarter",
+    "On January 1st": "On January 1st"
   }
 }

@@ -6221,6 +6221,12 @@
     "Refund calculation": "Расчёт возврата",
     "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Этот возврат: {{principal}} + комиссия за счёт {{fee}} = {{refund}}",
     "Amount must be between CNY 0 and 10, with at most two decimal places.": "Сумма должна быть от 0 до 10 CNY, не более двух знаков после запятой.",
-    "Refund grace amount (CNY, 0 to disable)": "Допуск при возврате (CNY, 0 — отключить)"
+    "Refund grace amount (CNY, 0 to disable)": "Допуск при возврате (CNY, 0 — отключить)",
+    "Previous calendar half-month": "Предыдущая половина месяца",
+    "Every Monday": "Каждый понедельник",
+    "On the 1st and 16th": "1-го и 16-го числа",
+    "On the 1st of each month": "1-го числа каждого месяца",
+    "On the first day of each quarter": "В первый день каждого квартала",
+    "On January 1st": "1 января"
   }
 }

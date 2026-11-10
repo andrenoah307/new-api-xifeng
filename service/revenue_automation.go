@@ -258,11 +258,11 @@ func advanceRevenueAutomation(ctx context.Context, config *model.RevenueAutomati
 		return model.ErrChannelCostReportSourceChanged
 	}
 	at := time.Unix(run.ScheduledAt, 0).In(model.RevenueTimezone)
-	mailDue := c.MailEnabled && model.RevenuePeriodDue(c.MailPeriod, at)
+	mailDue := model.RevenueMailDue(c, at)
 	if data.Source == "" {
 		data.Source = identity
 		seen := map[model.CostQueryRange]bool{}
-		for _, period := range []string{"day", "week", "month", "quarter", "year"} {
+		for _, period := range []string{"day", "week", "half_month", "month", "quarter", "year"} {
 			if slices.Contains(c.Periods, period) && model.RevenuePeriodDue(period, at) {
 				window, _ := model.RevenueWindow(period, 1, at)
 				if !seen[window] {

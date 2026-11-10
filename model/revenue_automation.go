@@ -32,6 +32,7 @@ type RevenueAutomationConfig struct {
 	Periods     []string       `json:"periods"`
 	MailEnabled bool           `json:"mail_enabled"`
 	MailPeriod  string         `json:"mail_period"`
+	MailPeriods []string       `json:"mail_periods,omitempty"`
 	Recipients  []string       `json:"recipients"`
 	Subject     string         `json:"subject"`
 	Body        string         `json:"body"`
@@ -78,12 +79,30 @@ func RevenuePeriodDue(period string, at time.Time) bool {
 		return true
 	case "week":
 		return at.Weekday() == time.Monday
+	case "half_month":
+		return at.Day() == 1 || at.Day() == 16
 	case "month":
 		return at.Day() == 1
 	case "quarter":
 		return at.Day() == 1 && (int(at.Month())-1)%3 == 0
 	case "year":
 		return at.Day() == 1 && at.Month() == time.January
+	}
+	return false
+}
+
+// Legacy configurations have one cadence; overlapping cadences share one delivery.
+func RevenueMailDue(c RevenueAutomationConfig, at time.Time) bool {
+	if !c.MailEnabled {
+		return false
+	}
+	if c.MailPeriods == nil {
+		return RevenuePeriodDue(c.MailPeriod, at)
+	}
+	for _, period := range c.MailPeriods {
+		if RevenuePeriodDue(period, at) {
+			return true
+		}
 	}
 	return false
 }
@@ -106,6 +125,14 @@ func RevenueWindow(period string, days int, at time.Time) (CostQueryRange, error
 	case "month":
 		end = time.Date(at.Year(), at.Month(), 1, 0, 0, 0, 0, RevenueTimezone)
 		start = end.AddDate(0, -1, 0)
+	case "half_month":
+		if at.Day() >= 16 {
+			start = time.Date(at.Year(), at.Month(), 1, 0, 0, 0, 0, RevenueTimezone)
+			end = start.AddDate(0, 0, 15)
+		} else {
+			end = time.Date(at.Year(), at.Month(), 1, 0, 0, 0, 0, RevenueTimezone)
+			start = end.AddDate(0, -1, 15)
+		}
 	case "quarter":
 		end = time.Date(at.Year(), time.Month((int(at.Month())-1)/3*3+1), 1, 0, 0, 0, 0, RevenueTimezone)
 		start = end.AddDate(0, -3, 0)
@@ -132,7 +159,7 @@ func ValidateRevenueAutomationConfig(c RevenueAutomationConfig) error {
 	if _, err := time.Parse("15:04", c.Time); err != nil || len(c.Time) != 5 {
 		return errors.New("Invalid execution time")
 	}
-	if len(c.Periods) > 5 || len(c.Fields) > 20 || len(c.Recipients) > 10 || len(c.Subject) > 800 || len(c.Body) > 32768 || strings.ContainsAny(c.Subject, "\r\n") {
+	if len(c.Periods) > 6 || len(c.Fields) > 20 || len(c.Recipients) > 10 || len(c.Subject) > 800 || len(c.Body) > 32768 || strings.ContainsAny(c.Subject, "\r\n") {
 		return errors.New("Invalid automation configuration")
 	}
 	seen := map[string]bool{}
@@ -145,8 +172,19 @@ func ValidateRevenueAutomationConfig(c RevenueAutomationConfig) error {
 		}
 		seen[p] = true
 	}
-	if _, err := RevenueWindow(c.MailPeriod, 1, time.Now()); err != nil || c.MailPeriod == "days" {
+	mailPeriods := c.MailPeriods
+	if mailPeriods == nil {
+		mailPeriods = []string{c.MailPeriod}
+	}
+	if len(mailPeriods) == 0 || len(mailPeriods) > 6 {
 		return errors.New("Invalid mail period")
+	}
+	seen = map[string]bool{}
+	for _, period := range mailPeriods {
+		if _, err := RevenueWindow(period, 1, time.Now()); err != nil || period == "days" || seen[period] {
+			return errors.New("Invalid mail period")
+		}
+		seen[period] = true
 	}
 	seen = map[string]bool{}
 	for _, f := range c.Fields {

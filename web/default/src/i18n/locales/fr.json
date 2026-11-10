@@ -6221,6 +6221,12 @@
     "Refund calculation": "Calcul du remboursement",
     "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Ce remboursement : {{principal}} + frais de facturation {{fee}} = {{refund}}",
     "Amount must be between CNY 0 and 10, with at most two decimal places.": "Le montant doit être compris entre 0 et 10 CNY, avec au plus deux décimales.",
-    "Refund grace amount (CNY, 0 to disable)": "Tolérance de remboursement (CNY, 0 pour désactiver)"
+    "Refund grace amount (CNY, 0 to disable)": "Tolérance de remboursement (CNY, 0 pour désactiver)",
+    "Previous calendar half-month": "Demi-mois civil précédent",
+    "Every Monday": "Chaque lundi",
+    "On the 1st and 16th": "Le 1er et le 16",
+    "On the 1st of each month": "Le 1er de chaque mois",
+    "On the first day of each quarter": "Le premier jour de chaque trimestre",
+    "On January 1st": "Le 1er janvier"
   }
 }

@@ -6221,6 +6221,12 @@
     "Refund calculation": "Tính hoàn tiền",
     "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Hoàn lần này: {{principal}} + phí xuất hóa đơn {{fee}} = {{refund}}",
     "Amount must be between CNY 0 and 10, with at most two decimal places.": "Số tiền phải từ 0 đến 10 CNY, tối đa hai chữ số thập phân.",
-    "Refund grace amount (CNY, 0 to disable)": "Mức dung sai hoàn tiền (CNY, 0 để tắt)"
+    "Refund grace amount (CNY, 0 to disable)": "Mức dung sai hoàn tiền (CNY, 0 để tắt)",
+    "Previous calendar half-month": "Nửa tháng dương lịch trước",
+    "Every Monday": "Mỗi thứ Hai",
+    "On the 1st and 16th": "Ngày 1 và 16 hằng tháng",
+    "On the 1st of each month": "Ngày 1 hằng tháng",
+    "On the first day of each quarter": "Ngày đầu mỗi quý",
+    "On January 1st": "Ngày 1 tháng 1"
   }
 }
