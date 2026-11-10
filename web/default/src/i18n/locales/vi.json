@@ -6219,6 +6219,8 @@
     "Remaining paid amount after refund": "Tiền thực trả còn lại sau hoàn",
     "Remaining paid amount before refund": "Tiền thực trả còn lại trước hoàn",
     "Refund calculation": "Tính hoàn tiền",
-    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Hoàn lần này: {{principal}} + phí xuất hóa đơn {{fee}} = {{refund}}"
+    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Hoàn lần này: {{principal}} + phí xuất hóa đơn {{fee}} = {{refund}}",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "Số tiền phải từ 0 đến 10 CNY, tối đa hai chữ số thập phân.",
+    "Refund grace amount (CNY, 0 to disable)": "Mức dung sai hoàn tiền (CNY, 0 để tắt)"
   }
 }

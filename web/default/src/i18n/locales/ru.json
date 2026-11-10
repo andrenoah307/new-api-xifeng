@@ -6219,6 +6219,8 @@
     "Remaining paid amount after refund": "Оплаченный остаток после возврата",
     "Remaining paid amount before refund": "Оплаченный остаток до возврата",
     "Refund calculation": "Расчёт возврата",
-    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Этот возврат: {{principal}} + комиссия за счёт {{fee}} = {{refund}}"
+    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Этот возврат: {{principal}} + комиссия за счёт {{fee}} = {{refund}}",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "Сумма должна быть от 0 до 10 CNY, не более двух знаков после запятой.",
+    "Refund grace amount (CNY, 0 to disable)": "Допуск при возврате (CNY, 0 — отключить)"
   }
 }

@@ -5913,6 +5913,8 @@
     "Invalid affinity cache cooling rule": "Invalid affinity cache cooling rule",
     "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.",
     "Exclude requests without affinity hits from cache hit rate": "Exclude requests without affinity hits from cache hit rate",
+    "Refund grace amount (CNY, 0 to disable)": "Refund grace amount (CNY, 0 to disable)",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "Amount must be between CNY 0 and 10, with at most two decimal places.",
     "Client errors (4xx)": "Client errors (4xx)",
     "Server errors (5xx or unknown)": "Server errors (5xx or unknown)",
     "Upstream Error Redaction": "Upstream Error Redaction",

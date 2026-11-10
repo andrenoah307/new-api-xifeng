@@ -6219,6 +6219,8 @@
     "Remaining paid amount after refund": "返金後の実支払残高",
     "Remaining paid amount before refund": "返金前の実支払残高",
     "Refund calculation": "返金計算",
-    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "今回の返金：{{principal}} + 請求書発行手数料{{fee}} = {{refund}}"
+    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "今回の返金：{{principal}} + 請求書発行手数料{{fee}} = {{refund}}",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "金額は0～10人民元、小数点以下2桁以内で指定してください。",
+    "Refund grace amount (CNY, 0 to disable)": "返金時の許容額（人民元、0で無効）"
   }
 }

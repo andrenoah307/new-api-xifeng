@@ -3558,6 +3558,8 @@
     "Invalid affinity cache cooling rule": "亲和缓存冷却规则无效",
     "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "统计日志带亲和命中标记的请求，包含流式、非流式及缓存读取为 0 的请求。阈值为 0 时关闭此规则；样本不足不触发冷却，恢复后重新积累样本。",
     "Exclude requests without affinity hits from cache hit rate": "缓存率排除亲和未命中请求",
+    "Refund grace amount (CNY, 0 to disable)": "退款宽限金额（元，0 为关闭）",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "金额须在 0 至 10 元之间，最多两位小数。",
     "Filter scope": "生效范围",
     "Selected groups": "指定分组",
     "All groups": "全部分组"

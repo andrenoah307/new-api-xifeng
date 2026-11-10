@@ -6219,6 +6219,8 @@
     "Remaining paid amount after refund": "Solde payé après remboursement",
     "Remaining paid amount before refund": "Solde payé avant remboursement",
     "Refund calculation": "Calcul du remboursement",
-    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Ce remboursement : {{principal}} + frais de facturation {{fee}} = {{refund}}"
+    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "Ce remboursement : {{principal}} + frais de facturation {{fee}} = {{refund}}",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "Le montant doit être compris entre 0 et 10 CNY, avec au plus deux décimales.",
+    "Refund grace amount (CNY, 0 to disable)": "Tolérance de remboursement (CNY, 0 pour désactiver)"
   }
 }

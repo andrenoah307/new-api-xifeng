@@ -19,6 +19,7 @@ const InvoiceVATRateBps = 600
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
+	RefundOverdraftLimitCents    int64  `json:"refund_overdraft_limit_cents"`
 	RefundGiftRecoveryPolicy     string `json:"refund_gift_recovery_policy"`
 	RefundSettlementGuardEnabled bool   `json:"refund_settlement_guard_enabled"`
 	ReconciliationReviewEnabled  bool   `json:"reconciliation_review_enabled"`
@@ -307,6 +308,7 @@ func syncInvoiceTaxQuotaCache(userID, delta int) {
 
 func (config InvoiceTaxConfig) Valid() bool {
 	return (config.RefundGiftRecoveryPolicy == "" || config.RefundGiftRecoveryPolicy == RefundGiftPriorExpiry || config.RefundGiftRecoveryPolicy == RefundGiftProportional || config.RefundGiftRecoveryPolicy == RefundGiftNone) &&
+		config.RefundOverdraftLimitCents >= 0 && config.RefundOverdraftLimitCents <= 1000 &&
 		config.ReconciliationReviewCount >= 0 && config.ReconciliationReviewCount <= math.MaxInt32 &&
 		(!config.ReconciliationReviewEnabled || config.ReconciliationReviewCount >= 1) &&
 		(config.PolicyEffectiveAt == 0 || config.PolicyEffectiveAt == InvoicePolicyEffectiveAt) &&

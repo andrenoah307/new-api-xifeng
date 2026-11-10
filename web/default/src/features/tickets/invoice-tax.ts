@@ -1,6 +1,7 @@
 import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
+  refund_overdraft_limit_cents?: number
   refund_settlement_guard_enabled?: boolean
   refund_gift_recovery_policy?: 'prior_expiry' | 'proportional' | 'none'
   reconciliation_review_enabled?: boolean

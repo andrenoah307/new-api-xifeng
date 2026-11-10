@@ -5687,6 +5687,8 @@
     "Invalid affinity cache cooling rule": "Règle de pause du cache avec affinité invalide",
     "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "Les requêtes marquées comme liées dans les journaux sont comptées, avec ou sans streaming, même sans tokens en cache. Un seuil de zéro désactive la règle. Un échantillon insuffisant ne déclenche pas de pause ; la collecte reprend après rétablissement.",
     "Exclude requests without affinity hits from cache hit rate": "Exclure les requêtes sans affinité du taux de cache",
+    "Refund grace amount (CNY, 0 to disable)": "Tolérance de remboursement (CNY, 0 pour désactiver)",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "Le montant doit être compris entre 0 et 10 CNY, avec au plus deux décimales.",
     "Client errors (4xx)": "Erreurs client (4xx)",
     "Server errors (5xx or unknown)": "Erreurs serveur (5xx ou statut inconnu)",
     "Upstream Error Redaction": "Masquage des erreurs en amont",

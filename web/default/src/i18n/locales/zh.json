@@ -6219,6 +6219,8 @@
     "Remaining paid amount after refund": "退款后剩余实付",
     "Remaining paid amount before refund": "退款前剩余实付",
     "Refund calculation": "退款核算",
-    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "本次退款：{{principal}} + 开票服务费{{fee}} = {{refund}}"
+    "This refund: {{principal}} + invoice service fee {{fee}} = {{refund}}": "本次退款：{{principal}} + 开票服务费{{fee}} = {{refund}}",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "金额须在 0 至 10 元之间，最多两位小数。",
+    "Refund grace amount (CNY, 0 to disable)": "退款宽限金额（元，0 为关闭）"
   }
 }

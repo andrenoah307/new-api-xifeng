@@ -5666,6 +5666,8 @@
     "Invalid affinity cache cooling rule": "親和快取冷卻規則無效",
     "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "統計日誌帶親和命中標記的請求，包含串流、非串流及快取讀取為 0 的請求。閾值為 0 時關閉此規則；樣本不足不觸發冷卻，恢復後重新累積樣本。",
     "Exclude requests without affinity hits from cache hit rate": "快取率排除親和未命中請求",
+    "Refund grace amount (CNY, 0 to disable)": "退款寬限金額（人民幣元，0 為關閉）",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "金額須介於人民幣 0 至 10 元，最多兩位小數。",
     "Client errors (4xx)": "用戶端錯誤（4xx）",
     "Server errors (5xx or unknown)": "伺服器錯誤（5xx 或未知狀態）",
     "Upstream Error Redaction": "上游錯誤脫敏",

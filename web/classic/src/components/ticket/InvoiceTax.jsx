@@ -366,7 +366,17 @@ export function InvoiceTaxSettings() {
   const { t } = useTranslation();
   const [config, setConfig] = useInvoiceTaxConfig();
   const [saving, setSaving] = useState(false);
+  const [overdraftAmount, setOverdraftAmount] = useState(null);
   if (!config) return <p>{t('Loading...')}</p>;
+  const amount =
+    overdraftAmount ??
+    ((config.refund_overdraft_limit_cents ?? 0) / 100).toFixed(2);
+  const amountParts = /^(0|[1-9]\d?)(?:\.(\d{1,2}))?$/.exec(amount);
+  const overdraftCents = amountParts
+    ? Number(amountParts[1]) * 100 +
+      Number((amountParts[2] ?? '').padEnd(2, '0'))
+    : -1;
+  const validOverdraft = overdraftCents >= 0 && overdraftCents <= 1000;
   const legacyBefore = config.legacy_invoice_before ?? 0;
   const validCutoff =
     Number.isSafeInteger(legacyBefore) &&
@@ -374,9 +384,11 @@ export function InvoiceTaxSettings() {
     legacyBefore <= Date.parse('9999-12-31T00:00:00+08:00') / 1000 &&
     (legacyBefore === 0 || (legacyBefore + 28800) % 86400 === 0);
   const valid =
+    validOverdraft &&
     validCutoff &&
     (!config.reconciliation_review_enabled ||
-      (Number.isInteger(config.reconciliation_review_count) && config.reconciliation_review_count >= 1)) &&
+      (Number.isInteger(config.reconciliation_review_count) &&
+        config.reconciliation_review_count >= 1)) &&
     [config.ordinary_rate_bps, config.special_rate_bps].every(
       (rate) => Number.isInteger(rate) && rate >= 0 && rate < 10000,
     );
@@ -400,11 +412,16 @@ export function InvoiceTaxSettings() {
     }),
   );
   const save = async () => {
+    if (!valid) return;
     setSaving(true);
     try {
-      const { data } = await API.put('/api/option/invoice-tax', config);
+      const { data } = await API.put('/api/option/invoice-tax', {
+        ...config,
+        refund_overdraft_limit_cents: overdraftCents,
+      });
       if (!data.success) throw new Error(data.message);
       setConfig(data.data);
+      setOverdraftAmount(null);
       statusDispatch({
         type: 'set',
         payload: {
@@ -423,7 +440,32 @@ export function InvoiceTaxSettings() {
     <section className='space-y-4'>
       <h3>{t('Invoice tax charges')}</h3>
       <div className='space-y-2'>
-        <div id='refund-gift-policy-label'>{t('Refund gift recovery policy')}</div>
+        <label htmlFor='refund-overdraft-amount'>
+          {t('Refund grace amount (CNY, 0 to disable)')}
+        </label>
+        <Input
+          id='refund-overdraft-amount'
+          inputMode='decimal'
+          value={amount}
+          disabled={saving}
+          aria-invalid={!validOverdraft}
+          aria-describedby={
+            !validOverdraft ? 'refund-overdraft-error' : undefined
+          }
+          onChange={setOverdraftAmount}
+        />
+        {!validOverdraft && (
+          <p id='refund-overdraft-error' role='alert'>
+            {t(
+              'Amount must be between CNY 0 and 10, with at most two decimal places.',
+            )}
+          </p>
+        )}
+      </div>
+      <div className='space-y-2'>
+        <div id='refund-gift-policy-label'>
+          {t('Refund gift recovery policy')}
+        </div>
         <Select
           aria-labelledby='refund-gift-policy-label'
           style={{ width: '100%' }}
@@ -433,7 +475,10 @@ export function InvoiceTaxSettings() {
           }
           optionList={[
             { value: 'prior_expiry', label: t('Expire earlier gifts') },
-            { value: 'proportional', label: t('Recover gifts proportionally per order') },
+            {
+              value: 'proportional',
+              label: t('Recover gifts proportionally per order'),
+            },
             { value: 'none', label: t('Do not recover gifts') },
           ]}
         />

@@ -4,6 +4,12 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -37,11 +43,13 @@ export function InvoiceTaxSettings() {
     queryFn: getInvoiceTaxConfig,
   })
   const [draft, setDraft] = useState<InvoiceTaxConfig | null>(null)
+  const [overdraftAmount, setOverdraftAmount] = useState<string | null>(null)
   const config = draft ?? query.data
   const save = useMutation({
     mutationFn: saveInvoiceTaxConfig,
     onSuccess: (saved) => {
       setDraft(saved)
+      setOverdraftAmount(null)
       client.invalidateQueries({ queryKey: ['invoice-tax-config'] })
       client.invalidateQueries({ queryKey: ['status'] })
       toast.success(t('Saved successfully'))
@@ -51,12 +59,22 @@ export function InvoiceTaxSettings() {
     return <p>{query.isError ? t('Failed to load') : t('Loading...')}</p>
   }
   const legacyBefore = config.legacy_invoice_before ?? 0
+  const amount =
+    overdraftAmount ??
+    ((config.refund_overdraft_limit_cents ?? 0) / 100).toFixed(2)
+  const amountParts = /^(0|[1-9]\d?)(?:\.(\d{1,2}))?$/.exec(amount)
+  const overdraftCents = amountParts
+    ? Number(amountParts[1]) * 100 +
+      Number((amountParts[2] ?? '').padEnd(2, '0'))
+    : -1
+  const validOverdraft = overdraftCents >= 0 && overdraftCents <= 1000
   const validCutoff =
     Number.isSafeInteger(legacyBefore) &&
     legacyBefore >= 0 &&
     legacyBefore <= Date.parse('9999-12-31T00:00:00+08:00') / 1000 &&
     (legacyBefore === 0 || (legacyBefore + 28800) % 86400 === 0)
   const valid =
+    validOverdraft &&
     validCutoff &&
     (!config.reconciliation_review_enabled ||
       (Number.isInteger(config.reconciliation_review_count) &&
@@ -67,6 +85,31 @@ export function InvoiceTaxSettings() {
   return (
     <section className='space-y-4 border-t pt-4'>
       <h3 className='font-medium'>{t('Invoice tax charges')}</h3>
+      <FieldGroup>
+        <Field data-invalid={!validOverdraft}>
+          <FieldLabel htmlFor='refund-overdraft-amount'>
+            {t('Refund grace amount (CNY, 0 to disable)')}
+          </FieldLabel>
+          <Input
+            id='refund-overdraft-amount'
+            inputMode='decimal'
+            value={amount}
+            disabled={save.isPending}
+            aria-invalid={!validOverdraft}
+            aria-describedby={
+              !validOverdraft ? 'refund-overdraft-error' : undefined
+            }
+            onChange={(event) => setOverdraftAmount(event.target.value)}
+          />
+          {!validOverdraft && (
+            <FieldError id='refund-overdraft-error'>
+              {t(
+                'Amount must be between CNY 0 and 10, with at most two decimal places.'
+              )}
+            </FieldError>
+          )}
+        </Field>
+      </FieldGroup>
       <div className='space-y-2'>
         <Label htmlFor='refund-gift-policy'>
           {t('Refund gift recovery policy')}
@@ -96,7 +139,7 @@ export function InvoiceTaxSettings() {
             <SelectItem value='none'>{t('Do not recover gifts')}</SelectItem>
           </SelectContent>
         </Select>
-        <p className='text-sm text-muted-foreground'>
+        <p className='text-muted-foreground text-sm'>
           {t('Only applies to unprocessed refunds.')}
         </p>
       </div>
@@ -280,7 +323,12 @@ export function InvoiceTaxSettings() {
       <Button
         type='button'
         disabled={!valid || save.isPending}
-        onClick={() => save.mutate(config)}
+        onClick={() =>
+          save.mutate({
+            ...config,
+            refund_overdraft_limit_cents: overdraftCents,
+          })
+        }
       >
         {t('Save')}
       </Button>

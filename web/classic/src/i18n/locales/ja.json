@@ -5654,6 +5654,8 @@
     "Invalid affinity cache cooling rule": "アフィニティキャッシュの冷却ルールが無効です",
     "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "ログでアフィニティヒットと表示されるリクエストを集計します。ストリーミングの有無やキャッシュ読み取り 0 の場合も含みます。しきい値 0 で無効になります。サンプル不足では冷却せず、復旧後に再集計します。",
     "Exclude requests without affinity hits from cache hit rate": "アフィニティ未ヒットのリクエストをキャッシュ率から除外",
+    "Refund grace amount (CNY, 0 to disable)": "返金時の許容額（人民元、0で無効）",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "金額は0～10人民元、小数点以下2桁以内で指定してください。",
     "Client errors (4xx)": "クライアントエラー（4xx）",
     "Server errors (5xx or unknown)": "サーバーエラー（5xx または不明）",
     "Upstream Error Redaction": "上流エラーの機密情報保護",

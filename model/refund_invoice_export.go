@@ -27,20 +27,21 @@ type RefundInvoiceExport struct {
 }
 
 type RefundExportPayment struct {
-	Calculation       *RefundPaymentCalculation `json:"calculation,omitempty"`
-	UsedQuota         int64                     `json:"used_quota,omitempty"`
-	UsedCents         int64                     `json:"used_cents,omitempty"`
-	GiftPolicyVersion int                       `json:"gift_policy_version,omitempty"`
-	OriginalGiftQuota int64                     `json:"original_gift_quota,omitempty"`
-	RefundGiftQuota   int64                     `json:"refund_gift_quota,omitempty"`
-	OriginalTaxCents  int64                     `json:"original_tax_cents"`
-	RefundTaxCents    int64                     `json:"refund_tax_cents"`
-	OriginalQuota     int64                     `json:"original_quota"`
-	RefundQuota       int64                     `json:"refund_quota"`
-	OrderID           int                       `json:"order_id"`
-	TradeNo           string                    `json:"trade_no"`
-	PaidCents         int64                     `json:"paid_cents"`
-	RefundCents       int64                     `json:"refund_cents"`
+	DeferredConsumptionQuota int64                     `json:"deferred_consumption_quota,omitempty"`
+	Calculation              *RefundPaymentCalculation `json:"calculation,omitempty"`
+	UsedQuota                int64                     `json:"used_quota,omitempty"`
+	UsedCents                int64                     `json:"used_cents,omitempty"`
+	GiftPolicyVersion        int                       `json:"gift_policy_version,omitempty"`
+	OriginalGiftQuota        int64                     `json:"original_gift_quota,omitempty"`
+	RefundGiftQuota          int64                     `json:"refund_gift_quota,omitempty"`
+	OriginalTaxCents         int64                     `json:"original_tax_cents"`
+	RefundTaxCents           int64                     `json:"refund_tax_cents"`
+	OriginalQuota            int64                     `json:"original_quota"`
+	RefundQuota              int64                     `json:"refund_quota"`
+	OrderID                  int                       `json:"order_id"`
+	TradeNo                  string                    `json:"trade_no"`
+	PaidCents                int64                     `json:"paid_cents"`
+	RefundCents              int64                     `json:"refund_cents"`
 }
 
 // Stored with the allocation: subsequent consumption must not rewrite this basis.
@@ -78,13 +79,14 @@ type RefundIssuerInvoiceType struct {
 }
 
 type RefundExportData struct {
-	GiftRecoveryPolicy string                `json:"gift_recovery_policy,omitempty"`
-	PaidQuota          int64                 `json:"paid_quota,omitempty"`
-	RefundGiftQuota    int64                 `json:"refund_gift_quota,omitempty"`
-	TicketID           int                   `json:"ticket_id"`
-	CashCents          int64                 `json:"cash_cents"`
-	Payments           []RefundExportPayment `json:"payments"`
-	Invoices           []RefundExportInvoice `json:"invoices"`
+	Overdraft          *RefundConsumptionOverdraft `json:"overdraft,omitempty"`
+	GiftRecoveryPolicy string                      `json:"gift_recovery_policy,omitempty"`
+	PaidQuota          int64                       `json:"paid_quota,omitempty"`
+	RefundGiftQuota    int64                       `json:"refund_gift_quota,omitempty"`
+	TicketID           int                         `json:"ticket_id"`
+	CashCents          int64                       `json:"cash_cents"`
+	Payments           []RefundExportPayment       `json:"payments"`
+	Invoices           []RefundExportInvoice       `json:"invoices"`
 }
 
 type RefundInvoiceExportItem struct {
@@ -575,9 +577,20 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 			return nil, ErrTicketRefundQuotaInvalid
 		}
 	} else {
+		overdraft, deferred, err := applyRefundConsumptionOverdraft(orders, lots, refund, &owner, config.RefundOverdraftLimitCents)
+		if err != nil {
+			return nil, err
+		}
 		result, err = calculateOriginalRefundPayments(orders, lots, requested, config.RefundGiftRecoveryPolicy)
 		if err != nil {
 			return nil, err
+		}
+		if overdraft != nil && result.RefundGiftQuota != 0 {
+			return nil, ErrRefundExport
+		}
+		result.Overdraft = overdraft
+		for i := range result.Payments {
+			result.Payments[i].DeferredConsumptionQuota = deferred[result.Payments[i].OrderID]
 		}
 	}
 	result.TicketID = refund.TicketId
