@@ -5708,6 +5708,8 @@
     "Invalid affinity cache cooling rule": "Недопустимое правило охлаждения кеша при привязке",
     "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "Учитываются запросы с отметкой попадания привязки в журнале: потоковые, обычные и с нулевым чтением кеша. Порог ноль отключает правило. При недостатке запросов охлаждение не включается; после восстановления сбор начинается заново.",
     "Exclude requests without affinity hits from cache hit rate": "Исключать запросы без совпадения привязки из доли кеширования",
+    "Refund grace amount (CNY, 0 to disable)": "Допуск при возврате (CNY, 0 — отключить)",
+    "Amount must be between CNY 0 and 10, with at most two decimal places.": "Сумма должна быть от 0 до 10 CNY, не более двух знаков после запятой.",
     "Client errors (4xx)": "Ошибки клиента (4xx)",
     "Server errors (5xx or unknown)": "Ошибки сервера (5xx или неизвестный статус)",
     "Upstream Error Redaction": "Скрытие данных в ошибках провайдера",
