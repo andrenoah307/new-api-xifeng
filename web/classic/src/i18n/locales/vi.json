@@ -5859,6 +5859,14 @@
     "Default style": "Kiểu mặc định",
     "Packy style": "Kiểu Packy",
     "Homepage (after Docs)": "Trang chủ (sau Tài liệu)",
-    "Custom header link style": "Kiểu liên kết tùy chỉnh ở đầu trang"
+    "Custom header link style": "Kiểu liên kết tùy chỉnh ở đầu trang",
+    "Affinity token cache rate": "Tỷ lệ cache token của yêu cầu có liên kết",
+    "Cache rate below (%)": "Tỷ lệ cache thấp hơn (%)",
+    "Cache window (hours)": "Khoảng thống kê cache (giờ)",
+    "Minimum affinity samples": "Số yêu cầu có liên kết tối thiểu",
+    "All enabled conditions must be met": "Phải đáp ứng tất cả điều kiện đã bật",
+    "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.": "Độ trễ phản hồi đầu tiên và lỗi thượng nguồn dùng chung khoảng quan sát; cache có liên kết dùng khoảng riêng theo giờ.",
+    "Invalid affinity cache cooling rule": "Quy tắc nghỉ theo cache có liên kết không hợp lệ",
+    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "Tính các yêu cầu có dấu trúng liên kết trong nhật ký, gồm luồng, không luồng và đọc cache bằng 0. Ngưỡng 0 tắt quy tắc. Không kích hoạt nghỉ khi thiếu mẫu; thu thập lại sau khi khôi phục."
   }
 }

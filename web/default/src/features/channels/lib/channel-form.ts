@@ -291,6 +291,26 @@ export const channelFormSchema = z
           }
 
           const triggerPercent = pressureCooling.trigger_percent
+          for (const [key, min, max] of [
+            ['affinity_cache_min_percent', 0, 100],
+            ['affinity_cache_window_hours', 1, 24],
+            ['affinity_cache_min_samples', 1, 1000000],
+          ] as const) {
+            const value = pressureCooling[key]
+            if (
+              value != null &&
+              (typeof value !== 'number' ||
+                !Number.isInteger(value) ||
+                value < min ||
+                value > max)
+            ) {
+              addRequiredIssue(
+                ctx,
+                'pressure_cooling',
+                'Invalid affinity cache cooling rule'
+              )
+            }
+          }
           const consecutiveLimit = pressureCooling.max_consecutive_cooldowns
           if (
             consecutiveLimit != null &&

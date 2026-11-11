@@ -9,6 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestValidateAffinityCacheCoolingRule(t *testing.T) {
+	for _, raw := range []string{`{}`, `{"affinity_cache_min_percent":0}`, `{"affinity_cache_min_percent":30,"affinity_cache_window_hours":24,"affinity_cache_min_samples":100}`} {
+		setting := `{"pressure_cooling":` + raw + `}`
+		require.NoError(t, validateChannel(&model.Channel{Group: "pro", Key: "key", Setting: &setting}, false))
+	}
+	for _, raw := range []string{`{"affinity_cache_min_percent":101}`, `{"affinity_cache_min_percent":-1}`, `{"affinity_cache_window_hours":0}`, `{"affinity_cache_window_hours":25}`, `{"affinity_cache_window_hours":1.5}`, `{"affinity_cache_min_samples":0}`, `{"affinity_cache_min_samples":1000001}`} {
+		setting := `{"pressure_cooling":` + raw + `}`
+		require.Error(t, validateChannel(&model.Channel{Group: "pro", Key: "key", Setting: &setting}, false), raw)
+	}
+}
+
 func TestValidateChannelConsecutiveCooldownLimit(t *testing.T) {
 	for _, raw := range []string{`{}`, `{"max_consecutive_cooldowns":null}`, `{"max_consecutive_cooldowns":1}`, `{"max_consecutive_cooldowns":100}`} {
 		setting := `{"pressure_cooling":` + raw + `}`

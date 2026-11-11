@@ -5370,6 +5370,14 @@
     "Default style": "Стандартный стиль",
     "Packy style": "Стиль Packy",
     "Homepage (after Docs)": "Главная (после документации)",
-    "Custom header link style": "Стиль пользовательских ссылок в шапке"
+    "Custom header link style": "Стиль пользовательских ссылок в шапке",
+    "Affinity token cache rate": "Доля кешированных токенов при привязке",
+    "Cache rate below (%)": "Доля кеша ниже (%)",
+    "Cache window (hours)": "Окно кеша (часы)",
+    "Minimum affinity samples": "Минимум запросов с привязкой",
+    "All enabled conditions must be met": "Требуется выполнение всех включённых условий",
+    "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.": "Задержка первого ответа и ошибки используют общее окно; кеш при привязке использует отдельное окно в часах.",
+    "Invalid affinity cache cooling rule": "Недопустимое правило охлаждения кеша при привязке",
+    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "Учитываются запросы с отметкой попадания привязки в журнале: потоковые, обычные и с нулевым чтением кеша. Порог ноль отключает правило. При недостатке запросов охлаждение не включается; после восстановления сбор начинается заново."
   }
 }

@@ -25,6 +25,17 @@ import { mock } from 'bun:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+test('cache cooling fields survive editing and reject invalid windows', async () => {
+  const utils = await import('./PressureCoolingEditor.utils.js');
+  const value = utils.parsePressureCooling('{"affinity_cache_min_percent":30,"affinity_cache_window_hours":6,"affinity_cache_min_samples":100}');
+  const saved = JSON.parse(utils.serializePressureCooling({ ...value, trigger_percent: 75 }));
+  assert.equal(saved.affinity_cache_min_percent, 30);
+  assert.equal(saved.affinity_cache_window_hours, 6);
+  assert.equal(saved.affinity_cache_min_samples, 100);
+  assert.equal(utils.getPressureCoolingValidationError({ ...value, affinity_cache_window_hours: 25 }), 'affinity_cache_window_hours');
+  assert.equal(utils.getPressureCoolingValidationError({ ...value, affinity_cache_min_samples: 0 }), 'affinity_cache_min_samples');
+});
+
 test('consecutive cooldown limit survives edits and rejects invalid values', async () => {
   const utils = await import('./PressureCoolingEditor.utils.js');
   const value = utils.parsePressureCooling('{"max_consecutive_cooldowns":3}');
@@ -403,7 +414,7 @@ describe('Classic pressure cooling upstream-error condition', () => {
     assert.match(editorSource, /t\('触发条件'\)/);
     assert.match(editorSource, /t\('条件组合'\)/);
     assert.match(editorSource, /t\('任一条件满足即冷却'\)/);
-    assert.match(editorSource, /t\('两个条件同时满足才冷却'\)/);
+    assert.match(editorSource, /t\('All enabled conditions must be met'\)/);
     assert.match(editorSource, /t\('上游报错'\)/);
     assert.match(
       editorSource,

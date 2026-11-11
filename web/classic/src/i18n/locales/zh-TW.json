@@ -5328,6 +5328,14 @@
     "Default style": "預設樣式",
     "Packy style": "Packy 風格",
     "Homepage (after Docs)": "首頁文件按鈕右側",
-    "Custom header link style": "頂部自訂連結樣式"
+    "Custom header link style": "頂部自訂連結樣式",
+    "Affinity token cache rate": "親和請求 token 快取率",
+    "Cache rate below (%)": "快取率低於（%）",
+    "Cache window (hours)": "快取統計視窗（小時）",
+    "Minimum affinity samples": "最少親和請求數",
+    "All enabled conditions must be met": "所有啟用的條件均滿足才冷卻",
+    "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.": "首字延遲與上游報錯共用觀察視窗；親和快取使用獨立的小時視窗。",
+    "Invalid affinity cache cooling rule": "親和快取冷卻規則無效",
+    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "統計日誌帶親和命中標記的請求，包含串流、非串流及快取讀取為 0 的請求。閾值為 0 時關閉此規則；樣本不足不觸發冷卻，恢復後重新累積樣本。"
   }
 }

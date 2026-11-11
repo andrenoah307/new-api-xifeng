@@ -5316,6 +5316,14 @@
     "Default style": "標準スタイル",
     "Packy style": "Packy スタイル",
     "Homepage (after Docs)": "ホーム（ドキュメントの右側）",
-    "Custom header link style": "ヘッダーのカスタムリンクのスタイル"
+    "Custom header link style": "ヘッダーのカスタムリンクのスタイル",
+    "Affinity token cache rate": "アフィニティリクエストのトークンキャッシュ率",
+    "Cache rate below (%)": "キャッシュ率の下限（%）",
+    "Cache window (hours)": "キャッシュ集計期間（時間）",
+    "Minimum affinity samples": "アフィニティリクエストの最小件数",
+    "All enabled conditions must be met": "有効なすべての条件を満たした場合",
+    "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.": "初回応答遅延と上流エラーは同じ観測期間を使用し、アフィニティキャッシュは独立した時間単位の期間を使用します。",
+    "Invalid affinity cache cooling rule": "アフィニティキャッシュの冷却ルールが無効です",
+    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "ログでアフィニティヒットと表示されるリクエストを集計します。ストリーミングの有無やキャッシュ読み取り 0 の場合も含みます。しきい値 0 で無効になります。サンプル不足では冷却せず、復旧後に再集計します。"
   }
 }

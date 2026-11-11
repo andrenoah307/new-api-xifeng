@@ -19,6 +19,9 @@ export type PressureCoolingScope = 'channel' | 'groups'
 export type PressureCoolingConditionMode = 'any' | 'all'
 
 export interface PressureCooling {
+  affinity_cache_min_percent?: number | null
+  affinity_cache_window_hours?: number | null
+  affinity_cache_min_samples?: number | null
   enabled: boolean | null
   scope: PressureCoolingScope
   cooldown_groups: string[]
@@ -70,6 +73,9 @@ export function normalizePressureCooling(
   if (!isRecord(value)) return null
 
   const hasOverride =
+    value.affinity_cache_min_percent != null ||
+    value.affinity_cache_window_hours != null ||
+    value.affinity_cache_min_samples != null ||
     value.enabled != null ||
     value.scope != null ||
     value.cooldown_groups != null ||
@@ -85,6 +91,15 @@ export function normalizePressureCooling(
   if (!hasOverride) return null
 
   return {
+    ...Object.fromEntries(
+      [
+        'affinity_cache_min_percent',
+        'affinity_cache_window_hours',
+        'affinity_cache_min_samples',
+      ]
+        .filter((key) => value[key] != null)
+        .map((key) => [key, readNullableNumber(value[key])])
+    ),
     enabled: typeof value.enabled === 'boolean' ? value.enabled : null,
     // Missing scope is deliberately normalized to the legacy channel behavior.
     scope: value.scope === 'groups' ? 'groups' : 'channel',
@@ -170,6 +185,9 @@ export function serializePressureCooling(
     availableGroups
   )
   const hasValue =
+    obj.affinity_cache_min_percent != null ||
+    obj.affinity_cache_window_hours != null ||
+    obj.affinity_cache_min_samples != null ||
     obj.enabled !== null ||
     obj.frt_threshold_ms !== null ||
     obj.trigger_percent !== null ||
@@ -184,6 +202,17 @@ export function serializePressureCooling(
   if (!hasValue) return ''
 
   const serialized: Record<string, unknown> = {
+    ...Object.fromEntries(
+      (
+        [
+          'affinity_cache_min_percent',
+          'affinity_cache_window_hours',
+          'affinity_cache_min_samples',
+        ] as const
+      )
+        .filter((key) => obj[key] != null)
+        .map((key) => [key, obj[key]])
+    ),
     enabled: obj.enabled,
     frt_threshold_ms: obj.frt_threshold_ms,
     trigger_percent: obj.trigger_percent,

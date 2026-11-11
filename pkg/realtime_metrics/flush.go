@@ -102,6 +102,7 @@ func flushOnce() {
 		return
 	}
 	flushChannelCacheUsage()
+	flushChannelAffinityCacheUsage()
 	drained := globalDeltas.drain()
 	channelDrained := drainChannelDeltas()
 	if err := writeToRedis(drained, channelDrained); err != nil {

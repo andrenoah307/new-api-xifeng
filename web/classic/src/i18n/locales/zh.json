@@ -3224,6 +3224,14 @@
     "Default style": "默认样式",
     "Packy style": "Packy 风格",
     "Homepage (after Docs)": "首页文档按钮右侧",
-    "Custom header link style": "顶部自定义链接样式"
+    "Custom header link style": "顶部自定义链接样式",
+    "Affinity token cache rate": "亲和请求 token 缓存率",
+    "Cache rate below (%)": "缓存率低于（%）",
+    "Cache window (hours)": "缓存统计窗口（小时）",
+    "Minimum affinity samples": "最少亲和请求数",
+    "All enabled conditions must be met": "所有启用的条件均满足才冷却",
+    "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.": "首字延迟与上游报错共用观察窗口；亲和缓存使用独立的小时窗口。",
+    "Invalid affinity cache cooling rule": "亲和缓存冷却规则无效",
+    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "统计日志带亲和命中标记的请求，包含流式、非流式及缓存读取为 0 的请求。阈值为 0 时关闭此规则；样本不足不触发冷却，恢复后重新积累样本。"
   }
 }

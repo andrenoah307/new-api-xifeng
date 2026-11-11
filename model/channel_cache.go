@@ -23,6 +23,25 @@ var channelsIDM map[int]*Channel                     // all channels include dis
 var channel2advancedCustomConfig map[int]*dto.AdvancedCustomConfig
 var channelSyncLock sync.RWMutex
 
+// PressureCoolingChannels returns a snapshot for the background rule evaluator.
+func PressureCoolingChannels() ([]*Channel, error) {
+	if !common.MemoryCacheEnabled {
+		var channels []*Channel
+		err := DB.Where("status = ?", common.ChannelStatusEnabled).Omit("key").Find(&channels).Error
+		return channels, err
+	}
+	channelSyncLock.RLock()
+	defer channelSyncLock.RUnlock()
+	channels := make([]*Channel, 0, len(channelsIDM))
+	for _, ch := range channelsIDM {
+		if ch.Status == common.ChannelStatusEnabled {
+			copy := *ch
+			channels = append(channels, &copy)
+		}
+	}
+	return channels, nil
+}
+
 func InitChannelCache() {
 	if !common.MemoryCacheEnabled {
 		InvalidatePricingCache()

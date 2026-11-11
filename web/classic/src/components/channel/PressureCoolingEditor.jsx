@@ -91,6 +91,9 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
   }, [groups, value]);
 
   const hasOverride =
+    v.affinity_cache_min_percent != null ||
+    v.affinity_cache_window_hours != null ||
+    v.affinity_cache_min_samples != null ||
     v.max_consecutive_cooldowns != null ||
     v.enabled != null ||
     v.frt_threshold_ms != null ||
@@ -216,11 +219,14 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
                 marginBottom: 12,
               }}
             >
-              {t('两个条件共用同一个观察窗口')}
+              {t(
+                'FRT and upstream errors share an observation window; affinity cache uses its own hourly window.',
+              )}
             </Text>
 
             {(v.upstream_error_trigger_percent > 0 ||
-              v.upstream_error_trigger_count > 0) && (
+              v.upstream_error_trigger_count > 0 ||
+              v.affinity_cache_min_percent > 0) && (
               <Row gutter={16} type='flex' style={{ marginBottom: 16 }}>
                 <Col xs={24} md={12} style={{ marginBottom: 8 }}>
                   <FieldLabel>{t('条件组合')}</FieldLabel>
@@ -236,7 +242,9 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
                     aria-label={t('条件组合')}
                   >
                     <Radio value='any'>{t('任一条件满足即冷却')}</Radio>
-                    <Radio value='all'>{t('两个条件同时满足才冷却')}</Radio>
+                    <Radio value='all'>
+                      {t('All enabled conditions must be met')}
+                    </Radio>
                   </RadioGroup>
                 </Col>
               </Row>
@@ -384,6 +392,76 @@ const PressureCoolingEditor = ({ value, onChange, groups = [] }) => {
           </div>
 
           <div style={{ marginBottom: 16 }}>
+            <Text strong size='small' className='block mb-2'>
+              {t('Affinity token cache rate')}
+            </Text>
+            <Text size='small' className='block mb-3'>
+              {t(
+                'Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.',
+              )}
+            </Text>
+            <Row gutter={16} type='flex'>
+              <Col xs={24} md={8} className='mb-3'>
+                <FieldLabel>{t('Cache rate below (%)')}</FieldLabel>
+                <InputNumber
+                  aria-label={t('Cache rate below (%)')}
+                  min={0}
+                  max={100}
+                  precision={0}
+                  value={v.affinity_cache_min_percent}
+                  placeholder='0'
+                  style={{ width: '100%' }}
+                  onChange={(n) =>
+                    update({
+                      affinity_cache_min_percent:
+                        typeof n === 'number' && Number.isFinite(n)
+                          ? Math.min(100, Math.max(0, Math.round(n)))
+                          : null,
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} md={8} className='mb-3'>
+                <FieldLabel>{t('Cache window (hours)')}</FieldLabel>
+                <InputNumber
+                  aria-label={t('Cache window (hours)')}
+                  min={1}
+                  max={24}
+                  precision={0}
+                  value={v.affinity_cache_window_hours}
+                  placeholder='1'
+                  style={{ width: '100%' }}
+                  onChange={(n) =>
+                    update({
+                      affinity_cache_window_hours:
+                        typeof n === 'number' && Number.isFinite(n)
+                          ? Math.min(24, Math.max(1, Math.round(n)))
+                          : null,
+                    })
+                  }
+                />
+              </Col>
+              <Col xs={24} md={8} className='mb-3'>
+                <FieldLabel>{t('Minimum affinity samples')}</FieldLabel>
+                <InputNumber
+                  aria-label={t('Minimum affinity samples')}
+                  min={1}
+                  max={1000000}
+                  precision={0}
+                  value={v.affinity_cache_min_samples}
+                  placeholder='100'
+                  style={{ width: '100%' }}
+                  onChange={(n) =>
+                    update({
+                      affinity_cache_min_samples:
+                        typeof n === 'number' && Number.isFinite(n)
+                          ? Math.min(1000000, Math.max(1, Math.round(n)))
+                          : null,
+                    })
+                  }
+                />
+              </Col>
+            </Row>
             <Text strong size='small' className='block mb-2'>
               {t('冷却设置')}
             </Text>

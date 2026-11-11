@@ -1,5 +1,7 @@
 package constant
 
+const ContextKeyAffinitySelectedChannel = "affinity_selected_channel"
+
 type ContextKey string
 
 const (

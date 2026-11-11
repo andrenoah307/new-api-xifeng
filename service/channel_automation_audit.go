@@ -35,6 +35,9 @@ func pressureCoolingAuditDetails(state *PressureCoolingState, cfg resolvedPressu
 		"max_consecutive": cfg.MaxConsecutiveCooldowns, "grace_until": state.GraceUntil,
 		"observation_window_seconds": cfg.ObservationWindowSeconds, "frt_threshold_ms": cfg.FRTThresholdMs,
 		"trigger_percent": cfg.TriggerPercent, "condition_mode": cfg.ConditionMode,
+		"affinity_cache_min_percent":     cfg.AffinityCacheMinPercent,
+		"affinity_cache_window_hours":    cfg.AffinityCacheWindowHours,
+		"affinity_cache_min_samples":     cfg.AffinityCacheMinSamples,
 		"upstream_error_trigger_percent": cfg.UpstreamErrorTriggerPercent,
 		"upstream_error_min_samples":     cfg.UpstreamErrorMinSamples, "upstream_error_trigger_count": cfg.UpstreamErrorTriggerCount,
 	}

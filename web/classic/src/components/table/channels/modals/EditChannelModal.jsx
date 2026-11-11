@@ -1734,6 +1734,9 @@ const EditChannelModal = (props) => {
     if (pressureCoolingValidationError) {
       const pressureCoolingValidationMessage =
         {
+          affinity_cache_min_percent: 'Invalid affinity cache cooling rule',
+          affinity_cache_window_hours: 'Invalid affinity cache cooling rule',
+          affinity_cache_min_samples: 'Invalid affinity cache cooling rule',
           max_consecutive_cooldowns:
             'Consecutive cooldown limit must be an integer from 1 to 100',
           trigger_percent: '压力冷却触发百分比必须在 1 到 100 之间',

@@ -46,6 +46,9 @@ type RiskControlHeaderRule struct {
 }
 
 type PressureCoolingOverride struct {
+	AffinityCacheMinPercent     *int     `json:"affinity_cache_min_percent,omitempty"`
+	AffinityCacheWindowHours    *int     `json:"affinity_cache_window_hours,omitempty"`
+	AffinityCacheMinSamples     *int     `json:"affinity_cache_min_samples,omitempty"`
 	Enabled                     *bool    `json:"enabled,omitempty"`
 	FRTThresholdMs              *int     `json:"frt_threshold_ms,omitempty"`
 	TriggerPercent              *int     `json:"trigger_percent,omitempty"`

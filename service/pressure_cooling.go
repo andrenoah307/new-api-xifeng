@@ -16,6 +16,9 @@ import (
 )
 
 type resolvedPressureCoolingConfig struct {
+	AffinityCacheMinPercent     int
+	AffinityCacheWindowHours    int
+	AffinityCacheMinSamples     int
 	Enabled                     bool
 	Scope                       string
 	CooldownGroups              []string
@@ -35,6 +38,9 @@ type resolvedPressureCoolingConfig struct {
 }
 
 type pressureCoolingReason struct {
+	cacheMet      bool
+	cachePercent  float64
+	cacheSamples  int64
 	frtMet        bool
 	errorMet      bool
 	errorAttempts int64
@@ -44,6 +50,8 @@ type pressureCoolingReason struct {
 func resolvePressureCoolingConfig(override *dto.PressureCoolingOverride) resolvedPressureCoolingConfig {
 	g := operation_setting.GetPressureCoolingSetting()
 	r := resolvedPressureCoolingConfig{
+		AffinityCacheWindowHours:    1,
+		AffinityCacheMinSamples:     100,
 		Enabled:                     g.Enabled,
 		Scope:                       "channel",
 		ObservationWindowSeconds:    g.ObservationWindowSeconds,
@@ -65,6 +73,15 @@ func resolvePressureCoolingConfig(override *dto.PressureCoolingOverride) resolve
 	}
 	if override.Enabled != nil {
 		r.Enabled = *override.Enabled
+	}
+	if override.AffinityCacheMinPercent != nil && *override.AffinityCacheMinPercent >= 0 && *override.AffinityCacheMinPercent <= 100 {
+		r.AffinityCacheMinPercent = *override.AffinityCacheMinPercent
+	}
+	if override.AffinityCacheWindowHours != nil && *override.AffinityCacheWindowHours >= 1 && *override.AffinityCacheWindowHours <= 24 {
+		r.AffinityCacheWindowHours = *override.AffinityCacheWindowHours
+	}
+	if override.AffinityCacheMinSamples != nil && *override.AffinityCacheMinSamples >= 1 && *override.AffinityCacheMinSamples <= 1000000 {
+		r.AffinityCacheMinSamples = *override.AffinityCacheMinSamples
 	}
 	if override.FRTThresholdMs != nil {
 		r.FRTThresholdMs = *override.FRTThresholdMs
@@ -136,6 +153,11 @@ func pressureCoolingErrorConditionConfigured(cfg resolvedPressureCoolingConfig) 
 }
 
 func pressureCoolingConditionsMet(cfg resolvedPressureCoolingConfig, frtMet, errorMet bool) bool {
+	// With an affinity cache rule, ALL is evaluated by the background worker,
+	// which owns the bounded Redis window read. No request-path window scans.
+	if cfg.AffinityCacheMinPercent > 0 && normalizePressureCoolingConditionMode(cfg.ConditionMode) == "all" {
+		return false
+	}
 	if !pressureCoolingErrorConditionConfigured(cfg) {
 		return frtMet
 	}
@@ -164,6 +186,9 @@ func pressureCoolingStateTTL(cfg resolvedPressureCoolingConfig) int {
 	}
 	if ttl < cfg.GracePeriodSeconds*3 {
 		ttl = cfg.GracePeriodSeconds * 3
+	}
+	if cfg.AffinityCacheMinPercent > 0 && ttl < 25*3600 {
+		ttl = 25 * 3600
 	}
 	return ttl
 }
@@ -236,12 +261,25 @@ func recordPressureCoolingAttemptAt(ch *model.Channel, cfg resolvedPressureCooli
 	if normalizePressureCoolingConditionMode(cfg.ConditionMode) == "all" && !frtMet {
 		return
 	}
+	if cfg.AffinityCacheMinPercent > 0 && normalizePressureCoolingConditionMode(cfg.ConditionMode) == "all" {
+		return
+	}
 	executePressureCooling(ch, state, cfg, now, pressureCoolingStateTTL(cfg), &pressureCoolingReason{
 		frtMet: frtMet, errorMet: true, errorAttempts: attempts, errorCount: errors,
 	})
 }
 
 func formatPressureCoolingReason(state *PressureCoolingState, cfg resolvedPressureCoolingConfig, cooldownSec int64, info *pressureCoolingReason) string {
+	if info != nil && info.cacheMet {
+		text := fmt.Sprintf("压力冷却：近 %d 小时亲和命中请求的上游 token 缓存率 %.2f%%，低于 %d%%，有效样本 %d（至少 %d），冷却 %ds",
+			cfg.AffinityCacheWindowHours, info.cachePercent, cfg.AffinityCacheMinPercent, info.cacheSamples, cfg.AffinityCacheMinSamples, cooldownSec)
+		if normalizePressureCoolingConditionMode(cfg.ConditionMode) == "all" {
+			other := *info
+			other.cacheMet = false
+			text += "；" + formatPressureCoolingReason(state, cfg, cooldownSec, &other)
+		}
+		return text
+	}
 	if info == nil || !info.errorMet {
 		pct := int64(0)
 		if state.TotalRequests > 0 {
@@ -343,6 +381,10 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 	if notification == nil {
 		return
 	}
+	if reason != nil && reason.cacheMet {
+		notification.auditDetails["affinity_cache_percent"] = reason.cachePercent
+		notification.auditDetails["affinity_cache_samples"] = reason.cacheSamples
+	}
 	model.RecordChannelAutomationLog(ch.Id, "channel.pressure_cooling.cooldown", notification.auditReason, notification.auditDetails)
 	if notification.refreshOverlay {
 		refreshPressureCoolingOverlay()
@@ -353,6 +395,12 @@ func executePressureCooling(ch *model.Channel, state *PressureCoolingState, cfg 
 func executePressureCoolingDecision(ch *model.Channel, state *PressureCoolingState, cfg resolvedPressureCoolingConfig, now int64, stateTTL int, reason *pressureCoolingReason) *pressureCoolingNotification {
 	pressureCoolingExecutionMu.Lock()
 	defer pressureCoolingExecutionMu.Unlock()
+	if reason != nil && reason.cacheMet {
+		current, err := loadPressureCoolingStateResult(ch.Id)
+		if err != nil || current == nil || current.State != "obs" || current.GraceUntil > now || current.revision != state.revision {
+			return nil
+		}
+	}
 
 	if cfg.Scope == "groups" {
 		targetGroups := pressureCoolingTargetGroups(ch, cfg.CooldownGroups)
@@ -392,7 +440,7 @@ func executePressureCoolingDecision(ch *model.Channel, state *PressureCoolingSta
 		auditDetails["marker_saved"] = markerSaved
 		common.SysLog(fmt.Sprintf("pressure cooling transition: channel=%d scope=groups state=cool cooldown_until=%d consecutive=%d", ch.Id, state.CooldownUntil, state.Consecutive))
 
-		subject := fmt.Sprintf("渠道「%s」(#%d) 因高延迟已自动冷却分组", ch.Name, ch.Id)
+		subject := fmt.Sprintf("渠道「%s」(#%d) 已触发自动冷却分组", ch.Name, ch.Id)
 		content := fmt.Sprintf("渠道「%s」(#%d) 已从分组 %s 摘除，其余分组不受影响。%s\n冷却将于 %s 后自动恢复（第 %d 次连续冷却）",
 			ch.Name, ch.Id, strings.Join(targetGroups, ", "), reasonText, formatCooldownDuration(cooldownSec), state.Consecutive)
 		return &pressureCoolingNotification{
@@ -443,7 +491,7 @@ func executePressureCoolingDecision(ch *model.Channel, state *PressureCoolingSta
 	auditDetails["marker_saved"], auditDetails["status_updated"] = markerSaved, statusUpdated
 	common.SysLog(fmt.Sprintf("pressure cooling transition: channel=%d scope=channel state=cool cooldown_until=%d consecutive=%d", ch.Id, state.CooldownUntil, state.Consecutive))
 
-	subject := fmt.Sprintf("渠道「%s」(#%d) 因高延迟已自动冷却", ch.Name, ch.Id)
+	subject := fmt.Sprintf("渠道「%s」(#%d) 已触发自动冷却", ch.Name, ch.Id)
 	content := fmt.Sprintf("渠道「%s」(#%d) %s\n冷却将于 %s 后自动恢复（第 %d 次连续冷却）",
 		ch.Name, ch.Id, reasonText, formatCooldownDuration(cooldownSec), state.Consecutive)
 	return &pressureCoolingNotification{
@@ -549,6 +597,7 @@ func pressureCoolingRecoveryLoop() {
 		time.Sleep(time.Duration(interval) * time.Second)
 
 		pressureCoolingRecoveryOnce(time.Now().Unix())
+		checkChannelAffinityCacheCooling(time.Now().Unix())
 	}
 }
 

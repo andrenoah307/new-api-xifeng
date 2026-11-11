@@ -59,6 +59,9 @@ export const normalizePressureCooling = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
 
   const hasOverride =
+    value.affinity_cache_min_percent != null ||
+    value.affinity_cache_window_hours != null ||
+    value.affinity_cache_min_samples != null ||
     value.max_consecutive_cooldowns != null ||
     PRESSURE_COOLING_FIELDS.some((field) => value[field] != null) ||
     PRESSURE_COOLING_UPSTREAM_ERROR_FIELDS.some(
@@ -72,6 +75,15 @@ export const normalizePressureCooling = (value) => {
   const cooldownGroups = normalizeGroups(value.cooldown_groups);
 
   return {
+    ...Object.fromEntries(
+      [
+        'affinity_cache_min_percent',
+        'affinity_cache_window_hours',
+        'affinity_cache_min_samples',
+      ]
+        .filter((key) => value[key] != null)
+        .map((key) => [key, value[key]]),
+    ),
     ...(value.max_consecutive_cooldowns != null
       ? { max_consecutive_cooldowns: value.max_consecutive_cooldowns }
       : {}),
@@ -122,6 +134,19 @@ export const normalizePressureCooling = (value) => {
 
 export const getPressureCoolingValidationError = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+
+  for (const [key, min, max] of [
+    ['affinity_cache_min_percent', 0, 100],
+    ['affinity_cache_window_hours', 1, 24],
+    ['affinity_cache_min_samples', 1, 1000000],
+  ]) {
+    const number = value[key];
+    if (
+      number != null &&
+      (!Number.isInteger(number) || number < min || number > max)
+    )
+      return key;
+  }
 
   const limit = value.max_consecutive_cooldowns;
   if (limit != null && (!Number.isInteger(limit) || limit < 1 || limit > 100)) {
@@ -203,6 +228,9 @@ export const serializePressureCooling = (value, availableGroups) => {
   if (!normalized) return '';
 
   const hasValue =
+    normalized.affinity_cache_min_percent != null ||
+    normalized.affinity_cache_window_hours != null ||
+    normalized.affinity_cache_min_samples != null ||
     normalized.max_consecutive_cooldowns != null ||
     PRESSURE_COOLING_FIELDS.some((field) => normalized[field] != null) ||
     normalized.scope === 'groups' ||
@@ -214,6 +242,13 @@ export const serializePressureCooling = (value, availableGroups) => {
   const payload = Object.fromEntries(
     PRESSURE_COOLING_FIELDS.map((field) => [field, normalized[field]]),
   );
+  for (const key of [
+    'affinity_cache_min_percent',
+    'affinity_cache_window_hours',
+    'affinity_cache_min_samples',
+  ]) {
+    if (normalized[key] != null) payload[key] = normalized[key];
+  }
   if (normalized.max_consecutive_cooldowns != null) {
     payload.max_consecutive_cooldowns = normalized.max_consecutive_cooldowns;
   }

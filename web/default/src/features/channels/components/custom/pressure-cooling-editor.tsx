@@ -145,10 +145,13 @@ export function PressureCoolingEditor({ form }: Props) {
           {t('Trigger Conditions')}
         </h5>
         <p className='text-muted-foreground text-xs'>
-          {t('Both conditions share the same observation window')}
+          {t(
+            'FRT and upstream errors share an observation window; affinity cache uses its own hourly window.'
+          )}
         </p>
         {(data.upstream_error_trigger_percent ?? 0) > 0 ||
-        (data.upstream_error_trigger_count ?? 0) > 0 ? (
+        (data.upstream_error_trigger_count ?? 0) > 0 ||
+        (data.affinity_cache_min_percent ?? 0) > 0 ? (
           <div className='space-y-1'>
             <Label className='text-xs'>{t('Condition Combination')}</Label>
             <RadioGroup
@@ -180,7 +183,7 @@ export function PressureCoolingEditor({ form }: Props) {
                   htmlFor='pressure-cooling-condition-all'
                   className='cursor-pointer text-xs font-normal'
                 >
-                  {t('Match all conditions to cool down')}
+                  {t('All enabled conditions must be met')}
                 </Label>
               </div>
             </RadioGroup>
@@ -343,6 +346,99 @@ export function PressureCoolingEditor({ form }: Props) {
               />
             </div>
           </div>
+        </div>
+      </section>
+      <section
+        className='space-y-3 border-t pt-3'
+        aria-labelledby='pressure-cooling-cache-settings'
+      >
+        <h5
+          id='pressure-cooling-cache-settings'
+          className='text-xs font-medium'
+        >
+          {t('Affinity token cache rate')}
+        </h5>
+        <p className='text-muted-foreground text-xs'>
+          {t(
+            'Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.'
+          )}
+        </p>
+        <div className='grid grid-cols-1 gap-3 sm:grid-cols-3'>
+          <Field>
+            <FieldLabel htmlFor='affinity-cache-percent'>
+              {t('Cache rate below (%)')}
+            </FieldLabel>
+            <Input
+              id='affinity-cache-percent'
+              type='number'
+              min={0}
+              max={100}
+              step={1}
+              value={data.affinity_cache_min_percent ?? ''}
+              placeholder='0'
+              onChange={(event) =>
+                update(
+                  'affinity_cache_min_percent',
+                  Number.isFinite(event.target.valueAsNumber)
+                    ? Math.min(
+                        100,
+                        Math.max(0, Math.round(event.target.valueAsNumber))
+                      )
+                    : null
+                )
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor='affinity-cache-hours'>
+              {t('Cache window (hours)')}
+            </FieldLabel>
+            <Input
+              id='affinity-cache-hours'
+              type='number'
+              min={1}
+              max={24}
+              step={1}
+              value={data.affinity_cache_window_hours ?? ''}
+              placeholder='1'
+              onChange={(event) =>
+                update(
+                  'affinity_cache_window_hours',
+                  Number.isFinite(event.target.valueAsNumber)
+                    ? Math.min(
+                        24,
+                        Math.max(1, Math.round(event.target.valueAsNumber))
+                      )
+                    : null
+                )
+              }
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor='affinity-cache-samples'>
+              {t('Minimum affinity samples')}
+            </FieldLabel>
+            <Input
+              id='affinity-cache-samples'
+              type='number'
+              min={1}
+              max={1000000}
+              step={1}
+              value={data.affinity_cache_min_samples ?? ''}
+              placeholder='100'
+              onChange={(event) =>
+                update(
+                  'affinity_cache_min_samples',
+                  Number.isFinite(event.target.valueAsNumber)
+                    ? Math.min(
+                        1000000,
+                        Math.max(1, Math.round(event.target.valueAsNumber))
+                      )
+                    : null
+                )
+              }
+            />
+          </Field>
         </div>
       </section>
       <section

@@ -508,6 +508,9 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 		monitorPromptTokens = params.PromptTokens + cacheTokens
 	}
 	realtimemetrics.RecordChannelCacheUsage(params.ChannelId, monitorPromptTokens, cacheTokens)
+	if c != nil {
+		realtimemetrics.RecordChannelAffinityCacheUsage(c.GetInt(constant.ContextKeyAffinitySelectedChannel), params.ChannelId, monitorPromptTokens, cacheTokens)
+	}
 	if common.GroupMonitoringHook != nil {
 		common.GroupMonitoringHook(params.Group, params.ChannelId, userId, true, monitorPromptTokens, cacheTokens, params.UseTimeSeconds*1000, frtMs, params.ModelName, 0, "", params.IsStream)
 	}

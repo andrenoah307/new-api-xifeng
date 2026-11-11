@@ -573,6 +573,15 @@ func validatePressureCoolingOverride(channel *model.Channel) error {
 	if override == nil {
 		return nil
 	}
+	if override.AffinityCacheMinPercent != nil && (*override.AffinityCacheMinPercent < 0 || *override.AffinityCacheMinPercent > 100) {
+		return fmt.Errorf("Affinity cache threshold must be from 0 to 100")
+	}
+	if override.AffinityCacheWindowHours != nil && (*override.AffinityCacheWindowHours < 1 || *override.AffinityCacheWindowHours > 24) {
+		return fmt.Errorf("Affinity cache window must be from 1 to 24 hours")
+	}
+	if override.AffinityCacheMinSamples != nil && (*override.AffinityCacheMinSamples < 1 || *override.AffinityCacheMinSamples > 1000000) {
+		return fmt.Errorf("Affinity cache minimum samples must be from 1 to 1000000")
+	}
 	if override.MaxConsecutiveCooldowns != nil && (*override.MaxConsecutiveCooldowns < 1 || *override.MaxConsecutiveCooldowns > 100) {
 		return fmt.Errorf("Consecutive cooldown limit must be an integer from 1 to 100")
 	}

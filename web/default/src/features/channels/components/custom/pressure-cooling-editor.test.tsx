@@ -177,6 +177,36 @@ async function setInputValue(input: DomInputElement, value: string) {
 }
 
 describe('pressure cooling scope configuration', () => {
+  test('edits and clears the cache window without losing other cooling rules', async () => {
+    const rendered = await renderPressureCoolingEditor(
+      JSON.stringify({
+        enabled: true,
+        affinity_cache_min_percent: 30,
+        affinity_cache_window_hours: 6,
+        affinity_cache_min_samples: 100,
+        upstream_error_trigger_count: 5,
+      })
+    )
+    try {
+      const hours = rendered.container.querySelector(
+        '#affinity-cache-hours'
+      ) as DomInputElement
+      assert.equal(hours.value, '6')
+      await setInputValue(hours, '12')
+      assert.equal(
+        JSON.parse(rendered.getRaw()).affinity_cache_window_hours,
+        12
+      )
+      await setInputValue(hours, '')
+      const saved = JSON.parse(rendered.getRaw())
+      assert.equal(saved.affinity_cache_window_hours, undefined)
+      assert.equal(saved.affinity_cache_min_percent, 30)
+      assert.equal(saved.affinity_cache_min_samples, 100)
+      assert.equal(saved.upstream_error_trigger_count, 5)
+    } finally {
+      await rendered.cleanup()
+    }
+  })
   test('ignores the retired upstream error switch while preserving other fields', () => {
     const legacy = JSON.stringify({
       enabled: true,
@@ -421,6 +451,10 @@ describe('pressure cooling scope configuration', () => {
       status: 1,
     }
     const invalidValues = [
+      { affinity_cache_min_percent: 101 },
+      { affinity_cache_window_hours: 0 },
+      { affinity_cache_window_hours: 25 },
+      { affinity_cache_min_samples: 0 },
       { upstream_error_trigger_percent: -1 },
       { upstream_error_trigger_percent: 101 },
       { upstream_error_min_samples: 1.5 },
