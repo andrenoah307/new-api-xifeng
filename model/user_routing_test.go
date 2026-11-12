@@ -19,19 +19,23 @@ func TestUserRoutingLogsAndMonitoringKeepOriginalGroup(t *testing.T) {
 	var monitorGroup string
 	var monitorUser int
 	var monitorStream bool
-	common.GroupMonitoringHook = func(group string, _, userID int, _ bool, _, _, _, _ int, _ string, _ int, _ string, isStream bool) {
+	var monitorAffinity bool
+	common.GroupMonitoringHook = func(group string, _, userID int, _ bool, _, _, _, _ int, _ string, _ int, _ string, isStream, affinityHit bool) {
 		monitorGroup, monitorUser = group, userID
 		monitorStream = isStream
+		monitorAffinity = affinityHit
 	}
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest("POST", "/v1/responses", nil)
 	c.Set("username", "routing-test")
+	c.Set(constant.ContextKeyAffinitySelectedChannel, 9305)
 	common.SetContextKey(c, constant.ContextKeyUserRouting, &dto.UserRoutingInfo{SourceGroup: "original", TargetGroup: "destination", Model: "model-a"})
 	RecordConsumeLog(c, 75, RecordConsumeLogParams{Group: "original", ChannelId: 9306, ModelName: "model-a", Quota: 42, PromptTokens: 10, IsStream: true})
 	RecordErrorLog(c, 75, 9306, "model-a", "", "upstream unavailable", 0, 0, false, "original", nil)
 	assert.Equal(t, "original", monitorGroup)
 	assert.Equal(t, 75, monitorUser)
 	assert.True(t, monitorStream)
+	assert.True(t, monitorAffinity, "marked retry remains an affinity sample on its final channel")
 	var logs []*Log
 	require.NoError(t, LOG_DB.Where("user_id = ?", 75).Order("id").Find(&logs).Error)
 	require.Len(t, logs, 2)

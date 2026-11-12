@@ -36,7 +36,7 @@ func isGroupMonitored(group string) bool {
 	return ok
 }
 
-func RecordMonitoringMetric(group string, channelId, userId int, isSuccess bool, promptTokens, cacheTokens, useTimeMs, frtMs int, modelName string, statusCode int, content string, isStream bool) {
+func RecordMonitoringMetric(group string, channelId, userId int, isSuccess bool, promptTokens, cacheTokens, useTimeMs, frtMs int, modelName string, statusCode int, content string, isStream, affinityHit bool) {
 	if !common.RedisEnabled || group == "" || group == "auto" {
 		return
 	}
@@ -117,6 +117,16 @@ func RecordMonitoringMetric(group string, channelId, userId int, isSuccess bool,
 		if isStream {
 			pipe.HIncrBy(ctx, key, "sct", int64(cacheTokens))
 			pipe.HIncrBy(ctx, key, "spt", int64(promptTokens))
+		}
+		// Retain the intersection as well so both filters can change without
+		// mixing populations or rebuilding historical request logs.
+		if affinityHit {
+			pipe.HIncrBy(ctx, key, "act", int64(cacheTokens))
+			pipe.HIncrBy(ctx, key, "apt", int64(promptTokens))
+			if isStream {
+				pipe.HIncrBy(ctx, key, "sact", int64(cacheTokens))
+				pipe.HIncrBy(ctx, key, "sapt", int64(promptTokens))
+			}
 		}
 	}
 

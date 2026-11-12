@@ -1965,6 +1965,7 @@
     "Exchange rate is required": "汇率为必填项",
     "Exchange rate must be greater than 0": "汇率必须大于 0",
     "Exclude non-streaming requests from cache hit rate": "缓存命中率排除非流式请求",
+    "Exclude requests without affinity hits from cache hit rate": "缓存率排除亲和未命中请求",
     "Excluded channel IDs": "排除渠道 ID",
     "Excluded channels": "排除渠道",
     "Excluded User Groups": "排除分组",

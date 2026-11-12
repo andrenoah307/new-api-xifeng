@@ -200,7 +200,14 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 			}
 
 			bd := parseBucketValues(vals)
-			if cfg.CacheHitExcludeNonStream {
+			if cfg.CacheHitExcludeNonAffinity {
+				cacheField, promptField := "act", "apt"
+				if cfg.CacheHitExcludeNonStream {
+					cacheField, promptField = "sact", "sapt"
+				}
+				bd.CacheTokens, _ = strconv.ParseInt(vals[cacheField], 10, 64)
+				bd.PromptTokens, _ = strconv.ParseInt(vals[promptField], 10, 64)
+			} else if cfg.CacheHitExcludeNonStream {
 				// Missing streaming counters in pre-upgrade buckets mean no sample.
 				bd.CacheTokens, _ = strconv.ParseInt(vals["sct"], 10, 64)
 				bd.PromptTokens, _ = strconv.ParseInt(vals["spt"], 10, 64)

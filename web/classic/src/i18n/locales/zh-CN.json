@@ -5499,6 +5499,7 @@
     "All enabled conditions must be met": "所有启用的条件均满足才冷却",
     "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.": "首字延迟与上游报错共用观察窗口；亲和缓存使用独立的小时窗口。",
     "Invalid affinity cache cooling rule": "亲和缓存冷却规则无效",
-    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "统计日志带亲和命中标记的请求，包含流式、非流式及缓存读取为 0 的请求。阈值为 0 时关闭此规则；样本不足不触发冷却，恢复后重新积累样本。"
+    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "统计日志带亲和命中标记的请求，包含流式、非流式及缓存读取为 0 的请求。阈值为 0 时关闭此规则；样本不足不触发冷却，恢复后重新积累样本。",
+    "Exclude requests without affinity hits from cache hit rate": "缓存率排除亲和未命中请求"
   }
 }

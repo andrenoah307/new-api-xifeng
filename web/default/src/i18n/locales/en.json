@@ -1965,6 +1965,7 @@
     "Exchange rate is required": "Exchange rate is required",
     "Exchange rate must be greater than 0": "Exchange rate must be greater than 0",
     "Exclude non-streaming requests from cache hit rate": "Exclude non-streaming requests from cache hit rate",
+    "Exclude requests without affinity hits from cache hit rate": "Exclude requests without affinity hits from cache hit rate",
     "Excluded channel IDs": "Excluded channel IDs",
     "Excluded channels": "Excluded channels",
     "Excluded User Groups": "Excluded User Groups",

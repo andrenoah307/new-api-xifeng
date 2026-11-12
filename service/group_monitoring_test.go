@@ -117,8 +117,8 @@ func TestIsGroupMonitored_Set(t *testing.T) {
 
 func TestRecordMonitoringMetric_SkipsAutoGroup(t *testing.T) {
 	// Should not panic even with no Redis
-	RecordMonitoringMetric("auto", 1, 1, true, 100, 50, 2000, 800, "gpt-4", 0, "", true)
-	RecordMonitoringMetric("", 1, 1, true, 100, 50, 2000, 800, "gpt-4", 0, "", true)
+	RecordMonitoringMetric("auto", 1, 1, true, 100, 50, 2000, 800, "gpt-4", 0, "", true, false)
+	RecordMonitoringMetric("", 1, 1, true, 100, 50, 2000, 800, "gpt-4", 0, "", true, false)
 }
 
 func TestTriggerAggregationRefresh(t *testing.T) {

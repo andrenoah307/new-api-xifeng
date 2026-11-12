@@ -55,6 +55,7 @@ export default function SettingsGroupMonitoring(props) {
     'group_monitoring_setting.availability_period_minutes': 60,
     'group_monitoring_setting.cache_hit_period_minutes': 60,
     'group_monitoring_setting.cache_hit_exclude_non_stream': false,
+    'group_monitoring_setting.cache_hit_exclude_non_affinity': false,
     'group_monitoring_setting.aggregation_interval_minutes': 5,
     'group_monitoring_setting.availability_exclude_models': '',
     'group_monitoring_setting.cache_hit_exclude_models': '',
@@ -115,7 +116,7 @@ export default function SettingsGroupMonitoring(props) {
     for (let key in inputs) {
       if (props.options && props.options[key] !== undefined) {
         const raw = props.options[key];
-        if (key === 'group_monitoring_setting.enabled' || key === 'group_monitoring_setting.cache_hit_exclude_non_stream') {
+        if (key === 'group_monitoring_setting.enabled' || key === 'group_monitoring_setting.cache_hit_exclude_non_stream' || key === 'group_monitoring_setting.cache_hit_exclude_non_affinity') {
           currentInputs[key] =
             raw === true || raw === 'true' || raw === '1' || raw === 1;
         } else {
@@ -325,6 +326,11 @@ export default function SettingsGroupMonitoring(props) {
             field='group_monitoring_setting.cache_hit_exclude_non_stream'
             label={t('Exclude non-streaming requests from cache hit rate')}
             onChange={(value) => setInputs({ ...inputs, 'group_monitoring_setting.cache_hit_exclude_non_stream': value })}
+          />
+          <Form.Switch
+            field='group_monitoring_setting.cache_hit_exclude_non_affinity'
+            label={t('Exclude requests without affinity hits from cache hit rate')}
+            onChange={(value) => setInputs({ ...inputs, 'group_monitoring_setting.cache_hit_exclude_non_affinity': value })}
           />
           <Row gutter={16}>
             <Col xs={24} sm={12} md={8}>

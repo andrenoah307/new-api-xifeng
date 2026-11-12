@@ -443,7 +443,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			service.RequestAccountingGroup(c), c.GetInt("channel_id"), relayInfo.UserId, false,
 			0, 0, useTimeMs, 0,
 			c.GetString("original_model"), newAPIError.StatusCode,
-			newAPIError.MaskSensitiveErrorWithStatusCode(), relayInfo.IsStream,
+			newAPIError.MaskSensitiveErrorWithStatusCode(), relayInfo.IsStream, c.GetInt(constant.ContextKeyAffinitySelectedChannel) > 0,
 		)
 	}
 
@@ -892,7 +892,7 @@ func RelayTask(c *gin.Context) {
 		common.GroupMonitoringHook(
 			service.RequestAccountingGroup(c), c.GetInt("channel_id"), relayInfo.UserId, false,
 			0, 0, useTimeMs, 0,
-			c.GetString("original_model"), taskErr.StatusCode, "", relayInfo.IsStream,
+			c.GetString("original_model"), taskErr.StatusCode, "", relayInfo.IsStream, c.GetInt(constant.ContextKeyAffinitySelectedChannel) > 0,
 		)
 	}
 

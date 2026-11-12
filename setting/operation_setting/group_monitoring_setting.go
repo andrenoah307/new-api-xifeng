@@ -17,6 +17,7 @@ type GroupMonitoringSetting struct {
 	AvailabilityExcludeModels      []string            `json:"availability_exclude_models"`
 	CacheHitExcludeModels          []string            `json:"cache_hit_exclude_models"`
 	CacheHitExcludeNonStream       bool                `json:"cache_hit_exclude_non_stream"`
+	CacheHitExcludeNonAffinity     bool                `json:"cache_hit_exclude_non_affinity"`
 	AvailabilityExcludeKeywords    []string            `json:"availability_exclude_keywords"`
 	AvailabilityExcludeStatusCodes []int               `json:"availability_exclude_status_codes"`
 	GroupDisplayOrder              []string            `json:"group_display_order"`

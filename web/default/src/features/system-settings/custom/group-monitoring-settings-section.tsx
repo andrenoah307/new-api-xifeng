@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { MultiSelect } from '@/components/multi-select'
 import { TagInput } from '@/components/tag-input'
 import { SettingsSection } from '../components/settings-section'
@@ -80,6 +81,9 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
   )
   const [cacheExcludeNonStream, setCacheExcludeNonStream] = useState(
     getVal(settings, 'cache_hit_exclude_non_stream') === 'true'
+  )
+  const [cacheExcludeNonAffinity, setCacheExcludeNonAffinity] = useState(
+    getVal(settings, 'cache_hit_exclude_non_affinity') === 'true'
   )
   const [aggregationInterval, setAggregationInterval] = useState(
     getVal(settings, 'aggregation_interval_minutes') || '5'
@@ -155,6 +159,7 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
         },
         { key: PREFIX + 'cache_hit_period_minutes', value: cacheHitPeriod },
         { key: PREFIX + 'cache_hit_exclude_non_stream', value: String(cacheExcludeNonStream) },
+        { key: `${PREFIX}cache_hit_exclude_non_affinity`, value: String(cacheExcludeNonAffinity) },
         {
           key: PREFIX + 'aggregation_interval_minutes',
           value: aggregationInterval,
@@ -338,6 +343,16 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
           <Label htmlFor='cache-exclude-non-stream'>{t('Exclude non-streaming requests from cache hit rate')}</Label>
           <Switch id='cache-exclude-non-stream' checked={cacheExcludeNonStream} onCheckedChange={setCacheExcludeNonStream} />
         </div>
+        <Field orientation='horizontal'>
+          <FieldLabel htmlFor='cache-exclude-non-affinity'>
+            {t('Exclude requests without affinity hits from cache hit rate')}
+          </FieldLabel>
+          <Switch
+            id='cache-exclude-non-affinity'
+            checked={cacheExcludeNonAffinity}
+            onCheckedChange={setCacheExcludeNonAffinity}
+          />
+        </Field>
 
         <div className='space-y-1'>
           <Label>{t('Exclude Keywords')}</Label>

@@ -5357,6 +5357,7 @@
     "All enabled conditions must be met": "Toutes les conditions actives doivent être remplies",
     "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.": "La latence initiale et les erreurs amont partagent une fenêtre ; le cache avec affinité utilise une fenêtre horaire distincte.",
     "Invalid affinity cache cooling rule": "Règle de pause du cache avec affinité invalide",
-    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "Les requêtes marquées comme liées dans les journaux sont comptées, avec ou sans streaming, même sans tokens en cache. Un seuil de zéro désactive la règle. Un échantillon insuffisant ne déclenche pas de pause ; la collecte reprend après rétablissement."
+    "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "Les requêtes marquées comme liées dans les journaux sont comptées, avec ou sans streaming, même sans tokens en cache. Un seuil de zéro désactive la règle. Un échantillon insuffisant ne déclenche pas de pause ; la collecte reprend après rétablissement.",
+    "Exclude requests without affinity hits from cache hit rate": "Exclure les requêtes sans affinité du taux de cache"
   }
 }

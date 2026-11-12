@@ -49,7 +49,7 @@ func TestMonitoringBucketsRetainHourlyCacheWithShortWindows(t *testing.T) {
 		"group_monitoring_setting.cache_hit_period_minutes":     "5",
 		"group_monitoring_setting.aggregation_interval_minutes": "5",
 	}))
-	RecordMonitoringMetric("hourly", 1, 1, true, 100, 25, 100, 0, "", 0, "", true)
+	RecordMonitoringMetric("hourly", 1, 1, true, 100, 25, 100, 0, "", 0, "", true, false)
 	keys := server.Keys()
 	require.Len(t, keys, 1)
 	server.FastForward(59 * time.Minute)
@@ -58,7 +58,7 @@ func TestMonitoringBucketsRetainHourlyCacheWithShortWindows(t *testing.T) {
 	assert.Equal(t, "25", server.HGet(keys[0], "ct"))
 }
 
-func TestGroupMonitoringCacheStreamToggle(t *testing.T) {
+func TestGroupMonitoringCachePopulationToggles(t *testing.T) {
 	server := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -93,33 +93,50 @@ func TestGroupMonitoringCacheStreamToggle(t *testing.T) {
 		"group_monitoring_setting.cache_hit_exclude_models":      `["excluded"]`,
 		"group_monitoring_setting.frt_exclude_threshold_seconds": "0",
 	}))
-	RecordMonitoringMetric("mixed", 1, 1, true, 100, 80, 100, 50, "model", 0, "", true)
-	RecordMonitoringMetric("mixed", 1, 1, true, 900, 450, 100, 50, "model", 0, "", false)
-	RecordMonitoringMetric("mixed", 1, 1, true, 1000, 0, 100, 50, "excluded", 0, "", true)
-	RecordMonitoringMetric("nonstream", 1, 1, true, 100, 20, 100, 50, "model", 0, "", false)
+	RecordMonitoringMetric("mixed", 1, 1, true, 100, 80, 100, 50, "model", 0, "", true, false)
+	RecordMonitoringMetric("mixed", 1, 1, true, 900, 450, 100, 50, "model", 0, "", false, false)
+	RecordMonitoringMetric("mixed", 1, 1, true, 200, 100, 100, 50, "model", 0, "", true, true)
+	RecordMonitoringMetric("mixed", 1, 1, true, 100, 0, 100, 50, "model", 0, "", true, true)
+	RecordMonitoringMetric("mixed", 1, 1, true, 700, 630, 100, 50, "model", 0, "", false, true)
+	RecordMonitoringMetric("mixed", 1, 1, true, 1000, 0, 100, 50, "excluded", 0, "", true, true)
+	RecordMonitoringMetric("nonstream", 1, 1, true, 100, 20, 100, 50, "model", 0, "", false, false)
 	key := fmt.Sprintf("gm:b:%d:legacy:1", time.Now().Unix()-60)
 	require.NoError(t, client.HSet(context.Background(), key, "pt", 100, "ct", 50, "t", 1, "s", 1).Err())
 	cfg := operation_setting.GetGroupMonitoringSetting()
 	cfg.MonitoringGroups = []string{"mixed", "nonstream", "legacy"}
-	for _, enabled := range []bool{false, true, false} {
-		cfg.CacheHitExcludeNonStream = enabled
+	for _, tc := range []struct {
+		streamOnly, affinityOnly bool
+		rate                     float64
+	}{
+		{false, false, 63},
+		{true, false, 45},
+		{false, true, 73},
+		{true, true, 100.0 / 3},
+		{false, false, 63},
+	} {
+		cfg.CacheHitExcludeNonStream = tc.streamOnly
+		cfg.CacheHitExcludeNonAffinity = tc.affinityOnly
 		runRedisAggregation(cfg, false)
 		stat, err := model.GetGroupMonitoringStatByName("mixed")
 		require.NoError(t, err)
 		require.NotNil(t, stat.CacheHitRate1h)
-		expected := 53.0
-		if enabled {
-			expected = 80
-		}
-		assert.InDelta(t, expected, *stat.CacheHitRate1h, 0.001)
-		assert.InDelta(t, expected, stat.CacheHitRate, 0.001)
+		assert.InDelta(t, tc.rate, *stat.CacheHitRate1h, 0.001)
+		assert.InDelta(t, tc.rate, stat.CacheHitRate, 0.001)
 		assert.InDelta(t, 100, stat.AvailabilityRate, 0.001)
 		assert.Equal(t, 100, stat.AvgResponseTime)
 		assert.Equal(t, 50, stat.AvgFRT)
+		channels, err := model.GetChannelMonitoringStatsByGroup("mixed")
+		require.NoError(t, err)
+		require.Len(t, channels, 1)
+		assert.InDelta(t, tc.rate, channels[0].CacheHitRate, 0.001)
+		var history model.MonitoringHistory
+		require.NoError(t, db.Where("group_name = ?", "mixed").Order("recorded_at DESC").First(&history).Error)
+		assert.InDelta(t, tc.rate, history.CacheHitRate, 0.001)
+		assert.Equal(t, 6, history.RequestCount, "cache filters must not remove requests from availability statistics")
 		for _, group := range []string{"nonstream", "legacy"} {
 			stat, err = model.GetGroupMonitoringStatByName(group)
 			require.NoError(t, err)
-			if enabled {
+			if tc.streamOnly || tc.affinityOnly {
 				assert.Nil(t, stat.CacheHitRate1h)
 			} else {
 				assert.NotNil(t, stat.CacheHitRate1h)
