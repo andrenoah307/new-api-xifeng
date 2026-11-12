@@ -145,6 +145,16 @@ func applyOptionUpdate(c *gin.Context, key string, value any) error {
 		}
 	}
 	switch option.Key {
+	case common.UpstreamErrorMessagesOption:
+		parsed, parseErr := common.ParseUpstreamErrorMessages(option.Value.(string))
+		if parseErr != nil {
+			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
+		}
+		encoded, marshalErr := common.Marshal(parsed)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		option.Value = string(encoded)
 	case "TicketQuickReplies":
 		option.Value, err = setting.NormalizeTicketQuickReplies(option.Value.(string))
 		if err != nil {

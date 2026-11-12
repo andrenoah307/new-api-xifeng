@@ -220,6 +220,27 @@ func formatUserLogs(logs []*Log, startIdx int) {
 		logs[i].ChannelName = ""
 		var otherMap map[string]interface{}
 		otherMap, _ = common.StrToMap(logs[i].Other)
+		if logs[i].Type == LogTypeError {
+			if otherMap == nil {
+				otherMap = make(map[string]interface{})
+			}
+			status := 0
+			if value, ok := otherMap["status_code"].(float64); ok {
+				status = int(value)
+			}
+			if status == 0 {
+				_, _ = fmt.Sscanf(logs[i].Content, "status_code=%d,", &status)
+			}
+			probe, _ := common.Marshal(map[string]interface{}{"error": map[string]interface{}{
+				"message": logs[i].Content, "code": otherMap["error_code"], "type": otherMap["error_type"],
+			}})
+			if _, changed := common.RedactPublicErrorJSON(probe, status, logs[i].RequestId); changed {
+				logs[i].Content = common.PublicErrorMessage(status, logs[i].RequestId)
+				logs[i].UpstreamRequestId = ""
+				otherMap["error_code"] = "upstream_error"
+				otherMap["error_type"] = "upstream_error"
+			}
+		}
 		if otherMap != nil {
 			if _, hasAdminInfo := otherMap["admin_info"]; hasAdminInfo {
 				logs[i].Ip = ""
@@ -863,7 +884,16 @@ func ExportAllLogs(ctx context.Context, logType int, startTimestamp, endTimestam
 
 func ExportUserLogs(ctx context.Context, userId int, logType int, startTimestamp, endTimestamp int64, modelName, tokenName string, group, requestId, upstreamRequestId string, callback func([]*Log) error) error {
 	tx := buildUserLogsQuery(userId, logType, startTimestamp, endTimestamp, modelName, tokenName, group, requestId, upstreamRequestId)
-	return streamLogs(ctx, tx, false, callback)
+	return streamLogs(ctx, tx, false, func(batch []*Log) error {
+		// Formatting assigns display IDs; keep the original rows for the export cursor.
+		public := make([]*Log, len(batch))
+		for i, row := range batch {
+			copy := *row
+			public[i] = &copy
+		}
+		formatUserLogs(public, 0)
+		return callback(public)
+	})
 }
 
 func streamLogs(ctx context.Context, tx *gorm.DB, includeChannelName bool, callback func([]*Log) error) error {

@@ -25,6 +25,7 @@ import SettingsSidebarModulesAdmin from '../../pages/Setting/Operation/SettingsS
 import SettingsSensitiveWords from '../../pages/Setting/Operation/SettingsSensitiveWords';
 import SettingsRequestBlacklist from '../../pages/Setting/Operation/SettingsRequestBlacklist';
 import SettingsLog from '../../pages/Setting/Operation/SettingsLog';
+import SettingsUpstreamErrors from '../../pages/Setting/Operation/SettingsUpstreamErrors';
 import SettingsMonitoring from '../../pages/Setting/Operation/SettingsMonitoring';
 import SettingsCreditLimit from '../../pages/Setting/Operation/SettingsCreditLimit';
 import SettingsCheckin from '../../pages/Setting/Operation/SettingsCheckin';
@@ -171,6 +172,9 @@ const OperationSetting = () => {
           <SettingsRequestBlacklist options={inputs} refresh={onRefresh} />
         </Card>
         {/* 日志设置 */}
+        <div style={{ marginTop: '10px' }}>
+          <SettingsUpstreamErrors options={inputs} refresh={onRefresh} />
+        </div>
         <Card style={{ marginTop: '10px' }}>
           <SettingsLog options={inputs} refresh={onRefresh} />
         </Card>

@@ -25,6 +25,7 @@ import {
 } from './section-registry.tsx'
 
 const defaultSecuritySettings: SecuritySettings = {
+  UpstreamErrorMessages: '{}',
   RateLimitCapacityCardEnabled: false,
   ModelRequestRateLimitEnabled: false,
   ModelRequestRateLimitCount: 0,

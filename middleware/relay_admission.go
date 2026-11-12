@@ -170,9 +170,9 @@ func rejectRelayAdmission(c *gin.Context, retryAfterSeconds int, errorCode types
 	c.Header("Retry-After", strconv.Itoa(retryAfterSeconds))
 	err := types.NewErrorWithStatusCode(errors.New(message), errorCode, http.StatusServiceUnavailable)
 	if strings.HasPrefix(c.Request.URL.Path, "/v1/messages") {
-		c.JSON(err.StatusCode, gin.H{"error": err.ToClaudeError()})
+		c.JSON(err.StatusCode, gin.H{"error": err.ToPublicClaudeError(c.GetString(common.RequestIdKey))})
 	} else {
-		c.JSON(err.StatusCode, gin.H{"error": err.ToOpenAIError()})
+		c.JSON(err.StatusCode, gin.H{"error": err.ToPublicOpenAIError(c.GetString(common.RequestIdKey))})
 	}
 	c.Abort()
 }

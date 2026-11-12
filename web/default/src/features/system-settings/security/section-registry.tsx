@@ -24,8 +24,16 @@ import type { SecuritySettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
 import { GroupModelBlacklistSection } from './group-model-blacklist-section'
 import { RequestBlacklistSection } from './request-blacklist-section'
+import { UpstreamErrorSection } from './upstream-error-section'
 
 const SECURITY_SECTIONS = [
+  {
+    id: 'upstream-errors',
+    titleKey: 'Upstream Error Redaction',
+    build: (settings: SecuritySettings) => (
+      <UpstreamErrorSection value={settings.UpstreamErrorMessages} />
+    ),
+  },
   {
     id: 'rate-limit',
     titleKey: 'Rate Limiting',

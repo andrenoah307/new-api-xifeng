@@ -5584,6 +5584,9 @@
     "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.": "FRT and upstream errors share an observation window; affinity cache uses its own hourly window.",
     "Invalid affinity cache cooling rule": "Invalid affinity cache cooling rule",
     "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.": "Requests marked as affinity hits in logs count, including streaming, non-streaming and zero-cache requests. A zero threshold disables this rule. Insufficient samples do not trigger cooling; samples restart after recovery.",
-    "Exclude requests without affinity hits from cache hit rate": "Exclude requests without affinity hits from cache hit rate"
+    "Exclude requests without affinity hits from cache hit rate": "Exclude requests without affinity hits from cache hit rate",
+    "Client errors (4xx)": "Client errors (4xx)",
+    "Server errors (5xx or unknown)": "Server errors (5xx or unknown)",
+    "Upstream Error Redaction": "Upstream Error Redaction"
   }
 }

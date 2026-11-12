@@ -126,7 +126,7 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		var err error
 		ws, err = upgrader.Upgrade(c.Writer, c.Request, nil)
 		if err != nil {
-			helper.WssError(c, ws, types.NewError(err, types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry()).ToOpenAIError())
+			helper.WssError(c, ws, types.NewError(err, types.ErrorCodeGetChannelFailed, types.ErrOptionWithSkipRetry()).ToPublicOpenAIError(c.GetString(common.RequestIdKey)))
 			return
 		}
 		defer ws.Close()
@@ -156,15 +156,15 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 			}
 			switch relayFormat {
 			case types.RelayFormatOpenAIRealtime:
-				helper.WssError(c, ws, newAPIError.ToOpenAIError())
+				helper.WssError(c, ws, newAPIError.ToPublicOpenAIError(requestId))
 			case types.RelayFormatClaude:
 				c.JSON(newAPIError.StatusCode, gin.H{
 					"type":  "error",
-					"error": newAPIError.ToClaudeError(),
+					"error": newAPIError.ToPublicClaudeError(requestId),
 				})
 			default:
 				c.JSON(newAPIError.StatusCode, gin.H{
-					"error": newAPIError.ToOpenAIError(),
+					"error": newAPIError.ToPublicOpenAIError(requestId),
 				})
 			}
 		}
@@ -786,8 +786,9 @@ func RelayMidjourney(c *gin.Context) {
 			mjErr.Result = "当前分组负载已饱和，请稍后再试，或升级账户以提升服务质量。"
 			statusCode = http.StatusTooManyRequests
 		}
+		description, _ := common.RedactPublicErrorMessage(fmt.Sprintf("%s %s", mjErr.Description, mjErr.Result), statusCode, c.GetString(common.RequestIdKey))
 		c.JSON(statusCode, gin.H{
-			"description": fmt.Sprintf("%s %s", mjErr.Description, mjErr.Result),
+			"description": description,
 			"type":        "upstream_error",
 			"code":        mjErr.Code,
 		})
@@ -1071,10 +1072,29 @@ func relayTaskSubmitWithRetry(
 
 // respondTaskError 统一输出 Task 错误响应（含 429 限流提示改写）
 func respondTaskError(c *gin.Context, taskErr *dto.TaskError) {
-	if taskErr.Code == string(types.ErrorCodeChannelRateLimited) {
-		taskErr.Message = i18n.T(c, i18n.MsgChannelRateLimited)
-	} else if taskErr.StatusCode == http.StatusTooManyRequests {
-		taskErr.Message = "当前分组上游负载已饱和，请稍后再试"
+	public := *taskErr
+	taskErr = &public
+	redacted := false
+	probe, err := common.Marshal(map[string]interface{}{"error": taskErr})
+	if err == nil {
+		if clean, changed := common.RedactPublicErrorJSON(probe, taskErr.StatusCode, c.GetString(common.RequestIdKey)); changed {
+			var envelope struct {
+				Error dto.TaskError `json:"error"`
+			}
+			if common.Unmarshal(clean, &envelope) == nil {
+				taskErr.Message = envelope.Error.Message
+				taskErr.Code = envelope.Error.Code
+				taskErr.Data = nil
+				redacted = true
+			}
+		}
+	}
+	if !redacted {
+		if taskErr.Code == string(types.ErrorCodeChannelRateLimited) {
+			taskErr.Message = i18n.T(c, i18n.MsgChannelRateLimited)
+		} else if taskErr.StatusCode == http.StatusTooManyRequests {
+			taskErr.Message = "当前分组上游负载已饱和，请稍后再试"
+		}
 	}
 	c.JSON(taskErr.StatusCode, taskErr)
 }

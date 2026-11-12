@@ -396,6 +396,7 @@ export type OperationsSettings = {
 }
 
 export type SecuritySettings = {
+  UpstreamErrorMessages: string
   RateLimitCapacityCardEnabled: boolean
   ModelRequestRateLimitEnabled: boolean
   ModelRequestRateLimitCount: number

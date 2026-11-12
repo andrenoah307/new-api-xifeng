@@ -53,6 +53,26 @@ func IOCopyBytesGracefully(c *gin.Context, src *http.Response, data []byte) {
 		return
 	}
 
+	redacted := false
+	if src != nil {
+		original := data
+		data, redacted = common.RedactPublicErrorJSON(data, src.StatusCode, c.GetString(common.RequestIdKey))
+		var parsed interface{}
+		if !redacted && src.StatusCode >= 400 {
+			if common.Unmarshal(data, &parsed) == nil {
+				probe, _ := common.Marshal(map[string]interface{}{"error": parsed})
+				if clean, changed := common.RedactPublicErrorJSON(probe, src.StatusCode, c.GetString(common.RequestIdKey)); changed {
+					data, redacted = clean, true
+				}
+			} else if common.HasSensitiveErrorDetails(string(data)) {
+				data, _ = common.Marshal(map[string]interface{}{"error": map[string]string{"type": "upstream_error", "message": common.PublicErrorMessage(src.StatusCode, c.GetString(common.RequestIdKey))}})
+				redacted = true
+			}
+		}
+		if redacted {
+			logger.LogWarn(c, "redacted upstream error body: "+common.LocalLogPreview(common.MaskSensitiveInfo(string(original))))
+		}
+	}
 	body := io.NopCloser(bytes.NewBuffer(data))
 
 	// We shouldn't set the header before we parse the response body, because the parse part may fail.
@@ -62,11 +82,22 @@ func IOCopyBytesGracefully(c *gin.Context, src *http.Response, data []byte) {
 	if src != nil {
 		CaptureUpstreamRequestIdFallback(c, src.Header)
 		for k, v := range src.Header {
+			if (redacted || src.StatusCode >= 400) && (common.HasSensitiveErrorDetails(k) || common.HasSensitiveErrorDetails(strings.Join(v, " ")) || strings.EqualFold(k, "Set-Cookie") || strings.EqualFold(k, "WWW-Authenticate")) {
+				continue
+			}
+			if redacted && (common.IsUpstreamRequestIdHeader(k) || strings.EqualFold(k, "Content-Encoding") || strings.EqualFold(k, "ETag") || strings.EqualFold(k, "Content-MD5")) {
+				continue
+			}
 			if !ShouldCopyUpstreamHeader(k) {
 				continue
 			}
-			c.Writer.Header().Set(k, v[0])
+			if len(v) > 0 {
+				c.Writer.Header().Set(k, v[0])
+			}
 		}
+	}
+	if redacted {
+		c.Writer.Header().Set("Content-Type", "application/json")
 	}
 
 	// set Content-Length header manually BEFORE calling WriteHeader

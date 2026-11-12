@@ -184,7 +184,7 @@ func refundAlphaSearchBilling(c *gin.Context, relayInfo *relaycommon.RelayInfo) 
 
 func writeAlphaSearchError(c *gin.Context, apiErr *types.NewAPIError) {
 	logger.LogError(c, apiErr.Error())
-	body, err := common.Marshal(gin.H{"error": apiErr.ToOpenAIError()})
+	body, err := common.Marshal(gin.H{"error": apiErr.ToPublicOpenAIError(c.GetString(common.RequestIdKey))})
 	if err != nil {
 		c.Data(http.StatusInternalServerError, gin.MIMEJSON, []byte(`{"error":{"message":"failed to encode error response"}}`))
 		return

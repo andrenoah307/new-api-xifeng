@@ -83,6 +83,8 @@ func InitOptionMap() {
 	common.OptionMap["TicketNotifyEnabled"] = strconv.FormatBool(common.TicketNotifyEnabled)
 	common.OptionMap["TicketAdminEmail"] = common.TicketAdminEmail
 	common.OptionMap["TicketQuickReplies"] = ""
+	errorMessages, _ := common.Marshal(common.GetUpstreamErrorMessages())
+	common.OptionMap[common.UpstreamErrorMessagesOption] = string(errorMessages)
 	common.OptionMap["CustomNavigationLinks"] = "[]"
 	common.OptionMap["TicketAttachmentEnabled"] = strconv.FormatBool(setting.TicketAttachmentEnabled)
 	common.OptionMap["TicketAttachmentMaxSize"] = strconv.FormatInt(setting.TicketAttachmentMaxSize, 10)
@@ -752,6 +754,8 @@ func updateOptionMap(key string, value string) (err error) {
 		err = operation_setting.AutomaticRetryStatusCodesFromString(value)
 	case "StreamCacheQueueLength":
 		setting.StreamCacheQueueLength, _ = strconv.Atoi(value)
+	case common.UpstreamErrorMessagesOption:
+		err = common.UpdateUpstreamErrorMessages(value)
 	case "PayMethods":
 		err = operation_setting.UpdatePayMethodsByJsonString(value)
 	case "WaffoPayMethods":
