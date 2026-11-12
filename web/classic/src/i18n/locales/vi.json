@@ -6227,6 +6227,8 @@
     "Wallet balance {{wallet}}; grace limit CNY {{limit}}.": "Số dư ví {{wallet}}; mức dung sai {{limit}} CNY.",
     "Order ID": "ID đơn hàng",
     "Exact amounts": "Số tiền chính xác",
+    "Search order number or exact amount": "Tìm mã đơn hoặc số tiền chính xác",
+    "Matching orders: {{count}}": "Đơn phù hợp: {{count}}",
     "Client errors (4xx)": "Lỗi máy khách (4xx)",
     "Server errors (5xx or unknown)": "Lỗi máy chủ (5xx hoặc không rõ trạng thái)",
     "Upstream Error Redaction": "Ẩn thông tin nhạy cảm trong lỗi thượng nguồn",

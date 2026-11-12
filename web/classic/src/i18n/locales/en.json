@@ -5943,6 +5943,8 @@
     "Wallet balance {{wallet}}; grace limit CNY {{limit}}.": "Wallet balance {{wallet}}; grace limit CNY {{limit}}.",
     "Order ID": "Order ID",
     "Exact amounts": "Exact amounts",
+    "Search order number or exact amount": "Search order number or exact amount",
+    "Matching orders: {{count}}": "Matching orders: {{count}}",
     "Client errors (4xx)": "Client errors (4xx)",
     "Server errors (5xx or unknown)": "Server errors (5xx or unknown)",
     "Upstream Error Redaction": "Upstream Error Redaction",

@@ -5738,6 +5738,8 @@
     "Wallet balance {{wallet}}; grace limit CNY {{limit}}.": "Баланс кошелька: {{wallet}}; допустимый предел: {{limit}} CNY.",
     "Order ID": "ID заказа",
     "Exact amounts": "Точные суммы",
+    "Search order number or exact amount": "Поиск по номеру заказа или точной сумме",
+    "Matching orders: {{count}}": "Найдено заказов: {{count}}",
     "Client errors (4xx)": "Ошибки клиента (4xx)",
     "Server errors (5xx or unknown)": "Ошибки сервера (5xx или неизвестный статус)",
     "Upstream Error Redaction": "Скрытие данных в ошибках провайдера",

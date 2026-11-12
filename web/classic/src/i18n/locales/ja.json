@@ -5684,6 +5684,8 @@
     "Wallet balance {{wallet}}; grace limit CNY {{limit}}.": "現在の残高 {{wallet}}、返金猶予額 {{limit}} 人民元。",
     "Order ID": "注文 ID",
     "Exact amounts": "正確な金額",
+    "Search order number or exact amount": "注文番号または正確な金額で検索",
+    "Matching orders: {{count}}": "一致する注文：{{count}}",
     "Client errors (4xx)": "クライアントエラー（4xx）",
     "Server errors (5xx or unknown)": "サーバーエラー（5xx または不明）",
     "Upstream Error Redaction": "上流エラーの機密情報保護",

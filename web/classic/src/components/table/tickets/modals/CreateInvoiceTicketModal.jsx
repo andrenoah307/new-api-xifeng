@@ -24,6 +24,7 @@ import {
   Col,
   Empty,
   Form,
+  Input,
   Modal,
   Row,
   Space,
@@ -39,6 +40,7 @@ import {
 import { StatusContext } from '../../../../context/Status';
 import { InvoiceTaxFields } from '../../../ticket/InvoiceTax';
 import { useNavigate } from 'react-router-dom';
+import { filterInvoiceOrders } from '../../../../../../shared/invoice-order-filter';
 
 const { Text, Title } = Typography;
 
@@ -54,6 +56,18 @@ const CreateInvoiceTicketModal = ({
   const [tax, setTax] = useState({ ready: false, invoice_type: 'ordinary' });
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedSearch(orderSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [orderSearch]);
+  const filteredOrders = useMemo(
+    () => filterInvoiceOrders(orders, appliedSearch),
+    [orders, appliedSearch],
+  );
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [invoiceAmount, setInvoiceAmount] = useState(0);
   const [refundConflict, setRefundConflict] = useState(null);
@@ -85,6 +99,8 @@ const CreateInvoiceTicketModal = ({
 
   useEffect(() => {
     if (!visible) {
+      setOrderSearch('');
+      setAppliedSearch('');
       setSelectedOrderIds([]);
       setOrders([]);
       setInvoiceAmount(0);
@@ -145,9 +161,9 @@ const CreateInvoiceTicketModal = ({
         render: (v) => `¥ ${Number(v || 0).toFixed(2)}`,
       },
       {
-        title: t('充值时间'),
-        dataIndex: 'complete_time',
-        key: 'complete_time',
+        title: t('创建时间'),
+        dataIndex: 'create_time',
+        key: 'create_time',
         width: 160,
         render: (v) => (v ? timestamp2string(v) : '-'),
       },
@@ -158,9 +174,18 @@ const CreateInvoiceTicketModal = ({
   const rowSelection = useMemo(
     () => ({
       selectedRowKeys: selectedOrderIds,
-      onChange: (keys) => setSelectedOrderIds((keys || []).map(Number)),
+      onChange: (keys) =>
+        setSelectedOrderIds((previous) => {
+          const visibleIds = new Set(filteredOrders.map((order) => order.id));
+          return [
+            ...new Set([
+              ...previous.filter((id) => !visibleIds.has(id)),
+              ...(keys || []).map(Number),
+            ]),
+          ];
+        }),
     }),
-    [selectedOrderIds],
+    [selectedOrderIds, filteredOrders],
   );
 
   const canSubmit =
@@ -288,15 +313,29 @@ const CreateInvoiceTicketModal = ({
           <Title heading={6} className='!mb-3'>
             1. {t('选择充值账单')}
           </Title>
+          <Input
+            aria-label={t('Search order number or exact amount')}
+            placeholder={t('Search order number or exact amount')}
+            value={orderSearch}
+            onChange={setOrderSearch}
+            showClear
+          />
+          <p aria-live='polite' className='my-2 text-sm'>
+            {t('Matching orders: {{count}}', { count: filteredOrders.length })}
+          </p>
           <Table
+            key={`${tax.invoice_type}:${appliedSearch}`}
             rowKey='id'
             columns={orderColumns}
-            dataSource={orders}
+            dataSource={filteredOrders}
             loading={ordersLoading}
             rowSelection={rowSelection}
-            pagination={false}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: false,
+            }}
             size='small'
-            scroll={{ y: 150, x: 600 }}
+            scroll={{ x: 600 }}
             empty={
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}

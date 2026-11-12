@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   useState,
   useMemo,
@@ -42,6 +43,7 @@ import {
 import { useStatus } from '@/hooks/use-status'
 import { formatTimestampToDate } from '@/lib/format'
 
+import { filterInvoiceOrders } from '../../../../../../shared/invoice-order-filter'
 import {
   createInvoiceTicket,
   getEligibleInvoiceOrders,
@@ -94,6 +96,16 @@ export function CreateInvoiceTicketDialog({
   const { status } = useStatus()
   const schema = useMemo(() => createSchema(t), [t])
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [orderPage, setOrderPage] = useState(1)
+  const [orderSearch, setOrderSearch] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAppliedSearch(orderSearch)
+      setOrderPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [orderSearch])
   const [refundConflictAcked, setRefundConflictAcked] = useState(false)
   const [tax, setTax] = useState<InvoiceTaxSelection>({
     ready: false,
@@ -114,9 +126,16 @@ export function CreateInvoiceTicketDialog({
     queryFn: checkInvoiceRefundConflict,
     enabled: open,
   })
+  const filteredOrders = useMemo(
+    () => filterInvoiceOrders(orders, appliedSearch),
+    [orders, appliedSearch]
+  )
 
   useEffect(() => {
     if (!open) {
+      setOrderSearch('')
+      setAppliedSearch('')
+      setOrderPage(1)
       setSelectedIds(new Set())
       setRefundConflictAcked(false)
     }
@@ -140,10 +159,16 @@ export function CreateInvoiceTicketDialog({
   }, [])
 
   const toggleAll = useCallback(() => {
-    setSelectedIds((prev) =>
-      prev.size === orders.length ? new Set() : new Set(orders.map((o) => o.id))
-    )
-  }, [orders])
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const allSelected = filteredOrders.every((order) => prev.has(order.id))
+      for (const order of filteredOrders) {
+        if (allSelected) next.delete(order.id)
+        else next.add(order.id)
+      }
+      return next
+    })
+  }, [filteredOrders])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -220,6 +245,12 @@ export function CreateInvoiceTicketDialog({
     (minInvoiceAmount > 0 && invoiceAmount < minInvoiceAmount) ||
     (refundConflict?.has_refunds && !refundConflictAcked)
 
+  const orderPageCount = Math.max(1, Math.ceil(filteredOrders.length / 10))
+  const currentOrderPage = Math.min(orderPage, orderPageCount)
+  const visibleOrders = filteredOrders.slice(
+    (currentOrderPage - 1) * 10,
+    currentOrderPage * 10
+  )
   let orderRows: ReactNode
   if (ordersLoading) {
     orderRows = (
@@ -229,7 +260,7 @@ export function CreateInvoiceTicketDialog({
         </TableCell>
       </TableRow>
     )
-  } else if (orders.length === 0) {
+  } else if (filteredOrders.length === 0) {
     orderRows = (
       <TableRow>
         <TableCell colSpan={5} className='text-muted-foreground text-center'>
@@ -238,7 +269,7 @@ export function CreateInvoiceTicketDialog({
       </TableRow>
     )
   } else {
-    orderRows = orders.map((order: TicketInvoiceOrder) => (
+    orderRows = visibleOrders.map((order: TicketInvoiceOrder) => (
       <TableRow
         key={order.id}
         className='cursor-pointer'
@@ -256,9 +287,7 @@ export function CreateInvoiceTicketDialog({
           ¥{Number(order.money || 0).toFixed(2)}
         </TableCell>
         <TableCell className='text-xs'>
-          {order.complete_time
-            ? formatTimestampToDate(order.complete_time)
-            : '-'}
+          {order.create_time ? formatTimestampToDate(order.create_time) : '-'}
         </TableCell>
       </TableRow>
     ))
@@ -302,6 +331,7 @@ export function CreateInvoiceTicketDialog({
             onChange={setTax}
             type={tax.invoice_type}
             onTypeChange={(invoice_type) => {
+              setOrderPage(1)
               setSelectedIds(new Set())
               setTax((current) => ({ ...current, invoice_type, ready: false }))
             }}
@@ -311,15 +341,33 @@ export function CreateInvoiceTicketDialog({
             <h4 className='mb-2 text-sm font-medium'>
               1. {t('Select Top-up Orders')}
             </h4>
-            <div className='max-h-[200px] overflow-y-auto rounded-md border'>
+            <Input
+              type='search'
+              className='mb-2'
+              aria-label={t('Search order number or exact amount')}
+              placeholder={t('Search order number or exact amount')}
+              value={orderSearch}
+              onChange={(event) => setOrderSearch(event.target.value)}
+            />
+            <p
+              className='text-muted-foreground mb-2 text-sm'
+              aria-live='polite'
+            >
+              {t('Matching orders: {{count}}', {
+                count: filteredOrders.length,
+              })}
+            </p>
+            <div className='rounded-md border'>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className='w-10'>
                       <Checkbox
                         checked={
-                          orders.length > 0 &&
-                          selectedIds.size === orders.length
+                          filteredOrders.length > 0 &&
+                          filteredOrders.every((order) =>
+                            selectedIds.has(order.id)
+                          )
                         }
                         onCheckedChange={toggleAll}
                       />
@@ -331,14 +379,45 @@ export function CreateInvoiceTicketDialog({
                     <TableHead className='w-[100px]'>
                       {t('Paid Amount')}
                     </TableHead>
-                    <TableHead className='w-[160px]'>
-                      {t('Top-up Time')}
-                    </TableHead>
+                    <TableHead className='w-[160px]'>{t('Created')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>{orderRows}</TableBody>
               </Table>
             </div>
+            <nav
+              className='mt-2 flex items-center justify-end gap-2'
+              aria-label={t('Select Top-up Orders')}
+            >
+              <span className='text-sm'>
+                {t('Page {{current}} of {{total}}', {
+                  current: currentOrderPage,
+                  total: orderPageCount,
+                })}
+              </span>
+              <Button
+                type='button'
+                variant='outline'
+                size='icon'
+                title={t('Previous page')}
+                aria-label={t('Previous page')}
+                disabled={ordersLoading || currentOrderPage <= 1}
+                onClick={() => setOrderPage(currentOrderPage - 1)}
+              >
+                <ChevronLeft />
+              </Button>
+              <Button
+                type='button'
+                variant='outline'
+                size='icon'
+                title={t('Next page')}
+                aria-label={t('Next page')}
+                disabled={ordersLoading || currentOrderPage >= orderPageCount}
+                onClick={() => setOrderPage(currentOrderPage + 1)}
+              >
+                <ChevronRight />
+              </Button>
+            </nav>
             <div className='bg-muted mt-2 flex flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2 text-sm'>
               <span className='text-muted-foreground'>
                 {t('Selected')}: {selectedIds.size}/{orders.length}{' '}
