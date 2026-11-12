@@ -282,7 +282,7 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 	}
 
 	var topUps []*TopUp
-	if err = query.Order("complete_time desc, id desc").Find(&topUps).Error; err != nil {
+	if err = query.Order("create_time desc, id desc").Find(&topUps).Error; err != nil {
 		tx.Rollback()
 		return nil, err
 	}

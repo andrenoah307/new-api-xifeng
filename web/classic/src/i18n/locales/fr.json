@@ -5717,6 +5717,8 @@
     "Wallet balance {{wallet}}; grace limit CNY {{limit}}.": "Solde du portefeuille : {{wallet}} ; tolérance : {{limit}} CNY.",
     "Order ID": "ID de commande",
     "Exact amounts": "Montants exacts",
+    "Search order number or exact amount": "Rechercher un numéro de commande ou un montant exact",
+    "Matching orders: {{count}}": "Commandes correspondantes : {{count}}",
     "Client errors (4xx)": "Erreurs client (4xx)",
     "Server errors (5xx or unknown)": "Erreurs serveur (5xx ou statut inconnu)",
     "Upstream Error Redaction": "Masquage des erreurs en amont",

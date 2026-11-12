@@ -5859,6 +5859,8 @@
     "Wallet balance {{wallet}}; grace limit CNY {{limit}}.": "当前钱包余额 {{wallet}}，退款宽限 {{limit}} 元。",
     "Order ID": "订单 ID",
     "Exact amounts": "查看精确金额",
+    "Search order number or exact amount": "筛选订单号或准确金额",
+    "Matching orders: {{count}}": "匹配订单：{{count}}",
     "Client errors (4xx)": "客户端错误（4xx）",
     "Server errors (5xx or unknown)": "服务端错误（5xx 或未知状态）",
     "Upstream Error Redaction": "上游错误脱敏",

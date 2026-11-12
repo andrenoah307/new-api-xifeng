@@ -5696,6 +5696,8 @@
     "Wallet balance {{wallet}}; grace limit CNY {{limit}}.": "目前錢包餘額 {{wallet}}，退款寬限 {{limit}} 元。",
     "Order ID": "訂單 ID",
     "Exact amounts": "查看精確金額",
+    "Search order number or exact amount": "篩選訂單號或確切金額",
+    "Matching orders: {{count}}": "符合條件的訂單：{{count}}",
     "Client errors (4xx)": "用戶端錯誤（4xx）",
     "Server errors (5xx or unknown)": "伺服器錯誤（5xx 或未知狀態）",
     "Upstream Error Redaction": "上游錯誤脫敏",
