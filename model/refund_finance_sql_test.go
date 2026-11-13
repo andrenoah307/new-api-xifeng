@@ -195,6 +195,9 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("application_balance_atomic", TestApplicationBalanceAtomicConfirmation)
 			t.Run("application_balance_bonus", TestApplicationBalancePreservesBonusAndPaymentCaps)
 			t.Run("application_balance_tax", TestApplicationBalanceKeepsTaxRatioAndLedgerDifference)
+			t.Run("calculation_method", TestRefundCalculationMethodSelection)
+			t.Run("calculation_method_guards", TestRefundCalculationMethodCannotBypassTaskOrRevision)
+			t.Run("calculation_method_referral", TestRefundCalculationMethodPreservesReferralAndRequiresNegativeCashConsent)
 		})
 	}
 }

@@ -5906,6 +5906,14 @@
     "Cash balance after refund": "退款后现金口径余额",
     "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "我确认按申请余额口径计算，保留非现金额度，不追加扣减钱包余额。",
     "I accept the negative cash balance within the configured refund grace.": "我确认接受系统退款宽限内的现金负余额。",
-    "Confirm and recalculate": "确认并重新计算"
+    "Confirm and recalculate": "确认并重新计算",
+    "Application balance": "按申请余额计算",
+    "Confirming accepts the settlement risk and clears the listed residual request records. Running tasks remain blocked.": "确认后将承担结算差额风险并清除列出的残留请求记录。尚未结束的异步任务仍不能放行。",
+    "Deduct the unexplained difference as historical order discounts or promotional credits.": "将未解释差额记为充值订单对应的折扣／优惠赠送额度并扣回。",
+    "Preserve noncash credits; no additional balance deduction.": "保留非现金额度，不追加扣减余额。",
+    "Recover historical discounts": "扣回历史优惠后计算",
+    "Refund calculation method": "退款计算方式",
+    "Unexplained ledger difference": "未解释的账面差额",
+    "Please confirm that you understand the consequences": "请确认您了解后果"
   }
 }

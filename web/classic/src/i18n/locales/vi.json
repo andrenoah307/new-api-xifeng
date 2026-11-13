@@ -6274,6 +6274,14 @@
     "Cash balance after refund": "Số dư tiền mặt sau hoàn tiền",
     "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "Tôi xác nhận tính theo số dư của yêu cầu, giữ nguyên hạn mức phi tiền mặt và không trừ thêm số dư ví.",
     "I accept the negative cash balance within the configured refund grace.": "Tôi chấp nhận số dư tiền mặt âm trong mức cho phép hoàn tiền đã cấu hình.",
-    "Confirm and recalculate": "Xác nhận và tính lại"
+    "Confirm and recalculate": "Xác nhận và tính lại",
+    "Application balance": "Số dư theo yêu cầu",
+    "Confirming accepts the settlement risk and clears the listed residual request records. Running tasks remain blocked.": "Xác nhận đồng nghĩa chấp nhận rủi ro quyết toán và xóa các bản ghi yêu cầu tồn đọng đã liệt kê. Tác vụ đang chạy vẫn chặn thao tác.",
+    "Deduct the unexplained difference as historical order discounts or promotional credits.": "Khấu trừ chênh lệch chưa rõ dưới dạng chiết khấu hoặc hạn mức khuyến mãi của đơn nạp trước đây.",
+    "Preserve noncash credits; no additional balance deduction.": "Giữ nguyên hạn mức phi tiền mặt, không trừ thêm số dư.",
+    "Recover historical discounts": "Thu hồi ưu đãi trước đây",
+    "Refund calculation method": "Cách tính hoàn tiền",
+    "Unexplained ledger difference": "Chênh lệch sổ sách chưa rõ",
+    "Please confirm that you understand the consequences": "Vui lòng xác nhận rằng bạn hiểu hậu quả"
   }
 }

@@ -5731,6 +5731,14 @@
     "Cash balance after refund": "返金後の現金換算残高",
     "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "申請時の残高基準で計算し、非現金クレジットを保持してウォレットから追加控除しないことを確認します。",
     "I accept the negative cash balance within the configured refund grace.": "設定された返金猶予額内の現金換算マイナス残高を承認します。",
-    "Confirm and recalculate": "確認して再計算"
+    "Confirm and recalculate": "確認して再計算",
+    "Application balance": "申請時の残高基準",
+    "Confirming accepts the settlement risk and clears the listed residual request records. Running tasks remain blocked.": "確定すると精算差額のリスクを引き受け、表示された残存リクエスト記録を削除します。実行中のタスクは引き続き処理を阻止します。",
+    "Deduct the unexplained difference as historical order discounts or promotional credits.": "未解明の差額を過去のチャージ注文の割引・特典クレジットとして差し引きます。",
+    "Preserve noncash credits; no additional balance deduction.": "非現金クレジットを保持し、残高から追加控除しません。",
+    "Recover historical discounts": "過去の割引を差し引く",
+    "Refund calculation method": "返金計算方法",
+    "Unexplained ledger difference": "未解明の帳簿差額",
+    "Please confirm that you understand the consequences": "結果を理解したことを確認してください"
   }
 }

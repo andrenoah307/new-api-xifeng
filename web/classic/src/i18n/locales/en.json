@@ -5990,6 +5990,14 @@
     "Cash balance after refund": "Cash balance after refund",
     "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.",
     "I accept the negative cash balance within the configured refund grace.": "I accept the negative cash balance within the configured refund grace.",
-    "Confirm and recalculate": "Confirm and recalculate"
+    "Confirm and recalculate": "Confirm and recalculate",
+    "Application balance": "Application balance",
+    "Confirming accepts the settlement risk and clears the listed residual request records. Running tasks remain blocked.": "Confirming accepts the settlement risk and clears the listed residual request records. Running tasks remain blocked.",
+    "Deduct the unexplained difference as historical order discounts or promotional credits.": "Deduct the unexplained difference as historical order discounts or promotional credits.",
+    "Preserve noncash credits; no additional balance deduction.": "Preserve noncash credits; no additional balance deduction.",
+    "Recover historical discounts": "Recover historical discounts",
+    "Refund calculation method": "Refund calculation method",
+    "Unexplained ledger difference": "Unexplained ledger difference",
+    "Please confirm that you understand the consequences": "Please confirm that you understand the consequences"
   }
 }

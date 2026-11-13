@@ -36,13 +36,10 @@ export function RefundAdjustment({
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState('');
-  const [reason, setReason] = useState('');
-  const [recovery, setRecovery] = useState(false);
-  const [settlement, setSettlement] = useState(false);
-  const [applicationConfirmed, setApplicationConfirmed] = useState(false);
+  const [method, setMethod] = useState('application_balance');
   const [negativeConfirmed, setNegativeConfirmed] = useState(false);
   const submitting = useRef(false);
-  async function preview() {
+  async function preview(selectedMethod = method) {
     if (submitting.current) return;
     submitting.current = true;
     setOpen(true);
@@ -50,13 +47,11 @@ export function RefundAdjustment({
     setBusy(true);
     setError('');
     setPlan(null);
-    setRecovery(false);
-    setSettlement(false);
-    setApplicationConfirmed(false);
+    setMethod(selectedMethod);
     setNegativeConfirmed(false);
     try {
       const { data } = await api.get(
-        `/api/ticket/refund/${ticketId}/adjustment?basis=application_balance`,
+        `/api/ticket/refund/${ticketId}/adjustment?basis=${selectedMethod === 'application_balance' ? 'application_balance' : ''}`,
         { skipBusinessError: true },
       );
       if (!data.success) throw new Error(data.message);
@@ -78,11 +73,7 @@ export function RefundAdjustment({
         `/api/ticket/refund/${ticketId}/adjustment`,
         {
           revision: plan.revision,
-          reason: reason.trim(),
-          confirm_recovery: recovery,
-          confirm_settlement: settlement,
-          calculation_basis: plan.calculation_basis ?? '',
-          confirm_application_balance: applicationConfirmed,
+          calculation_method: method,
           confirm_negative: negativeConfirmed,
         },
         { skipBusinessError: true },
@@ -114,28 +105,42 @@ export function RefundAdjustment({
         disabled={disabled}
         onClick={() => void preview()}
       >
-        {t('Review refund adjustment')}
+        {t('Refund calculation method')}
       </Button>
     );
   }
-  const needsRecovery = Number(plan?.debit_amount ?? 0) > 0;
   const needsSettlement = (plan?.liabilities.length ?? 0) > 0;
   const applicationBasis = plan?.calculation_basis === 'application_balance';
   const needsNegative =
-    applicationBasis && Number(plan?.application_balance?.cash_amount ?? 0) < 0;
-  const validReason =
-    [...reason.trim()].length >= 5 &&
-    [...reason.trim()].length <= 500 &&
-    [...reason].every((character) => {
-      const code = character.charCodeAt(0);
-      return code >= 32 && (code < 127 || code > 159);
-    });
+    Number(
+      applicationBasis
+        ? (plan?.application_balance?.cash_amount ?? 0)
+        : (plan?.balance_after ?? 0),
+    ) < 0;
   return (
     <section
       className='min-w-0 space-y-3 break-words border-t py-4 text-sm'
-      aria-label={t('Review refund adjustment')}
+      aria-label={t('Refund calculation method')}
     >
-      <h4>{t('Review refund adjustment')}</h4>
+      <h4>{t('Refund calculation method')}</h4>
+      {!plan?.applied && (
+        <label className='block space-y-2'>
+          <span>{t('Refund calculation method')}</span>
+          <select
+            className='block w-full min-w-0 rounded-md border bg-transparent p-2'
+            value={method}
+            disabled={busy}
+            onChange={(event) => void preview(event.target.value)}
+          >
+            <option value='application_balance'>
+              {t('Application balance')}
+            </option>
+            <option value='discount_recovery'>
+              {t('Recover historical discounts')}
+            </option>
+          </select>
+        </label>
+      )}
       {error && <p role='alert'>{error}</p>}
       {plan && (
         <>
@@ -182,6 +187,24 @@ export function RefundAdjustment({
               </div>
             ))}
           </dl>
+          <p>
+            {t('Unexplained ledger difference')}: {plan.accounted_amount} -{' '}
+            {plan.known_amount} = {plan.difference_amount ?? '-'}
+          </p>
+          <p>
+            {applicationBasis
+              ? t('Preserve noncash credits; no additional balance deduction.')
+              : t(
+                  'Deduct the unexplained difference as historical order discounts or promotional credits.',
+                )}
+          </p>
+          {needsSettlement && !plan.applied && (
+            <p role='alert'>
+              {t(
+                'Confirming accepts the settlement risk and clears the listed residual request records. Running tasks remain blocked.',
+              )}
+            </p>
+          )}
           {!applicationBasis && (
             <p>
               {t('Promotional recovery formula')}: {plan.accounted_amount} -{' '}
@@ -266,21 +289,6 @@ export function RefundAdjustment({
             </>
           ) : (
             <>
-              {applicationBasis && (
-                <label className='flex items-start gap-2'>
-                  <input
-                    type='checkbox'
-                    checked={applicationConfirmed}
-                    disabled={busy || !plan.can_apply}
-                    onChange={(e) => setApplicationConfirmed(e.target.checked)}
-                  />
-                  <span>
-                    {t(
-                      'I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.',
-                    )}
-                  </span>
-                </label>
-              )}
               {needsNegative && (
                 <label className='flex items-start gap-2'>
                   <input
@@ -296,47 +304,6 @@ export function RefundAdjustment({
                   </span>
                 </label>
               )}
-              {needsRecovery && (
-                <label className='flex items-start gap-2'>
-                  <input
-                    type='checkbox'
-                    checked={recovery}
-                    disabled={busy || !plan.can_apply}
-                    onChange={(e) => setRecovery(e.target.checked)}
-                  />
-                  <span>
-                    {t(
-                      'I classify this unexplained surplus as historical order discounts or promotional credits and authorize its recovery, including a negative balance.',
-                    )}
-                  </span>
-                </label>
-              )}
-              {needsSettlement && (
-                <label className='flex items-start gap-2'>
-                  <input
-                    type='checkbox'
-                    checked={settlement}
-                    disabled={busy || !plan.can_apply}
-                    onChange={(e) => setSettlement(e.target.checked)}
-                  />
-                  <span>
-                    {t(
-                      'I verified that these requests and settlement queues have finished; I authorize clearing only the listed records.',
-                    )}
-                  </span>
-                </label>
-              )}
-              <label className='block space-y-2'>
-                <span>{t('Adjustment reason and verification evidence')}</span>
-                <textarea
-                  className='block w-full rounded-md border bg-transparent p-2'
-                  rows={3}
-                  maxLength={1000}
-                  value={reason}
-                  disabled={busy || !plan.can_apply}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-              </label>
               <Button
                 style={{
                   height: 'auto',
@@ -346,11 +313,7 @@ export function RefundAdjustment({
                 disabled={
                   busy ||
                   !plan.can_apply ||
-                  !validReason ||
-                  (applicationBasis && !applicationConfirmed) ||
-                  (needsNegative && !negativeConfirmed) ||
-                  (needsRecovery && !recovery) ||
-                  (needsSettlement && !settlement)
+                  (needsNegative && !negativeConfirmed)
                 }
                 onClick={() => void apply()}
               >

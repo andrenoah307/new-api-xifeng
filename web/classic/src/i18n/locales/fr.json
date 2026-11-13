@@ -5764,6 +5764,14 @@
     "Cash balance after refund": "Solde en espèces après remboursement",
     "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "Je confirme le calcul selon le solde de la demande, sans retrait des crédits non monétaires ni débit supplémentaire du portefeuille.",
     "I accept the negative cash balance within the configured refund grace.": "J’accepte le solde en espèces négatif dans la limite de tolérance configurée.",
-    "Confirm and recalculate": "Confirmer et recalculer"
+    "Confirm and recalculate": "Confirmer et recalculer",
+    "Application balance": "Solde de la demande",
+    "Confirming accepts the settlement risk and clears the listed residual request records. Running tasks remain blocked.": "La confirmation accepte le risque de règlement et supprime les demandes résiduelles listées. Les tâches en cours restent bloquantes.",
+    "Deduct the unexplained difference as historical order discounts or promotional credits.": "Déduire l’écart inexpliqué au titre des remises ou crédits promotionnels historiques.",
+    "Preserve noncash credits; no additional balance deduction.": "Conserver les crédits non monétaires sans déduction supplémentaire.",
+    "Recover historical discounts": "Déduire les remises historiques",
+    "Refund calculation method": "Mode de calcul du remboursement",
+    "Unexplained ledger difference": "Écart comptable inexpliqué",
+    "Please confirm that you understand the consequences": "Veuillez confirmer que vous comprenez les conséquences"
   }
 }

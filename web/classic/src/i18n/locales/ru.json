@@ -5785,6 +5785,14 @@
     "Cash balance after refund": "Денежный баланс после возврата",
     "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "Подтверждаю расчёт по балансу заявки с сохранением неденежных средств и без дополнительного списания с кошелька.",
     "I accept the negative cash balance within the configured refund grace.": "Подтверждаю отрицательный денежный баланс в пределах установленного допуска для возврата.",
-    "Confirm and recalculate": "Подтвердить и пересчитать"
+    "Confirm and recalculate": "Подтвердить и пересчитать",
+    "Application balance": "Баланс при заявке",
+    "Confirming accepts the settlement risk and clears the listed residual request records. Running tasks remain blocked.": "Подтверждение означает принятие риска расчётов и удаление указанных остаточных записей запросов. Незавершённые задачи по-прежнему блокируют операцию.",
+    "Deduct the unexplained difference as historical order discounts or promotional credits.": "Списать необъяснённую разницу как прежние скидки или бонусы заказов пополнения.",
+    "Preserve noncash credits; no additional balance deduction.": "Сохранить неденежные средства без дополнительного списания.",
+    "Recover historical discounts": "Вычесть прежние скидки",
+    "Refund calculation method": "Способ расчёта возврата",
+    "Unexplained ledger difference": "Необъяснённая разница в учёте",
+    "Please confirm that you understand the consequences": "Пожалуйста, подтвердите, что понимаете последствия"
   }
 }
