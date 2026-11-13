@@ -79,6 +79,7 @@ type RefundIssuerInvoiceType struct {
 }
 
 type RefundExportData struct {
+	ApplicationBalance *RefundApplicationBalance   `json:"application_balance,omitempty"`
 	Overdraft          *RefundConsumptionOverdraft `json:"overdraft,omitempty"`
 	GiftRecoveryPolicy string                      `json:"gift_recovery_policy,omitempty"`
 	PaidQuota          int64                       `json:"paid_quota,omitempty"`
@@ -559,6 +560,16 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 	if err != nil {
 		return nil, err
 	}
+	var applicationBalance *RefundApplicationBalance
+	overdraftOwner := &owner
+	if refund.CalculationBasis == RefundBasisApplicationBalance {
+		lots, applicationBalance, overdraftOwner, err = applicationRefundLotsTx(tx, refund, &owner, orders, previousAllocations, int64(owner.UsedQuota)+feeQuota)
+		if err != nil {
+			return nil, err
+		}
+		// Application-basis refunds preserve all excluded noncash credits.
+		config.RefundGiftRecoveryPolicy = RefundGiftNone
+	}
 	if len(quotaIncludesGift) == 1 && quotaIncludesGift[0] {
 		// An explicit final-balance override includes the gift debit in its total.
 		var available int64
@@ -590,7 +601,7 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 			return nil, ErrTicketRefundQuotaInvalid
 		}
 	} else {
-		overdraft, deferred, err := applyRefundConsumptionOverdraft(orders, lots, refund, &owner, config.RefundOverdraftLimitCents)
+		overdraft, deferred, err := applyRefundConsumptionOverdraft(orders, lots, refund, overdraftOwner, config.RefundOverdraftLimitCents)
 		if err != nil {
 			return nil, err
 		}
@@ -606,6 +617,7 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 			result.Payments[i].DeferredConsumptionQuota = deferred[result.Payments[i].OrderID]
 		}
 	}
+	result.ApplicationBalance = applicationBalance
 	result.TicketID = refund.TicketId
 	paid := map[int]int64{}
 	allocated := map[int]int64{}

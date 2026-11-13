@@ -39,6 +39,8 @@ export function RefundAdjustment({
   const [reason, setReason] = useState('');
   const [recovery, setRecovery] = useState(false);
   const [settlement, setSettlement] = useState(false);
+  const [applicationConfirmed, setApplicationConfirmed] = useState(false);
+  const [negativeConfirmed, setNegativeConfirmed] = useState(false);
   const submitting = useRef(false);
   async function preview() {
     if (submitting.current) return;
@@ -50,9 +52,11 @@ export function RefundAdjustment({
     setPlan(null);
     setRecovery(false);
     setSettlement(false);
+    setApplicationConfirmed(false);
+    setNegativeConfirmed(false);
     try {
       const { data } = await api.get(
-        `/api/ticket/refund/${ticketId}/adjustment`,
+        `/api/ticket/refund/${ticketId}/adjustment?basis=application_balance`,
         { skipBusinessError: true },
       );
       if (!data.success) throw new Error(data.message);
@@ -77,6 +81,9 @@ export function RefundAdjustment({
           reason: reason.trim(),
           confirm_recovery: recovery,
           confirm_settlement: settlement,
+          calculation_basis: plan.calculation_basis ?? '',
+          confirm_application_balance: applicationConfirmed,
+          confirm_negative: negativeConfirmed,
         },
         { skipBusinessError: true },
       );
@@ -113,6 +120,9 @@ export function RefundAdjustment({
   }
   const needsRecovery = Number(plan?.debit_amount ?? 0) > 0;
   const needsSettlement = (plan?.liabilities.length ?? 0) > 0;
+  const applicationBasis = plan?.calculation_basis === 'application_balance';
+  const needsNegative =
+    applicationBasis && Number(plan?.application_balance?.cash_amount ?? 0) < 0;
   const validReason =
     [...reason.trim()].length >= 5 &&
     [...reason.trim()].length <= 500 &&
@@ -133,7 +143,23 @@ export function RefundAdjustment({
             {[
               [t('Requested refund'), plan.requested],
               [t('Balance before adjustment'), plan.balance_before],
-              [t('Historical promotional credit recovery'), plan.debit_amount],
+              ...(applicationBasis
+                ? [
+                    [
+                      t('Preserved noncash credits'),
+                      plan.application_balance?.noncash_amount ?? '-',
+                    ],
+                    [
+                      t('Cash balance after refund'),
+                      plan.application_balance?.cash_amount ?? '-',
+                    ],
+                  ]
+                : [
+                    [
+                      t('Historical promotional credit recovery'),
+                      plan.debit_amount,
+                    ],
+                  ]),
               [
                 t('Accounted credits (balance, usage and paid fees)'),
                 plan.accounted_amount,
@@ -156,10 +182,19 @@ export function RefundAdjustment({
               </div>
             ))}
           </dl>
-          <p>
-            {t('Promotional recovery formula')}: {plan.accounted_amount} -{' '}
-            {plan.known_amount} = {plan.debit_amount}
-          </p>
+          {!applicationBasis && (
+            <p>
+              {t('Promotional recovery formula')}: {plan.accounted_amount} -{' '}
+              {plan.known_amount} = {plan.debit_amount}
+            </p>
+          )}
+          {applicationBasis && (
+            <p>
+              {t('Cash balance after refund')}: {plan.balance_after} -{' '}
+              {plan.application_balance?.noncash_amount} ={' '}
+              {plan.application_balance?.cash_amount}
+            </p>
+          )}
           <p>
             {t('Adjustment balance formula')}: {plan.balance_before} -{' '}
             {plan.debit_amount} = {plan.balance_after}
@@ -231,6 +266,36 @@ export function RefundAdjustment({
             </>
           ) : (
             <>
+              {applicationBasis && (
+                <label className='flex items-start gap-2'>
+                  <input
+                    type='checkbox'
+                    checked={applicationConfirmed}
+                    disabled={busy || !plan.can_apply}
+                    onChange={(e) => setApplicationConfirmed(e.target.checked)}
+                  />
+                  <span>
+                    {t(
+                      'I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.',
+                    )}
+                  </span>
+                </label>
+              )}
+              {needsNegative && (
+                <label className='flex items-start gap-2'>
+                  <input
+                    type='checkbox'
+                    checked={negativeConfirmed}
+                    disabled={busy || !plan.can_apply}
+                    onChange={(e) => setNegativeConfirmed(e.target.checked)}
+                  />
+                  <span>
+                    {t(
+                      'I accept the negative cash balance within the configured refund grace.',
+                    )}
+                  </span>
+                </label>
+              )}
               {needsRecovery && (
                 <label className='flex items-start gap-2'>
                   <input
@@ -282,12 +347,16 @@ export function RefundAdjustment({
                   busy ||
                   !plan.can_apply ||
                   !validReason ||
+                  (applicationBasis && !applicationConfirmed) ||
+                  (needsNegative && !negativeConfirmed) ||
                   (needsRecovery && !recovery) ||
                   (needsSettlement && !settlement)
                 }
                 onClick={() => void apply()}
               >
-                {t('Confirm recovery and recalculate')}
+                {applicationBasis
+                  ? t('Confirm and recalculate')
+                  : t('Confirm recovery and recalculate')}
               </Button>
             </>
           )}
