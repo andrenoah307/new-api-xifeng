@@ -190,6 +190,11 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("manual_adjustment_settlement", TestRefundAdjustmentSettlementRequiresExplicitEvidence)
 			t.Run("manual_adjustment_cancellation", TestRefundAdjustmentSettlementOnlyAndCancellation)
 			t.Run("manual_adjustment_concurrency", TestRefundAdjustmentConcurrentConfirmation)
+			t.Run("application_balance", TestApplicationBalanceRefundPreservesReferralAndWallet)
+			t.Run("application_balance_grace", TestApplicationBalanceGraceRecheckAndCancellation)
+			t.Run("application_balance_atomic", TestApplicationBalanceAtomicConfirmation)
+			t.Run("application_balance_bonus", TestApplicationBalancePreservesBonusAndPaymentCaps)
+			t.Run("application_balance_tax", TestApplicationBalanceKeepsTaxRatioAndLedgerDifference)
 		})
 	}
 }

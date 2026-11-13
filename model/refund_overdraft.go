@@ -51,7 +51,7 @@ func applyRefundConsumptionOverdraft(orders []TopUp, lots map[int]RefundCreditLo
 		return nil, nil, refundShortfallError("unbacked_credit", orders, lots, refund, owner, available, limitCents)
 	}
 	for _, lot := range lots {
-		if lot.GiftRemaining > 0 {
+		if lot.GiftRemaining > 0 && refund.CalculationBasis != RefundBasisApplicationBalance {
 			return nil, nil, refundShortfallError("gift_balance", orders, lots, refund, owner, available, limitCents)
 		}
 	}

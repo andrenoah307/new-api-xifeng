@@ -49,6 +49,7 @@ var (
 )
 
 type TicketRefund struct {
+	CalculationBasis   string               `json:"calculation_basis,omitempty" gorm:"size:32"`
 	RefundGiftQuota    int64                `json:"refund_gift_quota" gorm:"type:bigint"`
 	SettlementStatus   string               `json:"settlement_status,omitempty" gorm:"-"`
 	SettlementVerified bool                 `json:"settlement_verified"`

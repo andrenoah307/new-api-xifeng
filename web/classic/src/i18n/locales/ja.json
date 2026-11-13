@@ -5726,6 +5726,11 @@
     "Invoice fee deduction exceeds the configured overdraft allowance": "請求書手数料の引き落とし後の不足額が設定された許容額を超えます",
     "Filter scope": "適用範囲",
     "Selected groups": "指定グループ",
-    "All groups": "すべてのグループ"
+    "All groups": "すべてのグループ",
+    "Preserved noncash credits": "保持する非現金クレジット",
+    "Cash balance after refund": "返金後の現金換算残高",
+    "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "申請時の残高基準で計算し、非現金クレジットを保持してウォレットから追加控除しないことを確認します。",
+    "I accept the negative cash balance within the configured refund grace.": "設定された返金猶予額内の現金換算マイナス残高を承認します。",
+    "Confirm and recalculate": "確認して再計算"
   }
 }

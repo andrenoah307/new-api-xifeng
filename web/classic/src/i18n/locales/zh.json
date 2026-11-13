@@ -3628,6 +3628,11 @@
     "Invoice fee deduction exceeds the configured overdraft allowance": "扣除开票费用后的欠额超过系统配置的宽限额度",
     "Filter scope": "生效范围",
     "Selected groups": "指定分组",
-    "All groups": "全部分组"
+    "All groups": "全部分组",
+    "Preserved noncash credits": "保留的非现金额度",
+    "Cash balance after refund": "退款后现金口径余额",
+    "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "我确认按申请余额口径计算，保留非现金额度，不追加扣减钱包余额。",
+    "I accept the negative cash balance within the configured refund grace.": "我确认接受系统退款宽限内的现金负余额。",
+    "Confirm and recalculate": "确认并重新计算"
   }
 }

@@ -5759,6 +5759,11 @@
     "Invoice fee deduction exceeds the configured overdraft allowance": "Le débit des frais dépasse le découvert autorisé",
     "Filter scope": "Portée du filtre",
     "Selected groups": "Groupes sélectionnés",
-    "All groups": "Tous les groupes"
+    "All groups": "Tous les groupes",
+    "Preserved noncash credits": "Crédits non monétaires conservés",
+    "Cash balance after refund": "Solde en espèces après remboursement",
+    "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "Je confirme le calcul selon le solde de la demande, sans retrait des crédits non monétaires ni débit supplémentaire du portefeuille.",
+    "I accept the negative cash balance within the configured refund grace.": "J’accepte le solde en espèces négatif dans la limite de tolérance configurée.",
+    "Confirm and recalculate": "Confirmer et recalculer"
   }
 }

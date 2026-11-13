@@ -6269,6 +6269,11 @@
     "Invoice fee deduction exceeds the configured overdraft allowance": "Khoản trừ phí hóa đơn vượt hạn mức âm đã cấu hình",
     "Filter scope": "Phạm vi bộ lọc",
     "Selected groups": "Nhóm được chọn",
-    "All groups": "Tất cả nhóm"
+    "All groups": "Tất cả nhóm",
+    "Preserved noncash credits": "Hạn mức phi tiền mặt được giữ lại",
+    "Cash balance after refund": "Số dư tiền mặt sau hoàn tiền",
+    "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "Tôi xác nhận tính theo số dư của yêu cầu, giữ nguyên hạn mức phi tiền mặt và không trừ thêm số dư ví.",
+    "I accept the negative cash balance within the configured refund grace.": "Tôi chấp nhận số dư tiền mặt âm trong mức cho phép hoàn tiền đã cấu hình.",
+    "Confirm and recalculate": "Xác nhận và tính lại"
   }
 }

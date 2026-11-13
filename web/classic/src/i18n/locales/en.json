@@ -5985,6 +5985,11 @@
     "Invoice fee deduction exceeds the configured overdraft allowance": "Invoice fee deduction exceeds the configured overdraft allowance",
     "Filter scope": "Filter scope",
     "Selected groups": "Selected groups",
-    "All groups": "All groups"
+    "All groups": "All groups",
+    "Preserved noncash credits": "Preserved noncash credits",
+    "Cash balance after refund": "Cash balance after refund",
+    "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.",
+    "I accept the negative cash balance within the configured refund grace.": "I accept the negative cash balance within the configured refund grace.",
+    "Confirm and recalculate": "Confirm and recalculate"
   }
 }

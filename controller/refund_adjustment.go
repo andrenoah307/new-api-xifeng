@@ -26,7 +26,7 @@ func RefundAdjustment(c *gin.Context) {
 			return
 		}
 	}
-	result, err := model.ManageRefundAdjustment(id, c.GetInt("id"), input)
+	result, err := model.ManageRefundAdjustment(id, c.GetInt("id"), input, c.Query("basis"))
 	if !authorizeRefundFinance(c) {
 		return
 	}

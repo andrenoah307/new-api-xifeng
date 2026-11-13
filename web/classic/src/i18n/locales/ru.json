@@ -5780,6 +5780,11 @@
     "Invoice fee deduction exceeds the configured overdraft allowance": "Списание сбора превышает установленный лимит долга",
     "Filter scope": "Область фильтра",
     "Selected groups": "Выбранные группы",
-    "All groups": "Все группы"
+    "All groups": "Все группы",
+    "Preserved noncash credits": "Сохраняемые неденежные средства",
+    "Cash balance after refund": "Денежный баланс после возврата",
+    "I confirm the application balance basis, with noncash credits preserved and no additional wallet deduction.": "Подтверждаю расчёт по балансу заявки с сохранением неденежных средств и без дополнительного списания с кошелька.",
+    "I accept the negative cash balance within the configured refund grace.": "Подтверждаю отрицательный денежный баланс в пределах установленного допуска для возврата.",
+    "Confirm and recalculate": "Подтвердить и пересчитать"
   }
 }
