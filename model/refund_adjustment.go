@@ -17,7 +17,7 @@ import (
 )
 
 var ErrRefundAdjustment = errors.New("Refund adjustment is unavailable for this ticket")
-var ErrRefundAdjustmentConfirmation = errors.New("Confirm the adjustment and provide a reason")
+var ErrRefundAdjustmentConfirmation = errors.New("Please confirm that you understand the consequences")
 
 // Immutable receipt: a ticket can be adjusted once, including after retries or cancellation.
 type RefundAdjustment struct {
@@ -43,6 +43,8 @@ type RefundAdjustmentLiability struct {
 }
 
 type RefundAdjustmentPlan struct {
+	DifferenceAmount   string                      `json:"difference_amount"`
+	CalculationMethod  string                      `json:"calculation_method,omitempty"`
 	CalculationBasis   string                      `json:"calculation_basis,omitempty"`
 	ApplicationBalance *RefundApplicationBalance   `json:"application_balance,omitempty"`
 	TicketID           int                         `json:"ticket_id"`
@@ -69,6 +71,7 @@ type RefundAdjustmentPlan struct {
 }
 
 type RefundAdjustmentInput struct {
+	CalculationMethod         string `json:"calculation_method"`
 	CalculationBasis          string `json:"calculation_basis"`
 	ConfirmApplicationBalance bool   `json:"confirm_application_balance"`
 	ConfirmNegative           bool   `json:"confirm_negative"`
@@ -129,7 +132,8 @@ func buildRefundAdjustmentTx(tx *gorm.DB, refund *TicketRefund, owner *User, bas
 		DebitAmount:   decimal.NewFromInt(debit).Div(unit).String(), BalanceAfter: decimal.NewFromInt(after).Div(unit).String(),
 		GraceAmount:     decimal.NewFromInt(config.RefundOverdraftLimitCents).Div(decimal.NewFromInt(100)).String(),
 		AccountedAmount: accounted.Div(unit).String(), KnownAmount: known.Div(unit).String(),
-		Liabilities: []RefundAdjustmentLiability{}, debitQuota: debit, afterQuota: int(after),
+		DifferenceAmount: accounted.Sub(known).Div(unit).String(),
+		Liabilities:      []RefundAdjustmentLiability{}, debitQuota: debit, afterQuota: int(after),
 	}
 	if basis == RefundBasisApplicationBalance {
 		noncash, err := originalRefundNoncashQuotaTx(tx, owner)
@@ -205,6 +209,22 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 		basis = previewBasis[0]
 	}
 	if input != nil {
+		copyInput := *input
+		input = &copyInput
+		if input.CalculationMethod != "" {
+			switch input.CalculationMethod {
+			case RefundBasisApplicationBalance:
+				input.CalculationBasis = RefundBasisApplicationBalance
+				input.ConfirmApplicationBalance = true
+			case "discount_recovery":
+				input.CalculationBasis = ""
+				input.ConfirmRecovery = true
+			default:
+				return nil, ErrRefundAdjustment
+			}
+			input.ConfirmSettlement = true
+			input.Reason = "Administrator selected refund calculation method: " + input.CalculationMethod + ". Residual request settlement risk accepted; no manual settlement verification claimed."
+		}
 		basis = input.CalculationBasis
 	}
 	if basis != "" && basis != RefundBasisApplicationBalance {
@@ -257,6 +277,9 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 		}
 		var err error
 		if refund.CalculationBasis == RefundBasisApplicationBalance {
+			if input != nil && input.CalculationMethod == "discount_recovery" {
+				return ErrFinanceRevision
+			}
 			basis = RefundBasisApplicationBalance
 		}
 		result, err = buildRefundAdjustmentTx(tx, &refund, &owner, basis)
@@ -268,6 +291,9 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 		}
 		if !result.CanApply {
 			return ErrRefundAdjustment
+		}
+		if input.CalculationMethod != "" && result.afterQuota < 0 && !input.ConfirmNegative {
+			return ErrRefundAdjustmentConfirmation
 		}
 		if (result.debitQuota > 0 && !input.ConfirmRecovery) || (len(result.Liabilities) > 0 && !input.ConfirmSettlement) {
 			return ErrRefundAdjustmentConfirmation
@@ -330,6 +356,7 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 			return ErrFinanceRevision
 		}
 		result.Applied, result.ActorID, result.AppliedAt, result.Reason = true, actorID, common.GetTimestamp(), input.Reason
+		result.CalculationMethod = input.CalculationMethod
 		result.CanApply = false
 		raw, err := common.Marshal(result)
 		if err != nil {
@@ -350,6 +377,9 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 			Content: fmt.Sprintf("因退款工单计算扣回历史优惠赠送额度：%s元额度；余额由%s变为%s元额度；人工核验结算记录%d条。退款计算已保存，尚未付款。", result.DebitAmount, result.BalanceBefore, result.BalanceAfter, len(result.Liabilities))}
 		if result.ApplicationBalance != nil {
 			message.Content = fmt.Sprintf("按原申请余额口径核验退款：不追加扣款；总余额%s元，保留非现金额度%s元，现金口径余额%s元；人工核验结算记录%d条。退款计算已保存，尚未付款。", result.BalanceAfter, result.ApplicationBalance.NoncashAmount, result.ApplicationBalance.CashAmount, len(result.Liabilities))
+		}
+		if input.CalculationMethod != "" {
+			message.Content = fmt.Sprintf("管理员选择退款计算方式%s；账面差额%s元，扣回历史优惠赠送额度%s元，余额由%s变为%s元；按所选方式处理结算阻塞记录%d条，未作人工结算核验。退款计算已保存，尚未付款。", input.CalculationMethod, result.DifferenceAmount, result.DebitAmount, result.BalanceBefore, result.BalanceAfter, len(result.Liabilities))
 		}
 		created = tx.Create(&message)
 		if created.Error != nil {
