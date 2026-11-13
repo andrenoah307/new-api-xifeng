@@ -89,6 +89,8 @@ type RefundReconciliationReport struct {
 	WalletQuota     int                     `json:"wallet_quota"`
 	UsedQuota       int                     `json:"used_quota"`
 	Difference      string                  `json:"difference"`
+	AccountedQuota  string                  `json:"accounted_quota"`
+	KnownQuota      string                  `json:"known_quota"`
 	Reviews         []FinanceReconciliation `json:"reviews"`
 }
 
@@ -233,6 +235,7 @@ func refundReconciliationReportTx(tx *gorm.DB, refund TicketRefund) (*RefundReco
 		}
 	}
 	report.Difference = accounted.Sub(known).String()
+	report.AccountedQuota, report.KnownQuota = accounted.String(), known.String()
 	if !known.Equal(accounted) {
 		report.Blockers = append(report.Blockers, FinanceBlocker{Code: "ledger_mismatch"})
 	}

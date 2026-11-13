@@ -62,12 +62,12 @@ export function InvoiceTaxSettings() {
   const amount =
     overdraftAmount ??
     ((config.refund_overdraft_limit_cents ?? 0) / 100).toFixed(2)
-  const amountParts = /^(0|[1-9]\d?)(?:\.(\d{1,2}))?$/.exec(amount)
+  const amountParts = /^(0|[1-9]\d*)(?:\.(\d{1,2}))?$/.exec(amount)
   const overdraftCents = amountParts
     ? Number(amountParts[1]) * 100 +
       Number((amountParts[2] ?? '').padEnd(2, '0'))
     : -1
-  const validOverdraft = overdraftCents >= 0 && overdraftCents <= 1000
+  const validOverdraft = Number.isSafeInteger(overdraftCents) && overdraftCents >= 0
   const validCutoff =
     Number.isSafeInteger(legacyBefore) &&
     legacyBefore >= 0 &&
@@ -104,7 +104,7 @@ export function InvoiceTaxSettings() {
           {!validOverdraft && (
             <FieldError id='refund-overdraft-error'>
               {t(
-                'Amount must be between CNY 0 and 10, with at most two decimal places.'
+              'Enter a non-negative amount with at most two decimal places.'
               )}
             </FieldError>
           )}

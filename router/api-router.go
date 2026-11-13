@@ -230,6 +230,8 @@ func SetApiRouter(router *gin.Engine) {
 			ticketRoute.GET("/refund/finance-list", controller.ListRefundFinance)
 			ticketRoute.GET("/refund/:id/invoice-export", controller.RefundInvoiceExport)
 			ticketRoute.POST("/refund/:id/invoice-export", controller.RefundInvoiceExport)
+			ticketRoute.GET("/refund/:id/adjustment", controller.RefundAdjustment)
+			ticketRoute.POST("/refund/:id/adjustment", middleware.CriticalRateLimit(), controller.RefundAdjustment)
 			ticketRoute.GET("/refund/:id/payout", controller.GetRefundPayouts)
 			ticketRoute.POST("/refund/:id/payout", controller.StartRefundPayout)
 			ticketRoute.POST("/refund/payouts/:id/review", controller.ReviewRefundPayout)

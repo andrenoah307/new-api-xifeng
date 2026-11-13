@@ -184,6 +184,12 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("recovery_unissued", TestRefundRecoveryUnissuedCorrection)
 			t.Run("recovery_close_restart", TestAdminCloseUnissuedRefundAllowsNewApplication)
 			t.Run("recovery_issued", TestRefundRecoveryIssuedCorrectionCompletesOnce)
+			t.Run("manual_adjustment", TestRefundAdjustmentPreviewApplyReplayAndComplete)
+			t.Run("manual_adjustment_rollback", TestRefundAdjustmentRefreshConfirmationAndRollback)
+			t.Run("manual_adjustment_evidence", TestRefundAdjustmentRejectsChangedEvidence)
+			t.Run("manual_adjustment_settlement", TestRefundAdjustmentSettlementRequiresExplicitEvidence)
+			t.Run("manual_adjustment_cancellation", TestRefundAdjustmentSettlementOnlyAndCancellation)
+			t.Run("manual_adjustment_concurrency", TestRefundAdjustmentConcurrentConfirmation)
 		})
 	}
 }

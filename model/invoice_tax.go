@@ -308,7 +308,7 @@ func syncInvoiceTaxQuotaCache(userID, delta int) {
 
 func (config InvoiceTaxConfig) Valid() bool {
 	return (config.RefundGiftRecoveryPolicy == "" || config.RefundGiftRecoveryPolicy == RefundGiftPriorExpiry || config.RefundGiftRecoveryPolicy == RefundGiftProportional || config.RefundGiftRecoveryPolicy == RefundGiftNone) &&
-		config.RefundOverdraftLimitCents >= 0 && config.RefundOverdraftLimitCents <= 1000 &&
+		config.RefundOverdraftLimitCents >= 0 &&
 		config.ReconciliationReviewCount >= 0 && config.ReconciliationReviewCount <= math.MaxInt32 &&
 		(!config.ReconciliationReviewEnabled || config.ReconciliationReviewCount >= 1) &&
 		(config.PolicyEffectiveAt == 0 || config.PolicyEffectiveAt == InvoicePolicyEffectiveAt) &&
