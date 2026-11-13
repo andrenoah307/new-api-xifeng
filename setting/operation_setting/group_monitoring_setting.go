@@ -1,6 +1,7 @@
 package operation_setting
 
 import (
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -8,51 +9,66 @@ import (
 )
 
 type GroupMonitoringSetting struct {
-	Enabled                        bool                `json:"enabled"`
-	MonitoringGroups               []string            `json:"monitoring_groups"`
-	ExcludedChannelIDs             []int               `json:"excluded_channel_ids"`
-	ExcludedUserIDs                []int               `json:"excluded_user_ids"`
-	AvailabilityPeriodMinutes      int                 `json:"availability_period_minutes"`
-	CacheHitPeriodMinutes          int                 `json:"cache_hit_period_minutes"`
-	AvailabilityExcludeModels      []string            `json:"availability_exclude_models"`
-	CacheHitExcludeModels          []string            `json:"cache_hit_exclude_models"`
-	CacheHitExcludeNonStream       bool                `json:"cache_hit_exclude_non_stream"`
-	CacheHitExcludeNonAffinity     bool                `json:"cache_hit_exclude_non_affinity"`
-	AvailabilityExcludeKeywords    []string            `json:"availability_exclude_keywords"`
-	AvailabilityExcludeStatusCodes []int               `json:"availability_exclude_status_codes"`
-	GroupDisplayOrder              []string            `json:"group_display_order"`
-	AggregationIntervalMinutes     int                 `json:"aggregation_interval_minutes"`
-	CacheTokensSeparateGroups      []string            `json:"cache_tokens_separate_groups"`
-	FRTExcludeThresholdSeconds     float64             `json:"frt_exclude_threshold_seconds"`
-	PerfCardEnabled                bool                `json:"perf_card_enabled"`
-	PerfCardPublic                 bool                `json:"perf_card_public"`
-	PerfCardShowAllModels          bool                `json:"perf_card_show_all_models"`
-	PerfCardTopN                   int                 `json:"perf_card_top_n"`
-	PerfCardGroups                 []string            `json:"perf_card_groups"`
-	PerfCardGroupModels            map[string][]string `json:"perf_card_group_models"`
+	Enabled                          bool                `json:"enabled"`
+	MonitoringGroups                 []string            `json:"monitoring_groups"`
+	ExcludedChannelIDs               []int               `json:"excluded_channel_ids"`
+	ExcludedUserIDs                  []int               `json:"excluded_user_ids"`
+	AvailabilityPeriodMinutes        int                 `json:"availability_period_minutes"`
+	CacheHitPeriodMinutes            int                 `json:"cache_hit_period_minutes"`
+	AvailabilityExcludeModels        []string            `json:"availability_exclude_models"`
+	CacheHitExcludeModels            []string            `json:"cache_hit_exclude_models"`
+	CacheHitExcludeNonStream         bool                `json:"cache_hit_exclude_non_stream"`
+	CacheHitExcludeNonAffinity       bool                `json:"cache_hit_exclude_non_affinity"`
+	CacheHitExcludeNonStreamScope    string              `json:"cache_hit_exclude_non_stream_scope"`
+	CacheHitExcludeNonStreamGroups   []string            `json:"cache_hit_exclude_non_stream_groups"`
+	CacheHitExcludeNonAffinityScope  string              `json:"cache_hit_exclude_non_affinity_scope"`
+	CacheHitExcludeNonAffinityGroups []string            `json:"cache_hit_exclude_non_affinity_groups"`
+	AvailabilityExcludeKeywords      []string            `json:"availability_exclude_keywords"`
+	AvailabilityExcludeStatusCodes   []int               `json:"availability_exclude_status_codes"`
+	GroupDisplayOrder                []string            `json:"group_display_order"`
+	AggregationIntervalMinutes       int                 `json:"aggregation_interval_minutes"`
+	CacheTokensSeparateGroups        []string            `json:"cache_tokens_separate_groups"`
+	FRTExcludeThresholdSeconds       float64             `json:"frt_exclude_threshold_seconds"`
+	PerfCardEnabled                  bool                `json:"perf_card_enabled"`
+	PerfCardPublic                   bool                `json:"perf_card_public"`
+	PerfCardShowAllModels            bool                `json:"perf_card_show_all_models"`
+	PerfCardTopN                     int                 `json:"perf_card_top_n"`
+	PerfCardGroups                   []string            `json:"perf_card_groups"`
+	PerfCardGroupModels              map[string][]string `json:"perf_card_group_models"`
 }
 
 var groupMonitoringSetting = GroupMonitoringSetting{
-	Enabled:                        true,
-	MonitoringGroups:               []string{},
-	ExcludedChannelIDs:             []int{},
-	ExcludedUserIDs:                []int{},
-	AvailabilityPeriodMinutes:      60,
-	CacheHitPeriodMinutes:          60,
-	AvailabilityExcludeModels:      []string{},
-	CacheHitExcludeModels:          []string{},
-	AvailabilityExcludeKeywords:    []string{},
-	AvailabilityExcludeStatusCodes: []int{},
-	GroupDisplayOrder:              []string{},
-	AggregationIntervalMinutes:     5,
-	CacheTokensSeparateGroups:      []string{},
-	FRTExcludeThresholdSeconds:     0,
-	PerfCardEnabled:                true,
-	PerfCardPublic:                 false,
-	PerfCardShowAllModels:          false,
-	PerfCardTopN:                   6,
-	PerfCardGroups:                 []string{},
-	PerfCardGroupModels:            map[string][]string{},
+	Enabled:                          true,
+	MonitoringGroups:                 []string{},
+	ExcludedChannelIDs:               []int{},
+	ExcludedUserIDs:                  []int{},
+	AvailabilityPeriodMinutes:        60,
+	CacheHitPeriodMinutes:            60,
+	AvailabilityExcludeModels:        []string{},
+	CacheHitExcludeModels:            []string{},
+	CacheHitExcludeNonStreamScope:    "all",
+	CacheHitExcludeNonStreamGroups:   []string{},
+	CacheHitExcludeNonAffinityScope:  "all",
+	CacheHitExcludeNonAffinityGroups: []string{},
+	AvailabilityExcludeKeywords:      []string{},
+	AvailabilityExcludeStatusCodes:   []int{},
+	GroupDisplayOrder:                []string{},
+	AggregationIntervalMinutes:       5,
+	CacheTokensSeparateGroups:        []string{},
+	FRTExcludeThresholdSeconds:       0,
+	PerfCardEnabled:                  true,
+	PerfCardPublic:                   false,
+	PerfCardShowAllModels:            false,
+	PerfCardTopN:                     6,
+	PerfCardGroups:                   []string{},
+	PerfCardGroupModels:              map[string][]string{},
+}
+
+// Missing scopes preserve the legacy global filters; an empty selection matches no groups.
+func (s GroupMonitoringSetting) CacheHitFiltersForGroup(group string) (streamOnly, affinityOnly bool) {
+	streamOnly = s.CacheHitExcludeNonStream && (s.CacheHitExcludeNonStreamScope != "selected" || slices.Contains(s.CacheHitExcludeNonStreamGroups, group))
+	affinityOnly = s.CacheHitExcludeNonAffinity && (s.CacheHitExcludeNonAffinityScope != "selected" || slices.Contains(s.CacheHitExcludeNonAffinityGroups, group))
+	return
 }
 
 func (s GroupMonitoringSetting) IsPerfCardGroupEnabled(group string) bool {

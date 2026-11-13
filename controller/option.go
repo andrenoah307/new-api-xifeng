@@ -165,6 +165,20 @@ func applyOptionUpdate(c *gin.Context, key string, value any) error {
 		if err != nil {
 			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
 		}
+	case "group_monitoring_setting.cache_hit_exclude_non_stream_scope", "group_monitoring_setting.cache_hit_exclude_non_affinity_scope":
+		if value := option.Value.(string); value != "" && value != "all" && value != "selected" {
+			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
+		}
+	case "group_monitoring_setting.cache_hit_exclude_non_stream_groups", "group_monitoring_setting.cache_hit_exclude_non_affinity_groups":
+		var groups []string
+		if common.UnmarshalJsonStr(option.Value.(string), &groups) != nil || len(groups) > 10000 {
+			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
+		}
+		for _, group := range groups {
+			if strings.TrimSpace(group) == "" {
+				return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
+			}
+		}
 	case "group_monitoring_setting.excluded_channel_ids", "group_monitoring_setting.excluded_user_ids":
 		var ids []int
 		if common.UnmarshalJsonStr(option.Value.(string), &ids) != nil || len(ids) > 10000 {

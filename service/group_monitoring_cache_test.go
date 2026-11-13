@@ -198,3 +198,83 @@ func TestGroupMonitoringHourlyCacheRate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, stat.CacheHitRate1h)
 }
+
+func TestGroupMonitoringCacheFilterScopes(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	oldDB, oldRedis := model.DB, common.RDB
+	model.DB, common.RDB = db, client
+	t.Cleanup(func() {
+		model.DB, common.RDB = oldDB, oldRedis
+		_ = client.Close()
+		_ = sqlDB.Close()
+	})
+	require.NoError(t, db.AutoMigrate(&model.GroupMonitoringStat{}, &model.ChannelMonitoringStat{}, &model.MonitoringHistory{}))
+	groups := []string{"both", "stream", "affinity", "neither", "no-affinity"}
+	for _, group := range groups {
+		key := fmt.Sprintf("gm:b:%d:%s:1", time.Now().Unix()-60, group)
+		require.NoError(t, client.HSet(context.Background(), key,
+			"pt", 1000, "ct", 600, "spt", 500, "sct", 200,
+			"apt", 400, "act", 100, "sapt", 100, "sact", 0,
+			"t", 10, "s", 10).Err())
+		if group == "no-affinity" {
+			require.NoError(t, client.HDel(context.Background(), key, "apt", "act", "sapt", "sact").Err())
+		}
+	}
+	cfg := operation_setting.GroupMonitoringSetting{
+		MonitoringGroups: groups, AvailabilityPeriodMinutes: 60, CacheHitPeriodMinutes: 60,
+		AggregationIntervalMinutes: 5, CacheHitExcludeNonStream: true, CacheHitExcludeNonAffinity: true,
+		CacheHitExcludeNonStreamGroups:   []string{"both", "stream"},
+		CacheHitExcludeNonAffinityGroups: []string{"both", "affinity"},
+	}
+	for _, tc := range []struct {
+		name, streamScope, affinityScope string
+		disabled, empty                  bool
+		want                             []float64
+	}{
+		{"legacy applies globally", "", "", false, false, []float64{0, 0, 0, 0, -1}},
+		{"independent selections", "selected", "selected", false, false, []float64{0, 40, 25, 60, 60}},
+		{"stream global", "all", "selected", false, false, []float64{0, 40, 0, 40, 40}},
+		{"affinity global", "selected", "all", false, false, []float64{0, 0, 25, 25, -1}},
+		{"disabled retains selection", "selected", "selected", true, false, []float64{60, 60, 60, 60, 60}},
+		{"empty selection applies nowhere", "selected", "selected", false, true, []float64{60, 60, 60, 60, 60}},
+		{"restore global", "all", "all", false, false, []float64{0, 0, 0, 0, -1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			current := cfg
+			current.CacheHitExcludeNonStreamScope = tc.streamScope
+			current.CacheHitExcludeNonAffinityScope = tc.affinityScope
+			current.CacheHitExcludeNonStream = !tc.disabled
+			current.CacheHitExcludeNonAffinity = !tc.disabled
+			if tc.empty {
+				current.CacheHitExcludeNonStreamGroups = nil
+				current.CacheHitExcludeNonAffinityGroups = []string{}
+			}
+			runRedisAggregation(current, false)
+			for i, group := range groups {
+				stat, err := model.GetGroupMonitoringStatByName(group)
+				require.NoError(t, err)
+				assert.InDelta(t, tc.want[i], stat.CacheHitRate, 0.001, group)
+				if tc.want[i] < 0 {
+					assert.Nil(t, stat.CacheHitRate1h, group)
+				} else {
+					require.NotNil(t, stat.CacheHitRate1h)
+					assert.InDelta(t, tc.want[i], *stat.CacheHitRate1h, 0.001, group)
+				}
+				assert.Equal(t, float64(100), stat.AvailabilityRate)
+				channels, err := model.GetChannelMonitoringStatsByGroup(group)
+				require.NoError(t, err)
+				require.Len(t, channels, 1)
+				assert.InDelta(t, tc.want[i], channels[0].CacheHitRate, 0.001, group)
+				var history model.MonitoringHistory
+				require.NoError(t, db.Where("group_name = ?", group).Order("recorded_at DESC").First(&history).Error)
+				assert.InDelta(t, tc.want[i], history.CacheHitRate, 0.001, group)
+				assert.Equal(t, 10, history.RequestCount)
+			}
+		})
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -36,6 +37,41 @@ func TestMonitoringExclusionOptionValidation(t *testing.T) {
 				assert.Equal(t, value != "[]", operation_setting.IsMonitoringExcluded(12, 0))
 			} else {
 				assert.Equal(t, value != "[]", operation_setting.IsMonitoringExcluded(0, 12))
+			}
+		}
+	}
+}
+
+func TestMonitoringCacheScopeOptions(t *testing.T) {
+	db := setupOptionControllerTest(t)
+	saved := map[string]string{}
+	require.NoError(t, config.GlobalConfig.SaveToDB(func(key, value string) error {
+		saved[key] = value
+		return nil
+	}))
+	t.Cleanup(func() { require.NoError(t, config.GlobalConfig.LoadFromDB(saved)) })
+	for _, filter := range []string{"non_stream", "non_affinity"} {
+		prefix := "group_monitoring_setting.cache_hit_exclude_" + filter
+		for _, tc := range []struct {
+			suffix         string
+			invalid, valid []string
+		}{
+			{"_scope", []string{"unknown", "ALL", "[]"}, []string{"", "all", "selected"}},
+			{"_groups", []string{"{}", `[1]`, `[""]`, `[" "]`}, []string{`["alpha","beta"]`, `[]`}},
+		} {
+			key := prefix + tc.suffix
+			for _, value := range tc.invalid {
+				response := decodeBody(t, putSingleOption(t, fmt.Sprintf(`{"key":%q,"value":%q}`, key, value)))
+				assert.Equal(t, false, response["success"])
+				_, exists := optionValueInDB(t, db, key)
+				assert.False(t, exists)
+			}
+			for _, value := range tc.valid {
+				response := decodeBody(t, postOptionBatch(t, fmt.Sprintf(`{"options":[{"key":%q,"value":%q}]}`, key, value)))
+				require.Equal(t, true, response["success"])
+				stored, exists := optionValueInDB(t, db, key)
+				require.True(t, exists)
+				assert.Equal(t, value, stored)
 			}
 		}
 	}

@@ -5361,6 +5361,9 @@
     "Exclude requests without affinity hits from cache hit rate": "Exclure les requêtes sans affinité du taux de cache",
     "Client errors (4xx)": "Erreurs client (4xx)",
     "Server errors (5xx or unknown)": "Erreurs serveur (5xx ou statut inconnu)",
-    "Upstream Error Redaction": "Masquage des erreurs en amont"
+    "Upstream Error Redaction": "Masquage des erreurs en amont",
+    "Filter scope": "Portée du filtre",
+    "Selected groups": "Groupes sélectionnés",
+    "All groups": "Tous les groupes"
   }
 }

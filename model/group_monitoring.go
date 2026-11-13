@@ -143,34 +143,56 @@ func GetLastMonitoringHistoryBeforeBatch(groups []string, beforeTime int64) (map
 }
 
 func UpsertChannelMonitoringStat(stat *ChannelMonitoringStat) error {
+	return upsertChannelMonitoringStat(DB, stat)
+}
+
+func upsertChannelMonitoringStat(db *gorm.DB, stat *ChannelMonitoringStat) error {
 	stat.UpdatedAt = time.Now().Unix()
-	return DB.Clauses(clause.OnConflict{
+	// Map inserts preserve measured zero rates instead of applying the -1 defaults.
+	return db.Model(&ChannelMonitoringStat{}).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "group_name"}, {Name: "channel_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"availability_rate", "cache_hit_rate", "avg_response_time", "avg_frt",
 			"last_test_time", "last_test_model", "is_online", "updated_at",
 		}),
-	}).Create(stat).Error
+	}).Create(map[string]interface{}{
+		"group_name": stat.GroupName, "channel_id": stat.ChannelId,
+		"availability_rate": stat.AvailabilityRate, "cache_hit_rate": stat.CacheHitRate,
+		"avg_response_time": stat.AvgResponseTime, "avg_frt": stat.AvgFRT,
+		"last_test_time": stat.LastTestTime, "last_test_model": stat.LastTestModel,
+		"is_online": stat.IsOnline, "updated_at": stat.UpdatedAt,
+	}).Error
 }
 
 func UpsertGroupMonitoringStat(stat *GroupMonitoringStat) error {
 	stat.UpdatedAt = time.Now().Unix()
-	return DB.Clauses(clause.OnConflict{
+	return DB.Model(&GroupMonitoringStat{}).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "group_name"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"availability_rate", "cache_hit_rate", "cache_hit_rate_1h", "avg_response_time", "avg_frt",
 			"online_channels", "total_channels", "group_ratio", "last_test_model", "updated_at",
 		}),
-	}).Create(stat).Error
+	}).Create(map[string]interface{}{
+		"group_name":        stat.GroupName,
+		"availability_rate": stat.AvailabilityRate, "cache_hit_rate": stat.CacheHitRate,
+		"cache_hit_rate_1h": stat.CacheHitRate1h,
+		"avg_response_time": stat.AvgResponseTime, "avg_frt": stat.AvgFRT,
+		"online_channels": stat.OnlineChannels, "total_channels": stat.TotalChannels,
+		"group_ratio": stat.GroupRatio, "last_test_model": stat.LastTestModel, "updated_at": stat.UpdatedAt,
+	}).Error
 }
 
 func UpsertMonitoringHistory(h *MonitoringHistory) error {
-	return DB.Clauses(clause.OnConflict{
+	return DB.Model(&MonitoringHistory{}).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "group_name"}, {Name: "recorded_at"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"availability_rate", "cache_hit_rate", "avg_frt", "request_count",
 		}),
-	}).Create(h).Error
+	}).Create(map[string]interface{}{
+		"group_name": h.GroupName, "availability_rate": h.AvailabilityRate,
+		"cache_hit_rate": h.CacheHitRate, "avg_frt": h.AvgFRT,
+		"request_count": h.RequestCount, "recorded_at": h.RecordedAt,
+	}).Error
 }
 
 func CleanupOldMonitoringHistory(beforeTime int64) error {
@@ -271,14 +293,7 @@ func AggregateLogsForMonitoring(sinceTimestamp int64, excludedChannelIDs, exclud
 func BatchUpsertChannelMonitoringStats(stats []*ChannelMonitoringStat) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		for _, stat := range stats {
-			stat.UpdatedAt = time.Now().Unix()
-			if err := tx.Clauses(clause.OnConflict{
-				Columns: []clause.Column{{Name: "group_name"}, {Name: "channel_id"}},
-				DoUpdates: clause.AssignmentColumns([]string{
-					"availability_rate", "cache_hit_rate", "avg_response_time", "avg_frt",
-					"last_test_time", "last_test_model", "is_online", "updated_at",
-				}),
-			}).Create(stat).Error; err != nil {
+			if err := upsertChannelMonitoringStat(tx, stat); err != nil {
 				return err
 			}
 		}

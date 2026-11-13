@@ -7,13 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Field, FieldLabel } from '@/components/ui/field'
 import { MultiSelect } from '@/components/multi-select'
 import { TagInput } from '@/components/tag-input'
 import { SettingsSection } from '../components/settings-section'
 import { useUpdateOptions } from '../hooks/use-update-option'
 import { api } from '@/lib/api'
 import { MonitoringExclusionSelect } from './monitoring-exclusion-select'
+import { MonitoringCacheFilter } from './monitoring-cache-filter'
 
 const PREFIX = 'group_monitoring_setting.'
 
@@ -84,6 +84,18 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
   )
   const [cacheExcludeNonAffinity, setCacheExcludeNonAffinity] = useState(
     getVal(settings, 'cache_hit_exclude_non_affinity') === 'true'
+  )
+  const [cacheStreamScope, setCacheStreamScope] = useState(
+    getVal(settings, 'cache_hit_exclude_non_stream_scope') === 'selected' ? 'selected' : 'all'
+  )
+  const [cacheStreamGroups, setCacheStreamGroups] = useState(() =>
+    parseArr(getVal(settings, 'cache_hit_exclude_non_stream_groups'))
+  )
+  const [cacheAffinityScope, setCacheAffinityScope] = useState(
+    getVal(settings, 'cache_hit_exclude_non_affinity_scope') === 'selected' ? 'selected' : 'all'
+  )
+  const [cacheAffinityGroups, setCacheAffinityGroups] = useState(() =>
+    parseArr(getVal(settings, 'cache_hit_exclude_non_affinity_groups'))
   )
   const [aggregationInterval, setAggregationInterval] = useState(
     getVal(settings, 'aggregation_interval_minutes') || '5'
@@ -160,6 +172,10 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
         { key: PREFIX + 'cache_hit_period_minutes', value: cacheHitPeriod },
         { key: PREFIX + 'cache_hit_exclude_non_stream', value: String(cacheExcludeNonStream) },
         { key: `${PREFIX}cache_hit_exclude_non_affinity`, value: String(cacheExcludeNonAffinity) },
+        { key: `${PREFIX}cache_hit_exclude_non_stream_scope`, value: cacheStreamScope },
+        { key: `${PREFIX}cache_hit_exclude_non_stream_groups`, value: JSON.stringify(cacheStreamGroups) },
+        { key: `${PREFIX}cache_hit_exclude_non_affinity_scope`, value: cacheAffinityScope },
+        { key: `${PREFIX}cache_hit_exclude_non_affinity_groups`, value: JSON.stringify(cacheAffinityGroups) },
         {
           key: PREFIX + 'aggregation_interval_minutes',
           value: aggregationInterval,
@@ -339,20 +355,28 @@ export function GroupMonitoringSettingsSection({ settings }: Props) {
           <Label>{t('Exclude Models (Cache Hit)')}</Label>
           <TagInput value={cacheExcludeModels} onChange={setCacheExcludeModels} />
         </div>
-        <div className='flex items-center justify-between gap-4'>
-          <Label htmlFor='cache-exclude-non-stream'>{t('Exclude non-streaming requests from cache hit rate')}</Label>
-          <Switch id='cache-exclude-non-stream' checked={cacheExcludeNonStream} onCheckedChange={setCacheExcludeNonStream} />
-        </div>
-        <Field orientation='horizontal'>
-          <FieldLabel htmlFor='cache-exclude-non-affinity'>
-            {t('Exclude requests without affinity hits from cache hit rate')}
-          </FieldLabel>
-          <Switch
-            id='cache-exclude-non-affinity'
-            checked={cacheExcludeNonAffinity}
-            onCheckedChange={setCacheExcludeNonAffinity}
-          />
-        </Field>
+        <MonitoringCacheFilter
+          id='cache-exclude-non-stream'
+          label={t('Exclude non-streaming requests from cache hit rate')}
+          enabled={cacheExcludeNonStream}
+          onEnabledChange={setCacheExcludeNonStream}
+          scope={cacheStreamScope}
+          onScopeChange={setCacheStreamScope}
+          groups={cacheStreamGroups}
+          onGroupsChange={setCacheStreamGroups}
+          options={groupOptions}
+        />
+        <MonitoringCacheFilter
+          id='cache-exclude-non-affinity'
+          label={t('Exclude requests without affinity hits from cache hit rate')}
+          enabled={cacheExcludeNonAffinity}
+          onEnabledChange={setCacheExcludeNonAffinity}
+          scope={cacheAffinityScope}
+          onScopeChange={setCacheAffinityScope}
+          groups={cacheAffinityGroups}
+          onGroupsChange={setCacheAffinityGroups}
+          options={groupOptions}
+        />
 
         <div className='space-y-1'>
           <Label>{t('Exclude Keywords')}</Label>

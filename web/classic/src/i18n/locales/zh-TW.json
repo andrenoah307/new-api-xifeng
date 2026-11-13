@@ -5340,6 +5340,9 @@
     "Exclude requests without affinity hits from cache hit rate": "快取率排除親和未命中請求",
     "Client errors (4xx)": "用戶端錯誤（4xx）",
     "Server errors (5xx or unknown)": "伺服器錯誤（5xx 或未知狀態）",
-    "Upstream Error Redaction": "上游錯誤脫敏"
+    "Upstream Error Redaction": "上游錯誤脫敏",
+    "Filter scope": "生效範圍",
+    "Selected groups": "指定群組",
+    "All groups": "全部群組"
   }
 }

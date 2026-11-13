@@ -24,6 +24,8 @@ import {
   Row,
   Spin,
   Select,
+  Radio,
+  RadioGroup,
   Switch,
   TagInput,
   Typography,
@@ -56,6 +58,10 @@ export default function SettingsGroupMonitoring(props) {
     'group_monitoring_setting.cache_hit_period_minutes': 60,
     'group_monitoring_setting.cache_hit_exclude_non_stream': false,
     'group_monitoring_setting.cache_hit_exclude_non_affinity': false,
+    'group_monitoring_setting.cache_hit_exclude_non_stream_scope': 'all',
+    'group_monitoring_setting.cache_hit_exclude_non_stream_groups': '[]',
+    'group_monitoring_setting.cache_hit_exclude_non_affinity_scope': 'all',
+    'group_monitoring_setting.cache_hit_exclude_non_affinity_groups': '[]',
     'group_monitoring_setting.aggregation_interval_minutes': 5,
     'group_monitoring_setting.availability_exclude_models': '',
     'group_monitoring_setting.cache_hit_exclude_models': '',
@@ -322,16 +328,49 @@ export default function SettingsGroupMonitoring(props) {
           </Row>
 
           {/* Numeric inputs */}
-          <Form.Switch
-            field='group_monitoring_setting.cache_hit_exclude_non_stream'
-            label={t('Exclude non-streaming requests from cache hit rate')}
-            onChange={(value) => setInputs({ ...inputs, 'group_monitoring_setting.cache_hit_exclude_non_stream': value })}
-          />
-          <Form.Switch
-            field='group_monitoring_setting.cache_hit_exclude_non_affinity'
-            label={t('Exclude requests without affinity hits from cache hit rate')}
-            onChange={(value) => setInputs({ ...inputs, 'group_monitoring_setting.cache_hit_exclude_non_affinity': value })}
-          />
+          {[
+            { key: 'cache_hit_exclude_non_stream', label: t('Exclude non-streaming requests from cache hit rate') },
+            { key: 'cache_hit_exclude_non_affinity', label: t('Exclude requests without affinity hits from cache hit rate') },
+          ].map(({ key, label }) => {
+            const field = 'group_monitoring_setting.' + key;
+            const scope = inputs[field + '_scope'] === 'selected' ? 'selected' : 'all';
+            return (
+              <div key={field} style={{ marginBottom: 16 }}>
+                <Form.Switch
+                  field={field}
+                  label={label}
+                  onChange={(value) => setInputs((prev) => ({ ...prev, [field]: value }))}
+                />
+                <RadioGroup
+                  name={field + '_scope'}
+                  aria-label={t('Filter scope')}
+                  type='button'
+                  disabled={!inputs[field]}
+                  value={scope}
+                  onChange={(e) => setInputs((prev) => ({ ...prev, [field + '_scope']: e.target.value }))}
+                >
+                  <Radio value='all'>{t('All groups')}</Radio>
+                  <Radio value='selected'>{t('Selected groups')}</Radio>
+                </RadioGroup>
+                {scope === 'selected' && (
+                  <div style={{ marginTop: 8 }}>
+                    <Text id={field + '_groups_label'}>{t('Selected groups')}</Text>
+                    <Select
+                      aria-labelledby={field + '_groups_label'}
+                      multiple
+                      filter
+                      disabled={!inputs[field]}
+                      style={{ width: '100%', marginTop: 8 }}
+                      placeholder={t('Selected groups')}
+                      value={parseArrayField(inputs[field + '_groups'])}
+                      optionList={availableGroups.map((group) => ({ label: group, value: group }))}
+                      onChange={(value) => setInputs((prev) => ({ ...prev, [field + '_groups']: JSON.stringify(value) }))}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <Row gutter={16}>
             <Col xs={24} sm={12} md={8}>
               <Form.InputNumber

@@ -5587,6 +5587,9 @@
     "Exclude requests without affinity hits from cache hit rate": "Exclude requests without affinity hits from cache hit rate",
     "Client errors (4xx)": "Client errors (4xx)",
     "Server errors (5xx or unknown)": "Server errors (5xx or unknown)",
-    "Upstream Error Redaction": "Upstream Error Redaction"
+    "Upstream Error Redaction": "Upstream Error Redaction",
+    "Filter scope": "Filter scope",
+    "Selected groups": "Selected groups",
+    "All groups": "All groups"
   }
 }

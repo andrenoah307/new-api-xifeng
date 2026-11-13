@@ -5328,6 +5328,9 @@
     "Exclude requests without affinity hits from cache hit rate": "アフィニティ未ヒットのリクエストをキャッシュ率から除外",
     "Client errors (4xx)": "クライアントエラー（4xx）",
     "Server errors (5xx or unknown)": "サーバーエラー（5xx または不明）",
-    "Upstream Error Redaction": "上流エラーの機密情報保護"
+    "Upstream Error Redaction": "上流エラーの機密情報保護",
+    "Filter scope": "適用範囲",
+    "Selected groups": "指定グループ",
+    "All groups": "すべてのグループ"
   }
 }

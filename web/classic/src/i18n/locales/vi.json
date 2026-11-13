@@ -5871,6 +5871,9 @@
     "Exclude requests without affinity hits from cache hit rate": "Loại yêu cầu không khớp liên kết khỏi tỷ lệ bộ nhớ đệm",
     "Client errors (4xx)": "Lỗi máy khách (4xx)",
     "Server errors (5xx or unknown)": "Lỗi máy chủ (5xx hoặc không rõ trạng thái)",
-    "Upstream Error Redaction": "Ẩn thông tin nhạy cảm trong lỗi thượng nguồn"
+    "Upstream Error Redaction": "Ẩn thông tin nhạy cảm trong lỗi thượng nguồn",
+    "Filter scope": "Phạm vi bộ lọc",
+    "Selected groups": "Nhóm được chọn",
+    "All groups": "Tất cả nhóm"
   }
 }

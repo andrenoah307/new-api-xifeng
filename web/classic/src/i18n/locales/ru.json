@@ -5382,6 +5382,9 @@
     "Exclude requests without affinity hits from cache hit rate": "Исключать запросы без совпадения привязки из доли кеширования",
     "Client errors (4xx)": "Ошибки клиента (4xx)",
     "Server errors (5xx or unknown)": "Ошибки сервера (5xx или неизвестный статус)",
-    "Upstream Error Redaction": "Скрытие данных в ошибках провайдера"
+    "Upstream Error Redaction": "Скрытие данных в ошибках провайдера",
+    "Filter scope": "Область фильтра",
+    "Selected groups": "Выбранные группы",
+    "All groups": "Все группы"
   }
 }
