@@ -1,6 +1,7 @@
 package model
 
 import (
+	"math"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -28,6 +29,14 @@ func TestRefundConsumptionOverdraftBounds(t *testing.T) {
 		{"positive_noncash_wallet", 12876, 1, 1000, 5000, false},
 		{"cash_gap_exceeds_real_debt", 12876, -1, 1000, 5000, false},
 		{"payment_value_exceeds_limit", 5000000, -5000000, 1000, 5001, false},
+		{"twenty_yuan_limit", 10000000, -10000000, 2000, 5000, true},
+		{"over_twenty_yuan", 10000001, -10000001, 2000, 5000, false},
+		{"above_previous_ceiling", 10000001, -10000001, 2001, 5000, true},
+		{"large_configured_allowance", 10000000, -10000000, math.MaxInt64, 5000, true},
+		{"minimum_wallet_does_not_overflow", 12876, math.MinInt, 2000, 5000, false},
+		{"negative_limit", 12876, -12876, -1, 5000, false},
+		{"15481_adjusted", 9924223, -9924223, 2000, 5000, true},
+		{"15674_adjusted", 5653090, -5653090, 2000, 5000, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			orders := []TopUp{{Id: 1, QuotaGranted: 25000000, PaymentTotalCents: tc.paid}}
@@ -61,7 +70,16 @@ func TestRefundOverdraftCompletesAndNewRechargeRepaysConsumption(t *testing.T) {
 	require.NoError(t, err)
 	config.RefundOverdraftLimitCents = 1000
 	require.NoError(t, SaveInvoiceTaxConfig(config))
-	for _, invalid := range []int64{-1, 1001} {
+	for _, valid := range []int64{1001, 2000, 2001, 1000000, math.MaxInt64} {
+		configured := config
+		configured.RefundOverdraftLimitCents = valid
+		require.NoError(t, SaveInvoiceTaxConfig(configured))
+		loaded, loadErr := GetInvoiceTaxConfig(DB)
+		require.NoError(t, loadErr)
+		assert.Equal(t, valid, loaded.RefundOverdraftLimitCents)
+	}
+	require.NoError(t, SaveInvoiceTaxConfig(config))
+	for _, invalid := range []int64{-1} {
 		invalidConfig := config
 		invalidConfig.RefundOverdraftLimitCents = invalid
 		require.Error(t, SaveInvoiceTaxConfig(invalidConfig))

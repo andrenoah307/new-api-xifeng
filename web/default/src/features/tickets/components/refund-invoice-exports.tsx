@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -9,6 +10,7 @@ import {
   refundDiagnosticLines,
   type RefundDiagnostic,
 } from '../../../../../shared/refund-diagnostics.mjs'
+import { RefundAdjustment } from './refund-adjustment'
 import {
   RefundCalculationDetails,
   type RefundCalculationPayment,
@@ -21,6 +23,7 @@ export function RefundInvoiceExports({ ticketId }: { ticketId: number }) {
 }
 function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const [amount, setAmount] = useState('')
   const [saved, setSaved] = useState(false)
   const role = useAuthStore((state) => state.auth.user?.role)
@@ -29,6 +32,7 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
     { invoice_ticket_id: number; company_name: string }[]
   >([])
   const [busy, setBusy] = useState(false)
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false)
   const [error, setError] = useState('')
   const [diagnostic, setDiagnostic] = useState<RefundDiagnostic | null>(null)
   const requestVersion = useRef(0)
@@ -117,13 +121,16 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
         {t('Cash refund')}: {saved ? `¥${amount}` : '-'}
       </p>
       <div className='flex flex-wrap gap-2'>
-        <Button disabled={busy} onClick={() => void recalculate()}>
+        <Button
+          disabled={busy || adjustmentOpen}
+          onClick={() => void recalculate()}
+        >
           {t('Recalculate')}
         </Button>
         {['red', 'reissue'].map((kind, i) => (
           <Button
             key={kind}
-            disabled={!saved || busy}
+            disabled={!saved || busy || adjustmentOpen}
             onClick={() => void download(kind)}
           >
             {t(
@@ -135,6 +142,24 @@ function RefundInvoiceExportPanel({ ticketId }: { ticketId: number }) {
           </Button>
         ))}
       </div>
+      <RefundAdjustment
+        ticketId={ticketId}
+        disabled={busy}
+        onOpenChange={(open) => {
+          requestVersion.current += 1
+          setAdjustmentOpen(open)
+          if (open) setSaved(false)
+        }}
+        onApplied={(calculation) => {
+          setAmount((calculation.cash_cents / 100).toFixed(2))
+          setPayments(calculation.payments ?? [])
+          setInvoices(calculation.invoices ?? [])
+          setDiagnostic(null)
+          setSaved(true)
+          void queryClient.invalidateQueries({ queryKey: ['tickets'] })
+          void queryClient.invalidateQueries({ queryKey: ['user'] })
+        }}
+      />
       {saved && invoices.length > 0 && (
         <details>
           <summary className='cursor-pointer'>

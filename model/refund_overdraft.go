@@ -33,22 +33,21 @@ func applyRefundConsumptionOverdraft(orders []TopUp, lots map[int]RefundCreditLo
 	if needed <= 0 {
 		return nil, nil, nil
 	}
-	if limitCents <= 0 || limitCents > 1000 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
+	if limitCents <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
 		return nil, nil, refundShortfallError("grace_unavailable", orders, lots, refund, owner, available, limitCents)
 	}
-	limit, clamp := common.QuotaFromDecimalChecked(decimal.NewFromInt(limitCents).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Div(decimal.NewFromInt(100)))
+	// Compare the configured allowance without narrowing it to a quota column.
+	limit := decimal.NewFromInt(limitCents).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Div(decimal.NewFromInt(100))
+	walletDebt := decimal.NewFromInt(int64(owner.Quota)).Neg()
 	// Only a fully frozen existing request can use this allowance. It must be
 	// real wallet debt, not a positive gift balance lacking cash backing.
-	if clamp != nil || limit <= 0 {
-		return nil, nil, refundShortfallError("grace_unavailable", orders, lots, refund, owner, available, limitCents)
-	}
 	if refund.RefundStatus != RefundStatusPending || refund.FrozenQuota != refund.RefundQuota || refund.RefundGiftQuota != 0 {
 		return nil, nil, refundShortfallError("hold_not_eligible", orders, lots, refund, owner, available, limitCents)
 	}
-	if int64(owner.Quota) < -int64(limit) || needed > int64(limit) {
+	if walletDebt.GreaterThan(limit) || decimal.NewFromInt(needed).GreaterThan(limit) {
 		return nil, nil, refundShortfallError("grace_exceeded", orders, lots, refund, owner, available, limitCents)
 	}
-	if owner.Quota >= 0 || needed > -int64(owner.Quota) {
+	if owner.Quota >= 0 || decimal.NewFromInt(needed).GreaterThan(walletDebt) {
 		return nil, nil, refundShortfallError("unbacked_credit", orders, lots, refund, owner, available, limitCents)
 	}
 	for _, lot := range lots {

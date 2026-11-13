@@ -385,14 +385,17 @@ func SaveRefundInvoiceExport(ticketID, actorID int) (*RefundExportData, error) {
 }
 
 func saveRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, quotaIncludesGift ...bool) (*RefundExportData, error) {
-	data, err := buildRefundInvoiceExportTx(tx, refund, actorID, true, quotaIncludesGift...)
+	data, err := buildRefundInvoiceExportTx(tx, refund, actorID, true, nil, quotaIncludesGift...)
 	if errors.Is(err, ErrRefundExport) || errors.Is(err, ErrRefundFinanceReview) {
 		return nil, refundCalculationError(err, "payment_allocation", refund.TicketId, 0)
 	}
 	return data, err
 }
 
-func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, persist bool, quotaIncludesGift ...bool) (*RefundExportData, error) {
+func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, persist bool, walletPreview *int, quotaIncludesGift ...bool) (*RefundExportData, error) {
+	if persist && walletPreview != nil {
+		return nil, ErrRefundExport
+	}
 	if refund.FinanceVersion == 1 {
 		var external int64
 		if err := tx.Model(&RefundInvoiceCorrection{}).Where("refund_ticket_id = ? AND status IN ?", refund.TicketId, []string{"processing", "completed"}).Count(&external).Error; err != nil {
@@ -412,6 +415,9 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 	var owner User
 	if err := tx.First(&owner, refund.UserId).Error; err != nil {
 		return nil, err
+	}
+	if walletPreview != nil {
+		owner.Quota = *walletPreview
 	}
 	var saved RefundInvoiceExport
 	err := tx.Where("ticket_id = ?", refund.TicketId).First(&saved).Error

@@ -11,7 +11,7 @@ func pendingRefundInvoiceOrders(tx *gorm.DB, userID int) (map[int]bool, bool, er
 	}
 	locked := map[int]bool{}
 	for i := range refunds {
-		plan, err := buildRefundInvoiceExportTx(tx, &refunds[i], 0, false)
+		plan, err := buildRefundInvoiceExportTx(tx, &refunds[i], 0, false, nil)
 		if err != nil {
 			return locked, true, nil
 		}

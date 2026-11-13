@@ -21,15 +21,22 @@ import { UserContext } from '../../context/User';
 import { useEffect, useRef, useState } from 'react';
 import { refundDiagnosticLines } from '../../../../shared/refund-diagnostics.mjs';
 import { useTranslation } from 'react-i18next';
+import { RefundAdjustment } from './RefundAdjustment';
 import { Button } from '@douyinfe/semi-ui';
 import { API as api } from '../../helpers/api';
 import { RefundCalculationDetails } from './RefundCalculationDetails';
-export default function RefundInvoiceExports({ ticketId }) {
+export default function RefundInvoiceExports({ ticketId, onAdjusted }) {
   const [state] = useContext(UserContext);
   if (![3, 10, 100].includes(state.user?.role)) return null;
-  return <RefundInvoiceExportPanel key={ticketId} ticketId={ticketId} />;
+  return (
+    <RefundInvoiceExportPanel
+      key={ticketId}
+      ticketId={ticketId}
+      onAdjusted={onAdjusted}
+    />
+  );
 }
-function RefundInvoiceExportPanel({ ticketId }) {
+function RefundInvoiceExportPanel({ ticketId, onAdjusted }) {
   const { t } = useTranslation();
   const [amount, setAmount] = useState('');
   const [saved, setSaved] = useState(false);
@@ -37,6 +44,7 @@ function RefundInvoiceExportPanel({ ticketId }) {
   const [payments, setPayments] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false);
   const [error, setError] = useState('');
   const [diagnostic, setDiagnostic] = useState(null);
   const requestVersion = useRef(0);
@@ -125,13 +133,16 @@ function RefundInvoiceExportPanel({ ticketId }) {
         {t('Cash refund')}: {saved ? `¥${amount}` : '-'}
       </p>
       <div className='flex flex-wrap gap-2'>
-        <Button disabled={busy} onClick={() => void recalculate()}>
+        <Button
+          disabled={busy || adjustmentOpen}
+          onClick={() => void recalculate()}
+        >
           {t('Recalculate')}
         </Button>
         {['red', 'reissue'].map((kind, i) => (
           <Button
             key={kind}
-            disabled={!saved || busy}
+            disabled={!saved || busy || adjustmentOpen}
             onClick={() => void download(kind)}
           >
             {t(
@@ -143,6 +154,23 @@ function RefundInvoiceExportPanel({ ticketId }) {
           </Button>
         ))}
       </div>
+      <RefundAdjustment
+        ticketId={ticketId}
+        disabled={busy}
+        onOpenChange={(open) => {
+          requestVersion.current += 1;
+          setAdjustmentOpen(open);
+          if (open) setSaved(false);
+        }}
+        onApplied={(calculation) => {
+          setAmount((calculation.cash_cents / 100).toFixed(2));
+          setPayments(calculation.payments ?? []);
+          setInvoices(calculation.invoices ?? []);
+          setDiagnostic(null);
+          setSaved(true);
+          onAdjusted?.();
+        }}
+      />
       {saved && invoices.length > 0 && (
         <details>
           <summary className='cursor-pointer'>

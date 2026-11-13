@@ -92,6 +92,7 @@ const RefundDetail = ({
   loading = false,
   readonly = false,
   onStatusChange,
+  onFinanceUpdated,
   t,
 }) => {
   const [resolveVisible, setResolveVisible] = useState(false);
@@ -412,7 +413,12 @@ const RefundDetail = ({
             )}
           </div>
 
-          {!readonly && <RefundInvoiceExports ticketId={refund.ticket_id} />}
+          {!readonly && (
+            <RefundInvoiceExports
+              ticketId={refund.ticket_id}
+              onAdjusted={onFinanceUpdated}
+            />
+          )}
 
           {/* 金额高亮区 */}
           <div className='grid grid-cols-1 md:grid-cols-3 gap-3'>
