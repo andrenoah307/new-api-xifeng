@@ -43,31 +43,32 @@ type RefundAdjustmentLiability struct {
 }
 
 type RefundAdjustmentPlan struct {
-	DifferenceAmount   string                      `json:"difference_amount"`
-	CalculationMethod  string                      `json:"calculation_method,omitempty"`
-	CalculationBasis   string                      `json:"calculation_basis,omitempty"`
-	ApplicationBalance *RefundApplicationBalance   `json:"application_balance,omitempty"`
-	TicketID           int                         `json:"ticket_id"`
-	Revision           string                      `json:"revision"`
-	Requested          string                      `json:"requested"`
-	BalanceBefore      string                      `json:"balance_before"`
-	DebitAmount        string                      `json:"debit_amount"`
-	AccountedAmount    string                      `json:"accounted_amount"`
-	KnownAmount        string                      `json:"known_amount"`
-	BalanceAfter       string                      `json:"balance_after"`
-	GraceAmount        string                      `json:"grace_amount"`
-	CanApply           bool                        `json:"can_apply"`
-	Blocker            string                      `json:"blocker,omitempty"`
-	Liabilities        []RefundAdjustmentLiability `json:"liabilities"`
-	Calculation        *RefundExportData           `json:"calculation,omitempty"`
-	Diagnostic         *RefundCalculationError     `json:"diagnostic,omitempty"`
-	Applied            bool                        `json:"applied"`
-	ActorID            int                         `json:"actor_id,omitempty"`
-	AppliedAt          int64                       `json:"applied_at,omitempty"`
-	Reason             string                      `json:"reason,omitempty"`
-	debitQuota         int64
-	afterQuota         int
-	beforeJSON         string
+	RequiresNegativeConfirmation bool                        `json:"requires_negative_confirmation"`
+	DifferenceAmount             string                      `json:"difference_amount"`
+	CalculationMethod            string                      `json:"calculation_method,omitempty"`
+	CalculationBasis             string                      `json:"calculation_basis,omitempty"`
+	ApplicationBalance           *RefundApplicationBalance   `json:"application_balance,omitempty"`
+	TicketID                     int                         `json:"ticket_id"`
+	Revision                     string                      `json:"revision"`
+	Requested                    string                      `json:"requested"`
+	BalanceBefore                string                      `json:"balance_before"`
+	DebitAmount                  string                      `json:"debit_amount"`
+	AccountedAmount              string                      `json:"accounted_amount"`
+	KnownAmount                  string                      `json:"known_amount"`
+	BalanceAfter                 string                      `json:"balance_after"`
+	GraceAmount                  string                      `json:"grace_amount"`
+	CanApply                     bool                        `json:"can_apply"`
+	Blocker                      string                      `json:"blocker,omitempty"`
+	Liabilities                  []RefundAdjustmentLiability `json:"liabilities"`
+	Calculation                  *RefundExportData           `json:"calculation,omitempty"`
+	Diagnostic                   *RefundCalculationError     `json:"diagnostic,omitempty"`
+	Applied                      bool                        `json:"applied"`
+	ActorID                      int                         `json:"actor_id,omitempty"`
+	AppliedAt                    int64                       `json:"applied_at,omitempty"`
+	Reason                       string                      `json:"reason,omitempty"`
+	debitQuota                   int64
+	afterQuota                   int
+	beforeJSON                   string
 }
 
 type RefundAdjustmentInput struct {
@@ -141,9 +142,10 @@ func buildRefundAdjustmentTx(tx *gorm.DB, refund *TicketRefund, owner *User, bas
 			return nil, err
 		}
 		plan.ApplicationBalance = &RefundApplicationBalance{
-			WalletAmount:  plan.BalanceBefore,
-			NoncashAmount: decimal.NewFromInt(noncash).Div(unit).String(),
-			CashAmount:    decimal.NewFromInt(int64(owner.Quota)).Sub(decimal.NewFromInt(noncash)).Div(unit).String(),
+			ReferralGraceAmount: decimal.NewFromInt(originalRefundReferralQuota(owner)).Div(unit).String(),
+			WalletAmount:        plan.BalanceBefore,
+			NoncashAmount:       decimal.NewFromInt(noncash).Div(unit).String(),
+			CashAmount:          decimal.NewFromInt(int64(owner.Quota)).Sub(decimal.NewFromInt(noncash)).Div(unit).String(),
 		}
 	}
 	var liabilities []RefundLiability
@@ -176,6 +178,15 @@ func buildRefundAdjustmentTx(tx *gorm.DB, refund *TicketRefund, owner *User, bas
 	}
 	if plan.Calculation != nil && plan.Calculation.ApplicationBalance != nil {
 		plan.ApplicationBalance = plan.Calculation.ApplicationBalance
+	}
+	plan.RequiresNegativeConfirmation = after < 0
+	if plan.ApplicationBalance != nil {
+		cash, err := decimal.NewFromString(plan.ApplicationBalance.CashAmount)
+		if err != nil {
+			return nil, err
+		}
+		covered := decimal.NewFromInt(originalRefundReferralQuota(owner)).Div(unit)
+		plan.RequiresNegativeConfirmation = plan.RequiresNegativeConfirmation || cash.Add(covered).IsNegative()
 	}
 	if debit == 0 && len(liabilities) == 0 && basis != RefundBasisApplicationBalance {
 		plan.Blocker = "no_adjustment"
@@ -292,7 +303,7 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 		if !result.CanApply {
 			return ErrRefundAdjustment
 		}
-		if input.CalculationMethod != "" && result.afterQuota < 0 && !input.ConfirmNegative {
+		if input.CalculationMethod != "" && result.RequiresNegativeConfirmation && !input.ConfirmNegative {
 			return ErrRefundAdjustmentConfirmation
 		}
 		if (result.debitQuota > 0 && !input.ConfirmRecovery) || (len(result.Liabilities) > 0 && !input.ConfirmSettlement) {
@@ -302,8 +313,7 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 			if !input.ConfirmApplicationBalance || result.ApplicationBalance == nil {
 				return ErrRefundAdjustmentConfirmation
 			}
-			cash, err := decimal.NewFromString(result.ApplicationBalance.CashAmount)
-			if err != nil || (cash.IsNegative() && !input.ConfirmNegative) {
+			if result.RequiresNegativeConfirmation && !input.ConfirmNegative {
 				return ErrRefundAdjustmentConfirmation
 			}
 			if refund.CalculationBasis != basis {
@@ -376,7 +386,7 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 		message := TicketMessage{TicketId: ticketID, UserId: actorID, Username: actor.Username, Role: actor.Role, CreatedTime: result.AppliedAt,
 			Content: fmt.Sprintf("因退款工单计算扣回历史优惠赠送额度：%s元额度；余额由%s变为%s元额度；人工核验结算记录%d条。退款计算已保存，尚未付款。", result.DebitAmount, result.BalanceBefore, result.BalanceAfter, len(result.Liabilities))}
 		if result.ApplicationBalance != nil {
-			message.Content = fmt.Sprintf("按原申请余额口径核验退款：不追加扣款；总余额%s元，保留非现金额度%s元，现金口径余额%s元；人工核验结算记录%d条。退款计算已保存，尚未付款。", result.BalanceAfter, result.ApplicationBalance.NoncashAmount, result.ApplicationBalance.CashAmount, len(result.Liabilities))
+			message.Content = fmt.Sprintf("按原申请余额口径核验退款：不追加扣款；总余额%s元，历史非现金统计%s元，非现金核算余额%s元，独立推广宽限%s元（不计实付）；人工核验结算记录%d条。退款计算已保存，尚未付款。", result.BalanceAfter, result.ApplicationBalance.NoncashAmount, result.ApplicationBalance.CashAmount, result.ApplicationBalance.ReferralGraceAmount, len(result.Liabilities))
 		}
 		if input.CalculationMethod != "" {
 			message.Content = fmt.Sprintf("管理员选择退款计算方式%s；账面差额%s元，扣回历史优惠赠送额度%s元，余额由%s变为%s元；按所选方式处理结算阻塞记录%d条，未作人工结算核验。退款计算已保存，尚未付款。", input.CalculationMethod, result.DifferenceAmount, result.DebitAmount, result.BalanceBefore, result.BalanceAfter, len(result.Liabilities))

@@ -24,7 +24,7 @@ func newApplicationBalanceFixture(t *testing.T) (refundFinanceFixture, *Ticket) 
 	require.NoError(t, DB.Model(&f.user).Update("quota", 85619144).Error)
 	config, err := GetInvoiceTaxConfig(DB)
 	require.NoError(t, err)
-	config.RefundOverdraftLimitCents = 3877
+	config.RefundOverdraftLimitCents = 0
 	require.NoError(t, SaveInvoiceTaxConfig(config))
 	return f, ticket
 }
@@ -40,6 +40,7 @@ func TestApplicationBalanceRefundPreservesReferralAndWallet(t *testing.T) {
 	assert.Equal(t, "171.238288", preview.BalanceAfter)
 	require.NotNil(t, preview.ApplicationBalance)
 	assert.Equal(t, "210", preview.ApplicationBalance.NoncashAmount)
+	assert.Equal(t, "210", preview.ApplicationBalance.ReferralGraceAmount)
 	assert.Equal(t, "-38.761712", preview.ApplicationBalance.CashAmount)
 	require.NotNil(t, preview.Calculation)
 	assert.Equal(t, int64(100000), preview.Calculation.CashCents)
@@ -47,9 +48,6 @@ func TestApplicationBalanceRefundPreservesReferralAndWallet(t *testing.T) {
 	assert.Equal(t, int64(19380856), preview.Calculation.Overdraft.Quota)
 	assert.NotEqual(t, preview.ApplicationBalance.ProjectedSpentQuota, preview.ApplicationBalance.RecordedSpentQuota)
 	input := &RefundAdjustmentInput{CalculationBasis: RefundBasisApplicationBalance, Revision: preview.Revision, Reason: "Verified application balance and settled request", ConfirmApplicationBalance: true}
-	_, err = ManageRefundAdjustment(ticket.Id, f.finance.Id, input)
-	require.ErrorIs(t, err, ErrRefundAdjustmentConfirmation)
-	input.ConfirmNegative = true
 	_, err = ManageRefundAdjustment(ticket.Id, f.finance.Id, input)
 	require.ErrorIs(t, err, ErrRefundAdjustmentConfirmation)
 	input.ConfirmSettlement = true
@@ -114,6 +112,8 @@ func TestApplicationBalanceRefundPreservesReferralAndWallet(t *testing.T) {
 
 func TestApplicationBalanceGraceRecheckAndCancellation(t *testing.T) {
 	f, ticket := newApplicationBalanceFixture(t)
+	// Only the real negative wallet needs configured grace in addition to referrals.
+	require.NoError(t, DB.Model(&f.user).Update("quota", -19380856).Error)
 	config, err := GetInvoiceTaxConfig(DB)
 	require.NoError(t, err)
 	config.RefundOverdraftLimitCents = 3876
@@ -123,7 +123,7 @@ func TestApplicationBalanceGraceRecheckAndCancellation(t *testing.T) {
 	assert.False(t, blocked.CanApply)
 	require.NotNil(t, blocked.Diagnostic)
 	assert.Equal(t, "grace_exceeded", blocked.Diagnostic.Code)
-	assert.Equal(t, "-38.761712", blocked.ApplicationBalance.CashAmount)
+	assert.Equal(t, "-248.761712", blocked.ApplicationBalance.CashAmount)
 	config.RefundOverdraftLimitCents = 3877
 	require.NoError(t, SaveInvoiceTaxConfig(config))
 	preview, err := ManageRefundAdjustment(ticket.Id, f.admin.Id, nil, RefundBasisApplicationBalance)
@@ -143,7 +143,7 @@ func TestApplicationBalanceGraceRecheckAndCancellation(t *testing.T) {
 	require.NoError(t, err)
 	var owner User
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)
-	assert.Equal(t, 585619144, owner.Quota, "only the original frozen amount is returned")
+	assert.Equal(t, 480619144, owner.Quota, "only the original frozen amount is returned")
 	assert.Equal(t, 105000000, owner.AffHistoryQuota)
 	assert.Equal(t, common.RoleCommonUser, owner.Role)
 }
@@ -224,6 +224,15 @@ func TestApplicationBalancePreservesBonusAndPaymentCaps(t *testing.T) {
 	assert.False(t, blocked.CanApply)
 	require.NotNil(t, blocked.Diagnostic)
 	assert.Equal(t, "grace_exceeded", blocked.Diagnostic.Code)
+	// Even ample referral allowance cannot supply missing original paid principal.
+	require.NoError(t, DB.Model(&f.user).Updates(map[string]interface{}{"aff_history": 1000000000, "quota": -500000}).Error)
+	config.RefundOverdraftLimitCents = 2000
+	require.NoError(t, SaveInvoiceTaxConfig(config))
+	blocked, err = ManageRefundAdjustment(ticket.Id, f.admin.Id, nil, RefundBasisApplicationBalance)
+	require.NoError(t, err)
+	assert.False(t, blocked.CanApply)
+	require.NotNil(t, blocked.Diagnostic)
+	assert.Equal(t, "funding_limit", blocked.Diagnostic.Code)
 }
 
 func TestApplicationBalanceKeepsTaxRatioAndLedgerDifference(t *testing.T) {

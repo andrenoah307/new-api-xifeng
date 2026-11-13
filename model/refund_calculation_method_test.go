@@ -66,18 +66,17 @@ func TestRefundCalculationMethodCannotBypassTaskOrRevision(t *testing.T) {
 	require.ErrorIs(t, err, ErrRefundAdjustment)
 }
 
-func TestRefundCalculationMethodPreservesReferralAndRequiresNegativeCashConsent(t *testing.T) {
+func TestRefundCalculationMethodPreservesReferralWithoutArtificialDebt(t *testing.T) {
 	f, ticket := newApplicationBalanceFixture(t)
 	preview, err := ManageRefundAdjustment(ticket.Id, f.finance.Id, nil, RefundBasisApplicationBalance)
 	require.NoError(t, err)
 	input := &RefundAdjustmentInput{CalculationMethod: RefundBasisApplicationBalance, Revision: preview.Revision}
-	_, err = ManageRefundAdjustment(ticket.Id, f.finance.Id, input)
-	require.ErrorIs(t, err, ErrRefundAdjustmentConfirmation)
-	input.ConfirmNegative = true
 	applied, err := ManageRefundAdjustment(ticket.Id, f.finance.Id, input)
 	require.NoError(t, err)
 	assert.Equal(t, "210", applied.ApplicationBalance.NoncashAmount)
 	assert.Equal(t, "0", applied.DebitAmount)
+	assert.Equal(t, "210", applied.ApplicationBalance.ReferralGraceAmount)
+	assert.False(t, applied.RequiresNegativeConfirmation)
 	replayed, err := ManageRefundAdjustment(ticket.Id, f.finance.Id, input)
 	require.NoError(t, err)
 	assert.Equal(t, applied.AppliedAt, replayed.AppliedAt)
@@ -86,4 +85,28 @@ func TestRefundCalculationMethodPreservesReferralAndRequiresNegativeCashConsent(
 	assert.Equal(t, 85619144, owner.Quota)
 	assert.Equal(t, 105000000, owner.AffHistoryQuota)
 	assert.Zero(t, owner.AffQuota)
+}
+
+func TestRefundReferralGraceStillRequiresConsentForRealDebt(t *testing.T) {
+	f, ticket := newApplicationBalanceFixture(t)
+	require.NoError(t, DB.Model(&f.user).Update("quota", -5000).Error)
+	blocked, err := ManageRefundAdjustment(ticket.Id, f.finance.Id, nil, RefundBasisApplicationBalance)
+	require.NoError(t, err)
+	assert.False(t, blocked.CanApply, "referral allowance cannot erase real wallet debt")
+	config, err := GetInvoiceTaxConfig(DB)
+	require.NoError(t, err)
+	config.RefundOverdraftLimitCents = 1
+	require.NoError(t, SaveInvoiceTaxConfig(config))
+	preview, err := ManageRefundAdjustment(ticket.Id, f.finance.Id, nil, RefundBasisApplicationBalance)
+	require.NoError(t, err)
+	require.True(t, preview.CanApply)
+	assert.True(t, preview.RequiresNegativeConfirmation)
+	input := &RefundAdjustmentInput{CalculationMethod: RefundBasisApplicationBalance, Revision: preview.Revision}
+	_, err = ManageRefundAdjustment(ticket.Id, f.finance.Id, input)
+	require.ErrorIs(t, err, ErrRefundAdjustmentConfirmation)
+	input.ConfirmNegative = true
+	applied, err := ManageRefundAdjustment(ticket.Id, f.finance.Id, input)
+	require.NoError(t, err)
+	assert.Equal(t, int64(100000), applied.Calculation.CashCents)
+	assert.Equal(t, "-0.01", applied.BalanceAfter)
 }

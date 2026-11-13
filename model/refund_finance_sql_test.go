@@ -197,7 +197,8 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("application_balance_tax", TestApplicationBalanceKeepsTaxRatioAndLedgerDifference)
 			t.Run("calculation_method", TestRefundCalculationMethodSelection)
 			t.Run("calculation_method_guards", TestRefundCalculationMethodCannotBypassTaskOrRevision)
-			t.Run("calculation_method_referral", TestRefundCalculationMethodPreservesReferralAndRequiresNegativeCashConsent)
+			t.Run("calculation_method_referral", TestRefundCalculationMethodPreservesReferralWithoutArtificialDebt)
+			t.Run("referral_real_debt", TestRefundReferralGraceStillRequiresConsentForRealDebt)
 		})
 	}
 }
