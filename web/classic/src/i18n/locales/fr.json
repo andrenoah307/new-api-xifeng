@@ -5750,6 +5750,13 @@
     "Close": "Fermer",
     "Yes": "Oui",
     "No": "Non",
+    "Preview fee adjustment": "Aperçu de l’ajustement",
+    "Invoice fee: {{before}} → {{after}} CNY": "Frais de facture : {{before}} → {{after}} CNY",
+    "Wallet adjustment: {{change}}; balance {{before}} → {{after}}; allowance {{limit}}": "Ajustement : {{change}} ; solde {{before}} → {{after}} ; découvert autorisé {{limit}}",
+    "I confirm this deduction will leave a negative balance of {{balance}}.": "Je confirme que ce débit laissera un solde négatif de {{balance}}.",
+    "Invoice fee adjustment is unavailable for this order": "L’ajustement des frais est indisponible pour cette commande",
+    "Confirm the negative balance before deducting invoice fees": "Confirmez le solde négatif avant de débiter les frais de facture",
+    "Invoice fee deduction exceeds the configured overdraft allowance": "Le débit des frais dépasse le découvert autorisé",
     "Filter scope": "Portée du filtre",
     "Selected groups": "Groupes sélectionnés",
     "All groups": "Tous les groupes"

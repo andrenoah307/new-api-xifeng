@@ -72,7 +72,8 @@ func TestFinanceDisabledRejectsNewCheckoutAndEligibilityChanges(t *testing.T) {
 	require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error)
 	user := insertInvoiceTicketUser(t, 980602)
 	orderID := seedInvoiceTicketTopUp(t, user.Id, "legacy-no-edit", 100)
-	_, err := UpdateTopUpInvoiceType(orderID, "", "ordinary")
+	expected := ""
+	_, err := ManageTopUpInvoiceType(user.Id, TopUpInvoiceAdjustmentInput{ID: orderID, ExpectedInvoiceType: &expected, InvoiceType: "ordinary"}, false)
 	assert.ErrorIs(t, err, ErrTicketForbidden)
 	_, err = QuoteEpayCheckout(DB, user.Id, EpayCheckoutRequest{TotalCents: 10000, InvoiceType: "none", PaymentMethod: "alipay"}, false)
 	assert.Error(t, err)

@@ -42,6 +42,7 @@ import { API, timestamp2string } from '../../helpers';
 import { isAdmin } from '../../helpers/utils';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 import CreateInvoiceTicketModal from '../table/tickets/modals/CreateInvoiceTicketModal';
+import InvoiceTypeDialog from './InvoiceTypeDialog';
 const { Text } = Typography;
 
 // 状态映射配置
@@ -76,8 +77,6 @@ const TopupHistoryPage = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState('');
   const [editingInvoice, setEditingInvoice] = useState(null);
-  const [invoiceType, setInvoiceType] = useState('none');
-  const [savingInvoice, setSavingInvoice] = useState(false);
   const [dateRange, setDateRange] = useState([null, null]);
   const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const isMobile = useIsMobile();
@@ -238,25 +237,6 @@ const TopupHistoryPage = () => {
     });
   };
 
-  const saveInvoiceType = async () => {
-    if (!isAdmin() || !editingInvoice || savingInvoice) return;
-    setSavingInvoice(true);
-    try {
-      const { data } = await API.put('/api/user/topup/invoice-type', {
-        id: editingInvoice.id,
-        invoice_type: invoiceType,
-        expected_invoice_type: editingInvoice.invoice_type || '',
-      });
-      if (!data.success) throw new Error(data.message);
-      setEditingInvoice(null);
-      await loadTopups(page, pageSize);
-    } catch (error) {
-      Toast.error({ content: error.message || t('操作失败') });
-    } finally {
-      setSavingInvoice(false);
-    }
-  };
-
   // 渲染状态徽章
   const renderStatusBadge = (status) => {
     const config = STATUS_CONFIG[status] || { type: 'primary', key: status };
@@ -380,7 +360,6 @@ const TopupHistoryPage = () => {
                 icon={<Pencil size={16} />}
                 onClick={() => {
                   setEditingInvoice(record);
-                  setInvoiceType(record.invoice_type || 'none');
                 }}
               />,
             );
@@ -495,42 +474,16 @@ const TopupHistoryPage = () => {
           />
         }
       />
-      {userIsAdmin && (
-        <Modal
-          visible={!!editingInvoice}
-          title={t('Invoice type')}
-          centered
-          bodyStyle={{ maxHeight: '70dvh', overflowY: 'auto' }}
-          getPopupContainer={() => document.body}
-          okText={t('Save')}
-          cancelText={t('Cancel')}
-          confirmLoading={savingInvoice}
-          maskClosable={!savingInvoice}
-          closeOnEsc={!savingInvoice}
-          closable={!savingInvoice}
-          onCancel={() => {
-            if (!savingInvoice) setEditingInvoice(null);
+      {userIsAdmin && editingInvoice && (
+        <InvoiceTypeDialog
+          key={editingInvoice.id}
+          order={editingInvoice}
+          onClose={() => setEditingInvoice(null)}
+          onApplied={() => {
+            setEditingInvoice(null);
+            loadTopups(page, pageSize);
           }}
-          onOk={saveInvoiceType}
-        >
-          <p className='mb-4 break-all'>{editingInvoice?.trade_no}</p>
-          <fieldset disabled={savingInvoice} className='space-y-2'>
-            {['ordinary', 'special', 'none'].map((type) => (
-              <label key={type} className='flex items-center gap-2'>
-                <input
-                  type='radio'
-                  name='topup-invoice-type'
-                  value={type}
-                  checked={invoiceType === type}
-                  onChange={() => setInvoiceType(type)}
-                />
-                {type === 'ordinary' && t('Ordinary VAT invoice')}
-                {type === 'special' && t('Special VAT invoice')}
-                {type === 'none' && '-'}
-              </label>
-            ))}
-          </fieldset>
-        </Modal>
+        />
       )}
       <CreateInvoiceTicketModal
         visible={invoiceModalVisible}

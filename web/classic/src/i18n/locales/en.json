@@ -5976,6 +5976,13 @@
     "Close": "Close",
     "Yes": "Yes",
     "No": "No",
+    "Preview fee adjustment": "Preview fee adjustment",
+    "Invoice fee: {{before}} → {{after}} CNY": "Invoice fee: {{before}} → {{after}} CNY",
+    "Wallet adjustment: {{change}}; balance {{before}} → {{after}}; allowance {{limit}}": "Wallet adjustment: {{change}}; balance {{before}} → {{after}}; allowance {{limit}}",
+    "I confirm this deduction will leave a negative balance of {{balance}}.": "I confirm this deduction will leave a negative balance of {{balance}}.",
+    "Invoice fee adjustment is unavailable for this order": "Invoice fee adjustment is unavailable for this order",
+    "Confirm the negative balance before deducting invoice fees": "Confirm the negative balance before deducting invoice fees",
+    "Invoice fee deduction exceeds the configured overdraft allowance": "Invoice fee deduction exceeds the configured overdraft allowance",
     "Filter scope": "Filter scope",
     "Selected groups": "Selected groups",
     "All groups": "All groups"

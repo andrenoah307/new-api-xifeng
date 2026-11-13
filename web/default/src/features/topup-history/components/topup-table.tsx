@@ -44,17 +44,13 @@ import { useStatus } from '@/hooks/use-status'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
 import { useAuthStore } from '@/stores/auth-store'
 
-import {
-  getTopups,
-  completeTopupOrder,
-  updateTopupInvoiceType,
-  type TopupRecord,
-} from '../api'
+import { getTopups, completeTopupOrder, type TopupRecord } from '../api'
 import {
   DEFAULT_PAGE_SIZE,
   TOPUP_STATUS_OPTIONS,
   topupQueryKeys,
 } from '../constants'
+import { InvoiceTypeDialog } from './invoice-type-dialog'
 import { useTopupColumns } from './topup-columns'
 
 const route = getRouteApi('/_authenticated/topup-history/')
@@ -72,7 +68,6 @@ export function TopupTable() {
   const [statusFilter, setStatusFilter] = useState('__all__')
   const [invoiceTypeFilter, setInvoiceTypeFilter] = useState('__all__')
   const [editingInvoice, setEditingInvoice] = useState<TopupRecord | null>(null)
-  const [invoiceType, setInvoiceType] = useState('none')
   const [dateStart, setDateStart] = useState<Date | undefined>()
   const [dateEnd, setDateEnd] = useState<Date | undefined>()
   const [confirmTradeNo, setConfirmTradeNo] = useState<string | null>(null)
@@ -148,25 +143,6 @@ export function TopupTable() {
 
   const columns = useTopupColumns(admin)
 
-  const invoiceMutation = useMutation({
-    mutationFn: async () => {
-      if (!admin || !editingInvoice) return
-      await updateTopupInvoiceType(
-        editingInvoice.id,
-        invoiceType,
-        editingInvoice.invoice_type ?? ''
-      )
-    },
-    onSuccess: () => {
-      setEditingInvoice(null)
-      toast.success(t('Operation successful'))
-      queryClient.invalidateQueries({ queryKey: topupQueryKeys.lists() })
-      queryClient.invalidateQueries({
-        queryKey: ticketQueryKeys.eligibleOrders(),
-      })
-    },
-  })
-
   const actionsColumn = useMemo(() => {
     if (!admin) return null
     return {
@@ -186,7 +162,6 @@ export function TopupTable() {
               aria-label={t('Invoice type')}
               onClick={() => {
                 setEditingInvoice(row.original)
-                setInvoiceType(row.original.invoice_type || 'none')
               }}
             >
               <Pencil className='size-4' />
@@ -383,35 +358,20 @@ export function TopupTable() {
         }
         isLoading={completeMutation.isPending}
       />
-      {admin && (
-        <ConfirmDialog
-          open={!!editingInvoice}
-          onOpenChange={(open) => {
-            if (!open && !invoiceMutation.isPending) setEditingInvoice(null)
+      {admin && editingInvoice && (
+        <InvoiceTypeDialog
+          key={editingInvoice.id}
+          order={editingInvoice}
+          onClose={() => setEditingInvoice(null)}
+          onApplied={() => {
+            setEditingInvoice(null)
+            toast.success(t('Operation successful'))
+            queryClient.invalidateQueries({ queryKey: topupQueryKeys.lists() })
+            queryClient.invalidateQueries({
+              queryKey: ticketQueryKeys.eligibleOrders(),
+            })
           }}
-          title={t('Invoice type')}
-          desc={editingInvoice?.trade_no ?? ''}
-          confirmText={t('Save')}
-          isLoading={invoiceMutation.isPending}
-          handleConfirm={() => invoiceMutation.mutate()}
-        >
-          <fieldset className='space-y-2' disabled={invoiceMutation.isPending}>
-            {['ordinary', 'special', 'none'].map((type) => (
-              <label key={type} className='flex items-center gap-2'>
-                <input
-                  type='radio'
-                  name='topup-invoice-type'
-                  value={type}
-                  checked={invoiceType === type}
-                  onChange={() => setInvoiceType(type)}
-                />
-                {type === 'ordinary' && t('Ordinary VAT invoice')}
-                {type === 'special' && t('Special VAT invoice')}
-                {type === 'none' && '-'}
-              </label>
-            ))}
-          </fieldset>
-        </ConfirmDialog>
+        />
       )}
     </>
   )

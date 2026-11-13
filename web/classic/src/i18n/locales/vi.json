@@ -6260,6 +6260,13 @@
     "Close": "Đóng",
     "Yes": "Có",
     "No": "Không",
+    "Preview fee adjustment": "Xem trước điều chỉnh phí",
+    "Invoice fee: {{before}} → {{after}} CNY": "Phí hóa đơn: {{before}} → {{after}} CNY",
+    "Wallet adjustment: {{change}}; balance {{before}} → {{after}}; allowance {{limit}}": "Điều chỉnh: {{change}}; số dư {{before}} → {{after}}; hạn mức âm {{limit}}",
+    "I confirm this deduction will leave a negative balance of {{balance}}.": "Tôi xác nhận số dư sau khi trừ sẽ âm: {{balance}}.",
+    "Invoice fee adjustment is unavailable for this order": "Không thể điều chỉnh phí hóa đơn cho đơn hàng này",
+    "Confirm the negative balance before deducting invoice fees": "Xác nhận số dư âm trước khi trừ phí hóa đơn",
+    "Invoice fee deduction exceeds the configured overdraft allowance": "Khoản trừ phí hóa đơn vượt hạn mức âm đã cấu hình",
     "Filter scope": "Phạm vi bộ lọc",
     "Selected groups": "Nhóm được chọn",
     "All groups": "Tất cả nhóm"

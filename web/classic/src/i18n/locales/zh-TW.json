@@ -5729,6 +5729,13 @@
     "Close": "關閉",
     "Yes": "是",
     "No": "否",
+    "Preview fee adjustment": "預覽稅費調整",
+    "Invoice fee: {{before}} → {{after}} CNY": "開票費用：{{before}} → {{after}} 元",
+    "Wallet adjustment: {{change}}; balance {{before}} → {{after}}; allowance {{limit}}": "餘額調整：{{change}}；餘額 {{before}} → {{after}}；寬限額度 {{limit}}",
+    "I confirm this deduction will leave a negative balance of {{balance}}.": "我確認本次扣款後餘額將為負數：{{balance}}。",
+    "Invoice fee adjustment is unavailable for this order": "此訂單不符合稅費調整條件，請核對支付快照及發票、退款占用",
+    "Confirm the negative balance before deducting invoice fees": "扣除開票費用前，請確認調整後的負餘額",
+    "Invoice fee deduction exceeds the configured overdraft allowance": "扣除開票費用後的欠額超過系統設定的寬限額度",
     "Filter scope": "生效範圍",
     "Selected groups": "指定群組",
     "All groups": "全部群組"

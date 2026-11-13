@@ -5717,6 +5717,13 @@
     "Close": "閉じる",
     "Yes": "はい",
     "No": "いいえ",
+    "Preview fee adjustment": "請求書手数料の調整を確認",
+    "Invoice fee: {{before}} → {{after}} CNY": "請求書手数料：{{before}} → {{after}} CNY",
+    "Wallet adjustment: {{change}}; balance {{before}} → {{after}}; allowance {{limit}}": "残高調整：{{change}}、残高 {{before}} → {{after}}、許容不足額 {{limit}}",
+    "I confirm this deduction will leave a negative balance of {{balance}}.": "今回の引き落とし後、残高がマイナス（{{balance}}）になることを確認しました。",
+    "Invoice fee adjustment is unavailable for this order": "この注文では請求書手数料を調整できません",
+    "Confirm the negative balance before deducting invoice fees": "請求書手数料を引き落とす前にマイナス残高を確認してください",
+    "Invoice fee deduction exceeds the configured overdraft allowance": "請求書手数料の引き落とし後の不足額が設定された許容額を超えます",
     "Filter scope": "適用範囲",
     "Selected groups": "指定グループ",
     "All groups": "すべてのグループ"

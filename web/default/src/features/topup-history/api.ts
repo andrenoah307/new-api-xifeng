@@ -52,12 +52,36 @@ export async function completeTopupOrder(tradeNo: string): Promise<boolean> {
 export async function updateTopupInvoiceType(
   id: number,
   invoiceType: string,
-  expectedInvoiceType: string
-): Promise<void> {
-  const res = await api.put('/api/user/topup/invoice-type', {
-    id,
-    invoice_type: invoiceType,
-    expected_invoice_type: expectedInvoiceType,
+  expectedInvoiceType: string,
+  revision?: string,
+  confirmNegative = false
+): Promise<InvoiceAdjustmentPlan> {
+  const res = await api.request({
+    method: revision ? 'PUT' : 'POST',
+    url: revision
+      ? '/api/user/topup/invoice-type'
+      : '/api/user/topup/invoice-type/preview',
+    data: {
+      id,
+      invoice_type: invoiceType,
+      expected_invoice_type: expectedInvoiceType,
+      revision,
+      confirm_negative: confirmNegative,
+    },
   })
   if (!res.data?.success) throw new Error(res.data?.message)
+  return res.data.data
+}
+
+export type InvoiceAdjustmentPlan = {
+  revision: string
+  paid_cents: number
+  tax_before_cents: number
+  tax_after_cents: number
+  balance_before: string
+  balance_after: string
+  balance_change: string
+  grace_amount: string
+  requires_negative_confirmation: boolean
+  can_apply: boolean
 }

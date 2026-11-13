@@ -18,7 +18,7 @@ import (
 
 func TestTopUpInvoiceTypeWriteIsAdminOnly(t *testing.T) {
 	db := setupMonitoringRouterTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.TicketInvoice{}, &model.Log{}))
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.TopUp{}, &model.TicketInvoice{}, &model.TicketRefund{}, &model.TopUpInvoiceAdjustment{}, &model.Log{}))
 	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{ModuleEnabled: true, Mode: "vat"}))
 	engine := gin.New()
 	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("topup-invoice-type-test"))))
@@ -27,10 +27,10 @@ func TestTopUpInvoiceTypeWriteIsAdminOnly(t *testing.T) {
 		token := fmt.Sprintf("invoice-type-%d", role)
 		user := model.User{Username: token, Password: "password", Role: role, Status: common.UserStatusEnabled, AffCode: token, AccessToken: &token}
 		require.NoError(t, db.Create(&user).Error)
-		order := model.TopUp{UserId: user.Id, TradeNo: token, Status: common.TopUpStatusSuccess, InvoiceType: "ordinary", PaymentProvider: model.PaymentProviderEpay, Money: 100}
+		order := model.TopUp{UserId: user.Id, TradeNo: token, Status: common.TopUpStatusSuccess, InvoiceType: "ordinary", PaymentProvider: model.PaymentProviderEpay, Money: 100, CheckoutVersion: 1, PaymentTotalCents: 10000, InvoiceNetCents: 10000, QuotaGranted: 50000000, CheckoutQuota: 50000000, CheckoutBaseQuota: 50000000}
 		require.NoError(t, db.Create(&order).Error)
 		body := fmt.Sprintf(`{"id":%d,"invoice_type":"none","expected_invoice_type":"ordinary"}`, order.Id)
-		req := httptest.NewRequest("PUT", "/api/user/topup/invoice-type", strings.NewReader(body))
+		req := httptest.NewRequest("POST", "/api/user/topup/invoice-type/preview", strings.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("New-Api-User", strconv.Itoa(user.Id))
 		req.Header.Set("Content-Type", "application/json")
@@ -39,6 +39,19 @@ func TestTopUpInvoiceTypeWriteIsAdminOnly(t *testing.T) {
 		require.NoError(t, db.First(&order, order.Id).Error)
 		if role >= common.RoleAdminUser {
 			assert.Contains(t, w.Body.String(), `"success":true`)
+			var response struct {
+				Data model.TopUpInvoiceAdjustmentPlan `json:"data"`
+			}
+			require.NoError(t, common.Unmarshal(w.Body.Bytes(), &response))
+			body = fmt.Sprintf(`{"id":%d,"invoice_type":"none","expected_invoice_type":"ordinary","revision":%q}`, order.Id, response.Data.Revision)
+			req = httptest.NewRequest("PUT", "/api/user/topup/invoice-type", strings.NewReader(body))
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("New-Api-User", strconv.Itoa(user.Id))
+			req.Header.Set("Content-Type", "application/json")
+			w = httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+			assert.Contains(t, w.Body.String(), `"success":true`)
+			require.NoError(t, db.First(&order, order.Id).Error)
 			assert.Equal(t, "none", order.InvoiceType)
 		} else {
 			assert.NotContains(t, w.Body.String(), `"success":true`)

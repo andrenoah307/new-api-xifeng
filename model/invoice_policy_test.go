@@ -130,6 +130,8 @@ func TestInvoicePolicyUpgradesPendingCheckoutWithoutPriceSnapshot(t *testing.T) 
 	assert.Equal(t, int64(9400), completed.InvoiceNetCents)
 	assert.Equal(t, int64(600), completed.InvoiceTaxCents)
 	assert.Equal(t, 940000, credited)
-	_, err = UpdateTopUpInvoiceType(order.Id, "ordinary", "special")
-	assert.ErrorIs(t, err, ErrTicketInvoiceOrderInvalid)
+	// Type changes require a separately previewed administrator adjustment.
+	expected := "ordinary"
+	_, err = ManageTopUpInvoiceType(user.Id, TopUpInvoiceAdjustmentInput{ID: order.Id, ExpectedInvoiceType: &expected, InvoiceType: "special"}, true)
+	assert.ErrorIs(t, err, ErrInvoiceTaxInvalid)
 }
