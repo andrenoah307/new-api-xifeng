@@ -5998,6 +5998,10 @@
     "Recover historical discounts": "Recover historical discounts",
     "Refund calculation method": "Refund calculation method",
     "Unexplained ledger difference": "Unexplained ledger difference",
-    "Please confirm that you understand the consequences": "Please confirm that you understand the consequences"
+    "Please confirm that you understand the consequences": "Please confirm that you understand the consequences",
+    "Historical noncash credits (not deducted)": "Historical noncash credits (not deducted)",
+    "Accounting balance excluding noncash credits": "Accounting balance excluding noncash credits",
+    "Referral refund grace": "Referral refund grace",
+    "Effective refund grace": "Effective refund grace"
   }
 }

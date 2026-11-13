@@ -11,6 +11,7 @@ import (
 // The wallet and UsedQuota remain unchanged. Later paid credits settle this
 // consumption before becoming refundable through projectRefundCreditLots.
 type RefundConsumptionOverdraft struct {
+	ReferralGraceAmount     string `json:"referral_grace_amount,omitempty"`
 	Quota                   int64  `json:"quota"`
 	LimitCents              int64  `json:"limit_cents"`
 	WalletQuota             int64  `json:"wallet_quota"`
@@ -33,14 +34,18 @@ func applyRefundConsumptionOverdraft(orders []TopUp, lots map[int]RefundCreditLo
 	if needed <= 0 {
 		return nil, nil, nil
 	}
-	if limitCents <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
+	var referralGrace int64
+	if refund.CalculationBasis == RefundBasisApplicationBalance {
+		referralGrace = originalRefundReferralQuota(owner)
+	}
+	if (limitCents <= 0 && referralGrace == 0) || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
 		return nil, nil, refundShortfallError("grace_unavailable", orders, lots, refund, owner, available, limitCents)
 	}
 	// Compare the configured allowance without narrowing it to a quota column.
-	limit := decimal.NewFromInt(limitCents).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Div(decimal.NewFromInt(100))
+	limit := decimal.NewFromInt(max(int64(0), limitCents)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Div(decimal.NewFromInt(100)).Add(decimal.NewFromInt(referralGrace))
 	walletDebt := decimal.NewFromInt(int64(owner.Quota)).Neg()
-	// Only a fully frozen existing request can use this allowance. It must be
-	// real wallet debt, not a positive gift balance lacking cash backing.
+	// Only a fully frozen existing request can use this allowance. Application
+	// balance callers pass the projected cash wallet, including noncash exclusions.
 	if refund.RefundStatus != RefundStatusPending || refund.FrozenQuota != refund.RefundQuota || refund.RefundGiftQuota != 0 {
 		return nil, nil, refundShortfallError("hold_not_eligible", orders, lots, refund, owner, available, limitCents)
 	}
@@ -74,7 +79,13 @@ func applyRefundConsumptionOverdraft(orders []TopUp, lots map[int]RefundCreditLo
 		remaining -= take
 		value.Add(&value, new(big.Rat).SetFrac(new(big.Int).Mul(big.NewInt(order.PaymentTotalCents), big.NewInt(take)), big.NewInt(order.QuotaGranted)))
 	}
-	if remaining != 0 || value.Cmp(new(big.Rat).SetInt64(limitCents)) > 0 {
+	// Apply the same allowance to original-payment value without rounding up
+	// fractional cents or narrowing a large system setting to a quota column.
+	valueLimit := new(big.Rat).SetInt64(max(int64(0), limitCents))
+	referralValue := new(big.Rat).Mul(new(big.Rat).SetInt64(referralGrace), big.NewRat(100, 1))
+	referralValue.Quo(referralValue, decimal.NewFromFloat(common.QuotaPerUnit).Rat())
+	valueLimit.Add(valueLimit, referralValue)
+	if remaining != 0 || value.Cmp(valueLimit) > 0 {
 		return nil, nil, refundShortfallError("funding_limit", orders, lots, refund, owner, available, limitCents)
 	}
 	for id, quota := range deferred {
@@ -83,5 +94,5 @@ func applyRefundConsumptionOverdraft(orders []TopUp, lots map[int]RefundCreditLo
 		lot.PaidRemaining += quota
 		lots[id] = lot
 	}
-	return &RefundConsumptionOverdraft{Quota: needed, LimitCents: limitCents, WalletQuota: int64(owner.Quota), DeferredValueCentsRatio: value.RatString()}, deferred, nil
+	return &RefundConsumptionOverdraft{ReferralGraceAmount: decimal.NewFromInt(referralGrace).Div(decimal.NewFromFloat(common.QuotaPerUnit)).String(), Quota: needed, LimitCents: limitCents, WalletQuota: int64(owner.Quota), DeferredValueCentsRatio: value.RatString()}, deferred, nil
 }

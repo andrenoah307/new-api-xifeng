@@ -8,6 +8,10 @@ import (
 
 const RefundBasisApplicationBalance = "application_balance"
 
+func originalRefundReferralQuota(owner *User) int64 {
+	return max(int64(0), int64(owner.AffHistoryQuota)-int64(owner.AffQuota))
+}
+
 // These credits are excluded at application time, not clawed back on refund.
 func originalRefundNoncashQuotaTx(tx *gorm.DB, owner *User) (int64, error) {
 	var bonus, recovered int64
@@ -18,7 +22,7 @@ func originalRefundNoncashQuotaTx(tx *gorm.DB, owner *User) (int64, error) {
 		return 0, err
 	}
 	bonus = max(0, bonus-max(0, recovered))
-	referral := max(int64(0), int64(owner.AffHistoryQuota)-int64(owner.AffQuota))
+	referral := originalRefundReferralQuota(owner)
 	if bonus > math.MaxInt64-referral {
 		return 0, ErrRefundExport
 	}

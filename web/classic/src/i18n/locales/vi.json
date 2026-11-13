@@ -6282,6 +6282,10 @@
     "Recover historical discounts": "Thu hồi ưu đãi trước đây",
     "Refund calculation method": "Cách tính hoàn tiền",
     "Unexplained ledger difference": "Chênh lệch sổ sách chưa rõ",
-    "Please confirm that you understand the consequences": "Vui lòng xác nhận rằng bạn hiểu hậu quả"
+    "Please confirm that you understand the consequences": "Vui lòng xác nhận rằng bạn hiểu hậu quả",
+    "Historical noncash credits (not deducted)": "Hạn mức phi tiền mặt trước đây (không thu hồi)",
+    "Accounting balance excluding noncash credits": "Số dư tính toán không gồm hạn mức phi tiền mặt",
+    "Referral refund grace": "Hạn mức linh hoạt hoàn tiền từ giới thiệu",
+    "Effective refund grace": "Tổng hạn mức linh hoạt hoàn tiền"
   }
 }

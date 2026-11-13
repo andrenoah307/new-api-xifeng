@@ -5793,6 +5793,10 @@
     "Recover historical discounts": "Вычесть прежние скидки",
     "Refund calculation method": "Способ расчёта возврата",
     "Unexplained ledger difference": "Необъяснённая разница в учёте",
-    "Please confirm that you understand the consequences": "Пожалуйста, подтвердите, что понимаете последствия"
+    "Please confirm that you understand the consequences": "Пожалуйста, подтвердите, что понимаете последствия",
+    "Historical noncash credits (not deducted)": "Исторические неденежные средства (без списания)",
+    "Accounting balance excluding noncash credits": "Расчётный баланс без неденежных средств",
+    "Referral refund grace": "Допуск возврата по реферальным средствам",
+    "Effective refund grace": "Общий допуск возврата"
   }
 }

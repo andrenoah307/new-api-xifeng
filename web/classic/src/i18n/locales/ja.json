@@ -5739,6 +5739,10 @@
     "Recover historical discounts": "過去の割引を差し引く",
     "Refund calculation method": "返金計算方法",
     "Unexplained ledger difference": "未解明の帳簿差額",
-    "Please confirm that you understand the consequences": "結果を理解したことを確認してください"
+    "Please confirm that you understand the consequences": "結果を理解したことを確認してください",
+    "Historical noncash credits (not deducted)": "過去の非現金クレジット（控除なし）",
+    "Accounting balance excluding noncash credits": "非現金クレジットを除く計算上の残高",
+    "Referral refund grace": "紹介クレジットの返金許容枠",
+    "Effective refund grace": "返金許容枠の合計"
   }
 }

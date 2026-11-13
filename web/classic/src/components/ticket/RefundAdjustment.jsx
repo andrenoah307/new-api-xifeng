@@ -112,6 +112,7 @@ export function RefundAdjustment({
   const needsSettlement = (plan?.liabilities.length ?? 0) > 0;
   const applicationBasis = plan?.calculation_basis === 'application_balance';
   const needsNegative =
+    plan?.requires_negative_confirmation ??
     Number(
       applicationBasis
         ? (plan?.application_balance?.cash_amount ?? 0)
@@ -151,11 +152,11 @@ export function RefundAdjustment({
               ...(applicationBasis
                 ? [
                     [
-                      t('Preserved noncash credits'),
+                      t('Historical noncash credits (not deducted)'),
                       plan.application_balance?.noncash_amount ?? '-',
                     ],
                     [
-                      t('Cash balance after refund'),
+                      t('Accounting balance excluding noncash credits'),
                       plan.application_balance?.cash_amount ?? '-',
                     ],
                   ]
@@ -172,6 +173,14 @@ export function RefundAdjustment({
               [t('Known credits after refunds and holds'), plan.known_amount],
               [t('Balance after adjustment'), plan.balance_after],
               [t('Configured refund grace'), plan.grace_amount],
+              ...(applicationBasis
+                ? [
+                    [
+                      t('Referral refund grace'),
+                      plan.application_balance?.referral_grace_amount ?? '0',
+                    ],
+                  ]
+                : []),
               [
                 t('Cash refund'),
                 plan.calculation
@@ -213,15 +222,22 @@ export function RefundAdjustment({
           )}
           {applicationBasis && (
             <p>
-              {t('Cash balance after refund')}: {plan.balance_after} -{' '}
-              {plan.application_balance?.noncash_amount} ={' '}
-              {plan.application_balance?.cash_amount}
+              {t('Accounting balance excluding noncash credits')}:{' '}
+              {plan.balance_after} - {plan.application_balance?.noncash_amount}{' '}
+              = {plan.application_balance?.cash_amount}
             </p>
           )}
           <p>
             {t('Adjustment balance formula')}: {plan.balance_before} -{' '}
             {plan.debit_amount} = {plan.balance_after}
           </p>
+          {applicationBasis &&
+            plan.application_balance?.referral_grace_amount !== undefined && (
+              <p>
+                {t('Effective refund grace')}: {plan.grace_amount} +{' '}
+                {plan.application_balance.referral_grace_amount}
+              </p>
+            )}
           {plan.calculation && (
             <RefundCalculationDetails
               payments={plan.calculation.payments ?? []}

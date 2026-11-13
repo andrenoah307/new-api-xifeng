@@ -5914,6 +5914,10 @@
     "Recover historical discounts": "扣回历史优惠后计算",
     "Refund calculation method": "退款计算方式",
     "Unexplained ledger difference": "未解释的账面差额",
-    "Please confirm that you understand the consequences": "请确认您了解后果"
+    "Please confirm that you understand the consequences": "请确认您了解后果",
+    "Historical noncash credits (not deducted)": "历史非现金额度（不扣回）",
+    "Accounting balance excluding noncash credits": "扣除非现金额度后的核算余额",
+    "Referral refund grace": "推广额度退款宽限",
+    "Effective refund grace": "合计退款宽限"
   }
 }

@@ -54,5 +54,11 @@ func refundShortfallError(code string, orders []TopUp, lots map[int]RefundCredit
 		"wallet":    decimal.NewFromInt(int64(owner.Quota)).Div(unit).String(),
 		"limit":     decimal.NewFromInt(limitCents).Div(decimal.NewFromInt(100)).String(),
 	}
+	if refund.CalculationBasis == RefundBasisApplicationBalance {
+		referral := decimal.NewFromInt(originalRefundReferralQuota(owner)).Div(unit)
+		result.Amounts["configured_limit"] = result.Amounts["limit"]
+		result.Amounts["referral_grace"] = referral.String()
+		result.Amounts["limit"] = decimal.NewFromInt(max(int64(0), limitCents)).Div(decimal.NewFromInt(100)).Add(referral).String()
+	}
 	return result
 }

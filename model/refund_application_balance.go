@@ -11,6 +11,7 @@ import (
 // The projection uses the same wallet/noncash boundary as application. Usage
 // remains an independent audit fact; it is never rewritten to hide a difference.
 type RefundApplicationBalance struct {
+	ReferralGraceAmount string `json:"referral_grace_amount"`
 	WalletAmount        string `json:"wallet_amount"`
 	NoncashAmount       string `json:"noncash_amount"`
 	CashAmount          string `json:"cash_amount"`
@@ -63,6 +64,7 @@ func applicationRefundLotsTx(tx *gorm.DB, refund *TicketRefund, owner *User, ord
 	}
 	unit := decimal.NewFromFloat(common.QuotaPerUnit)
 	balance := &RefundApplicationBalance{
+		ReferralGraceAmount: decimal.NewFromInt(originalRefundReferralQuota(owner)).Div(unit).String(),
 		WalletAmount:        decimal.NewFromInt(int64(owner.Quota)).Div(unit).String(),
 		NoncashAmount:       decimal.NewFromInt(noncash).Div(unit).String(),
 		CashAmount:          decimal.NewFromInt(cash).Div(unit).String(),

@@ -5772,6 +5772,10 @@
     "Recover historical discounts": "Déduire les remises historiques",
     "Refund calculation method": "Mode de calcul du remboursement",
     "Unexplained ledger difference": "Écart comptable inexpliqué",
-    "Please confirm that you understand the consequences": "Veuillez confirmer que vous comprenez les conséquences"
+    "Please confirm that you understand the consequences": "Veuillez confirmer que vous comprenez les conséquences",
+    "Historical noncash credits (not deducted)": "Crédits historiques non monétaires (non déduits)",
+    "Accounting balance excluding noncash credits": "Solde comptable hors crédits non monétaires",
+    "Referral refund grace": "Marge de remboursement des parrainages",
+    "Effective refund grace": "Marge totale de remboursement"
   }
 }
