@@ -568,25 +568,37 @@ type AdminCompleteTopupRequest struct {
 }
 
 func AdminUpdateTopUpInvoiceType(c *gin.Context) {
-	var req struct {
-		ID                  int     `json:"id"`
-		InvoiceType         string  `json:"invoice_type"`
-		ExpectedInvoiceType *string `json:"expected_invoice_type"`
-	}
+	manageTopUpInvoiceType(c, true)
+}
+
+func AdminPreviewTopUpInvoiceType(c *gin.Context) {
+	manageTopUpInvoiceType(c, false)
+}
+
+func manageTopUpInvoiceType(c *gin.Context, apply bool) {
+	var req model.TopUpInvoiceAdjustmentInput
 	if c.ShouldBindJSON(&req) != nil || req.ExpectedInvoiceType == nil {
 		handleTicketError(c, model.ErrInvoiceTaxInvalid)
 		return
 	}
-	order, err := model.UpdateTopUpInvoiceType(req.ID, *req.ExpectedInvoiceType, req.InvoiceType)
+	plan, err := model.ManageTopUpInvoiceType(c.GetInt("id"), req, apply)
 	if err != nil {
+		for _, exposed := range []error{model.ErrInvoiceAdjustment, model.ErrInvoiceAdjustmentNegative, model.ErrInvoiceAdjustmentGrace, model.ErrFinanceRevision} {
+			if errors.Is(err, exposed) {
+				common.ApiError(c, exposed)
+				return
+			}
+		}
 		handleTicketError(c, err)
 		return
 	}
-	recordManageAudit(c, "topup.invoice_type.update", map[string]interface{}{
-		"topup_id": order.Id, "user_id": order.UserId,
-		"previous_invoice_type": *req.ExpectedInvoiceType, "invoice_type": order.InvoiceType,
-	})
-	common.ApiSuccess(c, nil)
+	if apply {
+		recordManageAudit(c, "topup.invoice_type.update", map[string]interface{}{
+			"topup_id": plan.TopUpID, "user_id": plan.UserID, "revision": plan.Revision,
+			"previous_invoice_type": plan.PreviousInvoiceType, "invoice_type": plan.InvoiceType,
+		})
+	}
+	common.ApiSuccess(c, plan)
 }
 
 // AdminCompleteTopUp 管理员补单接口
