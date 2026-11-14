@@ -2,7 +2,7 @@ package model
 
 import (
 	"errors"
-	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -222,9 +222,6 @@ func GetRefundCommissionInfo(refund *TicketRefund) (*RefundCommissionInfo, error
 	if clawbackable < 0 {
 		clawbackable = 0
 	}
-	if affAvailable := common.Max(inviter.AffQuota, 0); clawbackable > affAvailable {
-		clawbackable = affAvailable
-	}
 	if historyAvailable := common.Max(inviter.AffHistoryQuota, 0); clawbackable > historyAvailable {
 		clawbackable = historyAvailable
 	}
@@ -278,14 +275,13 @@ type CommissionClawbackResult struct {
 	InviterId      int `json:"inviter_id"`
 	RequestedQuota int `json:"requested_quota"`
 	ClawedQuota    int `json:"clawed_quota"`
+	WalletQuota    int `json:"wallet_quota"`
 }
 
 // applyCommissionClawback 在退款结算事务内扣回邀请人返佣：
-// 扣减邀请人 aff_quota 与 aff_history（后者保证邀请人自己的退款上限
-// 推导 affTransferred = aff_history - aff_quota 不被扭曲），并插入一条
-// 负数返佣记录让邀请人在钱包返佣历史里看到扣回原因。
-// 实际扣回额被夹到 min(请求额, 净返佣, 邀请人 aff 余额, 累计返佣)，
-// 绝不把 aff_quota 或 aff_history 扣成负数。
+// 优先扣减 aff_quota，已转出的差额扣钱包（允许负数）；aff_history
+// 同步减少全部扣回额，防止已追回的推广转入继续增加非现金统计与宽限。
+// 净返佣和累计返佣仍为上限，aff_quota 与 aff_history 不扣成负数。
 func applyCommissionClawback(tx *gorm.DB, refund *TicketRefund, requested int) (*CommissionClawbackResult, error) {
 	result := &CommissionClawbackResult{RequestedQuota: requested}
 
@@ -299,7 +295,7 @@ func applyCommissionClawback(tx *gorm.DB, refund *TicketRefund, requested int) (
 	}
 
 	var inviter User
-	if err := lockForUpdate(tx).Select("id, aff_quota, aff_history").
+	if err := lockForUpdate(tx).Select("id, quota, aff_quota, aff_history").
 		Where("id = ?", inviterId).First(&inviter).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return result, nil
@@ -321,9 +317,6 @@ func applyCommissionClawback(tx *gorm.DB, refund *TicketRefund, requested int) (
 	if actual64 > net {
 		actual64 = net
 	}
-	if actual64 > int64(inviter.AffQuota) {
-		actual64 = int64(inviter.AffQuota)
-	}
 	if actual64 > int64(inviter.AffHistoryQuota) {
 		actual64 = int64(inviter.AffHistoryQuota)
 	}
@@ -335,17 +328,23 @@ func applyCommissionClawback(tx *gorm.DB, refund *TicketRefund, requested int) (
 		return nil, err
 	}
 
-	// SQLite 下 lockForUpdate 不加锁，这里的守卫条件兜底防止并发扣成负数。
+	affDebit := min(actual, max(0, inviter.AffQuota))
+	walletDebit := actual - affDebit
+	if int64(inviter.Quota)-int64(walletDebit) < math.MinInt32 {
+		return nil, ErrRefundFinanceReview
+	}
+	// Match all observed balances so a concurrent transfer cannot be overwritten.
 	res := tx.Model(&User{}).
-		Where("id = ? AND aff_quota >= ? AND aff_history >= ?", inviterId, actual, actual).
+		Where("id = ? AND quota = ? AND aff_quota = ? AND aff_history = ?", inviterId, inviter.Quota, inviter.AffQuota, inviter.AffHistoryQuota).
 		Updates(map[string]interface{}{
-			"aff_quota":   gorm.Expr("aff_quota - ?", actual),
+			"quota":       gorm.Expr("quota - ?", walletDebit),
+			"aff_quota":   gorm.Expr("aff_quota - ?", affDebit),
 			"aff_history": gorm.Expr("aff_history - ?", actual),
 		})
 	if res.Error != nil {
 		return nil, res.Error
 	}
-	if res.RowsAffected == 0 {
+	if res.RowsAffected != 1 {
 		return nil, errors.New("邀请人返佣余额不足，扣回失败")
 	}
 
@@ -357,12 +356,13 @@ func applyCommissionClawback(tx *gorm.DB, refund *TicketRefund, requested int) (
 		CommissionRate:  0,
 		CommissionQuota: -actual,
 		Type:            CommissionTypeRefundClawback,
-		Remark:          fmt.Sprintf("退款工单 #%d 扣回返佣", refund.TicketId),
+		Remark:          "被推荐人退款，扣除推荐人奖励",
 	}).Error; err != nil {
 		return nil, err
 	}
 
 	result.ClawedQuota = actual
+	result.WalletQuota = walletDebit
 	return result, nil
 }
 

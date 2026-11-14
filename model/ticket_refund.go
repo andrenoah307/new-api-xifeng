@@ -670,10 +670,16 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		// 上面的 CAS 保证每张工单最多成功扣回一次。
 		if params.RefundStatus == RefundStatusRefunded && params.ClawBackCommission {
 			var cbErr error
-			if refund.FinanceVersion == 1 && !params.OriginalWorkflow {
-				params.ClawBackQuota, cbErr = refundCommissionQuotaTx(tx, &refund)
+			if refund.FinanceVersion == 1 || exportData != nil {
+				proportional, err := refundCommissionQuotaTx(tx, &refund)
+				cbErr = err
 				if cbErr != nil {
 					return cbErr
+				}
+				if params.OriginalWorkflow {
+					params.ClawBackQuota = min(params.ClawBackQuota, proportional)
+				} else {
+					params.ClawBackQuota = proportional
 				}
 			}
 			clawback, cbErr = applyCommissionClawback(tx, &refund, params.ClawBackQuota)
@@ -754,8 +760,10 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		RecordLogWithAdminInfo(userId, LogTypeManage, logContent, adminInfo)
 		if clawback != nil && clawback.ClawedQuota > 0 {
 			RecordLogWithAdminInfo(clawback.InviterId, LogTypeManage,
-				fmt.Sprintf("因被邀请用户退款，扣回邀请返佣 %s（工单 #%d）",
-					logger.LogQuota(clawback.ClawedQuota), ticket.Id), adminInfo)
+				"被推荐人退款，扣除推荐人奖励", map[string]interface{}{
+					"admin_id": params.AdminId, "ticket_id": ticket.Id,
+					"clawed_quota": clawback.ClawedQuota, "wallet_quota": clawback.WalletQuota,
+				})
 		}
 	case RefundStatusRejected:
 		RecordLogWithAdminInfo(userId, LogTypeManage,

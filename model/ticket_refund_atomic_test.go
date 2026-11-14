@@ -200,7 +200,7 @@ func TestRefundWalletDeltaBounds(t *testing.T) {
 
 func TestRefundClawbackFailureRollsBackWalletAdjustment(t *testing.T) {
 	truncateTables(t)
-	fx := seedClawbackScenario(t, 10000, 20000, 5000, 100, 2000)
+	fx := seedClawbackScenario(t, 100, 20000, 5000, 100, 2000)
 	failure := errors.New("commission insert failed")
 	name := "test:refund-commission-failure"
 	require.NoError(t, DB.Callback().Create().Before("gorm:create").Register(name, func(tx *gorm.DB) {
@@ -225,8 +225,11 @@ func TestRefundClawbackFailureRollsBackWalletAdjustment(t *testing.T) {
 	require.NoError(t, DB.First(&user, fx.inviteeId).Error)
 	assert.Equal(t, 1_000_000, user.Quota)
 	quota, history := loadUserAff(t, fx.inviterId)
-	assert.Equal(t, 10000, quota)
+	assert.Equal(t, 100, quota)
 	assert.Equal(t, 20000, history)
+	user = User{}
+	require.NoError(t, DB.First(&user, fx.inviterId).Error)
+	assert.Zero(t, user.Quota)
 	refund, err := GetTicketRefundByTicketId(fx.ticketId)
 	require.NoError(t, err)
 	assert.Equal(t, RefundStatusPending, refund.RefundStatus)
