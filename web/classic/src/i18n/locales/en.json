@@ -6002,6 +6002,7 @@
     "Historical noncash credits (not deducted)": "Historical noncash credits (not deducted)",
     "Accounting balance excluding noncash credits": "Accounting balance excluding noncash credits",
     "Referral refund grace": "Referral refund grace",
-    "Effective refund grace": "Effective refund grace"
+    "Effective refund grace": "Effective refund grace",
+    "Internal record - hidden from user": "Internal record - hidden from user"
   }
 }

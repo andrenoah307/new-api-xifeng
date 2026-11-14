@@ -2786,6 +2786,7 @@
     "Interface Language": "Язык интерфейса",
     "Internal Notes": "Внутренние заметки",
     "Internal notes (not shown to users)": "Внутренние заметки (не показываются пользователям)",
+    "Internal record - hidden from user": "Внутренняя запись · скрыта от пользователя",
     "Internal Server Error!": "Внутренняя ошибка сервера!",
     "Invalid (NaN)": "Недопустимо (NaN)",
     "Invalid affinity cache cooling rule": "Недопустимое правило охлаждения кеша при привязке",

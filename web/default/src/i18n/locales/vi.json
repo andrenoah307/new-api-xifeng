@@ -2786,6 +2786,7 @@
     "Interface Language": "Ngôn ngữ giao diện",
     "Internal Notes": "Ghi chú nội bộ",
     "Internal notes (not shown to users)": "Ghi chú nội bộ (không hiển thị cho người dùng)",
+    "Internal record - hidden from user": "Ghi chép nội bộ · ẩn với người dùng",
     "Internal Server Error!": "Lỗi máy chủ nội bộ!",
     "Invalid (NaN)": "Không hợp lệ (NaN)",
     "Invalid affinity cache cooling rule": "Quy tắc nghỉ theo cache có liên kết không hợp lệ",

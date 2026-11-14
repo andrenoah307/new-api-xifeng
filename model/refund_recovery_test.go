@@ -182,7 +182,7 @@ func TestRefundRecoveryIssuedCorrectionCompletesOnce(t *testing.T) {
 			require.NoError(t, DB.First(&owner, f.user.Id).Error)
 			assert.Equal(t, 9000, owner.Quota)
 			var publicAudits int64
-			require.NoError(t, DB.Model(&TicketMessage{}).Where("ticket_id IN ?", []int{ticket.Id, correction.InvoiceTicketId}).Count(&publicAudits).Error)
+			require.NoError(t, DB.Model(&TicketMessage{}).Where("ticket_id IN ? AND (internal IS NULL OR internal = ?)", []int{ticket.Id, correction.InvoiceTicketId}, false).Count(&publicAudits).Error)
 			assert.Zero(t, publicAudits)
 		})
 	}

@@ -252,7 +252,11 @@ func TransitionInvoiceCorrection(id, actorID int, action string, documents []Inv
 			return err
 		}
 		audit = fmt.Sprintf("Invoice correction #%d: %s -> %s", id, previous, result.Phase)
-		return nil
+		ticketID := result.RefundTicketId
+		if ticketID == 0 {
+			ticketID = result.InvoiceTicketId
+		}
+		return recordTicketOperationTx(tx, ticketID, actorID, audit+"; evidence: "+evidence)
 	})
 	if err == nil && audit != "" {
 		RecordLogWithAdminInfo(result.UserId, LogTypeManage, audit, map[string]interface{}{"admin_id": actorID, "invoice_ticket_id": result.InvoiceTicketId, "refund_ticket_id": result.RefundTicketId, "action": action, "evidence": evidence})

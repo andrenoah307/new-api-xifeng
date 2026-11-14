@@ -2786,6 +2786,7 @@
     "Interface Language": "界面语言",
     "Internal Notes": "内部备注",
     "Internal notes (not shown to users)": "内部备注（不显示给用户）",
+    "Internal record - hidden from user": "内部记录 · 用户不可见",
     "Internal Server Error!": "内部服务器错误！",
     "Invalid (NaN)": "无效 (NaN)",
     "Invalid affinity cache cooling rule": "亲和缓存冷却规则无效",

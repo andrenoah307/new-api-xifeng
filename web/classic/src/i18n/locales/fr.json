@@ -5776,6 +5776,7 @@
     "Historical noncash credits (not deducted)": "Crédits historiques non monétaires (non déduits)",
     "Accounting balance excluding noncash credits": "Solde comptable hors crédits non monétaires",
     "Referral refund grace": "Marge de remboursement des parrainages",
-    "Effective refund grace": "Marge totale de remboursement"
+    "Effective refund grace": "Marge totale de remboursement",
+    "Internal record - hidden from user": "Note interne · invisible pour l’utilisateur"
   }
 }

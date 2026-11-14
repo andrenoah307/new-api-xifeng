@@ -376,7 +376,10 @@ func SaveRefundInvoiceExport(ticketID, actorID int) (*RefundExportData, error) {
 		}
 		var err error
 		result, err = saveRefundInvoiceExportTx(tx, &refund, actorID)
-		return err
+		if err != nil {
+			return err
+		}
+		return recordTicketOperationTx(tx, ticketID, actorID, fmt.Sprintf("退款重新计算：实退%d分，申请额度%d，赠送扣回%d。", result.CashCents, result.PaidQuota, result.RefundGiftQuota))
 	})
 	if err != nil {
 		return nil, err

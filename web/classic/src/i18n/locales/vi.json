@@ -6286,6 +6286,7 @@
     "Historical noncash credits (not deducted)": "Hạn mức phi tiền mặt trước đây (không thu hồi)",
     "Accounting balance excluding noncash credits": "Số dư tính toán không gồm hạn mức phi tiền mặt",
     "Referral refund grace": "Hạn mức linh hoạt hoàn tiền từ giới thiệu",
-    "Effective refund grace": "Tổng hạn mức linh hoạt hoàn tiền"
+    "Effective refund grace": "Tổng hạn mức linh hoạt hoàn tiền",
+    "Internal record - hidden from user": "Ghi chép nội bộ · ẩn với người dùng"
   }
 }

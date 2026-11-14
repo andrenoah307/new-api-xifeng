@@ -5797,6 +5797,7 @@
     "Historical noncash credits (not deducted)": "Исторические неденежные средства (без списания)",
     "Accounting balance excluding noncash credits": "Расчётный баланс без неденежных средств",
     "Referral refund grace": "Допуск возврата по реферальным средствам",
-    "Effective refund grace": "Общий допуск возврата"
+    "Effective refund grace": "Общий допуск возврата",
+    "Internal record - hidden from user": "Внутренняя запись · скрыта от пользователя"
   }
 }

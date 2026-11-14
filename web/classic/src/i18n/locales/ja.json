@@ -5743,6 +5743,7 @@
     "Historical noncash credits (not deducted)": "過去の非現金クレジット（控除なし）",
     "Accounting balance excluding noncash credits": "非現金クレジットを除く計算上の残高",
     "Referral refund grace": "紹介クレジットの返金許容枠",
-    "Effective refund grace": "返金許容枠の合計"
+    "Effective refund grace": "返金許容枠の合計",
+    "Internal record - hidden from user": "内部記録 · ユーザーには非表示"
   }
 }

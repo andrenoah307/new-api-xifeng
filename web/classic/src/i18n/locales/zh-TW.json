@@ -5755,6 +5755,7 @@
     "Historical noncash credits (not deducted)": "歷史非現金額度（不扣回）",
     "Accounting balance excluding noncash credits": "扣除非現金額度後的核算餘額",
     "Referral refund grace": "推廣額度退款寬限",
-    "Effective refund grace": "合計退款寬限"
+    "Effective refund grace": "合計退款寬限",
+    "Internal record - hidden from user": "內部紀錄 · 使用者不可見"
   }
 }

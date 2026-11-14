@@ -261,8 +261,7 @@ func buildTicketDetailResponse(ticket *model.Ticket, staff bool) (gin.H, error) 
 	if !staff {
 		visible := messages[:0]
 		for _, message := range messages {
-			// Hide legacy internal audits already written as public replies.
-			if strings.HasPrefix(message.Content, "Financial reconciliation #") && (message.Role == common.RoleFinanceUser || message.Role >= common.RoleAdminUser) {
+			if message.Internal {
 				continue
 			}
 			visible = append(visible, message)

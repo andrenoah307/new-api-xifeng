@@ -710,6 +710,16 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		ticket.AdminId = params.AdminId
 		ticket.UpdatedTime = now
+		operation := fmt.Sprintf("退款处理：状态%d，余额处理方式%s，实退%d分，启用返佣扣回%t。", params.RefundStatus, mode, refund.RefundCashCents, params.ClawBackCommission)
+		if clawback != nil {
+			operation += fmt.Sprintf("推荐人%d，实际扣回%d quota，其中钱包扣回%d quota。", clawback.InviterId, clawback.ClawedQuota, clawback.WalletQuota)
+		}
+		if params.PayoutAttemptID != 0 {
+			operation += fmt.Sprintf("付款登记%d，流水%s，依据%s。", params.PayoutAttemptID, params.PayoutReference, params.PayoutEvidence)
+		}
+		if err := recordTicketOperationTx(tx, ticket.Id, params.AdminId, operation); err != nil {
+			return err
+		}
 		if params.OriginalWorkflow {
 			refund.Finance = nil
 			return nil
@@ -736,7 +746,7 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		var logContent string
 		switch mode {
 		case RefundQuotaModeWriteOff:
-			logContent = fmt.Sprintf("管理员批准退款，核销已扣余额 %s（工单 #%d）",
+			logContent = fmt.Sprintf("退款通过，核销已扣余额 %s（工单 #%d）",
 				logger.LogQuota(originalQuota), ticket.Id)
 		case RefundQuotaModeSubtract:
 			diff := params.ActualRefundQuota - originalQuota
@@ -749,11 +759,11 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			default:
 				delta = "余额无变动"
 			}
-			logContent = fmt.Sprintf("管理员批准退款，实际核销 %s（工单 #%d，原申请 %s，%s）",
+			logContent = fmt.Sprintf("退款通过，实际核销 %s（工单 #%d，原申请 %s，%s）",
 				logger.LogQuota(params.ActualRefundQuota), ticket.Id,
 				logger.LogQuota(originalQuota), delta)
 		case RefundQuotaModeOverride:
-			logContent = fmt.Sprintf("管理员批准退款并覆盖余额：工单 #%d，原申请 %s；解冻后余额 %s → 覆盖为 %s",
+			logContent = fmt.Sprintf("退款通过并覆盖余额：工单 #%d，原申请 %s；解冻后余额 %s → 覆盖为 %s",
 				ticket.Id, logger.LogQuota(originalQuota),
 				logger.LogQuota(oldQuotaForOverride), logger.LogQuota(finalQuotaForOverride))
 		}

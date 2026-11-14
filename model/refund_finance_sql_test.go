@@ -174,6 +174,8 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("referral_wallet_bounds", TestRefundClawbackWalletBoundsAndRollback)
 			t.Run("referral_order_and_log", TestOriginalRefundClawbackUsesOrderCashAndPrivateLog)
 			t.Run("referral_rollback", TestRefundClawbackFailureRollsBackWalletAdjustment)
+			t.Run("internal_audit_rollback", TestRefundInternalAuditFailureRollsBackCompletion)
+			t.Run("internal_log_visibility", TestRefundOperationLogsStayPrivate)
 			t.Run("gift_hold_and_release", TestRefundCreditLotCashFirstAndCancellation)
 			t.Run("gift_fifo_expiry", TestRefundCreditLotTwoDiscountOrdersExpireEarlierGift)
 			t.Run("gift_rounding", TestRefundCreditLotPartialPayoutConservesGift)

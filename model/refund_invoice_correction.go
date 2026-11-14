@@ -162,7 +162,7 @@ func StartRefundInvoiceCorrection(correctionID, actorID int) (*RefundInvoiceCorr
 			return err
 		}
 		known.Status = "processing"
-		return nil
+		return recordTicketOperationTx(tx, refund.TicketId, actorID, fmt.Sprintf("退款发票处理 #%d：开始处理。", correctionID))
 	})
 	if err != nil {
 		return nil, err
@@ -211,7 +211,7 @@ func CompleteRefundInvoiceCorrection(correctionID, actorID int, redReference, re
 			return ErrRefundInvoiceCorrection
 		}
 		result.Status, result.RedReference, result.ReissueReference, result.Evidence, result.HandledBy, result.HandledTime = "completed", redReference, reissueReference, evidence, actorID, now
-		return tx.Create(&TicketMessage{TicketId: refund.TicketId, UserId: actorID, Username: actor.Username, Role: actor.Role, Content: fmt.Sprintf("Invoice correction recorded: invoice ticket #%d; original %s; red %s (%d cents); reissue %s (%d cents); correction #%d", result.InvoiceTicketId, result.OriginalReference, redReference, result.OriginalCents, reissueReference, result.ReissueCents, result.Id), CreatedTime: now}).Error
+		return tx.Create(&TicketMessage{Internal: true, TicketId: refund.TicketId, UserId: actorID, Username: actor.Username, Role: actor.Role, Content: fmt.Sprintf("Invoice correction recorded: invoice ticket #%d; original %s; red %s (%d cents); reissue %s (%d cents); correction #%d", result.InvoiceTicketId, result.OriginalReference, redReference, result.OriginalCents, reissueReference, result.ReissueCents, result.Id), CreatedTime: now}).Error
 	})
 	if err != nil {
 		return nil, err

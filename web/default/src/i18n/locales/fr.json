@@ -2786,6 +2786,7 @@
     "Interface Language": "Langue de l'interface",
     "Internal Notes": "Notes internes",
     "Internal notes (not shown to users)": "Notes internes (non visibles par les utilisateurs)",
+    "Internal record - hidden from user": "Note interne · invisible pour l’utilisateur",
     "Internal Server Error!": "Erreur interne du serveur !",
     "Invalid (NaN)": "Invalide (NaN)",
     "Invalid affinity cache cooling rule": "Règle de pause du cache avec affinité invalide",

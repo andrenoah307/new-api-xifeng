@@ -411,6 +411,9 @@ func SubmitFinanceReconciliation(ticketID, actorID int, key, revision string, pl
 		if err := tx.Save(&result).Error; err != nil {
 			return err
 		}
+		if err := recordTicketOperationTx(tx, ticketID, actorID, fmt.Sprintf("Financial reconciliation #%d: %s; plan: %s", result.Id, result.Status, result.PlanJSON)); err != nil {
+			return err
+		}
 		if result.Status == "applied" {
 			return tx.Model(&FinanceReconciliation{}).Where("user_id = ? AND id <> ? AND source_revision = ? AND status = ?", result.UserId, result.Id, result.SourceRevision, "submitted").Update("status", "superseded").Error
 		}
@@ -526,6 +529,9 @@ func ReviewFinanceReconciliation(id, actorID int, approve bool, reason string) (
 		}
 		result.Status, result.ReviewedBy, result.ReviewReason, result.ReviewedTime = target, actorID, reason, common.GetTimestamp()
 		if err := tx.Save(&result).Error; err != nil {
+			return err
+		}
+		if err := recordTicketOperationTx(tx, result.TicketId, actorID, fmt.Sprintf("Financial reconciliation #%d: %s; reason: %s", result.Id, target, reason)); err != nil {
 			return err
 		}
 		if target == "applied" {
