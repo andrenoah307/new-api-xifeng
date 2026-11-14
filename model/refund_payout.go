@@ -115,7 +115,7 @@ func StartRefundPayout(ticketID, actorID int, key string) (*RefundPayoutAttempt,
 		if err := tx.Create(&result).Error; err != nil {
 			return err
 		}
-		return nil
+		return recordTicketOperationTx(tx, ticketID, actorID, fmt.Sprintf("退款付款登记 #%d：已认领，实退%d分。", result.Id, result.CashCents))
 	})
 	if err == nil {
 		RecordLogWithAdminInfo(known.UserId, LogTypeManage, fmt.Sprintf("Refund payout #%d claimed", result.Id), map[string]interface{}{"admin_id": actorID, "ticket_id": ticketID, "cash_cents": result.CashCents})
@@ -155,7 +155,7 @@ func RecordRefundPayoutReview(id, actorID int, status, evidence string) (*Refund
 		if err := tx.Save(&result).Error; err != nil {
 			return err
 		}
-		return nil
+		return recordTicketOperationTx(tx, result.TicketId, actorID, fmt.Sprintf("退款付款登记 #%d：%s；依据：%s", id, status, evidence))
 	})
 	if err == nil {
 		RecordLogWithAdminInfo(known.UserId, LogTypeManage, fmt.Sprintf("Refund payout #%d %s", id, status), map[string]interface{}{"admin_id": actorID, "ticket_id": result.TicketId, "evidence": evidence})

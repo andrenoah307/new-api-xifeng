@@ -5777,6 +5777,7 @@
     "Accounting balance excluding noncash credits": "Solde comptable hors crédits non monétaires",
     "Referral refund grace": "Marge de remboursement des parrainages",
     "Effective refund grace": "Marge totale de remboursement",
+    "Internal record - hidden from user": "Note interne · invisible pour l’utilisateur",
     "Bot": "Robot",
     "Read redacted usage logs": "Consulter les journaux d’utilisation expurgés",
     "Read ordinary users' usage logs with a bot system access token.": "Consulter les journaux d’utilisation des utilisateurs ordinaires avec le jeton d’accès système d’un robot.",

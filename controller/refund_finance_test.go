@@ -20,9 +20,11 @@ func TestUserTicketHidesLegacyReconciliationAudits(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketMessage{}, &model.TicketAttachment{}))
 	ticket := model.Ticket{UserId: 99, Type: model.TicketTypeGeneral, Status: model.TicketStatusOpen}
 	require.NoError(t, db.Create(&ticket).Error)
-	for _, content := range []string{"Public support reply", "Financial reconciliation #1 submitted; evidence: private receipt"} {
+	for _, content := range []string{"Public support reply", "Financial reconciliation #1 submitted; evidence: private receipt", "管理员选择退款计算方式application_balance；账面差额private"} {
 		require.NoError(t, db.Create(&model.TicketMessage{TicketId: ticket.Id, UserId: 3, Role: common.RoleRootUser, Content: content}).Error)
 	}
+	internal := model.TicketMessage{Internal: true, TicketId: ticket.Id, UserId: 3, Role: common.RoleFinanceUser, Content: "private operation"}
+	require.NoError(t, db.Create(&internal).Error)
 	response := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(response)
 	c.Set("id", 99)
@@ -32,9 +34,23 @@ func TestUserTicketHidesLegacyReconciliationAudits(t *testing.T) {
 	assert.Contains(t, response.Body.String(), "Public support reply")
 	assert.NotContains(t, response.Body.String(), "private receipt")
 	assert.NotContains(t, response.Body.String(), "Financial reconciliation")
+	assert.NotContains(t, response.Body.String(), "private")
+	assert.NotContains(t, response.Body.String(), "管理员选择退款计算方式")
 	adminResponse, err := buildTicketDetailResponse(&ticket, true)
 	require.NoError(t, err)
-	assert.Len(t, adminResponse["messages"], 2)
+	messages := adminResponse["messages"].([]*model.TicketMessageWithAttachments)
+	require.Len(t, messages, 4)
+	assert.False(t, messages[0].Internal)
+	for _, message := range messages[1:] {
+		assert.True(t, message.Internal)
+	}
+	attachment := &model.TicketAttachment{TicketId: ticket.Id, MessageId: internal.Id, UserId: 3}
+	assert.False(t, canAccessAttachment(c, attachment))
+	attachment.MessageId = messages[0].Id
+	assert.True(t, canAccessAttachment(c, attachment))
+	c.Set("role", common.RoleAdminUser)
+	attachment.MessageId = internal.Id
+	assert.True(t, canAccessAttachment(c, attachment))
 }
 
 func TestRefundTicketQuoteAuthorization(t *testing.T) {

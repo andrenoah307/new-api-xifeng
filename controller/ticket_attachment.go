@@ -287,6 +287,10 @@ func canAccessAttachment(c *gin.Context, a *model.TicketAttachment) bool {
 	if a.TicketId <= 0 {
 		return false
 	}
+	var message model.TicketMessage
+	if err := model.DB.Where("id = ? AND ticket_id = ?", a.MessageId, a.TicketId).First(&message).Error; err != nil || message.Internal {
+		return false
+	}
 	ticket, err := model.GetUserTicketById(a.TicketId, userId)
 	if err != nil || ticket == nil {
 		return false

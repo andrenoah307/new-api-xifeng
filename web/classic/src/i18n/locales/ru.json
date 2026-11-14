@@ -5798,6 +5798,7 @@
     "Accounting balance excluding noncash credits": "Расчётный баланс без неденежных средств",
     "Referral refund grace": "Допуск возврата по реферальным средствам",
     "Effective refund grace": "Общий допуск возврата",
+    "Internal record - hidden from user": "Внутренняя запись · скрыта от пользователя",
     "Bot": "Бот",
     "Read redacted usage logs": "Просмотр обезличенных журналов использования",
     "Read ordinary users' usage logs with a bot system access token.": "Просмотр журналов обычных пользователей с системным токеном доступа бота.",

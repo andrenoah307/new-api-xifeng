@@ -69,7 +69,7 @@ func SynchronizeRefundHold(ticketID int) error {
 			}
 		}
 		changed = true
-		return nil
+		return recordTicketOperationTx(tx, ticketID, 0, fmt.Sprintf("退款冻结同步：%d → %d quota。", previous, target))
 	})
 	if err == nil && changed {
 		_ = InvalidateUserCache(identity.UserId)

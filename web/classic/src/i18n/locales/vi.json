@@ -6287,6 +6287,7 @@
     "Accounting balance excluding noncash credits": "Số dư tính toán không gồm hạn mức phi tiền mặt",
     "Referral refund grace": "Hạn mức linh hoạt hoàn tiền từ giới thiệu",
     "Effective refund grace": "Tổng hạn mức linh hoạt hoàn tiền",
+    "Internal record - hidden from user": "Ghi chép nội bộ · ẩn với người dùng",
     "Bot": "Bot",
     "Read redacted usage logs": "Xem nhật ký sử dụng đã ẩn thông tin nhạy cảm",
     "Read ordinary users' usage logs with a bot system access token.": "Xem nhật ký sử dụng của người dùng thông thường bằng mã truy cập hệ thống của bot.",

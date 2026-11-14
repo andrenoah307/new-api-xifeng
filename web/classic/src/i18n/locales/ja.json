@@ -5744,6 +5744,7 @@
     "Accounting balance excluding noncash credits": "非現金クレジットを除く計算上の残高",
     "Referral refund grace": "紹介クレジットの返金許容枠",
     "Effective refund grace": "返金許容枠の合計",
+    "Internal record - hidden from user": "内部記録 · ユーザーには非表示",
     "Bot": "ボット",
     "Read redacted usage logs": "機密情報を除いた利用ログを閲覧",
     "Read ordinary users' usage logs with a bot system access token.": "ボットのシステムアクセストークンで一般ユーザーの利用ログを閲覧します。",

@@ -125,7 +125,7 @@ func TestReconciliationReviewPolicy(t *testing.T) {
 			require.NoError(t, DB.First(&owner, f.user.Id).Error)
 			assert.Equal(t, 500, owner.Quota)
 			var publicAudits int64
-			require.NoError(t, DB.Model(&TicketMessage{}).Where("ticket_id = ? AND content LIKE ?", ticket.Id, "Financial reconciliation #%").Count(&publicAudits).Error)
+			require.NoError(t, DB.Model(&TicketMessage{}).Where("ticket_id = ? AND content LIKE ? AND (internal IS NULL OR internal = ?)", ticket.Id, "Financial reconciliation #%", false).Count(&publicAudits).Error)
 			assert.Zero(t, publicAudits)
 		})
 	}

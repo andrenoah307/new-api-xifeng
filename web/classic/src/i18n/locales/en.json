@@ -6003,6 +6003,7 @@
     "Accounting balance excluding noncash credits": "Accounting balance excluding noncash credits",
     "Referral refund grace": "Referral refund grace",
     "Effective refund grace": "Effective refund grace",
+    "Internal record - hidden from user": "Internal record - hidden from user",
     "Bot": "Bot",
     "Read redacted usage logs": "Read redacted usage logs",
     "Read ordinary users' usage logs with a bot system access token.": "Read ordinary users' usage logs with a bot system access token.",

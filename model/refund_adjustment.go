@@ -383,7 +383,7 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 		if created.RowsAffected != 1 {
 			return ErrFinanceRevision
 		}
-		message := TicketMessage{TicketId: ticketID, UserId: actorID, Username: actor.Username, Role: actor.Role, CreatedTime: result.AppliedAt,
+		message := TicketMessage{Internal: true, TicketId: ticketID, UserId: actorID, Username: actor.Username, Role: actor.Role, CreatedTime: result.AppliedAt,
 			Content: fmt.Sprintf("因退款工单计算扣回历史优惠赠送额度：%s元额度；余额由%s变为%s元额度；人工核验结算记录%d条。退款计算已保存，尚未付款。", result.DebitAmount, result.BalanceBefore, result.BalanceAfter, len(result.Liabilities))}
 		if result.ApplicationBalance != nil {
 			message.Content = fmt.Sprintf("按原申请余额口径核验退款：不追加扣款；总余额%s元，历史非现金统计%s元，非现金核算余额%s元，独立推广宽限%s元（不计实付）；人工核验结算记录%d条。退款计算已保存，尚未付款。", result.BalanceAfter, result.ApplicationBalance.NoncashAmount, result.ApplicationBalance.CashAmount, result.ApplicationBalance.ReferralGraceAmount, len(result.Liabilities))

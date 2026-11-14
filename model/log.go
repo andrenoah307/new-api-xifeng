@@ -215,6 +215,11 @@ func assignDisplayLogIds(logs []*Log, startIdx int) {
 }
 
 func formatUserLogs(logs []*Log, startIdx int) {
+	for _, log := range logs {
+		if log.Type == LogTypeManage && strings.HasPrefix(log.Content, "管理员批准退款") {
+			log.Content = "退款通过" + strings.TrimPrefix(log.Content, "管理员批准退款")
+		}
+	}
 	FilterLogCosts(logs, false)
 	for i := range logs {
 		logs[i].ChannelName = ""
@@ -715,6 +720,8 @@ func buildUserLogsQuery(userId int, logType int, startTimestamp, endTimestamp in
 	} else {
 		tx = LOG_DB.Where("logs.user_id = ? and logs.type = ?", userId, logType)
 	}
+	// Historical internal refund audits remain available to staff only, including exports.
+	tx = tx.Where("(logs.type <> ? OR (logs.content NOT LIKE ? AND logs.content NOT LIKE ? AND logs.content NOT LIKE ?))", LogTypeManage, "Refund #%", "Refund payout #%", "Invoice correction #%")
 	var err error
 	if tx, err = applyExplicitLogTextFilter(tx, "logs.model_name", modelName); err != nil {
 		return tx.Where("1 = 0")

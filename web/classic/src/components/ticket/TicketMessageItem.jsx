@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import React from 'react';
 import { Image, ImagePreview, Space, Tag, Typography } from '@douyinfe/semi-ui';
 import { IconFile } from '@douyinfe/semi-icons';
@@ -12,7 +30,8 @@ const humanSize = (bytes) => {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 };
 
-const isImageMime = (mime) => typeof mime === 'string' && mime.toLowerCase().startsWith('image/');
+const isImageMime = (mime) =>
+  typeof mime === 'string' && mime.toLowerCase().startsWith('image/');
 
 // 将附件 id 映射到后端下载地址。
 //   - inline=1 用于图片预览，浏览器行为更友好（Content-Disposition: inline）；
@@ -32,7 +51,9 @@ const resolveRoleBadge = (role, t) => {
 
 const TicketMessageItem = ({ message, isMine, t }) => {
   const badge = resolveRoleBadge(message?.role, t);
-  const attachments = Array.isArray(message?.attachments) ? message.attachments : [];
+  const attachments = Array.isArray(message?.attachments)
+    ? message.attachments
+    : [];
   const images = attachments.filter((a) => isImageMime(a?.mime_type));
   const files = attachments.filter((a) => !isImageMime(a?.mime_type));
 
@@ -62,6 +83,13 @@ const TicketMessageItem = ({ message, isMine, t }) => {
             {timestamp2string(message?.created_time || 0)}
           </Text>
         </div>
+        {message?.internal && (
+          <div className='mb-2 break-words text-xs'>
+            <Text type='tertiary'>
+              {t('Internal record - hidden from user')}
+            </Text>
+          </div>
+        )}
         {message?.content ? (
           <Paragraph
             className='!mb-0'
