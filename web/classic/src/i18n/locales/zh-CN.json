@@ -5920,6 +5920,7 @@
     "Referral refund grace": "推广额度退款宽限",
     "Effective refund grace": "合计退款宽限",
     "Internal record - hidden from user": "内部记录 · 用户不可见",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "推荐奖励将按退款订单比例自动扣回，推荐人余额可能变为负数。",
     "Bot": "机器人",
     "Read redacted usage logs": "查询脱敏使用日志",
     "Read ordinary users' usage logs with a bot system access token.": "使用机器人系统访问令牌查询普通用户的脱敏使用日志。",

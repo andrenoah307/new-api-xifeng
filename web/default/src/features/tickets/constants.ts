@@ -129,8 +129,21 @@ export function canReply(status: number) {
   return status !== TICKET_STATUS.CLOSED
 }
 
-export function canClose(status: number) {
-  return status !== TICKET_STATUS.CLOSED
+export function canClose(
+  status: number,
+  type?: string,
+  adminId = 0,
+  refundStatus: number = REFUND_STATUS.PENDING
+) {
+  return (
+    status !== TICKET_STATUS.CLOSED &&
+    !(
+      type === 'refund' &&
+      refundStatus === REFUND_STATUS.PENDING &&
+      (status === TICKET_STATUS.IN_PROGRESS ||
+        (status === TICKET_STATUS.PENDING && adminId !== 0))
+    )
+  )
 }
 
 export function roleBadgeVariant(role: number): StatusVariant {

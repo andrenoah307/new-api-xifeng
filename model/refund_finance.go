@@ -538,9 +538,6 @@ func finalizeRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, params UpdateRef
 }
 
 func releaseRefundFinanceTx(tx *gorm.DB, refund *TicketRefund, cancelUnissued bool) error {
-	if refund.FinanceVersion != 1 {
-		return nil
-	}
 	var payouts int64
 	if err := tx.Model(&RefundPayoutAttempt{}).Where("ticket_id = ? AND status != ?", refund.TicketId, "failed").Count(&payouts).Error; err != nil {
 		return err

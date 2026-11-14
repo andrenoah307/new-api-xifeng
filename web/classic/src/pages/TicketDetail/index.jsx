@@ -1,5 +1,32 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button, Card, Descriptions, Empty, Modal, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import {
+  Button,
+  Card,
+  Descriptions,
+  Empty,
+  Modal,
+  Space,
+  Tag,
+  Typography,
+} from '@douyinfe/semi-ui';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess, timestamp2string } from '../../helpers';
@@ -73,11 +100,15 @@ const TicketDetail = () => {
       },
       {
         key: t('创建时间'),
-        value: ticket.created_time ? timestamp2string(ticket.created_time) : '-',
+        value: ticket.created_time
+          ? timestamp2string(ticket.created_time)
+          : '-',
       },
       {
         key: t('更新时间'),
-        value: ticket.updated_time ? timestamp2string(ticket.updated_time) : '-',
+        value: ticket.updated_time
+          ? timestamp2string(ticket.updated_time)
+          : '-',
       },
     ];
   }, [ticket, t]);
@@ -140,74 +171,76 @@ const TicketDetail = () => {
 
   return (
     <div className='mt-[60px] px-2'>
-    <div className='flex flex-col gap-4'>
-      <Card className='!rounded-2xl shadow-sm border-0'>
-        <div className='flex flex-col gap-4'>
-          <div className='flex flex-col md:flex-row md:items-start md:justify-between gap-3'>
-            <div className='flex flex-col gap-2'>
-              <Space>
-                <Button
-                  theme='borderless'
-                  onClick={() => {
-                    const query = searchParams.toString();
-                    navigate(`/console/ticket${query ? `?${query}` : ''}`);
-                  }}
-                >
-                  {t('返回工单列表')}
+      <div className='flex flex-col gap-4'>
+        <Card className='!rounded-2xl shadow-sm border-0'>
+          <div className='flex flex-col gap-4'>
+            <div className='flex flex-col md:flex-row md:items-start md:justify-between gap-3'>
+              <div className='flex flex-col gap-2'>
+                <Space>
+                  <Button
+                    theme='borderless'
+                    onClick={() => {
+                      const query = searchParams.toString();
+                      navigate(`/console/ticket${query ? `?${query}` : ''}`);
+                    }}
+                  >
+                    {t('返回工单列表')}
+                  </Button>
+                  <TicketStatusTag status={ticket?.status} t={t} />
+                </Space>
+                <Title heading={4} className='!mb-0'>
+                  {ticket?.subject || '-'}
+                </Title>
+                <Text type='secondary'>
+                  {t(
+                    '你可以在这里持续补充信息，管理员回复后也会保留在同一条工单中',
+                  )}
+                </Text>
+              </div>
+              {canCloseTicket(ticket, refund?.refund_status) && (
+                <Button theme='light' type='danger' onClick={handleCloseTicket}>
+                  {t('关闭工单')}
                 </Button>
-                <TicketStatusTag status={ticket?.status} t={t} />
-              </Space>
-              <Title heading={4} className='!mb-0'>
-                {ticket?.subject || '-'}
-              </Title>
-              <Text type='secondary'>
-                {t('你可以在这里持续补充信息，管理员回复后也会保留在同一条工单中')}
-              </Text>
+              )}
             </div>
-            {canCloseTicket(ticket) && (
-              <Button theme='light' type='danger' onClick={handleCloseTicket}>
-                {t('关闭工单')}
-              </Button>
-            )}
+            <Descriptions data={detailRows} />
           </div>
-          <Descriptions data={detailRows} />
-        </div>
-      </Card>
+        </Card>
 
-      {invoice && (
-        <InvoiceDetail
-          invoice={invoice}
-          orders={invoiceOrders}
-          fallbackRemark={extractRemarkFromSummary(messages[0]?.content)}
-          readonly
+        {invoice && (
+          <InvoiceDetail
+            invoice={invoice}
+            orders={invoiceOrders}
+            fallbackRemark={extractRemarkFromSummary(messages[0]?.content)}
+            readonly
+            t={t}
+          />
+        )}
+
+        {refund && (
+          <RefundDetail
+            refund={refund}
+            onFinanceUpdated={loadDetail}
+            ticket={ticket}
+            readonly
+            t={t}
+          />
+        )}
+
+        <TicketConversation
+          messages={messages}
+          currentUserId={ticket?.user_id}
+          loading={loading}
           t={t}
         />
-      )}
 
-      {refund && (
-        <RefundDetail
-          refund={refund}
-          onFinanceUpdated={loadDetail}
-          ticket={ticket}
-          readonly
+        <TicketReplyBox
+          disabled={!canReplyTicket(ticket)}
+          loading={loading || sending}
+          onSubmit={handleReply}
           t={t}
         />
-      )}
-
-      <TicketConversation
-        messages={messages}
-        currentUserId={ticket?.user_id}
-        loading={loading}
-        t={t}
-      />
-
-      <TicketReplyBox
-        disabled={!canReplyTicket(ticket)}
-        loading={loading || sending}
-        onSubmit={handleReply}
-        t={t}
-      />
-    </div>
+      </div>
     </div>
   );
 };
