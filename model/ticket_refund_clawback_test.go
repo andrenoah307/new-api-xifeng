@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"gorm.io/gorm"
 	"math"
@@ -52,7 +53,27 @@ func TestOriginalRefundClawbackUsesOrderCashAndPrivateLog(t *testing.T) {
 	require.NoError(t, DB.Create(&CommissionRecord{UserId: f.user.Id, InviterId: f.finance.Id, TopUpId: order.Id, CommissionQuota: 900, Type: CommissionTypeTopUp}).Error)
 	ticket, _, _, err := CreateRefundTicket(CreateRefundTicketParams{OriginalWorkflow: true, UserId: f.user.Id, Username: f.user.Username, RefundQuota: 45000, PayeeType: "alipay", PayeeName: "payee", PayeeAccount: "account", Contact: "contact", RequestKey: uuid.NewString()})
 	require.NoError(t, err)
-	params := UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded, ClawBackCommission: true, ClawBackQuota: 900}
+	params := UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded}
+	failure := errors.New("reward recovery unavailable")
+	callback := "test:automatic-refund-reward-failure"
+	require.NoError(t, DB.Callback().Create().Before("gorm:create").Register(callback, func(tx *gorm.DB) {
+		if tx.Statement.Schema != nil && tx.Statement.Schema.Table == "commission_records" {
+			tx.AddError(failure)
+		}
+	}))
+	t.Cleanup(func() { DB.Callback().Create().Remove(callback) })
+	_, _, _, _, err = UpdateRefundStatus(params)
+	require.ErrorIs(t, err, failure)
+	var unchanged TicketRefund
+	require.NoError(t, DB.Where("ticket_id = ?", ticket.Id).First(&unchanged).Error)
+	assert.Equal(t, RefundStatusPending, unchanged.RefundStatus)
+	assert.Equal(t, 45000, unchanged.FrozenQuota)
+	var unchangedInviter User
+	require.NoError(t, DB.First(&unchangedInviter, f.finance.Id).Error)
+	assert.Zero(t, unchangedInviter.Quota)
+	assert.Equal(t, 100, unchangedInviter.AffQuota)
+	assert.Equal(t, 900, unchangedInviter.AffHistoryQuota)
+	require.NoError(t, DB.Callback().Create().Remove(callback))
 	_, _, _, result, err := UpdateRefundStatus(params)
 	require.NoError(t, err)
 	require.NotNil(t, result)
@@ -279,7 +300,7 @@ func TestRefundClawbackIgnoredOnReject(t *testing.T) {
 	assert.Equal(t, 20000, affHistory)
 }
 
-func TestRefundClawbackInvalidQuotaRejected(t *testing.T) {
+func TestRefundAutomaticClawbackCannotBypassSettlement(t *testing.T) {
 	truncateTables(t)
 	fx := seedClawbackScenario(t, 10000, 20000, 5000, 100, 25_000_000)
 
@@ -290,7 +311,7 @@ func TestRefundClawbackInvalidQuotaRejected(t *testing.T) {
 		ClawBackCommission: true,
 		ClawBackQuota:      0,
 	})
-	require.ErrorIs(t, err, ErrTicketRefundClawbackQuotaInvalid)
+	require.ErrorIs(t, err, ErrRefundSettlementUnconfirmed)
 
 	// 退款保持 pending，可重试；邀请人余额未动。
 	var refund TicketRefund

@@ -2204,7 +2204,7 @@
     "完成硬件类型、部署位置、副本数量等配置后，将自动计算价格": "Price will be automatically calculated after completing hardware type, deployment location, number of replicas and other configurations",
     "完成设置并启用两步验证": "Hoàn tất thiết lập và bật xác thực hai yếu tố",
     "完成进度": "Completion Progress",
-    "完成退款": "",
+    "完成退款": "Hoàn tất hoàn tiền",
     "完成退款并扣除用户额度": "",
     "完成退款并扣额度": "",
     "完整流程：": "Full workflow:",
@@ -4187,7 +4187,7 @@
     "确认合规声明": "Confirm compliance terms",
     "确认启用": "Xác nhận bật",
     "确认失败": "Confirmation failed",
-    "确认完成退款": "",
+    "确认完成退款": "Xác nhận hoàn tiền",
     "确认密码": "Xác nhận mật khẩu",
     "确认导入配置": "Xác nhận nhập cấu hình",
     "确认已完成线下退款？确认后系统将核销冻结额度，用户不再拥有这部分余额。": "",
@@ -6287,6 +6287,7 @@
     "Accounting balance excluding noncash credits": "Số dư tính toán không gồm hạn mức phi tiền mặt",
     "Referral refund grace": "Hạn mức linh hoạt hoàn tiền từ giới thiệu",
     "Effective refund grace": "Tổng hạn mức linh hoạt hoàn tiền",
-    "Internal record - hidden from user": "Ghi chép nội bộ · ẩn với người dùng"
+    "Internal record - hidden from user": "Ghi chép nội bộ · ẩn với người dùng",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "Thưởng của người giới thiệu được tự động thu hồi theo tỷ lệ hoàn tiền của đơn hàng. Số dư của họ có thể âm."
   }
 }

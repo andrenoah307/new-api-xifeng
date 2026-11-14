@@ -19,9 +19,12 @@ type refundFinanceFixture struct{ user, admin, root, finance User }
 func newRefundFinanceFixture(t *testing.T) refundFinanceFixture {
 	t.Helper()
 	truncateTables(t)
+	require.NoError(t, DB.AutoMigrate(&RefundInvoiceExport{}))
+	require.NoError(t, DB.Where("1 = 1").Delete(&RefundInvoiceExport{}).Error)
 	require.NoError(t, DB.Where("1 = 1").Delete(&RefundOrderAllocation{}).Error)
 	require.NoError(t, DB.Where("1 = 1").Delete(&RefundInvoiceCorrection{}).Error)
 	t.Cleanup(func() {
+		require.NoError(t, DB.Where("1 = 1").Delete(&RefundInvoiceExport{}).Error)
 		require.NoError(t, DB.Where("1 = 1").Delete(&RefundOrderAllocation{}).Error)
 		require.NoError(t, DB.Where("1 = 1").Delete(&RefundInvoiceCorrection{}).Error)
 		require.NoError(t, DB.Where(Option{Key: InvoiceTaxConfigKey}).Delete(&Option{}).Error)

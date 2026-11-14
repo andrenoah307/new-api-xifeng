@@ -2279,7 +2279,7 @@
     "完成硬件类型、部署位置、副本数量等配置后，将自动计算价格": "Price will be automatically calculated after completing hardware type, deployment location, number of replicas and other configurations",
     "完成设置并启用两步验证": "Complete setup and enable two-factor authentication",
     "完成进度": "Completion Progress",
-    "完成退款": "",
+    "完成退款": "Complete Refund",
     "完成退款并扣除用户额度": "",
     "完成退款并扣额度": "",
     "完整流程：": "Full workflow:",
@@ -4131,7 +4131,7 @@
     "确认合规声明": "Confirm compliance terms",
     "确认启用": "Confirm Enable",
     "确认失败": "Confirmation failed",
-    "确认完成退款": "",
+    "确认完成退款": "Confirm Refund",
     "确认密码": "Confirm Password",
     "确认导入配置": "Confirm import configuration",
     "确认已完成线下退款？确认后系统将核销冻结额度，用户不再拥有这部分余额。": "",
@@ -6003,6 +6003,7 @@
     "Accounting balance excluding noncash credits": "Accounting balance excluding noncash credits",
     "Referral refund grace": "Referral refund grace",
     "Effective refund grace": "Effective refund grace",
-    "Internal record - hidden from user": "Internal record - hidden from user"
+    "Internal record - hidden from user": "Internal record - hidden from user",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative."
   }
 }

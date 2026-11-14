@@ -2216,7 +2216,7 @@
     "完成硬件类型、部署位置、副本数量等配置后，将自动计算价格": "Price will be automatically calculated after completing hardware type, deployment location, number of replicas and other configurations",
     "完成设置并启用两步验证": "Terminer la configuration et activer l'authentification à deux facteurs",
     "完成进度": "Completion Progress",
-    "完成退款": "",
+    "完成退款": "Terminer le remboursement",
     "完成退款并扣除用户额度": "",
     "完成退款并扣额度": "",
     "完整流程：": "Full workflow:",
@@ -4001,7 +4001,7 @@
     "确认合规声明": "Confirm compliance terms",
     "确认启用": "Confirmer l'activation",
     "确认失败": "Confirmation failed",
-    "确认完成退款": "",
+    "确认完成退款": "Confirmer le remboursement",
     "确认密码": "Confirmer le mot de passe",
     "确认导入配置": "Confirmer l'importation de la configuration",
     "确认已完成线下退款？确认后系统将核销冻结额度，用户不再拥有这部分余额。": "",
@@ -5777,6 +5777,7 @@
     "Accounting balance excluding noncash credits": "Solde comptable hors crédits non monétaires",
     "Referral refund grace": "Marge de remboursement des parrainages",
     "Effective refund grace": "Marge totale de remboursement",
-    "Internal record - hidden from user": "Note interne · invisible pour l’utilisateur"
+    "Internal record - hidden from user": "Note interne · invisible pour l’utilisateur",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "Les récompenses du parrain sont automatiquement reprises au prorata des commandes remboursées. Son solde peut devenir négatif."
   }
 }

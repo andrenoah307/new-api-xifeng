@@ -2224,7 +2224,7 @@
     "完成硬件类型、部署位置、副本数量等配置后，将自动计算价格": "Price will be automatically calculated after completing hardware type, deployment location, number of replicas and other configurations",
     "完成设置并启用两步验证": "Завершить настройки и включить двухфакторную аутентификацию",
     "完成进度": "Completion Progress",
-    "完成退款": "",
+    "完成退款": "Завершить возврат",
     "完成退款并扣除用户额度": "",
     "完成退款并扣额度": "",
     "完整流程：": "Full workflow:",
@@ -4022,7 +4022,7 @@
     "确认合规声明": "Confirm compliance terms",
     "确认启用": "Подтвердить включение",
     "确认失败": "Confirmation failed",
-    "确认完成退款": "",
+    "确认完成退款": "Подтвердить возврат",
     "确认密码": "Подтвердить пароль",
     "确认导入配置": "Подтвердить импорт конфигурации",
     "确认已完成线下退款？确认后系统将核销冻结额度，用户不再拥有这部分余额。": "",
@@ -5798,6 +5798,7 @@
     "Accounting balance excluding noncash credits": "Расчётный баланс без неденежных средств",
     "Referral refund grace": "Допуск возврата по реферальным средствам",
     "Effective refund grace": "Общий допуск возврата",
-    "Internal record - hidden from user": "Внутренняя запись · скрыта от пользователя"
+    "Internal record - hidden from user": "Внутренняя запись · скрыта от пользователя",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "Вознаграждение пригласившего автоматически удерживается пропорционально возврату по заказам. Его баланс может стать отрицательным."
   }
 }

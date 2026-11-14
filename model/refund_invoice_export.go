@@ -379,6 +379,11 @@ func SaveRefundInvoiceExport(ticketID, actorID int) (*RefundExportData, error) {
 		if err != nil {
 			return err
 		}
+		if refund.RefundStatus == RefundStatusPending {
+			if err := tx.Model(&Ticket{}).Where("id = ?", ticketID).Updates(map[string]interface{}{"status": TicketStatusProcessing, "admin_id": actorID, "updated_time": common.GetTimestamp()}).Error; err != nil {
+				return err
+			}
+		}
 		return recordTicketOperationTx(tx, ticketID, actorID, fmt.Sprintf("退款重新计算：实退%d分，申请额度%d，赠送扣回%d。", result.CashCents, result.PaidQuota, result.RefundGiftQuota))
 	})
 	if err != nil {

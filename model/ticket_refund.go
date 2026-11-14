@@ -467,7 +467,7 @@ type UpdateRefundStatusParams struct {
 // Wallet mutations, status transitions and commission clawback share one transaction.
 // Cache invalidation and audit logging happen only after commit.
 // 第三个返回值是更新前的工单主状态，供调用方判断是否需要发出状态变更通知；
-// 第四个返回值是实际执行的返佣扣回结果（未勾选或无可扣时 ClawedQuota 为 0）。
+// 第四个返回值是按订单退款比例自动扣回返佣的结果。
 func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket, int, *CommissionClawbackResult, error) {
 	if utf8.RuneCountInString(params.RejectionReason) > 4000 {
 		return nil, nil, 0, nil, ErrFinanceEvidence
@@ -493,9 +493,6 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 			}
 		default:
 			return nil, nil, 0, nil, ErrTicketRefundQuotaModeInvalid
-		}
-		if params.ClawBackCommission && params.ClawBackQuota <= 0 && params.PayoutAttemptID == 0 {
-			return nil, nil, 0, nil, ErrTicketRefundClawbackQuotaInvalid
 		}
 	}
 
@@ -668,7 +665,8 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 		}
 		// 返佣扣回与退款结算同事务：失败整体回滚，退款保持 pending 可重试；
 		// 上面的 CAS 保证每张工单最多成功扣回一次。
-		if params.RefundStatus == RefundStatusRefunded && params.ClawBackCommission {
+		if params.RefundStatus == RefundStatusRefunded {
+			params.ClawBackCommission = true
 			var cbErr error
 			if refund.FinanceVersion == 1 || exportData != nil {
 				proportional, err := refundCommissionQuotaTx(tx, &refund)
@@ -676,11 +674,9 @@ func UpdateRefundStatus(params UpdateRefundStatusParams) (*TicketRefund, *Ticket
 				if cbErr != nil {
 					return cbErr
 				}
-				if params.OriginalWorkflow {
-					params.ClawBackQuota = min(params.ClawBackQuota, proportional)
-				} else {
-					params.ClawBackQuota = proportional
-				}
+				params.ClawBackQuota = proportional
+			} else {
+				return ErrRefundFinanceReview
 			}
 			clawback, cbErr = applyCommissionClawback(tx, &refund, params.ClawBackQuota)
 			if cbErr != nil {

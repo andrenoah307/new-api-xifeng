@@ -2829,6 +2829,7 @@
     "Invitee Reward": "Referral reward",
     "Inviter": "Người mời",
     "Inviter Reward": "Phần thưởng người mời",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "Thưởng của người giới thiệu được tự động thu hồi theo tỷ lệ hoàn tiền của đơn hàng. Số dư của họ có thể âm.",
     "Invites": "Mời",
     "Invoice amount": "Số tiền hóa đơn",
     "Invoice amount must be at least {{amount}} CNY": "Invoice amount must be at least {{amount}} CNY",

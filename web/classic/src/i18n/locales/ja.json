@@ -2203,7 +2203,7 @@
     "完成硬件类型、部署位置、副本数量等配置后，将自动计算价格": "Price will be automatically calculated after completing hardware type, deployment location, number of replicas and other configurations",
     "完成设置并启用两步验证": "設定を完了し、2要素認証を有効にする",
     "完成进度": "Completion Progress",
-    "完成退款": "",
+    "完成退款": "返金を完了",
     "完成退款并扣除用户额度": "",
     "完成退款并扣额度": "",
     "完整流程：": "完全なフロー：",
@@ -3968,7 +3968,7 @@
     "确认合规声明": "Confirm compliance terms",
     "确认启用": "有効化を確認",
     "确认失败": "Confirmation failed",
-    "确认完成退款": "",
+    "确认完成退款": "返金完了を確認",
     "确认密码": "パスワード（確認用）",
     "确认导入配置": "設定インポートの確認",
     "确认已完成线下退款？确认后系统将核销冻结额度，用户不再拥有这部分余额。": "",
@@ -5744,6 +5744,7 @@
     "Accounting balance excluding noncash credits": "非現金クレジットを除く計算上の残高",
     "Referral refund grace": "紹介クレジットの返金許容枠",
     "Effective refund grace": "返金許容枠の合計",
-    "Internal record - hidden from user": "内部記録 · ユーザーには非表示"
+    "Internal record - hidden from user": "内部記録 · ユーザーには非表示",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "紹介者の報酬は返金対象の注文に応じて自動的に回収されます。紹介者の残高がマイナスになる場合があります。"
   }
 }

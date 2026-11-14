@@ -7,7 +7,6 @@ import { StatusBadge } from '@/components/status-badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -30,7 +29,6 @@ import {
   formatTimestampToDate,
   formatQuota,
   parseQuotaFromDollars,
-  quotaUnitsToInputAmount,
 } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -273,23 +271,13 @@ export function RefundDetail({
   const [customAmount, setCustomAmount] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const clawbackAvailable = (commissionInfo?.clawbackable_quota ?? 0) > 0
-  const [clawbackEnabled, setClawbackEnabled] = useState(true)
-  const [clawbackAmount, setClawbackAmount] = useState('')
 
   useEffect(() => {
     if (resolveOpen) {
       setQuotaMode('write_off')
       setCustomAmount('')
-      setClawbackEnabled(true)
-      setClawbackAmount(
-        commissionInfo?.suggested_clawback_quota
-          ? String(
-              quotaUnitsToInputAmount(commissionInfo.suggested_clawback_quota)
-            )
-          : ''
-      )
     }
-  }, [resolveOpen, commissionInfo])
+  }, [resolveOpen])
 
   const { data: targetUser } = useQuery({
     queryKey: ['user', 'quota', refund.user_id],
@@ -330,16 +318,7 @@ export function RefundDetail({
     return ''
   }, [quotaMode, parsedCustomQuota, targetUserQuota, frozenQ, t])
 
-  const parsedClawbackQuota = parseQuotaInput(clawbackAmount)
-
   const isResolveEnabled = useMemo(() => {
-    if (
-      clawbackAvailable &&
-      clawbackEnabled &&
-      (parsedClawbackQuota === null || parsedClawbackQuota <= 0)
-    ) {
-      return false
-    }
     if (quotaMode === 'write_off') return true
     if (parsedCustomQuota === null) return false
     if (quotaMode === 'subtract') {
@@ -356,9 +335,6 @@ export function RefundDetail({
     parsedCustomQuota,
     targetUserQuota,
     frozenQ,
-    clawbackAvailable,
-    clawbackEnabled,
-    parsedClawbackQuota,
   ])
 
   const handleResolve = () => {
@@ -372,12 +348,6 @@ export function RefundDetail({
     }
     if (quotaMode !== 'write_off') {
       extra.actual_refund_quota = parsedCustomQuota ?? 0
-    }
-    if (clawbackAvailable) {
-      extra.claw_back_commission = clawbackEnabled
-      if (clawbackEnabled) {
-        extra.claw_back_quota = parsedClawbackQuota ?? 0
-      }
     }
     onStatusChange?.(REFUND_STATUS.REFUNDED, extra)
     setResolveOpen(false)
@@ -581,36 +551,19 @@ export function RefundDetail({
 
             {clawbackAvailable && commissionInfo && (
               <div className='border-border space-y-2 rounded-lg border p-3'>
-                <label className='flex items-center gap-2 text-sm font-medium'>
-                  <Checkbox
-                    checked={clawbackEnabled}
-                    onCheckedChange={(v) => setClawbackEnabled(!!v)}
-                  />
+                <p className='text-sm font-medium'>
                   {t('Claw back inviter commission')}
-                </label>
+                </p>
                 <p className='text-muted-foreground text-xs'>
                   {t('Inviter')}: {commissionInfo.inviter_username} (
                   {commissionInfo.inviter_id}) · {t('Clawback available')}:{' '}
                   {formatQuota(commissionInfo.clawbackable_quota)}
                 </p>
-                {clawbackEnabled && (
-                  <div>
-                    <Label>{t('Clawback amount')}</Label>
-                    <Input
-                      type='number'
-                      value={clawbackAmount}
-                      onChange={(e) => setClawbackAmount(e.target.value)}
-                      min={0}
-                    />
-                    <p className='text-muted-foreground mt-1 text-xs'>
-                      {t(
-                        'Amount exceeding the clawback limit will be capped automatically. A negative commission record will be visible to the inviter.'
-                      )}
-                    </p>
-                  </div>
-                )}
               </div>
             )}
+            <p className='text-muted-foreground text-sm'>
+              {t('Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.')}
+            </p>
           </div>
           <DialogFooter>
             <Button variant='outline' onClick={() => setResolveOpen(false)}>

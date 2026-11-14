@@ -2829,6 +2829,7 @@
     "Invitee Reward": "Récompense de l'invité",
     "Inviter": "Inviteur",
     "Inviter Reward": "Récompense de l'inviteur",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "Les récompenses du parrain sont automatiquement reprises au prorata des commandes remboursées. Son solde peut devenir négatif.",
     "Invites": "Invitations",
     "Invoice amount": "Montant de la facture",
     "Invoice amount must be at least {{amount}} CNY": "Invoice amount must be at least {{amount}} CNY",

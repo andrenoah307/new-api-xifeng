@@ -2195,7 +2195,7 @@
     "完成硬件类型、部署位置、副本数量等配置后，将自动计算价格": "完成硬體類型、部署位置、副本數量等設定後，將自動計算價格",
     "完成设置并启用两步验证": "完成設定並啟用兩步驗證",
     "完成进度": "完成進度",
-    "完成退款": "",
+    "完成退款": "完成退款",
     "完成退款并扣除用户额度": "",
     "完成退款并扣额度": "",
     "完整流程：": "完整流程：",
@@ -3971,7 +3971,7 @@
     "确认合规声明": "确认合规声明",
     "确认启用": "",
     "确认失败": "确认失败",
-    "确认完成退款": "",
+    "确认完成退款": "確認完成退款",
     "确认密码": "確認密碼",
     "确认导入配置": "確認導入設定",
     "确认已完成线下退款？确认后系统将核销冻结额度，用户不再拥有这部分余额。": "",
@@ -5756,6 +5756,7 @@
     "Accounting balance excluding noncash credits": "扣除非現金額度後的核算餘額",
     "Referral refund grace": "推廣額度退款寬限",
     "Effective refund grace": "合計退款寬限",
-    "Internal record - hidden from user": "內部紀錄 · 使用者不可見"
+    "Internal record - hidden from user": "內部紀錄 · 使用者不可見",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "推薦獎勵將按退款訂單比例自動扣回，推薦人餘額可能變為負數。"
   }
 }

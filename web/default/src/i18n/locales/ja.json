@@ -2829,6 +2829,7 @@
     "Invitee Reward": "招待された側の報酬",
     "Inviter": "招待者",
     "Inviter Reward": "招待した側の報酬",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "紹介者の報酬は返金対象の注文に応じて自動的に回収されます。紹介者の残高がマイナスになる場合があります。",
     "Invites": "招待",
     "Invoice amount": "請求金額",
     "Invoice amount must be at least {{amount}} CNY": "Invoice amount must be at least {{amount}} CNY",

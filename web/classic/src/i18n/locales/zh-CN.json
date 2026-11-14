@@ -5919,6 +5919,7 @@
     "Accounting balance excluding noncash credits": "扣除非现金额度后的核算余额",
     "Referral refund grace": "推广额度退款宽限",
     "Effective refund grace": "合计退款宽限",
-    "Internal record - hidden from user": "内部记录 · 用户不可见"
+    "Internal record - hidden from user": "内部记录 · 用户不可见",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "推荐奖励将按退款订单比例自动扣回，推荐人余额可能变为负数。"
   }
 }

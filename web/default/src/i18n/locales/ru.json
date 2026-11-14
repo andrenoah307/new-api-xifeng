@@ -2829,6 +2829,7 @@
     "Invitee Reward": "Награда приглашенному",
     "Inviter": "Пригласивший",
     "Inviter Reward": "Награда приглашающему",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "Вознаграждение пригласившего автоматически удерживается пропорционально возврату по заказам. Его баланс может стать отрицательным.",
     "Invites": "Приглашения",
     "Invoice amount": "Сумма счёта",
     "Invoice amount must be at least {{amount}} CNY": "Invoice amount must be at least {{amount}} CNY",

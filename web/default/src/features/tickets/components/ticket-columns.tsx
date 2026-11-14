@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- The exported column hook owns its cell renderers. */
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -9,7 +10,7 @@ import type { Ticket, StaffUser } from '../api'
 import {
   roleBadgeVariant,
   roleBadgeLabel,
-  TICKET_STATUS,
+  canClose,
 } from '../constants'
 import {
   TicketStatusBadge,
@@ -175,7 +176,7 @@ export function useTicketColumns(opts: {
         header: t('Actions'),
         size: 100,
         cell: ({ row }) => {
-          if (row.original.status === TICKET_STATUS.CLOSED) return null
+          if (!canClose(row.original.status, row.original.type, row.original.admin_id, row.original.refund_status)) return null
           return (
             <Button
               variant="ghost"

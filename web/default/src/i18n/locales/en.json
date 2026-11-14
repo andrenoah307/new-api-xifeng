@@ -2829,6 +2829,7 @@
     "Invitee Reward": "Invitee Reward",
     "Inviter": "Inviter",
     "Inviter Reward": "Inviter Reward",
+    "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.": "Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.",
     "Invites": "Invites",
     "Invoice amount": "Invoice amount",
     "Invoice amount must be at least {{amount}} CNY": "Invoice amount must be at least {{amount}} CNY",

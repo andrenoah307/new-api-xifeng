@@ -15,6 +15,7 @@ export interface Ticket {
   user_id: number
   username: string
   assignee_id: number
+  admin_id?: number
   created_time: number
   updated_time: number
   refund_quota?: number

@@ -515,6 +515,22 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 		if ticket.UserId != userId {
 			return ErrTicketForbidden
 		}
+		if ticket.Type == TicketTypeRefund {
+			var pending int64
+			if err := tx.Model(&TicketRefund{}).Where("ticket_id = ? AND refund_status = ?", ticket.Id, RefundStatusPending).Count(&pending).Error; err != nil {
+				return err
+			}
+			if pending > 0 {
+				// A persisted calculation also protects historical/reopened tickets.
+				var calculated int64
+				if err := tx.Model(&RefundInvoiceExport{}).Where("ticket_id = ?", ticket.Id).Count(&calculated).Error; err != nil {
+					return err
+				}
+				if ticket.Status != TicketStatusOpen || ticket.AdminId != 0 || calculated > 0 {
+					return ErrTicketForbidden
+				}
+			}
+		}
 		if ticket.Type == TicketTypeInvoice {
 			var err error
 			refundedQuota, err = cancelPendingInvoice(tx, &ticket, userId)

@@ -252,7 +252,9 @@ const RefundDetail = ({
     setRejectLoading(true);
     try {
       const reason = String(rejectReason || '').trim();
-      await onStatusChange?.(REFUND_STATUS_REJECTED, { rejection_reason: reason });
+      await onStatusChange?.(REFUND_STATUS_REJECTED, {
+        rejection_reason: reason,
+      });
       setRejectVisible(false);
       setRejectReason('');
     } finally {
@@ -281,7 +283,11 @@ const RefundDetail = ({
 
   return (
     <>
-      {!readonly && refund.finance_version === 1 && refund.refund_status === 1 && <LegacyRefundRecovery ticketId={refund.ticket_id} />}
+      {!readonly &&
+        refund.finance_version === 1 &&
+        refund.refund_status === 1 && (
+          <LegacyRefundRecovery ticketId={refund.ticket_id} />
+        )}
       {userInvoices && userInvoices.length > 0 && (
         <Banner
           type='warning'
@@ -593,6 +599,11 @@ const RefundDetail = ({
                 '请根据实际线下打款情况选择额度处理方式。操作将写入用户日志，便于日后追溯。',
               )}
             />
+            <Text type='secondary'>
+              {t(
+                'Inviter rewards are automatically recovered in proportion to the refunded orders. The inviter balance may become negative.',
+              )}
+            </Text>
 
             <div
               className='rounded-xl p-3'

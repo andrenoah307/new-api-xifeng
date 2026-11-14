@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 export const INVOICE_SUMMARY_PREFIX = '发票申请信息：';
 export const REFUND_SUMMARY_PREFIX = '退款申请信息：';
 export const TICKET_REMARK_SEPARATOR = '\n备注：\n';
@@ -147,7 +165,14 @@ export const getTicketStatusOptions = (t, { allowClosed = true } = {}) => {
 };
 
 export const canReplyTicket = (ticket) => Number(ticket?.status) !== 4;
-export const canCloseTicket = (ticket) => Number(ticket?.status) !== 4;
+export const canCloseTicket = (ticket, refundStatus = ticket?.refund_status ?? 1) =>
+  Number(ticket?.status) !== 4 &&
+  !(
+    ticket?.type === 'refund' &&
+    Number(refundStatus) === 1 &&
+    (Number(ticket?.status) === 2 ||
+      (Number(ticket?.status) === 1 && Number(ticket?.admin_id || 0) !== 0))
+  );
 
 export const getRefundStatusText = (status, t) => {
   switch (Number(status)) {
