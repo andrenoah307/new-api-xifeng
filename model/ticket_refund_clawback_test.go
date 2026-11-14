@@ -3,12 +3,76 @@ package model
 import (
 	"fmt"
 	"gorm.io/gorm"
+	"math"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRefundClawbackWalletBoundsAndRollback(t *testing.T) {
+	for _, balance := range []int{2000, -100, math.MinInt32} {
+		t.Run(fmt.Sprint(balance), func(t *testing.T) {
+			truncateTables(t)
+			fx := seedClawbackScenario(t, 0, 5000, 5000, 100, 1000)
+			require.NoError(t, DB.Model(&User{}).Where("id = ?", fx.inviterId).Update("quota", balance).Error)
+			var refund TicketRefund
+			require.NoError(t, DB.Where("ticket_id = ?", fx.ticketId).First(&refund).Error)
+			info, err := GetRefundCommissionInfo(&refund)
+			require.NoError(t, err)
+			assert.Equal(t, 5000, info.ClawbackableQuota)
+			_, err = runHistoricalClawback(t, fx.ticketId, 5000)
+			var inviter User
+			require.NoError(t, DB.First(&inviter, fx.inviterId).Error)
+			if balance == math.MinInt32 {
+				require.ErrorIs(t, err, ErrRefundFinanceReview)
+				assert.Equal(t, balance, inviter.Quota)
+				assert.Equal(t, 5000, inviter.AffHistoryQuota)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, balance-5000, inviter.Quota)
+				assert.Zero(t, inviter.AffHistoryQuota)
+				_, err = runHistoricalClawback(t, fx.ticketId, 5000)
+				require.NoError(t, err)
+				require.NoError(t, DB.First(&inviter, fx.inviterId).Error)
+				assert.Equal(t, balance-5000, inviter.Quota)
+			}
+		})
+	}
+}
+
+func TestOriginalRefundClawbackUsesOrderCashAndPrivateLog(t *testing.T) {
+	f := newRefundFinanceFixture(t)
+	require.NoError(t, DB.AutoMigrate(&RefundInvoiceExport{}))
+	order := seedRefundFinanceOrder(t, f.user.Id, 90000, 9000, 0, 1)
+	require.NoError(t, DB.Model(&f.user).Updates(map[string]interface{}{"quota": 90000, "inviter_id": f.finance.Id}).Error)
+	require.NoError(t, DB.Model(&f.finance).Updates(map[string]interface{}{"quota": 0, "aff_quota": 100, "aff_history": 900}).Error)
+	require.NoError(t, DB.Create(&CommissionRecord{UserId: f.user.Id, InviterId: f.finance.Id, TopUpId: order.Id, CommissionQuota: 900, Type: CommissionTypeTopUp}).Error)
+	ticket, _, _, err := CreateRefundTicket(CreateRefundTicketParams{OriginalWorkflow: true, UserId: f.user.Id, Username: f.user.Username, RefundQuota: 45000, PayeeType: "alipay", PayeeName: "payee", PayeeAccount: "account", Contact: "contact", RequestKey: uuid.NewString()})
+	require.NoError(t, err)
+	params := UpdateRefundStatusParams{OriginalWorkflow: true, TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded, ClawBackCommission: true, ClawBackQuota: 900}
+	_, _, _, result, err := UpdateRefundStatus(params)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, 450, result.ClawedQuota)
+	assert.Equal(t, 350, result.WalletQuota)
+	var inviter User
+	require.NoError(t, DB.First(&inviter, f.finance.Id).Error)
+	assert.Equal(t, -350, inviter.Quota)
+	assert.Zero(t, inviter.AffQuota)
+	assert.Equal(t, 450, inviter.AffHistoryQuota)
+	_, _, _, _, err = UpdateRefundStatus(params)
+	require.ErrorIs(t, err, ErrTicketRefundNotPending)
+	var logs []*Log
+	require.NoError(t, LOG_DB.Where("user_id = ? AND type = ?", f.finance.Id, LogTypeManage).Find(&logs).Error)
+	require.Len(t, logs, 1)
+	formatUserLogs(logs, 0)
+	assert.Equal(t, "被推荐人退款，扣除推荐人奖励", logs[0].Content)
+	assert.NotContains(t, logs[0].Other, "refund_cash")
+	assert.NotContains(t, logs[0].Other, "ticket_id")
+}
 
 type clawbackFixture struct {
 	inviterId int
@@ -101,21 +165,30 @@ func TestRefundClawbackHappyPath(t *testing.T) {
 	assert.Equal(t, fx.inviteeId, record.UserId)
 	assert.Equal(t, fx.inviterId, record.InviterId)
 	assert.Equal(t, -(refundClawbackTopUpIdOffset + fx.ticketId), record.TopUpId)
-	assert.Contains(t, record.Remark, fmt.Sprintf("#%d", fx.ticketId))
+	assert.Equal(t, "被推荐人退款，扣除推荐人奖励", record.Remark)
 }
 
-func TestRefundClawbackClampsToInviterAffQuota(t *testing.T) {
+func TestRefundClawbackDebitsTransferredRewardFromWallet(t *testing.T) {
 	truncateTables(t)
-	// 邀请人只剩 1200 aff（已转出一部分），请求扣 5000 → 只能扣 1200。
+	// Recover the transferred remainder even when the wallet becomes negative.
 	fx := seedClawbackScenario(t, 1200, 20000, 5000, 100, 25_000_000)
 
 	clawback, err := runHistoricalClawback(t, fx.ticketId, 5000)
 	require.NoError(t, err)
 	require.NotNil(t, clawback)
-	assert.Equal(t, 1200, clawback.ClawedQuota)
+	assert.Equal(t, 5000, clawback.ClawedQuota)
 
 	affQuota, _ := loadUserAff(t, fx.inviterId)
 	assert.Equal(t, 0, affQuota)
+	var inviter User
+	require.NoError(t, DB.First(&inviter, fx.inviterId).Error)
+	assert.Equal(t, -3800, inviter.Quota)
+	assert.Equal(t, 15000, inviter.AffHistoryQuota)
+	var refund TicketRefund
+	require.NoError(t, DB.Where("ticket_id = ?", fx.ticketId).First(&refund).Error)
+	info, err := GetRefundCommissionInfo(&refund)
+	require.NoError(t, err)
+	assert.Zero(t, info.ClawbackableQuota)
 }
 
 func TestRefundClawbackClampsToInviterAffHistory(t *testing.T) {
