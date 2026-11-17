@@ -205,6 +205,9 @@ func TestRefundWaitingReservesAvailableBalanceDuringPreconsume(t *testing.T) {
 	_, _, _, _, err = UpdateRefundStatus(UpdateRefundStatusParams{TicketId: ticket.Id, AdminId: f.admin.Id, RefundStatus: RefundStatusRefunded})
 	require.ErrorIs(t, err, ErrRefundSettlementUnconfirmed)
 	_, err = CloseUserTicket(ticket.Id, f.user.Id)
+	require.ErrorIs(t, err, ErrTicketForbidden)
+	closed := TicketStatusClosed
+	_, _, err = UpdateTicketStatus(ticket.Id, f.admin.Id, &closed, nil)
 	require.NoError(t, err)
 	var owner User
 	require.NoError(t, DB.First(&owner, f.user.Id).Error)

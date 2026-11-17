@@ -165,14 +165,14 @@ export const getTicketStatusOptions = (t, { allowClosed = true } = {}) => {
 };
 
 export const canReplyTicket = (ticket) => Number(ticket?.status) !== 4;
-export const canCloseTicket = (ticket, refundStatus = ticket?.refund_status ?? 1) =>
+export const canCloseTicket = (
+  ticket,
+  refundStatus = ticket?.refund_status ?? 1,
+  frozenQuota = ticket?.frozen_quota ?? 0,
+) =>
   Number(ticket?.status) !== 4 &&
-  !(
-    ticket?.type === 'refund' &&
-    Number(refundStatus) === 1 &&
-    (Number(ticket?.status) === 2 ||
-      (Number(ticket?.status) === 1 && Number(ticket?.admin_id || 0) !== 0))
-  );
+  Number(frozenQuota) <= 0 &&
+  !(ticket?.type === 'refund' && Number(refundStatus) === 1);
 
 export const getRefundStatusText = (status, t) => {
   switch (Number(status)) {

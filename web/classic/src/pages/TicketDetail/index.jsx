@@ -197,7 +197,7 @@ const TicketDetail = () => {
                   )}
                 </Text>
               </div>
-              {canCloseTicket(ticket, refund?.refund_status) && (
+              {canCloseTicket(ticket, refund?.refund_status, refund?.frozen_quota) && (
                 <Button theme='light' type='danger' onClick={handleCloseTicket}>
                   {t('关闭工单')}
                 </Button>

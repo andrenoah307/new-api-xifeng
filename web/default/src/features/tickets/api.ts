@@ -21,6 +21,7 @@ export interface Ticket {
   updated_time: number
   refund_quota?: number
   refund_status?: number
+  frozen_quota?: number
   invoice_money?: number
   company_name?: string
 }

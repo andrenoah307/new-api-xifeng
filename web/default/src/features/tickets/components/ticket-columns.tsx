@@ -227,7 +227,7 @@ export function useTicketColumns(opts: {
         header: t('Actions'),
         size: 100,
         cell: ({ row }) => {
-          if (!canClose(row.original.status, row.original.type, row.original.admin_id, row.original.refund_status)) return null
+          if (!canClose(row.original.status, row.original.type, row.original.refund_status, row.original.frozen_quota)) return null
           return (
             <Button
               variant='ghost'

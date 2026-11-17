@@ -143,7 +143,7 @@ export default function TicketDetailPage({
           <TicketStatusBadge status={ticket.status} />
           <TicketPriorityBadge priority={ticket.priority} />
           <TicketTypeBadge type={ticket.type} />
-          {canClose(ticket.status, ticket.type, ticket.admin_id, refund?.refund_status) && (
+          {canClose(ticket.status, ticket.type, refund?.refund_status, refund?.frozen_quota) && (
             <Button
               variant="outline"
               size="sm"

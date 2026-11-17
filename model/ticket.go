@@ -279,6 +279,7 @@ type TicketWithSummary struct {
 	Ticket
 	RefundQuota  *int     `json:"refund_quota,omitempty" gorm:"column:refund_quota"`
 	RefundStatus *int     `json:"refund_status,omitempty" gorm:"column:refund_status"`
+	FrozenQuota  *int     `json:"frozen_quota,omitempty" gorm:"column:frozen_quota"`
 	InvoiceMoney *float64 `json:"invoice_money,omitempty" gorm:"column:invoice_money"`
 	CompanyName  *string  `json:"company_name,omitempty" gorm:"column:company_name"`
 }
@@ -307,6 +308,7 @@ func ListTicketsWithSummary(options TicketQueryOptions, pageInfo *common.PageInf
 		"("+ticketUnreadSQL+") AS has_unread_messages",
 		"tr_sum.refund_quota AS refund_quota",
 		"tr_sum.refund_status AS refund_status",
+		"tr_sum.frozen_quota AS frozen_quota",
 		"ti_sum.total_money AS invoice_money",
 		"ti_sum.company_name AS company_name",
 	).Joins("LEFT JOIN ticket_refunds AS tr_sum ON tr_sum.ticket_id = tickets.id").
@@ -538,21 +540,13 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 		if ticket.UserId != userId {
 			return ErrTicketForbidden
 		}
-		if ticket.Type == TicketTypeRefund {
-			var pending int64
-			if err := tx.Model(&TicketRefund{}).Where("ticket_id = ? AND refund_status = ?", ticket.Id, RefundStatusPending).Count(&pending).Error; err != nil {
-				return err
-			}
-			if pending > 0 {
-				// A persisted calculation also protects historical/reopened tickets.
-				var calculated int64
-				if err := tx.Model(&RefundInvoiceExport{}).Where("ticket_id = ?", ticket.Id).Count(&calculated).Error; err != nil {
-					return err
-				}
-				if ticket.Status != TicketStatusOpen || ticket.AdminId != 0 || calculated > 0 {
-					return ErrTicketForbidden
-				}
-			}
+		// User closure must never release a refund hold, including inconsistent legacy tickets.
+		var protectedRefunds int64
+		if err := tx.Model(&TicketRefund{}).Where("ticket_id = ? AND (refund_status = ? OR frozen_quota > 0)", ticket.Id, RefundStatusPending).Count(&protectedRefunds).Error; err != nil {
+			return err
+		}
+		if protectedRefunds > 0 {
+			return ErrTicketForbidden
 		}
 		if ticket.Type == TicketTypeInvoice {
 			var err error
@@ -572,14 +566,6 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 			"updated_time": now,
 		}).Error; err != nil {
 			return err
-		}
-
-		if ticket.Type == TicketTypeRefund {
-			quota, err := CancelPendingRefund(tx, ticket.Id, ticket.UserId)
-			if err != nil {
-				return err
-			}
-			ticket.cancelledRefundQuota = quota
 		}
 
 		ticket.Status = TicketStatusClosed
