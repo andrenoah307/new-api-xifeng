@@ -132,17 +132,13 @@ export function canReply(status: number) {
 export function canClose(
   status: number,
   type?: string,
-  adminId = 0,
-  refundStatus: number = REFUND_STATUS.PENDING
+  refundStatus: number = REFUND_STATUS.PENDING,
+  frozenQuota = 0
 ) {
   return (
     status !== TICKET_STATUS.CLOSED &&
-    !(
-      type === 'refund' &&
-      refundStatus === REFUND_STATUS.PENDING &&
-      (status === TICKET_STATUS.IN_PROGRESS ||
-        (status === TICKET_STATUS.PENDING && adminId !== 0))
-    )
+    frozenQuota <= 0 &&
+    !(type === 'refund' && refundStatus === REFUND_STATUS.PENDING)
   )
 }
 
