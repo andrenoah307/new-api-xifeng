@@ -574,6 +574,7 @@
     "Pay Method Name": "",
     "Pay Method Type": "",
     "Payment Amount": "Payment Amount",
+    "Paid amount / Actual invoice amount (CNY)": "Оплаченная сумма / Фактическая сумма счёта (CNY)",
     "Payment amount (CNY)": "Сумма платежа (CNY)",
     "Payment breakdown": "Состав платежа",
     "Payment gateway name": "Название платёжного шлюза",
