@@ -564,6 +564,7 @@
     "Pay Method Name": "",
     "Pay Method Type": "",
     "Payment Amount": "Payment Amount",
+    "Paid amount / Actual invoice amount (CNY)": "実支払額 / 実際の請求書金額（人民元）",
     "Payment amount (CNY)": "支払金額（CNY）",
     "Payment breakdown": "支払内訳",
     "Payment gateway name": "決済ゲートウェイ名",

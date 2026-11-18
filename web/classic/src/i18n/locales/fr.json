@@ -570,6 +570,7 @@
     "Pay Method Name": "",
     "Pay Method Type": "",
     "Payment Amount": "Payment Amount",
+    "Paid amount / Actual invoice amount (CNY)": "Montant payé / Montant facturé (CNY)",
     "Payment amount (CNY)": "Montant à payer (CNY)",
     "Payment breakdown": "Détail du paiement",
     "Payment gateway name": "Nom du prestataire de paiement",

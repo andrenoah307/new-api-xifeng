@@ -337,7 +337,11 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
                     </dd>
                   </>
                 )}
-                <dt>{t('Payment amount (CNY)')}</dt>
+                <dt>
+                  {invoiceType === 'none'
+                    ? t('Payment amount (CNY)')
+                    : t('Paid amount / Actual invoice amount (CNY)')}
+                </dt>
                 <dd className='text-right'>
                   {(current.total_cents / 100).toFixed(2)}
                 </dd>
