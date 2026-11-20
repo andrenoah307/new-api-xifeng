@@ -20,6 +20,8 @@ var ErrRefundSettlementUnconfirmed = errors.New("refund is waiting for settlemen
 const RefundSettlementWaiting = "waiting"
 
 type RefundOrderAllocation struct {
+	LegacyCutoff            int64  `json:"legacy_cutoff,omitempty" gorm:"type:bigint"`
+	LegacyBasis             string `json:"legacy_basis,omitempty" gorm:"size:32"`
 	GiftRecoveryReason      string `json:"gift_recovery_reason" gorm:"size:32"`
 	RemainingPaidValueCents int64  `json:"remaining_paid_value_cents" gorm:"type:bigint"`
 	RemainingGiftValueCents int64  `json:"remaining_gift_value_cents" gorm:"type:bigint"`

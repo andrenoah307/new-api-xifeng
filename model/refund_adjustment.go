@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -390,6 +391,14 @@ func ManageRefundAdjustment(ticketID, actorID int, input *RefundAdjustmentInput,
 		}
 		if input.CalculationMethod != "" {
 			message.Content = fmt.Sprintf("管理员选择退款计算方式%s；账面差额%s元，扣回历史优惠赠送额度%s元，余额由%s变为%s元；按所选方式处理结算阻塞记录%d条，未作人工结算核验。退款计算已保存，尚未付款。", input.CalculationMethod, result.DifferenceAmount, result.DebitAmount, result.BalanceBefore, result.BalanceAfter, len(result.Liabilities))
+		}
+		for _, legacy := range saved.LegacyBalances {
+			basisName := "历史退款额度折算"
+			if legacy.Basis == "recorded_cash" {
+				basisName = "原实退现金记录"
+			}
+			cutoffDate := time.Unix(legacy.Cutoff, 0).In(time.FixedZone("UTC+8", 8*3600)).Format("2006-01-02")
+			message.Content += fmt.Sprintf(" 历史工单#%d按免费开票截止日期%s承接占用%s元（%s），不是新增付款，不重算旧单或再次扣款。", legacy.TicketID, cutoffDate, decimal.NewFromInt(legacy.CashCents).Div(decimal.NewFromInt(100)).String(), basisName)
 		}
 		created = tx.Create(&message)
 		if created.Error != nil {
