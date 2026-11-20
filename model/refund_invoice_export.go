@@ -79,6 +79,7 @@ type RefundIssuerInvoiceType struct {
 }
 
 type RefundExportData struct {
+	LegacyBalances     []RefundLegacyBalance       `json:"legacy_balances,omitempty"`
 	ApplicationBalance *RefundApplicationBalance   `json:"application_balance,omitempty"`
 	Overdraft          *RefundConsumptionOverdraft `json:"overdraft,omitempty"`
 	GiftRecoveryPolicy string                      `json:"gift_recovery_policy,omitempty"`
@@ -505,7 +506,9 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 		}
 	}
 	var historical []TicketRefund
-	if err := tx.Where("user_id = ? AND ticket_id != ? AND refund_status = ?", refund.UserId, refund.TicketId, RefundStatusRefunded).Find(&historical).Error; err != nil {
+	var missingHistory []TicketRefund
+	var legacyRows []RefundOrderAllocation
+	if err := tx.Where("user_id = ? AND ticket_id != ? AND refund_status = ?", refund.UserId, refund.TicketId, RefundStatusRefunded).Order("processed_time ASC, ticket_id ASC").Find(&historical).Error; err != nil {
 		return nil, err
 	}
 	for _, old := range historical {
@@ -517,7 +520,10 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 			return nil, err
 		}
 		if len(allocations) == 0 {
-			return nil, refundCalculationError(ErrRefundExport, "missing_history", old.TicketId, 0)
+			if refund.CalculationBasis != RefundBasisApplicationBalance {
+				return nil, refundCalculationError(ErrRefundExport, "missing_history", old.TicketId, 0)
+			}
+			missingHistory = append(missingHistory, old)
 		}
 		previousAllocations = append(previousAllocations, allocations...)
 	}
@@ -552,6 +558,35 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 		paidOrders = append(paidOrders, *order)
 	}
 	orders = paidOrders
+	config, err := GetInvoiceTaxConfig(tx)
+	if err != nil {
+		return nil, err
+	}
+	for _, old := range missingHistory {
+		rows, err := allocateLegacyRefundBalance(old, config.LegacyInvoiceBefore, orders, previousAllocations)
+		if err != nil {
+			return nil, err
+		}
+		previousAllocations = append(previousAllocations, rows...)
+		legacyRows = append(legacyRows, rows...)
+	}
+	var legacyBalances []RefundLegacyBalance
+	for _, old := range historical {
+		var summary RefundLegacyBalance
+		for _, row := range previousAllocations {
+			if row.RefundTicketID != old.TicketId || row.LegacyCutoff == 0 {
+				continue
+			}
+			if row.RefundCents > math.MaxInt64-summary.CashCents {
+				return nil, ErrRefundExport
+			}
+			summary.TicketID, summary.Cutoff, summary.Basis = old.TicketId, row.LegacyCutoff, row.LegacyBasis
+			summary.CashCents += row.RefundCents
+		}
+		if summary.TicketID != 0 {
+			legacyBalances = append(legacyBalances, summary)
+		}
+	}
 	var feeQuota int64
 	if err := tx.Model(&InvoiceTaxCharge{}).Where("user_id = ? AND status = ? AND payment_method = ?", refund.UserId, "paid", "balance").Select("COALESCE(SUM(quota),0)").Scan(&feeQuota).Error; err != nil {
 		return nil, err
@@ -559,15 +594,8 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 	if owner.UsedQuota < 0 || feeQuota < 0 || feeQuota > math.MaxInt64-int64(owner.UsedQuota) {
 		return nil, ErrRefundExport
 	}
-	lots, err := projectRefundCreditLots(int64(owner.UsedQuota)+feeQuota, orders, previousAllocations)
-	if err != nil {
-		return nil, refundCalculationError(err, "allocation_mismatch", refund.TicketId, 0)
-	}
+	var lots map[int]RefundCreditLot
 	requested := int64(refund.RefundQuota)
-	config, err := GetInvoiceTaxConfig(tx)
-	if err != nil {
-		return nil, err
-	}
 	var applicationBalance *RefundApplicationBalance
 	overdraftOwner := &owner
 	if refund.CalculationBasis == RefundBasisApplicationBalance {
@@ -577,6 +605,11 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 		}
 		// Application-basis refunds preserve all excluded noncash credits.
 		config.RefundGiftRecoveryPolicy = RefundGiftNone
+	} else {
+		lots, err = projectRefundCreditLots(int64(owner.UsedQuota)+feeQuota, orders, previousAllocations)
+		if err != nil {
+			return nil, refundCalculationError(err, "allocation_mismatch", refund.TicketId, 0)
+		}
 	}
 	if len(quotaIncludesGift) == 1 && quotaIncludesGift[0] {
 		// An explicit final-balance override includes the gift debit in its total.
@@ -626,6 +659,7 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 		}
 	}
 	result.ApplicationBalance = applicationBalance
+	result.LegacyBalances = legacyBalances
 	result.TicketID = refund.TicketId
 	paid := map[int]int64{}
 	allocated := map[int]int64{}
@@ -714,6 +748,15 @@ func buildRefundInvoiceExportTx(tx *gorm.DB, refund *TicketRefund, actorID int, 
 	}
 	if !persist {
 		return result, nil
+	}
+	for i := range legacyRows {
+		created := tx.Create(&legacyRows[i])
+		if created.Error != nil {
+			return nil, created.Error
+		}
+		if created.RowsAffected != 1 {
+			return nil, ErrFinanceRevision
+		}
 	}
 	raw, err := common.Marshal(result)
 	if err != nil {
