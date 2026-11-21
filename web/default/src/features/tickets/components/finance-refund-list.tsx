@@ -32,14 +32,14 @@ import {
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
-import type { TicketRefund } from './api'
-import { LegacyRefundRecovery } from './components/finance-workflow'
-import { RefundInvoiceExports } from './components/refund-invoice-exports'
-import { refundCash } from './refund-finance-format'
+import type { TicketRefund } from '../api'
+import { LegacyRefundRecovery } from './finance-workflow'
+import { RefundInvoiceExports } from './refund-invoice-exports'
+import { refundCash } from '../refund-finance-format'
 
-export function RefundFinancePage() {
+export function FinanceRefundList() {
   const user = useAuthStore((state) => state.auth.user)
-  if (!user || ![3, 10, 100].includes(user.role)) return null
+  if (!user || user.role !== 3) return null
   return (
     <RefundFinanceList
       key={`${user.id}:${user.role}`}
@@ -75,7 +75,7 @@ function RefundFinanceList(props: { userId: number; role: number }) {
   return (
     <SectionPageLayout>
       <SectionPageLayout.Title>
-        {t('Refund invoice exports')}
+        {t('Ticket Admin')}
       </SectionPageLayout.Title>
       <SectionPageLayout.Content>
         <div className='mb-4 flex items-center justify-end gap-2'>

@@ -18,12 +18,12 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/auth-store'
-import { RefundFinancePage } from '@/features/tickets/refund-finance-page'
 
 export const Route = createFileRoute('/_authenticated/refund-finance/')({
   beforeLoad: () => {
-    if (![3, 10, 100].includes(useAuthStore.getState().auth.user?.role ?? 0))
-      {throw redirect({ to: '/403' })}
+    if (![3, 10, 100].includes(useAuthStore.getState().auth.user?.role ?? 0)) {
+      throw redirect({ to: '/403' })
+    }
+    throw redirect({ to: '/ticket-admin', replace: true })
   },
-  component: RefundFinancePage,
 })

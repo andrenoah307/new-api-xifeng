@@ -1,5 +1,5 @@
-import RefundInvoiceExports from '../../components/ticket/RefundInvoiceExports';
-import { LegacyRefundRecovery } from '../../components/ticket/FinanceWorkflow';
+import RefundInvoiceExports from './RefundInvoiceExports';
+import { LegacyRefundRecovery } from './FinanceWorkflow';
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -25,12 +25,12 @@ import { Button, Modal } from '@douyinfe/semi-ui';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { API } from '../../helpers';
 import { UserContext } from '../../context/User';
-import { refundCash } from '../../components/ticket/RefundFinanceDetail';
+import { refundCash } from './refundFinanceFormat';
 
-export default function RefundFinancePage() {
+export default function FinanceRefundList() {
   const [state] = useContext(UserContext);
   if (!state.user) return null;
-  if (![3, 10, 100].includes(state.user.role))
+  if (state.user.role !== 3)
     return <Navigate to='/forbidden' replace />;
   return <RefundFinanceList key={`${state.user.id}:${state.user.role}`} />;
 }
@@ -63,7 +63,7 @@ function RefundFinanceList() {
   const item = result.items.find((row) => row.ticket_id === selected);
   return (
     <main className='mx-2 mt-16 min-w-0 space-y-5 py-5'>
-      <h1 className='text-xl font-semibold'>{t('Refund invoice exports')}</h1>
+      <h1 className='text-xl font-semibold'>{t('工单管理')}</h1>
       <div className='flex items-center justify-end gap-2'>
         <Button
           title={t('Refresh')}

@@ -142,15 +142,18 @@ function RefundInvoiceExportPanel({ ticketId, onAdjusted }) {
         {['red', 'reissue'].map((kind, i) => (
           <Button
             key={kind}
+            style={{ maxWidth: '100%', height: 'auto', minHeight: 32 }}
             disabled={!saved || busy || adjustmentOpen}
             onClick={() => void download(kind)}
           >
-            {t(
-              [
-                'Export invoices to reverse',
-                'Export recalculated reissued invoices',
-              ][i],
-            )}
+            <span style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>
+              {t(
+                [
+                  'Export invoices to reverse',
+                  'Export recalculated reissued invoices',
+                ][i],
+              )}
+            </span>
           </Button>
         ))}
       </div>
