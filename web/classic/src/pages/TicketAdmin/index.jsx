@@ -1,4 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { UserContext } from '../../context/User';
+import FinanceRefundList from '../../components/ticket/FinanceRefundList';
 import {
   Button,
   Card,
@@ -425,6 +427,12 @@ const AdminTicketDetail = () => {
 };
 
 const TicketAdmin = () => {
+  const [state] = useContext(UserContext);
+  if (state.user?.role === 3) return <FinanceRefundList />;
+  return <StaffTicketAdmin />;
+};
+
+const StaffTicketAdmin = () => {
   const { id } = useParams();
   const { t } = useTranslation();
   const navigate = useNavigate();

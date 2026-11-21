@@ -68,15 +68,15 @@ export function AdminRoute({ children }) {
 }
 
 // TicketStaffRoute 放行 "客服及以上" 角色（role >= 5）。
-// 专用于 /console/ticket_admin 等工单后台页面：允许客服进入，但其它管理员页面仍受 AdminRoute 保护。
-export function TicketStaffRoute({ children }) {
+// allowFinance 仅供工单列表的财务受限视图使用；工单详情仍要求客服及以上角色。
+export function TicketStaffRoute({ children, allowFinance = false }) {
   const raw = localStorage.getItem('user');
   if (!raw) {
     return <Navigate to='/login' state={{ from: history.location }} />;
   }
   try {
     const user = JSON.parse(raw);
-    if (user && typeof user.role === 'number' && user.role >= 5) {
+    if (user && typeof user.role === 'number' && (user.role >= 5 || (allowFinance && user.role === 3))) {
       return children;
     }
   } catch (e) {

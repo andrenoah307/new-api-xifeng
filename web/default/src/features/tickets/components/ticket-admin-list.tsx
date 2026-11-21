@@ -57,10 +57,18 @@ import {
 } from '../constants'
 import { ticketQueryKeys } from '../lib/ticket-actions'
 import { ExportInvoiceDialog } from './dialogs/export-invoice-dialog'
+import { FinanceRefundList } from './finance-refund-list'
+import { ROLE } from '@/lib/roles'
 
 const route = getRouteApi('/_authenticated/ticket-admin/')
 
 export default function TicketAdminListPage() {
+  const role = useAuthStore((state) => state.auth.user?.role)
+  if (role === ROLE.FINANCE) return <FinanceRefundList />
+  return <StaffTicketList />
+}
+
+function StaffTicketList() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 640px)')

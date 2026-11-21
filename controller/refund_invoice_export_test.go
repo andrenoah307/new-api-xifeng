@@ -60,6 +60,50 @@ func TestRefundRecalculationDiagnosticOnlyForFinanceAndAdministrators(t *testing
 	assert.NotContains(t, response.Body.String(), "19.848446")
 }
 
+func TestRefundExportRejectsCancelledAndRejectedSnapshots(t *testing.T) {
+	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundInvoiceExport{}, &model.Ticket{}))
+	actor := model.User{Username: "terminal-export", Role: common.RoleAdminUser, Status: common.UserStatusEnabled, AffCode: "terminal-export", Quota: 500000}
+	require.NoError(t, db.Create(&actor).Error)
+	ticket := model.Ticket{UserId: actor.Id, Type: model.TicketTypeRefund, Status: model.TicketStatusClosed}
+	require.NoError(t, db.Create(&ticket).Error)
+	refund := model.TicketRefund{TicketId: ticket.Id, UserId: actor.Id, RefundStatus: model.RefundStatusCancelled, RefundQuota: 500000}
+	require.NoError(t, db.Create(&refund).Error)
+	raw, err := common.Marshal(model.RefundExportData{TicketID: ticket.Id, CashCents: 100})
+	require.NoError(t, err)
+	snapshot := model.RefundInvoiceExport{TicketID: ticket.Id, UserID: actor.Id, CashCents: 100, DataJSON: string(raw)}
+	require.NoError(t, db.Create(&snapshot).Error)
+	for _, status := range []int{model.RefundStatusCancelled, model.RefundStatusRejected} {
+		require.NoError(t, db.Model(&refund).Update("refund_status", status).Error)
+		for _, method := range []string{http.MethodGet, http.MethodPost} {
+			for _, kind := range []string{"", "red", "reissue"} {
+				response := httptest.NewRecorder()
+				c, _ := gin.CreateTestContext(response)
+				c.Set("id", actor.Id)
+				c.Params = gin.Params{{Key: "id", Value: strconv.Itoa(ticket.Id)}}
+				c.Request = httptest.NewRequest(method, "/api/ticket/refund/"+strconv.Itoa(ticket.Id)+"/invoice-export?kind="+kind, nil)
+				RefundInvoiceExport(c)
+				assert.NotContains(t, response.Header().Get("Content-Type"), "text/csv")
+				var body struct {
+					Success bool `json:"success"`
+				}
+				require.NoError(t, common.Unmarshal(response.Body.Bytes(), &body))
+				assert.False(t, body.Success)
+			}
+		}
+		items, total, err := model.ListRefundCorrectionsForExport(model.InvoiceExportFilter{}, &common.PageInfo{Page: 1, PageSize: 20})
+		require.NoError(t, err)
+		assert.Empty(t, items)
+		assert.Zero(t, total)
+	}
+	var saved model.RefundInvoiceExport
+	require.NoError(t, db.First(&saved, snapshot.ID).Error)
+	assert.Equal(t, snapshot, saved)
+	var owner model.User
+	require.NoError(t, db.First(&owner, actor.Id).Error)
+	assert.Equal(t, actor.Quota, owner.Quota)
+}
+
 func TestRefundInvoiceExportRolesAndReissueIdentity(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
 	require.NoError(t, db.AutoMigrate(&model.TicketRefund{}, &model.RefundInvoiceExport{}, &model.TopUp{}, &model.Option{}, &model.Ticket{}))

@@ -7,7 +7,7 @@ import { ticketAdminSearchSchema } from '@/features/tickets/lib/ticket-admin-sea
 export const Route = createFileRoute('/_authenticated/ticket-admin/')({
   beforeLoad: () => {
     const { auth } = useAuthStore.getState()
-    if (!auth.user || auth.user.role < ROLE.TICKET_STAFF) {
+    if (!auth.user || (auth.user.role !== ROLE.FINANCE && auth.user.role < ROLE.TICKET_STAFF)) {
       throw redirect({ to: '/403' })
     }
   },

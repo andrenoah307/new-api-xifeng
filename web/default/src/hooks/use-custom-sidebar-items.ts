@@ -56,21 +56,13 @@ export function getCustomGeneralItems(
     },
   ]
 
-  if (role >= ROLE.TICKET_STAFF) {
+  if (role === ROLE.FINANCE || role >= ROLE.TICKET_STAFF) {
     items.push({
       title: t('Ticket Admin'),
       url: '/ticket-admin',
+      // Finance retains the former entry's visibility without enabling admin modules.
+      configUrls: role === ROLE.FINANCE ? ['/refund-finance'] : undefined,
       icon: HeadsetIcon,
-    })
-  }
-
-  if (
-    [ROLE.FINANCE, ROLE.ADMIN, ROLE.SUPER_ADMIN].includes(role as 3 | 10 | 100)
-  ) {
-    items.push({
-      title: t('Refund invoice exports'),
-      url: '/refund-finance',
-      icon: History,
     })
   }
 
