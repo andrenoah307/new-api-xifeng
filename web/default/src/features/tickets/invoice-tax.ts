@@ -1,6 +1,8 @@
 import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
+  invoice_restricted_groups_block_tickets?: boolean
+  invoice_ticket_creation_blocked?: boolean
   invoice_restricted_groups?: string[]
   invoice_self_service_restricted?: boolean
   refund_overdraft_limit_cents?: number

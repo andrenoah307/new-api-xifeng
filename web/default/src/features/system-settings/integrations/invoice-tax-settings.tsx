@@ -119,10 +119,29 @@ export function InvoiceTaxSettings() {
             disabled={save.isPending || groups.isPending || groups.isError}
           />
           <p className='text-muted-foreground text-sm'>
-            {t(
-              'Existing invoice-eligible orders remain available. Other tickets and refunds are unaffected.'
-            )}
+            {config.invoice_restricted_groups_block_tickets
+              ? t(
+                  'All new invoice tickets are blocked, including eligible historical orders. Existing tickets and refunds are unaffected.'
+                )
+              : t(
+                  'Existing invoice-eligible orders remain available. Other tickets and refunds are unaffected.'
+                )}
           </p>
+        </Field>
+      </FieldGroup>
+      <FieldGroup>
+        <Field orientation='horizontal'>
+          <Switch
+            id='invoice-block-tickets'
+            checked={!!config.invoice_restricted_groups_block_tickets}
+            disabled={save.isPending}
+            onCheckedChange={(invoice_restricted_groups_block_tickets) =>
+              setDraft({ ...config, invoice_restricted_groups_block_tickets })
+            }
+          />
+          <FieldLabel htmlFor='invoice-block-tickets'>
+            {t('Block all new invoice tickets for selected groups')}
+          </FieldLabel>
         </Field>
       </FieldGroup>
       <FieldGroup>

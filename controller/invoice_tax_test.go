@@ -50,7 +50,7 @@ func TestInvoiceGroupConfigIsPrivateAndSurvivesOlderClients(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.Log{}, &model.TopUp{}))
 	user := model.User{Username: "restricted-user", Group: "private-reseller-group", AffCode: "group-test"}
 	require.NoError(t, db.Create(&user).Error)
-	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{Mode: "vat", InvoiceRestrictedGroups: []string{user.Group}}))
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{Mode: "vat", InvoiceRestrictedGroups: []string{user.Group}, InvoiceRestrictedGroupsBlockTickets: true}))
 	for _, test := range []struct {
 		name    string
 		handler gin.HandlerFunc
@@ -73,14 +73,17 @@ func TestInvoiceGroupConfigIsPrivateAndSurvivesOlderClients(t *testing.T) {
 			require.True(t, response.Success, w.Body.String())
 			if test.private {
 				assert.Contains(t, w.Body.String(), user.Group)
+				assert.Equal(t, true, response.Data["invoice_restricted_groups_block_tickets"])
 			} else {
 				assert.NotContains(t, w.Body.String(), user.Group)
 				assert.NotContains(t, response.Data, "invoice_restricted_groups")
 				assert.Equal(t, true, response.Data["invoice_self_service_restricted"])
+				assert.Equal(t, true, response.Data["invoice_ticket_creation_blocked"])
+				assert.NotContains(t, response.Data, "invoice_restricted_groups_block_tickets")
 			}
 		})
 	}
-	for _, body := range []string{`{"mode":"vat"}`, `{"mode":"vat","invoice_restricted_groups":[]}`} {
+	for _, body := range []string{`{"mode":"vat"}`, `{"mode":"vat","invoice_restricted_groups":[]}`, `{"mode":"vat","invoice_restricted_groups_block_tickets":false}`} {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Set("id", user.Id)
@@ -92,11 +95,12 @@ func TestInvoiceGroupConfigIsPrivateAndSurvivesOlderClients(t *testing.T) {
 		require.True(t, response.Success, w.Body.String())
 		config, err := model.GetInvoiceTaxConfig(db)
 		require.NoError(t, err)
-		if strings.Contains(body, "invoice_restricted_groups") {
-			assert.Empty(t, config.InvoiceRestrictedGroups)
-		} else {
+		if body == `{"mode":"vat"}` {
 			assert.Equal(t, []string{user.Group}, config.InvoiceRestrictedGroups)
+		} else {
+			assert.Empty(t, config.InvoiceRestrictedGroups)
 		}
+		assert.Equal(t, !strings.Contains(body, "false"), config.InvoiceRestrictedGroupsBlockTickets)
 	}
 }
 

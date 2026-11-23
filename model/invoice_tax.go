@@ -21,22 +21,23 @@ const InvoiceVATRateBps = 600
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
-	InvoiceRestrictedGroups      []string `json:"invoice_restricted_groups,omitempty"`
-	RefundOverdraftLimitCents    int64    `json:"refund_overdraft_limit_cents"`
-	RefundGiftRecoveryPolicy     string   `json:"refund_gift_recovery_policy"`
-	RefundSettlementGuardEnabled bool     `json:"refund_settlement_guard_enabled"`
-	ReconciliationReviewEnabled  bool     `json:"reconciliation_review_enabled"`
-	ReconciliationReviewCount    int      `json:"reconciliation_review_count"`
-	SeparateRefundInvoiceTypes   bool     `json:"separate_refund_invoice_types"`
-	PolicyEffectiveAt            int64    `json:"policy_effective_at"`
-	ModuleEnabled                bool     `json:"module_enabled"`
-	LegacyTopUpsEnabled          bool     `json:"legacy_topups_enabled"`
-	LegacyInvoiceBefore          int64    `json:"legacy_invoice_before"`
-	LegacyFreeOrdinaryEnabled    bool     `json:"legacy_free_ordinary_enabled"`
-	Enabled                      bool     `json:"enabled"`
-	Mode                         string   `json:"mode"`
-	OrdinaryRateBps              int      `json:"ordinary_rate_bps"`
-	SpecialRateBps               int      `json:"special_rate_bps"`
+	InvoiceRestrictedGroupsBlockTickets bool     `json:"invoice_restricted_groups_block_tickets,omitempty"`
+	InvoiceRestrictedGroups             []string `json:"invoice_restricted_groups,omitempty"`
+	RefundOverdraftLimitCents           int64    `json:"refund_overdraft_limit_cents"`
+	RefundGiftRecoveryPolicy            string   `json:"refund_gift_recovery_policy"`
+	RefundSettlementGuardEnabled        bool     `json:"refund_settlement_guard_enabled"`
+	ReconciliationReviewEnabled         bool     `json:"reconciliation_review_enabled"`
+	ReconciliationReviewCount           int      `json:"reconciliation_review_count"`
+	SeparateRefundInvoiceTypes          bool     `json:"separate_refund_invoice_types"`
+	PolicyEffectiveAt                   int64    `json:"policy_effective_at"`
+	ModuleEnabled                       bool     `json:"module_enabled"`
+	LegacyTopUpsEnabled                 bool     `json:"legacy_topups_enabled"`
+	LegacyInvoiceBefore                 int64    `json:"legacy_invoice_before"`
+	LegacyFreeOrdinaryEnabled           bool     `json:"legacy_free_ordinary_enabled"`
+	Enabled                             bool     `json:"enabled"`
+	Mode                                string   `json:"mode"`
+	OrdinaryRateBps                     int      `json:"ordinary_rate_bps"`
+	SpecialRateBps                      int      `json:"special_rate_bps"`
 }
 
 type InvoiceTaxQuote struct {
@@ -337,7 +338,7 @@ func (config InvoiceTaxConfig) RestrictsInvoiceGroup(group string) bool {
 	return slices.Contains(config.InvoiceRestrictedGroups, group)
 }
 
-// Explicit invoice types preserve obligations agreed before a group restriction.
+// Explicit invoice types preserve obligations unless all new tickets are blocked.
 // Untyped/free legacy orders do not acquire new eligibility while restricted.
 func CheckInvoiceApplicationAccess(db *gorm.DB, config InvoiceTaxConfig, userID int, orders []*TopUp) error {
 	if len(config.InvoiceRestrictedGroups) == 0 {
@@ -350,7 +351,7 @@ func CheckInvoiceApplicationAccess(db *gorm.DB, config InvoiceTaxConfig, userID 
 	if !config.RestrictsInvoiceGroup(owner.Group) {
 		return nil
 	}
-	if len(orders) == 0 {
+	if config.InvoiceRestrictedGroupsBlockTickets || len(orders) == 0 {
 		return ErrTicketForbidden
 	}
 	for _, order := range orders {

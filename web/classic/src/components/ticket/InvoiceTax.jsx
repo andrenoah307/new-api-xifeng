@@ -120,6 +120,7 @@ export function InvoiceTaxFields({
     if (
       open &&
       config &&
+      !config.invoice_ticket_creation_blocked &&
       (config.module_enabled || config.invoice_workflow_required) &&
       selected.length
     ) {
@@ -147,6 +148,7 @@ export function InvoiceTaxFields({
     onChange({
       ready:
         !!config &&
+        !config.invoice_ticket_creation_blocked &&
         ((!config.module_enabled && !config.invoice_workflow_required) ||
           !!current),
       invoice_type: type,
@@ -155,6 +157,15 @@ export function InvoiceTaxFields({
     });
   }, [config, current, type, method, onChange]);
   if (!config) return <p>{t('Loading...')}</p>;
+  if (config.invoice_ticket_creation_blocked) {
+    return (
+      <p role='status'>
+        {t(
+          'New invoice tickets are unavailable for this account. Existing tickets can still be processed.',
+        )}
+      </p>
+    );
+  }
   if (!config.module_enabled && !config.invoice_workflow_required)
     return ids.length > 0 ? (
       <InvoiceAmountFormula
@@ -492,10 +503,27 @@ export function InvoiceTaxSettings() {
           }
         />
         <p>
-          {t(
-            'Existing invoice-eligible orders remain available. Other tickets and refunds are unaffected.',
-          )}
+          {config.invoice_restricted_groups_block_tickets
+            ? t(
+                'All new invoice tickets are blocked, including eligible historical orders. Existing tickets and refunds are unaffected.',
+              )
+            : t(
+                'Existing invoice-eligible orders remain available. Other tickets and refunds are unaffected.',
+              )}
         </p>
+      </div>
+      <div className='flex items-center gap-2'>
+        <Switch
+          id='invoice-block-tickets'
+          checked={!!config.invoice_restricted_groups_block_tickets}
+          disabled={saving}
+          onChange={(invoice_restricted_groups_block_tickets) =>
+            setConfig({ ...config, invoice_restricted_groups_block_tickets })
+          }
+        />
+        <label htmlFor='invoice-block-tickets'>
+          {t('Block all new invoice tickets for selected groups')}
+        </label>
       </div>
       <div className='space-y-2'>
         <label htmlFor='refund-overdraft-amount'>

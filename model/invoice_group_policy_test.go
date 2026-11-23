@@ -44,8 +44,28 @@ func TestInvoiceGroupRestrictionPreservesHistoricalEntitlements(t *testing.T) {
 	require.NoError(t, err)
 	params := createInvoiceTicketParams(user, []int{typedID})
 	params.InvoiceType, params.TaxQuote = "ordinary", quote.Token
+	config.InvoiceRestrictedGroupsBlockTickets = true
+	require.NoError(t, SaveInvoiceTaxConfig(config))
+	orders, err = GetEligibleInvoiceOrders(user.Id, "ordinary")
+	require.NoError(t, err)
+	assert.Empty(t, orders)
+	_, err = QuoteInvoiceTax(DB, user.Id, []int{typedID}, "ordinary")
+	assert.ErrorIs(t, err, ErrTicketForbidden)
+	_, _, _, _, err = CreateInvoiceTicket(params)
+	assert.ErrorIs(t, err, ErrTicketForbidden)
+	require.NoError(t, DB.First(&balance, user.Id).Error)
+	assert.Equal(t, 100000000, balance.Quota)
+	// The switch applies only to selected groups, even for existing invoice types.
+	require.NoError(t, DB.Model(user).Update("group", "unrestricted").Error)
+	_, err = QuoteInvoiceTax(DB, user.Id, []int{typedID}, "ordinary")
+	require.NoError(t, err)
+	require.NoError(t, DB.Model(user).Update("group", "default").Error)
+	config.InvoiceRestrictedGroupsBlockTickets = false
+	require.NoError(t, SaveInvoiceTaxConfig(config))
 	ticket, _, _, _, err := CreateInvoiceTicket(params)
 	require.NoError(t, err)
+	config.InvoiceRestrictedGroupsBlockTickets = true
+	require.NoError(t, SaveInvoiceTaxConfig(config))
 	_, _, _, err = UpdateInvoiceStatus(ticket.Id, user.Id, InvoiceStatusIssued)
 	require.NoError(t, err)
 	require.NoError(t, DB.Model(user).Update("group", "unrestricted").Error)
@@ -124,6 +144,7 @@ func TestInvoiceGroupRestrictionPreservesExistingTaxPayment(t *testing.T) {
 	require.Equal(t, "pending", invoice.TaxCharge.Status)
 	require.NoError(t, DB.Model(invoice.TaxCharge).Update("payment_method", "alipay").Error)
 	config.InvoiceRestrictedGroups = []string{user.Group}
+	config.InvoiceRestrictedGroupsBlockTickets = true
 	require.NoError(t, SaveInvoiceTaxConfig(config))
 	require.NoError(t, SettleInvoiceTax(invoice.TaxCharge.TradeNo, "alipay", quote.FeeCents))
 	_, _, _, err = UpdateInvoiceStatus(ticket.Id, user.Id, InvoiceStatusIssued)

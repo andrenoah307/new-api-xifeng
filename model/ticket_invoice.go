@@ -261,6 +261,9 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 	if invoiceType != "ordinary" && invoiceType != "special" {
 		return nil, ErrInvoiceTaxInvalid
 	}
+	if restricted && config.InvoiceRestrictedGroupsBlockTickets {
+		return []*TopUp{}, nil
+	}
 	tx := DB.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error

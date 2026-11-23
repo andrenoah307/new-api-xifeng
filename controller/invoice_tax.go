@@ -42,12 +42,15 @@ func GetInvoiceTaxConfig(c *gin.Context) {
 		return
 	}
 	restricted := config.RestrictsInvoiceGroup(owner.Group)
+	blocked := restricted && config.InvoiceRestrictedGroupsBlockTickets
 	config.InvoiceRestrictedGroups = nil
+	config.InvoiceRestrictedGroupsBlockTickets = false
 	common.ApiSuccess(c, struct {
 		model.InvoiceTaxConfig
 		InvoiceWorkflowRequired      bool `json:"invoice_workflow_required"`
 		InvoiceSelfServiceRestricted bool `json:"invoice_self_service_restricted"`
-	}{config, needsWorkflow, restricted})
+		InvoiceTicketCreationBlocked bool `json:"invoice_ticket_creation_blocked"`
+	}{config, needsWorkflow, restricted, blocked})
 }
 
 func GetAdminInvoiceTaxConfig(c *gin.Context) {
@@ -213,20 +216,30 @@ func InvoiceTaxEpayNotify(c *gin.Context) {
 var invoiceTaxAmountPattern = regexp.MustCompile(`^[0-9]{1,12}(\.[0-9]{1,2})?$`)
 
 func UpdateInvoiceTaxConfig(c *gin.Context) {
-	config := model.InvoiceTaxConfig{Mode: "vat", ReconciliationReviewCount: 1}
-	if err := c.ShouldBindJSON(&config); err != nil {
+	req := struct {
+		model.InvoiceTaxConfig
+		BlockTickets *bool `json:"invoice_restricted_groups_block_tickets"`
+	}{InvoiceTaxConfig: model.InvoiceTaxConfig{Mode: "vat", ReconciliationReviewCount: 1}}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}
+	config := req.InvoiceTaxConfig
 	config.PolicyEffectiveAt = 0
 	// Older clients omit this setting; omission must not silently lift restrictions.
-	if config.InvoiceRestrictedGroups == nil {
+	if config.InvoiceRestrictedGroups == nil || req.BlockTickets == nil {
 		previous, err := model.GetInvoiceTaxConfig(model.DB.WithContext(c.Request.Context()))
 		if err != nil {
 			common.ApiErrorI18n(c, i18n.MsgDatabaseError)
 			return
 		}
-		config.InvoiceRestrictedGroups = previous.InvoiceRestrictedGroups
+		if config.InvoiceRestrictedGroups == nil {
+			config.InvoiceRestrictedGroups = previous.InvoiceRestrictedGroups
+		}
+		config.InvoiceRestrictedGroupsBlockTickets = previous.InvoiceRestrictedGroupsBlockTickets
+	}
+	if req.BlockTickets != nil {
+		config.InvoiceRestrictedGroupsBlockTickets = *req.BlockTickets
 	}
 	if !config.Valid() {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)

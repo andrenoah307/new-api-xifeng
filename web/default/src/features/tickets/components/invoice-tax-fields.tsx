@@ -74,6 +74,7 @@ export function InvoiceTaxFields({
     enabled:
       open &&
       !!config.data &&
+      !config.data.invoice_ticket_creation_blocked &&
       (config.data.module_enabled || !!config.data.invoice_workflow_required) &&
       ids.length > 0,
     refetchOnWindowFocus: 'always',
@@ -84,6 +85,7 @@ export function InvoiceTaxFields({
     onChange({
       ready:
         !!config.data &&
+        !config.data.invoice_ticket_creation_blocked &&
         ((!config.data.module_enabled &&
           !config.data.invoice_workflow_required) ||
           !!quote.data) &&
@@ -106,6 +108,15 @@ export function InvoiceTaxFields({
   ])
   if (!config.data) {
     return <p>{config.isError ? t('Failed to load') : t('Loading...')}</p>
+  }
+  if (config.data.invoice_ticket_creation_blocked) {
+    return (
+      <p role='status'>
+        {t(
+          'New invoice tickets are unavailable for this account. Existing tickets can still be processed.'
+        )}
+      </p>
+    )
   }
   if (!config.data.module_enabled && !config.data.invoice_workflow_required) {
     return ids.length > 0 ? (
