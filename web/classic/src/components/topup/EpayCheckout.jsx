@@ -25,6 +25,21 @@ import { API, showError } from '../../helpers';
 
 export default function EpayCheckout({ minimum, discountsEnabled }) {
   const { t } = useTranslation();
+  const [invoiceConfig, setInvoiceConfig] = useState(null);
+  useEffect(() => {
+    let active = true;
+    API.get('/api/ticket/invoice/tax-config')
+      .then(({ data }) => {
+        if (!data.success) throw new Error(data.message);
+        if (active) setInvoiceConfig(data.data);
+      })
+      .catch((error) => {
+        if (active) showError(error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [amount, setAmount] = useState(String(minimum));
   const [step, setStep] = useState(0);
   const [invoiceType, setInvoiceType] = useState('none');
@@ -226,13 +241,19 @@ export default function EpayCheckout({ minimum, discountsEnabled }) {
                   whiteSpace: 'normal',
                 }}
                 theme='solid'
+                disabled={
+                  !invoiceConfig ||
+                  invoiceConfig.invoice_self_service_restricted
+                }
                 onClick={() => {
                   setInvoiceType('ordinary');
                   setMethod('');
                   setStep(2);
                 }}
               >
-                {t('Invoice required')}
+                {invoiceConfig?.invoice_self_service_restricted
+                  ? t('New invoicing is unavailable for this account')
+                  : t('Invoice required')}
               </Button>
             </div>
           </div>

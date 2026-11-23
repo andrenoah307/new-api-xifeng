@@ -118,6 +118,9 @@ func QuoteEpayCheckout(db *gorm.DB, userID int, req EpayCheckoutRequest, reserve
 	if !config.ModuleEnabled {
 		return empty, ErrTicketForbidden
 	}
+	if req.InvoiceType != "none" && config.RestrictsInvoiceGroup(user.Group) {
+		return empty, ErrTicketForbidden
+	}
 	routingDB := db
 	if reserve {
 		routingDB = lockForUpdate(db)
@@ -207,9 +210,16 @@ func CreateEpayCheckout(userID int, req EpayCheckoutRequest) (*TopUp, error) {
 		if err := lockForUpdate(tx).First(&owner, userID).Error; err != nil {
 			return err
 		}
+		config, err := GetInvoiceTaxConfig(tx)
+		if err != nil {
+			return err
+		}
+		if req.InvoiceType != "none" && config.RestrictsInvoiceGroup(owner.Group) {
+			return ErrTicketForbidden
+		}
 		// The external order number stays short; request identity is stored
 		// separately. Also recognize pending orders created before the upgrade.
-		err := tx.Where("user_id = ? AND (checkout_request_id = ? OR trade_no = ?)", userID, req.RequestID, legacyTradeNo).Take(&order).Error
+		err = tx.Where("user_id = ? AND (checkout_request_id = ? OR trade_no = ?)", userID, req.RequestID, legacyTradeNo).Take(&order).Error
 		if err == nil {
 			if order.UserId != userID || order.CheckoutToken != req.Token || order.PaymentTotalCents != req.TotalCents || order.InvoiceType != req.InvoiceType || order.PaymentMethod != req.PaymentMethod || order.Status != common.TopUpStatusPending {
 				return ErrInvoiceTaxInvalid

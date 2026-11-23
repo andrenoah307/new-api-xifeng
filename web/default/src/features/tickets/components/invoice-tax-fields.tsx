@@ -27,6 +27,15 @@ export function InvoiceTaxNotice() {
     queryKey: ['invoice-tax-config'],
     queryFn: getInvoiceTaxConfig,
   })
+  if (config.data?.invoice_self_service_restricted) {
+    return (
+      <p className='text-muted-foreground text-sm'>
+        {t(
+          'Only existing invoice-eligible orders can be invoiced for this account.'
+        )}
+      </p>
+    )
+  }
   if (!config.data?.module_enabled || !config.data?.enabled) return null
   return (
     <p className='text-sm text-amber-700 dark:text-amber-400'>

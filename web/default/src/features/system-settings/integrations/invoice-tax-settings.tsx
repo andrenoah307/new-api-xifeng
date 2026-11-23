@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { MultiSelect } from '@/components/multi-select'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -29,18 +30,29 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import {
-  getInvoiceTaxConfig,
+  getAdminInvoiceTaxConfig,
   saveInvoiceTaxConfig,
   invoiceTaxModes,
   type InvoiceTaxConfig,
 } from '@/features/tickets/invoice-tax'
+import { api } from '@/lib/api'
 
 export function InvoiceTaxSettings() {
   const { t } = useTranslation()
   const client = useQueryClient()
   const query = useQuery({
-    queryKey: ['invoice-tax-config'],
-    queryFn: getInvoiceTaxConfig,
+    queryKey: ['admin-invoice-tax-config'],
+    queryFn: getAdminInvoiceTaxConfig,
+  })
+  const groups = useQuery({
+    queryKey: ['groups'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/group/')
+      if (!data.success) throw new Error(data.message)
+      return (
+        Array.isArray(data.data) ? data.data : Object.keys(data.data ?? {})
+      ) as string[]
+    },
   })
   const [draft, setDraft] = useState<InvoiceTaxConfig | null>(null)
   const [overdraftAmount, setOverdraftAmount] = useState<string | null>(null)
@@ -51,6 +63,7 @@ export function InvoiceTaxSettings() {
       setDraft(saved)
       setOverdraftAmount(null)
       client.invalidateQueries({ queryKey: ['invoice-tax-config'] })
+      client.invalidateQueries({ queryKey: ['admin-invoice-tax-config'] })
       client.invalidateQueries({ queryKey: ['status'] })
       toast.success(t('Saved successfully'))
     },
@@ -67,7 +80,8 @@ export function InvoiceTaxSettings() {
     ? Number(amountParts[1]) * 100 +
       Number((amountParts[2] ?? '').padEnd(2, '0'))
     : -1
-  const validOverdraft = Number.isSafeInteger(overdraftCents) && overdraftCents >= 0
+  const validOverdraft =
+    Number.isSafeInteger(overdraftCents) && overdraftCents >= 0
   const validCutoff =
     Number.isSafeInteger(legacyBefore) &&
     legacyBefore >= 0 &&
@@ -85,6 +99,32 @@ export function InvoiceTaxSettings() {
   return (
     <section className='space-y-4 border-t pt-4'>
       <h3 className='font-medium'>{t('Invoice tax charges')}</h3>
+      <FieldGroup>
+        <Field>
+          <FieldLabel htmlFor='invoice-restricted-groups'>
+            {t('Groups restricted from new invoicing')}
+          </FieldLabel>
+          <MultiSelect
+            id='invoice-restricted-groups'
+            options={[
+              ...new Set([
+                ...(groups.data ?? []),
+                ...(config.invoice_restricted_groups ?? []),
+              ]),
+            ].map((value) => ({ value, label: value }))}
+            selected={config.invoice_restricted_groups ?? []}
+            onChange={(invoice_restricted_groups) =>
+              setDraft({ ...config, invoice_restricted_groups })
+            }
+            disabled={save.isPending || groups.isPending || groups.isError}
+          />
+          <p className='text-muted-foreground text-sm'>
+            {t(
+              'Existing invoice-eligible orders remain available. Other tickets and refunds are unaffected.'
+            )}
+          </p>
+        </Field>
+      </FieldGroup>
       <FieldGroup>
         <Field data-invalid={!validOverdraft}>
           <FieldLabel htmlFor='refund-overdraft-amount'>
@@ -104,7 +144,7 @@ export function InvoiceTaxSettings() {
           {!validOverdraft && (
             <FieldError id='refund-overdraft-error'>
               {t(
-              'Enter a non-negative amount with at most two decimal places.'
+                'Enter a non-negative amount with at most two decimal places.'
               )}
             </FieldError>
           )}

@@ -47,11 +47,13 @@ const modes = [
   },
 ];
 
-function useInvoiceTaxConfig() {
+function useInvoiceTaxConfig(admin = false) {
   const [config, setConfig] = useState(null);
   useEffect(() => {
     let active = true;
-    API.get('/api/ticket/invoice/tax-config')
+    API.get(
+      admin ? '/api/option/invoice-tax' : '/api/ticket/invoice/tax-config',
+    )
       .then(({ data }) => {
         if (!data.success) throw new Error(data.message);
         if (active) setConfig(data.data);
@@ -62,13 +64,23 @@ function useInvoiceTaxConfig() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [admin]);
   return [config, setConfig];
 }
 
 export function InvoiceTaxNotice() {
   const { t } = useTranslation();
   const [config] = useInvoiceTaxConfig();
+  if (config?.invoice_self_service_restricted) {
+    return (
+      <Banner
+        type='warning'
+        description={t(
+          'Only existing invoice-eligible orders can be invoiced for this account.',
+        )}
+      />
+    );
+  }
   return config?.module_enabled && config?.enabled ? (
     <Banner
       type='warning'
@@ -364,7 +376,25 @@ export function InvoiceTaxPayment({ charge, rejected }) {
 export function InvoiceTaxSettings() {
   const [statusState, statusDispatch] = useContext(StatusContext);
   const { t } = useTranslation();
-  const [config, setConfig] = useInvoiceTaxConfig();
+  const [config, setConfig] = useInvoiceTaxConfig(true);
+  const [groups, setGroups] = useState(null);
+  useEffect(() => {
+    let active = true;
+    API.get('/api/group/')
+      .then(({ data }) => {
+        if (!data.success) throw new Error(data.message);
+        if (active)
+          setGroups(
+            Array.isArray(data.data) ? data.data : Object.keys(data.data ?? {}),
+          );
+      })
+      .catch((error) => {
+        if (active) showError(error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [saving, setSaving] = useState(false);
   const [overdraftAmount, setOverdraftAmount] = useState(null);
   if (!config) return <p>{t('Loading...')}</p>;
@@ -376,7 +406,8 @@ export function InvoiceTaxSettings() {
     ? Number(amountParts[1]) * 100 +
       Number((amountParts[2] ?? '').padEnd(2, '0'))
     : -1;
-  const validOverdraft = Number.isSafeInteger(overdraftCents) && overdraftCents >= 0;
+  const validOverdraft =
+    Number.isSafeInteger(overdraftCents) && overdraftCents >= 0;
   const legacyBefore = config.legacy_invoice_before ?? 0;
   const validCutoff =
     Number.isSafeInteger(legacyBefore) &&
@@ -440,6 +471,33 @@ export function InvoiceTaxSettings() {
     <section className='space-y-4'>
       <h3>{t('Invoice tax charges')}</h3>
       <div className='space-y-2'>
+        <label htmlFor='invoice-restricted-groups'>
+          {t('Groups restricted from new invoicing')}
+        </label>
+        <Select
+          id='invoice-restricted-groups'
+          multiple
+          filter
+          style={{ width: '100%' }}
+          disabled={saving || groups === null}
+          value={config.invoice_restricted_groups ?? []}
+          optionList={[
+            ...new Set([
+              ...(groups ?? []),
+              ...(config.invoice_restricted_groups ?? []),
+            ]),
+          ].map((value) => ({ value, label: value }))}
+          onChange={(invoice_restricted_groups) =>
+            setConfig({ ...config, invoice_restricted_groups })
+          }
+        />
+        <p>
+          {t(
+            'Existing invoice-eligible orders remain available. Other tickets and refunds are unaffected.',
+          )}
+        </p>
+      </div>
+      <div className='space-y-2'>
         <label htmlFor='refund-overdraft-amount'>
           {t('Refund grace amount (CNY, 0 to disable)')}
         </label>
@@ -456,9 +514,7 @@ export function InvoiceTaxSettings() {
         />
         {!validOverdraft && (
           <p id='refund-overdraft-error' role='alert'>
-            {t(
-              'Enter a non-negative amount with at most two decimal places.',
-            )}
+            {t('Enter a non-negative amount with at most two decimal places.')}
           </p>
         )}
       </div>

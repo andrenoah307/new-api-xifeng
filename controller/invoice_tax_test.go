@@ -45,6 +45,61 @@ func TestUpdateInvoiceTaxConfigReplacesFixedPolicyWithCustomSettings(t *testing.
 	}
 }
 
+func TestInvoiceGroupConfigIsPrivateAndSurvivesOlderClients(t *testing.T) {
+	db := setupUserRedemptionControllerDB(t)
+	require.NoError(t, db.AutoMigrate(&model.Option{}, &model.Log{}, &model.TopUp{}))
+	user := model.User{Username: "restricted-user", Group: "private-reseller-group", AffCode: "group-test"}
+	require.NoError(t, db.Create(&user).Error)
+	require.NoError(t, model.SaveInvoiceTaxConfig(model.InvoiceTaxConfig{Mode: "vat", InvoiceRestrictedGroups: []string{user.Group}}))
+	for _, test := range []struct {
+		name    string
+		handler gin.HandlerFunc
+		private bool
+	}{
+		{"user", GetInvoiceTaxConfig, false},
+		{"admin", GetAdminInvoiceTaxConfig, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Set("id", user.Id)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+			test.handler(c)
+			var response struct {
+				Success bool
+				Data    map[string]interface{}
+			}
+			require.NoError(t, common.Unmarshal(w.Body.Bytes(), &response))
+			require.True(t, response.Success, w.Body.String())
+			if test.private {
+				assert.Contains(t, w.Body.String(), user.Group)
+			} else {
+				assert.NotContains(t, w.Body.String(), user.Group)
+				assert.NotContains(t, response.Data, "invoice_restricted_groups")
+				assert.Equal(t, true, response.Data["invoice_self_service_restricted"])
+			}
+		})
+	}
+	for _, body := range []string{`{"mode":"vat"}`, `{"mode":"vat","invoice_restricted_groups":[]}`} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Set("id", user.Id)
+		c.Request = httptest.NewRequest(http.MethodPut, "/api/option/invoice-tax", strings.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		UpdateInvoiceTaxConfig(c)
+		var response struct{ Success bool }
+		require.NoError(t, common.Unmarshal(w.Body.Bytes(), &response))
+		require.True(t, response.Success, w.Body.String())
+		config, err := model.GetInvoiceTaxConfig(db)
+		require.NoError(t, err)
+		if strings.Contains(body, "invoice_restricted_groups") {
+			assert.Empty(t, config.InvoiceRestrictedGroups)
+		} else {
+			assert.Equal(t, []string{user.Group}, config.InvoiceRestrictedGroups)
+		}
+	}
+}
+
 func TestInvoiceTaxCallbackVerifiesAmountMerchantAndDurableSettlement(t *testing.T) {
 	db := setupUserRedemptionControllerDB(t)
 	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketInvoice{}, &model.TicketMessage{}, &model.InvoiceTaxCharge{}, &model.Log{}))

@@ -186,6 +186,19 @@ func CreateTicketWithMessage(params CreateTicketParams) (*Ticket, *TicketMessage
 	}
 
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		if ticketType == TicketTypeInvoice {
+			var owner User
+			if err := lockForUpdate(tx).First(&owner, params.UserId).Error; err != nil {
+				return err
+			}
+			config, err := GetInvoiceTaxConfig(tx)
+			if err != nil {
+				return err
+			}
+			if config.RestrictsInvoiceGroup(owner.Group) {
+				return ErrTicketForbidden
+			}
+		}
 		if err := tx.Create(ticket).Error; err != nil {
 			return err
 		}

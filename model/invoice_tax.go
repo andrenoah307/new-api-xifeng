@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
+	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/shopspring/decimal"
@@ -19,21 +21,22 @@ const InvoiceVATRateBps = 600
 
 // Rates use basis points (600 = 6%). Monetary calculations use integer cents.
 type InvoiceTaxConfig struct {
-	RefundOverdraftLimitCents    int64  `json:"refund_overdraft_limit_cents"`
-	RefundGiftRecoveryPolicy     string `json:"refund_gift_recovery_policy"`
-	RefundSettlementGuardEnabled bool   `json:"refund_settlement_guard_enabled"`
-	ReconciliationReviewEnabled  bool   `json:"reconciliation_review_enabled"`
-	ReconciliationReviewCount    int    `json:"reconciliation_review_count"`
-	SeparateRefundInvoiceTypes   bool   `json:"separate_refund_invoice_types"`
-	PolicyEffectiveAt            int64  `json:"policy_effective_at"`
-	ModuleEnabled                bool   `json:"module_enabled"`
-	LegacyTopUpsEnabled          bool   `json:"legacy_topups_enabled"`
-	LegacyInvoiceBefore          int64  `json:"legacy_invoice_before"`
-	LegacyFreeOrdinaryEnabled    bool   `json:"legacy_free_ordinary_enabled"`
-	Enabled                      bool   `json:"enabled"`
-	Mode                         string `json:"mode"`
-	OrdinaryRateBps              int    `json:"ordinary_rate_bps"`
-	SpecialRateBps               int    `json:"special_rate_bps"`
+	InvoiceRestrictedGroups      []string `json:"invoice_restricted_groups,omitempty"`
+	RefundOverdraftLimitCents    int64    `json:"refund_overdraft_limit_cents"`
+	RefundGiftRecoveryPolicy     string   `json:"refund_gift_recovery_policy"`
+	RefundSettlementGuardEnabled bool     `json:"refund_settlement_guard_enabled"`
+	ReconciliationReviewEnabled  bool     `json:"reconciliation_review_enabled"`
+	ReconciliationReviewCount    int      `json:"reconciliation_review_count"`
+	SeparateRefundInvoiceTypes   bool     `json:"separate_refund_invoice_types"`
+	PolicyEffectiveAt            int64    `json:"policy_effective_at"`
+	ModuleEnabled                bool     `json:"module_enabled"`
+	LegacyTopUpsEnabled          bool     `json:"legacy_topups_enabled"`
+	LegacyInvoiceBefore          int64    `json:"legacy_invoice_before"`
+	LegacyFreeOrdinaryEnabled    bool     `json:"legacy_free_ordinary_enabled"`
+	Enabled                      bool     `json:"enabled"`
+	Mode                         string   `json:"mode"`
+	OrdinaryRateBps              int      `json:"ordinary_rate_bps"`
+	SpecialRateBps               int      `json:"special_rate_bps"`
 }
 
 type InvoiceTaxQuote struct {
@@ -109,6 +112,9 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 		return empty, ErrInvoiceTaxInvalid
 	}
 	orders, err := fetchSuccessTopUpsByIds(db, userID, ids)
+	if err == nil {
+		err = CheckInvoiceApplicationAccess(db, config, userID, orders)
+	}
 	if err == nil {
 		orders, err = adjustInvoiceOrdersForRefunds(db, orders)
 	}
@@ -307,6 +313,14 @@ func syncInvoiceTaxQuotaCache(userID, delta int) {
 }
 
 func (config InvoiceTaxConfig) Valid() bool {
+	if len(config.InvoiceRestrictedGroups) > 1000 {
+		return false
+	}
+	for _, group := range config.InvoiceRestrictedGroups {
+		if strings.TrimSpace(group) != group || group == "" || len(group) > 64 {
+			return false
+		}
+	}
 	return (config.RefundGiftRecoveryPolicy == "" || config.RefundGiftRecoveryPolicy == RefundGiftPriorExpiry || config.RefundGiftRecoveryPolicy == RefundGiftProportional || config.RefundGiftRecoveryPolicy == RefundGiftNone) &&
 		config.RefundOverdraftLimitCents >= 0 &&
 		config.ReconciliationReviewCount >= 0 && config.ReconciliationReviewCount <= math.MaxInt32 &&
@@ -317,6 +331,34 @@ func (config InvoiceTaxConfig) Valid() bool {
 		(config.Mode == "vat" || config.Mode == "compound" || config.Mode == "gross_up") &&
 		config.OrdinaryRateBps >= 0 && config.OrdinaryRateBps < 10000 &&
 		config.SpecialRateBps >= 0 && config.SpecialRateBps < 10000
+}
+
+func (config InvoiceTaxConfig) RestrictsInvoiceGroup(group string) bool {
+	return slices.Contains(config.InvoiceRestrictedGroups, group)
+}
+
+// Explicit invoice types preserve obligations agreed before a group restriction.
+// Untyped/free legacy orders do not acquire new eligibility while restricted.
+func CheckInvoiceApplicationAccess(db *gorm.DB, config InvoiceTaxConfig, userID int, orders []*TopUp) error {
+	if len(config.InvoiceRestrictedGroups) == 0 {
+		return nil
+	}
+	var owner User
+	if err := db.First(&owner, userID).Error; err != nil {
+		return err
+	}
+	if !config.RestrictsInvoiceGroup(owner.Group) {
+		return nil
+	}
+	if len(orders) == 0 {
+		return ErrTicketForbidden
+	}
+	for _, order := range orders {
+		if order.InvoiceType != "ordinary" && order.InvoiceType != "special" {
+			return ErrTicketForbidden
+		}
+	}
+	return nil
 }
 
 // Payment completion is authoritative: creating an unpaid order before the

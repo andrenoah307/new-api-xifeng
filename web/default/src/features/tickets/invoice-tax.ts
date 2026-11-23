@@ -1,6 +1,8 @@
 import { api } from '@/lib/api'
 
 export interface InvoiceTaxConfig {
+  invoice_restricted_groups?: string[]
+  invoice_self_service_restricted?: boolean
   refund_overdraft_limit_cents?: number
   refund_settlement_guard_enabled?: boolean
   refund_gift_recovery_policy?: 'prior_expiry' | 'proportional' | 'none'
@@ -84,6 +86,12 @@ export const invoiceTaxModes = [
 
 export async function getInvoiceTaxConfig(): Promise<InvoiceTaxConfig> {
   const { data } = await api.get('/api/ticket/invoice/tax-config')
+  if (!data.success) throw new Error(data.message)
+  return data.data
+}
+
+export async function getAdminInvoiceTaxConfig(): Promise<InvoiceTaxConfig> {
+  const { data } = await api.get('/api/option/invoice-tax')
   if (!data.success) throw new Error(data.message)
   return data.data
 }

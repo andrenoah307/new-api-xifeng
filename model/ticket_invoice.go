@@ -250,6 +250,11 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 	if err != nil {
 		return nil, err
 	}
+	var owner User
+	if err := DB.First(&owner, userId).Error; err != nil {
+		return nil, err
+	}
+	restricted := config.RestrictsInvoiceGroup(owner.Group)
 	if invoiceType == "" {
 		invoiceType = "ordinary"
 	}
@@ -296,6 +301,9 @@ func GetEligibleInvoiceOrders(userId int, invoiceType string) ([]*TopUp, error) 
 	}
 	eligible := make([]*TopUp, 0, len(topUps))
 	for _, order := range topUps {
+		if restricted && order.InvoiceType != "ordinary" && order.InvoiceType != "special" {
+			continue
+		}
 		if (order.InvoiceType == "" || order.InvoiceType == "none") && config.LegacyFreeOrdinaryEnabled && config.AllowsLegacyInvoice(order) {
 			if invoiceType == "ordinary" && IsCNYInvoiceTopUp(order) {
 				eligible = append(eligible, order)
@@ -383,6 +391,18 @@ func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvo
 		config, err := GetInvoiceTaxConfig(tx)
 		if err != nil {
 			return err
+		}
+		if config.RestrictsInvoiceGroup(owner.Group) {
+			orders, err := fetchSuccessTopUpsByIds(tx, params.UserId, orderIds)
+			if err != nil {
+				return err
+			}
+			if len(orders) != len(orderIds) {
+				return ErrTicketInvoiceOrderInvalid
+			}
+			if err := CheckInvoiceApplicationAccess(tx, config, params.UserId, orders); err != nil {
+				return err
+			}
 		}
 		// Old versions closed only the ticket. Settle overlapping applications
 		// before reuse, without performing financial writes in the listing API.

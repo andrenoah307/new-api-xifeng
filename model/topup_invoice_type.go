@@ -112,6 +112,9 @@ func ManageTopUpInvoiceType(actorID int, input TopUpInvoiceAdjustmentInput, appl
 		if order.InvoiceType != *input.ExpectedInvoiceType {
 			return ErrInvoiceTaxQuoteChanged
 		}
+		if input.InvoiceType != "none" && (order.InvoiceType == "" || order.InvoiceType == "none") && config.RestrictsInvoiceGroup(owner.Group) {
+			return ErrTicketForbidden
+		}
 		if order.Status != common.TopUpStatusSuccess {
 			return ErrTicketInvoiceOrderInvalid
 		}

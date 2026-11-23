@@ -36,10 +36,28 @@ func GetInvoiceTaxConfig(c *gin.Context) {
 		needsWorkflow = typedOrder.Id != 0
 	}
 	c.Header("Cache-Control", "no-store")
+	var owner model.User
+	if err := model.DB.WithContext(c.Request.Context()).First(&owner, c.GetInt("id")).Error; err != nil {
+		common.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		return
+	}
+	restricted := config.RestrictsInvoiceGroup(owner.Group)
+	config.InvoiceRestrictedGroups = nil
 	common.ApiSuccess(c, struct {
 		model.InvoiceTaxConfig
-		InvoiceWorkflowRequired bool `json:"invoice_workflow_required"`
-	}{config, needsWorkflow})
+		InvoiceWorkflowRequired      bool `json:"invoice_workflow_required"`
+		InvoiceSelfServiceRestricted bool `json:"invoice_self_service_restricted"`
+	}{config, needsWorkflow, restricted})
+}
+
+func GetAdminInvoiceTaxConfig(c *gin.Context) {
+	config, err := model.GetInvoiceTaxConfig(model.DB.WithContext(c.Request.Context()))
+	if err != nil {
+		common.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	common.ApiSuccess(c, config)
 }
 
 func QuoteInvoiceTax(c *gin.Context) {
@@ -201,6 +219,15 @@ func UpdateInvoiceTaxConfig(c *gin.Context) {
 		return
 	}
 	config.PolicyEffectiveAt = 0
+	// Older clients omit this setting; omission must not silently lift restrictions.
+	if config.InvoiceRestrictedGroups == nil {
+		previous, err := model.GetInvoiceTaxConfig(model.DB.WithContext(c.Request.Context()))
+		if err != nil {
+			common.ApiErrorI18n(c, i18n.MsgDatabaseError)
+			return
+		}
+		config.InvoiceRestrictedGroups = previous.InvoiceRestrictedGroups
+	}
 	if !config.Valid() {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return

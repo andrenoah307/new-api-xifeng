@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { getInvoiceTaxConfig } from '@/features/tickets/invoice-tax'
 import { api } from '@/lib/api'
 
 import { getPaymentIcon, submitPaymentForm } from '../lib'
@@ -36,6 +37,10 @@ export function EpayCheckout({
   discountsEnabled: boolean
 }) {
   const { t } = useTranslation()
+  const invoiceConfig = useQuery({
+    queryKey: ['invoice-tax-config'],
+    queryFn: getInvoiceTaxConfig,
+  })
   const [amount, setAmount] = useState(String(minimum))
   const [settledAmount, setSettledAmount] = useState<string | null>(null)
   const [step, setStep] = useState(0)
@@ -212,13 +217,19 @@ export function EpayCheckout({
               </Button>
               <Button
                 className='h-auto min-h-12 py-3 whitespace-normal'
+                disabled={
+                  !invoiceConfig.data ||
+                  invoiceConfig.data.invoice_self_service_restricted
+                }
                 onClick={() => {
                   setInvoiceType('ordinary')
                   setMethod('')
                   setStep(2)
                 }}
               >
-                {t('Invoice required')}
+                {invoiceConfig.data?.invoice_self_service_restricted
+                  ? t('New invoicing is unavailable for this account')
+                  : t('Invoice required')}
               </Button>
             </DialogFooter>
           ) : (
