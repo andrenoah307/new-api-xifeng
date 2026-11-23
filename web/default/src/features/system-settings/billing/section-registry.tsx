@@ -19,13 +19,13 @@ For commercial licensing, please contact support@quantumnous.com
 import { parseCurrencyDisplayType } from '@/lib/currency'
 
 import { CheckinSettingsSection } from '../general/checkin-settings-section'
-import { DiscountCodeSettingsSection } from './discount-code-settings-section'
 import { PricingSection } from '../general/pricing-section'
 import { QuotaSettingsSection } from '../general/quota-settings-section'
 import { PaymentSettingsSection } from '../integrations/payment-settings-section'
 import { RatioSettingsCard } from '../models/ratio-settings-card'
 import type { BillingSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { DiscountCodeSettingsSection } from './discount-code-settings-section'
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,
@@ -141,6 +141,7 @@ const BILLING_SECTIONS = [
         defaultValues={{
           PayAddress: settings.PayAddress,
           EpayId: settings.EpayId,
+          EpayProductNameTemplate: settings.EpayProductNameTemplate,
           EpayKey: settings.EpayKey,
           Price: settings.Price,
           MinTopUp: settings.MinTopUp,

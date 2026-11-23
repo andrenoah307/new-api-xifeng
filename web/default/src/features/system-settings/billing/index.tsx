@@ -65,6 +65,7 @@ const defaultBillingSettings: BillingSettings = {
   'group_ratio_setting.group_special_usable_group': '{}',
   PayAddress: '',
   EpayId: '',
+  EpayProductNameTemplate: '',
   EpayKey: '',
   Price: 7.3,
   MinTopUp: 1,

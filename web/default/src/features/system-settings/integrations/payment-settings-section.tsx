@@ -48,6 +48,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
+import {
+  DEFAULT_EPAY_PRODUCT_NAME_TEMPLATE,
+  isValidEpayProductNameTemplate,
+  previewEpayProductName,
+} from '../../../../../shared/epay-product-name'
 import { confirmPaymentCompliance } from '../api'
 import {
   SettingsForm,
@@ -59,10 +64,10 @@ import { SettingsSection } from '../components/settings-section'
 import { useUpdateOption } from '../hooks/use-update-option'
 import { safeNumberFieldProps } from '../utils/numeric-field'
 import { AmountDiscountVisualEditor } from './amount-discount-visual-editor'
-import { InvoiceTaxSettings } from './invoice-tax-settings'
-import { InvoiceEpaySettings } from './invoice-epay-settings'
 import { AmountOptionsVisualEditor } from './amount-options-visual-editor'
 import { CreemProductsVisualEditor } from './creem-products-visual-editor'
+import { InvoiceEpaySettings } from './invoice-epay-settings'
+import { InvoiceTaxSettings } from './invoice-tax-settings'
 import { PaymentMethodsVisualEditor } from './payment-methods-visual-editor'
 import {
   formatJsonForEditor,
@@ -103,6 +108,12 @@ const paymentSchema = z.object({
     return /^https?:\/\//.test(trimmed)
   }, 'Provide a valid callback URL starting with http:// or https://'),
   EpayId: z.string(),
+  EpayProductNameTemplate: z
+    .string()
+    .refine(
+      isValidEpayProductNameTemplate,
+      'Invalid Epay product name template'
+    ),
   EpayKey: z.string(),
   Price: z.coerce.number().min(0),
   MinTopUp: z.coerce.number().min(0),
@@ -423,6 +434,7 @@ export function PaymentSettingsSection({
     const sanitized = {
       PayAddress: removeTrailingSlash(values.PayAddress),
       EpayId: values.EpayId.trim(),
+      EpayProductNameTemplate: values.EpayProductNameTemplate,
       EpayKey: values.EpayKey.trim(),
       Price: values.Price,
       MinTopUp: values.MinTopUp,
@@ -466,6 +478,7 @@ export function PaymentSettingsSection({
     const initial = {
       PayAddress: removeTrailingSlash(initialRef.current.PayAddress),
       EpayId: initialRef.current.EpayId.trim(),
+      EpayProductNameTemplate: initialRef.current.EpayProductNameTemplate,
       EpayKey: initialRef.current.EpayKey.trim(),
       Price: initialRef.current.Price,
       MinTopUp: initialRef.current.MinTopUp,
@@ -512,6 +525,13 @@ export function PaymentSettingsSection({
     }
 
     const updates: Array<{ key: string; value: string | number | boolean }> = []
+
+    if (sanitized.EpayProductNameTemplate !== initial.EpayProductNameTemplate) {
+      updates.push({
+        key: 'EpayProductNameTemplate',
+        value: sanitized.EpayProductNameTemplate,
+      })
+    }
 
     if (sanitized.PayAddress !== initial.PayAddress) {
       updates.push({ key: 'PayAddress', value: sanitized.PayAddress })
@@ -1231,6 +1251,41 @@ export function PaymentSettingsSection({
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name='EpayProductNameTemplate'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Epay product name template')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder={DEFAULT_EPAY_PRODUCT_NAME_TEMPLATE}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'Required: {username}, {amount} (CNY). Optional: {order_no}, {type}. Empty uses the default template.'
+                        )}
+                      </FormDescription>
+                      <FormMessage />
+                      <div
+                        className='space-y-1 text-sm break-words'
+                        aria-live='polite'
+                      >
+                        <p className='text-muted-foreground'>
+                          {t('Example preview')}
+                        </p>
+                        {['充值', '订阅', '补税'].map((kind) => (
+                          <p key={kind}>
+                            {previewEpayProductName(field.value, kind)}
+                          </p>
+                        ))}
+                      </div>
+                    </FormItem>
+                  )}
+                />
 
                 <div className='grid gap-6 md:grid-cols-2'>
                   <FormField

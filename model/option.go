@@ -130,6 +130,7 @@ func InitOptionMap() {
 	common.OptionMap["PayAddress"] = ""
 	common.OptionMap["CustomCallbackAddress"] = ""
 	common.OptionMap["EpayId"] = ""
+	common.OptionMap["EpayProductNameTemplate"] = operation_setting.DefaultEpayProductNameTemplate
 	common.OptionMap["EpayKey"] = ""
 	common.OptionMap["Price"] = strconv.FormatFloat(operation_setting.Price, 'f', -1, 64)
 	common.OptionMap["USDExchangeRate"] = strconv.FormatFloat(operation_setting.USDExchangeRate, 'f', -1, 64)
@@ -268,6 +269,11 @@ func SyncOptions(frequency int) {
 }
 
 func UpdateOption(key string, value string) error {
+	if key == "EpayProductNameTemplate" {
+		if err := operation_setting.ValidateEpayProductNameTemplate(value); err != nil {
+			return err
+		}
+	}
 	if err := validateCaptchaOptionWrite(key); err != nil {
 		return err
 	}
@@ -305,6 +311,11 @@ func UpdateOptionsBulk(values map[string]string) error {
 	}
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		for k, v := range values {
+			if k == "EpayProductNameTemplate" {
+				if err := operation_setting.ValidateEpayProductNameTemplate(v); err != nil {
+					return err
+				}
+			}
 			if err := validateCaptchaOptionWrite(k); err != nil {
 				return err
 			}

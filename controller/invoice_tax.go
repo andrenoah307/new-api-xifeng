@@ -135,7 +135,7 @@ func RequestInvoiceTaxPayment(c *gin.Context) {
 	}
 	returnURL, _ := url.Parse(system_setting.ServerAddress + returnPath)
 	notifyURL, _ := url.Parse(service.GetCallbackAddress() + "/api/invoice-tax/epay/notify")
-	uri, params, err := client.Purchase(&epay.PurchaseArgs{Type: charge.PaymentMethod, ServiceTradeNo: charge.TradeNo, Name: fmt.Sprintf("Invoice tax %d", id), Money: decimal.NewFromInt(charge.FeeCents).Div(decimal.NewFromInt(100)).StringFixed(2), Device: epay.PC, NotifyUrl: notifyURL, ReturnUrl: returnURL})
+	uri, params, err := service.PurchaseEpay(client, charge.UserId, "补税", &epay.PurchaseArgs{Type: charge.PaymentMethod, ServiceTradeNo: charge.TradeNo, Money: decimal.NewFromInt(charge.FeeCents).Div(decimal.NewFromInt(100)).StringFixed(2), Device: epay.PC, NotifyUrl: notifyURL, ReturnUrl: returnURL})
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgPaymentStartFailed)
 		return

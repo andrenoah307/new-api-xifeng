@@ -152,6 +152,7 @@ func TestEpayCheckoutLargePaymentHTTP(t *testing.T) {
 	require.True(t, payment.Success, w.Body.String())
 	assert.Equal(t, "https://payment.example.test/submit.php", payment.Data.URL)
 	assert.Equal(t, "100000.01", payment.Data.Params["money"])
+	assert.Equal(t, "米醋API(large-checkout-http)，充值100000.01元", payment.Data.Params["name"])
 	assert.Equal(t, "corporate", payment.Data.Params["pid"])
 	params := epay.GenerateParams(map[string]string{"pid": "corporate", "out_trade_no": payment.Data.Params["out_trade_no"], "type": "alipay", "trade_status": "TRADE_SUCCESS", "money": "100000.01"}, "test-key")
 	values := url.Values{}

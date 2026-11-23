@@ -73,7 +73,7 @@ func RequestEpayCheckout(c *gin.Context) {
 	}
 	notifyURL, _ := url.Parse(service.GetCallbackAddress() + "/api/user/epay/checkout/notify")
 	returnURL, _ := url.Parse(service.GetPaymentReturnURL("billing", ""))
-	uri, params, err := client.Purchase(&epay.PurchaseArgs{Type: order.PaymentMethod, ServiceTradeNo: order.TradeNo, Name: "Recharge", Money: decimal.NewFromInt(order.PaymentTotalCents).Div(decimal.NewFromInt(100)).StringFixed(2), Device: epay.PC, NotifyUrl: notifyURL, ReturnUrl: returnURL})
+	uri, params, err := service.PurchaseEpay(client, order.UserId, "充值", &epay.PurchaseArgs{Type: order.PaymentMethod, ServiceTradeNo: order.TradeNo, Money: decimal.NewFromInt(order.PaymentTotalCents).Div(decimal.NewFromInt(100)).StringFixed(2), Device: epay.PC, NotifyUrl: notifyURL, ReturnUrl: returnURL})
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return

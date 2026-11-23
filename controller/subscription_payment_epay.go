@@ -98,10 +98,9 @@ func SubscriptionRequestEpay(c *gin.Context) {
 		common.ApiErrorMsg(c, "创建订单失败")
 		return
 	}
-	uri, params, err := client.Purchase(&epay.PurchaseArgs{
+	uri, params, err := service.PurchaseEpay(client, userId, "订阅", &epay.PurchaseArgs{
 		Type:           req.PaymentMethod,
 		ServiceTradeNo: tradeNo,
-		Name:           fmt.Sprintf("SUB:%s", plan.Title),
 		Money:          strconv.FormatFloat(plan.PriceAmount, 'f', 2, 64),
 		Device:         epay.PC,
 		NotifyUrl:      notifyUrl,

@@ -27,6 +27,11 @@ import {
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
 import { Info } from 'lucide-react';
+import {
+  DEFAULT_EPAY_PRODUCT_NAME_TEMPLATE,
+  isValidEpayProductNameTemplate,
+  previewEpayProductName,
+} from '../../../../../shared/epay-product-name';
 
 export default function SettingsPaymentGateway(props) {
   const { t } = useTranslation();
@@ -35,6 +40,7 @@ export default function SettingsPaymentGateway(props) {
   const [inputs, setInputs] = useState({
     PayAddress: '',
     EpayId: '',
+    EpayProductNameTemplate: '',
     EpayKey: '',
     Price: 7.3,
     MinTopUp: 1,
@@ -47,6 +53,7 @@ export default function SettingsPaymentGateway(props) {
       const currentInputs = {
         PayAddress: props.options.PayAddress || '',
         EpayId: props.options.EpayId || '',
+        EpayProductNameTemplate: props.options.EpayProductNameTemplate || '',
         EpayKey: props.options.EpayKey || '',
         Price:
           props.options.Price !== undefined
@@ -68,10 +75,14 @@ export default function SettingsPaymentGateway(props) {
   }, [props.options]);
 
   const handleFormChange = (values) => {
-    setInputs(values);
+    setInputs({ ...values });
   };
 
   const submitPayAddress = async () => {
+    if (!isValidEpayProductNameTemplate(inputs.EpayProductNameTemplate || '')) {
+      showError(t('Invalid Epay product name template'));
+      return;
+    }
     if (props.options.ServerAddress === '') {
       showError(t('请先填写服务器地址'));
       return;
@@ -80,6 +91,10 @@ export default function SettingsPaymentGateway(props) {
     setLoading(true);
     try {
       const options = [
+        {
+          key: 'EpayProductNameTemplate',
+          value: inputs.EpayProductNameTemplate || '',
+        },
         { key: 'PayAddress', value: removeTrailingSlash(inputs.PayAddress) },
       ];
 
@@ -166,6 +181,22 @@ export default function SettingsPaymentGateway(props) {
               />
             </Col>
           </Row>
+          <Form.Input
+            field='EpayProductNameTemplate'
+            label={t('Epay product name template')}
+            placeholder={DEFAULT_EPAY_PRODUCT_NAME_TEMPLATE}
+            extraText={t(
+              'Required: {username}, {amount} (CNY). Optional: {order_no}, {type}. Empty uses the default template.',
+            )}
+          />
+          <div aria-live='polite' style={{ overflowWrap: 'anywhere' }}>
+            <p>{t('Example preview')}</p>
+            {['充值', '订阅', '补税'].map((kind) => (
+              <p key={kind}>
+                {previewEpayProductName(inputs.EpayProductNameTemplate, kind)}
+              </p>
+            ))}
+          </div>
           <Row
             gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
             style={{ marginTop: 16 }}

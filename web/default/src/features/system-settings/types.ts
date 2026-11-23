@@ -305,6 +305,7 @@ export type BillingSettings = {
   'group_ratio_setting.group_special_usable_group': string
   PayAddress: string
   EpayId: string
+  EpayProductNameTemplate: string
   EpayKey: string
   Price: number
   MinTopUp: number
