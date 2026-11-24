@@ -36,8 +36,11 @@ func TestRestrictedInvoiceClosureReturnsOrderTaxAtomically(t *testing.T) {
 			page, err := PreviewInvoiceGroupClosures(actor.Id, 0, convert)
 			require.NoError(t, err)
 			require.Len(t, page.Items, 1)
-			preview := page.Items[0]
-			require.Empty(t, preview.Error)
+			assert.Equal(t, owner.Username, page.Items[0].Username)
+			assert.NotEmpty(t, page.Items[0].InvoiceTitle)
+			assert.Equal(t, float64(100), page.Items[0].Amount)
+			preview, err := CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, convert, "", false)
+			require.NoError(t, err)
 			var current User
 			require.NoError(t, DB.First(&current, owner.Id).Error)
 			assert.Equal(t, 1000000, current.Quota)
@@ -60,8 +63,20 @@ func TestRestrictedInvoiceClosureReturnsOrderTaxAtomically(t *testing.T) {
 			}
 			require.NoError(t, DB.First(ticket, ticket.Id).Error)
 			assert.Equal(t, TicketStatusClosed, ticket.Status)
-			_, err = CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, convert, preview.Revision, true)
-			assert.ErrorIs(t, err, ErrTicketClosed)
+			assert.Positive(t, ticket.ClosedTime)
+			messages, err := GetTicketMessages(ticket.Id)
+			require.NoError(t, err)
+			for _, message := range messages {
+				if message.UserId == actor.Id {
+					assert.True(t, message.Internal, "administrator closure details must stay internal")
+				}
+			}
+			retry, err := CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, convert, preview.Revision, true)
+			require.NoError(t, err)
+			assert.True(t, retry.Applied)
+			var afterRetry User
+			require.NoError(t, DB.First(&afterRetry, owner.Id).Error)
+			assert.Equal(t, current.Quota, afterRetry.Quota)
 			page, err = PreviewInvoiceGroupClosures(actor.Id, 0, convert)
 			require.NoError(t, err)
 			assert.Empty(t, page.Items)
@@ -128,32 +143,92 @@ func TestRestrictedInvoiceClosureSupplementAndLatePayment(t *testing.T) {
 	}
 }
 
-func TestRestrictedInvoiceClosureRejectsRefundConflictAndNonRoot(t *testing.T) {
+func TestRestrictedInvoiceClosureAllowsRefundConflictButRejectsNonRoot(t *testing.T) {
 	owner, actor, _, ticket := restrictedInvoiceCloseFixture(t)
 	require.NoError(t, DB.Create(&TicketRefund{TicketId: ticket.Id + 1, UserId: owner.Id, RefundStatus: RefundStatusPending}).Error)
-	_, err := CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, false, "", false)
-	assert.ErrorIs(t, err, ErrRefundFinancePending)
+	result, err := CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, true, "", true)
+	require.NoError(t, err)
+	assert.True(t, result.Applied)
+	assert.NotEmpty(t, result.Warning)
+	var current User
+	require.NoError(t, DB.First(&current, owner.Id).Error)
+	assert.Equal(t, 1000000, current.Quota)
 	require.NoError(t, DB.Model(actor).Update("role", common.RoleAdminUser).Error)
 	_, err = PreviewInvoiceGroupClosures(actor.Id, 0, true)
 	assert.ErrorIs(t, err, ErrTicketForbidden)
 	require.NoError(t, DB.First(ticket, ticket.Id).Error)
-	assert.Equal(t, TicketStatusOpen, ticket.Status)
+	assert.Equal(t, TicketStatusClosed, ticket.Status)
 }
 
-func TestRestrictedInvoiceClosureRevalidatesGroupAndSnapshot(t *testing.T) {
+func TestRestrictedInvoiceClosureRevalidatesGroupAndUsesCurrentRecords(t *testing.T) {
 	owner, actor, order, ticket := restrictedInvoiceCloseFixture(t)
 	preview, err := CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, true, "", false)
 	require.NoError(t, err)
-	_, err = CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, false, preview.Revision, true)
-	assert.ErrorIs(t, err, ErrFinanceRevision)
 	require.NoError(t, DB.Model(owner).Update("group", "other").Error)
 	_, err = CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, true, preview.Revision, true)
 	assert.ErrorIs(t, err, ErrTicketForbidden)
 	require.NoError(t, DB.Model(owner).Update("group", "default").Error)
 	require.NoError(t, DB.Model(order).Update("trade_no", "changed-source-order").Error)
 	_, err = CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, true, preview.Revision, true)
-	assert.ErrorIs(t, err, ErrFinanceRevision)
-	require.NoError(t, DB.Model(&TicketInvoice{}).Where("ticket_id = ?", ticket.Id).Update("invoice_status", InvoiceStatusIssued).Error)
-	_, err = CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, true, "", false)
-	assert.ErrorIs(t, err, ErrTicketInvoiceStatusInvalid)
+	require.NoError(t, err)
+	require.NoError(t, DB.First(ticket, ticket.Id).Error)
+	assert.Equal(t, TicketStatusClosed, ticket.Status)
+}
+
+func TestRestrictedInvoiceClosurePreservesTerminalInvoiceAndTax(t *testing.T) {
+	for _, status := range []int{InvoiceStatusIssued, InvoiceStatusRejected} {
+		t.Run(map[int]string{InvoiceStatusIssued: "issued", InvoiceStatusRejected: "rejected"}[status], func(t *testing.T) {
+			owner, actor, _, ticket := restrictedInvoiceCloseFixture(t)
+			require.NoError(t, DB.Model(&TicketInvoice{}).Where("ticket_id = ?", ticket.Id).Update("invoice_status", status).Error)
+			require.NoError(t, DB.Model(ticket).Update("status", TicketStatusResolved).Error)
+			page, err := PreviewInvoiceGroupClosures(actor.Id, 0, true)
+			require.NoError(t, err)
+			require.Len(t, page.Items, 1)
+			assert.Empty(t, page.Items[0].Error)
+			result, err := CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, true, "", true)
+			require.NoError(t, err)
+			assert.True(t, result.Applied)
+			var invoice TicketInvoice
+			require.NoError(t, DB.Where("ticket_id = ?", ticket.Id).First(&invoice).Error)
+			assert.Equal(t, status, invoice.InvoiceStatus)
+			require.NoError(t, DB.First(owner, owner.Id).Error)
+			if status == InvoiceStatusIssued {
+				assert.Equal(t, 1000000, owner.Quota)
+			} else {
+				assert.Equal(t, 4000000, owner.Quota)
+			}
+		})
+	}
+}
+
+func TestRestrictedInvoiceClosurePreviewScope(t *testing.T) {
+	owner, actor, _, ticket := restrictedInvoiceCloseFixture(t)
+	deleted := Ticket{UserId: owner.Id, Type: TicketTypeInvoice, Status: TicketStatusOpen}
+	require.NoError(t, DB.Create(&deleted).Error)
+	require.NoError(t, DB.Delete(&deleted).Error)
+	general := Ticket{UserId: owner.Id, Type: TicketTypeGeneral, Status: TicketStatusOpen}
+	require.NoError(t, DB.Create(&general).Error)
+	page, err := PreviewInvoiceGroupClosures(actor.Id, 0, true)
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	assert.Equal(t, ticket.Id, page.Items[0].TicketID)
+	_, err = CloseRestrictedInvoiceTicket(actor.Id, general.Id, false, "", true)
+	assert.ErrorIs(t, err, ErrTicketClosed)
+}
+
+func TestRestrictedInvoiceClosurePreservesCorrections(t *testing.T) {
+	owner, actor, order, ticket := restrictedInvoiceCloseFixture(t)
+	correction := RefundInvoiceCorrection{UserId: owner.Id, InvoiceTicketId: ticket.Id, RefundTicketId: ticket.Id + 1, Status: "processing"}
+	require.NoError(t, DB.Create(&correction).Error)
+	t.Cleanup(func() { require.NoError(t, DB.Delete(&correction).Error) })
+	result, err := CloseRestrictedInvoiceTicket(actor.Id, ticket.Id, true, "", true)
+	require.NoError(t, err)
+	assert.True(t, result.Applied)
+	assert.NotEmpty(t, result.Warning)
+	require.NoError(t, DB.First(&correction, correction.Id).Error)
+	assert.Equal(t, "processing", correction.Status)
+	require.NoError(t, DB.First(order, order.Id).Error)
+	assert.Equal(t, "ordinary", order.InvoiceType)
+	require.NoError(t, DB.First(owner, owner.Id).Error)
+	assert.Equal(t, 1000000, owner.Quota)
 }

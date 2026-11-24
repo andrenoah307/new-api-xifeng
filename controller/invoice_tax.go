@@ -86,7 +86,7 @@ func CloseRestrictedInvoiceTicket(c *gin.Context) {
 		Revision string `json:"revision"`
 		Convert  bool   `json:"convert_order_tax"`
 	}
-	if c.ShouldBindJSON(&req) != nil || req.TicketID <= 0 || len(req.Revision) != 64 {
+	if c.ShouldBindJSON(&req) != nil || req.TicketID <= 0 {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 		return
 	}

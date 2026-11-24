@@ -11,14 +11,18 @@ import (
 )
 
 type InvoiceGroupCloseItem struct {
-	TicketID           int    `json:"ticket_id"`
-	UserID             int    `json:"user_id"`
-	SupplementTaxCents int64  `json:"supplement_tax_cents"`
-	OrderTaxCents      int64  `json:"order_tax_cents"`
-	QuotaDelta         string `json:"quota_delta"`
-	Revision           string `json:"revision"`
-	Error              string `json:"error,omitempty"`
-	Applied            bool   `json:"applied"`
+	TicketID           int     `json:"ticket_id"`
+	UserID             int     `json:"user_id"`
+	Username           string  `json:"username"`
+	InvoiceTitle       string  `json:"invoice_title"`
+	Amount             float64 `json:"amount"`
+	SupplementTaxCents int64   `json:"supplement_tax_cents"`
+	OrderTaxCents      int64   `json:"order_tax_cents"`
+	QuotaDelta         string  `json:"quota_delta"`
+	Revision           string  `json:"revision"`
+	Error              string  `json:"error,omitempty"`
+	Applied            bool    `json:"applied"`
+	Warning            string  `json:"warning,omitempty"`
 }
 
 type InvoiceGroupClosePage struct {
@@ -40,8 +44,11 @@ func PreviewInvoiceGroupClosures(actorID, afterID int, convert bool) (*InvoiceGr
 		return nil, ErrTicketForbidden
 	}
 	users := DB.Model(&User{}).Select("id").Where(commonGroupCol+" IN ?", config.InvoiceRestrictedGroups)
-	var tickets []Ticket
-	if err := DB.Where("id > ? AND type = ? AND status IN ? AND user_id IN (?)", afterID, TicketTypeInvoice, []int{TicketStatusOpen, TicketStatusProcessing}, users).Order("id ASC").Limit(201).Find(&tickets).Error; err != nil {
+	var tickets []InvoiceGroupCloseItem
+	if err := DB.Table("tickets AS t").Select("t.id AS ticket_id, t.user_id, u.username, COALESCE(i.company_name, '') AS invoice_title, COALESCE(i.total_money, 0) AS amount").
+		Joins("JOIN users AS u ON u.id = t.user_id").Joins("LEFT JOIN ticket_invoices AS i ON i.ticket_id = t.id AND i.user_id = t.user_id").
+		Where("t.deleted_at IS NULL").
+		Where("t.id > ? AND t.type = ? AND t.status IN ? AND t.user_id IN (?)", afterID, TicketTypeInvoice, []int{TicketStatusOpen, TicketStatusProcessing, TicketStatusResolved}, users).Order("t.id ASC").Limit(201).Scan(&tickets).Error; err != nil {
 		return nil, err
 	}
 	page := &InvoiceGroupClosePage{Items: []InvoiceGroupCloseItem{}, AfterID: afterID, HasMore: len(tickets) > 200}
@@ -49,12 +56,8 @@ func PreviewInvoiceGroupClosures(actorID, afterID int, convert bool) (*InvoiceGr
 		tickets = tickets[:200]
 	}
 	for _, ticket := range tickets {
-		item, err := CloseRestrictedInvoiceTicket(actorID, ticket.Id, convert, "", false)
-		if err != nil {
-			item = &InvoiceGroupCloseItem{TicketID: ticket.Id, UserID: ticket.UserId, Error: err.Error()}
-		}
-		page.Items = append(page.Items, *item)
-		page.AfterID = ticket.Id
+		page.Items = append(page.Items, ticket)
+		page.AfterID = ticket.TicketID
 	}
 	return page, nil
 }
@@ -67,11 +70,13 @@ func CloseRestrictedInvoiceTicket(actorID, ticketID int, convert bool, revision 
 		return nil, err
 	}
 	item := &InvoiceGroupCloseItem{TicketID: ticketID, UserID: identity.UserId}
+	written := false
 	err := DB.Transaction(func(tx *gorm.DB) error {
 		var owner, actor User
 		if err := lockForUpdate(tx).First(&owner, identity.UserId).Error; err != nil {
 			return err
 		}
+		item.Username = owner.Username
 		if err := lockForUpdate(tx).First(&actor, actorID).Error; err != nil || actor.Role != common.RoleRootUser || actor.Status != common.UserStatusEnabled {
 			return ErrTicketForbidden
 		}
@@ -90,31 +95,24 @@ func CloseRestrictedInvoiceTicket(actorID, ticketID int, convert bool, revision 
 		if err := lockForUpdate(tx).Where("id = ? AND user_id = ?", ticketID, owner.Id).First(&ticket).Error; err != nil {
 			return err
 		}
-		if ticket.Type != TicketTypeInvoice || (ticket.Status != TicketStatusOpen && ticket.Status != TicketStatusProcessing) {
+		if ticket.Type != TicketTypeInvoice || (ticket.Status != TicketStatusOpen && ticket.Status != TicketStatusProcessing && ticket.Status != TicketStatusResolved && ticket.Status != TicketStatusClosed) {
 			return ErrTicketClosed
-		}
-		var refunds int64
-		if err := tx.Model(&TicketRefund{}).Where("user_id = ? AND refund_status = ?", owner.Id, RefundStatusPending).Count(&refunds).Error; err != nil {
-			return err
-		}
-		if refunds != 0 {
-			return ErrRefundFinancePending
 		}
 		var corrections int64
 		if err := tx.Model(&RefundInvoiceCorrection{}).Where("invoice_ticket_id = ? AND status IN ?", ticketID, []string{"pending", "processing", "completed"}).Count(&corrections).Error; err != nil {
 			return err
-		}
-		if corrections != 0 {
-			return ErrRefundInvoiceCorrection
 		}
 		var invoice TicketInvoice
 		invoiceErr := lockForUpdate(tx).Where("ticket_id = ? AND user_id = ?", ticketID, owner.Id).Take(&invoice).Error
 		if invoiceErr != nil && !errors.Is(invoiceErr, gorm.ErrRecordNotFound) {
 			return invoiceErr
 		}
-		if invoiceErr == nil && invoice.InvoiceStatus != InvoiceStatusPending {
-			return ErrTicketInvoiceStatusInvalid
+		item.InvoiceTitle, item.Amount = invoice.CompanyName, invoice.TotalMoney
+		if ticket.Status == TicketStatusClosed {
+			item.Applied = true
+			return nil
 		}
+		cancelInvoice := invoiceErr == nil && invoice.InvoiceStatus == InvoiceStatusPending && corrections == 0
 		var charge InvoiceTaxCharge
 		chargeErr := lockForUpdate(tx).Where("ticket_id = ?", ticketID).Take(&charge).Error
 		if chargeErr != nil && !errors.Is(chargeErr, gorm.ErrRecordNotFound) {
@@ -124,7 +122,7 @@ func CloseRestrictedInvoiceTicket(actorID, ticketID int, convert bool, revision 
 			return ErrInvoiceTaxInvalid
 		}
 		quota := decimal.Zero
-		if chargeErr == nil && charge.Status == "paid" {
+		if cancelInvoice && chargeErr == nil && charge.Status == "paid" {
 			if charge.Quota < 0 || charge.FeeCents < 0 {
 				return ErrInvoiceTaxInvalid
 			}
@@ -132,19 +130,24 @@ func CloseRestrictedInvoiceTicket(actorID, ticketID int, convert bool, revision 
 			quota = decimal.NewFromInt(int64(charge.Quota))
 		}
 		var orders []*TopUp
-		if invoiceErr == nil && convert {
+		if convert && (invoice.InvoiceStatus == InvoiceStatusIssued || corrections != 0) {
+			item.Warning = "Order tax was not converted; existing financial records were preserved."
+		}
+		if invoiceErr == nil && convert && invoice.InvoiceStatus != InvoiceStatusIssued && corrections == 0 {
 			ids, err := invoice.GetTopUpOrderIDs()
 			if err != nil {
-				return err
+				item.Warning = "Order tax was not converted; existing financial records were preserved."
+				ids = nil
 			}
 			orders, err = fetchSuccessTopUpsByIds(tx, owner.Id, ids)
 			if err != nil {
 				return err
 			}
 			if len(orders) != len(ids) {
-				return ErrTicketInvoiceOrderInvalid
+				item.Warning = "Order tax was not converted; existing financial records were preserved."
 			}
 			orders = orderTopUps(ids, orders)
+			convertible := make([]*TopUp, 0, len(orders))
 			for _, order := range orders {
 				if order.InvoiceType != "ordinary" && order.InvoiceType != "special" {
 					continue
@@ -154,20 +157,27 @@ func CloseRestrictedInvoiceTicket(actorID, ticketID int, convert bool, revision 
 					continue
 				}
 				plan, _, err := manageTopUpInvoiceType(tx, actorID, TopUpInvoiceAdjustmentInput{ID: order.Id, InvoiceType: "none", ExpectedInvoiceType: &order.InvoiceType}, false, ticketID)
+				if errors.Is(err, ErrInvoiceAdjustment) || errors.Is(err, ErrTicketInvoiceOrderDuplicate) || errors.Is(err, ErrTicketForbidden) {
+					item.Warning = "Order tax was not converted; existing financial records were preserved."
+					continue
+				}
 				if err != nil {
 					return err
 				}
 				delta, err := decimal.NewFromString(plan.QuotaDelta)
 				if err != nil || delta.IsNegative() || !plan.CanApply {
-					return ErrInvoiceAdjustment
+					item.Warning = "Order tax was not converted; existing financial records were preserved."
+					continue
 				}
 				quota = quota.Add(delta)
 				item.OrderTaxCents += plan.TaxBeforeCents
+				convertible = append(convertible, order)
 			}
+			orders = convertible
 		}
 		item.QuotaDelta = quota.String()
-		// Balance is deliberately excluded: other tickets for this user may have
-		// credited it since preview. Credit amounts and all source records are pinned.
+		// Keep an audit fingerprint of the records read under lock. Closure uses
+		// current records, rather than requiring an unchanged browser preview.
 		raw, err := common.Marshal(struct {
 			Ticket  Ticket
 			Invoice TicketInvoice
@@ -186,11 +196,8 @@ func CloseRestrictedInvoiceTicket(actorID, ticketID int, convert bool, revision 
 		if !apply {
 			return nil
 		}
-		if revision != item.Revision {
-			return ErrFinanceRevision
-		}
-		if invoiceErr == nil {
-			if _, err := cancelPendingInvoice(tx, &ticket, actorID); err != nil {
+		if cancelInvoice {
+			if _, err := cancelPendingInvoiceWithVisibility(tx, &ticket, actorID, true); err != nil {
 				return err
 			}
 		}
@@ -211,24 +218,26 @@ func CloseRestrictedInvoiceTicket(actorID, ticketID int, convert bool, revision 
 				return err
 			}
 		}
-		result := tx.Model(&Ticket{}).Where("id = ? AND user_id = ? AND status = ?", ticketID, owner.Id, ticket.Status).Updates(map[string]interface{}{"status": TicketStatusClosed, "admin_id": actorID, "updated_time": common.GetTimestamp()})
+		now := common.GetTimestamp()
+		result := tx.Model(&Ticket{}).Where("id = ? AND user_id = ? AND status = ?", ticketID, owner.Id, ticket.Status).Updates(map[string]interface{}{"status": TicketStatusClosed, "admin_id": actorID, "updated_time": now, "closed_time": now})
 		if result.Error != nil {
 			return result.Error
 		}
 		if result.RowsAffected != 1 {
 			return ErrFinanceRevision
 		}
-		if err := recordTicketOperationTx(tx, ticketID, actorID, fmt.Sprintf("Restricted-group invoice closure: convert order tax=%t; supplement tax=%d cents; order tax=%d cents; balance credit=%s quota; revision=%s", convert, item.SupplementTaxCents, item.OrderTaxCents, item.QuotaDelta, item.Revision)); err != nil {
+		if err := recordTicketOperationTx(tx, ticketID, actorID, fmt.Sprintf("Restricted-group invoice closure: convert order tax=%t; supplement tax=%d cents; order tax=%d cents; balance credit=%s quota; revision=%s; note=%s", convert, item.SupplementTaxCents, item.OrderTaxCents, item.QuotaDelta, item.Revision, item.Warning)); err != nil {
 			return err
 		}
 		item.Applied = true
+		written = true
 		return nil
 	})
-	if err == nil && item.Applied {
+	if err == nil && written {
 		if cacheErr := InvalidateUserCache(item.UserID); cacheErr != nil {
 			common.SysError("invoice closure cache invalidation: " + cacheErr.Error())
 		}
-		RecordLogWithAdminInfo(item.UserID, LogTypeManage, "Invoice application closed; invoice fees returned to balance", map[string]interface{}{"admin_id": actorID, "ticket_id": ticketID, "quota_delta": item.QuotaDelta, "revision": item.Revision})
+		RecordLogWithAdminInfo(item.UserID, LogTypeManage, "Invoice application closed", map[string]interface{}{"admin_id": actorID, "ticket_id": ticketID, "quota_delta": item.QuotaDelta, "revision": item.Revision})
 	}
 	return item, err
 }

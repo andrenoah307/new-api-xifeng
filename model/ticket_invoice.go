@@ -183,6 +183,10 @@ func activeInvoiceOrders(tx *gorm.DB) *gorm.DB {
 // Called inside the ticket-closing transaction; quota cache changes must wait
 // until the caller commits. Issued invoices must never be cancelled by closing.
 func cancelPendingInvoice(tx *gorm.DB, ticket *Ticket, actorID int) (int, error) {
+	return cancelPendingInvoiceWithVisibility(tx, ticket, actorID, false)
+}
+
+func cancelPendingInvoiceWithVisibility(tx *gorm.DB, ticket *Ticket, actorID int, internal bool) (int, error) {
 	var owner User
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, ticket.UserId).Error; err != nil {
 		return 0, err
@@ -217,7 +221,7 @@ func cancelPendingInvoice(tx *gorm.DB, ticket *Ticket, actorID int) (int, error)
 	if actorID == ticket.UserId {
 		role = common.RoleCommonUser
 	}
-	err = tx.Create(&TicketMessage{TicketId: ticket.Id, UserId: actorID, Role: role, Content: fmt.Sprintf("Invoice application cancelled on ticket closure; tax refunded to balance: %d quota", refund), CreatedTime: common.GetTimestamp()}).Error
+	err = tx.Create(&TicketMessage{TicketId: ticket.Id, UserId: actorID, Role: role, Internal: internal, Content: fmt.Sprintf("Invoice application cancelled on ticket closure; tax refunded to balance: %d quota", refund), CreatedTime: common.GetTimestamp()}).Error
 	return refund, err
 }
 

@@ -16,8 +16,3 @@ export async function closeInvoiceGroupTicket(post, item, convert) {
   if (!data.success) throw new Error(data.message);
   return data.data;
 }
-
-export function invoiceClosureStatus(item) {
-  if (item.error) return item.error;
-  return item.applied ? 'Closed' : 'Pending';
-}

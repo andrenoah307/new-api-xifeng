@@ -23,7 +23,6 @@ import { API, showError } from '../../helpers';
 import {
   previewInvoiceGroupClosures,
   closeInvoiceGroupTicket,
-  invoiceClosureStatus,
 } from '../../../../shared/invoice-group-close';
 
 export default function InvoiceGroupClose({ disabled }) {
@@ -62,7 +61,7 @@ export default function InvoiceGroupClose({ disabled }) {
     const results = [...items];
     try {
       for (let i = 0; i < results.length && active.current; i++) {
-        if (results[i].error || results[i].applied) continue;
+        if (results[i].applied) continue;
         try {
           results[i] = await closeInvoiceGroupTicket(
             API.post,
@@ -108,7 +107,7 @@ export default function InvoiceGroupClose({ disabled }) {
         <div className='space-y-4'>
           <p>
             {t(
-              'Uses saved groups. Paid supplemental invoice fees are always returned to balance. Refund conflicts and issued invoices are skipped.',
+              'Close all listed tickets. Issued invoices remain unchanged. Tax conversion does not block ticket closure.',
             )}
           </p>
           <Checkbox
@@ -135,25 +134,21 @@ export default function InvoiceGroupClose({ disabled }) {
                   <tr>
                     <th>{t('Ticket ID')}</th>
                     <th>{t('User ID')}</th>
-                    <th>{t('Supplemental tax returned (CNY)')}</th>
-                    <th>{t('Order tax converted (CNY)')}</th>
-                    <th>{t('Balance credit (quota)')}</th>
-                    <th>{t('Status')}</th>
+                    <th>{t('Invoice title')}</th>
+                    <th>{t('Invoice amount')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => (
                     <tr key={item.ticket_id} className='border-t'>
                       <td>{item.ticket_id}</td>
-                      <td>{item.user_id}</td>
                       <td>
-                        {((item.supplement_tax_cents ?? 0) / 100).toFixed(2)}
+                        {item.user_id} ({item.username})
                       </td>
-                      <td>{((item.order_tax_cents ?? 0) / 100).toFixed(2)}</td>
-                      <td>{item.quota_delta ?? '-'}</td>
                       <td className='max-w-64 break-words'>
-                        {t(invoiceClosureStatus(item))}
+                        {item.invoice_title || '-'}
                       </td>
+                      <td>{(item.amount ?? 0).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -161,14 +156,27 @@ export default function InvoiceGroupClose({ disabled }) {
               {items.length === 0 && <p>{t('No data')}</p>}
             </div>
           )}
+          {items?.some((item) => item.applied || item.error) && (
+            <div role='status' className='space-y-2 text-sm'>
+              <p>
+                {t('Closed')}: {items.filter((item) => item.applied).length} /{' '}
+                {items.length}
+              </p>
+              {items
+                .filter((item) => item.error || item.warning)
+                .map((item) => (
+                  <p key={item.ticket_id}>
+                    #{item.ticket_id}: {t(item.error || item.warning || '')}
+                  </p>
+                ))}
+            </div>
+          )}
           <Button
             theme='solid'
-            disabled={
-              busy || !items?.some((item) => !item.error && !item.applied)
-            }
+            disabled={busy || !items?.some((item) => !item.applied)}
             onClick={execute}
           >
-            {t('Confirm and close eligible tickets')}
+            {t('Close all listed tickets')}
           </Button>
         </div>
       </Modal>
