@@ -32,6 +32,7 @@ import {
 } from '@douyinfe/semi-ui';
 import { API, showError, showSuccess } from '../../helpers';
 import { InvoiceAmountFormula } from './InvoiceAmountFormula';
+import InvoiceGroupClose from './InvoiceGroupClose';
 
 const modes = [
   { value: 'vat', label: 'VAT added to net amount', formula: 'B × (1 + r)' },
@@ -49,6 +50,7 @@ const modes = [
 
 function useInvoiceTaxConfig(admin = false) {
   const [config, setConfig] = useState(null);
+  const [savedConfig, setSavedConfig] = useState(null);
   useEffect(() => {
     let active = true;
     API.get(
@@ -56,7 +58,10 @@ function useInvoiceTaxConfig(admin = false) {
     )
       .then(({ data }) => {
         if (!data.success) throw new Error(data.message);
-        if (active) setConfig(data.data);
+        if (active) {
+          setConfig(data.data);
+          setSavedConfig(data.data);
+        }
       })
       .catch((error) => {
         if (active) showError(error.message);
@@ -65,7 +70,7 @@ function useInvoiceTaxConfig(admin = false) {
       active = false;
     };
   }, [admin]);
-  return [config, setConfig];
+  return [config, setConfig, savedConfig, setSavedConfig];
 }
 
 export function InvoiceTaxNotice() {
@@ -387,7 +392,8 @@ export function InvoiceTaxPayment({ charge, rejected }) {
 export function InvoiceTaxSettings() {
   const [statusState, statusDispatch] = useContext(StatusContext);
   const { t } = useTranslation();
-  const [config, setConfig] = useInvoiceTaxConfig(true);
+  const [config, setConfig, savedConfig, setSavedConfig] =
+    useInvoiceTaxConfig(true);
   const [groups, setGroups] = useState(null);
   useEffect(() => {
     let active = true;
@@ -463,6 +469,7 @@ export function InvoiceTaxSettings() {
       });
       if (!data.success) throw new Error(data.message);
       setConfig(data.data);
+      setSavedConfig(data.data);
       setOverdraftAmount(null);
       statusDispatch({
         type: 'set',
@@ -525,6 +532,17 @@ export function InvoiceTaxSettings() {
           {t('Block all new invoice tickets for selected groups')}
         </label>
       </div>
+      <InvoiceGroupClose
+        disabled={
+          saving ||
+          !config.invoice_restricted_groups_block_tickets ||
+          !config.invoice_restricted_groups?.length ||
+          config.invoice_restricted_groups_block_tickets !==
+            savedConfig?.invoice_restricted_groups_block_tickets ||
+          JSON.stringify(config.invoice_restricted_groups) !==
+            JSON.stringify(savedConfig?.invoice_restricted_groups)
+        }
+      />
       <div className='space-y-2'>
         <label htmlFor='refund-overdraft-amount'>
           {t('Refund grace amount (CNY, 0 to disable)')}

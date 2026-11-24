@@ -281,6 +281,8 @@ func SetApiRouter(router *gin.Engine) {
 			optionRoute.GET("/", controller.GetOptions)
 			optionRoute.PUT("/invoice-tax", controller.UpdateInvoiceTaxConfig)
 			optionRoute.GET("/invoice-tax", controller.GetAdminInvoiceTaxConfig)
+			optionRoute.POST("/invoice-tax/close-tickets/preview", controller.PreviewRestrictedInvoiceClosures)
+			optionRoute.POST("/invoice-tax/close-tickets", controller.CloseRestrictedInvoiceTicket)
 			optionRoute.GET("/invoice-epay", controller.GetInvoiceEpayConfig)
 			optionRoute.PUT("/invoice-epay", controller.UpdateInvoiceEpayConfig)
 			optionRoute.PUT("/", controller.UpdateOption)

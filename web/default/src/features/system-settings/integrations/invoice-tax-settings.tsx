@@ -37,6 +37,8 @@ import {
 } from '@/features/tickets/invoice-tax'
 import { api } from '@/lib/api'
 
+import { InvoiceGroupClose } from './invoice-group-close'
+
 export function InvoiceTaxSettings() {
   const { t } = useTranslation()
   const client = useQueryClient()
@@ -144,6 +146,17 @@ export function InvoiceTaxSettings() {
           </FieldLabel>
         </Field>
       </FieldGroup>
+      <InvoiceGroupClose
+        disabled={
+          save.isPending ||
+          !config.invoice_restricted_groups_block_tickets ||
+          !config.invoice_restricted_groups?.length ||
+          config.invoice_restricted_groups_block_tickets !==
+            query.data?.invoice_restricted_groups_block_tickets ||
+          JSON.stringify(config.invoice_restricted_groups) !==
+            JSON.stringify(query.data?.invoice_restricted_groups)
+        }
+      />
       <FieldGroup>
         <Field data-invalid={!validOverdraft}>
           <FieldLabel htmlFor='refund-overdraft-amount'>

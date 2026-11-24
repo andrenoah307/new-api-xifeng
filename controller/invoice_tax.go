@@ -63,6 +63,41 @@ func GetAdminInvoiceTaxConfig(c *gin.Context) {
 	common.ApiSuccess(c, config)
 }
 
+func PreviewRestrictedInvoiceClosures(c *gin.Context) {
+	var req struct {
+		AfterID int  `json:"after_id"`
+		Convert bool `json:"convert_order_tax"`
+	}
+	if c.ShouldBindJSON(&req) != nil || req.AfterID < 0 {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	page, err := model.PreviewInvoiceGroupClosures(c.GetInt("id"), req.AfterID, req.Convert)
+	if err != nil {
+		handleTicketError(c, err)
+		return
+	}
+	common.ApiSuccess(c, page)
+}
+
+func CloseRestrictedInvoiceTicket(c *gin.Context) {
+	var req struct {
+		TicketID int    `json:"ticket_id"`
+		Revision string `json:"revision"`
+		Convert  bool   `json:"convert_order_tax"`
+	}
+	if c.ShouldBindJSON(&req) != nil || req.TicketID <= 0 || len(req.Revision) != 64 {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	item, err := model.CloseRestrictedInvoiceTicket(c.GetInt("id"), req.TicketID, req.Convert, req.Revision, true)
+	if err != nil {
+		handleTicketError(c, err)
+		return
+	}
+	common.ApiSuccess(c, item)
+}
+
 func QuoteInvoiceTax(c *gin.Context) {
 	var req struct {
 		OrderIDs    []int  `json:"topup_order_ids"`

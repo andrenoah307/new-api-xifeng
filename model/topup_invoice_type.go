@@ -60,16 +60,29 @@ type TopUpInvoiceAdjustmentPlan struct {
 
 // Preview and commit share the same locks and calculation. apply=false never writes.
 func ManageTopUpInvoiceType(actorID int, input TopUpInvoiceAdjustmentInput, apply bool) (*TopUpInvoiceAdjustmentPlan, error) {
+	plan, written, err := manageTopUpInvoiceType(DB, actorID, input, apply, 0)
+	if err == nil && written {
+		if cacheErr := InvalidateUserCache(plan.UserID); cacheErr != nil {
+			common.SysError("invoice adjustment cache invalidation: " + cacheErr.Error())
+		}
+		RecordLogWithAdminInfo(plan.UserID, LogTypeManage, fmt.Sprintf("Invoice type adjustment for order #%d: %s -> %s; fee %d -> %d cents; wallet change %s, balance %s", input.ID, plan.PreviousInvoiceType, plan.InvoiceType, plan.TaxBeforeCents, plan.TaxAfterCents, plan.BalanceChange, plan.BalanceAfter), map[string]interface{}{"admin_id": actorID, "revision": plan.Revision})
+	}
+	return plan, err
+}
+
+// The batch closer supplies its locked pending invoice for eligibility preview.
+// Cache invalidation and usage logs belong to the caller after the outer commit.
+func manageTopUpInvoiceType(db *gorm.DB, actorID int, input TopUpInvoiceAdjustmentInput, apply bool, closingInvoiceID int) (*TopUpInvoiceAdjustmentPlan, bool, error) {
 	if input.ID <= 0 || input.ExpectedInvoiceType == nil || !slices.Contains([]string{"ordinary", "special", "none"}, input.InvoiceType) || (apply && len(input.Revision) != 64) {
-		return nil, ErrInvoiceTaxInvalid
+		return nil, false, ErrInvoiceTaxInvalid
 	}
 	var identity TopUp
-	if err := DB.Select("id,user_id").First(&identity, input.ID).Error; err != nil {
-		return nil, err
+	if err := db.Select("id,user_id").First(&identity, input.ID).Error; err != nil {
+		return nil, false, err
 	}
 	var plan *TopUpInvoiceAdjustmentPlan
 	written := false
-	err := DB.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		// Lock before any consistent read: MySQL REPEATABLE READ must see
 		// invoice/refund work committed by the preceding owner of this lock.
 		var owner User
@@ -123,6 +136,9 @@ func ManageTopUpInvoiceType(actorID int, input TopUpInvoiceAdjustmentInput, appl
 			return err
 		}
 		for _, invoice := range invoices {
+			if invoice.TicketId == closingInvoiceID && invoice.InvoiceStatus == InvoiceStatusPending {
+				continue
+			}
 			ids, err := invoice.GetTopUpOrderIDs()
 			if err != nil {
 				return err
@@ -268,11 +284,5 @@ func ManageTopUpInvoiceType(actorID int, input TopUpInvoiceAdjustmentInput, appl
 		written = true
 		return nil
 	})
-	if err == nil && written {
-		if cacheErr := InvalidateUserCache(identity.UserId); cacheErr != nil {
-			common.SysError("invoice adjustment cache invalidation: " + cacheErr.Error())
-		}
-		RecordLogWithAdminInfo(identity.UserId, LogTypeManage, fmt.Sprintf("Invoice type adjustment for order #%d: %s -> %s; fee %d -> %d cents; wallet change %s, balance %s", input.ID, plan.PreviousInvoiceType, plan.InvoiceType, plan.TaxBeforeCents, plan.TaxAfterCents, plan.BalanceChange, plan.BalanceAfter), map[string]interface{}{"admin_id": actorID, "revision": plan.Revision})
-	}
-	return plan, err
+	return plan, written, err
 }
