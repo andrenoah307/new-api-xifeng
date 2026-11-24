@@ -22,7 +22,13 @@ import test from 'node:test'
 
 import { api } from '@/lib/api'
 
-import { getGroupModelPerformance, getGroupHistoryBatch } from './api.ts'
+import {
+  getGroupModelPerformance,
+  getGroupHistoryBatch,
+  getMonitoringGroups,
+  getGroupHistory,
+  getGroupDetail,
+} from './api.ts'
 
 async function withStubbedResponse<T>(
   payload: unknown,
@@ -47,6 +53,47 @@ async function withStubbedResponse<T>(
   }
 }
 
+test('monitoring applies cache counts to public/admin snapshots, history and channel detail', async () => {
+  const sample = {
+    cache_hit_rate: 40,
+    cache_request_count: 10,
+    cache_hit_request_count: 9,
+  }
+  for (const admin of [true, false]) {
+    const groups = await withStubbedResponse(
+      {
+        data: [
+          {
+            ...sample,
+            group_name: 'alpha',
+            cache_hit_rate_1h: 95,
+            cache_request_count_1h: 10,
+            cache_hit_request_count_1h: 8,
+          },
+        ],
+      },
+      () => getMonitoringGroups(admin)
+    )
+    assert.equal(groups.result[0].cache_hit_rate, 90)
+    assert.equal(groups.result[0].cache_hit_rate_1h, 95)
+    const history = await withStubbedResponse({ data: [sample] }, () =>
+      getGroupHistory('alpha', admin)
+    )
+    assert.equal(history.result.history[0].cache_hit_rate, 90)
+  }
+  const batch = await withStubbedResponse({ data: { alpha: [sample] } }, () =>
+    getGroupHistoryBatch(true)
+  )
+  assert.equal(batch.result.history.alpha[0].cache_hit_rate, 90)
+  const detail = await withStubbedResponse(
+    { data: sample, channel_stats: [{ ...sample, channel_id: 1 }] },
+    () => getGroupDetail('alpha')
+  )
+  assert.equal(detail.result.cache_hit_rate, 90)
+  assert.equal(detail.result.channel_stats[0].cache_hit_rate, 90)
+  assert.equal(sample.cache_hit_rate, 40)
+})
+
 // 契约锁的是后端 GetAdminMonitoringGroupsHistoryBatch 的真实信封：
 // `data` 本身就是 {分组: 历史点[]} 这张表，`aggregation_interval_minutes`
 // 是 `data` 的兄弟字段而不是它的子字段。
@@ -58,7 +105,14 @@ test('batch group history reads the map and interval from the backend envelope',
       success: true,
       message: '',
       data: {
-        alpha: [{ recorded_at: 100, availability_rate: 99, avg_frt: 800, cache_hit_rate: 40 }],
+        alpha: [
+          {
+            recorded_at: 100,
+            availability_rate: 99,
+            avg_frt: 800,
+            cache_hit_rate: 40,
+          },
+        ],
         beta: [],
       },
       period_minutes: 720,
@@ -102,9 +156,17 @@ test('batch group history never fires for non-admin viewers', async () => {
 // 取数与渲染，唯一的差别是端点前缀——与 groups / history 已有的 admin|public
 // 约定保持一致，不引入第二套写法。
 test('model performance picks the endpoint by viewer role', async () => {
-  const payload = { success: true, message: '', data: { enabled: true, groups: {} } }
-  const asAdmin = await withStubbedResponse(payload, () => getGroupModelPerformance(true))
-  const asUser = await withStubbedResponse(payload, () => getGroupModelPerformance(false))
+  const payload = {
+    success: true,
+    message: '',
+    data: { enabled: true, groups: {} },
+  }
+  const asAdmin = await withStubbedResponse(payload, () =>
+    getGroupModelPerformance(true)
+  )
+  const asUser = await withStubbedResponse(payload, () =>
+    getGroupModelPerformance(false)
+  )
 
   assert.deepEqual(asAdmin.urls, ['/api/monitoring/admin/model-performance'])
   assert.deepEqual(asUser.urls, ['/api/monitoring/public/model-performance'])

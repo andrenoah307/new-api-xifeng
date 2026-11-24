@@ -65,10 +65,9 @@ const GroupStatusCard = memo(function GroupStatusCard({
     'cache_hit_rate'
   )
   const cacheRate =
-    historyCacheRate ??
-    (group.cache_hit_rate != null && group.cache_hit_rate >= 0
+    group.cache_hit_rate != null && group.cache_hit_rate >= 0
       ? group.cache_hit_rate
-      : null)
+      : historyCacheRate
   const showCache = cacheRate != null && cacheRate >= 3
   const frt = group.avg_frt ?? group.first_response_time
 

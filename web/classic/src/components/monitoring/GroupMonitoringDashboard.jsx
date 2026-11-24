@@ -30,6 +30,7 @@ import { Activity, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess, isAdmin } from '../../helpers';
 import GroupStatusCard from './GroupStatusCard';
+import { withMonitoringCacheRates } from '../../../../shared/monitoring-cache.js';
 import GroupDetailPanel from './GroupDetailPanel';
 import { StatusContext } from '../../context/Status';
 
@@ -117,7 +118,7 @@ const GroupMonitoringDashboard = () => {
           skipErrorHandler: true,
         });
         if (res.data.success) {
-          let groupData = res.data.data || [];
+          let groupData = (res.data.data || []).map(withMonitoringCacheRates);
 
           if (includeHistory && groupData.length > 0) {
             const historyPromises = groupData.map(async (g) => {
@@ -129,7 +130,9 @@ const GroupMonitoringDashboard = () => {
                 if (hRes.data.success) {
                   return {
                     ...g,
-                    history: hRes.data.data || [],
+                    history: (hRes.data.data || []).map(
+                      withMonitoringCacheRates,
+                    ),
                     aggregation_interval_minutes:
                       hRes.data.aggregation_interval_minutes || 5,
                   };

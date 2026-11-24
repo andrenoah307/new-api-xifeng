@@ -61,6 +61,7 @@ async function renderCard(props: {
   withModelPerformance: boolean
   admin?: boolean
   hourlyCache?: number | null
+  history?: MonitoringGroupWithHistory['history']
 }): Promise<string> {
   const i18n = createInstance()
   await i18n.init({
@@ -75,7 +76,11 @@ async function renderCard(props: {
     <QueryClientProvider client={client}>
       <I18nextProvider i18n={i18n}>
         <GroupStatusCard
-          group={{ ...group, cache_hit_rate_1h: props.hourlyCache }}
+          group={{
+            ...group,
+            cache_hit_rate_1h: props.hourlyCache,
+            history: props.history ?? group.history,
+          }}
           admin={props.admin}
           variant={props.variant}
           modelPerformance={
@@ -94,6 +99,15 @@ function occurrences(markup: string, needle: string): number {
 }
 
 describe('group status card layout', () => {
+  test('uses the configured cache window instead of averaging historical rates', async () => {
+    const markup = await renderCard({
+      withModelPerformance: false,
+      history: [
+        { recorded_at: 1, availability_rate: 99, avg_frt: 100, cache_hit_rate: 90 },
+      ],
+    })
+    assert.ok(markup.includes('12.4%'))
+  })
   // 回归护栏：置顶宽卡片曾把四段内容（头部/时序条/底部统计/模型性能）
   // 直接挂在一个两列 Grid 下，Grid 逐个换行摆放，"左分组右模型"从未生效。
   // 四列骨架要求这个 Grid 只有两个直接子元素，各自恰好出现一次。

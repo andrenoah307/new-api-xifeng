@@ -1,6 +1,11 @@
 import { api } from '@/lib/api'
 
-export interface MonitoringGroup {
+import {
+  withMonitoringCacheRates,
+  type MonitoringCacheSample,
+} from '../../../../shared/monitoring-cache.js'
+
+export interface MonitoringGroup extends MonitoringCacheSample {
   group_name: string
   is_online: boolean
   online_channels: number
@@ -21,14 +26,14 @@ export interface MonitoringGroupWithHistory extends MonitoringGroup {
   aggregation_interval_minutes: number
 }
 
-export interface MonitoringHistoryPoint {
+export interface MonitoringHistoryPoint extends MonitoringCacheSample {
   recorded_at: number
   availability_rate: number | null
   avg_frt: number | null
   cache_hit_rate: number | null
 }
 
-export interface ChannelStat {
+export interface ChannelStat extends MonitoringCacheSample {
   channel_id: number
   channel_name: string
   channel_status: number
@@ -60,7 +65,7 @@ export async function getMonitoringGroups(
   const res = await api.get(`/api/monitoring/${prefix}/groups`, {
     skipErrorHandler: true,
   })
-  return res.data.data ?? []
+  return (res.data.data ?? []).map(withMonitoringCacheRates)
 }
 
 export async function getGroupHistory(
@@ -75,14 +80,21 @@ export async function getGroupHistory(
   const data = res.data.data
   const history = data?.history ?? data ?? []
   const intervalMinutes = data?.aggregation_interval_minutes ?? 5
-  return { history, intervalMinutes }
+  return { history: history.map(withMonitoringCacheRates), intervalMinutes }
 }
 
 export async function getGroupDetail(groupName: string): Promise<GroupDetail> {
   const res = await api.get(
     `/api/monitoring/admin/groups/${encodeURIComponent(groupName)}`
   )
-  return res.data.data
+  return {
+    ...withMonitoringCacheRates(res.data.data as MonitoringGroup),
+    channel_stats: (
+      res.data.channel_stats ??
+      res.data.data?.channel_stats ??
+      []
+    ).map(withMonitoringCacheRates),
+  }
 }
 
 export async function refreshMonitoringData(): Promise<void> {
@@ -117,18 +129,33 @@ export interface GroupModelPerfData {
   enabled_groups: string[]
 }
 
-export async function getGroupModelPerformance(admin: boolean): Promise<GroupModelPerfData> {
+export async function getGroupModelPerformance(
+  admin: boolean
+): Promise<GroupModelPerfData> {
   const prefix = admin ? 'admin' : 'public'
-  const res = await api.get(`/api/monitoring/${prefix}/model-performance`, { skipErrorHandler: true })
+  const res = await api.get(`/api/monitoring/${prefix}/model-performance`, {
+    skipErrorHandler: true,
+  })
   return res.data.data
 }
 
-export async function getGroupHistoryBatch(admin: boolean): Promise<{ history: Record<string, MonitoringHistoryPoint[]>; intervalMinutes: number }> {
+export async function getGroupHistoryBatch(
+  admin: boolean
+): Promise<{
+  history: Record<string, MonitoringHistoryPoint[]>
+  intervalMinutes: number
+}> {
   if (!admin) return { history: {}, intervalMinutes: 5 }
-  const res = await api.get('/api/monitoring/admin/group-history', { skipErrorHandler: true })
+  const res = await api.get('/api/monitoring/admin/group-history', {
+    skipErrorHandler: true,
+  })
   const data = res.data.data ?? {}
   return {
-    history: data ?? {},
+    history: Object.fromEntries(
+      Object.entries(data as Record<string, MonitoringHistoryPoint[]>).map(
+        ([group, points]) => [group, points.map(withMonitoringCacheRates)]
+      )
+    ),
     intervalMinutes: res.data.aggregation_interval_minutes ?? 5,
   }
 }

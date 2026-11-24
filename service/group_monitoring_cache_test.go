@@ -100,19 +100,23 @@ func TestGroupMonitoringCachePopulationToggles(t *testing.T) {
 	RecordMonitoringMetric("mixed", 1, 1, true, 700, 630, 100, 50, "model", 0, "", false, true)
 	RecordMonitoringMetric("mixed", 1, 1, true, 1000, 0, 100, 50, "excluded", 0, "", true, true)
 	RecordMonitoringMetric("nonstream", 1, 1, true, 100, 20, 100, 50, "model", 0, "", false, false)
-	key := fmt.Sprintf("gm:b:%d:legacy:1", time.Now().Unix()-60)
+	RecordMonitoringMetric("nonstream", 1, 1, true, 0, 0, 100, 50, "model", 0, "", false, false)
+	RecordMonitoringMetric("nonstream", 1, 1, false, 0, 0, 100, 50, "model", 0, "", false, false)
+	key := fmt.Sprintf("gm:b:%d:legacy:1", time.Now().Unix()/300*300)
 	require.NoError(t, client.HSet(context.Background(), key, "pt", 100, "ct", 50, "t", 1, "s", 1).Err())
+	RecordMonitoringMetric("legacy", 1, 1, true, 100, 100, 100, 50, "model", 0, "", false, false)
 	cfg := operation_setting.GetGroupMonitoringSetting()
 	cfg.MonitoringGroups = []string{"mixed", "nonstream", "legacy"}
 	for _, tc := range []struct {
 		streamOnly, affinityOnly bool
 		rate                     float64
+		requests, hits           int64
 	}{
-		{false, false, 63},
-		{true, false, 45},
-		{false, true, 73},
-		{true, true, 100.0 / 3},
-		{false, false, 63},
+		{false, false, 63, 5, 4},
+		{true, false, 45, 3, 2},
+		{false, true, 73, 3, 2},
+		{true, true, 100.0 / 3, 2, 1},
+		{false, false, 63, 5, 4},
 	} {
 		cfg.CacheHitExcludeNonStream = tc.streamOnly
 		cfg.CacheHitExcludeNonAffinity = tc.affinityOnly
@@ -122,6 +126,12 @@ func TestGroupMonitoringCachePopulationToggles(t *testing.T) {
 		require.NotNil(t, stat.CacheHitRate1h)
 		assert.InDelta(t, tc.rate, *stat.CacheHitRate1h, 0.001)
 		assert.InDelta(t, tc.rate, stat.CacheHitRate, 0.001)
+		require.NotNil(t, stat.CacheRequestCount)
+		require.NotNil(t, stat.CacheHitRequestCount)
+		assert.Equal(t, tc.requests, *stat.CacheRequestCount)
+		assert.Equal(t, tc.hits, *stat.CacheHitRequestCount)
+		assert.Equal(t, stat.CacheRequestCount, stat.CacheRequestCount1h)
+		assert.Equal(t, stat.CacheHitRequestCount, stat.CacheHitRequestCount1h)
 		assert.InDelta(t, 100, stat.AvailabilityRate, 0.001)
 		assert.Equal(t, 100, stat.AvgResponseTime)
 		assert.Equal(t, 50, stat.AvgFRT)
@@ -129,20 +139,43 @@ func TestGroupMonitoringCachePopulationToggles(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, channels, 1)
 		assert.InDelta(t, tc.rate, channels[0].CacheHitRate, 0.001)
+		assert.Equal(t, stat.CacheRequestCount, channels[0].CacheRequestCount)
+		assert.Equal(t, stat.CacheHitRequestCount, channels[0].CacheHitRequestCount)
 		var history model.MonitoringHistory
 		require.NoError(t, db.Where("group_name = ?", "mixed").Order("recorded_at DESC").First(&history).Error)
 		assert.InDelta(t, tc.rate, history.CacheHitRate, 0.001)
+		assert.Equal(t, stat.CacheRequestCount, history.CacheRequestCount)
+		assert.Equal(t, stat.CacheHitRequestCount, history.CacheHitRequestCount)
 		assert.Equal(t, 6, history.RequestCount, "cache filters must not remove requests from availability statistics")
 		for _, group := range []string{"nonstream", "legacy"} {
 			stat, err = model.GetGroupMonitoringStatByName(group)
 			require.NoError(t, err)
 			if tc.streamOnly || tc.affinityOnly {
 				assert.Nil(t, stat.CacheHitRate1h)
+				assert.Nil(t, stat.CacheRequestCount)
+				assert.Nil(t, stat.CacheRequestCount1h)
 			} else {
 				assert.NotNil(t, stat.CacheHitRate1h)
+				if group == "nonstream" {
+					require.NotNil(t, stat.CacheRequestCount)
+					assert.Equal(t, int64(1), *stat.CacheRequestCount, "failed and zero-input requests are not cache samples")
+					assert.Equal(t, stat.CacheRequestCount, stat.CacheHitRequestCount)
+				}
+			}
+			if group == "legacy" {
+				assert.Nil(t, stat.CacheRequestCount, "mixed old/new bucket must not expose a partial denominator")
+				assert.Nil(t, stat.CacheHitRequestCount)
+				assert.Nil(t, stat.CacheRequestCount1h)
 			}
 		}
 	}
+	runRedisAggregation(cfg, true)
+	var rebuilt model.MonitoringHistory
+	require.NoError(t, db.Where("group_name = ?", "mixed").Order("recorded_at DESC").First(&rebuilt).Error)
+	require.NotNil(t, rebuilt.CacheRequestCount)
+	assert.Equal(t, int64(5), *rebuilt.CacheRequestCount)
+	require.NotNil(t, rebuilt.CacheHitRequestCount)
+	assert.Equal(t, int64(4), *rebuilt.CacheHitRequestCount)
 }
 
 func TestGroupMonitoringHourlyCacheRate(t *testing.T) {

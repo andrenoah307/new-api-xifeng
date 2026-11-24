@@ -106,14 +106,32 @@ func RebuildAggregationFromBuckets() bool {
 }
 
 type bucketData struct {
-	Total        int64
-	Success      int64
-	Error        int64
-	CacheTokens  int64
-	PromptTokens int64
-	RespTimeMs   int64
-	FRTSumMs     int64
-	FRTCount     int64
+	Total               int64
+	Success             int64
+	Error               int64
+	CacheTokens         int64
+	PromptTokens        int64
+	CacheRequests       int64
+	CacheHitRequests    int64
+	CountedPromptTokens int64
+	RespTimeMs          int64
+	FRTSumMs            int64
+	FRTCount            int64
+}
+
+func (b *bucketData) addCache(other bucketData) {
+	b.CacheTokens += other.CacheTokens
+	b.PromptTokens += other.PromptTokens
+	b.CacheRequests += other.CacheRequests
+	b.CacheHitRequests += other.CacheHitRequests
+	b.CountedPromptTokens += other.CountedPromptTokens
+}
+
+func (b *bucketData) cacheRequestCounts() (*int64, *int64) {
+	if b == nil || b.CacheRequests <= 0 || b.CacheHitRequests < 0 || b.CacheHitRequests > b.CacheRequests || b.CountedPromptTokens != b.PromptTokens {
+		return nil, nil
+	}
+	return &b.CacheRequests, &b.CacheHitRequests
 }
 
 type channelKey struct {
@@ -201,18 +219,25 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 
 			bd := parseBucketValues(vals)
 			streamOnly, affinityOnly := cfg.CacheHitFiltersForGroup(group)
+			prefix := ""
 			if affinityOnly {
+				prefix = "a"
 				cacheField, promptField := "act", "apt"
 				if streamOnly {
+					prefix = "sa"
 					cacheField, promptField = "sact", "sapt"
 				}
 				bd.CacheTokens, _ = strconv.ParseInt(vals[cacheField], 10, 64)
 				bd.PromptTokens, _ = strconv.ParseInt(vals[promptField], 10, 64)
 			} else if streamOnly {
+				prefix = "s"
 				// Missing streaming counters in pre-upgrade buckets mean no sample.
 				bd.CacheTokens, _ = strconv.ParseInt(vals["sct"], 10, 64)
 				bd.PromptTokens, _ = strconv.ParseInt(vals["spt"], 10, 64)
 			}
+			bd.CacheRequests, _ = strconv.ParseInt(vals[prefix+"cr"], 10, 64)
+			bd.CacheHitRequests, _ = strconv.ParseInt(vals[prefix+"chr"], 10, 64)
+			bd.CountedPromptTokens, _ = strconv.ParseInt(vals[prefix+"crpt"], 10, 64)
 			ck := channelKey{Group: group, ChannelId: chId}
 
 			// Fixed 1h token-weighted rate, independent of online status and configured windows.
@@ -222,8 +247,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 					agg = &bucketData{}
 					groupHourlyCache[group] = agg
 				}
-				agg.CacheTokens += bd.CacheTokens
-				agg.PromptTokens += bd.PromptTokens
+				agg.addCache(bd)
 			}
 
 			if bucketTs >= availStart {
@@ -257,8 +281,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 					agg = &bucketData{}
 					channelCacheData[ck] = agg
 				}
-				agg.CacheTokens += bd.CacheTokens
-				agg.PromptTokens += bd.PromptTokens
+				agg.addCache(bd)
 
 				gcbk := groupBucketKey{Group: group, BucketTs: bucketTs}
 				gcAgg, ok := groupBucketCache[gcbk]
@@ -266,8 +289,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 					gcAgg = &bucketData{}
 					groupBucketCache[gcbk] = gcAgg
 				}
-				gcAgg.CacheTokens += bd.CacheTokens
-				gcAgg.PromptTokens += bd.PromptTokens
+				gcAgg.addCache(bd)
 			}
 
 			if bucketTs > channelLatestBucket[ck] {
@@ -286,8 +308,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 	type groupAgg struct {
 		totalRequests  int64
 		totalSuccess   int64
-		totalCacheTok  int64
-		totalPromptTok int64
+		cache          bucketData
 		totalRespMs    int64
 		totalFRTMs     int64
 		totalFRTCount  int64
@@ -320,6 +341,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 		}
 
 		if cache, ok := channelCacheData[ck]; ok && cache.PromptTokens > 0 {
+			stat.CacheRequestCount, stat.CacheHitRequestCount = cache.cacheRequestCounts()
 			stat.CacheHitRate = float64(cache.CacheTokens) / float64(cache.PromptTokens) * 100
 			if stat.CacheHitRate > 100 {
 				stat.CacheHitRate = 100
@@ -358,8 +380,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 			ga.totalRequests += cr.avail.Total
 			ga.totalSuccess += cr.avail.Success
 			if cache, ok := channelCacheData[ck]; ok {
-				ga.totalCacheTok += cache.CacheTokens
-				ga.totalPromptTok += cache.PromptTokens
+				ga.cache.addCache(*cache)
 			}
 			ga.totalRespMs += cr.avail.RespTimeMs
 			ga.totalFRTMs += cr.avail.FRTSumMs
@@ -386,6 +407,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 			GroupRatio:     groupRatios[groupName],
 		}
 		if cache := groupHourlyCache[groupName]; cache != nil && cache.PromptTokens > 0 {
+			stat.CacheRequestCount1h, stat.CacheHitRequestCount1h = cache.cacheRequestCounts()
 			rate := min(100.0, max(0.0, float64(cache.CacheTokens)/float64(cache.PromptTokens)*100))
 			stat.CacheHitRate1h = &rate
 		}
@@ -396,8 +418,9 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 			stat.AvailabilityRate = -1
 		}
 
-		if ga.totalPromptTok > 0 {
-			stat.CacheHitRate = float64(ga.totalCacheTok) / float64(ga.totalPromptTok) * 100
+		stat.CacheRequestCount, stat.CacheHitRequestCount = ga.cache.cacheRequestCounts()
+		if ga.cache.PromptTokens > 0 {
+			stat.CacheHitRate = float64(ga.cache.CacheTokens) / float64(ga.cache.PromptTokens) * 100
 			if stat.CacheHitRate > 100 {
 				stat.CacheHitRate = 100
 			}
@@ -442,7 +465,9 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 					}
 				}
 				cacheRate := -1.0
+				var cacheRequests, cacheHits *int64
 				if gcData, ok := groupBucketCache[groupBucketKey{Group: groupName, BucketTs: bucketTs}]; ok {
+					cacheRequests, cacheHits = gcData.cacheRequestCounts()
 					if gcData.PromptTokens > 0 {
 						cacheRate = float64(gcData.CacheTokens) / float64(gcData.PromptTokens) * 100
 						if cacheRate > 100 {
@@ -451,12 +476,14 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 					}
 				}
 				_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
-					GroupName:        groupName,
-					AvailabilityRate: availRate,
-					CacheHitRate:     cacheRate,
-					AvgFRT:           frt,
-					RequestCount:     reqCount,
-					RecordedAt:       bucketTs,
+					GroupName:            groupName,
+					AvailabilityRate:     availRate,
+					CacheHitRate:         cacheRate,
+					CacheRequestCount:    cacheRequests,
+					CacheHitRequestCount: cacheHits,
+					AvgFRT:               frt,
+					RequestCount:         reqCount,
+					RecordedAt:           bucketTs,
 				})
 			}
 			continue
@@ -486,6 +513,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 		}
 
 		intervalCacheHitRate := -1.0
+		var intervalCacheRequests, intervalCacheHits *int64
 		var latestCacheBucketTs int64
 		for gcbk := range groupBucketCache {
 			if gcbk.Group == groupName && gcbk.BucketTs > latestCacheBucketTs {
@@ -494,6 +522,7 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 		}
 		if latestCacheBucketTs > 0 {
 			if gcData, ok := groupBucketCache[groupBucketKey{Group: groupName, BucketTs: latestCacheBucketTs}]; ok {
+				intervalCacheRequests, intervalCacheHits = gcData.cacheRequestCounts()
 				if gcData.PromptTokens > 0 {
 					intervalCacheHitRate = float64(gcData.CacheTokens) / float64(gcData.PromptTokens) * 100
 					if intervalCacheHitRate > 100 {
@@ -504,12 +533,14 @@ func runRedisAggregation(cfg operation_setting.GroupMonitoringSetting, rebuild b
 		}
 
 		_ = model.UpsertMonitoringHistory(&model.MonitoringHistory{
-			GroupName:        groupName,
-			AvailabilityRate: intervalAvailRate,
-			CacheHitRate:     intervalCacheHitRate,
-			AvgFRT:           intervalFRT,
-			RequestCount:     intervalReqCount,
-			RecordedAt:       (now / bucketSec) * bucketSec,
+			GroupName:            groupName,
+			AvailabilityRate:     intervalAvailRate,
+			CacheHitRate:         intervalCacheHitRate,
+			CacheRequestCount:    intervalCacheRequests,
+			CacheHitRequestCount: intervalCacheHits,
+			AvgFRT:               intervalFRT,
+			RequestCount:         intervalReqCount,
+			RecordedAt:           (now / bucketSec) * bucketSec,
 		})
 	}
 

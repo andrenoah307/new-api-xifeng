@@ -396,10 +396,12 @@ func GetPublicMonitoringGroupHistory(c *gin.Context) {
 	records := make([]gin.H, 0, len(history))
 	for _, h := range history {
 		records = append(records, gin.H{
-			"recorded_at":       h.RecordedAt,
-			"availability_rate": h.AvailabilityRate,
-			"cache_hit_rate":    h.CacheHitRate,
-			"avg_frt":           h.AvgFRT,
+			"recorded_at":             h.RecordedAt,
+			"availability_rate":       h.AvailabilityRate,
+			"cache_hit_rate":          h.CacheHitRate,
+			"cache_request_count":     h.CacheRequestCount,
+			"cache_hit_request_count": h.CacheHitRequestCount,
+			"avg_frt":                 h.AvgFRT,
 		})
 	}
 
@@ -414,15 +416,17 @@ func GetPublicMonitoringGroupHistory(c *gin.Context) {
 
 func desensitizeGroupStat(stat *model.GroupMonitoringStat) gin.H {
 	return gin.H{
-		"group_name":        stat.GroupName,
-		"availability_rate": stat.AvailabilityRate,
-		"cache_hit_rate":    stat.CacheHitRate,
-		"avg_response_time": stat.AvgResponseTime,
-		"avg_frt":           stat.AvgFRT,
-		"is_online":         stat.OnlineChannels > 0,
-		"group_ratio":       stat.GroupRatio,
-		"last_test_model":   stat.LastTestModel,
-		"updated_at":        stat.UpdatedAt,
+		"group_name":              stat.GroupName,
+		"availability_rate":       stat.AvailabilityRate,
+		"cache_hit_rate":          stat.CacheHitRate,
+		"cache_request_count":     stat.CacheRequestCount,
+		"cache_hit_request_count": stat.CacheHitRequestCount,
+		"avg_response_time":       stat.AvgResponseTime,
+		"avg_frt":                 stat.AvgFRT,
+		"is_online":               stat.OnlineChannels > 0,
+		"group_ratio":             stat.GroupRatio,
+		"last_test_model":         stat.LastTestModel,
+		"updated_at":              stat.UpdatedAt,
 	}
 }
 

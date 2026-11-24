@@ -8,44 +8,52 @@ import (
 )
 
 type ChannelMonitoringStat struct {
-	Id               int64   `json:"id" gorm:"primaryKey;autoIncrement"`
-	GroupName        string  `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_cms_group_channel"`
-	ChannelId        int     `json:"channel_id" gorm:"uniqueIndex:idx_cms_group_channel"`
-	ChannelName      string  `json:"channel_name" gorm:"-"`
-	ChannelStatus    int     `json:"channel_status" gorm:"-"`
-	AvailabilityRate float64 `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
-	CacheHitRate     float64 `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
-	AvgResponseTime  int     `json:"avg_response_time" gorm:"default:0"`
-	AvgFRT           int     `json:"avg_frt" gorm:"default:0"`
-	LastTestTime     int64   `json:"last_test_time" gorm:"bigint;default:0"`
-	LastTestModel    string  `json:"last_test_model" gorm:"type:varchar(255);default:''"`
-	IsOnline         bool    `json:"is_online" gorm:"default:false"`
-	UpdatedAt        int64   `json:"updated_at" gorm:"bigint"`
+	Id                   int64   `json:"id" gorm:"primaryKey;autoIncrement"`
+	GroupName            string  `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_cms_group_channel"`
+	ChannelId            int     `json:"channel_id" gorm:"uniqueIndex:idx_cms_group_channel"`
+	ChannelName          string  `json:"channel_name" gorm:"-"`
+	ChannelStatus        int     `json:"channel_status" gorm:"-"`
+	AvailabilityRate     float64 `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
+	CacheHitRate         float64 `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
+	CacheRequestCount    *int64  `json:"cache_request_count"`
+	CacheHitRequestCount *int64  `json:"cache_hit_request_count"`
+	AvgResponseTime      int     `json:"avg_response_time" gorm:"default:0"`
+	AvgFRT               int     `json:"avg_frt" gorm:"default:0"`
+	LastTestTime         int64   `json:"last_test_time" gorm:"bigint;default:0"`
+	LastTestModel        string  `json:"last_test_model" gorm:"type:varchar(255);default:''"`
+	IsOnline             bool    `json:"is_online" gorm:"default:false"`
+	UpdatedAt            int64   `json:"updated_at" gorm:"bigint"`
 }
 
 type GroupMonitoringStat struct {
-	Id               int64    `json:"id" gorm:"primaryKey;autoIncrement"`
-	GroupName        string   `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_gms_group"`
-	AvailabilityRate float64  `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
-	CacheHitRate     float64  `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
-	CacheHitRate1h   *float64 `json:"cache_hit_rate_1h" gorm:"column:cache_hit_rate_1h;type:decimal(8,4)"`
-	AvgResponseTime  int      `json:"avg_response_time" gorm:"default:0"`
-	AvgFRT           int      `json:"avg_frt" gorm:"default:0"`
-	OnlineChannels   int      `json:"online_channels" gorm:"default:0"`
-	TotalChannels    int      `json:"total_channels" gorm:"default:0"`
-	GroupRatio       float64  `json:"group_ratio" gorm:"type:decimal(10,4);default:1"`
-	LastTestModel    string   `json:"last_test_model" gorm:"type:varchar(255);default:''"`
-	UpdatedAt        int64    `json:"updated_at" gorm:"bigint"`
+	Id                     int64    `json:"id" gorm:"primaryKey;autoIncrement"`
+	GroupName              string   `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_gms_group"`
+	AvailabilityRate       float64  `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
+	CacheHitRate           float64  `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
+	CacheHitRate1h         *float64 `json:"cache_hit_rate_1h" gorm:"column:cache_hit_rate_1h;type:decimal(8,4)"`
+	CacheRequestCount      *int64   `json:"cache_request_count"`
+	CacheHitRequestCount   *int64   `json:"cache_hit_request_count"`
+	CacheRequestCount1h    *int64   `json:"cache_request_count_1h" gorm:"column:cache_request_count_1h"`
+	CacheHitRequestCount1h *int64   `json:"cache_hit_request_count_1h" gorm:"column:cache_hit_request_count_1h"`
+	AvgResponseTime        int      `json:"avg_response_time" gorm:"default:0"`
+	AvgFRT                 int      `json:"avg_frt" gorm:"default:0"`
+	OnlineChannels         int      `json:"online_channels" gorm:"default:0"`
+	TotalChannels          int      `json:"total_channels" gorm:"default:0"`
+	GroupRatio             float64  `json:"group_ratio" gorm:"type:decimal(10,4);default:1"`
+	LastTestModel          string   `json:"last_test_model" gorm:"type:varchar(255);default:''"`
+	UpdatedAt              int64    `json:"updated_at" gorm:"bigint"`
 }
 
 type MonitoringHistory struct {
-	Id               int64   `json:"id" gorm:"primaryKey;autoIncrement"`
-	GroupName        string  `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_mh_group_recorded"`
-	AvailabilityRate float64 `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
-	CacheHitRate     float64 `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
-	AvgFRT           int     `json:"avg_frt" gorm:"default:0"`
-	RequestCount     int     `json:"request_count" gorm:"default:0"`
-	RecordedAt       int64   `json:"recorded_at" gorm:"bigint;uniqueIndex:idx_mh_group_recorded;index:idx_mh_time"`
+	Id                   int64   `json:"id" gorm:"primaryKey;autoIncrement"`
+	GroupName            string  `json:"group_name" gorm:"type:varchar(64);uniqueIndex:idx_mh_group_recorded"`
+	AvailabilityRate     float64 `json:"availability_rate" gorm:"type:decimal(8,4);default:-1"`
+	CacheHitRate         float64 `json:"cache_hit_rate" gorm:"type:decimal(8,4);default:-1"`
+	CacheRequestCount    *int64  `json:"cache_request_count"`
+	CacheHitRequestCount *int64  `json:"cache_hit_request_count"`
+	AvgFRT               int     `json:"avg_frt" gorm:"default:0"`
+	RequestCount         int     `json:"request_count" gorm:"default:0"`
+	RecordedAt           int64   `json:"recorded_at" gorm:"bigint;uniqueIndex:idx_mh_group_recorded;index:idx_mh_time"`
 }
 
 func GetGroupMonitoringStatsByNames(names []string) ([]GroupMonitoringStat, error) {
@@ -153,11 +161,13 @@ func upsertChannelMonitoringStat(db *gorm.DB, stat *ChannelMonitoringStat) error
 		Columns: []clause.Column{{Name: "group_name"}, {Name: "channel_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"availability_rate", "cache_hit_rate", "avg_response_time", "avg_frt",
+			"cache_request_count", "cache_hit_request_count",
 			"last_test_time", "last_test_model", "is_online", "updated_at",
 		}),
 	}).Create(map[string]interface{}{
 		"group_name": stat.GroupName, "channel_id": stat.ChannelId,
 		"availability_rate": stat.AvailabilityRate, "cache_hit_rate": stat.CacheHitRate,
+		"cache_request_count": stat.CacheRequestCount, "cache_hit_request_count": stat.CacheHitRequestCount,
 		"avg_response_time": stat.AvgResponseTime, "avg_frt": stat.AvgFRT,
 		"last_test_time": stat.LastTestTime, "last_test_model": stat.LastTestModel,
 		"is_online": stat.IsOnline, "updated_at": stat.UpdatedAt,
@@ -170,12 +180,15 @@ func UpsertGroupMonitoringStat(stat *GroupMonitoringStat) error {
 		Columns: []clause.Column{{Name: "group_name"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"availability_rate", "cache_hit_rate", "cache_hit_rate_1h", "avg_response_time", "avg_frt",
+			"cache_request_count", "cache_hit_request_count", "cache_request_count_1h", "cache_hit_request_count_1h",
 			"online_channels", "total_channels", "group_ratio", "last_test_model", "updated_at",
 		}),
 	}).Create(map[string]interface{}{
 		"group_name":        stat.GroupName,
 		"availability_rate": stat.AvailabilityRate, "cache_hit_rate": stat.CacheHitRate,
-		"cache_hit_rate_1h": stat.CacheHitRate1h,
+		"cache_hit_rate_1h":   stat.CacheHitRate1h,
+		"cache_request_count": stat.CacheRequestCount, "cache_hit_request_count": stat.CacheHitRequestCount,
+		"cache_request_count_1h": stat.CacheRequestCount1h, "cache_hit_request_count_1h": stat.CacheHitRequestCount1h,
 		"avg_response_time": stat.AvgResponseTime, "avg_frt": stat.AvgFRT,
 		"online_channels": stat.OnlineChannels, "total_channels": stat.TotalChannels,
 		"group_ratio": stat.GroupRatio, "last_test_model": stat.LastTestModel, "updated_at": stat.UpdatedAt,
@@ -187,10 +200,12 @@ func UpsertMonitoringHistory(h *MonitoringHistory) error {
 		Columns: []clause.Column{{Name: "group_name"}, {Name: "recorded_at"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"availability_rate", "cache_hit_rate", "avg_frt", "request_count",
+			"cache_request_count", "cache_hit_request_count",
 		}),
 	}).Create(map[string]interface{}{
 		"group_name": h.GroupName, "availability_rate": h.AvailabilityRate,
 		"cache_hit_rate": h.CacheHitRate, "avg_frt": h.AvgFRT,
+		"cache_request_count": h.CacheRequestCount, "cache_hit_request_count": h.CacheHitRequestCount,
 		"request_count": h.RequestCount, "recorded_at": h.RecordedAt,
 	}).Error
 }

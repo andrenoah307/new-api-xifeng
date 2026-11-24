@@ -119,7 +119,12 @@ func TestMonitoringHourlyCacheRateAdminOnly(t *testing.T) {
 	saveMonitoringSettings(t)
 	configureMonitoringSettings(t, true, []string{"visible"}, false, false, nil)
 	rate := 0.0
-	require.NoError(t, db.Create(&model.GroupMonitoringStat{GroupName: "visible", CacheHitRate1h: &rate}).Error)
+	requests, hits := int64(10), int64(0)
+	require.NoError(t, db.Create(&model.GroupMonitoringStat{
+		GroupName: "visible", CacheHitRate1h: &rate,
+		CacheRequestCount: &requests, CacheHitRequestCount: &hits,
+		CacheRequestCount1h: &requests, CacheHitRequestCount1h: &hits,
+	}).Error)
 	for _, admin := range []bool{true, false} {
 		c, recorder := monitoringTestContext(http.MethodGet, "/", "", "")
 		if admin {
@@ -132,10 +137,16 @@ func TestMonitoringHourlyCacheRateAdminOnly(t *testing.T) {
 		rows := payload["data"].([]any)
 		require.Len(t, rows, 1)
 		row := rows[0].(map[string]any)
+		assert.Equal(t, 10.0, row["cache_request_count"])
+		assert.Equal(t, 0.0, row["cache_hit_request_count"])
 		if admin {
 			assert.Equal(t, 0.0, row["cache_hit_rate_1h"])
+			assert.Equal(t, 10.0, row["cache_request_count_1h"])
+			assert.Equal(t, 0.0, row["cache_hit_request_count_1h"])
 		} else {
 			assert.NotContains(t, row, "cache_hit_rate_1h")
+			assert.NotContains(t, row, "cache_request_count_1h")
+			assert.NotContains(t, row, "cache_hit_request_count_1h")
 		}
 	}
 }
@@ -170,13 +181,16 @@ func TestMonitoringHistoryPublicProjectionKeepsAdminFields(t *testing.T) {
 	db := setupMonitoringControllerTestDB(t, true)
 	saveMonitoringSettings(t)
 	configureMonitoringSettings(t, true, []string{"visible-group"}, false, true, nil)
+	requests, hits := int64(10), int64(8)
 	require.NoError(t, db.Create(&model.MonitoringHistory{
-		GroupName:        "visible-group",
-		AvailabilityRate: 0.91,
-		CacheHitRate:     0.73,
-		AvgFRT:           88,
-		RequestCount:     12,
-		RecordedAt:       time.Now().Unix(),
+		GroupName:            "visible-group",
+		AvailabilityRate:     0.91,
+		CacheHitRate:         0.73,
+		CacheRequestCount:    &requests,
+		CacheHitRequestCount: &hits,
+		AvgFRT:               88,
+		RequestCount:         12,
+		RecordedAt:           time.Now().Unix(),
 	}).Error)
 
 	publicContext, publicRecorder := monitoringTestContext(http.MethodGet, "/api/monitoring/public/groups/visible-group/history", "visible-group", "")
@@ -191,6 +205,8 @@ func TestMonitoringHistoryPublicProjectionKeepsAdminFields(t *testing.T) {
 	assert.Contains(t, publicRecord, "recorded_at")
 	assert.Contains(t, publicRecord, "availability_rate")
 	assert.Contains(t, publicRecord, "cache_hit_rate")
+	assert.Equal(t, float64(10), publicRecord["cache_request_count"])
+	assert.Equal(t, float64(8), publicRecord["cache_hit_request_count"])
 	assert.Contains(t, publicRecord, "avg_frt")
 	assert.NotContains(t, publicRecord, "id")
 	assert.NotContains(t, publicRecord, "group_name")

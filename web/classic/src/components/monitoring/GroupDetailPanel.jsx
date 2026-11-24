@@ -31,6 +31,7 @@ import { API, isAdmin, showError } from '../../helpers';
 import { useIsMobile } from '../../hooks/common/useIsMobile';
 import StatusTimeline from './StatusTimeline';
 import AvailabilityCacheChart from './AvailabilityCacheChart';
+import { withMonitoringCacheRates } from '../../../../shared/monitoring-cache.js';
 
 const { Text } = Typography;
 
@@ -105,7 +106,15 @@ const GroupDetailPanel = memo(({ visible, group, onClose }) => {
       admin
         ? API.get(`/api/monitoring/admin/groups/${encodeURIComponent(groupName)}`)
             .then((res) => {
-              if (res.data.success) setDetail(res.data.data);
+              if (res.data.success)
+                setDetail({
+                  ...withMonitoringCacheRates(res.data.data),
+                  channel_stats: (
+                    res.data.channel_stats ||
+                    res.data.data?.channel_stats ||
+                    []
+                  ).map(withMonitoringCacheRates),
+                });
               else showError(res.data.message || t('获取分组详情失败'));
             })
             .catch(() => showError(t('获取分组详情失败')))
@@ -116,7 +125,9 @@ const GroupDetailPanel = memo(({ visible, group, onClose }) => {
         .then((res) => {
           if (res.data.success) {
             const data = res.data.data;
-            setHistory(data?.history || data || []);
+            setHistory(
+              (data?.history || data || []).map(withMonitoringCacheRates),
+            );
             if (data?.aggregation_interval_minutes) {
               setIntervalMinutes(data.aggregation_interval_minutes);
             }
@@ -138,10 +149,9 @@ const GroupDetailPanel = memo(({ visible, group, onClose }) => {
       : null;
   const historyCacheRate = computeRateFromHistory(history, 'cache_hit_rate');
   const cacheRate =
-    historyCacheRate ??
-    (group?.cache_hit_rate != null && group.cache_hit_rate >= 0
+    group?.cache_hit_rate != null && group.cache_hit_rate >= 0
       ? group.cache_hit_rate
-      : null);
+      : historyCacheRate;
   const showCache = cacheRate != null && cacheRate >= 3;
 
   const channelColumns = useMemo(

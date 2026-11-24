@@ -128,6 +128,26 @@ func RecordMonitoringMetric(group string, channelId, userId int, isSuccess bool,
 				pipe.HIncrBy(ctx, key, "sapt", int64(promptTokens))
 			}
 		}
+		if isSuccess && promptTokens > 0 {
+			prefixes := []string{""}
+			if isStream {
+				prefixes = append(prefixes, "s")
+			}
+			if affinityHit {
+				prefixes = append(prefixes, "a")
+				if isStream {
+					prefixes = append(prefixes, "sa")
+				}
+			}
+			for _, prefix := range prefixes {
+				pipe.HIncrBy(ctx, key, prefix+"cr", 1)
+				if cacheTokens > 0 {
+					pipe.HIncrBy(ctx, key, prefix+"chr", 1)
+				}
+				// Detect old/new writers sharing a bucket before exposing request counts.
+				pipe.HIncrBy(ctx, key, prefix+"crpt", int64(promptTokens))
+			}
+		}
 	}
 
 	pipe.HIncrBy(ctx, key, "rt", int64(useTimeMs))
