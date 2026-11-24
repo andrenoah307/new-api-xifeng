@@ -455,6 +455,7 @@ func SetApiRouter(router *gin.Engine) {
 		}
 		logRoute := apiRouter.Group("/log")
 		logRoute.GET("/", middleware.AdminAuth(), middleware.LogQueryRateLimit(), controller.GetAllLogs)
+		logRoute.GET("/bot", middleware.BotSystemTokenAuth(), middleware.LogQueryRateLimit(), controller.GetBotLogs)
 		logRoute.GET("/finance/stat", middleware.AdminAuth(), middleware.LogQueryRateLimit(), controller.GetChannelFinanceStats)
 		logRoute.GET("/self/finance/stat", middleware.UserAuth(), middleware.LogQueryRateLimit(), controller.GetPersonalFinanceStats)
 		logRoute.GET("/finance/tasks", middleware.UserAuth(), controller.GetFinanceTasks)

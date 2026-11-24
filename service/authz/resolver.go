@@ -1,11 +1,18 @@
 package authz
 
-import "github.com/casbin/casbin/v2"
+import (
+	"github.com/QuantumNous/new-api/common"
+	"github.com/casbin/casbin/v2"
+)
 
 // Can reports whether the subject may perform the permission. A superuser role
 // short-circuits to allow. Otherwise a per-user override wins, then the union of
 // the subject's role baselines applies.
 func Can(userID int, systemRole int, permission Permission) bool {
+	// A former admin may retain per-user overrides after changing roles.
+	if systemRole == common.RoleBotUser && permission != LogsReadRedacted {
+		return false
+	}
 	roles := resolveSubjectRoles(userID, systemRole)
 	if len(roles) == 0 {
 		return false

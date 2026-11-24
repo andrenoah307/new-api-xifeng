@@ -5590,6 +5590,10 @@
     "Upstream Error Redaction": "Upstream Error Redaction",
     "Filter scope": "Filter scope",
     "Selected groups": "Selected groups",
-    "All groups": "All groups"
+    "All groups": "All groups",
+    "Bot": "Bot",
+    "Read redacted usage logs": "Read redacted usage logs",
+    "Read ordinary users' usage logs with a bot system access token.": "Read ordinary users' usage logs with a bot system access token.",
+    "Read redacted usage logs via system access token": "Read redacted usage logs via system access token"
   }
 }

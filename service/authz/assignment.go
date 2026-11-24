@@ -6,6 +6,8 @@ import "github.com/QuantumNous/new-api/common"
 // is derived from the caller's system role.
 var resolveSubjectRoles = func(userID int, systemRole int) []string {
 	switch {
+	case systemRole == common.RoleBotUser:
+		return []string{BuiltInRoleBot}
 	case systemRole >= common.RoleRootUser:
 		return []string{BuiltInRoleRoot}
 	case systemRole >= common.RoleAdminUser:

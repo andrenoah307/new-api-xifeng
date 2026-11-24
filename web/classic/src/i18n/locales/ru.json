@@ -5385,6 +5385,10 @@
     "Upstream Error Redaction": "Скрытие данных в ошибках провайдера",
     "Filter scope": "Область фильтра",
     "Selected groups": "Выбранные группы",
-    "All groups": "Все группы"
+    "All groups": "Все группы",
+    "Bot": "Бот",
+    "Read redacted usage logs": "Просмотр обезличенных журналов использования",
+    "Read ordinary users' usage logs with a bot system access token.": "Просмотр журналов обычных пользователей с системным токеном доступа бота.",
+    "Read redacted usage logs via system access token": "Просмотр обезличенных журналов через системный токен доступа"
   }
 }

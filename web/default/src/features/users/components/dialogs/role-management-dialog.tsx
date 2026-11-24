@@ -49,7 +49,7 @@ export function RoleManagementDialog({
   const isRootUser = user?.role === USER_ROLE.ROOT
 
   const roleOptions = useMemo(() => {
-    const all = [USER_ROLE.USER, USER_ROLE.STAFF, USER_ROLE.ADMIN, USER_ROLE.ROOT]
+    const all = [USER_ROLE.USER, USER_ROLE.BOT, USER_ROLE.STAFF, USER_ROLE.ADMIN, USER_ROLE.ROOT]
     return all.filter((r) => (myRole === USER_ROLE.ROOT ? true : r < myRole))
   }, [myRole])
 
@@ -89,7 +89,7 @@ export function RoleManagementDialog({
             </AlertDescription>
           </Alert>
         ) : (
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="text-sm">
               <span className="text-muted-foreground">{t('User')}：</span>
               <span className="font-medium">
@@ -113,16 +113,16 @@ export function RoleManagementDialog({
                   if (value != null) setTargetRole(value)
                 }}
               >
-                <SelectTrigger className="mt-1.5">
-                  <SelectValue />
+                <SelectTrigger className="mt-1.5 w-full min-w-0">
+                  <SelectValue>{t(ROLE_META[Number(targetRole)]?.labelKey ?? 'User')}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {roleOptions.map((r) => (
-                    <SelectItem key={r} value={String(r)}>
-                      <span className="flex items-center gap-2">
+                    <SelectItem key={r} value={String(r)} className="[&_[data-slot=select-item-text]]:min-w-0 [&_[data-slot=select-item-text]]:shrink">
+                      <span className="flex min-w-0 flex-col gap-1 whitespace-normal">
                         <span>{t(ROLE_META[r].labelKey)}</span>
                         <span className="text-muted-foreground text-xs">
-                          — {t(ROLE_META[r].descKey)}
+                          {t(ROLE_META[r].descKey)}
                         </span>
                       </span>
                     </SelectItem>

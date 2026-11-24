@@ -5331,6 +5331,10 @@
     "Upstream Error Redaction": "上流エラーの機密情報保護",
     "Filter scope": "適用範囲",
     "Selected groups": "指定グループ",
-    "All groups": "すべてのグループ"
+    "All groups": "すべてのグループ",
+    "Bot": "ボット",
+    "Read redacted usage logs": "機密情報を除いた利用ログを閲覧",
+    "Read ordinary users' usage logs with a bot system access token.": "ボットのシステムアクセストークンで一般ユーザーの利用ログを閲覧します。",
+    "Read redacted usage logs via system access token": "システムアクセストークンで機密情報を除いた利用ログを閲覧"
   }
 }

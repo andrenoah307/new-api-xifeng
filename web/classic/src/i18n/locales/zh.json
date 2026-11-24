@@ -3236,6 +3236,10 @@
     "Exclude requests without affinity hits from cache hit rate": "缓存率排除亲和未命中请求",
     "Filter scope": "生效范围",
     "Selected groups": "指定分组",
-    "All groups": "全部分组"
+    "All groups": "全部分组",
+    "Bot": "机器人",
+    "Read redacted usage logs": "查询脱敏使用日志",
+    "Read ordinary users' usage logs with a bot system access token.": "使用机器人系统访问令牌查询普通用户的脱敏使用日志。",
+    "Read redacted usage logs via system access token": "通过系统访问令牌查询脱敏使用日志"
   }
 }

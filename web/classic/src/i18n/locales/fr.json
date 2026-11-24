@@ -5364,6 +5364,10 @@
     "Upstream Error Redaction": "Masquage des erreurs en amont",
     "Filter scope": "Portée du filtre",
     "Selected groups": "Groupes sélectionnés",
-    "All groups": "Tous les groupes"
+    "All groups": "Tous les groupes",
+    "Bot": "Robot",
+    "Read redacted usage logs": "Consulter les journaux d’utilisation expurgés",
+    "Read ordinary users' usage logs with a bot system access token.": "Consulter les journaux d’utilisation des utilisateurs ordinaires avec le jeton d’accès système d’un robot.",
+    "Read redacted usage logs via system access token": "Consulter les journaux expurgés via un jeton d’accès système"
   }
 }

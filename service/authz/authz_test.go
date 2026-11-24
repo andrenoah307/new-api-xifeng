@@ -34,16 +34,20 @@ func TestInitSeedsBuiltInRolesAndPoliciesOnce(t *testing.T) {
 	require.NoError(t, Init(db))
 
 	// root is a superuser role and is granted everything implicitly, so only the
-	// admin baseline is written as explicit policy rows.
+	// admin and bot baselines are written as explicit policy rows.
 	var count int64
 	require.NoError(t, db.Model(&model.CasbinRule{}).Count(&count).Error)
-	assert.Equal(t, int64(len(PermissionsForRole(BuiltInRoleAdmin))), count)
+	assert.Equal(t, int64(len(PermissionsForRole(BuiltInRoleAdmin))+len(PermissionsForRole(BuiltInRoleBot))), count)
 
 	var roles []model.AuthzRole
 	require.NoError(t, db.Order("sort asc").Find(&roles).Error)
-	require.Len(t, roles, 2)
+	require.Len(t, roles, 3)
 	assert.Equal(t, BuiltInRoleRoot, roles[0].Key)
 	assert.Equal(t, BuiltInRoleAdmin, roles[1].Key)
+	assert.Equal(t, BuiltInRoleBot, roles[2].Key)
+	assert.True(t, Can(4, common.RoleBotUser, LogsReadRedacted))
+	assert.False(t, Can(4, common.RoleBotUser, ChannelRead))
+	assert.False(t, Can(3, common.RoleCommonUser, LogsReadRedacted))
 
 	assert.True(t, Can(1, common.RoleRootUser, ChannelSensitiveWrite))
 	assert.True(t, Can(2, common.RoleAdminUser, ChannelRead))
@@ -51,6 +55,16 @@ func TestInitSeedsBuiltInRolesAndPoliciesOnce(t *testing.T) {
 	assert.True(t, Can(2, common.RoleAdminUser, ChannelWrite))
 	assert.False(t, Can(2, common.RoleAdminUser, ChannelSensitiveWrite))
 	assert.False(t, Can(3, common.RoleCommonUser, ChannelRead))
+}
+
+func TestBotCannotInheritAdministrativeOverrides(t *testing.T) {
+	db := newAuthzTestDB(t)
+	require.NoError(t, Init(db))
+	require.NoError(t, SetUserPermissions(42, PermissionsMap{
+		ResourceChannel: {ActionSensitiveWrite: true},
+	}))
+	assert.True(t, Can(42, common.RoleAdminUser, ChannelSensitiveWrite))
+	assert.False(t, Can(42, common.RoleBotUser, ChannelSensitiveWrite))
 }
 
 func TestInitOnSlaveOnlyLoadsPolicies(t *testing.T) {
@@ -105,6 +119,7 @@ func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 			ActionSensitiveWrite: true,
 			ActionSecretView:     false,
 		},
+		"logs": {"read_redacted": false},
 	}, ExplicitUserPermissions(42))
 	assert.Equal(t, PermissionsMap{
 		ResourceChannel: {
@@ -133,6 +148,7 @@ func TestSetUserPermissionsStoresOnlyOverrides(t *testing.T) {
 			ActionSensitiveWrite: false,
 			ActionSecretView:     false,
 		},
+		"logs": {"read_redacted": false},
 	}, ExplicitUserPermissions(42))
 	assert.Empty(t, ExplicitUserOverrides(42))
 }

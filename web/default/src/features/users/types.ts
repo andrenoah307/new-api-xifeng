@@ -28,7 +28,7 @@ import type { AdminPermissionMatrix } from '@/lib/admin-permissions'
 export const userStatusSchema = z.number()
 export type UserStatus = z.infer<typeof userStatusSchema>
 
-/** User role: 1 = common user, 10 = admin, 100 = root */
+/** User role: 1 = common user, 2 = bot, 5 = staff, 10 = admin, 100 = root */
 export const userRoleSchema = z.number()
 export type UserRole = z.infer<typeof userRoleSchema>
 

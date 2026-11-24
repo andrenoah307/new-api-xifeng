@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { Headset, Shield, User, Users } from 'lucide-react'
+import { Bot, Headset, Shield, User, Users } from 'lucide-react'
 
 import type { User as UserType } from './types'
 
@@ -68,12 +68,18 @@ export const getUserStatusOptions = (t: (key: string) => string) => [
 
 export const USER_ROLE = {
   USER: 1,
+  BOT: 2,
   STAFF: 5,
   ADMIN: 10,
   ROOT: 100,
 } as const
 
 export const USER_ROLES = {
+  [USER_ROLE.BOT]: {
+    labelKey: 'Bot',
+    value: USER_ROLE.BOT,
+    icon: Bot,
+  },
   [USER_ROLE.USER]: {
     labelKey: 'User',
     value: USER_ROLE.USER,
@@ -98,12 +104,18 @@ export const USER_ROLES = {
 
 export const getUserRoleOptions = (t: (key: string) => string) => [
   { label: t('User'), value: String(USER_ROLE.USER), icon: User },
+  { label: t('Bot'), value: String(USER_ROLE.BOT), icon: Bot },
   { label: t('Staff'), value: String(USER_ROLE.STAFF), icon: Headset },
   { label: t('Admin'), value: String(USER_ROLE.ADMIN), icon: Users },
   { label: t('Root'), value: String(USER_ROLE.ROOT), icon: Shield },
 ]
 
 export const ROLE_META: Record<number, { labelKey: string; descKey: string; color: string }> = {
+  [USER_ROLE.BOT]: {
+    labelKey: 'Bot',
+    descKey: 'Read redacted usage logs via system access token',
+    color: 'green',
+  },
   [USER_ROLE.USER]: {
     labelKey: 'User',
     descKey: 'role_desc_user',

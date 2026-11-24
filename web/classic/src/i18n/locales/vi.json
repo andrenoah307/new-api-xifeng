@@ -5874,6 +5874,10 @@
     "Upstream Error Redaction": "Ẩn thông tin nhạy cảm trong lỗi thượng nguồn",
     "Filter scope": "Phạm vi bộ lọc",
     "Selected groups": "Nhóm được chọn",
-    "All groups": "Tất cả nhóm"
+    "All groups": "Tất cả nhóm",
+    "Bot": "Bot",
+    "Read redacted usage logs": "Xem nhật ký sử dụng đã ẩn thông tin nhạy cảm",
+    "Read ordinary users' usage logs with a bot system access token.": "Xem nhật ký sử dụng của người dùng thông thường bằng mã truy cập hệ thống của bot.",
+    "Read redacted usage logs via system access token": "Xem nhật ký đã ẩn thông tin nhạy cảm qua mã truy cập hệ thống"
   }
 }

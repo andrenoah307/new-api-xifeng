@@ -5343,6 +5343,10 @@
     "Upstream Error Redaction": "上游錯誤脫敏",
     "Filter scope": "生效範圍",
     "Selected groups": "指定群組",
-    "All groups": "全部群組"
+    "All groups": "全部群組",
+    "Bot": "機器人",
+    "Read redacted usage logs": "查詢去識別化使用日誌",
+    "Read ordinary users' usage logs with a bot system access token.": "使用機器人系統存取權杖查詢一般使用者的去識別化使用日誌。",
+    "Read redacted usage logs via system access token": "透過系統存取權杖查詢去識別化使用日誌"
   }
 }
