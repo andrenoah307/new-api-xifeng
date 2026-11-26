@@ -5782,6 +5782,9 @@
     "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "{{count}} 件のチケットを「{{status}}」に更新しますか？返金チケットを閉じると、審査待ちの返金はキャンセルされます。",
     "Ticket status updated": "チケットの状態を更新しました",
     "Clear selection": "選択を解除",
-    "Confirm Batch Update": "一括更新を確認"
+    "Confirm Batch Update": "一括更新を確認",
+    "Mark as read": "既読にする",
+    "Tickets marked as read": "チケットを既読にしました",
+    "Mark {{count}} selected tickets as read for the team?": "選択した {{count}} 件のチケットをチーム全体で既読にしますか？"
   }
 }

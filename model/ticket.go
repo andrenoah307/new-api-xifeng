@@ -730,6 +730,79 @@ type TicketStatusChange struct {
 	PreviousStatus int
 }
 
+// BatchMarkTicketsRead acknowledges a fixed snapshot of user messages. Replies
+// arriving after the snapshot remain unread, even while the batch awaits locks.
+func BatchMarkTicketsRead(ids []int, actorId, role int, unassignedTypes []string) (int, error) {
+	if len(ids) == 0 || len(ids) > MaxTicketStatusBatchSize {
+		return 0, ErrTicketInvalidStatus
+	}
+	if role < common.RoleCustomerServiceUser || actorId <= 0 {
+		return 0, ErrTicketForbidden
+	}
+	ids = append([]int(nil), ids...)
+	sort.Ints(ids)
+	if ids[0] <= 0 {
+		return 0, ErrTicketNotFound
+	}
+	var snapshots []struct {
+		TicketId  int
+		MessageId int
+	}
+	if err := DB.Model(&TicketMessage{}).Select("ticket_id, MAX(id) AS message_id").
+		Where("ticket_id IN ? AND role < ?", ids, common.RoleCustomerServiceUser).
+		Group("ticket_id").Scan(&snapshots).Error; err != nil {
+		return 0, err
+	}
+	watermarks := make(map[int]int, len(snapshots))
+	for _, snapshot := range snapshots {
+		watermarks[snapshot.TicketId] = snapshot.MessageId
+	}
+	updated := 0
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			if i > 0 && id == ids[i-1] {
+				continue
+			}
+			var ticket Ticket
+			if err := lockForUpdate(tx).First(&ticket, "id = ?", id).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return ErrTicketNotFound
+				}
+				return err
+			}
+			if !ticketStaffCanAccess(&ticket, actorId, role, unassignedTypes) {
+				return ErrTicketForbidden
+			}
+			messageId := watermarks[id]
+			result := tx.Model(&Ticket{}).Where("id = ? AND staff_read_message_id < ?", id, messageId).
+				UpdateColumn("staff_read_message_id", messageId)
+			if result.Error != nil {
+				return result.Error
+			}
+			updated += int(result.RowsAffected)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return updated, nil
+}
+
+func ticketStaffCanAccess(ticket *Ticket, actorId, role int, unassignedTypes []string) bool {
+	if role >= common.RoleAdminUser || ticket.AssigneeId == actorId {
+		return true
+	}
+	if ticket.AssigneeId == 0 {
+		for _, kind := range unassignedTypes {
+			if kind == ticket.Type {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // BatchUpdateTicketStatus shares the single-ticket transition, including refund
 // cancellation. Lock in ID order and authorize inside the transaction.
 func BatchUpdateTicketStatus(ids []int, actorId, role, status int, unassignedTypes []string) ([]TicketStatusChange, error) {
@@ -770,16 +843,7 @@ func BatchUpdateTicketStatus(ids []int, actorId, role, status int, unassignedTyp
 				}
 				return err
 			}
-			allowed := role >= common.RoleAdminUser || ticket.AssigneeId == actorId
-			if ticket.AssigneeId == 0 {
-				for _, kind := range unassignedTypes {
-					if kind == ticket.Type {
-						allowed = true
-						break
-					}
-				}
-			}
-			if !allowed {
+			if !ticketStaffCanAccess(&ticket, actorId, role, unassignedTypes) {
 				return ErrTicketForbidden
 			}
 			if ticket.Status == status {

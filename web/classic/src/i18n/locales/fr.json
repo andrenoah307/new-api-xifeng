@@ -5815,6 +5815,9 @@
     "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "Passer {{count}} tickets à « {{status}} » ? Fermer un ticket de remboursement annule le remboursement en attente.",
     "Ticket status updated": "État des tickets mis à jour",
     "Clear selection": "Effacer la sélection",
-    "Confirm Batch Update": "Confirmer la mise à jour groupée"
+    "Confirm Batch Update": "Confirmer la mise à jour groupée",
+    "Mark as read": "Marquer comme lu",
+    "Tickets marked as read": "Tickets marqués comme lus",
+    "Mark {{count}} selected tickets as read for the team?": "Marquer les {{count}} tickets sélectionnés comme lus pour l’équipe ?"
   }
 }

@@ -6,7 +6,7 @@ import {
   useReactTable,
   type RowSelectionState,
 } from '@tanstack/react-table'
-import { Download } from 'lucide-react'
+import { Download, MailOpen } from 'lucide-react'
 import { useMemo, useEffect, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -46,6 +46,7 @@ import { useAuthStore } from '@/stores/auth-store'
 
 import {
   batchUpdateTicketStatus,
+  batchMarkTicketsRead,
   getAdminTickets,
   getStaffList,
   type StaffUser,
@@ -85,14 +86,20 @@ function StaffTicketList() {
   const [batchStatus, setBatchStatus] = useState('2')
   const [confirmation, setConfirmation] = useState<{
     ids: number[]
-    status: number
+    status: number | 'read'
   } | null>(null)
   const batchMutation = useMutation({
-    mutationFn: (request: { ids: number[]; status: number }) =>
-      batchUpdateTicketStatus(request.ids, request.status),
-    onSuccess: (success) => {
+    mutationFn: (request: { ids: number[]; status: number | 'read' }) =>
+      request.status === 'read'
+        ? batchMarkTicketsRead(request.ids)
+        : batchUpdateTicketStatus(request.ids, request.status),
+    onSuccess: (success, request) => {
       if (!success) return
-      toast.success(t('Ticket status updated'))
+      toast.success(
+        request.status === 'read'
+          ? t('Tickets marked as read')
+          : t('Ticket status updated')
+      )
       setConfirmation(null)
       setRowSelection({})
       void queryClient.invalidateQueries({ queryKey: ticketQueryKeys.all })
@@ -408,6 +415,26 @@ function StaffTicketList() {
                 </Button>
                 <Button
                   size='sm'
+                  variant='outline'
+                  disabled={
+                    isFetching ||
+                    batchMutation.isPending ||
+                    table.getSelectedRowModel().rows.length > 100
+                  }
+                  onClick={() =>
+                    setConfirmation({
+                      ids: table
+                        .getSelectedRowModel()
+                        .rows.map((row) => row.original.id),
+                      status: 'read',
+                    })
+                  }
+                >
+                  <MailOpen className='size-4' aria-hidden />
+                  {t('Mark as read')}
+                </Button>
+                <Button
+                  size='sm'
                   variant='ghost'
                   disabled={batchMutation.isPending}
                   onClick={() => setRowSelection({})}
@@ -498,18 +525,28 @@ function StaffTicketList() {
         onOpenChange={(open) => {
           if (!open && !batchMutation.isPending) setConfirmation(null)
         }}
-        title={t('Confirm Batch Update')}
-        desc={t(
-          'Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.',
-          {
-            count: confirmation?.ids.length ?? 0,
-            status: t(
-              getStatusOptions(true).find(
-                (option) => Number(option.value) === confirmation?.status
-              )?.label ?? ''
-            ),
-          }
-        )}
+        title={
+          confirmation?.status === 'read'
+            ? t('Mark as read')
+            : t('Confirm Batch Update')
+        }
+        desc={
+          confirmation?.status === 'read'
+            ? t('Mark {{count}} selected tickets as read for the team?', {
+                count: confirmation.ids.length,
+              })
+            : t(
+                'Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.',
+                {
+                  count: confirmation?.ids.length ?? 0,
+                  status: t(
+                    getStatusOptions(true).find(
+                      (option) => Number(option.value) === confirmation?.status
+                    )?.label ?? ''
+                  ),
+                }
+              )
+        }
         isLoading={batchMutation.isPending}
         destructive={confirmation?.status === 4}
         handleConfirm={() => {

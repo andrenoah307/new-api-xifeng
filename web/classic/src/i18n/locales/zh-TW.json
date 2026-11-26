@@ -5794,6 +5794,9 @@
     "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "確認將 {{count}} 個工單更新為「{{status}}」？關閉退款工單將取消待審核退款。",
     "Ticket status updated": "工單狀態已更新",
     "Clear selection": "清空選擇",
-    "Confirm Batch Update": "確認批次更新"
+    "Confirm Batch Update": "確認批次更新",
+    "Mark as read": "設為已讀",
+    "Tickets marked as read": "工單已設為已讀",
+    "Mark {{count}} selected tickets as read for the team?": "將選取的 {{count}} 個工單設為團隊已讀？"
   }
 }

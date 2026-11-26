@@ -770,6 +770,27 @@ func UpdateTicketStatus(c *gin.Context) {
 	common.ApiSuccess(c, ticket)
 }
 
+func BatchMarkTicketsRead(c *gin.Context) {
+	var req struct {
+		IDs []int `json:"ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 || len(req.IDs) > model.MaxTicketStatusBatchSize {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	updated, err := model.BatchMarkTicketsRead(req.IDs, c.GetInt("id"), c.GetInt("role"), setting.TicketTypesForUser(c.GetInt("id")))
+	if err != nil {
+		if errors.Is(err, model.ErrTicketNotFound) || errors.Is(err, model.ErrTicketForbidden) {
+			handleTicketError(c, err)
+		} else {
+			common.SysError("batch ticket read update failed: " + err.Error())
+			common.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		}
+		return
+	}
+	common.ApiSuccess(c, gin.H{"updated": updated})
+}
+
 func BatchUpdateTicketStatus(c *gin.Context) {
 	var req struct {
 		IDs    []int `json:"ids"`

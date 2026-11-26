@@ -1,3 +1,21 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import React, {
   useCallback,
   useContext,
@@ -22,6 +40,7 @@ import {
   Typography,
 } from '@douyinfe/semi-ui';
 import { IconSearch, IconDownload } from '@douyinfe/semi-icons';
+import { MailOpen } from 'lucide-react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -576,16 +595,24 @@ const StaffTicketAdmin = () => {
     setBatchSaving(true);
     try {
       const res = await API.put(
-        '/api/ticket/admin/batch/status',
-        batchConfirmation,
+        batchConfirmation.status === 'read'
+          ? '/api/ticket/admin/batch/read'
+          : '/api/ticket/admin/batch/status',
+        batchConfirmation.status === 'read'
+          ? { ids: batchConfirmation.ids }
+          : batchConfirmation,
       );
       if (res.data?.success) {
-        showSuccess(t('工单状态已更新'));
+        showSuccess(
+          batchConfirmation.status === 'read'
+            ? t('Tickets marked as read')
+            : t('工单状态已更新'),
+        );
         setSelectedIds([]);
         setBatchConfirmation(null);
         await loadTickets();
       } else {
-        showError(res.data?.message || t('更新工单状态失败'));
+        showError(res.data?.message || t('请求失败'));
       }
     } catch {
       showError(t('请求失败'));
@@ -773,6 +800,18 @@ const StaffTicketAdmin = () => {
                   {t('Update selected tickets')}
                 </Button>
                 <Button
+                  icon={<MailOpen size={16} aria-hidden />}
+                  disabled={loading || batchSaving || selectedIds.length > 100}
+                  onClick={() =>
+                    setBatchConfirmation({
+                      ids: [...selectedIds],
+                      status: 'read',
+                    })
+                  }
+                >
+                  {t('Mark as read')}
+                </Button>
+                <Button
                   disabled={batchSaving}
                   onClick={() => setSelectedIds([])}
                 >
@@ -794,7 +833,11 @@ const StaffTicketAdmin = () => {
       />
       <Modal
         visible={batchConfirmation !== null}
-        title={t('Confirm Batch Update')}
+        title={
+          batchConfirmation?.status === 'read'
+            ? t('Mark as read')
+            : t('Confirm Batch Update')
+        }
         okText={t('确认')}
         cancelText={t('取消')}
         centered
@@ -809,16 +852,21 @@ const StaffTicketAdmin = () => {
         }}
         onOk={updateSelectedTickets}
       >
-        {t(
-          'Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.',
-          {
-            count: batchConfirmation?.ids.length ?? 0,
-            status:
-              getTicketStatusOptions(t).find(
-                (option) => Number(option.value) === batchConfirmation?.status,
-              )?.label ?? '',
-          },
-        )}
+        {batchConfirmation?.status === 'read'
+          ? t('Mark {{count}} selected tickets as read for the team?', {
+              count: batchConfirmation.ids.length,
+            })
+          : t(
+              'Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.',
+              {
+                count: batchConfirmation?.ids.length ?? 0,
+                status:
+                  getTicketStatusOptions(t).find(
+                    (option) =>
+                      Number(option.value) === batchConfirmation?.status,
+                  )?.label ?? '',
+              },
+            )}
       </Modal>
     </div>
   );

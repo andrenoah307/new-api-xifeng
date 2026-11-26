@@ -70,6 +70,44 @@ func TestInvoiceExportIncludesRemark(t *testing.T) {
 	assert.Equal(t, remark, items[0].(map[string]any)["remark"])
 }
 
+func TestBatchMarkTicketsReadAPI(t *testing.T) {
+	db := setupOptionControllerTest(t)
+	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketMessage{}))
+	ticket := model.Ticket{UserId: 1, AssigneeId: 2, Type: model.TicketTypeGeneral}
+	require.NoError(t, db.Create(&ticket).Error)
+	require.NoError(t, db.Create(&model.TicketMessage{TicketId: ticket.Id, Role: common.RoleCommonUser}).Error)
+	for _, tc := range []struct {
+		body        string
+		role, actor int
+		success     bool
+	}{
+		{`{"ids":[]}`, common.RoleAdminUser, 3, false},
+		{`{"ids":[1.5]}`, common.RoleAdminUser, 3, false},
+		{`{"ids":[1]}`, common.RoleCommonUser, 1, false},
+		{`{"ids":[1]}`, common.RoleCustomerServiceUser, 4, false},
+		{`{"ids":[1,9999]}`, common.RoleAdminUser, 3, false},
+		{`{"ids":[1,1]}`, common.RoleCustomerServiceUser, 2, true},
+	} {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Set("role", tc.role)
+		c.Set("id", tc.actor)
+		c.Request = httptest.NewRequest("PUT", "/batch/read", strings.NewReader(tc.body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		BatchMarkTicketsRead(c)
+		body := decodeBody(t, w)
+		require.Equal(t, tc.success, body["success"], tc.body)
+		var stored model.Ticket
+		require.NoError(t, db.First(&stored, ticket.Id).Error)
+		if tc.success {
+			assert.Equal(t, float64(1), body["data"].(map[string]any)["updated"])
+			assert.Positive(t, stored.StaffReadMessageId)
+		} else {
+			assert.Zero(t, stored.StaffReadMessageId)
+		}
+	}
+}
+
 func TestTicketStaffScopeAndBatchValidation(t *testing.T) {
 	db := setupOptionControllerTest(t)
 	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketMessage{}, &model.TicketInvoice{}, &model.TicketRefund{}, &model.InvoiceTaxCharge{}, &model.TopUp{}))

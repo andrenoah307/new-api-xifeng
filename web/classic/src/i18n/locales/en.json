@@ -6041,6 +6041,9 @@
     "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.",
     "Ticket status updated": "Ticket status updated",
     "Clear selection": "Clear selection",
-    "Confirm Batch Update": "Confirm Batch Update"
+    "Confirm Batch Update": "Confirm Batch Update",
+    "Mark as read": "Mark as read",
+    "Tickets marked as read": "Tickets marked as read",
+    "Mark {{count}} selected tickets as read for the team?": "Mark {{count}} selected tickets as read for the team?"
   }
 }

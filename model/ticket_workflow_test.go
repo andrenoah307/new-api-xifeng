@@ -6,6 +6,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func TestBatchTicketStatusAuthorizationAndRollback(t *testing.T) {
@@ -119,6 +120,74 @@ func TestTicketReadWatermarkIsMonotonic(t *testing.T) {
 	stored, err = GetTicketById(ticket.Id)
 	require.NoError(t, err)
 	assert.False(t, stored.HasUnreadMessages)
+}
+
+func TestBatchTicketReadAuthorizationAndLifecycle(t *testing.T) {
+	truncateTables(t)
+	first := Ticket{UserId: 1, AssigneeId: 2, Type: TicketTypeGeneral, Status: TicketStatusOpen, UpdatedTime: 100}
+	second := Ticket{UserId: 1, Type: TicketTypeInvoice, Status: TicketStatusClosed, UpdatedTime: 200}
+	require.NoError(t, DB.Create(&first).Error)
+	require.NoError(t, DB.Create(&second).Error)
+	for _, id := range []int{first.Id, second.Id} {
+		require.NoError(t, DB.Create(&TicketMessage{TicketId: id, Role: common.RoleCommonUser, CreatedTime: 100}).Error)
+	}
+	_, err := BatchMarkTicketsRead([]int{first.Id, second.Id}, 2, common.RoleCustomerServiceUser, []string{TicketTypeGeneral})
+	require.ErrorIs(t, err, ErrTicketForbidden)
+	stored, err := GetTicketById(first.Id)
+	require.NoError(t, err)
+	assert.True(t, stored.HasUnreadMessages)
+	_, err = BatchMarkTicketsRead([]int{first.Id, second.Id + 1000}, 4, common.RoleAdminUser, nil)
+	require.ErrorIs(t, err, ErrTicketNotFound)
+	stored, err = GetTicketById(first.Id)
+	require.NoError(t, err)
+	assert.True(t, stored.HasUnreadMessages)
+	updated, err := BatchMarkTicketsRead([]int{second.Id, first.Id, first.Id}, 2, common.RoleCustomerServiceUser, []string{TicketTypeInvoice})
+	require.NoError(t, err)
+	assert.Equal(t, 2, updated)
+	updated, err = BatchMarkTicketsRead([]int{first.Id, second.Id}, 4, common.RoleAdminUser, nil)
+	require.NoError(t, err)
+	assert.Zero(t, updated)
+	stored, err = GetTicketById(first.Id)
+	require.NoError(t, err)
+	assert.False(t, stored.HasUnreadMessages)
+	assert.Equal(t, first.Status, stored.Status)
+	assert.Equal(t, first.UpdatedTime, stored.UpdatedTime)
+	assert.Equal(t, first.AssigneeId, stored.AssigneeId)
+	require.NoError(t, DB.Create(&TicketMessage{TicketId: first.Id, Role: common.RoleCommonUser, CreatedTime: 100}).Error)
+	stored, err = GetTicketById(first.Id)
+	require.NoError(t, err)
+	assert.True(t, stored.HasUnreadMessages)
+	for _, ids := range [][]int{nil, make([]int, MaxTicketStatusBatchSize+1), {0}, {-1}} {
+		_, err := BatchMarkTicketsRead(ids, 4, common.RoleAdminUser, nil)
+		require.Error(t, err)
+	}
+	_, err = BatchMarkTicketsRead([]int{first.Id}, 1, common.RoleCommonUser, nil)
+	require.ErrorIs(t, err, ErrTicketForbidden)
+}
+
+func TestBatchTicketReadPreservesRepliesAfterSnapshot(t *testing.T) {
+	truncateTables(t)
+	ticket := Ticket{UserId: 1, Type: TicketTypeGeneral}
+	require.NoError(t, DB.Create(&ticket).Error)
+	first := TicketMessage{TicketId: ticket.Id, Role: common.RoleCommonUser, CreatedTime: 100}
+	require.NoError(t, DB.Create(&first).Error)
+	late := TicketMessage{TicketId: ticket.Id, Role: common.RoleCommonUser, CreatedTime: 100}
+	callback := "test_reply_during_batch_read"
+	// Insert a reply after the batch's message snapshot, before its ticket lock.
+	require.NoError(t, DB.Callback().Query().Before("gorm:query").Register(callback, func(tx *gorm.DB) {
+		if tx.Statement.Table == "tickets" && late.Id == 0 {
+			tx.AddError(tx.Session(&gorm.Session{NewDB: true}).Create(&late).Error)
+		}
+	}))
+	t.Cleanup(func() { require.NoError(t, DB.Callback().Query().Remove(callback)) })
+	updated, err := BatchMarkTicketsRead([]int{ticket.Id}, 4, common.RoleAdminUser, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, updated)
+	require.Positive(t, late.Id)
+	stored, err := GetTicketById(ticket.Id)
+	require.NoError(t, err)
+	assert.Equal(t, first.Id, stored.StaffReadMessageId)
+	assert.True(t, stored.HasUnreadMessages)
 }
 
 func TestBatchInvoiceClosureRollsBackTaxAndAudit(t *testing.T) {

@@ -415,6 +415,11 @@ export async function batchUpdateTicketStatus(
   return res.data?.success ?? false
 }
 
+export async function batchMarkTicketsRead(ids: number[]): Promise<boolean> {
+  const res = await api.put('/api/ticket/admin/batch/read', { ids })
+  return res.data?.success ?? false
+}
+
 export async function assignTicket(
   ticketId: number,
   assigneeId: number,

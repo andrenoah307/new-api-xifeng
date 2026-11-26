@@ -5836,6 +5836,9 @@
     "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "Установить статус «{{status}}» для {{count}} обращений? Закрытие обращения на возврат отменяет ожидающий возврат.",
     "Ticket status updated": "Статус обращений обновлён",
     "Clear selection": "Снять выделение",
-    "Confirm Batch Update": "Подтвердить массовое обновление"
+    "Confirm Batch Update": "Подтвердить массовое обновление",
+    "Mark as read": "Отметить прочитанными",
+    "Tickets marked as read": "Обращения отмечены прочитанными",
+    "Mark {{count}} selected tickets as read for the team?": "Отметить выбранные обращения ({{count}}) прочитанными для всей команды?"
   }
 }
