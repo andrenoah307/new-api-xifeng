@@ -11,7 +11,6 @@ import { useMemo, useEffect, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { useAuthStore } from '@/stores/auth-store'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   DataTableToolbar,
@@ -42,6 +41,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useMediaQuery } from '@/hooks'
 import { useIsAdmin } from '@/hooks/use-admin'
 import { useTableUrlState } from '@/hooks/use-table-url-state'
+import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
 import {
   batchUpdateTicketStatus,
@@ -58,7 +59,6 @@ import {
 import { ticketQueryKeys } from '../lib/ticket-actions'
 import { ExportInvoiceDialog } from './dialogs/export-invoice-dialog'
 import { FinanceRefundList } from './finance-refund-list'
-import { ROLE } from '@/lib/roles'
 
 const route = getRouteApi('/_authenticated/ticket-admin/')
 
@@ -308,14 +308,16 @@ function StaffTicketList() {
                     <Download className='mr-1.5 h-4 w-4' />
                     {t('Export Invoice')}
                   </Button>
-                {[3, 10, 100].includes(viewerRole ?? 0) && <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setReversalExportOpen(true)}
-                >
-                  <Download className="mr-1.5 h-4 w-4" />
-                  {t('Export Reversal Invoices')}
-                </Button>}
+                  {[3, 10, 100].includes(viewerRole ?? 0) && (
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      onClick={() => setReversalExportOpen(true)}
+                    >
+                      <Download className='mr-1.5 h-4 w-4' />
+                      {t('Export Reversal Invoices')}
+                    </Button>
+                  )}
                   <Select
                     value={search.unread || '__all__'}
                     onValueChange={(value) => {
@@ -412,7 +414,6 @@ function StaffTicketList() {
                 >
                   {t('Clear selection')}
                 </Button>
-
               </div>
             )}
             {isMobile && (
@@ -487,7 +488,11 @@ function StaffTicketList() {
         </SectionPageLayout.Content>
       </SectionPageLayout>
       <ExportInvoiceDialog open={exportOpen} onOpenChange={setExportOpen} />
-      <ExportInvoiceDialog refund open={reversalExportOpen} onOpenChange={setReversalExportOpen} />
+      <ExportInvoiceDialog
+        refund
+        open={reversalExportOpen}
+        onOpenChange={setReversalExportOpen}
+      />
       <ConfirmDialog
         open={confirmation !== null}
         onOpenChange={(open) => {

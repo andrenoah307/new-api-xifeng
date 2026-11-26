@@ -35,6 +35,7 @@ import { CompactDateTimeRangePicker } from '@/features/usage-logs/components/com
 import { useStatus } from '@/hooks/use-status'
 import { formatTimestampToDate } from '@/lib/format'
 
+import { generateFinanceInvoiceCSV as generateInvoiceCSV } from '../../../../../../shared/invoice-csv.js'
 import { getInvoiceExportList, type InvoiceExportItem } from '../../api'
 import { TICKET_STATUS_CONFIG } from '../../constants'
 
@@ -47,95 +48,6 @@ const TICKET_STATUS_OPTIONS = [
 ]
 
 const PAGE_SIZE = 20
-
-function csvField(value: string | number): string {
-  const raw = String(value ?? '')
-  const s = raw !== '-' && /^[\s]*[=+@-]/.test(raw) ? `'${raw}` : raw
-  if (
-    s.includes(',') ||
-    s.includes('"') ||
-    s.includes('\n') ||
-    s.includes('\r')
-  ) {
-    return `"${s.replaceAll('"', '""')}"`
-  }
-  return s
-}
-
-function generateInvoiceCSV(
-  items: InvoiceExportItem[],
-  serviceName: string,
-  refund = false
-): string {
-  const BOM = '﻿'
-  const headers = [
-    '工单ID',
-    '电子邮箱',
-    '数量',
-    '单价',
-    '金额合计',
-    '公司信息',
-    '应税服务名称',
-    '发票类型',
-    '发票税率(%)',
-    '开票方（公账名称）',
-  ]
-  if (refund) {
-    headers.splice(6, 1)
-    headers.push('关联充值订单号', '发票类型（红字/蓝字）')
-  }
-  const lines = [headers.map(csvField).join(',')]
-  for (const item of refund
-    ? items.flatMap((i) =>
-        (i.correction_rows ?? []).map((row) => ({
-          ...row,
-          ticket_id: i.ticket_id,
-        }))
-      )
-    : items) {
-    const companyInfo = item.tax_number
-      ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
-      : item.company_name
-    const issuers = item.issuer_amounts?.length
-      ? item.issuer_amounts
-      : [
-          {
-            account_name: '-',
-            amount_cents: Math.round(item.total_money * 100),
-          },
-        ]
-    for (const issuer of issuers) {
-      const row = [
-        item.ticket_id,
-        item.email,
-        '',
-        '',
-        (issuer.amount_cents / 100).toFixed(2),
-        companyInfo,
-        serviceName,
-        (
-          { special: '增值税专用发票', ordinary: '增值税普通发票' } as Record<
-            string,
-            string
-          >
-        )[item.invoice_type ?? ''] ?? '',
-        item.tax_rate_bps == null ? '' : item.tax_rate_bps / 100,
-        issuer.account_name,
-      ]
-      if (refund) {
-        row.splice(6, 1)
-        row.push(
-          (item.order_numbers ?? []).join(';'),
-          item.invoice_color === 'red'
-            ? '红字发票（需冲红）'
-            : '蓝字发票（需重开）'
-        )
-      }
-      lines.push(row.map(csvField).join(','))
-    }
-  }
-  return `${BOM}${lines.join('\r\n')}`
-}
 
 function downloadCSV(csv: string, filename: string) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })

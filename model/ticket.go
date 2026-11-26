@@ -2,8 +2,8 @@ package model
 
 import (
 	"errors"
-	"sort"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -51,6 +51,7 @@ var (
 
 type Ticket struct {
 	cancelledRefundQuota int
+	refundedInvoiceQuota int
 	Id                   int    `json:"id"`
 	UserId               int    `json:"user_id" gorm:"index;not null"`
 	Username             string `json:"username" gorm:"type:varchar(64)"`
@@ -589,7 +590,6 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 	if err != nil {
 		return nil, err
 	}
-	publishTicketRefundCancellation(&ticket)
 	if refundedQuota > 0 {
 		syncInvoiceTaxQuotaCache(ticket.UserId, refundedQuota)
 		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, refundedQuota))
@@ -605,7 +605,7 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (*Ticket, int, error) {
 	ticket, previous, err := updateTicketStatus(DB, ticketId, adminId, status, priority)
 	if err == nil {
-		publishTicketRefundCancellation(ticket)
+		publishTicketStatusChange(ticket, previous, adminId)
 	}
 	return ticket, previous, err
 }
@@ -679,7 +679,7 @@ func updateTicketStatus(db *gorm.DB, ticketId int, adminId int, status *int, pri
 					if err := tx.Select("id", "role").First(&actor, adminId).Error; err != nil {
 						return err
 					}
-					quota, err := CancelPendingRefund(tx, ticket.Id, ticket.UserId, actor.Role >= common.RoleAdminUser)
+					quota, err := cancelPendingRefund(tx, ticket.Id, ticket.UserId, actor.Role >= common.RoleAdminUser)
 					if err != nil {
 						return err
 					}
@@ -704,17 +704,23 @@ func updateTicketStatus(db *gorm.DB, ticketId int, adminId int, status *int, pri
 	if err != nil {
 		return nil, 0, err
 	}
-	if refundedQuota > 0 {
-		syncInvoiceTaxQuotaCache(ticket.UserId, refundedQuota)
-		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, refundedQuota))
+	ticket.refundedInvoiceQuota = refundedQuota
+	return &ticket, prevStatus, nil
+}
+
+// Cache and audit effects must wait for the outermost transaction to commit.
+func publishTicketStatusChange(ticket *Ticket, previousStatus, actorId int) {
+	if ticket.refundedInvoiceQuota > 0 {
+		syncInvoiceTaxQuotaCache(ticket.UserId, ticket.refundedInvoiceQuota)
+		RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("Invoice tax refunded on ticket closure: ticket %d, quota %d", ticket.Id, ticket.refundedInvoiceQuota))
 	}
 	if ticket.Type == TicketTypeRefund {
 		_ = InvalidateUserCache(ticket.UserId)
-		if ticket.Status == TicketStatusClosed && prevStatus != TicketStatusClosed {
-			RecordLogWithAdminInfo(ticket.UserId, LogTypeManage, "Refund ticket closed by administrator", map[string]interface{}{"admin_id": adminId, "ticket_id": ticket.Id})
+		if ticket.Status == TicketStatusClosed && previousStatus != TicketStatusClosed {
+			RecordLogWithAdminInfo(ticket.UserId, LogTypeManage, "Refund ticket closed by administrator", map[string]interface{}{"admin_id": actorId, "ticket_id": ticket.Id})
 		}
 	}
-	return &ticket, prevStatus, nil
+	publishTicketRefundCancellation(ticket)
 }
 
 const MaxTicketStatusBatchSize = 100
@@ -737,6 +743,19 @@ func BatchUpdateTicketStatus(ids []int, actorId, role, status int, unassignedTyp
 	sort.Ints(ids)
 	changes := make([]TicketStatusChange, 0, len(ids))
 	err := DB.Transaction(func(tx *gorm.DB) error {
+		// Finance operations lock owners before tickets. Lock all owners in a
+		// stable order before transitioning any ticket in this batch.
+		var ownerIds []int
+		if err := tx.Model(&Ticket{}).Where("id IN ?", ids).Distinct().Pluck("user_id", &ownerIds).Error; err != nil {
+			return err
+		}
+		sort.Ints(ownerIds)
+		for _, ownerId := range ownerIds {
+			var owner User
+			if err := lockForUpdate(tx).Select("id").First(&owner, ownerId).Error; err != nil {
+				return err
+			}
+		}
 		for i, id := range ids {
 			if id <= 0 {
 				return ErrTicketNotFound
@@ -778,7 +797,7 @@ func BatchUpdateTicketStatus(ids []int, actorId, role, status int, unassignedTyp
 		return nil, err
 	}
 	for _, change := range changes {
-		publishTicketRefundCancellation(change.Ticket)
+		publishTicketStatusChange(change.Ticket, change.PreviousStatus, actorId)
 	}
 	return changes, nil
 }

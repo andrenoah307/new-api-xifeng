@@ -784,7 +784,7 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 }
 
 type InvoiceExportItem struct {
-	Remark string `json:"remark" gorm:"column:remark"`
+	Remark              string                `json:"remark" gorm:"column:remark"`
 	IssuerAmounts       []InvoiceIssuerAmount `json:"issuer_amounts" gorm:"-"`
 	UserId              int                   `json:"-"`
 	PaymentRoutingNotes string                `json:"payment_routing_notes" gorm:"-"`

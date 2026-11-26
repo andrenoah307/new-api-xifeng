@@ -52,17 +52,19 @@ func TestTicketUnreadLifecycle(t *testing.T) {
 
 func TestInvoiceExportIncludesRemark(t *testing.T) {
 	db := setupOptionControllerTest(t)
-	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketInvoice{}))
+	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketInvoice{}, &model.InvoiceTaxCharge{}, &model.TopUp{}))
 	ticket := model.Ticket{UserId: 1, Subject: "Invoice", Type: model.TicketTypeInvoice}
 	require.NoError(t, db.Create(&ticket).Error)
 	remark := "Line one, \"quoted\"\nLine two"
-	require.NoError(t, db.Create(&model.TicketInvoice{TicketId: ticket.Id, UserId: 1, Remark: remark}).Error)
+	require.NoError(t, db.Create(&model.TicketInvoice{TicketId: ticket.Id, UserId: 1, Remark: remark, TotalMoney: 100, InvoiceStatus: model.InvoiceStatusIssued}).Error)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Set("role", common.RoleAdminUser)
 	c.Request = httptest.NewRequest("GET", "/", nil)
 	GetInvoiceExportList(c)
-	data := decodeBody(t, w)["data"].(map[string]any)
+	body := decodeBody(t, w)
+	require.Equal(t, true, body["success"], body)
+	data := body["data"].(map[string]any)
 	items := data["items"].([]any)
 	require.Len(t, items, 1)
 	assert.Equal(t, remark, items[0].(map[string]any)["remark"])
@@ -70,7 +72,8 @@ func TestInvoiceExportIncludesRemark(t *testing.T) {
 
 func TestTicketStaffScopeAndBatchValidation(t *testing.T) {
 	db := setupOptionControllerTest(t)
-	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketMessage{}, &model.TicketInvoice{}, &model.TicketRefund{}))
+	require.NoError(t, db.AutoMigrate(&model.Ticket{}, &model.TicketMessage{}, &model.TicketInvoice{}, &model.TicketRefund{}, &model.InvoiceTaxCharge{}, &model.TopUp{}))
+	require.NoError(t, db.Create(&model.User{Id: 1, Username: "ticket-owner", AffCode: "ticket-owner", Role: common.RoleCommonUser}).Error)
 	oldConfig := setting.TicketAssignConfig2JSONString()
 	t.Cleanup(func() { require.NoError(t, setting.UpdateTicketAssignConfigFromJSON(oldConfig)) })
 	require.NoError(t, setting.UpdateTicketAssignConfigFromJSON(`{"enabled":true,"rules":{"general":{"users":[2]}}}`))

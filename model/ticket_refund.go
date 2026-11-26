@@ -807,7 +807,12 @@ func applyRefundWalletDeltaTx(tx *gorm.DB, userId, delta int) error {
 // CancelPendingRefund 取消指定工单的待审核退款，将冻结额度退还给用户。
 // 仅当 refund_status == RefundStatusPending 时生效；CAS 保证幂等，并发安全。
 // 仅供管理端关闭退款工单；用户关闭流程不得调用此资金释放函数。
-func CancelPendingRefund(tx *gorm.DB, ticketId, userId int, cancelUnissued ...bool) (int, error) {
+func CancelPendingRefund(tx *gorm.DB, ticketId, userId int, cancelUnissued ...bool) error {
+	_, err := cancelPendingRefund(tx, ticketId, userId, cancelUnissued...)
+	return err
+}
+
+func cancelPendingRefund(tx *gorm.DB, ticketId, userId int, cancelUnissued ...bool) (int, error) {
 	var user User
 	if err := lockForUpdate(tx).Select("id").First(&user, userId).Error; err != nil {
 		return 0, err

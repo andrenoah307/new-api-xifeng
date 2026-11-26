@@ -11,11 +11,7 @@ import { getCurrencyDisplay } from '@/lib/currency'
 import { formatTimestampToDate } from '@/lib/format'
 
 import type { Ticket, StaffUser } from '../api'
-import {
-  roleBadgeVariant,
-  roleBadgeLabel,
-  canClose,
-} from '../constants'
+import { roleBadgeVariant, roleBadgeLabel, canClose } from '../constants'
 import {
   TicketStatusBadge,
   TicketPriorityBadge,
@@ -227,7 +223,16 @@ export function useTicketColumns(opts: {
         header: t('Actions'),
         size: 100,
         cell: ({ row }) => {
-          if (!canClose(row.original.status, row.original.type, row.original.refund_status, row.original.frozen_quota)) return null
+          if (
+            !canClose(
+              row.original.status,
+              row.original.type,
+              row.original.refund_status,
+              row.original.frozen_quota
+            )
+          ) {
+            return null
+          }
           return (
             <Button
               variant='ghost'

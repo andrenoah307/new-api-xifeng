@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import { UserContext } from '../../context/User';
 import FinanceRefundList from '../../components/ticket/FinanceRefundList';
 import {
@@ -731,7 +737,14 @@ const StaffTicketAdmin = () => {
                 >
                   {t('导出发票')}
                 </Button>
-                {viewerIsAdmin && <Button icon={<IconDownload />} onClick={() => setReversalExportOpen(true)}>{t('Export Reversal Invoices')}</Button>}
+                {viewerIsAdmin && (
+                  <Button
+                    icon={<IconDownload />}
+                    onClick={() => setReversalExportOpen(true)}
+                  >
+                    {t('Export Reversal Invoices')}
+                  </Button>
+                )}
               </Space>
             </div>
             {selectedIds.length > 0 && (
@@ -774,7 +787,11 @@ const StaffTicketAdmin = () => {
         visible={exportOpen}
         onClose={() => setExportOpen(false)}
       />
-      <ExportInvoiceDialog refund visible={reversalExportOpen} onClose={() => setReversalExportOpen(false)} />
+      <ExportInvoiceDialog
+        refund
+        visible={reversalExportOpen}
+        onClose={() => setReversalExportOpen(false)}
+      />
       <Modal
         visible={batchConfirmation !== null}
         title={t('Confirm Batch Update')}
