@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -527,6 +528,9 @@ func inviteUser(inviterId int, inviteeId int) error {
 }
 
 func (user *User) TransferAffQuotaToQuota(quota int) error {
+	if quota <= 0 {
+		return ErrRefundFinanceReview
+	}
 	minQuota := common.MinTransferAmount * common.QuotaPerUnit
 	if float64(quota) < minQuota {
 		return fmt.Errorf("转移额度最小为%s！", logger.LogQuota(int(minQuota)))
@@ -554,6 +558,9 @@ func (user *User) TransferAffQuotaToQuota(quota int) error {
 
 	if user.AffQuota < quota {
 		return errors.New("邀请额度不足！")
+	}
+	if user.Quota > math.MaxInt-quota {
+		return ErrRefundFinanceReview
 	}
 
 	user.AffQuota -= quota

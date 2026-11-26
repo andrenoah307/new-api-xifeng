@@ -95,7 +95,7 @@ type RefundReconciliationReport struct {
 }
 
 func applyFinancePaymentEvidence(orders []TopUp, plan FinanceReconciliationPlan) (int64, error) {
-	if plan.NoncashGrantQuota < 0 || plan.NoncashGrantQuota > math.MaxInt32 {
+	if plan.NoncashGrantQuota < 0 {
 		return 0, ErrFinanceEvidence
 	}
 	index := map[int]int{}

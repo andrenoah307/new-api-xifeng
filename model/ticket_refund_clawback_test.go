@@ -14,7 +14,7 @@ import (
 )
 
 func TestRefundClawbackWalletBoundsAndRollback(t *testing.T) {
-	for _, balance := range []int{2000, -100, math.MinInt32} {
+	for _, balance := range []int{2000, -100, math.MinInt32, math.MinInt} {
 		t.Run(fmt.Sprint(balance), func(t *testing.T) {
 			truncateTables(t)
 			fx := seedClawbackScenario(t, 0, 5000, 5000, 100, 1000)
@@ -27,7 +27,7 @@ func TestRefundClawbackWalletBoundsAndRollback(t *testing.T) {
 			_, err = runHistoricalClawback(t, fx.ticketId, 5000)
 			var inviter User
 			require.NoError(t, DB.First(&inviter, fx.inviterId).Error)
-			if balance == math.MinInt32 {
+			if balance == math.MinInt {
 				require.ErrorIs(t, err, ErrRefundFinanceReview)
 				assert.Equal(t, balance, inviter.Quota)
 				assert.Equal(t, 5000, inviter.AffHistoryQuota)

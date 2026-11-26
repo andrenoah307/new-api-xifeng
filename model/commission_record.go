@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/shopspring/decimal"
 
 	"gorm.io/gorm"
 )
@@ -60,8 +61,15 @@ func GrantTopUpCommission(topUp *TopUp, isManual bool) {
 	if topUp.CheckoutVersion == 1 {
 		commissionBase = float64(topUp.PaymentTotalCents) / 100
 	}
-	commissionMoney := commissionBase * (rate / 100)
-	commissionQuota, err := common.QuotaRoundStrict(commissionMoney * common.QuotaPerUnit)
+	if math.IsNaN(commissionBase) || math.IsInf(commissionBase, 0) || commissionBase <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
+		common.SysError("grant commission invalid amount or rate")
+		return
+	}
+	base := decimal.NewFromFloat(commissionBase)
+	if topUp.CheckoutVersion == 1 {
+		base = decimal.NewFromInt(topUp.PaymentTotalCents).Div(decimal.NewFromInt(100))
+	}
+	commissionQuota, err := common.WalletQuotaFromDecimal(base.Mul(decimal.NewFromFloat(rate)).Div(decimal.NewFromInt(100)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Round(0))
 	if err != nil {
 		common.SysError("grant commission quota invalid: topup_id=" +
 			strconv.Itoa(topUp.Id) + " err=" + err.Error())
@@ -86,11 +94,15 @@ func GrantTopUpCommission(topUp *TopUp, isManual bool) {
 		if err := tx.Create(record).Error; err != nil {
 			return err
 		}
-		if err := tx.Model(&User{}).Where("id = ?", user.InviterId).Updates(map[string]interface{}{
+		result := tx.Model(&User{}).Where("id = ? AND aff_quota <= ? AND aff_history <= ?", user.InviterId, math.MaxInt-commissionQuota, math.MaxInt-commissionQuota).Updates(map[string]interface{}{
 			"aff_quota":   gorm.Expr("aff_quota + ?", commissionQuota),
 			"aff_history": gorm.Expr("aff_history + ?", commissionQuota),
-		}).Error; err != nil {
-			return err
+		})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrRefundFinanceReview
 		}
 		return nil
 	})
@@ -149,10 +161,12 @@ func GetTransferableAffQuota(userId int, affQuota int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	transferable := int64(affQuota) - recentTopUp - recentInvite
-	if transferable < 0 {
-		transferable = 0
+	if recentTopUp < 0 || recentInvite < 0 {
+		return 0, ErrRefundFinanceReview
 	}
+	transferable := max(int64(0), int64(affQuota))
+	transferable = max(int64(0), transferable-recentTopUp)
+	transferable = max(int64(0), transferable-recentInvite)
 	return int(transferable), nil
 }
 
@@ -262,12 +276,12 @@ func refundCommissionQuotaTx(tx *gorm.DB, refund *TicketRefund) (int, error) {
 			return 0, ErrRefundFinanceReview
 		}
 		delta := refundProportionalCents(granted, prior+allocation.RefundCents, allocation.OriginalPaidCents) - refundProportionalCents(granted, prior, allocation.OriginalPaidCents)
-		if delta < 0 || delta > int64(common.MaxQuota)-total {
+		if delta < 0 || delta > int64(math.MaxInt)-total {
 			return 0, ErrRefundFinanceReview
 		}
 		total += delta
 	}
-	return common.QuotaFromFloatStrict(float64(total))
+	return int(total), nil
 }
 
 // CommissionClawbackResult 描述退款结算时实际执行的返佣扣回。
@@ -323,14 +337,11 @@ func applyCommissionClawback(tx *gorm.DB, refund *TicketRefund, requested int) (
 	if actual64 <= 0 {
 		return result, nil
 	}
-	actual, err := common.QuotaFromFloatStrict(float64(actual64))
-	if err != nil {
-		return nil, err
-	}
+	actual := int(actual64) // bounded by the requested int and recorded history
 
 	affDebit := min(actual, max(0, inviter.AffQuota))
 	walletDebit := actual - affDebit
-	if int64(inviter.Quota)-int64(walletDebit) < math.MinInt32 {
+	if inviter.Quota < math.MinInt+walletDebit {
 		return nil, ErrRefundFinanceReview
 	}
 	// Match all observed balances so a concurrent transfer cannot be overwritten.

@@ -213,6 +213,11 @@ func TestRefundFinanceSQLTransactions(t *testing.T) {
 			t.Run("calculation_method_guards", TestRefundCalculationMethodCannotBypassTaskOrRevision)
 			t.Run("calculation_method_referral", TestRefundCalculationMethodPreservesReferralWithoutArtificialDebt)
 			t.Run("referral_real_debt", TestRefundReferralGraceStillRequiresConsentForRealDebt)
+			t.Run("large_refund", TestLargeOriginalRefundLifecycle)
+			t.Run("large_tax", TestLargeInvoiceTaxPaymentAndRefund)
+			t.Run("large_commission", TestLargeCommissionGrantAndClawback)
+			t.Run("large_credit", TestLargePaymentCreditAndBonusRollback)
+			t.Run("balance_overflow", TestFinancialBalanceOverflowDoesNotMutateLedger)
 		})
 	}
 }

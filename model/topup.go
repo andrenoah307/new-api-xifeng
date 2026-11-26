@@ -186,7 +186,13 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		}
 		topUp.CompleteTime = common.GetTimestamp()
 		topUp.Status = common.TopUpStatusSuccess
-		quotaToAdd = common.QuotaFromDecimal(decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)))
+		if math.IsNaN(topUp.Money) || math.IsInf(topUp.Money, 0) || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
+			return ErrInvoiceTaxInvalid
+		}
+		quotaToAdd, err = common.RechargeQuotaFromDecimal(decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)))
+		if err != nil {
+			return err
+		}
 		topUp.QuotaGranted = int64(quotaToAdd)
 		if err := tx.Save(topUp).Error; err != nil {
 			return err
@@ -195,9 +201,15 @@ func Recharge(referenceId string, customerId string, callerIp string) (err error
 		if err != nil {
 			return err
 		}
-		err = tx.Model(&User{}).Where("id = ?", topUp.UserId).Updates(map[string]interface{}{"stripe_customer": customerId, "quota": gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus))}).Error
-		if err != nil {
-			return err
+		if bonus < 0 || quotaToAdd > math.MaxInt-bonus {
+			return ErrInvoiceTaxInvalid
+		}
+		result := tx.Model(&User{}).Where("id = ? AND quota <= ?", topUp.UserId, math.MaxInt-quotaToAdd-bonus).Updates(map[string]interface{}{"stripe_customer": customerId, "quota": gorm.Expr("quota + ?", quotaToAdd+bonus)})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrInvoiceTaxInvalid
 		}
 
 		return nil
@@ -796,13 +808,16 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 			return errors.New("充值订单状态错误")
 		}
 
+		if math.IsNaN(topUp.Money) || math.IsInf(topUp.Money, 0) || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
+			return ErrInvoiceTaxInvalid
+		}
 		dQuotaPerUnit := decimal.NewFromFloat(common.QuotaPerUnit)
 		if topUp.DiscountCodeId > 0 {
-			quotaToAdd = int(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit).IntPart())
+			quotaToAdd, err = common.RechargeQuotaFromDecimal(decimal.NewFromFloat(topUp.Money).Mul(dQuotaPerUnit))
 		} else {
-			quotaToAdd = int(decimal.NewFromInt(topUp.Amount).Mul(dQuotaPerUnit).IntPart())
+			quotaToAdd, err = common.RechargeQuotaFromDecimal(decimal.NewFromInt(topUp.Amount).Mul(dQuotaPerUnit))
 		}
-		if quotaToAdd <= 0 {
+		if err != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
 
@@ -820,8 +835,15 @@ func RechargeWaffo(tradeNo string, callerIp string) (err error) {
 		if err != nil {
 			return err
 		}
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus))).Error; err != nil {
-			return err
+		if bonus < 0 || quotaToAdd > math.MaxInt-bonus {
+			return ErrInvoiceTaxInvalid
+		}
+		result := tx.Model(&User{}).Where("id = ? AND quota <= ?", topUp.UserId, math.MaxInt-quotaToAdd-bonus).Update("quota", gorm.Expr("quota + ?", quotaToAdd+bonus))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrInvoiceTaxInvalid
 		}
 
 		return nil
@@ -877,12 +899,15 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 			return errors.New("充值订单状态错误")
 		}
 
-		if topUp.DiscountCodeId > 0 {
-			quotaToAdd = int(decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart())
-		} else {
-			quotaToAdd = int(decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).IntPart())
+		if math.IsNaN(topUp.Money) || math.IsInf(topUp.Money, 0) || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
+			return ErrInvoiceTaxInvalid
 		}
-		if quotaToAdd <= 0 {
+		if topUp.DiscountCodeId > 0 {
+			quotaToAdd, err = common.RechargeQuotaFromDecimal(decimal.NewFromFloat(topUp.Money).Mul(decimal.NewFromFloat(common.QuotaPerUnit)))
+		} else {
+			quotaToAdd, err = common.RechargeQuotaFromDecimal(decimal.NewFromInt(topUp.Amount).Mul(decimal.NewFromFloat(common.QuotaPerUnit)))
+		}
+		if err != nil || quotaToAdd <= 0 {
 			return errors.New("无效的充值额度")
 		}
 
@@ -900,8 +925,15 @@ func RechargeWaffoPancake(tradeNo string) (err error) {
 		if err != nil {
 			return err
 		}
-		if err := tx.Model(&User{}).Where("id = ?", topUp.UserId).Update("quota", gorm.Expr("quota + ?", int64(quotaToAdd)+int64(bonus))).Error; err != nil {
-			return err
+		if bonus < 0 || quotaToAdd > math.MaxInt-bonus {
+			return ErrInvoiceTaxInvalid
+		}
+		result := tx.Model(&User{}).Where("id = ? AND quota <= ?", topUp.UserId, math.MaxInt-quotaToAdd-bonus).Update("quota", gorm.Expr("quota + ?", quotaToAdd+bonus))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return ErrInvoiceTaxInvalid
 		}
 
 		return nil
@@ -989,12 +1021,19 @@ func grantDiscountCodeBonusTx(tx *gorm.DB, topUp *TopUp) (int, error) {
 
 	var bonusQuota int
 	if topUp.CheckoutVersion == 1 {
+		if topUp.CheckoutBaseQuota < 0 || topUp.CheckoutQuota < topUp.CheckoutBaseQuota {
+			return 0, ErrInvoiceTaxInvalid
+		}
 		bonusQuota = topUp.CheckoutQuota - topUp.CheckoutBaseQuota
 	} else {
 		dPaid := decimal.NewFromInt(topUp.QuotaGranted)
 		dRate := decimal.NewFromInt(int64(rate))
 		dHundred := decimal.NewFromInt(100)
-		bonusQuota = common.QuotaFromDecimal(dPaid.Mul(dHundred).Div(dRate).Sub(dPaid))
+		var err error
+		bonusQuota, err = common.WalletQuotaFromDecimal(dPaid.Mul(dHundred).Div(dRate).Sub(dPaid))
+		if err != nil {
+			return 0, err
+		}
 	}
 	if bonusQuota <= 0 {
 		return 0, nil

@@ -13,6 +13,31 @@ import (
 // below reproduces that oversized product for the saturation checks.
 const overflowingProduct = 2000 * 1.8446744073686647e19
 
+func TestWalletQuotaFromDecimal(t *testing.T) {
+	for _, tc := range []struct {
+		value   string
+		want    int
+		invalid bool
+	}{
+		{"0", 0, false}, {"5000000000.9", 5000000000, false},
+		{"-5000000000.9", -5000000000, false},
+		{"9007199254740993", 9007199254740993, false},
+		{"9223372036854775807", math.MaxInt64, false},
+		{"-9223372036854775808", math.MinInt64, false},
+		{"9223372036854775808", 0, true}, {"-9223372036854775809", 0, true},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			got, err := WalletQuotaFromDecimal(decimal.RequireFromString(tc.value))
+			if tc.invalid {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.want, got)
+			}
+		})
+	}
+}
+
 func TestRechargeQuotaFromDecimal(t *testing.T) {
 	limit := int(^uint(0) >> 1)
 	for _, test := range []struct {

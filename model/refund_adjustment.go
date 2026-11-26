@@ -115,7 +115,7 @@ func buildRefundAdjustmentTx(tx *gorm.DB, refund *TicketRefund, owner *User, bas
 		return nil, ErrRefundAdjustment
 	}
 	after := int64(owner.Quota) - debit
-	if after < math.MinInt32 || after > math.MaxInt32 {
+	if after < int64(math.MinInt) || after > int64(math.MaxInt) {
 		return nil, ErrRefundAdjustment
 	}
 	unit := decimal.NewFromFloat(common.QuotaPerUnit)

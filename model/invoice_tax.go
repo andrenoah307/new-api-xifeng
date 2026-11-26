@@ -191,8 +191,8 @@ func QuoteInvoiceTax(db *gorm.DB, userID int, orderIDs []int, invoiceType string
 	if math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) || common.QuotaPerUnit <= 0 {
 		return empty, ErrInvoiceTaxInvalid
 	}
-	quota, clamp := common.QuotaFromDecimalChecked(decimal.NewFromInt(quote.FeeCents).Div(decimal.NewFromInt(100)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Ceil())
-	if clamp != nil {
+	quota, quotaErr := common.WalletQuotaFromDecimal(decimal.NewFromInt(quote.FeeCents).Div(decimal.NewFromInt(100)).Mul(decimal.NewFromFloat(common.QuotaPerUnit)).Ceil())
+	if quotaErr != nil || quota < 0 {
 		return empty, ErrInvoiceTaxInvalid
 	}
 	quote.Quota = quota
@@ -282,7 +282,7 @@ func SettleInvoiceTax(tradeNo, method string, paidCents int64) error {
 // The caller holds user, invoice and charge locks in that order. Both the
 // ledger CAS and bounded wallet credit must commit in the same transaction.
 func refundPaidInvoiceTax(tx *gorm.DB, charge *InvoiceTaxCharge) error {
-	if charge.Status != "paid" || charge.Quota < 0 || charge.Quota > common.MaxQuota {
+	if charge.Status != "paid" || charge.Quota < 0 {
 		return ErrInvoiceTaxInvalid
 	}
 	now := common.GetTimestamp()

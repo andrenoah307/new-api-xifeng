@@ -941,7 +941,7 @@ function ReconciliationEditor({
               if (
                 !amountsValid ||
                 parsedGrant === null ||
-                parsedGrant > 2147483647 ||
+                !Number.isSafeInteger(parsedGrant) ||
                 (parsedGrant > 0 &&
                   BigInt(parsedGrant) > BigInt(report.difference))
               ) {

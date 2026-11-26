@@ -38,7 +38,7 @@ func applicationRefundLotsTx(tx *gorm.DB, refund *TicketRefund, owner *User, ord
 		return nil, nil, nil, ErrRefundExport
 	}
 	cash := int64(owner.Quota) - noncash
-	if cash < math.MinInt32 || cash > math.MaxInt32 || cash > math.MaxInt64-int64(refund.FrozenQuota) || common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
+	if cash < int64(math.MinInt) || cash > int64(math.MaxInt) || cash > math.MaxInt64-int64(refund.FrozenQuota) || common.QuotaPerUnit <= 0 || math.IsNaN(common.QuotaPerUnit) || math.IsInf(common.QuotaPerUnit, 0) {
 		return nil, nil, nil, ErrRefundExport
 	}
 	// Validate original payment and prior refund capacities before projecting.

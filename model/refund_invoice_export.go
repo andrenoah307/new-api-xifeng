@@ -309,7 +309,7 @@ func calculateOriginalRefundPayments(orders []TopUp, lots map[int]RefundCreditLo
 	if err := applyRefundGiftRecovery(orders, lots, detail, policy); err != nil {
 		return nil, err
 	}
-	if detail.RefundGiftQuota > math.MaxInt32-requested {
+	if requested < 0 || requested > int64(math.MaxInt) || detail.RefundGiftQuota > int64(math.MaxInt)-requested {
 		return nil, ErrTicketRefundQuotaInvalid
 	}
 	result.RefundGiftQuota = detail.RefundGiftQuota

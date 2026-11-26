@@ -20,6 +20,17 @@ func RechargeQuotaFromDecimal(amount decimal.Decimal) (int, error) {
 	return int(amount.IntPart()), nil
 }
 
+// WalletQuotaFromDecimal converts financial ledger amounts, including zero and
+// signed balances, without the per-request relay cap or a float64 round trip.
+// Callers choose rounding and validate the sign required by their operation.
+func WalletQuotaFromDecimal(amount decimal.Decimal) (int, error) {
+	amount = amount.Truncate(0)
+	if amount.LessThan(decimal.NewFromInt(int64(math.MinInt))) || amount.GreaterThan(decimal.NewFromInt(int64(math.MaxInt))) {
+		return 0, errors.New("invalid wallet quota")
+	}
+	return int(amount.IntPart()), nil
+}
+
 // Single-request relay charges retain their int32 saturation + logging policy.
 // Bigint wallet credits use RechargeQuotaFromDecimal instead; do not widen
 // this charge limit to accommodate account balances or recharge orders.
