@@ -1,16 +1,16 @@
+import type { ColumnDef } from '@tanstack/react-table'
+import { Mail, MailOpen } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { ColumnDef } from '@tanstack/react-table'
-import { formatTimestampToDate } from '@/lib/format'
-import { getCurrencyDisplay } from '@/lib/currency'
+
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { getCurrencyDisplay } from '@/lib/currency'
+import { formatTimestampToDate } from '@/lib/format'
+
 import type { Ticket, StaffUser } from '../api'
-import {
-  roleBadgeVariant,
-  roleBadgeLabel,
-  TICKET_STATUS,
-} from '../constants'
+import { roleBadgeVariant, roleBadgeLabel, TICKET_STATUS } from '../constants'
 import {
   TicketStatusBadge,
   TicketPriorityBadge,
@@ -27,17 +27,17 @@ function formatQuotaAsMoney(quota: number): string {
   return `${meta.symbol}${value.toFixed(2)}`
 }
 
-function TicketAmountBadge({ ticket }: { ticket: Ticket }) {
+function renderTicketAmount(ticket: Ticket) {
   if (ticket.type === 'refund' && ticket.refund_quota != null) {
     return (
-      <span className="text-muted-foreground ml-1.5 text-[11px]">
+      <span className='text-muted-foreground ml-1.5 text-[11px]'>
         {formatQuotaAsMoney(ticket.refund_quota)}
       </span>
     )
   }
   if (ticket.type === 'invoice' && ticket.invoice_money != null) {
     return (
-      <span className="text-muted-foreground ml-1.5 text-[11px]">
+      <span className='text-muted-foreground ml-1.5 text-[11px]'>
         ¥{ticket.invoice_money.toFixed(2)}
       </span>
     )
@@ -61,7 +61,7 @@ export function useTicketColumns(opts: {
         header: 'ID',
         size: 60,
         cell: ({ row }) => (
-          <span className="text-muted-foreground font-mono text-xs">
+          <span className='text-muted-foreground font-mono text-xs'>
             #{row.original.id}
           </span>
         ),
@@ -71,18 +71,40 @@ export function useTicketColumns(opts: {
         accessorKey: 'subject',
         header: t('Subject'),
         cell: ({ row }) => (
-          <div className="min-w-0">
-            <div className="truncate text-sm font-medium">
+          <div className='min-w-0'>
+            <div className='truncate text-sm font-medium'>
+              {admin && (
+                <span
+                  title={
+                    row.original.has_unread_messages
+                      ? t('Unread messages')
+                      : t('Read messages')
+                  }
+                  className='mr-1.5 inline-flex align-middle'
+                >
+                  {row.original.has_unread_messages ? (
+                    <Mail
+                      aria-label={t('Unread messages')}
+                      className='text-primary size-4'
+                    />
+                  ) : (
+                    <MailOpen
+                      aria-label={t('Read messages')}
+                      className='text-muted-foreground size-4'
+                    />
+                  )}
+                </span>
+              )}
               {row.original.subject}
               {row.original.type === 'invoice' && row.original.company_name && (
-                <span className="text-muted-foreground ml-1.5 text-xs font-normal">
+                <span className='text-muted-foreground ml-1.5 text-xs font-normal'>
                   ({row.original.company_name})
                 </span>
               )}
             </div>
-            <div className="flex items-center">
+            <div className='flex items-center'>
               <TicketTypeBadge type={row.original.type} />
-              <TicketAmountBadge ticket={row.original} />
+              {renderTicketAmount(row.original)}
             </div>
           </div>
         ),
@@ -92,9 +114,7 @@ export function useTicketColumns(opts: {
         accessorKey: 'status',
         header: t('Status'),
         size: 100,
-        cell: ({ row }) => (
-          <TicketStatusBadge status={row.original.status} />
-        ),
+        cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
         meta: { label: t('Status'), mobileBadge: true },
       },
       {
@@ -109,13 +129,40 @@ export function useTicketColumns(opts: {
     ]
 
     if (admin) {
+      cols.unshift({
+        id: 'selection',
+        header: ({ table }) => (
+          <Checkbox
+            aria-label={t('Select all')}
+            disabled={
+              !table.getRowModel().rows.some((row) => row.getCanSelect())
+            }
+            checked={table.getIsAllPageRowsSelected()}
+            indeterminate={table.getIsSomePageRowsSelected()}
+            onCheckedChange={(checked) =>
+              table.toggleAllPageRowsSelected(!!checked)
+            }
+          />
+        ),
+        cell: ({ row }) => (
+          <span onClick={(event) => event.stopPropagation()}>
+            <Checkbox
+              disabled={!row.getCanSelect()}
+              aria-label={t('Select ticket {{id}}', { id: row.original.id })}
+              checked={row.getIsSelected()}
+              onCheckedChange={(checked) => row.toggleSelected(!!checked)}
+            />
+          </span>
+        ),
+        meta: { label: t('Select') },
+      })
       cols.push({
         accessorKey: 'username',
         header: t('User'),
         cell: ({ row }) => (
-          <div className="text-xs">
+          <div className='text-xs'>
             <span>{row.original.username}</span>
-            <span className="text-muted-foreground ml-1">
+            <span className='text-muted-foreground ml-1'>
               #{row.original.user_id}
             </span>
           </div>
@@ -132,22 +179,22 @@ export function useTicketColumns(opts: {
           const aid = row.original.assignee_id
           if (!aid) {
             return (
-              <span className="text-muted-foreground text-xs italic">
+              <span className='text-muted-foreground text-xs italic'>
                 {t('Unassigned')}
               </span>
             )
           }
           const staff = staffMap.get(aid)
           if (!staff) {
-            return <span className="text-xs">#{aid}</span>
+            return <span className='text-xs'>#{aid}</span>
           }
           return (
-            <div className="flex items-center gap-1.5 text-xs">
+            <div className='flex items-center gap-1.5 text-xs'>
               <span>{staff.display_name || staff.username}</span>
               <StatusBadge
                 label={t(roleBadgeLabel(staff.role))}
                 variant={roleBadgeVariant(staff.role)}
-                size="sm"
+                size='sm'
                 copyable={false}
               />
             </div>
@@ -162,7 +209,7 @@ export function useTicketColumns(opts: {
       header: t('Updated'),
       size: 160,
       cell: ({ row }) => (
-        <span className="text-muted-foreground text-xs">
+        <span className='text-muted-foreground text-xs'>
           {formatTimestampToDate(row.original.updated_time)}
         </span>
       ),
@@ -178,9 +225,9 @@ export function useTicketColumns(opts: {
           if (row.original.status === TICKET_STATUS.CLOSED) return null
           return (
             <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive"
+              variant='ghost'
+              size='sm'
+              className='text-destructive'
               onClick={(e) => {
                 e.stopPropagation()
                 onCloseTicket(row.original.id)

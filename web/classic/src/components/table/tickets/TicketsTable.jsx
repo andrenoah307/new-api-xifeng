@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Empty } from '@douyinfe/semi-ui';
+import { Checkbox, Empty } from '@douyinfe/semi-ui';
+import { useIsMobile } from '../../../hooks/common/useIsMobile';
 import {
   IllustrationNoResult,
   IllustrationNoResultDark,
@@ -21,8 +22,10 @@ const TicketsTable = ({
   onCloseTicket,
   staffIndex, // Map<number, TicketStaffUser>，用于"分配客服"列渲染
   showAssignee = false, // 仅管理员及以上视角展示"分配客服"列
+  rowSelection,
   t,
 }) => {
+  const isMobile = useIsMobile();
   const columns = useMemo(
     () =>
       getTicketsColumns({
@@ -35,11 +38,33 @@ const TicketsTable = ({
       }),
     [t, admin, onOpenDetail, onCloseTicket, staffIndex, showAssignee],
   );
+  const displayColumns = [...columns];
+  if (isMobile && rowSelection) {
+    displayColumns.unshift({
+      key: 'selection',
+      title: '',
+      render: (_, record) => (
+        <Checkbox
+          aria-label={t('Select ticket {{id}}', { id: record.id })}
+          checked={rowSelection.selectedRowKeys.includes(record.id)}
+          disabled={rowSelection.getCheckboxProps?.(record).disabled}
+          onChange={(event) =>
+            rowSelection.onChange(
+              event.target.checked
+                ? [...rowSelection.selectedRowKeys, record.id]
+                : rowSelection.selectedRowKeys.filter((id) => id !== record.id),
+            )
+          }
+        />
+      ),
+    });
+  }
 
   return (
     <CardTable
       rowKey='id'
-      columns={columns}
+      rowSelection={rowSelection}
+      columns={displayColumns}
       dataSource={tickets}
       loading={loading}
       hidePagination
@@ -72,4 +97,3 @@ const TicketsTable = ({
 };
 
 export default TicketsTable;
-

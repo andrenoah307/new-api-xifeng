@@ -7,6 +7,7 @@ export const ticketAdminSearchSchema = z.object({
   scope: z.enum(['all', 'mine', 'unassigned']).optional().catch(undefined),
   status: z.string().optional().catch(''),
   type: z.string().optional().catch(''),
+  unread: z.enum(['true', 'false', '']).optional().catch(''),
 })
 
 export type TicketAdminSearch = z.infer<typeof ticketAdminSearchSchema>

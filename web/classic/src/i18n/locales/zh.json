@@ -3240,6 +3240,17 @@
     "Bot": "机器人",
     "Read redacted usage logs": "查询脱敏使用日志",
     "Read ordinary users' usage logs with a bot system access token.": "使用机器人系统访问令牌查询普通用户的脱敏使用日志。",
-    "Read redacted usage logs via system access token": "通过系统访问令牌查询脱敏使用日志"
+    "Read redacted usage logs via system access token": "通过系统访问令牌查询脱敏使用日志",
+    "Unread messages": "未读消息",
+    "Read messages": "已读消息",
+    "All messages": "全部消息",
+    "Message status": "消息状态",
+    "Select ticket {{id}}": "选择工单 {{id}}",
+    "Selected {{count}} tickets": "已选择 {{count}} 个工单",
+    "Update selected tickets": "更新所选工单",
+    "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "确认将 {{count}} 个工单更新为“{{status}}”？关闭退款工单将取消待审核退款。",
+    "Ticket status updated": "工单状态已更新",
+    "Clear selection": "清空选择",
+    "Confirm Batch Update": "确认批量更新"
   }
 }

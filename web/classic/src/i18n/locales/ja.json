@@ -5335,6 +5335,17 @@
     "Bot": "ボット",
     "Read redacted usage logs": "機密情報を除いた利用ログを閲覧",
     "Read ordinary users' usage logs with a bot system access token.": "ボットのシステムアクセストークンで一般ユーザーの利用ログを閲覧します。",
-    "Read redacted usage logs via system access token": "システムアクセストークンで機密情報を除いた利用ログを閲覧"
+    "Read redacted usage logs via system access token": "システムアクセストークンで機密情報を除いた利用ログを閲覧",
+    "Unread messages": "未読メッセージ",
+    "Read messages": "既読メッセージ",
+    "All messages": "すべてのメッセージ",
+    "Message status": "メッセージの状態",
+    "Select ticket {{id}}": "チケット {{id}} を選択",
+    "Selected {{count}} tickets": "{{count}} 件のチケットを選択中",
+    "Update selected tickets": "選択したチケットを更新",
+    "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "{{count}} 件のチケットを「{{status}}」に更新しますか？返金チケットを閉じると、審査待ちの返金はキャンセルされます。",
+    "Ticket status updated": "チケットの状態を更新しました",
+    "Clear selection": "選択を解除",
+    "Confirm Batch Update": "一括更新を確認"
   }
 }

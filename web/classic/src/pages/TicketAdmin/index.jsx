@@ -5,6 +5,7 @@ import {
   Descriptions,
   Empty,
   Input,
+  Modal,
   RadioGroup,
   Radio,
   Select,
@@ -15,7 +16,13 @@ import {
 import { IconSearch, IconDownload } from '@douyinfe/semi-icons';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { API, isAdmin, showError, showSuccess, timestamp2string } from '../../helpers';
+import {
+  API,
+  isAdmin,
+  showError,
+  showSuccess,
+  timestamp2string,
+} from '../../helpers';
 import { useTableCompactMode } from '../../hooks/common/useTableCompactMode';
 import TicketsPage from '../../components/table/tickets';
 import TicketConversation from '../../components/ticket/TicketConversation';
@@ -132,7 +139,10 @@ const AdminTicketDetail = () => {
     if (!ticket) return [];
     return [
       { key: 'ID', value: `#${ticket.id}` },
-      { key: t('用户'), value: `${ticket.username || '-'} (UID: ${ticket.user_id || '-'})` },
+      {
+        key: t('用户'),
+        value: `${ticket.username || '-'} (UID: ${ticket.user_id || '-'})`,
+      },
       { key: t('工单类型'), value: getTicketTypeText(ticket.type, t) },
       {
         key: t('优先级'),
@@ -144,11 +154,15 @@ const AdminTicketDetail = () => {
       },
       {
         key: t('创建时间'),
-        value: ticket.created_time ? timestamp2string(ticket.created_time) : '-',
+        value: ticket.created_time
+          ? timestamp2string(ticket.created_time)
+          : '-',
       },
       {
         key: t('更新时间'),
-        value: ticket.updated_time ? timestamp2string(ticket.updated_time) : '-',
+        value: ticket.updated_time
+          ? timestamp2string(ticket.updated_time)
+          : '-',
       },
     ];
   }, [ticket, t]);
@@ -432,6 +446,23 @@ const TicketAdmin = () => {
   const scopeParam = searchParams.get('scope') || (viewerIsAdmin ? '' : 'mine');
   const [keyword, setKeyword] = useState(searchKeyword);
   const [exportOpen, setExportOpen] = useState(false);
+  const unreadFilter = searchParams.get('unread') || '';
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [batchStatus, setBatchStatus] = useState(2);
+  const [batchSaving, setBatchSaving] = useState(false);
+  const [batchConfirmation, setBatchConfirmation] = useState(null);
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [
+    activePage,
+    pageSize,
+    statusFilter,
+    typeFilter,
+    searchKeyword,
+    scopeParam,
+    unreadFilter,
+    id,
+  ]);
 
   const updateSearchParams = useCallback(
     (patch) => {
@@ -498,6 +529,7 @@ const TicketAdmin = () => {
           type: typeFilter || undefined,
           keyword: searchKeyword || undefined,
           scope: scopeParam || undefined,
+          unread: unreadFilter || undefined,
         },
       });
       if (res.data?.success) {
@@ -512,7 +544,39 @@ const TicketAdmin = () => {
     } finally {
       setLoading(false);
     }
-  }, [activePage, pageSize, searchKeyword, statusFilter, typeFilter, scopeParam, t]);
+  }, [
+    activePage,
+    pageSize,
+    searchKeyword,
+    statusFilter,
+    typeFilter,
+    scopeParam,
+    unreadFilter,
+    t,
+  ]);
+
+  const updateSelectedTickets = async () => {
+    if (!batchConfirmation || batchSaving) return;
+    setBatchSaving(true);
+    try {
+      const res = await API.put(
+        '/api/ticket/admin/batch/status',
+        batchConfirmation,
+      );
+      if (res.data?.success) {
+        showSuccess(t('工单状态已更新'));
+        setSelectedIds([]);
+        setBatchConfirmation(null);
+        await loadTickets();
+      } else {
+        showError(res.data?.message || t('更新工单状态失败'));
+      }
+    } catch {
+      showError(t('请求失败'));
+    } finally {
+      setBatchSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (id) return;
@@ -546,10 +610,7 @@ const TicketAdmin = () => {
   }, [staffList]);
 
   const statusOptions = useMemo(
-    () => [
-      { label: t('全部状态'), value: '' },
-      ...getTicketStatusOptions(t),
-    ],
+    () => [{ label: t('全部状态'), value: '' }, ...getTicketStatusOptions(t)],
     [t],
   );
 
@@ -571,83 +632,165 @@ const TicketAdmin = () => {
 
   return (
     <div className='mt-[60px] px-2'>
-    <TicketsPage
-      title={t('工单管理')}
-      description={t('统一查看全部工单、回复用户并推进处理状态')}
-      compactMode={compactMode}
-      setCompactMode={setCompactMode}
-      tickets={tickets}
-      loading={loading}
-      activePage={activePage}
-      pageSize={pageSize}
-      ticketCount={ticketCount}
-      handlePageChange={setActivePage}
-      handlePageSizeChange={setPageSize}
-      admin
-      // 只有真正的管理员/超级管理员需要知道"这张工单归谁"；
-      // 客服视角下工单都是分配给自己的，这一列对他们是噪音。
-      showAssignee={viewerIsAdmin}
-      staffIndex={staffIndex}
-      onOpenDetail={(ticket) => {
-        const query = searchParams.toString();
-        navigate(
-          `/console/ticket_admin/${ticket.id}${query ? `?${query}` : ''}`,
-        );
-      }}
-      t={t}
-      actionsArea={
-        <div className='flex flex-col gap-3 w-full'>
-          {/* 视角切换：管理员 3 个档位，客服 2 个档位（没有"全部"入口）。
+      <TicketsPage
+        title={t('工单管理')}
+        description={t('统一查看全部工单、回复用户并推进处理状态')}
+        compactMode={compactMode}
+        setCompactMode={setCompactMode}
+        tickets={tickets}
+        loading={loading}
+        activePage={activePage}
+        pageSize={pageSize}
+        ticketCount={ticketCount}
+        handlePageChange={setActivePage}
+        handlePageSizeChange={setPageSize}
+        admin
+        // 只有真正的管理员/超级管理员需要知道"这张工单归谁"；
+        // 客服视角下工单都是分配给自己的，这一列对他们是噪音。
+        showAssignee={viewerIsAdmin}
+        staffIndex={staffIndex}
+        rowSelection={{
+          selectedRowKeys: selectedIds,
+          onChange: (keys) => setSelectedIds(keys),
+          getCheckboxProps: () => ({ disabled: loading || batchSaving }),
+        }}
+        onOpenDetail={(ticket) => {
+          const query = searchParams.toString();
+          navigate(
+            `/console/ticket_admin/${ticket.id}${query ? `?${query}` : ''}`,
+          );
+        }}
+        t={t}
+        actionsArea={
+          <div className='flex flex-col gap-3 w-full'>
+            {/* 视角切换：管理员 3 个档位，客服 2 个档位（没有"全部"入口）。
               URL 上用 scope 参数持久化，方便刷新 / 分享链接。 */}
-          <RadioGroup
-            type='button'
-            value={scopeParam || (viewerIsAdmin ? 'all' : 'mine')}
-            onChange={(e) => setScope(e.target.value)}
-          >
-            {viewerIsAdmin && <Radio value='all'>{t('全部工单')}</Radio>}
-            <Radio value='mine'>{t('我的工单')}</Radio>
-            <Radio value='unassigned'>{t('待认领池')}</Radio>
-          </RadioGroup>
-          <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
-            <Space wrap>
-              <Input
-                value={keyword}
-                placeholder={t('搜索主题、用户名、ID、公司名或收款人')}
-                style={{ width: 280 }}
-                prefix={<IconSearch />}
-                showClear
-                onChange={setKeyword}
-                onEnterPress={() => setSearchKeyword(keyword)}
-              />
-            </Space>
-            <Space wrap>
-              <Select
-                value={statusFilter}
-                optionList={statusOptions}
-                style={{ width: 160 }}
-                onChange={setStatusFilter}
-              />
-              <Select
-                value={typeFilter}
-                optionList={typeOptions}
-                style={{ width: 160 }}
-                onChange={setTypeFilter}
-              />
-              <Button
-                icon={<IconDownload />}
-                onClick={() => setExportOpen(true)}
-              >
-                {t('导出发票')}
-              </Button>
-            </Space>
+            <RadioGroup
+              type='button'
+              value={scopeParam || (viewerIsAdmin ? 'all' : 'mine')}
+              onChange={(e) => setScope(e.target.value)}
+            >
+              {viewerIsAdmin && <Radio value='all'>{t('全部工单')}</Radio>}
+              <Radio value='mine'>{t('我的工单')}</Radio>
+              <Radio value='unassigned'>{t('待认领池')}</Radio>
+            </RadioGroup>
+            <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+              <Space wrap>
+                <Input
+                  value={keyword}
+                  placeholder={t('搜索主题、用户名、ID、公司名或收款人')}
+                  style={{ width: 280 }}
+                  prefix={<IconSearch />}
+                  showClear
+                  onChange={setKeyword}
+                  onEnterPress={() => setSearchKeyword(keyword)}
+                />
+              </Space>
+              <Space wrap>
+                <span id='ticket-message-status-label' className='sr-only'>
+                  {t('Message status')}
+                </span>
+                <Select
+                  value={unreadFilter}
+                  style={{ width: 160 }}
+                  aria-labelledby='ticket-message-status-label'
+                  onChange={(value) =>
+                    updateSearchParams({ unread: value, p: '' })
+                  }
+                  optionList={[
+                    { value: '', label: t('All messages') },
+                    { value: 'true', label: t('Unread messages') },
+                    { value: 'false', label: t('Read messages') },
+                  ]}
+                />
+                <Select
+                  value={statusFilter}
+                  optionList={statusOptions}
+                  style={{ width: 160 }}
+                  onChange={setStatusFilter}
+                />
+                <Select
+                  value={typeFilter}
+                  optionList={typeOptions}
+                  style={{ width: 160 }}
+                  onChange={setTypeFilter}
+                />
+                <Button
+                  icon={<IconDownload />}
+                  onClick={() => setExportOpen(true)}
+                >
+                  {t('导出发票')}
+                </Button>
+              </Space>
+            </div>
+            {selectedIds.length > 0 && (
+              <Space wrap>
+                <Text>
+                  {t('Selected {{count}} tickets', {
+                    count: selectedIds.length,
+                  })}
+                </Text>
+                <Select
+                  value={batchStatus}
+                  onChange={setBatchStatus}
+                  optionList={getTicketStatusOptions(t)}
+                  disabled={batchSaving}
+                  style={{ width: 150 }}
+                />
+                <Button
+                  disabled={loading || batchSaving || selectedIds.length > 100}
+                  onClick={() =>
+                    setBatchConfirmation({
+                      ids: [...selectedIds],
+                      status: Number(batchStatus),
+                    })
+                  }
+                >
+                  {t('Update selected tickets')}
+                </Button>
+                <Button
+                  disabled={batchSaving}
+                  onClick={() => setSelectedIds([])}
+                >
+                  {t('Clear selection')}
+                </Button>
+              </Space>
+            )}
           </div>
-        </div>
-      }
-    />
-    <ExportInvoiceDialog
-      visible={exportOpen}
-      onClose={() => setExportOpen(false)}
-    />
+        }
+      />
+      <ExportInvoiceDialog
+        visible={exportOpen}
+        onClose={() => setExportOpen(false)}
+      />
+      <Modal
+        visible={batchConfirmation !== null}
+        title={t('Confirm Batch Update')}
+        okText={t('确认')}
+        cancelText={t('取消')}
+        centered
+        bodyStyle={{ overflowY: 'auto' }}
+        getPopupContainer={() => document.body}
+        confirmLoading={batchSaving}
+        cancelButtonProps={{ disabled: batchSaving }}
+        closable={!batchSaving}
+        maskClosable={!batchSaving}
+        onCancel={() => {
+          if (!batchSaving) setBatchConfirmation(null);
+        }}
+        onOk={updateSelectedTickets}
+      >
+        {t(
+          'Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.',
+          {
+            count: batchConfirmation?.ids.length ?? 0,
+            status:
+              getTicketStatusOptions(t).find(
+                (option) => Number(option.value) === batchConfirmation?.status,
+              )?.label ?? '',
+          },
+        )}
+      </Modal>
     </div>
   );
 };

@@ -134,9 +134,8 @@ func ensureTicketAccessible(c *gin.Context, ticket *model.Ticket) bool {
 	}
 	// 同组未分配池 —— 允许客服抢单/回复
 	if ticket.AssigneeId == 0 {
-		pool := service.ResolveAssigneeIdsForUser(currentUserId, role)
-		for _, uid := range pool {
-			if uid == currentUserId {
+		for _, ticketType := range setting.TicketTypesForUser(currentUserId) {
+			if ticketType == ticket.Type {
 				return true
 			}
 		}
@@ -465,6 +464,14 @@ func GetAllTickets(c *gin.Context) {
 		Type:    ticketType,
 		Keyword: c.Query("keyword"),
 	}
+	if raw := c.Query("unread"); raw != "" {
+		unread, err := strconv.ParseBool(raw)
+		if err != nil {
+			common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+			return
+		}
+		opts.Unread = &unread
+	}
 
 	role := c.GetInt("role")
 	currentUserId := c.GetInt("id")
@@ -487,6 +494,18 @@ func GetAllTickets(c *gin.Context) {
 		case "unassigned":
 			opts.AssigneeId = -1
 			myTypes := setting.TicketTypesForUser(currentUserId)
+			if opts.Type != "" {
+				allowed := false
+				for _, kind := range myTypes {
+					if kind == opts.Type {
+						allowed = true
+						break
+					}
+				}
+				if !allowed {
+					opts.Type = "__none__"
+				}
+			}
 			if opts.Type == "" && len(myTypes) > 0 {
 				opts.TypeIn = myTypes
 			}
@@ -623,6 +642,14 @@ func GetTicket(c *gin.Context) {
 		}
 	}
 	resp["quick_replies"] = quickReplies
+	messages := resp["messages"].([]*model.TicketMessageWithAttachments)
+	if len(messages) > 0 {
+		if err := model.MarkTicketMessagesRead(ticket.Id, messages[len(messages)-1].Id); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+	}
+	ticket.HasUnreadMessages = false
 	common.ApiSuccess(c, resp)
 }
 
@@ -721,6 +748,34 @@ func UpdateTicketStatus(c *gin.Context) {
 		service.NotifyAutoGroupEvaluation(existing.UserId)
 	}
 	common.ApiSuccess(c, ticket)
+}
+
+func BatchUpdateTicketStatus(c *gin.Context) {
+	var req struct {
+		IDs    []int `json:"ids"`
+		Status int   `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 || len(req.IDs) > model.MaxTicketStatusBatchSize || !model.IsValidTicketStatus(req.Status) {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	changes, err := model.BatchUpdateTicketStatus(req.IDs, c.GetInt("id"), c.GetInt("role"), req.Status, setting.TicketTypesForUser(c.GetInt("id")))
+	if err != nil {
+		if errors.Is(err, model.ErrTicketNotFound) || errors.Is(err, model.ErrTicketForbidden) || errors.Is(err, model.ErrTicketInvalidStatus) {
+			handleTicketError(c, err)
+		} else {
+			common.SysError("batch ticket status update failed: " + err.Error())
+			common.ApiErrorI18n(c, i18n.MsgDatabaseError)
+		}
+		return
+	}
+	for _, change := range changes {
+		service.NotifyIfTicketStatusChanged(change.Ticket, change.PreviousStatus, service.TicketStatusReasonGeneric)
+		if change.Ticket.Type == model.TicketTypeRefund {
+			service.NotifyAutoGroupEvaluation(change.Ticket.UserId)
+		}
+	}
+	common.ApiSuccess(c, gin.H{"updated": len(changes)})
 }
 
 func GetEligibleInvoiceOrders(c *gin.Context) {
@@ -1196,6 +1251,19 @@ func GetInvoiceExportList(c *gin.Context) {
 	pageInfo := common.GetPageQuery(c)
 	filter := model.InvoiceExportFilter{
 		Keyword: c.Query("keyword"),
+	}
+	if c.GetInt("role") < common.RoleAdminUser {
+		filter.StaffId = c.GetInt("id")
+		if filter.StaffId <= 0 {
+			common.ApiErrorI18n(c, i18n.MsgForbidden)
+			return
+		}
+		for _, kind := range setting.TicketTypesForUser(filter.StaffId) {
+			if kind == model.TicketTypeInvoice {
+				filter.IncludeUnassigned = true
+				break
+			}
+		}
 	}
 	if v, err := strconv.Atoi(c.Query("status")); err == nil {
 		filter.TicketStatus = v

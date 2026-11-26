@@ -26,6 +26,7 @@ const TicketsPage = ({
   onCloseTicket,
   staffIndex,
   showAssignee = false,
+  rowSelection,
   t,
 }) => {
   const isMobile = useIsMobile();
@@ -48,7 +49,7 @@ const TicketsPage = ({
           />
         </div>
       }
-      actionsArea={actionsArea}
+      actionsArea={isMobile && admin ? undefined : actionsArea}
       paginationArea={createCardProPagination({
         currentPage: activePage,
         pageSize,
@@ -60,8 +61,10 @@ const TicketsPage = ({
       })}
       t={t}
     >
+      {isMobile && admin && <div className='mb-4'>{actionsArea}</div>}
       <TicketsTable
         tickets={tickets}
+        rowSelection={rowSelection}
         loading={loading}
         compactMode={compactMode}
         activePage={activePage}
@@ -81,4 +84,3 @@ const TicketsPage = ({
 };
 
 export default TicketsPage;
-

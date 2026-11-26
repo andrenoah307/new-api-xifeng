@@ -5,6 +5,21 @@ import { ticketAdminSearchSchema } from './ticket-admin-search'
 
 const parseCases = [
   {
+    name: 'preserves unread filter on navigation',
+    search: { unread: 'true' },
+    expected: { unread: 'true' },
+  },
+  {
+    name: 'preserves read filter on navigation',
+    search: { unread: 'false' },
+    expected: { unread: 'false' },
+  },
+  {
+    name: 'ignores invalid read filter',
+    search: { unread: 'bad' },
+    expected: { unread: '' },
+  },
+  {
     name: 'keeps optional fields absent for an empty search',
     search: {},
     expected: {},

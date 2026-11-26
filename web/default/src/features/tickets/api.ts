@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 // ============================================================================
 
 export interface Ticket {
+  has_unread_messages?: boolean
   id: number
   subject: string
   type: string
@@ -273,6 +274,7 @@ export async function getCurrentUserQuota(): Promise<{
 // ============================================================================
 
 export async function getAdminTickets(params: {
+  unread?: string
   p: number
   page_size: number
   status?: string
@@ -377,6 +379,14 @@ export async function updateTicketStatus(
   return res.data?.success ?? false
 }
 
+export async function batchUpdateTicketStatus(
+  ids: number[],
+  status: number
+): Promise<boolean> {
+  const res = await api.put('/api/ticket/admin/batch/status', { ids, status })
+  return res.data?.success ?? false
+}
+
 export async function assignTicket(
   ticketId: number,
   assigneeId: number,
@@ -446,6 +456,7 @@ export function getAttachmentUrl(id: number, inline = false): string {
 }
 
 export interface InvoiceExportItem {
+  remark?: string
   ticket_id: number
   company_name: string
   tax_number: string

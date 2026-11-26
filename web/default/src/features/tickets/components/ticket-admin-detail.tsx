@@ -1,15 +1,13 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getRouteApi, useNavigate } from '@tanstack/react-router'
+import { ArrowLeft } from 'lucide-react'
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getRouteApi, useNavigate } from '@tanstack/react-router'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAuthStore } from '@/stores/auth-store'
-import { formatTimestampToDate } from '@/lib/format'
+
+import { SectionPageLayout } from '@/components/layout'
 import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -17,7 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { SectionPageLayout } from '@/components/layout'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { formatTimestampToDate } from '@/lib/format'
+import { useAuthStore } from '@/stores/auth-store'
+
 import {
   getAdminTicketDetail,
   getAdminInvoiceDetail,
@@ -28,25 +30,21 @@ import {
   updateRefundStatus,
   updateInvoiceStatus,
 } from '../api'
-import {
-  canReply,
-  getStatusOptions,
-  getPriorityOptions,
-} from '../constants'
+import { canReply, getStatusOptions, getPriorityOptions } from '../constants'
 import { ticketQueryKeys } from '../lib/ticket-actions'
 import {
   extractRemarkFromSummary,
   isGeneratedTicketSummary,
 } from '../lib/ticket-summary'
+import { InvoiceDetail } from './invoice-detail'
+import { RefundDetail } from './refund-detail'
+import { TicketConversation } from './ticket-conversation'
+import { TicketReplyBox } from './ticket-reply-box'
 import {
   TicketStatusBadge,
   TicketPriorityBadge,
   TicketTypeBadge,
 } from './ticket-status-badge'
-import { TicketConversation } from './ticket-conversation'
-import { TicketReplyBox } from './ticket-reply-box'
-import { InvoiceDetail } from './invoice-detail'
-import { RefundDetail } from './refund-detail'
 import { TicketUserProfileButton } from './ticket-user-profile'
 
 const route = getRouteApi('/_authenticated/ticket-admin/$ticketId')
@@ -69,10 +67,18 @@ export default function TicketAdminDetailPage({
   const { data, isLoading } = useQuery({
     queryKey: ticketQueryKeys.adminDetail(ticketId),
     queryFn: () => getAdminTicketDetail(ticketId),
+    refetchOnMount: 'always',
   })
 
   const ticket = data?.ticket
   const messages = useMemo(() => data?.messages ?? [], [data?.messages])
+  useEffect(() => {
+    if (data) {
+      void queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.adminLists(),
+      })
+    }
+  }, [data, queryClient])
 
   // Sync local state when ticket loads
   useEffect(() => {
@@ -131,11 +137,7 @@ export default function TicketAdminDetailPage({
 
   const statusMutation = useMutation({
     mutationFn: () =>
-      updateTicketStatus(
-        ticketId,
-        Number(statusValue),
-        Number(priorityValue)
-      ),
+      updateTicketStatus(ticketId, Number(statusValue), Number(priorityValue)),
     onSuccess: () => {
       toast.success(t('Status updated'))
       queryClient.invalidateQueries({
@@ -231,18 +233,18 @@ export default function TicketAdminDetailPage({
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-6">
-        <Skeleton className="h-8 w-1/3" />
-        <Skeleton className="h-4 w-1/2" />
-        <Skeleton className="h-64 w-full" />
+      <div className='space-y-4 p-6'>
+        <Skeleton className='h-8 w-1/3' />
+        <Skeleton className='h-4 w-1/2' />
+        <Skeleton className='h-64 w-full' />
       </div>
     )
   }
 
   if (!ticket) {
     return (
-      <div className="py-24 text-center">
-        <p className="text-muted-foreground">{t('Ticket not found')}</p>
+      <div className='py-24 text-center'>
+        <p className='text-muted-foreground'>{t('Ticket not found')}</p>
       </div>
     )
   }
@@ -250,23 +252,19 @@ export default function TicketAdminDetailPage({
   let assigneeBadge = (
     <StatusBadge
       label={`${t('Processing')} · #${ticket.assignee_id}`}
-      variant="info"
+      variant='info'
       copyable={false}
     />
   )
   if (ticket.assignee_id === 0) {
     assigneeBadge = (
-      <StatusBadge
-        label={t('Unassigned')}
-        variant="neutral"
-        copyable={false}
-      />
+      <StatusBadge label={t('Unassigned')} variant='neutral' copyable={false} />
     )
   } else if (ticket.assignee_id === accountId) {
     assigneeBadge = (
       <StatusBadge
         label={t('Assigned to me')}
-        variant="success"
+        variant='success'
         copyable={false}
       />
     )
@@ -275,25 +273,25 @@ export default function TicketAdminDetailPage({
   return (
     <SectionPageLayout>
       <SectionPageLayout.Title>
-        <div className="flex items-center gap-3">
+        <div className='flex items-center gap-3'>
           <Button
-            variant="ghost"
-            size="icon"
+            variant='ghost'
+            size='icon'
             onClick={() => navigate({ to: '/ticket-admin', search })}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className='h-4 w-4' />
           </Button>
-          <span className="truncate">{ticket.subject}</span>
+          <span className='truncate'>{ticket.subject}</span>
           <TicketStatusBadge status={ticket.status} />
           <TicketTypeBadge type={ticket.type} />
           {assigneeBadge}
         </div>
       </SectionPageLayout.Title>
       <SectionPageLayout.Actions>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className='flex flex-wrap items-center gap-2'>
           {ticket.assignee_id === 0 && (
             <Button
-              size="sm"
+              size='sm'
               onClick={() => claimMutation.mutate()}
               disabled={claimMutation.isPending}
             >
@@ -306,7 +304,7 @@ export default function TicketAdminDetailPage({
               if (value != null) setStatusValue(value)
             }}
           >
-            <SelectTrigger className="h-8 w-[120px]">
+            <SelectTrigger className='h-8 w-[120px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -323,7 +321,7 @@ export default function TicketAdminDetailPage({
               if (value != null) setPriorityValue(value)
             }}
           >
-            <SelectTrigger className="h-8 w-[120px]">
+            <SelectTrigger className='h-8 w-[120px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -335,43 +333,50 @@ export default function TicketAdminDetailPage({
             </SelectContent>
           </Select>
           <Button
-            size="sm"
-            variant="outline"
+            size='sm'
+            variant='outline'
             onClick={() => statusMutation.mutate()}
             disabled={statusMutation.isPending}
           >
             {t('Save')}
           </Button>
-          {ticket?.user_id && (
-            <TicketUserProfileButton ticketId={ticketId} />
-          )}
+          {ticket?.user_id && <TicketUserProfileButton ticketId={ticketId} />}
         </div>
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
-        <div className="space-y-6">
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+        <div className='space-y-6'>
+          <dl className='grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3'>
             <div>
-              <dt className="text-muted-foreground">ID</dt>
-              <dd className="font-mono">#{ticket.id}</dd>
+              <dt className='text-muted-foreground'>ID</dt>
+              <dd className='font-mono'>#{ticket.id}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('Type')}</dt>
-              <dd><TicketTypeBadge type={ticket.type} /></dd>
+              <dt className='text-muted-foreground'>{t('Type')}</dt>
+              <dd>
+                <TicketTypeBadge type={ticket.type} />
+              </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('Priority')}</dt>
-              <dd><TicketPriorityBadge priority={ticket.priority} /></dd>
+              <dt className='text-muted-foreground'>{t('Priority')}</dt>
+              <dd>
+                <TicketPriorityBadge priority={ticket.priority} />
+              </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('User')}</dt>
-              <dd>{ticket.username || '-'} <span className="text-muted-foreground">(#{ticket.user_id})</span></dd>
+              <dt className='text-muted-foreground'>{t('User')}</dt>
+              <dd>
+                {ticket.username || '-'}{' '}
+                <span className='text-muted-foreground'>
+                  (#{ticket.user_id})
+                </span>
+              </dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('Created')}</dt>
+              <dt className='text-muted-foreground'>{t('Created')}</dt>
               <dd>{formatTimestampToDate(ticket.created_time)}</dd>
             </div>
             <div>
-              <dt className="text-muted-foreground">{t('Updated')}</dt>
+              <dt className='text-muted-foreground'>{t('Updated')}</dt>
               <dd>{formatTimestampToDate(ticket.updated_time)}</dd>
             </div>
           </dl>

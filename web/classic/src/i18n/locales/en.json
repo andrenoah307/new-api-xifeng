@@ -5594,6 +5594,17 @@
     "Bot": "Bot",
     "Read redacted usage logs": "Read redacted usage logs",
     "Read ordinary users' usage logs with a bot system access token.": "Read ordinary users' usage logs with a bot system access token.",
-    "Read redacted usage logs via system access token": "Read redacted usage logs via system access token"
+    "Read redacted usage logs via system access token": "Read redacted usage logs via system access token",
+    "Unread messages": "Unread messages",
+    "Read messages": "Read messages",
+    "All messages": "All messages",
+    "Message status": "Message status",
+    "Select ticket {{id}}": "Select ticket {{id}}",
+    "Selected {{count}} tickets": "Selected {{count}} tickets",
+    "Update selected tickets": "Update selected tickets",
+    "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.",
+    "Ticket status updated": "Ticket status updated",
+    "Clear selection": "Clear selection",
+    "Confirm Batch Update": "Confirm Batch Update"
   }
 }

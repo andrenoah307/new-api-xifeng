@@ -5878,6 +5878,17 @@
     "Bot": "Bot",
     "Read redacted usage logs": "Xem nhật ký sử dụng đã ẩn thông tin nhạy cảm",
     "Read ordinary users' usage logs with a bot system access token.": "Xem nhật ký sử dụng của người dùng thông thường bằng mã truy cập hệ thống của bot.",
-    "Read redacted usage logs via system access token": "Xem nhật ký đã ẩn thông tin nhạy cảm qua mã truy cập hệ thống"
+    "Read redacted usage logs via system access token": "Xem nhật ký đã ẩn thông tin nhạy cảm qua mã truy cập hệ thống",
+    "Unread messages": "Tin chưa đọc",
+    "Read messages": "Tin đã đọc",
+    "All messages": "Tất cả tin nhắn",
+    "Message status": "Trạng thái tin nhắn",
+    "Select ticket {{id}}": "Chọn phiếu {{id}}",
+    "Selected {{count}} tickets": "Đã chọn {{count}} phiếu",
+    "Update selected tickets": "Cập nhật phiếu đã chọn",
+    "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "Đổi {{count}} phiếu sang {{status}}? Đóng phiếu hoàn tiền sẽ hủy khoản hoàn tiền đang chờ duyệt.",
+    "Ticket status updated": "Đã cập nhật trạng thái phiếu",
+    "Clear selection": "Bỏ chọn",
+    "Confirm Batch Update": "Xác nhận cập nhật hàng loạt"
   }
 }

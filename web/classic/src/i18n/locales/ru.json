@@ -5389,6 +5389,17 @@
     "Bot": "Бот",
     "Read redacted usage logs": "Просмотр обезличенных журналов использования",
     "Read ordinary users' usage logs with a bot system access token.": "Просмотр журналов обычных пользователей с системным токеном доступа бота.",
-    "Read redacted usage logs via system access token": "Просмотр обезличенных журналов через системный токен доступа"
+    "Read redacted usage logs via system access token": "Просмотр обезличенных журналов через системный токен доступа",
+    "Unread messages": "Непрочитанные",
+    "Read messages": "Прочитанные",
+    "All messages": "Все сообщения",
+    "Message status": "Статус сообщений",
+    "Select ticket {{id}}": "Выбрать обращение {{id}}",
+    "Selected {{count}} tickets": "Выбрано обращений: {{count}}",
+    "Update selected tickets": "Обновить выбранные",
+    "Update {{count}} tickets to {{status}}? Closing refund tickets cancels pending refunds.": "Установить статус «{{status}}» для {{count}} обращений? Закрытие обращения на возврат отменяет ожидающий возврат.",
+    "Ticket status updated": "Статус обращений обновлён",
+    "Clear selection": "Снять выделение",
+    "Confirm Batch Update": "Подтвердить массовое обновление"
   }
 }

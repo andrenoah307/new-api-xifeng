@@ -447,6 +447,7 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 }
 
 type InvoiceExportItem struct {
+	Remark        string  `json:"remark" gorm:"column:remark"`
 	TicketId      int     `json:"ticket_id" gorm:"column:ticket_id"`
 	CompanyName   string  `json:"company_name" gorm:"column:company_name"`
 	TaxNumber     string  `json:"tax_number" gorm:"column:tax_number"`
@@ -459,10 +460,12 @@ type InvoiceExportItem struct {
 }
 
 type InvoiceExportFilter struct {
-	Keyword      string
-	TicketStatus int
-	StartTime    int64
-	EndTime      int64
+	StaffId           int
+	IncludeUnassigned bool
+	Keyword           string
+	TicketStatus      int
+	StartTime         int64
+	EndTime           int64
 }
 
 func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo) ([]*InvoiceExportItem, int64, error) {
@@ -470,9 +473,16 @@ func ListInvoicesForExport(filter InvoiceExportFilter, pageInfo *common.PageInfo
 	items := make([]*InvoiceExportItem, 0)
 
 	query := DB.Table("tickets t").
-		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, t.status, t.created_time").
+		Select("t.id AS ticket_id, ti.company_name, ti.tax_number, ti.email, ti.total_money, ti.top_up_order_ids, ti.remark, t.status, t.created_time").
 		Joins("INNER JOIN ticket_invoices ti ON ti.ticket_id = t.id").
 		Where("t.type = ? AND t.deleted_at IS NULL", TicketTypeInvoice)
+	if filter.StaffId > 0 {
+		if filter.IncludeUnassigned {
+			query = query.Where("(t.assignee_id = ? OR t.assignee_id = 0)", filter.StaffId)
+		} else {
+			query = query.Where("t.assignee_id = ?", filter.StaffId)
+		}
+	}
 
 	if filter.TicketStatus > 0 {
 		query = query.Where("t.status = ?", filter.TicketStatus)

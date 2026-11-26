@@ -1,4 +1,5 @@
 import React from 'react';
+import { Mail, MailOpen } from 'lucide-react';
 import { Button, Space, Tag, Typography } from '@douyinfe/semi-ui';
 // Space 已用于操作按钮组，这里也会用于分配客服单元格中的徽章与 UID 拼接。
 import { timestamp2string } from '../../../helpers';
@@ -78,7 +79,25 @@ export const getTicketsColumns = ({
       key: 'subject',
       render: (value, record) => (
         <div className='flex flex-col'>
-          <Text strong>{value || '-'}</Text>
+          <Text strong>
+            {admin && (
+              <span
+                title={
+                  record.has_unread_messages
+                    ? t('Unread messages')
+                    : t('Read messages')
+                }
+                className='inline-flex mr-1.5 align-middle'
+              >
+                {record.has_unread_messages ? (
+                  <Mail size={16} aria-label={t('Unread messages')} />
+                ) : (
+                  <MailOpen size={16} aria-label={t('Read messages')} />
+                )}
+              </span>
+            )}
+            {value || '-'}
+          </Text>
           <Space spacing={4}>
             <Text type='tertiary' size='small'>
               {getTicketTypeText(record?.type, t)}
@@ -188,4 +207,3 @@ export const getTicketsColumns = ({
 
   return columns;
 };
-

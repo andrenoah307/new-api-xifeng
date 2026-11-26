@@ -2,11 +2,13 @@ package model
 
 import (
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -46,14 +48,17 @@ var (
 )
 
 type Ticket struct {
-	Id       int    `json:"id"`
-	UserId   int    `json:"user_id" gorm:"index;not null"`
-	Username string `json:"username" gorm:"type:varchar(64)"`
-	Subject  string `json:"subject" gorm:"type:varchar(255);not null"`
-	Type     string `json:"type" gorm:"type:varchar(32);index;default:'general'"`
-	Status   int    `json:"status" gorm:"type:int;index;default:1"`
-	Priority int    `json:"priority" gorm:"type:int;default:2"`
-	AdminId  int    `json:"admin_id" gorm:"type:int;default:0"`
+	cancelledRefundQuota int
+	Id                   int    `json:"id"`
+	UserId               int    `json:"user_id" gorm:"index;not null"`
+	Username             string `json:"username" gorm:"type:varchar(64)"`
+	Subject              string `json:"subject" gorm:"type:varchar(255);not null"`
+	Type                 string `json:"type" gorm:"type:varchar(32);index;default:'general'"`
+	Status               int    `json:"status" gorm:"type:int;index;default:1"`
+	Priority             int    `json:"priority" gorm:"type:int;default:2"`
+	AdminId              int    `json:"admin_id" gorm:"type:int;default:0"`
+	StaffReadMessageId   int    `json:"-" gorm:"not null;default:0"`
+	HasUnreadMessages    bool   `json:"has_unread_messages" gorm:"->;-:migration"`
 	// AssigneeId 当前分配到的客服/管理员用户 ID。0 表示尚未分配（待认领）。
 	// 与 AdminId 分开：AdminId 会被"最后一次回复的管理员"覆盖，而 AssigneeId 是明确的负责人。
 	AssigneeId  int            `json:"assignee_id" gorm:"type:int;index;default:0"`
@@ -68,6 +73,7 @@ type TicketQueryOptions struct {
 	Status  int
 	Type    string
 	Keyword string
+	Unread  *bool
 	// AssigneeId 用于客服视角：只返回分配给指定用户的工单；值为 -1 表示"未分配"。
 	// 0 表示不按分配过滤。
 	AssigneeId int
@@ -198,6 +204,9 @@ func CreateTicketWithMessage(params CreateTicketParams) (*Ticket, *TicketMessage
 
 func applyTicketFilters(query *gorm.DB, options TicketQueryOptions) *gorm.DB {
 	ticketType := NormalizeTicketType(options.Type)
+	if options.Unread != nil {
+		query = query.Where("("+ticketUnreadSQL+") = ?", *options.Unread)
+	}
 
 	if options.UserId > 0 {
 		query = query.Where("tickets.user_id = ?", options.UserId)
@@ -293,6 +302,7 @@ func ListTicketsWithSummary(options TicketQueryOptions, pageInfo *common.PageInf
 	dataQuery := applyTicketFilters(tx.Model(&Ticket{}), options)
 	dataQuery = dataQuery.Select(
 		"tickets.*",
+		"("+ticketUnreadSQL+") AS has_unread_messages",
 		"tr_sum.refund_quota AS refund_quota",
 		"tr_sum.refund_status AS refund_status",
 		"ti_sum.total_money AS invoice_money",
@@ -345,13 +355,26 @@ func ListTickets(options TicketQueryOptions, pageInfo *common.PageInfo) (tickets
 
 func GetTicketById(ticketId int) (*Ticket, error) {
 	var ticket Ticket
-	if err := DB.First(&ticket, "id = ?", ticketId).Error; err != nil {
+	if err := DB.Select("tickets.*, ("+ticketUnreadSQL+") AS has_unread_messages").First(&ticket, "tickets.id = ?", ticketId).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrTicketNotFound
 		}
 		return nil, err
 	}
 	return &ticket, nil
+}
+
+// Only user messages beyond the shared staff watermark are unread. Message IDs
+// avoid timestamp collisions and let a detail response acknowledge its snapshot.
+var ticketUnreadSQL = "EXISTS (SELECT 1 FROM ticket_messages unread_msg WHERE unread_msg.ticket_id = tickets.id AND unread_msg.role < " + strconv.Itoa(common.RoleCustomerServiceUser) + " AND unread_msg.id > tickets.staff_read_message_id)"
+
+func MarkTicketMessagesRead(ticketId, messageId int) error {
+	if messageId <= 0 {
+		return nil
+	}
+	return DB.Model(&Ticket{}).
+		Where("id = ? AND staff_read_message_id < ?", ticketId, messageId).
+		UpdateColumn("staff_read_message_id", messageId).Error
 }
 
 func GetUserTicketById(ticketId int, userId int) (*Ticket, error) {
@@ -436,7 +459,7 @@ func AddTicketMessage(ticketId int, userId int, username string, role int, conte
 	}
 
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.First(&ticket, "id = ?", ticketId).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketNotFound
 			}
@@ -499,7 +522,7 @@ func AddTicketMessage(ticketId int, userId int, username string, role int, conte
 func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 	var ticket Ticket
 	err := DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.First(&ticket, "id = ?", ticketId).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketNotFound
 			}
@@ -522,9 +545,11 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 		}
 
 		if ticket.Type == TicketTypeRefund {
-			if err := CancelPendingRefund(tx, ticket.Id, ticket.UserId); err != nil {
+			quota, err := CancelPendingRefund(tx, ticket.Id, ticket.UserId)
+			if err != nil {
 				return err
 			}
+			ticket.cancelledRefundQuota = quota
 		}
 
 		ticket.Status = TicketStatusClosed
@@ -535,18 +560,27 @@ func CloseUserTicket(ticketId int, userId int) (*Ticket, error) {
 	if err != nil {
 		return nil, err
 	}
+	publishTicketRefundCancellation(&ticket)
 	return &ticket, nil
 }
 
 // UpdateTicketStatus 管理员调整工单状态/优先级。
 // 第二个返回值是修改前的主状态，便于调用方仅在状态真正变化时触发通知。
 func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (*Ticket, int, error) {
+	ticket, previous, err := updateTicketStatus(DB, ticketId, adminId, status, priority)
+	if err == nil {
+		publishTicketRefundCancellation(ticket)
+	}
+	return ticket, previous, err
+}
+
+func updateTicketStatus(db *gorm.DB, ticketId int, adminId int, status *int, priority *int) (*Ticket, int, error) {
 	var (
 		ticket     Ticket
 		prevStatus int
 	)
-	err := DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.First(&ticket, "id = ?", ticketId).Error; err != nil {
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ticket, "id = ?", ticketId).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return ErrTicketNotFound
 			}
@@ -573,9 +607,11 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 				ticket.ClosedTime = now
 
 				if ticket.Type == TicketTypeRefund {
-					if err := CancelPendingRefund(tx, ticket.Id, ticket.UserId); err != nil {
+					quota, err := CancelPendingRefund(tx, ticket.Id, ticket.UserId)
+					if err != nil {
 						return err
 					}
+					ticket.cancelledRefundQuota = quota
 				}
 			} else {
 				updates["closed_time"] = 0
@@ -597,6 +633,72 @@ func UpdateTicketStatus(ticketId int, adminId int, status *int, priority *int) (
 		return nil, 0, err
 	}
 	return &ticket, prevStatus, nil
+}
+
+const MaxTicketStatusBatchSize = 100
+
+type TicketStatusChange struct {
+	Ticket         *Ticket
+	PreviousStatus int
+}
+
+// BatchUpdateTicketStatus shares the single-ticket transition, including refund
+// cancellation. Lock in ID order and authorize inside the transaction.
+func BatchUpdateTicketStatus(ids []int, actorId, role, status int, unassignedTypes []string) ([]TicketStatusChange, error) {
+	if len(ids) == 0 || len(ids) > MaxTicketStatusBatchSize || !IsValidTicketStatus(status) {
+		return nil, ErrTicketInvalidStatus
+	}
+	if role < common.RoleCustomerServiceUser || actorId <= 0 {
+		return nil, ErrTicketForbidden
+	}
+	ids = append([]int(nil), ids...)
+	sort.Ints(ids)
+	changes := make([]TicketStatusChange, 0, len(ids))
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		for i, id := range ids {
+			if id <= 0 {
+				return ErrTicketNotFound
+			}
+			if i > 0 && id == ids[i-1] {
+				continue
+			}
+			var ticket Ticket
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&ticket, "id = ?", id).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return ErrTicketNotFound
+				}
+				return err
+			}
+			allowed := role >= common.RoleAdminUser || ticket.AssigneeId == actorId
+			if ticket.AssigneeId == 0 {
+				for _, kind := range unassignedTypes {
+					if kind == ticket.Type {
+						allowed = true
+						break
+					}
+				}
+			}
+			if !allowed {
+				return ErrTicketForbidden
+			}
+			if ticket.Status == status {
+				continue
+			}
+			updated, previous, err := updateTicketStatus(tx, id, actorId, &status, nil)
+			if err != nil {
+				return err
+			}
+			changes = append(changes, TicketStatusChange{Ticket: updated, PreviousStatus: previous})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, change := range changes {
+		publishTicketRefundCancellation(change.Ticket)
+	}
+	return changes, nil
 }
 
 // AssignTicket 将工单分配到指定用户。assigneeId 为 0 表示"取消分配，回到待认领池"。

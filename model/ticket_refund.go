@@ -664,14 +664,14 @@ func compensateAccountChange(
 // CancelPendingRefund 取消指定工单的待审核退款，将冻结额度退还给用户。
 // 仅当 refund_status == RefundStatusPending 时生效；CAS 保证幂等，并发安全。
 // 设计用于用户主动关闭退款工单或管理员关闭退款工单场景。
-func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) error {
+func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) (int, error) {
 	var refund TicketRefund
 	if err := tx.Where("ticket_id = ? AND refund_status = ?", ticketId, RefundStatusPending).
 		First(&refund).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
+			return 0, nil
 		}
-		return err
+		return 0, err
 	}
 
 	now := common.GetTimestamp()
@@ -683,33 +683,33 @@ func CancelPendingRefund(tx *gorm.DB, ticketId, userId int) error {
 			"processed_time": now,
 		})
 	if res.Error != nil {
-		return res.Error
+		return 0, res.Error
 	}
 	if res.RowsAffected == 0 {
-		return nil
+		return 0, nil
 	}
 
 	if refund.FrozenQuota > 0 {
-		if err := IncreaseUserQuota(userId, refund.FrozenQuota, true); err != nil {
-			if rErr := tx.Model(&TicketRefund{}).Where("id = ?", refund.Id).
-				Updates(map[string]interface{}{
-					"refund_status":  RefundStatusPending,
-					"frozen_quota":   refund.FrozenQuota,
-					"processed_time": 0,
-				}).Error; rErr != nil {
-				common.SysError(fmt.Sprintf(
-					"cancel refund unfreeze failed and rollback also failed: user=%d, ticket=%d, frozen=%d, err=%v, rollback_err=%v",
-					userId, ticketId, refund.FrozenQuota, err, rErr))
-			}
-			return err
+		result := tx.Model(&User{}).Where("id = ?", userId).
+			UpdateColumn("quota", gorm.Expr("quota + ?", refund.FrozenQuota))
+		if result.Error != nil {
+			return 0, result.Error
 		}
-		_ = InvalidateUserCache(userId)
-		RecordLog(userId, LogTypeSystem,
-			fmt.Sprintf("退款工单已取消，退还冻结额度 %s（工单 #%d）",
-				logger.LogQuota(refund.FrozenQuota), ticketId))
+		if result.RowsAffected != 1 {
+			return 0, gorm.ErrRecordNotFound
+		}
 	}
 
-	return nil
+	return refund.FrozenQuota, nil
+}
+
+// Publish only after the outer transaction commits, including bulk operations.
+func publishTicketRefundCancellation(ticket *Ticket) {
+	if ticket.cancelledRefundQuota <= 0 {
+		return
+	}
+	_ = InvalidateUserCache(ticket.UserId)
+	RecordLog(ticket.UserId, LogTypeSystem, fmt.Sprintf("退款工单已取消，退还冻结额度 %s（工单 #%d）", logger.LogQuota(ticket.cancelledRefundQuota), ticket.Id))
 }
 
 func GetUserActiveRefundSummaries(userId int) ([]*TicketRefund, error) {

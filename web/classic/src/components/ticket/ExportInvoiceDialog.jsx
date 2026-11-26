@@ -13,6 +13,7 @@ import { IconDownload } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 import { API, showError, showSuccess } from '../../helpers';
 import { timestamp2string } from '../../helpers';
+import { generateInvoiceCSV } from '../../../../shared/invoice-csv.js';
 
 const PAGE_SIZE = 20;
 
@@ -23,36 +24,6 @@ const TICKET_STATUS_OPTIONS = [
   { value: 3, label: '已解决' },
   { value: 4, label: '已关闭' },
 ];
-
-function csvField(value) {
-  const s = String(value ?? '');
-  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  return s;
-}
-
-function generateInvoiceCSV(items, serviceName) {
-  const BOM = '﻿';
-  const headers = ['工单ID', '电子邮箱', '数量', '单价', '金额合计', '公司信息', '应税服务名称'];
-  const lines = [headers.map(csvField).join(',')];
-  for (const item of items) {
-    const companyInfo = item.tax_number
-      ? `发票抬头\n${item.company_name}\n购方税号\n${item.tax_number}`
-      : item.company_name;
-    const row = [
-      item.ticket_id,
-      item.email,
-      '',
-      '',
-      item.total_money.toFixed(2),
-      companyInfo,
-      serviceName,
-    ];
-    lines.push(row.map(csvField).join(','));
-  }
-  return BOM + lines.join('\r\n');
-}
 
 function downloadCSV(csv, filename) {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
@@ -66,11 +37,16 @@ function downloadCSV(csv, filename) {
 
 const statusLabel = (s, t) => {
   switch (s) {
-    case 1: return t('待处理');
-    case 2: return t('处理中');
-    case 3: return t('已解决');
-    case 4: return t('已关闭');
-    default: return '-';
+    case 1:
+      return t('待处理');
+    case 2:
+      return t('处理中');
+    case 3:
+      return t('已解决');
+    case 4:
+      return t('已关闭');
+    default:
+      return '-';
   }
 };
 
@@ -96,9 +72,13 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
         params.set('page_size', String(PAGE_SIZE));
         if (kw) params.set('keyword', kw);
         if (status > 0) params.set('status', String(status));
-        if (dates && dates[0]) params.set('start_time', String(Math.floor(dates[0] / 1000)));
-        if (dates && dates[1]) params.set('end_time', String(Math.floor(dates[1] / 1000)));
-        const res = await API.get(`/api/ticket/admin/invoice/export-list?${params}`);
+        if (dates && dates[0])
+          params.set('start_time', String(Math.floor(dates[0] / 1000)));
+        if (dates && dates[1])
+          params.set('end_time', String(Math.floor(dates[1] / 1000)));
+        const res = await API.get(
+          `/api/ticket/admin/invoice/export-list?${params}`,
+        );
         if (res.data?.success) {
           const data = res.data.data;
           setItems(data?.items ?? []);
@@ -211,9 +191,7 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
   const columns = useMemo(
     () => [
       {
-        title: (
-          <Checkbox checked={allOnPageSelected} onChange={toggleAll} />
-        ),
+        title: <Checkbox checked={allOnPageSelected} onChange={toggleAll} />,
         dataIndex: '_select',
         width: 48,
         render: (_, record) => (
@@ -227,7 +205,9 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
         title: 'ID',
         dataIndex: 'ticket_id',
         width: 70,
-        render: (v) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>#{v}</span>,
+        render: (v) => (
+          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>#{v}</span>
+        ),
       },
       {
         title: t('公司名称'),
@@ -246,7 +226,11 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
         dataIndex: 'total_money',
         width: 100,
         align: 'right',
-        render: (v) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>¥{v.toFixed(2)}</span>,
+        render: (v) => (
+          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+            ¥{v.toFixed(2)}
+          </span>
+        ),
       },
       {
         title: t('订单数'),
@@ -274,33 +258,60 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
     [t, allOnPageSelected, toggleAll, selected, toggleItem],
   );
 
-  const datePresets = useMemo(() => [
-    {
-      text: t('今天'),
-      start: (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })(),
-      end: new Date(),
-    },
-    {
-      text: t('近 7 天'),
-      start: (() => { const d = new Date(); d.setDate(d.getDate() - 6); d.setHours(0,0,0,0); return d; })(),
-      end: new Date(),
-    },
-    {
-      text: t('本周'),
-      start: (() => { const d = new Date(); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d; })(),
-      end: new Date(),
-    },
-    {
-      text: t('近 30 天'),
-      start: (() => { const d = new Date(); d.setDate(d.getDate() - 29); d.setHours(0,0,0,0); return d; })(),
-      end: new Date(),
-    },
-    {
-      text: t('本月'),
-      start: (() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; })(),
-      end: new Date(),
-    },
-  ], [t]);
+  const datePresets = useMemo(
+    () => [
+      {
+        text: t('今天'),
+        start: (() => {
+          const d = new Date();
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })(),
+        end: new Date(),
+      },
+      {
+        text: t('近 7 天'),
+        start: (() => {
+          const d = new Date();
+          d.setDate(d.getDate() - 6);
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })(),
+        end: new Date(),
+      },
+      {
+        text: t('本周'),
+        start: (() => {
+          const d = new Date();
+          d.setDate(d.getDate() - d.getDay());
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })(),
+        end: new Date(),
+      },
+      {
+        text: t('近 30 天'),
+        start: (() => {
+          const d = new Date();
+          d.setDate(d.getDate() - 29);
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })(),
+        end: new Date(),
+      },
+      {
+        text: t('本月'),
+        start: (() => {
+          const d = new Date();
+          d.setDate(1);
+          d.setHours(0, 0, 0, 0);
+          return d;
+        })(),
+        end: new Date(),
+      },
+    ],
+    [t],
+  );
 
   const statusOpts = useMemo(
     () =>
@@ -325,8 +336,23 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
         overflowX: 'hidden',
       }}
       footer={
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
             <Typography.Text type='tertiary' size='small'>
               {t('已选择 {{count}} 张发票', { count: selected.size })}
             </Typography.Text>
@@ -348,7 +374,15 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
         </div>
       }
     >
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
         <Input
           placeholder={t('搜索公司名称、邮箱或金额...')}
           value={keyword}
@@ -391,7 +425,9 @@ export default function ExportInvoiceDialog({ visible, onClose }) {
             : false
         }
         size='small'
-        empty={<Typography.Text type='tertiary'>{t('暂无数据')}</Typography.Text>}
+        empty={
+          <Typography.Text type='tertiary'>{t('暂无数据')}</Typography.Text>
+        }
       />
     </Modal>
   );
