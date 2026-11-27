@@ -183,7 +183,7 @@ func runInvoiceMailQueueOnce(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	delay := 10 * time.Second
+	delay := time.Second
 	var sendErr error
 	defer func() { lease.Release(sendErr) }()
 	id, err := invoiceMailPop.Run(ctx, common.RDB, []string{invoiceMailQueueKey()}, common.GetTimestamp()).Text()

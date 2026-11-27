@@ -15,7 +15,7 @@ import (
 )
 
 var ErrEmailQueueBusy = errors.New("email delivery is temporarily unavailable")
-var emailPacingInterval = 10 * time.Second
+var emailPacingInterval = time.Second
 var sharedEmailSession smtpMailSession
 var localEmailGate struct {
 	sync.Mutex
