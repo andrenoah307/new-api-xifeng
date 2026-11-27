@@ -65,10 +65,13 @@ export function TicketSettingsSection({ settings }: Props) {
   const updateOption = useUpdateOption()
   const [quickReplies, setQuickReplies] = useState(settings.TicketQuickReplies ?? '')
   const [invoiceMail, setInvoiceMail] = useState(() =>
-    parseJSON<{ reply: string; status: number }>(settings.InvoiceMailSettings, {
-      reply: '',
-      status: 3,
-    })
+    parseJSON<{ reply: string; status: number; retention_hours?: number }>(
+      settings.InvoiceMailSettings,
+      {
+        reply: '',
+        status: 3,
+      }
+    )
   )
 
   const { data: staffList = [] } = useQuery({
@@ -295,8 +298,36 @@ export function TicketSettingsSection({ settings }: Props) {
             <option value={3}>{t('Resolved')}</option>
             <option value={2}>{t('Processing')}</option>
           </select>
+          <Label htmlFor='invoice-mail-retention'>
+            {t('Invoice file retention (hours)')}
+          </Label>
+          <Input
+            id='invoice-mail-retention'
+            type='number'
+            min={1}
+            max={168}
+            step={1}
+            value={invoiceMail.retention_hours ?? 24}
+            onChange={(event) =>
+              setInvoiceMail((previous) => ({
+                ...previous,
+                retention_hours: Number(event.target.value),
+              }))
+            }
+          />
+          <p className='text-muted-foreground text-sm'>
+            {t(
+              '1–168 hours. Applies to new batches only; existing expiry times stay unchanged.'
+            )}
+          </p>
           <Button
-            disabled={updateOption.isPending || !invoiceMail.reply.trim()}
+            disabled={
+              updateOption.isPending ||
+              !invoiceMail.reply.trim() ||
+              !Number.isInteger(invoiceMail.retention_hours ?? 24) ||
+              (invoiceMail.retention_hours ?? 24) < 1 ||
+              (invoiceMail.retention_hours ?? 24) > 168
+            }
             onClick={() =>
               updateOption.mutate({
                 key: 'InvoiceMailSettings',

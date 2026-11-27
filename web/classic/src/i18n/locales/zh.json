@@ -3705,6 +3705,13 @@
     "Temporary invoice files deleted": "临时发票文件已删除",
     "Ticket": "工单",
     "Ticket status after delivery": "发送成功后的工单状态",
-    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "请先核实 SMTP 发送记录。确认后将更新发票和工单。"
+    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "请先核实 SMTP 发送记录。确认后将更新发票和工单。",
+    "Invoice file retention (hours)": "发票文件保留时长（小时）",
+    "1–168 hours. Applies to new batches only; existing expiry times stay unchanged.": "1–168 小时，仅对新批次生效，已有批次的到期时间不变。",
+    "Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.": "保留 {{hours}} 小时。全部发送完成后立即清理；过期文件每 10 分钟检查回收一次。",
+    "Batch cancelled": "批次已作废",
+    "Cleanup pending; sending is disabled": "等待清理，已禁止发送",
+    "Cancel batch and clean files": "作废并清理批次",
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "确认禁止后续发送并删除此批次的文件？已发送的邮件无法撤回。发送记录将保留，正在发送的邮件可能仍会完成。"
   }
 }

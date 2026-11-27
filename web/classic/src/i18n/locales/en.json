@@ -6081,6 +6081,13 @@
     "Temporary invoice files deleted": "Temporary invoice files deleted",
     "Ticket": "Ticket",
     "Ticket status after delivery": "Ticket status after delivery",
-    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket."
+    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.",
+    "Invoice file retention (hours)": "Invoice file retention (hours)",
+    "1–168 hours. Applies to new batches only; existing expiry times stay unchanged.": "1–168 hours. Applies to new batches only; existing expiry times stay unchanged.",
+    "Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.": "Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.",
+    "Batch cancelled": "Batch cancelled",
+    "Cleanup pending; sending is disabled": "Cleanup pending; sending is disabled",
+    "Cancel batch and clean files": "Cancel batch and clean files",
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish."
   }
 }

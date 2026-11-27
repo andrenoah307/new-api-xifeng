@@ -50,8 +50,39 @@ func TestInvoiceMailUploadToSMTPAndCleanup(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "invoice.png")
 	require.NoError(t, os.WriteFile(filename, picture.Bytes(), 0600))
 	files := []InvoiceArchiveFile{{TicketID: ticket.Id, Name: fmt.Sprintf("%d.png", ticket.Id), Path: filename, Digest: fmt.Sprintf("%x", sha256.Sum256(picture.Bytes())), Size: int64(picture.Len())}}
+	configured, err := common.Marshal(model.InvoiceMailConfig{Reply: model.DefaultInvoiceMailReply, Status: model.TicketStatusResolved, RetentionHours: 48})
+	require.NoError(t, err)
+	common.OptionMapRWMutex.Lock()
+	oldConfig, hadConfig := common.OptionMap["InvoiceMailSettings"]
+	wasNil := common.OptionMap == nil
+	if wasNil {
+		common.OptionMap = make(map[string]string)
+	}
+	common.OptionMap["InvoiceMailSettings"] = string(configured)
+	common.OptionMapRWMutex.Unlock()
+	t.Cleanup(func() {
+		common.OptionMapRWMutex.Lock()
+		defer common.OptionMapRWMutex.Unlock()
+		if hadConfig {
+			common.OptionMap["InvoiceMailSettings"] = oldConfig
+		} else {
+			delete(common.OptionMap, "InvoiceMailSettings")
+		}
+		if wasNil {
+			common.OptionMap = nil
+		}
+	})
 	preview, err := CreateInvoiceMailBatch(context.Background(), actor.Id, files, nil)
 	require.NoError(t, err)
+	assert.EqualValues(t, 48, preview.RetentionHours)
+	expiresAt := preview.ExpiresAt
+	common.OptionMapRWMutex.Lock()
+	common.OptionMap["InvoiceMailSettings"] = `{"reply":"New reply","status":2,"retention_hours":1}`
+	common.OptionMapRWMutex.Unlock()
+	preview, err = PreviewInvoiceMailBatch(actor.Id, preview.ID)
+	require.NoError(t, err)
+	assert.Equal(t, expiresAt, preview.ExpiresAt)
+	assert.Equal(t, model.DefaultInvoiceMailReply, preview.Reply)
 	require.Len(t, preview.Items, 1)
 	assert.Equal(t, "invoice@example.test", preview.Items[0].Recipient)
 	assert.Equal(t, "ready", preview.Items[0].State)

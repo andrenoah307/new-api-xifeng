@@ -5834,6 +5834,13 @@
     "Temporary invoice files deleted": "暫存發票檔案已刪除",
     "Ticket": "工單",
     "Ticket status after delivery": "寄送成功後的工單狀態",
-    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "請先確認 SMTP 寄送紀錄。確認後將更新發票和工單。"
+    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "請先確認 SMTP 寄送紀錄。確認後將更新發票和工單。",
+    "Invoice file retention (hours)": "發票檔案保留時間（小時）",
+    "1–168 hours. Applies to new batches only; existing expiry times stay unchanged.": "1–168 小時，僅對新批次生效，現有批次的到期時間不變。",
+    "Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.": "保留 {{hours}} 小時。全部傳送完成後立即清理；過期檔案每 10 分鐘檢查回收一次。",
+    "Batch cancelled": "批次已作廢",
+    "Cleanup pending; sending is disabled": "等待清理，已禁止傳送",
+    "Cancel batch and clean files": "作廢並清理批次",
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "確認禁止後續傳送並刪除此批次的檔案？已傳送的郵件無法撤回。傳送紀錄將保留，正在傳送的郵件可能仍會完成。"
   }
 }

@@ -5876,6 +5876,13 @@
     "Temporary invoice files deleted": "Временные файлы счетов удалены",
     "Ticket": "Обращение",
     "Ticket status after delivery": "Статус обращения после отправки",
-    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "Проверьте журнал SMTP перед подтверждением. Счет и обращение будут обновлены."
+    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "Проверьте журнал SMTP перед подтверждением. Счет и обращение будут обновлены.",
+    "Invoice file retention (hours)": "Хранение файлов счетов (часы)",
+    "1–168 hours. Applies to new batches only; existing expiry times stay unchanged.": "От 1 до 168 часов. Только для новых пакетов; сроки существующих не меняются.",
+    "Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.": "Хранение: {{hours}} ч. Завершённые пакеты очищаются сразу; просроченные файлы проверяются каждые 10 минут.",
+    "Batch cancelled": "Пакет отменён",
+    "Cleanup pending; sending is disabled": "Ожидается очистка; отправка отключена",
+    "Cancel batch and clean files": "Отменить пакет и удалить файлы",
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Отключить дальнейшую отправку и удалить файлы пакета? Отправленные письма нельзя отозвать. Записи об отправке сохраняются; текущая отправка может завершиться."
   }
 }

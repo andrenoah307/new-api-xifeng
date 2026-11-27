@@ -5855,6 +5855,13 @@
     "Temporary invoice files deleted": "Fichiers temporaires supprimés",
     "Ticket": "Ticket",
     "Ticket status after delivery": "État du ticket après envoi",
-    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "Vérifiez le journal SMTP avant de confirmer. La facture et le ticket seront mis à jour."
+    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "Vérifiez le journal SMTP avant de confirmer. La facture et le ticket seront mis à jour.",
+    "Invoice file retention (hours)": "Conservation des factures (heures)",
+    "1–168 hours. Applies to new batches only; existing expiry times stay unchanged.": "De 1 à 168 heures. Nouveaux lots uniquement ; les échéances existantes restent inchangées.",
+    "Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.": "Conservation : {{hours}} heures. Nettoyage immédiat des lots terminés ; vérification des fichiers expirés toutes les 10 minutes.",
+    "Batch cancelled": "Lot annulé",
+    "Cleanup pending; sending is disabled": "Nettoyage en attente ; envoi désactivé",
+    "Cancel batch and clean files": "Annuler le lot et supprimer les fichiers",
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Désactiver les prochains envois et supprimer les fichiers de ce lot ? Les e-mails envoyés ne peuvent pas être rappelés. Les historiques sont conservés ; un envoi en cours peut se terminer."
   }
 }

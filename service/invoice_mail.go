@@ -17,6 +17,7 @@ import (
 	"github.com/QuantumNous/new-api/service/attachment"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type InvoiceMailFile struct {
@@ -72,13 +73,15 @@ type InvoiceMailItem struct {
 }
 
 type InvoiceMailPreview struct {
-	ID        string            `json:"id"`
-	ExpiresAt int64             `json:"expires_at"`
-	CleanedAt int64             `json:"cleaned_at"`
-	Reply     string            `json:"reply"`
-	Status    int               `json:"status"`
-	Items     []InvoiceMailItem `json:"items"`
-	Ignored   []string          `json:"ignored"`
+	ID             string            `json:"id"`
+	ExpiresAt      int64             `json:"expires_at"`
+	CleanedAt      int64             `json:"cleaned_at"`
+	CancelledAt    int64             `json:"cancelled_at"`
+	RetentionHours int64             `json:"retention_hours"`
+	Reply          string            `json:"reply"`
+	Status         int               `json:"status"`
+	Items          []InvoiceMailItem `json:"items"`
+	Ignored        []string          `json:"ignored"`
 }
 
 // Uploads are drafts only. Files live in the configured private attachment
@@ -92,8 +95,8 @@ func CreateInvoiceMailBatch(ctx context.Context, actorID int, files []InvoiceArc
 		return nil, err
 	}
 	now := common.GetTimestamp()
-	batch := model.InvoiceMailBatch{ID: uuid.NewString(), OwnerID: actorID, CreatedAt: now, ExpiresAt: now + 86400}
 	manifest := InvoiceMailManifest{Config: model.GetInvoiceMailConfig(), Storage: storage.Kind(), StorageLocation: invoiceMailStorageLocation(), Ignored: ignored}
+	batch := model.InvoiceMailBatch{ID: uuid.NewString(), OwnerID: actorID, CreatedAt: now, ExpiresAt: now + int64(manifest.Config.RetentionHours)*3600}
 	var keys []string
 	saved := false
 	defer func() {
@@ -157,7 +160,7 @@ func LoadInvoiceMailBatch(actorID int, id string) (*model.InvoiceMailBatch, *Inv
 		return nil, nil, model.ErrInvoiceMail
 	}
 	var batch model.InvoiceMailBatch
-	query := model.DB.Where("id = ? AND expires_at > ?", id, common.GetTimestamp())
+	query := model.DB.Where("id = ?", id)
 	if actor.Role != common.RoleRootUser {
 		query = query.Where("owner_id = ?", actorID)
 	}
@@ -177,6 +180,8 @@ func PreviewInvoiceMailBatch(actorID int, id string) (*InvoiceMailPreview, error
 		return nil, err
 	}
 	preview := &InvoiceMailPreview{ID: batch.ID, ExpiresAt: batch.ExpiresAt, CleanedAt: batch.CleanedAt, Reply: manifest.Config.Reply, Status: manifest.Config.Status, Ignored: manifest.Ignored, Items: make([]InvoiceMailItem, 0, len(manifest.Groups))}
+	preview.CancelledAt = batch.CancelledAt
+	preview.RetentionHours = (batch.ExpiresAt - batch.CreatedAt) / 3600
 	var deliveries []model.InvoiceMailDelivery
 	var keys []string
 	for _, group := range manifest.Groups {
@@ -249,6 +254,9 @@ func SendInvoiceMailBatchItem(ctx context.Context, actorID int, id string, ticke
 	if sent != 0 {
 		return CleanupInvoiceMailBatch(ctx, batch, manifest, false)
 	}
+	if review != "delivered" && (batch.CancelledAt != 0 || batch.CleanedAt != 0 || batch.ExpiresAt <= common.GetTimestamp()) {
+		return model.ErrInvoiceMail
+	}
 	storage, err := attachment.Current()
 	if err != nil || storage.Kind() != manifest.Storage || manifest.StorageLocation != invoiceMailStorageLocation() {
 		return model.ErrInvoiceMail
@@ -268,7 +276,7 @@ func SendInvoiceMailBatchItem(ctx context.Context, actorID int, id string, ticke
 			attachments = append(attachments, common.EmailAttachment{Name: file.Name, Data: data})
 		}
 	}
-	err = model.DeliverInvoiceMail(ticketID, actorID, selected.DeliveryKey, selected.Recipient, manifest.Config, review, func() (bool, error) {
+	err = model.DeliverInvoiceMail(batch.ID, ticketID, actorID, selected.DeliveryKey, selected.Recipient, manifest.Config, review, func() (bool, error) {
 		return common.SendEmailAttachments(fmt.Sprintf("Invoice #%d", ticketID), selected.Recipient, "<p>"+html.EscapeString(manifest.Config.Reply)+"</p>", attachments)
 	})
 	if err != nil {
@@ -277,58 +285,94 @@ func SendInvoiceMailBatchItem(ctx context.Context, actorID int, id string, ticke
 	return CleanupInvoiceMailBatch(ctx, batch, manifest, false)
 }
 
-// Successful batches are cleaned immediately. Abandoned/failed drafts expire
-// after a day; delivery receipts remain for deduplication and manual review.
+// Successful batches are cleaned immediately. Drafts expire at their snapshotted
+// retention deadline; delivery receipts remain for deduplication and review.
 func CleanupInvoiceMailBatch(ctx context.Context, batch *model.InvoiceMailBatch, manifest *InvoiceMailManifest, expired bool) error {
-	if batch.CleanedAt != 0 {
-		return nil
-	}
-	var keys []string
-	for _, group := range manifest.Groups {
-		keys = append(keys, group.DeliveryKey)
-	}
-	var count int64
-	if expired {
-		if err := model.DB.Model(&model.InvoiceMailDelivery{}).Where("delivery_key IN ? AND state = ? AND updated_at > ?", keys, "sending", common.GetTimestamp()-120).Count(&count).Error; err != nil {
+	return model.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		current, err := model.LockInvoiceMailBatch(tx, batch.ID)
+		if err != nil {
 			return err
 		}
-		if count != 0 {
+		*batch = *current
+		if batch.CleanedAt != 0 {
 			return nil
 		}
-	} else {
-		if err := model.DB.Model(&model.InvoiceMailDelivery{}).Where("delivery_key IN ? AND state = ?", keys, "sent").Count(&count).Error; err != nil {
-			return err
+		var keys []string
+		for _, group := range manifest.Groups {
+			keys = append(keys, group.DeliveryKey)
 		}
-		if count != int64(len(keys)) {
-			return nil
-		}
-	}
-	storage, err := attachment.Current()
-	if err != nil || storage.Kind() != manifest.Storage || manifest.StorageLocation != invoiceMailStorageLocation() {
-		return model.ErrInvoiceMail
-	}
-	for _, group := range manifest.Groups {
-		for _, file := range group.Files {
-			if err := storage.Delete(ctx, file.Key); err != nil {
+		var count int64
+		if expired || batch.CancelledAt != 0 || batch.ExpiresAt <= common.GetTimestamp() {
+			if err := tx.Model(&model.InvoiceMailDelivery{}).Where("delivery_key IN ? AND state = ? AND updated_at > ?", keys, "sending", common.GetTimestamp()-120).Count(&count).Error; err != nil {
 				return err
 			}
+			if count != 0 {
+				return nil
+			}
+		} else {
+			if err := tx.Model(&model.InvoiceMailDelivery{}).Where("delivery_key IN ? AND state = ?", keys, "sent").Count(&count).Error; err != nil {
+				return err
+			}
+			if count != int64(len(keys)) {
+				return nil
+			}
 		}
+		storage, err := attachment.Current()
+		if err != nil || storage.Kind() != manifest.Storage || manifest.StorageLocation != invoiceMailStorageLocation() {
+			return model.ErrInvoiceMail
+		}
+		for _, group := range manifest.Groups {
+			for _, file := range group.Files {
+				if err := storage.Delete(ctx, file.Key); err != nil {
+					return err
+				}
+			}
+		}
+		return tx.Model(batch).Update("cleaned_at", common.GetTimestamp()).Error
+	})
+}
+
+func CancelInvoiceMailBatch(ctx context.Context, actorID int, id string) (*InvoiceMailPreview, error) {
+	batch, manifest, err := LoadInvoiceMailBatch(actorID, id)
+	if err != nil {
+		return nil, err
 	}
-	return model.DB.Model(batch).Update("cleaned_at", common.GetTimestamp()).Error
+	// Commit revocation before deleting files: storage failures must never make
+	// an unwanted batch sendable again. This update waits for an active SMTP lock.
+	if err := model.DB.WithContext(ctx).Model(&model.InvoiceMailBatch{}).Where("id = ? AND (cancelled_at = ? OR cancelled_at IS NULL)", id, 0).Update("cancelled_at", common.GetTimestamp()).Error; err != nil {
+		return nil, err
+	}
+	if err := CleanupInvoiceMailBatch(ctx, batch, manifest, true); err != nil {
+		common.SysError("cancelled invoice batch cleanup pending: " + err.Error())
+	}
+	return PreviewInvoiceMailBatch(actorID, id)
 }
 
 func CleanupExpiredInvoiceMailBatches(ctx context.Context) {
-	var batches []model.InvoiceMailBatch
-	if err := model.DB.Where("cleaned_at = ?", 0).Order("created_at ASC").Limit(200).Find(&batches).Error; err != nil {
-		return
-	}
-	for _, batch := range batches {
-		var manifest InvoiceMailManifest
-		if common.UnmarshalJsonStr(batch.Manifest, &manifest) != nil {
-			continue
+	// Keyset pagination prevents retained drafts or storage failures in the first
+	// page from permanently starving later expired/cancelled batches.
+	lastID := ""
+	for ctx.Err() == nil {
+		var batches []model.InvoiceMailBatch
+		if err := model.DB.WithContext(ctx).Where("cleaned_at = ? AND id > ?", 0, lastID).Order("id ASC").Limit(200).Find(&batches).Error; err != nil {
+			common.SysError("invoice batch cleanup query failed: " + err.Error())
+			return
 		}
-		if err := CleanupInvoiceMailBatch(ctx, &batch, &manifest, batch.ExpiresAt < common.GetTimestamp()); err != nil {
-			common.SysError("invoice batch cleanup failed: " + err.Error())
+		if len(batches) == 0 {
+			return
+		}
+		for _, batch := range batches {
+			lastID = batch.ID
+			var manifest InvoiceMailManifest
+			if common.UnmarshalJsonStr(batch.Manifest, &manifest) != nil {
+				continue
+			}
+			if err := CleanupInvoiceMailBatch(ctx, &batch, &manifest, batch.ExpiresAt <= common.GetTimestamp()); err != nil {
+				common.SysError("invoice batch cleanup failed: " + err.Error())
+			}
+			if ctx.Err() != nil {
+				return
+			}
 		}
 	}
 }

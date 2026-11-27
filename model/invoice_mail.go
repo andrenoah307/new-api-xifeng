@@ -14,24 +14,31 @@ import (
 const DefaultInvoiceMailReply = "发票已发送至您的邮箱，若未在收件箱找到，请留意查看垃圾箱。有任何问题请联系提提处理QQ：1528201845"
 
 type InvoiceMailConfig struct {
-	Reply  string `json:"reply"`
-	Status int    `json:"status"`
+	Reply          string `json:"reply"`
+	Status         int    `json:"status"`
+	RetentionHours int    `json:"retention_hours"`
 }
 
 func GetInvoiceMailConfig() InvoiceMailConfig {
-	config := InvoiceMailConfig{Reply: DefaultInvoiceMailReply, Status: TicketStatusResolved}
+	config := InvoiceMailConfig{Reply: DefaultInvoiceMailReply, Status: TicketStatusResolved, RetentionHours: 24}
 	common.OptionMapRWMutex.RLock()
 	raw := common.OptionMap["InvoiceMailSettings"]
 	common.OptionMapRWMutex.RUnlock()
 	if raw != "" {
 		_ = common.UnmarshalJsonStr(raw, &config)
 	}
+	if config.RetentionHours < 1 || config.RetentionHours > 168 {
+		config.RetentionHours = 24
+	}
 	return config
 }
 
 func NormalizeInvoiceMailConfig(raw string) (string, error) {
-	var config InvoiceMailConfig
+	config := InvoiceMailConfig{RetentionHours: 24}
 	if common.UnmarshalJsonStr(raw, &config) != nil || len(strings.TrimSpace(config.Reply)) == 0 || len(config.Reply) > 5000 || (config.Status != TicketStatusResolved && config.Status != TicketStatusProcessing) {
+		return "", ErrInvoiceMail
+	}
+	if config.RetentionHours < 1 || config.RetentionHours > 168 {
 		return "", ErrInvoiceMail
 	}
 	config.Reply = strings.TrimSpace(config.Reply)
@@ -40,11 +47,12 @@ func NormalizeInvoiceMailConfig(raw string) (string, error) {
 }
 
 type InvoiceMailBatch struct {
-	ID        string `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	OwnerID   int    `json:"owner_id" gorm:"index"`
-	CreatedAt int64  `json:"created_at" gorm:"index"`
-	ExpiresAt int64  `json:"expires_at" gorm:"index"`
-	CleanedAt int64  `json:"cleaned_at"`
+	ID          string `json:"id" gorm:"primaryKey;type:varchar(36)"`
+	OwnerID     int    `json:"owner_id" gorm:"index"`
+	CreatedAt   int64  `json:"created_at" gorm:"index"`
+	ExpiresAt   int64  `json:"expires_at" gorm:"index"`
+	CleanedAt   int64  `json:"cleaned_at"`
+	CancelledAt int64  `json:"cancelled_at"`
 	// The bounded ZIP manifest can exceed MySQL TEXT's 64 KiB capacity.
 	Manifest string `json:"-" gorm:"size:4194304"`
 }
@@ -64,6 +72,19 @@ type InvoiceMailDelivery struct {
 }
 
 var ErrInvoiceMail = errors.New("invoice mail operation unavailable")
+
+// A write lock also serializes SQLite cleanup against sending. Call only inside
+// a transaction; keep the lock until SMTP or attachment deletion has finished.
+func LockInvoiceMailBatch(tx *gorm.DB, id string) (*InvoiceMailBatch, error) {
+	if err := tx.Model(&InvoiceMailBatch{}).Where("id = ?", id).UpdateColumn("cleaned_at", gorm.Expr("cleaned_at")).Error; err != nil {
+		return nil, err
+	}
+	var batch InvoiceMailBatch
+	if err := tx.First(&batch, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+	return &batch, nil
+}
 
 func AuthorizeInvoiceMail(actorID int) (*User, error) {
 	var actor User
@@ -138,7 +159,10 @@ func InvoiceMailRecipient(ticketID int) (*Ticket, string, error) {
 // DeliverInvoiceMail persists a claim before SMTP. Account/invoice locks remain
 // held during the bounded SMTP call, preventing concurrent refund or tax changes.
 // Any ambiguous SMTP/commit outcome requires explicit operator review.
-func DeliverInvoiceMail(ticketID, actorID int, key, recipient string, config InvoiceMailConfig, review string, send func() (bool, error)) error {
+func DeliverInvoiceMail(batchID string, ticketID, actorID int, key, recipient string, config InvoiceMailConfig, review string, send func() (bool, error)) error {
+	if batchID == "" {
+		return ErrInvoiceMail
+	}
 	if strings.TrimSpace(config.Reply) == "" || len(config.Reply) > 5000 || (config.Status != TicketStatusResolved && config.Status != TicketStatusProcessing) || len(key) != 64 {
 		return ErrInvoiceMail
 	}
@@ -183,6 +207,13 @@ func DeliverInvoiceMail(ticketID, actorID int, key, recipient string, config Inv
 	}
 	uncertain, accepted := false, false
 	err = DB.Transaction(func(tx *gorm.DB) error {
+		batch, err := LockInvoiceMailBatch(tx, batchID)
+		if err != nil {
+			return err
+		}
+		if (actor.Role != common.RoleRootUser && batch.OwnerID != actorID) || (review != "delivered" && (batch.CancelledAt != 0 || batch.CleanedAt != 0 || batch.ExpiresAt <= common.GetTimestamp())) {
+			return ErrInvoiceMail
+		}
 		var owner User
 		if err := lockForUpdate(tx).First(&owner, ticket.UserId).Error; err != nil {
 			return err

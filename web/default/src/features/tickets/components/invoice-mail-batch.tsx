@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, RefreshCw, Send, Square, Upload } from 'lucide-react'
+import { Mail, RefreshCw, Send, Square, Trash2, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -28,6 +28,8 @@ type Batch = {
   id: string
   expires_at: number
   cleaned_at: number
+  cancelled_at: number
+  retention_hours: number
   reply: string
   status: number
   items: Item[]
@@ -42,6 +44,7 @@ export function InvoiceMailBatch() {
   const [batch, setBatch] = useState<Batch | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [cancelConfirmation, setCancelConfirmation] = useState(false)
   const [confirmation, setConfirmation] = useState<{
     ticket?: number
     review?: string
@@ -103,6 +106,24 @@ export function InvoiceMailBatch() {
     },
     onError: () => setError(t('Invalid invoice ZIP archive')),
   })
+  const cancel = useMutation({
+    mutationFn: async () => {
+      if (!batch) throw new Error('batch')
+      const response = await api.post(
+        `/api/ticket/invoice-mail/${batch.id}/cancel`,
+        {},
+        { timeout: 120000 }
+      )
+      if (!response.data.success) throw new Error(response.data.message)
+      return response.data.data as Batch
+    },
+    onSuccess: (data) => {
+      setBatch(data)
+      setError('')
+      void recent.refetch()
+    },
+    onError: () => setError(t('Invoice batch unavailable')),
+  })
   const send = async () => {
     if (!batch || !confirmation || busy) return
     const request = confirmation
@@ -156,7 +177,12 @@ export function InvoiceMailBatch() {
     }
   }
   if (!allowed) return null
-  const locked = busy || upload.isPending || load.isPending
+  const locked = busy || upload.isPending || load.isPending || cancel.isPending
+  const inactive =
+    !!batch &&
+    (batch.cancelled_at > 0 ||
+      batch.cleaned_at > 0 ||
+      batch.expires_at * 1000 <= Date.now())
   const ready =
     batch?.items.filter((item) => ['ready', 'failed'].includes(item.state))
       .length ?? 0
@@ -254,6 +280,22 @@ export function InvoiceMailBatch() {
                   {new Date(batch.expires_at * 1000).toLocaleString()}
                 </span>
               </div>
+              <p className='text-muted-foreground text-sm'>
+                {t(
+                  'Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.',
+                  { hours: batch.retention_hours }
+                )}
+              </p>
+              {batch.cancelled_at > 0 && (
+                <p role='status' className='text-sm'>
+                  {t('Batch cancelled')}
+                </p>
+              )}
+              {inactive && batch.cleaned_at === 0 && (
+                <p role='status' className='text-sm'>
+                  {t('Cleanup pending; sending is disabled')}
+                </p>
+              )}
               <div className='max-h-[40dvh] overflow-auto border-y'>
                 <div className='divide-y sm:hidden'>
                   {batch.items.map((item) => (
@@ -299,7 +341,7 @@ export function InvoiceMailBatch() {
                           <Button
                             size='sm'
                             variant='outline'
-                            disabled={locked}
+                            disabled={locked || inactive}
                             onClick={() =>
                               setConfirmation({
                                 ticket: item.ticket_id,
@@ -372,7 +414,7 @@ export function InvoiceMailBatch() {
                               <Button
                                 size='sm'
                                 variant='outline'
-                                disabled={locked}
+                                disabled={locked || inactive}
                                 onClick={() =>
                                   setConfirmation({
                                     ticket: item.ticket_id,
@@ -424,6 +466,16 @@ export function InvoiceMailBatch() {
                 </p>
               )}
               <div className='flex flex-wrap justify-end gap-2'>
+                {batch.cleaned_at === 0 && (
+                  <Button
+                    variant='outline'
+                    disabled={locked}
+                    onClick={() => setCancelConfirmation(true)}
+                  >
+                    <Trash2 size={16} />
+                    {t('Cancel batch and clean files')}
+                  </Button>
+                )}
                 {busy ? (
                   <Button
                     variant='outline'
@@ -437,7 +489,7 @@ export function InvoiceMailBatch() {
                   </Button>
                 ) : (
                   <Button
-                    disabled={locked || ready === 0}
+                    disabled={locked || inactive || ready === 0}
                     onClick={() => setConfirmation({})}
                   >
                     <Send size={16} />
@@ -449,6 +501,19 @@ export function InvoiceMailBatch() {
           )}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={cancelConfirmation}
+        onOpenChange={setCancelConfirmation}
+        title={t('Cancel batch and clean files')}
+        desc={t(
+          'Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.'
+        )}
+        handleConfirm={() => {
+          setCancelConfirmation(false)
+          cancel.mutate()
+        }}
+        confirmText={t('Confirm')}
+      />
       <ConfirmDialog
         open={confirmation !== null}
         onOpenChange={(value) => {

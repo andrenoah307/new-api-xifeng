@@ -16,6 +16,7 @@ func seedInvoiceMail(t *testing.T) (*Ticket, *TicketInvoice, *User) {
 	truncateTables(t)
 	require.NoError(t, DB.AutoMigrate(&InvoiceMailBatch{}, &InvoiceMailDelivery{}))
 	t.Cleanup(func() {
+		require.NoError(t, DB.Where("id = ?", "invoice-mail-test").Delete(&InvoiceMailBatch{}).Error)
 		require.NoError(t, DB.Where("1 = 1").Delete(&InvoiceMailDelivery{}).Error)
 		require.NoError(t, DB.Where("user_id = ?", 930001).Delete(&InvoiceTaxCharge{}).Error)
 	})
@@ -23,6 +24,7 @@ func seedInvoiceMail(t *testing.T) (*Ticket, *TicketInvoice, *User) {
 	require.NoError(t, DB.Model(owner).Update("email", "account@example.test").Error)
 	actor := insertInvoiceTicketUser(t, 930002)
 	require.NoError(t, DB.Model(actor).Update("role", common.RoleFinanceUser).Error)
+	require.NoError(t, DB.Create(&InvoiceMailBatch{ID: "invoice-mail-test", OwnerID: actor.Id, ExpiresAt: common.GetTimestamp() + 86400}).Error)
 	ticket := &Ticket{UserId: owner.Id, Subject: "Invoice", Type: TicketTypeInvoice, Status: TicketStatusProcessing}
 	require.NoError(t, DB.Create(ticket).Error)
 	invoice := &TicketInvoice{TicketId: ticket.Id, UserId: owner.Id, Email: "invoice@example.test", TopUpOrderIds: "[]", InvoiceStatus: InvoiceStatusPending}
@@ -58,6 +60,70 @@ func TestInvoiceMailRecipientPriorityAndRoleBoundary(t *testing.T) {
 	require.ErrorIs(t, err, ErrTicketForbidden)
 }
 
+func TestInvoiceMailRetentionValidation(t *testing.T) {
+	for _, value := range []string{`{"reply":"Sent","status":3}`, `{"reply":"Sent","status":3,"retention_hours":1}`, `{"reply":"Sent","status":3,"retention_hours":168}`} {
+		normalized, err := NormalizeInvoiceMailConfig(value)
+		require.NoError(t, err)
+		var config InvoiceMailConfig
+		require.NoError(t, common.UnmarshalJsonStr(normalized, &config))
+		assert.GreaterOrEqual(t, config.RetentionHours, 1)
+		assert.LessOrEqual(t, config.RetentionHours, 168)
+		if !strings.Contains(value, "retention_hours") {
+			assert.Equal(t, 24, config.RetentionHours)
+		}
+	}
+	for _, hours := range []string{"0", "-1", "169", "1.5", "9999999999999999999999999"} {
+		_, err := NormalizeInvoiceMailConfig(`{"reply":"Sent","status":3,"retention_hours":` + hours + `}`)
+		require.Error(t, err)
+	}
+}
+
+func TestInvoiceMailCleanedBatchAllowsReceiptReviewWithoutSending(t *testing.T) {
+	ticket, invoice, actor := seedInvoiceMail(t)
+	require.NoError(t, DB.Model(&InvoiceMailBatch{}).Where("id = ?", "invoice-mail-test").Updates(map[string]any{"cancelled_at": common.GetTimestamp(), "cleaned_at": common.GetTimestamp(), "expires_at": common.GetTimestamp() - 1}).Error)
+	key := strings.Repeat("f", 64)
+	require.NoError(t, DB.Create(&InvoiceMailDelivery{TicketID: ticket.Id, DeliveryKey: key, Recipient: "invoice@example.test", State: "unknown"}).Error)
+	calls := 0
+	err := DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, "invoice@example.test", InvoiceMailConfig{Reply: "Sent", Status: TicketStatusResolved}, "delivered", func() (bool, error) { calls++; return false, nil })
+	require.NoError(t, err)
+	assert.Zero(t, calls)
+	require.NoError(t, DB.First(invoice, invoice.Id).Error)
+	assert.Equal(t, InvoiceStatusIssued, invoice.InvoiceStatus)
+	var receipt InvoiceMailDelivery
+	require.NoError(t, DB.Where("delivery_key = ?", key).First(&receipt).Error)
+	assert.Equal(t, "sent", receipt.State)
+}
+
+func TestInvoiceMailRevokedBatchCannotSendFromStalePreview(t *testing.T) {
+	for _, state := range []string{"cancelled", "expired", "cleaned", "other-owner"} {
+		t.Run(state, func(t *testing.T) {
+			ticket, invoice, actor := seedInvoiceMail(t)
+			batch := InvoiceMailBatch{ID: "batch-" + state, OwnerID: actor.Id, ExpiresAt: common.GetTimestamp() + 3600}
+			switch state {
+			case "cancelled":
+				batch.CancelledAt = common.GetTimestamp()
+			case "expired":
+				batch.ExpiresAt = common.GetTimestamp() - 1
+			case "cleaned":
+				batch.CleanedAt = common.GetTimestamp()
+			case "other-owner":
+				batch.OwnerID++
+			}
+			require.NoError(t, DB.Create(&batch).Error)
+			t.Cleanup(func() { require.NoError(t, DB.Delete(&batch).Error) })
+			calls := 0
+			err := DeliverInvoiceMail(batch.ID, ticket.Id, actor.Id, strings.Repeat("d", 64), "invoice@example.test", InvoiceMailConfig{Reply: "Sent", Status: TicketStatusResolved}, "", func() (bool, error) { calls++; return false, nil })
+			require.Error(t, err)
+			assert.Zero(t, calls)
+			require.NoError(t, DB.First(invoice, invoice.Id).Error)
+			assert.Equal(t, InvoiceStatusPending, invoice.InvoiceStatus)
+			var count int64
+			require.NoError(t, DB.Model(&TicketMessage{}).Where("ticket_id = ?", ticket.Id).Count(&count).Error)
+			assert.Zero(t, count)
+		})
+	}
+}
+
 func TestInvoiceMailDeliveryAtomicityAndDeduplication(t *testing.T) {
 	for _, outcome := range []string{"success", "failed", "unknown"} {
 		t.Run(outcome, func(t *testing.T) {
@@ -72,7 +138,7 @@ func TestInvoiceMailDeliveryAtomicityAndDeduplication(t *testing.T) {
 			}
 			config := InvoiceMailConfig{Reply: DefaultInvoiceMailReply, Status: TicketStatusResolved}
 			key := strings.Repeat("a", 64)
-			err := DeliverInvoiceMail(ticket.Id, actor.Id, key, "invoice@example.test", config, "", send)
+			err := DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, "invoice@example.test", config, "", send)
 			require.Equal(t, 1, calls)
 			require.NoError(t, DB.First(ticket, ticket.Id).Error)
 			require.NoError(t, DB.First(invoice, invoice.Id).Error)
@@ -88,7 +154,7 @@ func TestInvoiceMailDeliveryAtomicityAndDeduplication(t *testing.T) {
 				assert.Equal(t, DefaultInvoiceMailReply, messages[0].Content)
 				assert.Positive(t, messages[0].CreatedTime)
 				assert.Equal(t, "sent", delivery.State)
-				require.NoError(t, DeliverInvoiceMail(ticket.Id, actor.Id, key, "invoice@example.test", config, "", send))
+				require.NoError(t, DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, "invoice@example.test", config, "", send))
 				assert.Equal(t, 1, calls)
 			} else {
 				require.Error(t, err)
@@ -97,14 +163,14 @@ func TestInvoiceMailDeliveryAtomicityAndDeduplication(t *testing.T) {
 				assert.Empty(t, messages)
 				assert.Equal(t, outcome, delivery.State)
 				if outcome == "unknown" {
-					require.Error(t, DeliverInvoiceMail(ticket.Id, actor.Id, key, "invoice@example.test", config, "", send))
+					require.Error(t, DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, "invoice@example.test", config, "", send))
 					assert.Equal(t, 1, calls)
-					require.NoError(t, DeliverInvoiceMail(ticket.Id, actor.Id, key, "invoice@example.test", config, "delivered", send))
+					require.NoError(t, DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, "invoice@example.test", config, "delivered", send))
 					assert.Equal(t, 1, calls)
 					require.NoError(t, DB.First(invoice, invoice.Id).Error)
 					assert.Equal(t, InvoiceStatusIssued, invoice.InvoiceStatus)
 				} else {
-					require.NoError(t, DeliverInvoiceMail(ticket.Id, actor.Id, key, "invoice@example.test", config, "", func() (bool, error) { calls++; return false, nil }))
+					require.NoError(t, DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, "invoice@example.test", config, "", func() (bool, error) { calls++; return false, nil }))
 					assert.Equal(t, 2, calls)
 				}
 			}
@@ -136,7 +202,7 @@ func TestInvoiceMailRevalidatesBeforeSMTP(t *testing.T) {
 				require.NoError(t, DB.Create(&TicketInvoice{TicketId: other.Id, UserId: ticket.UserId, TopUpOrderIds: invoice.TopUpOrderIds, InvoiceStatus: InvoiceStatusIssued}).Error)
 			}
 			called := false
-			err := DeliverInvoiceMail(ticket.Id, actor.Id, strings.Repeat("b", 64), "invoice@example.test", InvoiceMailConfig{Reply: "Sent", Status: TicketStatusResolved}, "", func() (bool, error) { called = true; return false, nil })
+			err := DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, strings.Repeat("b", 64), "invoice@example.test", InvoiceMailConfig{Reply: "Sent", Status: TicketStatusResolved}, "", func() (bool, error) { called = true; return false, nil })
 			require.Error(t, err)
 			assert.False(t, called)
 		})
@@ -160,7 +226,7 @@ func TestInvoiceMailAcceptedButPersistenceFailsRequiresReview(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, DB.Callback().Update().Remove("test:invoice_mail_receipt")) })
 	calls := 0
 	send := func() (bool, error) { calls++; return false, nil }
-	err := DeliverInvoiceMail(ticket.Id, actor.Id, key, "invoice@example.test", config, "", send)
+	err := DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, "invoice@example.test", config, "", send)
 	require.ErrorIs(t, err, injected)
 	assert.Equal(t, 1, calls)
 	var delivery InvoiceMailDelivery
@@ -168,7 +234,7 @@ func TestInvoiceMailAcceptedButPersistenceFailsRequiresReview(t *testing.T) {
 	assert.Equal(t, "unknown", delivery.State)
 	require.NoError(t, DB.First(invoice, invoice.Id).Error)
 	assert.Equal(t, InvoiceStatusPending, invoice.InvoiceStatus)
-	require.Error(t, DeliverInvoiceMail(ticket.Id, actor.Id, key, "invoice@example.test", config, "", send))
+	require.Error(t, DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, "invoice@example.test", config, "", send))
 	assert.Equal(t, 1, calls)
 }
 
@@ -192,9 +258,9 @@ func TestInvoiceMailStaleAttemptRequiresExplicitReview(t *testing.T) {
 	config := InvoiceMailConfig{Reply: "Sent", Status: TicketStatusProcessing}
 	calls := 0
 	send := func() (bool, error) { calls++; return false, nil }
-	require.Error(t, DeliverInvoiceMail(ticket.Id, actor.Id, key, receipt.Recipient, config, "", send))
+	require.Error(t, DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, receipt.Recipient, config, "", send))
 	assert.Zero(t, calls)
-	require.NoError(t, DeliverInvoiceMail(ticket.Id, actor.Id, key, receipt.Recipient, config, "not_delivered", send))
+	require.NoError(t, DeliverInvoiceMail("invoice-mail-test", ticket.Id, actor.Id, key, receipt.Recipient, config, "not_delivered", send))
 	assert.Equal(t, 1, calls)
 	require.NoError(t, DB.First(invoice, invoice.Id).Error)
 	assert.Equal(t, int64(100), invoice.IssuedTime)

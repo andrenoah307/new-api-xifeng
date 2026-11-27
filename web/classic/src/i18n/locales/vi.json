@@ -6365,6 +6365,13 @@
     "Temporary invoice files deleted": "Đã xóa tệp hóa đơn tạm",
     "Ticket": "Yêu cầu",
     "Ticket status after delivery": "Trạng thái yêu cầu sau khi gửi",
-    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "Kiểm tra nhật ký SMTP trước khi xác nhận. Hóa đơn và yêu cầu sẽ được cập nhật."
+    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "Kiểm tra nhật ký SMTP trước khi xác nhận. Hóa đơn và yêu cầu sẽ được cập nhật.",
+    "Invoice file retention (hours)": "Thời gian lưu tệp hóa đơn (giờ)",
+    "1–168 hours. Applies to new batches only; existing expiry times stay unchanged.": "Từ 1 đến 168 giờ. Chỉ áp dụng cho lô mới; hạn của lô hiện có không đổi.",
+    "Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.": "Lưu trong {{hours}} giờ. Lô hoàn tất được dọn ngay; tệp hết hạn được kiểm tra mỗi 10 phút.",
+    "Batch cancelled": "Đã hủy lô",
+    "Cleanup pending; sending is disabled": "Đang chờ dọn; đã tắt gửi",
+    "Cancel batch and clean files": "Hủy lô và xóa tệp",
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Tắt gửi tiếp và xóa tệp của lô này? Không thể thu hồi email đã gửi. Lịch sử gửi được giữ lại; email đang gửi vẫn có thể hoàn tất."
   }
 }

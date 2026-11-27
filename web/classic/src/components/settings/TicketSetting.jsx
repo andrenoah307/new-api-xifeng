@@ -407,8 +407,39 @@ const TicketSetting = () => {
                 <option value={3}>{t('Resolved')}</option>
                 <option value={2}>{t('Processing')}</option>
               </select>
+              <label htmlFor='invoice-mail-retention'>
+                {t('Invoice file retention (hours)')}
+              </label>
+              <input
+                id='invoice-mail-retention'
+                type='number'
+                min={1}
+                max={168}
+                step={1}
+                className='block h-9 w-full rounded border bg-transparent px-3'
+                value={invoiceMail.retention_hours ?? 24}
+                onChange={(event) =>
+                  handleInputChange(
+                    'InvoiceMailSettings',
+                    JSON.stringify({
+                      ...invoiceMail,
+                      retention_hours: Number(event.target.value),
+                    }),
+                  )
+                }
+              />
+              <p className='text-sm'>
+                {t(
+                  '1–168 hours. Applies to new batches only; existing expiry times stay unchanged.',
+                )}
+              </p>
               <Button
-                disabled={!invoiceMail.reply.trim()}
+                disabled={
+                  !invoiceMail.reply.trim() ||
+                  !Number.isInteger(invoiceMail.retention_hours ?? 24) ||
+                  (invoiceMail.retention_hours ?? 24) < 1 ||
+                  (invoiceMail.retention_hours ?? 24) > 168
+                }
                 onClick={() =>
                   updateOptions([
                     {

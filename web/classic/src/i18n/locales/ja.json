@@ -5822,6 +5822,13 @@
     "Temporary invoice files deleted": "一時請求書ファイルを削除しました",
     "Ticket": "チケット",
     "Ticket status after delivery": "送信成功後のチケット状態",
-    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "SMTP の送信記録を確認してください。確定すると請求書とチケットが更新されます。"
+    "Verify the SMTP delivery record before confirming. This action updates the invoice and ticket.": "SMTP の送信記録を確認してください。確定すると請求書とチケットが更新されます。",
+    "Invoice file retention (hours)": "請求書ファイルの保存期間（時間）",
+    "1–168 hours. Applies to new batches only; existing expiry times stay unchanged.": "1～168 時間。新しいバッチのみに適用され、既存の有効期限は変わりません。",
+    "Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.": "保存期間：{{hours}} 時間。送信完了後は即時削除し、期限切れファイルは 10 分ごとに確認して削除します。",
+    "Batch cancelled": "バッチは取り消されました",
+    "Cleanup pending; sending is disabled": "削除待ち・送信停止中",
+    "Cancel batch and clean files": "バッチを取り消してファイルを削除",
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "以降の送信を停止し、このバッチのファイルを削除しますか？送信済みメールは取り消せません。送信記録は保持され、送信中のメールは完了する場合があります。"
   }
 }

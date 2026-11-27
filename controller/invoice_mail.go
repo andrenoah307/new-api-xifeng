@@ -75,7 +75,7 @@ func ListInvoiceMailBatches(c *gin.Context) {
 		return
 	}
 	var batches []model.InvoiceMailBatch
-	query := model.DB.Select("id, owner_id, created_at, expires_at, cleaned_at").Where("expires_at > ?", common.GetTimestamp())
+	query := model.DB.Select("id, owner_id, created_at, expires_at, cleaned_at, cancelled_at")
 	if actor.Role != common.RoleRootUser {
 		query = query.Where("owner_id = ?", actor.Id)
 	}
@@ -84,6 +84,19 @@ func ListInvoiceMailBatches(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": batches})
+}
+
+func CancelInvoiceMailBatch(c *gin.Context) {
+	actor, ok := invoiceMailActor(c)
+	if !ok {
+		return
+	}
+	preview, err := service.CancelInvoiceMailBatch(c.Request.Context(), actor.Id, c.Param("batch"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invoice batch unavailable"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": preview})
 }
 
 func GetInvoiceMailBatch(c *gin.Context) {

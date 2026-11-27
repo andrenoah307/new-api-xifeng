@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Button, Modal } from '@douyinfe/semi-ui';
-import { Mail, RefreshCw, Send, Square, Upload } from 'lucide-react';
+import { Mail, RefreshCw, Send, Square, Trash2, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { API } from '../../helpers';
 import { UserContext } from '../../context/User';
@@ -33,6 +33,7 @@ export default function InvoiceMailBatch() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
+  const [cancelConfirmation, setCancelConfirmation] = useState(false);
   const stop = useRef(false);
   useEffect(
     () => () => {
@@ -140,7 +141,32 @@ export default function InvoiceMailBatch() {
       setSending(false);
     }
   };
+  const cancel = async () => {
+    if (!batch || busy) return;
+    setCancelConfirmation(false);
+    setBusy(true);
+    setError('');
+    try {
+      const response = await API.post(
+        `/api/ticket/invoice-mail/${batch.id}/cancel`,
+        {},
+        { timeout: 120000 },
+      );
+      if (!response.data.success) throw new Error(response.data.message);
+      setBatch(response.data.data);
+      await list();
+    } catch {
+      setError(t('Invoice batch unavailable'));
+    } finally {
+      setBusy(false);
+    }
+  };
   if (role !== 3 && role !== 100) return null;
+  const inactive =
+    !!batch &&
+    (batch.cancelled_at > 0 ||
+      batch.cleaned_at > 0 ||
+      batch.expires_at * 1000 <= Date.now());
   const ready =
     batch?.items.filter((item) => ['ready', 'failed'].includes(item.state))
       .length || 0;
@@ -246,6 +272,22 @@ export default function InvoiceMailBatch() {
                   {new Date(batch.expires_at * 1000).toLocaleString()}
                 </span>
               </div>
+              <p className='text-sm'>
+                {t(
+                  'Retention: {{hours}} hours. Completed batches are cleaned immediately; expired files are checked every 10 minutes.',
+                  { hours: batch.retention_hours },
+                )}
+              </p>
+              {batch.cancelled_at > 0 && (
+                <p role='status' className='text-sm'>
+                  {t('Batch cancelled')}
+                </p>
+              )}
+              {inactive && batch.cleaned_at === 0 && (
+                <p role='status' className='text-sm'>
+                  {t('Cleanup pending; sending is disabled')}
+                </p>
+              )}
               <div className='max-h-[40dvh] overflow-auto border-y'>
                 <div className='divide-y sm:hidden'>
                   {batch.items.map((item) => (
@@ -289,7 +331,7 @@ export default function InvoiceMailBatch() {
                           </Button>
                           <Button
                             size='small'
-                            disabled={busy}
+                            disabled={busy || inactive}
                             icon={<Send size={14} />}
                             onClick={() =>
                               setConfirmation({
@@ -358,7 +400,7 @@ export default function InvoiceMailBatch() {
                               </Button>
                               <Button
                                 size='small'
-                                disabled={busy}
+                                disabled={busy || inactive}
                                 icon={<Send size={14} />}
                                 onClick={() =>
                                   setConfirmation({
@@ -410,6 +452,15 @@ export default function InvoiceMailBatch() {
                 </p>
               )}
               <div className='flex flex-wrap justify-end gap-2'>
+                {batch.cleaned_at === 0 && (
+                  <Button
+                    disabled={busy}
+                    icon={<Trash2 size={16} />}
+                    onClick={() => setCancelConfirmation(true)}
+                  >
+                    {t('Cancel batch and clean files')}
+                  </Button>
+                )}
                 {sending ? (
                   <Button
                     icon={<Square size={16} />}
@@ -422,7 +473,7 @@ export default function InvoiceMailBatch() {
                 ) : (
                   <Button
                     theme='solid'
-                    disabled={busy || ready === 0}
+                    disabled={busy || inactive || ready === 0}
                     icon={<Send size={16} />}
                     onClick={() => setConfirmation({})}
                   >
@@ -433,6 +484,19 @@ export default function InvoiceMailBatch() {
             </>
           )}
         </div>
+      </Modal>
+      <Modal
+        centered
+        visible={cancelConfirmation}
+        title={t('Cancel batch and clean files')}
+        onCancel={() => setCancelConfirmation(false)}
+        onOk={() => void cancel()}
+        okText={t('Confirm')}
+        cancelText={t('Cancel')}
+      >
+        {t(
+          'Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.',
+        )}
       </Modal>
       <Modal
         centered
