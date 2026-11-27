@@ -164,7 +164,7 @@ const TicketSetting = () => {
         nextAssignRaw = v;
         return;
       }
-      if (!k.startsWith('Ticket')) return;
+      if (!k.startsWith('Ticket') && k !== 'InvoiceMailSettings') return;
       if (k.endsWith('Enabled')) {
         next[k] = toBoolean(v);
       } else {
@@ -356,10 +356,72 @@ const TicketSetting = () => {
     setInputs((prev) => ({ ...prev, [key]: value }));
   };
 
+  const invoiceMail = useMemo(() => {
+    try {
+      return JSON.parse(
+        inputs.InvoiceMailSettings || '{"reply":"","status":3}',
+      );
+    } catch {
+      return { reply: '', status: 3 };
+    }
+  }, [inputs.InvoiceMailSettings]);
+
   return (
     <Spin spinning={loading} size='large'>
       <Card style={{ marginTop: '10px' }}>
         <Tabs type='card' defaultActiveKey='assignment' contentStyle={{ paddingTop: 24 }}>
+          <Tabs.TabPane tab={t('Invoice delivery')} itemKey='invoice-mail'>
+            <div className='space-y-4'>
+              <label htmlFor='invoice-mail-reply'>
+                {t('Reply after delivery')}
+              </label>
+              <TextArea
+                id='invoice-mail-reply'
+                rows={5}
+                maxLength={5000}
+                value={invoiceMail.reply}
+                onChange={(reply) =>
+                  handleInputChange(
+                    'InvoiceMailSettings',
+                    JSON.stringify({ ...invoiceMail, reply }),
+                  )
+                }
+              />
+              <label htmlFor='invoice-mail-status'>
+                {t('Ticket status after delivery')}
+              </label>
+              <select
+                id='invoice-mail-status'
+                className='block h-9 rounded border bg-transparent px-3'
+                value={invoiceMail.status}
+                onChange={(event) =>
+                  handleInputChange(
+                    'InvoiceMailSettings',
+                    JSON.stringify({
+                      ...invoiceMail,
+                      status: Number(event.target.value),
+                    }),
+                  )
+                }
+              >
+                <option value={3}>{t('Resolved')}</option>
+                <option value={2}>{t('Processing')}</option>
+              </select>
+              <Button
+                disabled={!invoiceMail.reply.trim()}
+                onClick={() =>
+                  updateOptions([
+                    {
+                      key: 'InvoiceMailSettings',
+                      value: JSON.stringify(invoiceMail),
+                    },
+                  ])
+                }
+              >
+                {t('保存设置')}
+              </Button>
+            </div>
+          </Tabs.TabPane>
           <Tabs.TabPane tab={t('Quick replies')} itemKey='quick-replies'>
             <label htmlFor='ticket-quick-replies'>{t('Quick replies (one per line)')}</label>
             <TextArea id='ticket-quick-replies' rows={8} maxLength={200000} value={inputs.TicketQuickReplies || ''} onChange={(value) => setInputs((previous) => ({ ...previous, TicketQuickReplies: value }))} />

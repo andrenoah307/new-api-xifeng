@@ -60,6 +60,7 @@ import {
 import { ticketQueryKeys } from '../lib/ticket-actions'
 import { ExportInvoiceDialog } from './dialogs/export-invoice-dialog'
 import { FinanceRefundList } from './finance-refund-list'
+import { InvoiceMailBatch } from './invoice-mail-batch'
 
 const route = getRouteApi('/_authenticated/ticket-admin/')
 
@@ -315,6 +316,7 @@ function StaffTicketList() {
                     <Download className='mr-1.5 h-4 w-4' />
                     {t('Export Invoice')}
                   </Button>
+                  <InvoiceMailBatch />
                   {[3, 10, 100].includes(viewerRole ?? 0) && (
                     <Button
                       variant='outline'

@@ -69,6 +69,7 @@ import {
   extractRemarkFromSummary,
 } from '../../components/ticket/ticketUtils';
 import ExportInvoiceDialog from '../../components/ticket/ExportInvoiceDialog';
+import InvoiceMailBatch from '../../components/ticket/InvoiceMailBatch';
 
 const { Title, Text } = Typography;
 
@@ -764,6 +765,7 @@ const StaffTicketAdmin = () => {
                 >
                   {t('导出发票')}
                 </Button>
+                <InvoiceMailBatch />
                 {viewerIsAdmin && (
                   <Button
                     icon={<IconDownload />}

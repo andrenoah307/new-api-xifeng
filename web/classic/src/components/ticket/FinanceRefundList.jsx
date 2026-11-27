@@ -1,4 +1,23 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
 import RefundInvoiceExports from './RefundInvoiceExports';
+import InvoiceMailBatch from './InvoiceMailBatch';
 import { LegacyRefundRecovery } from './FinanceWorkflow';
 /*
 Copyright (C) 2023-2026 QuantumNous
@@ -30,8 +49,7 @@ import { refundCash } from './refundFinanceFormat';
 export default function FinanceRefundList() {
   const [state] = useContext(UserContext);
   if (!state.user) return null;
-  if (state.user.role !== 3)
-    return <Navigate to='/forbidden' replace />;
+  if (state.user.role !== 3) return <Navigate to='/forbidden' replace />;
   return <RefundFinanceList key={`${state.user.id}:${state.user.role}`} />;
 }
 function RefundFinanceList() {
@@ -64,7 +82,8 @@ function RefundFinanceList() {
   return (
     <main className='mx-2 mt-16 min-w-0 space-y-5 py-5'>
       <h1 className='text-xl font-semibold'>{t('工单管理')}</h1>
-      <div className='flex items-center justify-end gap-2'>
+      <div className='flex flex-wrap items-center justify-end gap-2'>
+        <InvoiceMailBatch />
         <Button
           title={t('Refresh')}
           aria-label={t('Refresh')}

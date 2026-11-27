@@ -160,6 +160,11 @@ func applyOptionUpdate(c *gin.Context, key string, value any) error {
 		if err != nil {
 			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
 		}
+	case "InvoiceMailSettings":
+		option.Value, err = model.NormalizeInvoiceMailConfig(option.Value.(string))
+		if err != nil {
+			return errors.New(common.TranslateMessage(c, i18n.MsgInvalidParams))
+		}
 	case "CustomNavigationLinks":
 		option.Value, err = setting.NormalizeCustomNavigationLinks(option.Value.(string))
 		if err != nil {

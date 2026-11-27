@@ -60,6 +60,7 @@ func runTicketAttachmentCleanupOnce() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
+	CleanupExpiredInvoiceMailBatches(ctx)
 
 	orphans, err := model.ListOrphanAttachments(attachmentOrphanAgeSec, attachmentCleanupBatch)
 	if err != nil {

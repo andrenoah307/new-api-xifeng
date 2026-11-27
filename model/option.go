@@ -83,6 +83,8 @@ func InitOptionMap() {
 	common.OptionMap["TicketNotifyEnabled"] = strconv.FormatBool(common.TicketNotifyEnabled)
 	common.OptionMap["TicketAdminEmail"] = common.TicketAdminEmail
 	common.OptionMap["TicketQuickReplies"] = ""
+	invoiceMailDefaults, _ := common.Marshal(InvoiceMailConfig{Reply: DefaultInvoiceMailReply, Status: TicketStatusResolved})
+	common.OptionMap["InvoiceMailSettings"] = string(invoiceMailDefaults)
 	errorMessages, _ := common.Marshal(common.GetUpstreamErrorMessages())
 	common.OptionMap[common.UpstreamErrorMessagesOption] = string(errorMessages)
 	common.OptionMap["CustomNavigationLinks"] = "[]"

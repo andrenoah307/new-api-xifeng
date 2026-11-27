@@ -215,6 +215,10 @@ func SetApiRouter(router *gin.Engine) {
 		ticketRoute.Use(middleware.UserAuth())
 		{
 			ticketRoute.GET("/limit-status", controller.GetTicketLimitStatus)
+			ticketRoute.POST("/invoice-mail", middleware.CriticalRateLimit(), controller.UploadInvoiceMailBatch)
+			ticketRoute.GET("/invoice-mail", controller.ListInvoiceMailBatches)
+			ticketRoute.GET("/invoice-mail/:batch", controller.GetInvoiceMailBatch)
+			ticketRoute.POST("/invoice-mail/:batch/:ticket/send", controller.SendInvoiceMailBatchItem)
 			ticketRoute.POST("/", middleware.CaptchaCheck("ticket_create"), controller.CreateTicket)
 			ticketRoute.GET("/self", controller.GetUserTickets)
 			ticketRoute.GET("/self/:id", controller.GetUserTicket)

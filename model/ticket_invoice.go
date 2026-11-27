@@ -608,6 +608,10 @@ func GetTicketInvoiceDetail(ticketId int) (*TicketInvoice, []*TopUp, error) {
 // UpdateInvoiceStatus 管理员调整发票状态。
 // 第三个返回值是修改前的工单主状态，供调用方触发状态已变化通知。
 func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketInvoice, *Ticket, int, error) {
+	return updateInvoiceStatus(DB, ticketId, adminId, invoiceStatus)
+}
+
+func updateInvoiceStatus(db *gorm.DB, ticketId int, adminId int, invoiceStatus int) (*TicketInvoice, *Ticket, int, error) {
 	if !IsValidInvoiceStatus(invoiceStatus) {
 		return nil, nil, 0, ErrTicketInvoiceStatusInvalid
 	}
@@ -619,13 +623,13 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 	)
 	var refundedQuota int
 	var known TicketInvoice
-	if err := DB.Where("ticket_id = ?", ticketId).Take(&known).Error; err != nil {
+	if err := db.Where("ticket_id = ?", ticketId).Take(&known).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil, 0, ErrTicketInvoiceNotFound
 		}
 		return nil, nil, 0, err
 	}
-	err := DB.Transaction(func(tx *gorm.DB) error {
+	err := db.Transaction(func(tx *gorm.DB) error {
 		var owner User
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&owner, known.UserId).Error; err != nil {
 			return err
@@ -749,6 +753,9 @@ func UpdateInvoiceStatus(ticketId int, adminId int, invoiceStatus int) (*TicketI
 		switch invoiceStatus {
 		case InvoiceStatusIssued:
 			invoiceUpdates["issued_time"] = now
+			if invoice.InvoiceStatus == InvoiceStatusIssued && invoice.IssuedTime > 0 {
+				invoiceUpdates["issued_time"] = invoice.IssuedTime
+			}
 			ticketUpdates["status"] = TicketStatusResolved
 		case InvoiceStatusRejected:
 			invoiceUpdates["issued_time"] = int64(0)

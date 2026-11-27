@@ -64,6 +64,12 @@ export function TicketSettingsSection({ settings }: Props) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
   const [quickReplies, setQuickReplies] = useState(settings.TicketQuickReplies ?? '')
+  const [invoiceMail, setInvoiceMail] = useState(() =>
+    parseJSON<{ reply: string; status: number }>(settings.InvoiceMailSettings, {
+      reply: '',
+      status: 3,
+    })
+  )
 
   const { data: staffList = [] } = useQuery({
     queryKey: ['ticket-staff'],
@@ -244,6 +250,7 @@ export function TicketSettingsSection({ settings }: Props) {
       <Tabs defaultValue='assignment'>
         <TabsList className='max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
           <TabsTrigger value='quick-replies'>{t('Quick replies')}</TabsTrigger>
+          <TabsTrigger value='invoice-mail'>{t('Invoice delivery')}</TabsTrigger>
           <TabsTrigger value='assignment'>
             {t('Assignment Rules')}
           </TabsTrigger>
@@ -255,6 +262,51 @@ export function TicketSettingsSection({ settings }: Props) {
           </TabsTrigger>
           <TabsTrigger value='invoice'>{t('Invoice Settings')}</TabsTrigger>
         </TabsList>
+        <TabsContent value='invoice-mail' className='space-y-4 pt-4'>
+          <Label htmlFor='invoice-mail-reply'>
+            {t('Reply after delivery')}
+          </Label>
+          <Textarea
+            id='invoice-mail-reply'
+            rows={5}
+            maxLength={5000}
+            value={invoiceMail.reply}
+            onChange={(event) =>
+              setInvoiceMail((previous) => ({
+                ...previous,
+                reply: event.target.value,
+              }))
+            }
+          />
+          <Label htmlFor='invoice-mail-status'>
+            {t('Ticket status after delivery')}
+          </Label>
+          <select
+            id='invoice-mail-status'
+            className='bg-background block h-9 rounded-md border px-3'
+            value={invoiceMail.status}
+            onChange={(event) =>
+              setInvoiceMail((previous) => ({
+                ...previous,
+                status: Number(event.target.value),
+              }))
+            }
+          >
+            <option value={3}>{t('Resolved')}</option>
+            <option value={2}>{t('Processing')}</option>
+          </select>
+          <Button
+            disabled={updateOption.isPending || !invoiceMail.reply.trim()}
+            onClick={() =>
+              updateOption.mutate({
+                key: 'InvoiceMailSettings',
+                value: JSON.stringify(invoiceMail),
+              })
+            }
+          >
+            {t('Save')}
+          </Button>
+        </TabsContent>
         <TabsContent value='quick-replies' className='space-y-4 pt-4'>
           <Label htmlFor='ticket-quick-replies'>
             {t('Quick replies (one per line)')}

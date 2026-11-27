@@ -33,9 +33,10 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
 
 import type { TicketRefund } from '../api'
-import { LegacyRefundRecovery } from './finance-workflow'
-import { RefundInvoiceExports } from './refund-invoice-exports'
 import { refundCash } from '../refund-finance-format'
+import { LegacyRefundRecovery } from './finance-workflow'
+import { InvoiceMailBatch } from './invoice-mail-batch'
+import { RefundInvoiceExports } from './refund-invoice-exports'
 
 export function FinanceRefundList() {
   const user = useAuthStore((state) => state.auth.user)
@@ -74,11 +75,10 @@ function RefundFinanceList(props: { userId: number; role: number }) {
   const item = query.data?.items.find((row) => row.ticket_id === selected)
   return (
     <SectionPageLayout>
-      <SectionPageLayout.Title>
-        {t('Ticket Admin')}
-      </SectionPageLayout.Title>
+      <SectionPageLayout.Title>{t('Ticket Admin')}</SectionPageLayout.Title>
       <SectionPageLayout.Content>
-        <div className='mb-4 flex items-center justify-end gap-2'>
+        <div className='mb-4 flex flex-wrap items-center justify-end gap-2'>
+          <InvoiceMailBatch />
           <Button
             variant='outline'
             aria-label={t('Refresh')}
