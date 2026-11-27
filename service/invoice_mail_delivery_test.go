@@ -18,12 +18,22 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting"
+	"github.com/alicebob/miniredis/v2"
+	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInvoiceMailUploadToSMTPAndCleanup(t *testing.T) {
 	truncate(t)
+	oldRedis, oldRedisEnabled := common.RDB, common.RedisEnabled
+	mr := miniredis.RunT(t)
+	common.RDB, common.RedisEnabled = redis.NewClient(&redis.Options{Addr: mr.Addr()}), true
+	t.Cleanup(func() {
+		common.CloseEmailSession()
+		_ = common.RDB.Close()
+		common.RDB, common.RedisEnabled = oldRedis, oldRedisEnabled
+	})
 	require.NoError(t, model.DB.AutoMigrate(&model.Option{}, &model.Ticket{}, &model.TicketMessage{}, &model.TicketInvoice{}, &model.TicketRefund{}, &model.InvoiceTaxCharge{}, &model.RefundOrderAllocation{}, &model.RefundInvoiceCorrection{}, &model.RefundInvoiceExport{}, &model.InvoiceMailBatch{}, &model.InvoiceMailDelivery{}))
 	t.Cleanup(func() {
 		for _, table := range []any{&model.Ticket{}, &model.TicketMessage{}, &model.TicketInvoice{}, &model.InvoiceMailBatch{}, &model.InvoiceMailDelivery{}} {
@@ -151,6 +161,7 @@ func TestInvoiceMailUploadToSMTPAndCleanup(t *testing.T) {
 		common.SMTPStartTLSEnabled = oldStartTLS
 	})
 	require.NoError(t, SendInvoiceMailBatchItem(context.Background(), actor.Id, preview.ID, ticket.Id, ""))
+	common.CloseEmailSession()
 	<-done
 	select {
 	case message := <-messages:
@@ -181,5 +192,6 @@ func TestInvoiceMailUploadToSMTPAndCleanup(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "sent", again.Items[0].State)
 	assert.Positive(t, again.CleanedAt)
+	mr.FastForward(10 * time.Second)
 	require.NoError(t, SendInvoiceMailBatchItem(context.Background(), actor.Id, again.ID, ticket.Id, ""))
 }

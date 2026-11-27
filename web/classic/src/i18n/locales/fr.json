@@ -5862,6 +5862,10 @@
     "Batch cancelled": "Lot annulé",
     "Cleanup pending; sending is disabled": "Nettoyage en attente ; envoi désactivé",
     "Cancel batch and clean files": "Annuler le lot et supprimer les fichiers",
-    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Désactiver les prochains envois et supprimer les fichiers de ce lot ? Les e-mails envoyés ne peuvent pas être rappelés. Les historiques sont conservés ; un envoi en cours peut se terminer."
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Désactiver les prochains envois et supprimer les fichiers de ce lot ? Les e-mails envoyés ne peuvent pas être rappelés. Les historiques sont conservés ; un envoi en cours peut se terminer.",
+    "Invoice queue": "File d’envoi des factures",
+    "Next attempt": "Prochaine tentative",
+    "Queued": "En attente",
+    "SMTP retry scheduled": "Nouvelle tentative d’envoi programmée"
   }
 }

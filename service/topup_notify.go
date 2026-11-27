@@ -161,7 +161,7 @@ func NotifyTopUpSuccess(topUp *model.TopUp) {
 				return
 			}
 			for _, to := range recipients {
-				if err := common.SendEmail(subject, to, body); err != nil {
+				if err := EnqueueEmailNotification(subject, to, body); err != nil {
 					common.SysLog(fmt.Sprintf("topup notify: failed to send admin email to %s (trade_no=%s): %s", to, topUp.TradeNo, err.Error()))
 				}
 			}

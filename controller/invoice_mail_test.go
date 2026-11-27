@@ -18,7 +18,7 @@ func TestInvoiceMailEndpointsEnforceStoredRoleBeforeReadingUpload(t *testing.T) 
 	require.NoError(t, db.AutoMigrate(&model.User{}))
 	actor := model.User{Username: "invoice-operator", Role: common.RoleAdminUser, Status: common.UserStatusEnabled}
 	require.NoError(t, db.Create(&actor).Error)
-	for _, handler := range []gin.HandlerFunc{UploadInvoiceMailBatch, ListInvoiceMailBatches, GetInvoiceMailBatch, SendInvoiceMailBatchItem, CancelInvoiceMailBatch} {
+	for _, handler := range []gin.HandlerFunc{UploadInvoiceMailBatch, ListInvoiceMailBatches, GetInvoiceMailBatch, SendInvoiceMailBatchItem, CancelInvoiceMailBatch, QueueInvoiceMailBatch, PauseInvoiceMailBatch} {
 		response := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(response)
 		c.Set("id", actor.Id)

@@ -181,7 +181,7 @@ func NotifyTicketCreatedToAdmin(ticket *model.Ticket, message *model.TicketMessa
 			return
 		}
 		for _, to := range recipients {
-			if err := common.SendEmail(subject, to, body); err != nil {
+			if err := EnqueueEmailNotification(subject, to, body); err != nil {
 				common.SysLog(fmt.Sprintf("failed to send ticket-created email to admin %s (ticket=%d): %s", to, ticket.Id, err.Error()))
 			}
 		}
@@ -228,7 +228,7 @@ func NotifyTicketAssigned(ticket *model.Ticket, assigneeId int) {
 		}
 
 		if assigneeEmail != "" {
-			if err := common.SendEmail(subject, assigneeEmail, body); err != nil {
+			if err := EnqueueEmailNotification(subject, assigneeEmail, body); err != nil {
 				common.SysLog(fmt.Sprintf("failed to send ticket-assigned email to assignee %d (ticket=%d): %s",
 					assigneeId, ticket.Id, err.Error()))
 			}
@@ -240,7 +240,7 @@ func NotifyTicketAssigned(ticket *model.Ticket, assigneeId int) {
 			if to == assigneeEmail {
 				continue
 			}
-			if err := common.SendEmail(subject, to, body); err != nil {
+			if err := EnqueueEmailNotification(subject, to, body); err != nil {
 				common.SysLog(fmt.Sprintf("failed to send ticket-assigned email to admin %s (ticket=%d): %s",
 					to, ticket.Id, err.Error()))
 			}
@@ -320,7 +320,7 @@ func NotifyTicketReplyToAdmin(ticket *model.Ticket, message *model.TicketMessage
 			return
 		}
 		for _, to := range recipients {
-			if err := common.SendEmail(subject, to, body); err != nil {
+			if err := EnqueueEmailNotification(subject, to, body); err != nil {
 				common.SysLog(fmt.Sprintf("failed to send ticket-reply email to admin %s (ticket=%d): %s", to, ticket.Id, err.Error()))
 			}
 		}
@@ -416,4 +416,3 @@ func parseAdminEmails(raw string) []string {
 	}
 	return emails
 }
-

@@ -125,7 +125,7 @@ func NotifyUser(userId int, userEmail string, userSetting dto.UserSetting, data 
 
 func sendEmailNotify(userEmail string, data dto.Notify) error {
 	content := renderNotifyContent(data.Content, data.Values)
-	return common.SendEmail(data.Title, userEmail, content)
+	return EnqueueEmailNotification(data.Title, userEmail, content)
 }
 
 // renderNotifyContent 按顺序把 content 里的 {{value}} 占位符替换为 values 中的值。

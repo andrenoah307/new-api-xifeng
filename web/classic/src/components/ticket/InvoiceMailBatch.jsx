@@ -16,7 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Button, Modal } from '@douyinfe/semi-ui';
 import { Mail, RefreshCw, Send, Square, Trash2, Upload } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -30,18 +30,41 @@ export default function InvoiceMailBatch() {
   const [batch, setBatch] = useState(null);
   const [recent, setRecent] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [confirmation, setConfirmation] = useState(null);
   const [cancelConfirmation, setCancelConfirmation] = useState(false);
-  const stop = useRef(false);
-  useEffect(
-    () => () => {
-      stop.current = true;
-    },
-    [],
-  );
   const role = userState?.user?.role;
+  const sending = ['queued', 'running'].includes(batch?.queue?.status);
+  const batchId = batch?.id;
+  useEffect(() => {
+    if (!open || ![3, 100].includes(role) || !batchId || !sending || busy)
+      return;
+    const controller = new AbortController();
+    let timer;
+    const poll = async () => {
+      try {
+        const response = await API.get(`/api/ticket/invoice-mail/${batchId}`, {
+          disableDuplicate: true,
+          signal: controller.signal,
+        });
+        if (!response.data.success) throw new Error('batch');
+        if (!controller.signal.aborted)
+          setBatch((previous) =>
+            previous?.id === batchId ? response.data.data : previous,
+          );
+      } catch {
+        if (!controller.signal.aborted)
+          setError(t('Invoice batch unavailable'));
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(poll, 3000);
+      }
+    };
+    timer = setTimeout(poll, 3000);
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [open, role, batchId, sending, busy, t]);
   const load = async (id) => {
     const response = await API.get(`/api/ticket/invoice-mail/${id}`, {
       disableDuplicate: true,
@@ -95,40 +118,15 @@ export default function InvoiceMailBatch() {
     const request = confirmation;
     setConfirmation(null);
     setBusy(true);
-    setSending(true);
     setError('');
-    stop.current = false;
-    const items = batch.items.filter((item) =>
-      request.ticket
-        ? item.ticket_id === request.ticket
-        : ['ready', 'failed'].includes(item.state),
-    );
     try {
-      for (const item of items) {
-        if (stop.current) break;
-        setBatch((previous) => ({
-          ...previous,
-          items: previous.items.map((row) =>
-            row.ticket_id === item.ticket_id
-              ? { ...row, state: 'sending' }
-              : row,
-          ),
-        }));
-        const response = await API.post(
-          `/api/ticket/invoice-mail/${batch.id}/${item.ticket_id}/send`,
-          { review: request.review || '' },
-          { timeout: 60000 },
-        );
-        if (!response.data.success) throw new Error(response.data.message);
-        setBatch((previous) => ({
-          ...previous,
-          items: previous.items.map((row) =>
-            row.ticket_id === item.ticket_id
-              ? { ...row, state: 'sent', reason: '' }
-              : row,
-          ),
-        }));
-      }
+      const response = await API.post(
+        `/api/ticket/invoice-mail/${batch.id}${request.ticket ? `/${request.ticket}` : ''}/send`,
+        { review: request.review || '' },
+        { timeout: 60000 },
+      );
+      if (!response.data.success) throw new Error(response.data.message);
+      if (response.data.data) setBatch(response.data.data);
     } catch {
       setError(t('Invoice delivery failed; refresh the batch before retrying'));
     } finally {
@@ -138,7 +136,23 @@ export default function InvoiceMailBatch() {
         setError(t('Invoice batch unavailable'));
       }
       setBusy(false);
-      setSending(false);
+    }
+  };
+  const pause = async () => {
+    if (!batch || busy) return;
+    setBusy(true);
+    try {
+      const response = await API.post(
+        `/api/ticket/invoice-mail/${batch.id}/pause`,
+        {},
+        { timeout: 120000 },
+      );
+      if (!response.data.success) throw new Error('batch');
+      setBatch(response.data.data);
+    } catch {
+      setError(t('Invoice batch unavailable'));
+    } finally {
+      setBusy(false);
     }
   };
   const cancel = async () => {
@@ -177,6 +191,11 @@ export default function InvoiceMailBatch() {
     sending: t('Sending'),
     unknown: t('Delivery needs review'),
     blocked: t('Blocked'),
+    queued: t('Queued'),
+    running: t('Sending'),
+    paused: t('Paused'),
+    completed: t('Completed'),
+    'SMTP retry scheduled': t('SMTP retry scheduled'),
   };
   return (
     <>
@@ -283,6 +302,27 @@ export default function InvoiceMailBatch() {
                   {t('Batch cancelled')}
                 </p>
               )}
+              {batch.queue && (
+                <p role='status' className='text-sm'>
+                  {t('Invoice queue')}: {labels[batch.queue.status]} ·{' '}
+                  {batch.queue.position}/{batch.queue.items.length}
+                  {sending && (
+                    <>
+                      {' '}
+                      · {t('Next attempt')}:{' '}
+                      {new Date(batch.queue.next_at * 1000).toLocaleString()}
+                    </>
+                  )}
+                  {batch.queue.reason &&
+                    (sending ||
+                      batch.queue.reason !== 'SMTP retry scheduled') && (
+                      <>
+                        {' '}
+                        · {labels[batch.queue.reason] || t(batch.queue.reason)}
+                      </>
+                    )}
+                </p>
+              )}
               {inactive && batch.cleaned_at === 0 && (
                 <p role='status' className='text-sm'>
                   {t('Cleanup pending; sending is disabled')}
@@ -318,7 +358,7 @@ export default function InvoiceMailBatch() {
                         <div className='flex flex-wrap gap-2'>
                           <Button
                             size='small'
-                            disabled={busy}
+                            disabled={busy || sending}
                             icon={<Mail size={14} />}
                             onClick={() =>
                               setConfirmation({
@@ -331,7 +371,7 @@ export default function InvoiceMailBatch() {
                           </Button>
                           <Button
                             size='small'
-                            disabled={busy || inactive}
+                            disabled={busy || inactive || sending}
                             icon={<Send size={14} />}
                             onClick={() =>
                               setConfirmation({
@@ -387,7 +427,7 @@ export default function InvoiceMailBatch() {
                             <div className='mt-2 flex flex-wrap gap-2'>
                               <Button
                                 size='small'
-                                disabled={busy}
+                                disabled={busy || sending}
                                 icon={<Mail size={14} />}
                                 onClick={() =>
                                   setConfirmation({
@@ -400,7 +440,7 @@ export default function InvoiceMailBatch() {
                               </Button>
                               <Button
                                 size='small'
-                                disabled={busy || inactive}
+                                disabled={busy || inactive || sending}
                                 icon={<Send size={14} />}
                                 onClick={() =>
                                   setConfirmation({
@@ -464,9 +504,8 @@ export default function InvoiceMailBatch() {
                 {sending ? (
                   <Button
                     icon={<Square size={16} />}
-                    onClick={() => {
-                      stop.current = true;
-                    }}
+                    disabled={busy}
+                    onClick={() => void pause()}
                   >
                     {t('Stop')}
                   </Button>

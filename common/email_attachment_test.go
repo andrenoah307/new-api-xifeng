@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/mail"
+	"net/textproto"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,63 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestAttachmentSessionAuthenticatesOnceForMultipleMessages(t *testing.T) {
+	withSMTPSettings(t)
+	server := newFakeSMTPServerWithSTARTTLSAdvertisement(t, false)
+	defer server.close()
+	SMTPServer, SMTPPort = server.host, server.port
+	SMTPAccount, SMTPToken, SMTPFrom = "sender@example.test", "secret", "sender@example.test"
+	SMTPSSLEnabled, SMTPStartTLSEnabled, SMTPForceAuthLogin = false, false, false
+	session := &smtpMailSession{}
+	defer session.Close()
+	for _, receiver := range []string{"first@example.test", "second@example.test"} {
+		uncertain, err := session.Send("Invoice", receiver, "Sent", []EmailAttachment{{Name: "123.png", Data: []byte{1}}})
+		require.NoError(t, err)
+		assert.False(t, uncertain)
+		select {
+		case message := <-server.messages:
+			assert.Contains(t, message, "To: "+receiver)
+		default:
+			t.Fatal("missing message")
+		}
+		if receiver == "first@example.test" {
+			select {
+			case <-server.authCommands:
+			default:
+				t.Fatal("missing authentication")
+			}
+		} else {
+			select {
+			case <-server.authCommands:
+				t.Fatal("connection authenticated twice")
+			default:
+			}
+		}
+	}
+}
+
+func TestAttachmentSMTPRetrySafety(t *testing.T) {
+	for _, tc := range []struct {
+		name, stage   string
+		code, attempt int
+		delay         time.Duration
+	}{
+		{"auth cooldown", "auth", 535, 1, 15 * time.Minute},
+		{"last retry", "auth", 535, 2, 15 * time.Minute},
+		{"exhausted", "auth", 535, 3, 0},
+		{"temporary recipient", "recipient", 450, 2, 2 * time.Minute},
+		{"permanent recipient", "recipient", 550, 1, 0},
+		{"DATA not started", "data-command", 451, 1, time.Minute},
+		{"DATA ambiguous", "data-ack", 451, 1, 0},
+		{"DATA partial", "data-body", 421, 1, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := &SMTPDeliveryError{Stage: tc.stage, Err: &textproto.Error{Code: tc.code, Msg: "test"}}
+			assert.Equal(t, tc.delay, SMTPRetryDelay(err, tc.attempt))
+		})
+	}
+}
 
 func TestAttachmentMailMIMEAndHeaderSafety(t *testing.T) {
 	files := []EmailAttachment{{Name: "123.png", Data: []byte{0, 1, 2, 3}}, {Name: "123（2）.png", Data: []byte{4, 5, 6}}}
@@ -112,6 +170,7 @@ func TestAttachmentSMTPAmbiguousDataAndFailedQuit(t *testing.T) {
 				require.Error(t, err)
 				assert.True(t, uncertain)
 			}
+			CloseEmailSession()
 			<-done
 		})
 	}

@@ -156,6 +156,7 @@ func main() {
 
 	// Ticket attachment orphan cleanup (master-node only)
 	service.StartTicketAttachmentCleanupTask()
+	service.StartMailQueues()
 
 	// Pressure cooling recovery loop (master-node only)
 	service.StartPressureCoolingRecovery()

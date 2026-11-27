@@ -5829,6 +5829,10 @@
     "Batch cancelled": "バッチは取り消されました",
     "Cleanup pending; sending is disabled": "削除待ち・送信停止中",
     "Cancel batch and clean files": "バッチを取り消してファイルを削除",
-    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "以降の送信を停止し、このバッチのファイルを削除しますか？送信済みメールは取り消せません。送信記録は保持され、送信中のメールは完了する場合があります。"
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "以降の送信を停止し、このバッチのファイルを削除しますか？送信済みメールは取り消せません。送信記録は保持され、送信中のメールは完了する場合があります。",
+    "Invoice queue": "請求書送信キュー",
+    "Next attempt": "次回試行日時",
+    "Queued": "待機中",
+    "SMTP retry scheduled": "メール送信の再試行を予約済み"
   }
 }

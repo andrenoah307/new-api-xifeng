@@ -126,6 +126,15 @@ func SendInvoiceMailBatchItem(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid invoice request"})
 		return
 	}
+	if request.Review != "delivered" {
+		preview, queueErr := service.EnqueueInvoiceMailBatch(c.Request.Context(), actor.Id, c.Param("batch"), id, request.Review)
+		if queueErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invoice batch unavailable"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": preview})
+		return
+	}
 	err = service.SendInvoiceMailBatchItem(c.Request.Context(), actor.Id, c.Param("batch"), id, request.Review)
 	if err != nil {
 		common.SysError("invoice delivery failed: " + err.Error())
@@ -133,4 +142,30 @@ func SendInvoiceMailBatchItem(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func QueueInvoiceMailBatch(c *gin.Context) {
+	actor, ok := invoiceMailActor(c)
+	if !ok {
+		return
+	}
+	preview, err := service.EnqueueInvoiceMailBatch(c.Request.Context(), actor.Id, c.Param("batch"), 0, "")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invoice batch unavailable"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": preview})
+}
+
+func PauseInvoiceMailBatch(c *gin.Context) {
+	actor, ok := invoiceMailActor(c)
+	if !ok {
+		return
+	}
+	preview, err := service.PauseInvoiceMailBatch(c.Request.Context(), actor.Id, c.Param("batch"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invoice batch unavailable"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": preview})
 }

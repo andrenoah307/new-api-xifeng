@@ -6372,6 +6372,10 @@
     "Batch cancelled": "Đã hủy lô",
     "Cleanup pending; sending is disabled": "Đang chờ dọn; đã tắt gửi",
     "Cancel batch and clean files": "Hủy lô và xóa tệp",
-    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Tắt gửi tiếp và xóa tệp của lô này? Không thể thu hồi email đã gửi. Lịch sử gửi được giữ lại; email đang gửi vẫn có thể hoàn tất."
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Tắt gửi tiếp và xóa tệp của lô này? Không thể thu hồi email đã gửi. Lịch sử gửi được giữ lại; email đang gửi vẫn có thể hoàn tất.",
+    "Invoice queue": "Hàng đợi gửi hóa đơn",
+    "Next attempt": "Lần thử tiếp theo",
+    "Queued": "Đang chờ",
+    "SMTP retry scheduled": "Đã lên lịch gửi lại email"
   }
 }

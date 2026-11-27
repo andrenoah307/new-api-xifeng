@@ -87,6 +87,7 @@ func TestRevenueMailAcceptanceAndUncertainty(t *testing.T) {
 				require.Error(t, err)
 				assert.Equal(t, "rejected", state)
 			}
+			CloseEmailSession()
 			<-done
 		})
 	}

@@ -342,7 +342,7 @@ func (ec *logExportCenter) sendExportCompleteEmail(task *model.LogExportTask) {
 		common.SysError("log export: email template not found: " + constant.EmailTemplateKeyLogExportComplete)
 		return
 	}
-	if err := common.SendEmail(subject, task.Email, body); err != nil {
+	if err := EnqueueEmailNotification(subject, task.Email, body); err != nil {
 		common.SysError(fmt.Sprintf("log export: send email failed for task %d: %v", task.Id, err))
 	}
 }

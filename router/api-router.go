@@ -219,6 +219,8 @@ func SetApiRouter(router *gin.Engine) {
 			ticketRoute.GET("/invoice-mail", controller.ListInvoiceMailBatches)
 			ticketRoute.GET("/invoice-mail/:batch", controller.GetInvoiceMailBatch)
 			ticketRoute.POST("/invoice-mail/:batch/cancel", controller.CancelInvoiceMailBatch)
+			ticketRoute.POST("/invoice-mail/:batch/send", controller.QueueInvoiceMailBatch)
+			ticketRoute.POST("/invoice-mail/:batch/pause", controller.PauseInvoiceMailBatch)
 			ticketRoute.POST("/invoice-mail/:batch/:ticket/send", controller.SendInvoiceMailBatchItem)
 			ticketRoute.POST("/", middleware.CaptchaCheck("ticket_create"), controller.CreateTicket)
 			ticketRoute.GET("/self", controller.GetUserTickets)

@@ -298,6 +298,13 @@ func newTestTLSCertificate() (tls.Certificate, error) {
 
 func withSMTPSettings(t *testing.T) {
 	t.Helper()
+	CloseEmailSession()
+	oldRedisEnabled, oldInterval := RedisEnabled, emailPacingInterval
+	RedisEnabled, emailPacingInterval = false, 0
+	localEmailGate.Lock()
+	localEmailGate.until = time.Time{}
+	localEmailGate.Unlock()
+	t.Cleanup(func() { CloseEmailSession(); RedisEnabled, emailPacingInterval = oldRedisEnabled, oldInterval })
 	originalSMTPServer := SMTPServer
 	originalSMTPPort := SMTPPort
 	originalSMTPSSLEnabled := SMTPSSLEnabled

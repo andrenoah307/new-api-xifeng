@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -145,52 +146,10 @@ func buildMailMessageWithFrom(subject, receiver, content, from string) ([]byte, 
 }
 
 func SendEmail(subject string, receiver string, content string) error {
-	if SMTPFrom == "" { // for compatibility
-		SMTPFrom = SMTPAccount
-	}
-	if SMTPServer == "" && SMTPAccount == "" {
-		return fmt.Errorf("SMTP 服务器未配置")
-	}
-	mail, err := buildMailMessage(subject, receiver, content)
-	if err != nil {
-		return err
-	}
-	auth := getSMTPAuth()
-	addr := fmt.Sprintf("%s:%d", SMTPServer, SMTPPort)
-	to := strings.Split(receiver, ";")
-	client, err := newSMTPClient(addr)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-	if shouldAuthenticateSMTP() {
-		if err = client.Auth(auth); err != nil {
-			return err
-		}
-	}
-	if err = client.Mail(SMTPFrom); err != nil {
-		return err
-	}
-	for _, receiver := range to {
-		if err = client.Rcpt(receiver); err != nil {
-			return err
-		}
-	}
-	w, err := client.Data()
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(mail)
-	if err != nil {
-		return err
-	}
-	err = w.Close()
-	if err != nil {
-		return err
-	}
-	err = client.Quit()
-	if err != nil {
-		SysError(fmt.Sprintf("failed to send email to %s: %v", receiver, err))
-	}
+	return SendEmailContext(context.Background(), subject, receiver, content)
+}
+
+func SendEmailContext(ctx context.Context, subject, receiver, content string) error {
+	_, err := sendQueuedSMTP(ctx, subject, receiver, content, nil)
 	return err
 }

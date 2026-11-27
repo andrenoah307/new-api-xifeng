@@ -5841,6 +5841,10 @@
     "Batch cancelled": "批次已作廢",
     "Cleanup pending; sending is disabled": "等待清理，已禁止傳送",
     "Cancel batch and clean files": "作廢並清理批次",
-    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "確認禁止後續傳送並刪除此批次的檔案？已傳送的郵件無法撤回。傳送紀錄將保留，正在傳送的郵件可能仍會完成。"
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "確認禁止後續傳送並刪除此批次的檔案？已傳送的郵件無法撤回。傳送紀錄將保留，正在傳送的郵件可能仍會完成。",
+    "Invoice queue": "發票寄送佇列",
+    "Next attempt": "下次嘗試時間",
+    "Queued": "排隊中",
+    "SMTP retry scheduled": "已安排郵件寄送重試"
   }
 }

@@ -1,8 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, RefreshCw, Send, Square, Trash2, Upload } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -25,6 +24,13 @@ type Item = {
   reason: string
 }
 type Batch = {
+  queue?: {
+    status: string
+    position: number
+    items: unknown[]
+    next_at: number
+    reason?: string
+  }
   id: string
   expires_at: number
   cleaned_at: number
@@ -49,15 +55,43 @@ export function InvoiceMailBatch() {
     ticket?: number
     review?: string
   } | null>(null)
-  const stop = useRef(false)
-  useEffect(
-    () => () => {
-      stop.current = true
-    },
-    []
-  )
   const client = useQueryClient()
   const allowed = user?.role === 3 || user?.role === 100
+  const activeQueue = ['queued', 'running'].includes(batch?.queue?.status ?? '')
+  const batchId = batch?.id
+  useEffect(() => {
+    if (!open || !allowed || !batchId || !activeQueue || busy) return
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout>
+    const poll = async () => {
+      try {
+        const response = await api.get(`/api/ticket/invoice-mail/${batchId}`, {
+          disableDuplicate: true,
+          signal: controller.signal,
+        })
+        if (!response.data.success) throw new Error('batch')
+        if (!controller.signal.aborted) {
+          setBatch((previous) =>
+            previous?.id === batchId ? response.data.data : previous
+          )
+          if (
+            !['queued', 'running'].includes(response.data.data.queue?.status)
+          ) {
+            void client.invalidateQueries({ queryKey: ['tickets'] })
+          }
+        }
+      } catch {
+        if (!controller.signal.aborted) setError(t('Invoice batch unavailable'))
+      } finally {
+        if (!controller.signal.aborted) timer = setTimeout(poll, 3000)
+      }
+    }
+    timer = setTimeout(poll, 3000)
+    return () => {
+      controller.abort()
+      clearTimeout(timer)
+    }
+  }, [open, allowed, batchId, activeQueue, busy, client, t])
   const recent = useQuery({
     queryKey: ['invoice-mail-batches', user?.id, user?.role],
     enabled: open && allowed,
@@ -130,50 +164,37 @@ export function InvoiceMailBatch() {
     setConfirmation(null)
     setBusy(true)
     setError('')
-    stop.current = false
-    const items = batch.items.filter((item) =>
-      request.ticket
-        ? item.ticket_id === request.ticket
-        : ['ready', 'failed'].includes(item.state)
-    )
     try {
-      for (const item of items) {
-        if (stop.current) break
-        setBatch(
-          (previous) =>
-            previous && {
-              ...previous,
-              items: previous.items.map((row) =>
-                row.ticket_id === item.ticket_id
-                  ? { ...row, state: 'sending' }
-                  : row
-              ),
-            }
-        )
-        const response = await api.post(
-          `/api/ticket/invoice-mail/${batch.id}/${item.ticket_id}/send`,
-          { review: request.review ?? '' },
-          { timeout: 60000 }
-        )
-        if (!response.data.success) throw new Error(response.data.message)
-        setBatch(
-          (previous) =>
-            previous && {
-              ...previous,
-              items: previous.items.map((row) =>
-                row.ticket_id === item.ticket_id
-                  ? { ...row, state: 'sent', reason: '' }
-                  : row
-              ),
-            }
-        )
-      }
+      const response = await api.post(
+        `/api/ticket/invoice-mail/${batch.id}${request.ticket ? `/${request.ticket}` : ''}/send`,
+        { review: request.review ?? '' },
+        { timeout: 60000 }
+      )
+      if (!response.data.success) throw new Error(response.data.message)
+      if (response.data.data) setBatch(response.data.data)
     } catch {
       setError(t('Invoice delivery failed; refresh the batch before retrying'))
     } finally {
       await load.mutateAsync(batch.id).catch(() => {})
       setBusy(false)
       void client.invalidateQueries({ queryKey: ['tickets'] })
+    }
+  }
+  const pause = async () => {
+    if (!batch || busy) return
+    setBusy(true)
+    try {
+      const response = await api.post(
+        `/api/ticket/invoice-mail/${batch.id}/pause`,
+        {},
+        { timeout: 120000 }
+      )
+      if (!response.data.success) throw new Error('batch')
+      setBatch(response.data.data)
+    } catch {
+      setError(t('Invoice batch unavailable'))
+    } finally {
+      setBusy(false)
     }
   }
   if (!allowed) return null
@@ -193,6 +214,11 @@ export function InvoiceMailBatch() {
     sending: t('Sending'),
     unknown: t('Delivery needs review'),
     blocked: t('Blocked'),
+    queued: t('Queued'),
+    running: t('Sending'),
+    paused: t('Paused'),
+    completed: t('Completed'),
+    'SMTP retry scheduled': t('SMTP retry scheduled'),
   }
   return (
     <>
@@ -291,6 +317,27 @@ export function InvoiceMailBatch() {
                   {t('Batch cancelled')}
                 </p>
               )}
+              {batch.queue && (
+                <p role='status' className='text-sm'>
+                  {t('Invoice queue')}: {labels[batch.queue.status]} ·{' '}
+                  {batch.queue.position}/{batch.queue.items.length}
+                  {activeQueue && (
+                    <>
+                      {' '}
+                      · {t('Next attempt')}:{' '}
+                      {new Date(batch.queue.next_at * 1000).toLocaleString()}
+                    </>
+                  )}
+                  {batch.queue.reason &&
+                    (activeQueue ||
+                      batch.queue.reason !== 'SMTP retry scheduled') && (
+                      <>
+                        {' '}
+                        · {labels[batch.queue.reason] ?? t(batch.queue.reason)}
+                      </>
+                    )}
+                </p>
+              )}
               {inactive && batch.cleaned_at === 0 && (
                 <p role='status' className='text-sm'>
                   {t('Cleanup pending; sending is disabled')}
@@ -327,7 +374,7 @@ export function InvoiceMailBatch() {
                           <Button
                             size='sm'
                             variant='outline'
-                            disabled={locked}
+                            disabled={locked || activeQueue}
                             onClick={() =>
                               setConfirmation({
                                 ticket: item.ticket_id,
@@ -341,7 +388,7 @@ export function InvoiceMailBatch() {
                           <Button
                             size='sm'
                             variant='outline'
-                            disabled={locked || inactive}
+                            disabled={locked || inactive || activeQueue}
                             onClick={() =>
                               setConfirmation({
                                 ticket: item.ticket_id,
@@ -400,7 +447,7 @@ export function InvoiceMailBatch() {
                               <Button
                                 size='sm'
                                 variant='outline'
-                                disabled={locked}
+                                disabled={locked || activeQueue}
                                 onClick={() =>
                                   setConfirmation({
                                     ticket: item.ticket_id,
@@ -414,7 +461,7 @@ export function InvoiceMailBatch() {
                               <Button
                                 size='sm'
                                 variant='outline'
-                                disabled={locked || inactive}
+                                disabled={locked || inactive || activeQueue}
                                 onClick={() =>
                                   setConfirmation({
                                     ticket: item.ticket_id,
@@ -476,13 +523,11 @@ export function InvoiceMailBatch() {
                     {t('Cancel batch and clean files')}
                   </Button>
                 )}
-                {busy ? (
+                {activeQueue ? (
                   <Button
                     variant='outline'
-                    onClick={() => {
-                      stop.current = true
-                      toast.info(t('Stopping after the current invoice'))
-                    }}
+                    disabled={locked}
+                    onClick={() => void pause()}
                   >
                     <Square size={16} />
                     {t('Stop')}

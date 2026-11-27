@@ -47,12 +47,15 @@ func NormalizeInvoiceMailConfig(raw string) (string, error) {
 }
 
 type InvoiceMailBatch struct {
-	ID          string `json:"id" gorm:"primaryKey;type:varchar(36)"`
-	OwnerID     int    `json:"owner_id" gorm:"index"`
-	CreatedAt   int64  `json:"created_at" gorm:"index"`
-	ExpiresAt   int64  `json:"expires_at" gorm:"index"`
-	CleanedAt   int64  `json:"cleaned_at"`
-	CancelledAt int64  `json:"cancelled_at"`
+	ID           string `json:"id" gorm:"primaryKey;type:varchar(36)"`
+	OwnerID      int    `json:"owner_id" gorm:"index"`
+	CreatedAt    int64  `json:"created_at" gorm:"index"`
+	ExpiresAt    int64  `json:"expires_at" gorm:"index"`
+	CleanedAt    int64  `json:"cleaned_at"`
+	CancelledAt  int64  `json:"cancelled_at"`
+	QueueStatus  string `json:"queue_status" gorm:"type:varchar(16);index"`
+	QueueNextAt  int64  `json:"queue_next_at" gorm:"index"`
+	QueuePayload string `json:"-" gorm:"type:text"`
 	// The bounded ZIP manifest can exceed MySQL TEXT's 64 KiB capacity.
 	Manifest string `json:"-" gorm:"size:4194304"`
 }

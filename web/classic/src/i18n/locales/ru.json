@@ -5883,6 +5883,10 @@
     "Batch cancelled": "Пакет отменён",
     "Cleanup pending; sending is disabled": "Ожидается очистка; отправка отключена",
     "Cancel batch and clean files": "Отменить пакет и удалить файлы",
-    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Отключить дальнейшую отправку и удалить файлы пакета? Отправленные письма нельзя отозвать. Записи об отправке сохраняются; текущая отправка может завершиться."
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Отключить дальнейшую отправку и удалить файлы пакета? Отправленные письма нельзя отозвать. Записи об отправке сохраняются; текущая отправка может завершиться.",
+    "Invoice queue": "Очередь отправки счетов",
+    "Next attempt": "Следующая попытка",
+    "Queued": "В очереди",
+    "SMTP retry scheduled": "Повторная отправка запланирована"
   }
 }

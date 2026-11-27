@@ -82,6 +82,7 @@ type InvoiceMailPreview struct {
 	Status         int               `json:"status"`
 	Items          []InvoiceMailItem `json:"items"`
 	Ignored        []string          `json:"ignored"`
+	Queue          *InvoiceMailQueue `json:"queue,omitempty"`
 }
 
 // Uploads are drafts only. Files live in the configured private attachment
@@ -182,6 +183,14 @@ func PreviewInvoiceMailBatch(actorID int, id string) (*InvoiceMailPreview, error
 	preview := &InvoiceMailPreview{ID: batch.ID, ExpiresAt: batch.ExpiresAt, CleanedAt: batch.CleanedAt, Reply: manifest.Config.Reply, Status: manifest.Config.Status, Ignored: manifest.Ignored, Items: make([]InvoiceMailItem, 0, len(manifest.Groups))}
 	preview.CancelledAt = batch.CancelledAt
 	preview.RetentionHours = (batch.ExpiresAt - batch.CreatedAt) / 3600
+	if batch.QueuePayload != "" {
+		var queue InvoiceMailQueue
+		if err := common.UnmarshalJsonStr(batch.QueuePayload, &queue); err != nil {
+			return nil, err
+		}
+		queue.Status, queue.NextAt = batch.QueueStatus, batch.QueueNextAt
+		preview.Queue = &queue
+	}
 	var deliveries []model.InvoiceMailDelivery
 	var keys []string
 	for _, group := range manifest.Groups {
@@ -232,7 +241,21 @@ func PreviewInvoiceMailBatch(actorID int, id string) (*InvoiceMailPreview, error
 	return preview, nil
 }
 
-func SendInvoiceMailBatchItem(ctx context.Context, actorID int, id string, ticketID int, review string) error {
+func SendInvoiceMailBatchItem(ctx context.Context, actorID int, id string, ticketID int, review string) (err error) {
+	if review == "delivered" {
+		return sendInvoiceMailBatchItem(ctx, actorID, id, ticketID, review, nil)
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	lease, err := common.AcquireEmailLease(ctx, true)
+	if err != nil {
+		return err
+	}
+	defer func() { lease.Release(err) }()
+	return sendInvoiceMailBatchItem(ctx, actorID, id, ticketID, review, lease)
+}
+
+func sendInvoiceMailBatchItem(ctx context.Context, actorID int, id string, ticketID int, review string, lease *common.EmailLease) error {
 	batch, manifest, err := LoadInvoiceMailBatch(actorID, id)
 	if err != nil {
 		return err
@@ -277,7 +300,13 @@ func SendInvoiceMailBatchItem(ctx context.Context, actorID int, id string, ticke
 		}
 	}
 	err = model.DeliverInvoiceMail(batch.ID, ticketID, actorID, selected.DeliveryKey, selected.Recipient, manifest.Config, review, func() (bool, error) {
-		return common.SendEmailAttachments(fmt.Sprintf("Invoice #%d", ticketID), selected.Recipient, "<p>"+html.EscapeString(manifest.Config.Reply)+"</p>", attachments)
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		if lease != nil {
+			return common.SendEmailWithLease(ctx, lease, fmt.Sprintf("Invoice #%d", ticketID), selected.Recipient, "<p>"+html.EscapeString(manifest.Config.Reply)+"</p>", attachments)
+		}
+		return false, common.ErrEmailQueueBusy
 	})
 	if err != nil {
 		return err
@@ -339,7 +368,7 @@ func CancelInvoiceMailBatch(ctx context.Context, actorID int, id string) (*Invoi
 	}
 	// Commit revocation before deleting files: storage failures must never make
 	// an unwanted batch sendable again. This update waits for an active SMTP lock.
-	if err := model.DB.WithContext(ctx).Model(&model.InvoiceMailBatch{}).Where("id = ? AND (cancelled_at = ? OR cancelled_at IS NULL)", id, 0).Update("cancelled_at", common.GetTimestamp()).Error; err != nil {
+	if err := model.DB.WithContext(ctx).Model(&model.InvoiceMailBatch{}).Where("id = ? AND (cancelled_at = ? OR cancelled_at IS NULL)", id, 0).Updates(map[string]any{"cancelled_at": common.GetTimestamp(), "queue_status": "paused"}).Error; err != nil {
 		return nil, err
 	}
 	if err := CleanupInvoiceMailBatch(ctx, batch, manifest, true); err != nil {

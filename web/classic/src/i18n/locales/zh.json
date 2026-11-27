@@ -3712,6 +3712,10 @@
     "Batch cancelled": "批次已作废",
     "Cleanup pending; sending is disabled": "等待清理，已禁止发送",
     "Cancel batch and clean files": "作废并清理批次",
-    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "确认禁止后续发送并删除此批次的文件？已发送的邮件无法撤回。发送记录将保留，正在发送的邮件可能仍会完成。"
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "确认禁止后续发送并删除此批次的文件？已发送的邮件无法撤回。发送记录将保留，正在发送的邮件可能仍会完成。",
+    "Invoice queue": "发票发送队列",
+    "Next attempt": "下次尝试时间",
+    "Queued": "排队中",
+    "SMTP retry scheduled": "已安排邮件发送重试"
   }
 }

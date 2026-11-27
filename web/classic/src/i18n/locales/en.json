@@ -6088,6 +6088,10 @@
     "Batch cancelled": "Batch cancelled",
     "Cleanup pending; sending is disabled": "Cleanup pending; sending is disabled",
     "Cancel batch and clean files": "Cancel batch and clean files",
-    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish."
+    "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.": "Disable further sending and delete this batch’s files? Sent emails cannot be recalled. Delivery records are kept; an in-progress email may finish.",
+    "Invoice queue": "Invoice queue",
+    "Next attempt": "Next attempt",
+    "Queued": "Queued",
+    "SMTP retry scheduled": "SMTP retry scheduled"
   }
 }
