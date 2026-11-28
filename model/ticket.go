@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
@@ -13,6 +14,7 @@ import (
 )
 
 const (
+	MaxTicketSubjectLength = 50
 	TicketStatusOpen       = 1 // 待处理
 	TicketStatusProcessing = 2 // 处理中
 	TicketStatusResolved   = 3 // 已解决
@@ -30,6 +32,7 @@ var (
 	ErrTicketForbidden              = errors.New("ticket forbidden")
 	ErrTicketClosed                 = errors.New("ticket closed")
 	ErrTicketSubjectEmpty           = errors.New("ticket subject empty")
+	ErrTicketSubjectTooLong         = errors.New("ticket subject too long")
 	ErrTicketContentEmpty           = errors.New("ticket content empty")
 	ErrTicketInvalidStatus          = errors.New("ticket invalid status")
 	ErrRefundTicketPending          = errors.New("Complete or reject the pending refund before resolving the ticket")
@@ -150,6 +153,9 @@ func IsValidTicketStatus(status int) bool {
 }
 
 func CreateTicketWithMessage(params CreateTicketParams) (*Ticket, *TicketMessage, error) {
+	if utf8.RuneCountInString(strings.TrimSpace(params.Subject)) > MaxTicketSubjectLength {
+		return nil, nil, ErrTicketSubjectTooLong
+	}
 	subject := strings.TrimSpace(params.Subject)
 	if subject == "" {
 		return nil, nil, ErrTicketSubjectEmpty
@@ -382,9 +388,11 @@ func GetTicketById(ticketId int) (*Ticket, error) {
 	return &ticket, nil
 }
 
+// An invoice's first user message is informational, regardless of earlier staff
+// messages. Keep this predicate shared by list fields and filters.
 // Only user messages beyond the shared staff watermark are unread. Message IDs
 // avoid timestamp collisions and let a detail response acknowledge its snapshot.
-var ticketUnreadSQL = "EXISTS (SELECT 1 FROM ticket_messages unread_msg WHERE unread_msg.ticket_id = tickets.id AND unread_msg.role < " + strconv.Itoa(common.RoleCustomerServiceUser) + " AND unread_msg.id > tickets.staff_read_message_id)"
+var ticketUnreadSQL = "EXISTS (SELECT 1 FROM ticket_messages unread_msg WHERE unread_msg.ticket_id = tickets.id AND unread_msg.role < " + strconv.Itoa(common.RoleCustomerServiceUser) + " AND unread_msg.id > tickets.staff_read_message_id AND (tickets.type <> 'invoice' OR unread_msg.id > (SELECT MIN(initial_msg.id) FROM ticket_messages initial_msg WHERE initial_msg.ticket_id = tickets.id AND initial_msg.role < " + strconv.Itoa(common.RoleCustomerServiceUser) + ")))"
 
 func MarkTicketMessagesRead(ticketId, messageId int) error {
 	if messageId <= 0 {

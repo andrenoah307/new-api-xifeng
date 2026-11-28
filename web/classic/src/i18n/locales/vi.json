@@ -6376,6 +6376,7 @@
     "Invoice queue": "Hàng đợi gửi hóa đơn",
     "Next attempt": "Lần thử tiếp theo",
     "Queued": "Đang chờ",
-    "SMTP retry scheduled": "Đã lên lịch gửi lại email"
+    "SMTP retry scheduled": "Đã lên lịch gửi lại email",
+    "Ticket subject must not exceed 50 characters": "Tiêu đề yêu cầu không được vượt quá 50 ký tự"
   }
 }

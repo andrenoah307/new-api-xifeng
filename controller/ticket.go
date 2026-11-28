@@ -179,6 +179,8 @@ func handleTicketError(c *gin.Context, err error) {
 		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
 	case errors.Is(err, model.ErrTicketSubjectEmpty):
 		common.ApiErrorI18n(c, i18n.MsgTicketSubjectEmpty)
+	case errors.Is(err, model.ErrTicketSubjectTooLong):
+		common.ApiErrorI18n(c, i18n.MsgTicketSubjectTooLong)
 	case errors.Is(err, model.ErrTicketContentEmpty):
 		common.ApiErrorI18n(c, i18n.MsgTicketContentEmpty)
 	case errors.Is(err, model.ErrTicketNotFound):

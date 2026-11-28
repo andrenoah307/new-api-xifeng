@@ -3716,6 +3716,7 @@
     "Invoice queue": "发票发送队列",
     "Next attempt": "下次尝试时间",
     "Queued": "排队中",
-    "SMTP retry scheduled": "已安排邮件发送重试"
+    "SMTP retry scheduled": "已安排邮件发送重试",
+    "Ticket subject must not exceed 50 characters": "工单标题不能超过 50 个字符"
   }
 }

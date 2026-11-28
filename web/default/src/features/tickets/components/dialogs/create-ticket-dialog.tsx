@@ -211,6 +211,12 @@ export function CreateTicketDialog({
   const onSubmit = useCallback(
     (values: FormValues) => {
       if (isLimited) return
+      if ([...(values.subject?.trim() || '')].length > 50) {
+        form.setError('subject', {
+          message: t('Ticket subject must not exceed 50 characters'),
+        })
+        return
+      }
 
       if (ticketType === 'general') {
         if (!values.subject?.trim()) {
@@ -526,7 +532,7 @@ export function CreateTicketDialog({
                     <FormControl>
                       <Input
                         {...field}
-                        maxLength={255}
+                        maxLength={100}
                         placeholder={
                           ticketType === 'refund'
                             ? t('Subject placeholder refund')
@@ -534,6 +540,9 @@ export function CreateTicketDialog({
                         }
                       />
                     </FormControl>
+                    <span className='text-muted-foreground text-xs'>
+                      {[...(field.value?.trim() || '')].length}/50
+                    </span>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -5833,6 +5833,7 @@
     "Invoice queue": "請求書送信キュー",
     "Next attempt": "次回試行日時",
     "Queued": "待機中",
-    "SMTP retry scheduled": "メール送信の再試行を予約済み"
+    "SMTP retry scheduled": "メール送信の再試行を予約済み",
+    "Ticket subject must not exceed 50 characters": "チケットの件名は50文字以内にしてください"
   }
 }

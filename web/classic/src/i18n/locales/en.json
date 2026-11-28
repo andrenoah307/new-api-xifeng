@@ -6092,6 +6092,7 @@
     "Invoice queue": "Invoice queue",
     "Next attempt": "Next attempt",
     "Queued": "Queued",
-    "SMTP retry scheduled": "SMTP retry scheduled"
+    "SMTP retry scheduled": "SMTP retry scheduled",
+    "Ticket subject must not exceed 50 characters": "Ticket subject must not exceed 50 characters"
   }
 }

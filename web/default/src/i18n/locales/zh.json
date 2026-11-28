@@ -5658,6 +5658,7 @@
     "Ticket Settings": "工单设置",
     "Ticket status after delivery": "发送成功后的工单状态",
     "Ticket status updated": "工单状态已更新",
+    "Ticket subject must not exceed 50 characters": "工单标题不能超过 50 个字符",
     "Ticket submission": "工单提交",
     "ticket.choice.general": "普通工单",
     "ticket.choice.invoice": "申请开票",

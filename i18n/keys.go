@@ -164,6 +164,7 @@ const (
 // Ticket related messages
 const (
 	MsgTicketSubjectEmpty               = "ticket.subject_empty"
+	MsgTicketSubjectTooLong             = "ticket.subject_too_long"
 	MsgTicketContentEmpty               = "ticket.content_empty"
 	MsgTicketNotFound                   = "ticket.not_found"
 	MsgTicketClosed                     = "ticket.closed"

@@ -5658,6 +5658,7 @@
     "Ticket Settings": "チケット設定",
     "Ticket status after delivery": "送信成功後のチケット状態",
     "Ticket status updated": "チケットの状態を更新しました",
+    "Ticket subject must not exceed 50 characters": "チケットの件名は50文字以内にしてください",
     "Ticket submission": "チケット送信",
     "ticket.choice.general": "一般のお問い合わせ",
     "ticket.choice.invoice": "請求書を申請",

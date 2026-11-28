@@ -5658,6 +5658,7 @@
     "Ticket Settings": "Cài đặt phiếu hỗ trợ",
     "Ticket status after delivery": "Trạng thái yêu cầu sau khi gửi",
     "Ticket status updated": "Đã cập nhật trạng thái phiếu",
+    "Ticket subject must not exceed 50 characters": "Tiêu đề yêu cầu không được vượt quá 50 ký tự",
     "Ticket submission": "Gửi yêu cầu hỗ trợ",
     "ticket.choice.general": "Hỗ trợ chung",
     "ticket.choice.invoice": "Yêu cầu hóa đơn",

@@ -5658,6 +5658,7 @@
     "Ticket Settings": "Настройки тикетов",
     "Ticket status after delivery": "Статус обращения после отправки",
     "Ticket status updated": "Статус обращений обновлён",
+    "Ticket subject must not exceed 50 characters": "Тема обращения не должна превышать 50 символов",
     "Ticket submission": "Создание обращений",
     "ticket.choice.general": "Общая поддержка",
     "ticket.choice.invoice": "Запросить счёт",

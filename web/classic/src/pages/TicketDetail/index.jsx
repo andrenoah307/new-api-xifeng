@@ -188,7 +188,12 @@ const TicketDetail = () => {
                   </Button>
                   <TicketStatusTag status={ticket?.status} t={t} />
                 </Space>
-                <Title heading={4} className='!mb-0'>
+                <Title
+                  heading={4}
+                  className='!mb-0 truncate'
+                  style={{ maxWidth: 'min(50ch, 75vw)' }}
+                  title={ticket?.subject}
+                >
                   {ticket?.subject || '-'}
                 </Title>
                 <Text type='secondary'>
@@ -197,7 +202,11 @@ const TicketDetail = () => {
                   )}
                 </Text>
               </div>
-              {canCloseTicket(ticket, refund?.refund_status, refund?.frozen_quota) && (
+              {canCloseTicket(
+                ticket,
+                refund?.refund_status,
+                refund?.frozen_quota,
+              ) && (
                 <Button theme='light' type='danger' onClick={handleCloseTicket}>
                   {t('关闭工单')}
                 </Button>

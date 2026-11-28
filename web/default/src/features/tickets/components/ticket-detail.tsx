@@ -135,7 +135,7 @@ export default function TicketDetailPage({
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <span className="truncate">{ticket.subject}</span>
+          <span className="min-w-0 max-w-[min(50ch,60vw)] truncate" title={ticket.subject}>{ticket.subject}</span>
         </div>
       </SectionPageLayout.Title>
       <SectionPageLayout.Actions>

@@ -5658,6 +5658,7 @@
     "Ticket Settings": "Paramètres des tickets",
     "Ticket status after delivery": "État du ticket après envoi",
     "Ticket status updated": "État des tickets mis à jour",
+    "Ticket subject must not exceed 50 characters": "Le titre du ticket ne doit pas dépasser 50 caractères",
     "Ticket submission": "Création de tickets",
     "ticket.choice.general": "Assistance générale",
     "ticket.choice.invoice": "Demander une facture",

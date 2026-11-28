@@ -5866,6 +5866,7 @@
     "Invoice queue": "File d’envoi des factures",
     "Next attempt": "Prochaine tentative",
     "Queued": "En attente",
-    "SMTP retry scheduled": "Nouvelle tentative d’envoi programmée"
+    "SMTP retry scheduled": "Nouvelle tentative d’envoi programmée",
+    "Ticket subject must not exceed 50 characters": "Le titre du ticket ne doit pas dépasser 50 caractères"
   }
 }

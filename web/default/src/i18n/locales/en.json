@@ -5658,6 +5658,7 @@
     "Ticket Settings": "Ticket Settings",
     "Ticket status after delivery": "Ticket status after delivery",
     "Ticket status updated": "Ticket status updated",
+    "Ticket subject must not exceed 50 characters": "Ticket subject must not exceed 50 characters",
     "Ticket submission": "Ticket submission",
     "ticket.choice.general": "General support",
     "ticket.choice.invoice": "Request an invoice",

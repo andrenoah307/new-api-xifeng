@@ -160,6 +160,9 @@ func buildRefundSummaryMessage(params CreateRefundTicketParams) string {
 // Fail-open forwarding cannot currently prove that all admitted wallet liabilities
 // have settled, including zero-preconsume requests on another instance.
 func CreateRefundTicket(params CreateRefundTicketParams) (*Ticket, *TicketRefund, *TicketMessage, error) {
+	if utf8.RuneCountInString(strings.TrimSpace(params.Subject)) > MaxTicketSubjectLength {
+		return nil, nil, nil, ErrTicketSubjectTooLong
+	}
 	payeeType := NormalizeRefundPayeeType(params.PayeeType)
 	if payeeType == "" {
 		return nil, nil, nil, ErrTicketRefundPayeeTypeEmpty

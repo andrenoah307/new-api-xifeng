@@ -366,7 +366,12 @@ const AdminTicketDetail = () => {
                   </Button>
                 )}
               </Space>
-              <Title heading={4} className='!mb-0'>
+              <Title
+                heading={4}
+                className='!mb-0 truncate'
+                style={{ maxWidth: 'min(50ch, 75vw)' }}
+                title={ticket?.subject}
+              >
                 {ticket?.subject || '-'}
               </Title>
               <Text type='secondary'>

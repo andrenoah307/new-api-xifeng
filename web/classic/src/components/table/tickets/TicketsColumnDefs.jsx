@@ -97,8 +97,11 @@ export const getTicketsColumns = ({
       dataIndex: 'subject',
       key: 'subject',
       render: (value, record) => (
-        <div className='flex flex-col'>
-          <Text strong>
+        <div
+          className='flex min-w-0 flex-col'
+          style={{ maxWidth: 'min(50ch, 60vw)' }}
+        >
+          <div className='flex min-w-0 items-center font-semibold'>
             {admin && (
               <span
                 title={
@@ -106,7 +109,7 @@ export const getTicketsColumns = ({
                     ? t('Unread messages')
                     : t('Read messages')
                 }
-                className='inline-flex mr-1.5 align-middle'
+                className='inline-flex shrink-0 mr-1.5'
               >
                 {record.has_unread_messages ? (
                   <Mail size={16} aria-label={t('Unread messages')} />
@@ -115,8 +118,13 @@ export const getTicketsColumns = ({
                 )}
               </span>
             )}
-            {value || '-'}
-          </Text>
+            <span className='min-w-0 truncate' title={value || ''}>
+              {Array.from(value || '-')
+                .slice(0, 50)
+                .join('')}
+              {Array.from(value || '').length > 50 ? '…' : ''}
+            </span>
+          </div>
           <Space spacing={4}>
             <Text type='tertiary' size='small'>
               {getTicketTypeText(record?.type, t)}

@@ -142,6 +142,7 @@ subscription.invalid_user_id: "Invalid user ID"
 
 # Ticket messages
 ticket.subject_empty: "Ticket subject cannot be empty"
+ticket.subject_too_long: "Ticket subject must not exceed 50 characters"
 ticket.content_empty: "Ticket content cannot be empty"
 ticket.not_found: "Ticket not found"
 ticket.closed: "This ticket is closed and cannot be replied to"

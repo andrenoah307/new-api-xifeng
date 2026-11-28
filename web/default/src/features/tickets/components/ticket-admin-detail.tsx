@@ -140,8 +140,12 @@ export default function TicketAdminDetailPage({
       updateTicketStatus(ticketId, Number(statusValue), Number(priorityValue)),
     onSuccess: () => {
       toast.success(t('Status updated'))
-      queryClient.invalidateQueries({ queryKey: ticketQueryKeys.adminInvoice(ticketId) })
-      queryClient.invalidateQueries({ queryKey: ticketQueryKeys.eligibleOrders() })
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.adminInvoice(ticketId),
+      })
+      queryClient.invalidateQueries({
+        queryKey: ticketQueryKeys.eligibleOrders(),
+      })
       queryClient.invalidateQueries({ queryKey: ['topup-history'] })
       queryClient.invalidateQueries({
         queryKey: ticketQueryKeys.adminDetail(ticketId),
@@ -284,7 +288,12 @@ export default function TicketAdminDetailPage({
           >
             <ArrowLeft className='h-4 w-4' />
           </Button>
-          <span className='truncate'>{ticket.subject}</span>
+          <span
+            className='max-w-[min(50ch,60vw)] min-w-0 truncate'
+            title={ticket.subject}
+          >
+            {ticket.subject}
+          </span>
           <TicketStatusBadge status={ticket.status} />
           <TicketTypeBadge type={ticket.type} />
           {assigneeBadge}

@@ -359,6 +359,9 @@ func buildInvoiceSummaryMessage(params CreateInvoiceTicketParams, orderIds []int
 }
 
 func CreateInvoiceTicket(params CreateInvoiceTicketParams) (*Ticket, *TicketInvoice, *TicketMessage, []*TopUp, error) {
+	if utf8.RuneCountInString(strings.TrimSpace(params.Subject)) > MaxTicketSubjectLength {
+		return nil, nil, nil, nil, ErrTicketSubjectTooLong
+	}
 	if strings.TrimSpace(params.CompanyName) == "" {
 		return nil, nil, nil, nil, ErrTicketInvoiceCompanyEmpty
 	}

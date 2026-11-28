@@ -143,6 +143,7 @@ subscription.invalid_user_id: "无效的用户ID"
 
 # Ticket messages
 ticket.subject_empty: "工单主题不能为空"
+ticket.subject_too_long: "工单标题不能超过 50 个字符"
 ticket.content_empty: "工单内容不能为空"
 ticket.not_found: "工单不存在"
 ticket.closed: "工单已关闭，无法继续回复"

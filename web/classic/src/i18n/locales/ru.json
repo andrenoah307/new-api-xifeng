@@ -5887,6 +5887,7 @@
     "Invoice queue": "Очередь отправки счетов",
     "Next attempt": "Следующая попытка",
     "Queued": "В очереди",
-    "SMTP retry scheduled": "Повторная отправка запланирована"
+    "SMTP retry scheduled": "Повторная отправка запланирована",
+    "Ticket subject must not exceed 50 characters": "Тема обращения не должна превышать 50 символов"
   }
 }

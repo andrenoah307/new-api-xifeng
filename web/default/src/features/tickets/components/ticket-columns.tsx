@@ -72,8 +72,8 @@ export function useTicketColumns(opts: {
         accessorKey: 'subject',
         header: t('Subject'),
         cell: ({ row }) => (
-          <div className='min-w-0'>
-            <div className='truncate text-sm font-medium'>
+          <div className='max-w-[min(50ch,60vw)] min-w-0'>
+            <div className='flex min-w-0 items-center text-sm font-medium'>
               {admin && (
                 <span
                   title={
@@ -81,7 +81,7 @@ export function useTicketColumns(opts: {
                       ? t('Unread messages')
                       : t('Read messages')
                   }
-                  className='mr-1.5 inline-flex align-middle'
+                  className='mr-1.5 inline-flex shrink-0'
                 >
                   {row.original.has_unread_messages ? (
                     <Mail
@@ -96,9 +96,15 @@ export function useTicketColumns(opts: {
                   )}
                 </span>
               )}
-              {row.original.subject}
+              <span className='min-w-0 truncate' title={row.original.subject}>
+                {[...row.original.subject].slice(0, 50).join('')}
+                {[...row.original.subject].length > 50 ? '…' : ''}
+              </span>
               {row.original.type === 'invoice' && row.original.company_name && (
-                <span className='text-muted-foreground ml-1.5 text-xs font-normal'>
+                <span
+                  className='text-muted-foreground ml-1.5 min-w-0 truncate text-xs font-normal'
+                  title={row.original.company_name}
+                >
                   ({row.original.company_name})
                 </span>
               )}

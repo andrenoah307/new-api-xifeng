@@ -5845,6 +5845,7 @@
     "Invoice queue": "發票寄送佇列",
     "Next attempt": "下次嘗試時間",
     "Queued": "排隊中",
-    "SMTP retry scheduled": "已安排郵件寄送重試"
+    "SMTP retry scheduled": "已安排郵件寄送重試",
+    "Ticket subject must not exceed 50 characters": "工單標題不能超過 50 個字元"
   }
 }

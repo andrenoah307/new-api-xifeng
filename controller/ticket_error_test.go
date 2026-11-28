@@ -29,6 +29,7 @@ func TestHandleTicketError(t *testing.T) {
 		message    string
 	}{
 		{name: "subject empty", err: model.ErrTicketSubjectEmpty, messageKey: i18n.MsgTicketSubjectEmpty},
+		{name: "subject too long", err: model.ErrTicketSubjectTooLong, messageKey: i18n.MsgTicketSubjectTooLong},
 		{name: "content empty", err: model.ErrTicketContentEmpty, messageKey: i18n.MsgTicketContentEmpty},
 		{name: "ticket not found", err: model.ErrTicketNotFound, messageKey: i18n.MsgTicketNotFound},
 		{name: "forbidden", err: model.ErrTicketForbidden, messageKey: i18n.MsgForbidden},
